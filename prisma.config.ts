@@ -11,6 +11,7 @@ export default defineConfig({
   },
   datasource: {
     url: process.env["DATABASE_URL"],
+    // @ts-ignore - Prisma config directUrl type error on Vercel
     directUrl: process.env["DIRECT_URL"],
   } as any,
 });
