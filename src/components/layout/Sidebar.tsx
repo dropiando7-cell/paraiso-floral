@@ -3,9 +3,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Sparkles, 
+import {
+  LayoutDashboard,
+  Sparkles,
   CircleDollarSign,
   Shield,
   Box,
@@ -17,6 +17,10 @@ import {
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
+
+interface SidebarProps {
+  dbUser: any;
+}
 
 const menuItems = [
   {
@@ -49,26 +53,36 @@ const bottomItems = [
   { name: 'Ayuda y Soporte', href: '/soporte', icon: HelpCircle },
 ];
 
-export function Sidebar() {
+export function Sidebar({ dbUser }: SidebarProps) {
   const pathname = usePathname();
 
   return (
     <aside className="w-[280px] bg-dark-900 border-r border-dark-800 flex flex-col h-screen shrink-0 sticky top-0">
-      {/* Brand */}
+      {/* Brand / Org Switcher */}
       <div className="h-[72px] flex items-center px-6 border-b border-dark-800 shrink-0">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 w-full">
           <div className="relative w-9 h-9 bg-white rounded-lg flex items-center justify-center p-1 overflow-hidden shrink-0">
-            <Image 
-              src="https://i.ibb.co/XkWfG1SF/elim-logo-blue-1.png" 
-              alt="Elim Honduras Logo" 
+            <Image
+              src={dbUser?.organization?.logoUrl || "https://i.ibb.co/XkWfG1SF/elim-logo-blue-1.png"}
+              alt="Logo"
               fill
               className="object-contain p-1"
             />
           </div>
-          <div className="flex flex-col">
-            <span className="text-white font-semibold text-sm leading-tight">Elim Honduras</span>
-            <span className="text-slate-400 text-xs text-[11px]">Enterprise Platform</span>
+          <div className="flex flex-col flex-1 overflow-hidden">
+            <span className="text-white font-semibold text-sm leading-tight truncate">
+              {dbUser?.role === 'SUPER_ADMIN' ? 'Misión Cristiana Elim' : dbUser?.organization?.name || 'Sistemas Elim'}
+            </span>
+            <span className="text-slate-400 text-xs text-[11px] truncate">
+              {dbUser?.role === 'SUPER_ADMIN' ? 'Sede Nacional' : 'Enterprise Platform'}
+            </span>
           </div>
+          {/* Mock Switcher Icon for Super Admin ONLY */}
+          {dbUser?.role === 'SUPER_ADMIN' && (
+            <button className="text-slate-500 hover:text-white transition-colors bg-dark-800/50 hover:bg-dark-800 p-1.5 rounded-lg shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /></svg>
+            </button>
+          )}
         </div>
       </div>
 
@@ -83,7 +97,7 @@ export function Sidebar() {
               {group.items.map((item) => {
                 const isActive = pathname === item.href;
                 const Icon = item.icon;
-                
+
                 return (
                   <Link
                     key={item.name}
@@ -91,8 +105,8 @@ export function Sidebar() {
                     className={twMerge(
                       clsx(
                         'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm',
-                        isActive 
-                          ? 'bg-dark-800 text-white font-medium' 
+                        isActive
+                          ? 'bg-dark-800 text-white font-medium'
                           : 'text-slate-400 hover:text-white hover:bg-dark-800/50'
                       )
                     )}
@@ -133,7 +147,7 @@ export function Sidebar() {
           );
         })}
       </div>
-      
+
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;

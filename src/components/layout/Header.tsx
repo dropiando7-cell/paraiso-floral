@@ -1,9 +1,14 @@
 import Image from 'next/image';
 import { Search, Bell } from 'lucide-react';
+import { UserDropdown } from './UserDropdown';
 
-export function Header() {
+interface HeaderProps {
+    dbUser: any;
+}
+
+export function Header({ dbUser }: HeaderProps) {
     return (
-        <header className="h-[72px] bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 sticky top-0 z-10 w-full">
+        <header className="h-[72px] bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 sticky top-0 z-50 w-full">
 
             {/* Search Bar */}
             <div className="flex-1 max-w-2xl">
@@ -35,21 +40,7 @@ export function Header() {
                     <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
                 </button>
 
-                {/* User Profile */}
-                <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
-                    <div className="flex flex-col items-end hidden md:flex">
-                        <span className="text-sm font-semibold text-slate-700 leading-tight">Isaac Paz</span>
-                        <span className="text-xs text-slate-400">Administrador General</span>
-                    </div>
-                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-100 shrink-0 relative">
-                        <Image
-                            src="https://i.ibb.co/99640p19/foto-isaac.png"
-                            alt="Isaac Paz"
-                            fill
-                            className="object-cover"
-                        />
-                    </div>
-                </div>
+                <UserDropdown dbUser={dbUser} />
 
             </div>
         </header>
