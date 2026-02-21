@@ -12,17 +12,45 @@ datasource db {
 }
 
 // ==========================================
+// ENUMS
+// ==========================================
+
+enum Role {
+  SUPER_ADMIN
+  ORG_ADMIN
+  USER
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum TwoFactorType {
+  NONE
+  WHATSAPP
+  TOTP
+}
+
+// ==========================================
 // MULTI-TENANT ARCHITECTURE (SistemasElim.app)
 // ==========================================
 
 model Organization {
-  id   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name String
+  id       String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name     String
+  slug     String             @unique
+  domain   String?            @unique
+  logoUrl  String?
+  status   OrganizationStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users User[]
+  users            User[]
+  passwordVaults   PasswordVault[]
+  events           Event[]
+  conciliations    Conciliation[]
 
   @@map("organizations")
 }
@@ -30,13 +58,80 @@ model Organization {
 model User {
   id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email          String @unique
-  clerkUserId    String? @unique // En caso de usar Clerk u otro Auth en el futuro
+  
+  // Tenancy & RBAC
   organizationId String @db.Uuid
+  role           Role   @default(USER)
 
-  organization Organization @relation(fields: [organizationId], references: [id])
+  // Security & MFA
+  phoneNumber       String?
+  twoFactorType     TwoFactorType @default(NONE)
+  twoFactorSecret   String?
+  twoFactorEnabled  Boolean       @default(false)
+
+  // Auth Relation (Supabase Auth ID will map to this ID or we can query by email)
+  
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("users")
 }
+
+// ==========================================
+// BUSINESS MODELS (Isolated by Organization)
+// ==========================================
+
+model PasswordVault {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+  
+  title          String
+  username       String
+  encryptedPass  String
+  url            String?
+  notes          String?
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("password_vaults")
+}
+
+model Event {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+  
+  name           String
+  description    String?
+  startDate      DateTime
+  endDate        DateTime
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("events")
+}
+
+model Conciliation {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+  
+  month          Int
+  year           Int
+  amount         Decimal @db.Decimal(10, 2)
+  status         String
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("conciliations")
+}
+
