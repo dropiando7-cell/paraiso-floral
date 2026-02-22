@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Lato } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: '--font-inter' });
+const lato = Lato({ weight: ['400', '700', '900'], subsets: ["latin"], variable: '--font-lato' });
 
 export const metadata: Metadata = {
   title: "Elim Honduras - Enterprise Platform",
@@ -16,7 +17,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${inter.variable} ${lato.variable} font-sans antialiased`}>
         {children}
       </body>
     </html>

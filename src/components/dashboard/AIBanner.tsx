@@ -15,9 +15,9 @@ export function AIBanner() {
 
                 <div className="flex-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
-                        <h2 className="text-xl font-bold tracking-tight mb-1">Análisis de Tendencias Financieras</h2>
+                        <h2 className="text-xl font-bold tracking-tight mb-1">Control de Ingresos y Egresos Diarios</h2>
                         <p className="text-brand-100 text-sm">
-                            Crecimiento proyectado del <strong className="text-white">12%</strong> para el próximo trimestre basado en datos históricos y tendencias actuales.
+                            Monitoreo en tiempo real de los flujos de caja y ofrendas procesadas hoy, con proyección de cumplimiento de compromisos financieros mensuales.
                         </p>
                     </div>
 

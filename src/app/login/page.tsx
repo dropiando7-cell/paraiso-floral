@@ -43,14 +43,17 @@ export default function LoginPage() {
             <div className="hidden lg:flex w-1/2 bg-[#0A192F] text-white p-12 flex-col justify-between relative overflow-hidden">
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 font-semibold text-2xl tracking-tight mb-8">
-                        <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center font-bold text-white shadow-lg">El</div>
+                        <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center font-bold text-white shadow-lg">SE</div>
                         <span>SistemasElim</span>
                     </div>
-                    <h1 className="text-4xl lg:text-5xl font-bold leading-tight mt-20 max-w-lg">
-                        Administración Nacional Centralizada
+
+
+
+                    <h1 className="text-4xl lg:text-5xl font-bold leading-tight max-w-lg mt-32">
+                        Portal de Gestión Elim
                     </h1>
-                    <p className="text-blue-200 mt-6 text-lg max-w-md">
-                        Plataforma Multi-Tenant segura y escalable para la Misión Cristiana Elim en Honduras.
+                    <p className="mt-8 text-blue-200 text-lg max-w-md leading-relaxed">
+                        Tu centro de mando para una gestión inteligente. Accede a todas tus herramientas administrativas y simplifica tu flujo de trabajo desde un solo lugar.
                     </p>
                 </div>
 

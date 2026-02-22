@@ -26,9 +26,9 @@ const menuItems = [
   {
     category: 'CORE',
     items: [
-      { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-      { name: 'Conciliación IA', href: '/conciliacion', icon: Sparkles, badge: 'Live', badgeColor: 'bg-brand-600 text-white' },
-      { name: 'Ingresos y Diezmos', href: '/ingresos', icon: CircleDollarSign },
+      { name: 'Portal Elim', href: '/', icon: LayoutDashboard },
+      { name: 'Conciliación Bancaria IA', href: '/conciliacion', icon: Sparkles },
+      { name: 'Ingresos Congregacionales', href: '/ingresos', icon: CircleDollarSign },
     ]
   },
   {
@@ -57,29 +57,21 @@ export function Sidebar({ dbUser }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-[280px] bg-dark-900 border-r border-dark-800 flex flex-col h-screen shrink-0 sticky top-0">
+    <aside className="w-[280px] bg-[#0500A3] border-r border-[#150ec4] flex flex-col h-screen shrink-0 sticky top-0">
       {/* Brand / Org Switcher */}
-      <div className="h-[72px] flex items-center px-6 border-b border-dark-800 shrink-0">
-        <div className="flex items-center gap-3 w-full">
-          <div className="relative w-9 h-9 bg-white rounded-lg flex items-center justify-center p-1 overflow-hidden shrink-0">
-            <Image
-              src={dbUser?.organization?.logoUrl || "https://i.ibb.co/XkWfG1SF/elim-logo-blue-1.png"}
-              alt="Logo"
-              fill
-              className="object-contain p-1"
-            />
+      <div className="h-[72px] flex items-center px-6 border-b border-[#150ec4] shrink-0">
+        <div className="flex items-center gap-3 w-full pl-0.5">
+          <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center font-bold text-white shadow-lg shrink-0">
+            SE
           </div>
-          <div className="flex flex-col flex-1 overflow-hidden">
-            <span className="text-white font-semibold text-sm leading-tight truncate">
-              {dbUser?.role === 'SUPER_ADMIN' ? 'Misión Cristiana Elim' : dbUser?.organization?.name || 'Sistemas Elim'}
-            </span>
-            <span className="text-slate-400 text-xs text-[11px] truncate">
-              {dbUser?.role === 'SUPER_ADMIN' ? 'Sede Nacional' : 'Enterprise Platform'}
+          <div className="flex flex-col flex-1 overflow-hidden ml-0.5">
+            <span className="text-white font-[900] text-xl tracking-wide leading-tight truncate" style={{ fontFamily: 'var(--font-lato), sans-serif' }}>
+              SistemasElim
             </span>
           </div>
           {/* Mock Switcher Icon for Super Admin ONLY */}
           {dbUser?.role === 'SUPER_ADMIN' && (
-            <button className="text-slate-500 hover:text-white transition-colors bg-dark-800/50 hover:bg-dark-800 p-1.5 rounded-lg shrink-0">
+            <button className="text-white/60 hover:text-white transition-colors bg-[#1A14B8]/50 hover:bg-[#1A14B8] p-1.5 rounded-lg shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /></svg>
             </button>
           )}
@@ -87,12 +79,14 @@ export function Sidebar({ dbUser }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <div className="flex-1 overflow-y-auto py-6 flex flex-col gap-6 px-4 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-6 px-4 custom-scrollbar">
         {menuItems.map((group) => (
           <div key={group.category} className="flex flex-col gap-2">
-            <span className="text-[11px] font-semibold text-slate-500 tracking-wider px-2">
-              {group.category}
-            </span>
+            {group.category !== 'CORE' && (
+              <span className="text-[11px] font-semibold text-white/50 tracking-wider px-2">
+                {group.category}
+              </span>
+            )}
             <div className="flex flex-col gap-1">
               {group.items.map((item) => {
                 const isActive = pathname === item.href;
@@ -106,13 +100,13 @@ export function Sidebar({ dbUser }: SidebarProps) {
                       clsx(
                         'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm',
                         isActive
-                          ? 'bg-dark-800 text-white font-medium'
-                          : 'text-slate-400 hover:text-white hover:bg-dark-800/50'
+                          ? 'bg-white text-[#0500A3] font-bold shadow-md'
+                          : 'text-white/90 hover:text-white hover:bg-[#1A14B8]'
                       )
                     )}
                   >
                     <div className="flex items-center gap-3">
-                      <Icon className={clsx('w-4 h-4', isActive ? 'text-brand-500' : 'text-slate-500 group-hover:text-slate-300')} />
+                      <Icon className={clsx('w-4 h-4', isActive ? 'text-[#0500A3]' : 'text-white/90 group-hover:text-white')} />
                       <span>{item.name}</span>
                     </div>
                     {item.badge && (
@@ -132,16 +126,16 @@ export function Sidebar({ dbUser }: SidebarProps) {
       </div>
 
       {/* Bottom Actions */}
-      <div className="p-4 border-t border-dark-800 flex flex-col gap-1 shrink-0">
+      <div className="p-4 border-t border-[#150ec4] flex flex-col gap-1 shrink-0">
         {bottomItems.map((item) => {
           const Icon = item.icon;
           return (
             <Link
               key={item.name}
               href={item.href}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-dark-800/50 transition-all duration-200 text-sm group"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/90 hover:text-white hover:bg-[#1A14B8] transition-all duration-200 text-sm group"
             >
-              <Icon className="w-4 h-4 text-slate-500 group-hover:text-slate-300" />
+              <Icon className="w-4 h-4 text-white/90 group-hover:text-white" />
               <span>{item.name}</span>
             </Link>
           );
@@ -156,7 +150,7 @@ export function Sidebar({ dbUser }: SidebarProps) {
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background-color: #334155;
+          background-color: #1A14B8;
           border-radius: 10px;
         }
       `}</style>
