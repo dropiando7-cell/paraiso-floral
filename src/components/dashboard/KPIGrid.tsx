@@ -39,16 +39,11 @@ const kpis = [
     }
 ];
 
-interface KPIGridProps {
-    showValues?: boolean;
-}
-
-export function KPIGrid({ showValues = false }: KPIGridProps) {
+export function KPIGrid() {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
             {kpis.map((kpi, idx) => {
                 const Icon = kpi.icon;
-                const isBlurred = kpi.sensitive && !showValues;
                 return (
                     <div
                         key={idx}
@@ -60,21 +55,13 @@ export function KPIGrid({ showValues = false }: KPIGridProps) {
                             </div>
                             <div className="flex items-center gap-1 text-success text-sm font-medium bg-emerald-50 px-2 py-1 rounded-md">
                                 <ArrowUpRight className="w-3 h-3" />
-                                <span
-                                    className={isBlurred ? 'blur-sm select-none transition-all duration-300' : 'transition-all duration-300'}
-                                >
-                                    {kpi.trend}
-                                </span>
+                                <span>{kpi.trend}</span>
                             </div>
                         </div>
 
                         <div className="flex flex-col gap-1">
                             <span className="text-slate-500 text-sm font-medium">{kpi.title}</span>
-                            <span
-                                className={`text-2xl font-bold text-slate-800 tracking-tight transition-all duration-300 ${isBlurred ? 'blur-md select-none' : ''}`}
-                            >
-                                {kpi.value}
-                            </span>
+                            <span className="text-2xl font-bold text-slate-800 tracking-tight">{kpi.value}</span>
                         </div>
                     </div>
                 );
