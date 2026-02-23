@@ -1,17 +1,26 @@
-import Image from 'next/image';
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, Menu } from 'lucide-react';
 import { UserDropdown } from './UserDropdown';
 
 interface HeaderProps {
     dbUser: any;
+    onMenuClick?: () => void;
 }
 
-export function Header({ dbUser }: HeaderProps) {
+export function Header({ dbUser, onMenuClick }: HeaderProps) {
     return (
-        <header className="h-[72px] bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 sticky top-0 z-50 w-full">
+        <header className="h-[72px] bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 sticky top-0 z-30 w-full gap-3">
+
+            {/* Hamburger — mobile only */}
+            <button
+                onClick={onMenuClick}
+                className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
+                aria-label="Abrir menú"
+            >
+                <Menu className="w-5 h-5" />
+            </button>
 
             {/* Search Bar */}
-            <div className="flex-1 max-w-2xl">
+            <div className="hidden sm:flex flex-1 max-w-2xl">
                 <div className="relative flex items-center w-full">
                     <Search className="w-4 h-4 text-slate-400 absolute left-4" />
                     <input
@@ -25,8 +34,11 @@ export function Header({ dbUser }: HeaderProps) {
                 </div>
             </div>
 
+            {/* Mobile: show app name when search is hidden */}
+            <div className="sm:hidden flex-1 font-semibold text-slate-700 text-sm">SistemasElim</div>
+
             {/* Right Actions */}
-            <div className="flex items-center gap-6 ml-6">
+            <div className="flex items-center gap-3 md:gap-6 ml-auto">
 
                 {/* System Status Badge */}
                 <div className="hidden md:flex items-center gap-2 bg-brand-50 px-3 py-1.5 rounded-full border border-brand-100">

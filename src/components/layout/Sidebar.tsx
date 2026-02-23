@@ -23,6 +23,7 @@ import { twMerge } from 'tailwind-merge';
 
 interface SidebarProps {
   dbUser: any;
+  onClose?: () => void;
 }
 
 interface MenuItem {
@@ -78,11 +79,11 @@ const bottomItems = [
   { name: 'Ayuda y Soporte', href: '/soporte', icon: HelpCircle },
 ];
 
-export function Sidebar({ dbUser }: SidebarProps) {
+export function Sidebar({ dbUser, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-[280px] bg-[#0500A3] border-r border-[#150ec4] flex flex-col h-screen shrink-0 sticky top-0">
+    <aside className="w-[280px] bg-[#0500A3] border-r border-[#150ec4] flex flex-col h-full min-h-screen shrink-0">
       {/* Brand / Org Switcher */}
       <div className="h-[72px] flex items-center px-6 border-b border-[#150ec4] shrink-0">
         <div className="flex items-center gap-2 w-full pl-0.5">
@@ -94,6 +95,16 @@ export function Sidebar({ dbUser }: SidebarProps) {
               SistemasElim
             </span>
           </div>
+          {/* Close button — mobile only */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="lg:hidden ml-auto text-white/60 hover:text-white p-1.5 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+              aria-label="Cerrar menú"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
+          )}
           {/* Mock Switcher Icon for Super Admin ONLY */}
           {dbUser?.role === 'SUPER_ADMIN' && (
             <button className="text-white/60 hover:text-white transition-colors bg-[#1A14B8]/50 hover:bg-[#1A14B8] p-1.5 rounded-lg shrink-0">
