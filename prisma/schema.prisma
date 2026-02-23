@@ -19,6 +19,7 @@ enum Role {
   SUPER_ADMIN
   ORG_ADMIN
   USER
+  CHECKIN_KIDS
 }
 
 enum OrganizationStatus {
@@ -51,6 +52,8 @@ model Organization {
   passwordVaults   PasswordVault[]
   events           Event[]
   conciliations    Conciliation[]
+  kids             Kid[]
+  checkIns         CheckIn[]
 
   @@map("organizations")
 }
@@ -136,3 +139,45 @@ model Conciliation {
   @@map("conciliations")
 }
 
+// ==========================================
+// CHECKIN KIDS MODULE
+// ==========================================
+
+model Kid {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  age            Int
+  classroomId    String
+  classroomName  String
+  allergies      String   @default("Ninguna")
+  parentName     String
+  parentPhone    String
+  photoEmoji     String   @default("🧒")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  checkIns     CheckIn[]
+
+  @@map("kids")
+}
+
+model CheckIn {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @db.Uuid
+  kidId          String    @db.Uuid
+  securityCode   String
+  checkInTime    DateTime  @default(now())
+  checkOutTime   DateTime?
+  checkedOut     Boolean   @default(false)
+  parentNotified Boolean   @default(false)
+  notifProvider  String?
+  notifMessageId String?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kid          Kid          @relation(fields: [kidId], references: [id], onDelete: Cascade)
+
+  @@map("check_ins")
+}

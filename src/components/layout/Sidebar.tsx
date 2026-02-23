@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -13,7 +15,8 @@ import {
   TrendingUp,
   Calendar,
   Settings,
-  HelpCircle
+  HelpCircle,
+  Baby
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -22,7 +25,16 @@ interface SidebarProps {
   dbUser: any;
 }
 
-const menuItems = [
+interface MenuItem {
+  name: string;
+  href: string;
+  icon: React.ElementType;
+  badge?: string;
+  badgeColor?: string;
+  roles?: string[];
+}
+
+const menuItems: { category: string; items: MenuItem[] }[] = [
   {
     category: 'CORE',
     items: [
@@ -34,7 +46,7 @@ const menuItems = [
   {
     category: 'LEGAL & ACTIVOS',
     items: [
-      { name: 'Bóveda de Contraseñas', href: '/boveda', icon: Shield },
+      { name: 'Gestor de Contraseñas', href: '/boveda', icon: Shield },
       { name: 'Inventario de Activos', href: '/inventario', icon: Box },
       { name: 'Actas de Junta', href: '/actas', icon: FileText, badge: 'OCR', badgeColor: 'bg-dark-800 text-brand-100' },
     ]
@@ -44,6 +56,19 @@ const menuItems = [
     items: [
       { name: 'Predicción Financiera 2026', href: '/prediccion', icon: TrendingUp },
       { name: 'Calendario Centralizado', href: '/calendario', icon: Calendar },
+    ]
+  },
+  {
+    category: 'EVENTOS & SERVICIO',
+    items: [
+      {
+        name: 'Checkin Kids',
+        href: '/checkin',
+        icon: Baby,
+        badge: 'RETIRO',
+        badgeColor: 'bg-pink-500/20 text-pink-300',
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'CHECKIN_KIDS'],
+      },
     ]
   }
 ];
@@ -60,12 +85,12 @@ export function Sidebar({ dbUser }: SidebarProps) {
     <aside className="w-[280px] bg-[#0500A3] border-r border-[#150ec4] flex flex-col h-screen shrink-0 sticky top-0">
       {/* Brand / Org Switcher */}
       <div className="h-[72px] flex items-center px-6 border-b border-[#150ec4] shrink-0">
-        <div className="flex items-center gap-3 w-full pl-0.5">
+        <div className="flex items-center gap-2 w-full pl-0.5">
           <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center font-bold text-white shadow-lg shrink-0">
             SE
           </div>
           <div className="flex flex-col flex-1 overflow-hidden ml-0.5">
-            <span className="text-white font-[900] text-xl tracking-wide leading-tight truncate" style={{ fontFamily: 'var(--font-lato), sans-serif' }}>
+            <span style={{ fontFamily: 'Inter, "Inter Fallback", sans-serif', fontWeight: 600, fontSize: '22px', lineHeight: '32px', color: 'rgb(255, 255, 255)' }} className="truncate">
               SistemasElim
             </span>
           </div>
@@ -88,38 +113,42 @@ export function Sidebar({ dbUser }: SidebarProps) {
               </span>
             )}
             <div className="flex flex-col gap-1">
-              {group.items.map((item) => {
-                const isActive = pathname === item.href;
-                const Icon = item.icon;
+              {group.items
+                .filter((item) =>
+                  !item.roles || item.roles.includes(dbUser?.role)
+                )
+                .map((item) => {
+                  const isActive = pathname === item.href;
+                  const Icon = item.icon;
 
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className={twMerge(
-                      clsx(
-                        'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm',
-                        isActive
-                          ? 'bg-white text-[#0500A3] font-bold shadow-md'
-                          : 'text-white/90 hover:text-white hover:bg-[#1A14B8]'
-                      )
-                    )}
-                  >
-                    <div className="flex items-center gap-3">
-                      <Icon className={clsx('w-4 h-4', isActive ? 'text-[#0500A3]' : 'text-white/90 group-hover:text-white')} />
-                      <span>{item.name}</span>
-                    </div>
-                    {item.badge && (
-                      <span className={clsx(
-                        'text-[10px] px-2 py-0.5 rounded-full font-medium',
-                        item.badgeColor
-                      )}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={twMerge(
+                        clsx(
+                          'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm',
+                          isActive
+                            ? 'bg-white text-[#0500A3] font-bold shadow-md'
+                            : 'text-white/90 hover:text-white hover:bg-[#1A14B8]'
+                        )
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className={clsx('w-4 h-4', isActive ? 'text-[#0500A3]' : 'text-white/90 group-hover:text-white')} />
+                        <span>{item.name}</span>
+                      </div>
+                      {item.badge && (
+                        <span className={clsx(
+                          'text-[10px] px-2 py-0.5 rounded-full font-medium',
+                          item.badgeColor
+                        )}>
+                          {item.badge}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
             </div>
           </div>
         ))}
