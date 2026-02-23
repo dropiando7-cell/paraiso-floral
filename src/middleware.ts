@@ -13,7 +13,9 @@ export async function middleware(request: NextRequest) {
 
     // 1. Redirect unauthenticated users to /login if they attempt to access protected routes
     // For now, everything except /login and static assets is protected.
-    const isPublicRoute = url.pathname.startsWith('/login')
+    const isPublicRoute =
+        url.pathname.startsWith('/login') ||
+        url.pathname.startsWith('/auth/')  // OAuth callbacks must not be intercepted
 
     if (!user && !isPublicRoute) {
         url.pathname = '/login'
