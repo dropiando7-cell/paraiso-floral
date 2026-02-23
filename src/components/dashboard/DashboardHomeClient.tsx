@@ -20,8 +20,8 @@ export function DashboardHomeClient() {
                 <button
                     onClick={() => setShowValues(v => !v)}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${showValues
-                            ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
-                            : 'bg-[#0500A3] text-white border-[#0500A3] hover:bg-[#0600c2]'
+                        ? 'bg-slate-100 text-slate-600 border-slate-200 hover:bg-slate-200'
+                        : 'bg-[#0500A3] text-white border-[#0500A3] hover:bg-[#0600c2]'
                         }`}
                     title={showValues ? 'Ocultar valores' : 'Revelar valores'}
                 >
@@ -41,7 +41,7 @@ export function DashboardHomeClient() {
 
             <AIBanner />
             <EventBanner />
-            <KPIGrid showValues={showValues} />
+            <KPIGrid />
 
             {/* Espacio para gráficos y sistema más adelante */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6 pb-12">
