@@ -51,6 +51,8 @@ interface ReportHistoryItem {
     tipoCuenta: string;
     fileName: string;
     generatedAt: string;
+    month?: string;   // zero-padded, e.g. '12'
+    year?: string;    // e.g. '2025'
     status: ReportStatus;
     isApproved: boolean;
     report?: ReconciliationReport;
@@ -214,6 +216,7 @@ export default function ConciliacionPage() {
     const [selectedMonth, setSelectedMonth] = useState('03');
     const [selectedYear, setSelectedYear] = useState('2026');
     const [history, setHistory] = useState<ReportHistoryItem[]>([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(true);
     const [expandedId, setExpandedId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [userRole, setUserRole] = useState<string>('USER');
@@ -265,6 +268,43 @@ export default function ConciliacionPage() {
             }
         };
         fetchRole();
+    }, []);
+
+    // Load reconciliation history from DB on mount
+    useEffect(() => {
+        const loadHistory = async () => {
+            setIsLoadingHistory(true);
+            try {
+                const res = await fetch('/api/conciliacion/list');
+                if (!res.ok) return;
+                const data = await res.json();
+                const MONTH_PAD = (n: number) => String(n).padStart(2, '0');
+                const items: ReportHistoryItem[] = (data.records ?? []).map((r: {
+                    id: string; banco: string; tipoCuenta: string;
+                    month: number; year: number; status: string;
+                    isApproved: boolean; reportContent: ReconciliationReport | null;
+                    filesFound: string[]; createdAt: string;
+                }) => ({
+                    id: r.id,
+                    banco: r.banco,
+                    tipoCuenta: r.tipoCuenta,
+                    fileName: `Conciliacion_${r.banco}_${MONTH_NAMES[MONTH_PAD(r.month)]}${r.year}.xlsx`,
+                    generatedAt: r.createdAt.split('T')[0],
+                    month: MONTH_PAD(r.month),
+                    year: String(r.year),
+                    status: r.status as ReportStatus,
+                    isApproved: r.isApproved,
+                    report: r.reportContent ?? undefined,
+                    filesFound: r.filesFound,
+                }));
+                setHistory(items);
+            } catch {
+                // silently fail — page still works without history
+            } finally {
+                setIsLoadingHistory(false);
+            }
+        };
+        loadHistory();
     }, []);
 
     const canApprove = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN';
@@ -594,7 +634,9 @@ export default function ConciliacionPage() {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-5 text-slate-500 text-sm">
-                                                    {MONTH_NAMES[selectedMonth]} {selectedYear}
+                                                    {item.month && item.year
+                                                        ? `${MONTH_NAMES[item.month]} ${item.year}`
+                                                        : `${MONTH_NAMES[selectedMonth]} ${selectedYear}`}
                                                 </td>
                                                 <td className="px-6 py-5">
                                                     <div className="flex flex-col gap-2 items-start">
@@ -669,16 +711,27 @@ export default function ConciliacionPage() {
                     </div>
                 )}
 
+                {/* Loading state */}
+                {isLoadingHistory && history.length === 0 && (
+                    <div className="bg-white rounded-[24px] shadow-sm border border-slate-100 px-8 py-16 text-center">
+                        <div className="w-12 h-12 rounded-xl bg-[#0500A3]/8 flex items-center justify-center mx-auto mb-4">
+                            <RefreshCw className="w-6 h-6 text-[#0500A3] animate-spin" />
+                        </div>
+                        <p className="text-slate-500 font-medium">Cargando historial de conciliaciones...</p>
+                    </div>
+                )}
+
                 {/* Empty state */}
-                {history.length === 0 && (
+                {!isLoadingHistory && history.length === 0 && (
                     <div className="bg-white rounded-[24px] shadow-sm border border-slate-100 px-8 py-16 text-center">
                         <div className="w-16 h-16 rounded-2xl bg-[#0500A3]/8 flex items-center justify-center mx-auto mb-4">
                             <Sparkles className="w-8 h-8 text-[#0500A3]" />
                         </div>
-                        <p className="text-slate-600 font-medium">Selecciona el banco, tipo de cuenta y período para generar tu primera conciliación.</p>
-                        <p className="text-slate-400 text-sm mt-2">La IA buscará los archivos en Google Drive y generará el análisis automáticamente.</p>
+                        <p className="text-slate-600 font-medium">No hay conciliaciones generadas aún.</p>
+                        <p className="text-slate-400 text-sm mt-2">Selecciona el banco, tipo de cuenta y período para generar tu primera conciliación.</p>
                     </div>
                 )}
+
 
             </main>
 
