@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Timeout Options – Isaac</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #eef0f7;
+    min-height: 100vh;
+    padding: 40px 20px 60px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 500;
+    color: #6b7280;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    text-align: center;
+    font-size: 13px;
+    color: #9ca3af;
+    margin-bottom: 48px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 32px;
+    max-width: 1100px;
+    margin: 0 auto;
+    align-items: start;
+  }
+
+  .card-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .option-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #374151;
+  }
+
+  .option-num {
+    width: 22px; height: 22px;
+    background: #1B3FE0;
+    color: white;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  /* ===================== OPTION 1 – CLEAN MINIMAL ===================== */
+  .modal-1 {
+    background: #fff;
+    border-radius: 20px;
+    width: 100%;
+    padding: 32px 28px 28px;
+    box-shadow: 0 20px 60px rgba(15,20,40,0.15), 0 0 0 1px rgba(0,0,0,0.04);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .modal-1::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, #1B3FE0, #4C6EF5, #748FFC);
+  }
+
+  .m1-icon {
+    width: 52px; height: 52px;
+    background: #FFF3CD;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 18px;
+  }
+
+  .modal-1 h2 {
+    font-size: 18px; font-weight: 600; color: #0f1428;
+    letter-spacing: -0.3px; margin-bottom: 6px;
+  }
+
+  .modal-1 p {
+    font-size: 13.5px; color: #6b7280; line-height: 1.6; margin-bottom: 22px;
+  }
+
+  /* Ring countdown */
+  .ring-wrap {
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 0 24px;
+  }
+
+  .ring-svg { transform: rotate(-90deg); }
+
+  .ring-bg { fill: none; stroke: #E5E7EB; stroke-width: 4; }
+  .ring-fill {
+    fill: none;
+    stroke: #1B3FE0;
+    stroke-width: 4;
+    stroke-linecap: round;
+    stroke-dasharray: 163;
+    stroke-dashoffset: 0;
+    transition: stroke-dashoffset 1s linear;
+  }
+
+  .ring-label {
+    position: absolute;
+    font-size: 22px; font-weight: 600; color: #0f1428;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .ring-container { position: relative; display: flex; align-items: center; justify-content: center; }
+
+  .m1-actions { display: flex; gap: 10px; }
+
+  .btn-ghost {
+    flex: 1; padding: 11px;
+    border: 1.5px solid #E5E7EB; border-radius: 10px;
+    background: white; color: #374151;
+    font-size: 13.5px; font-weight: 500;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .btn-ghost:hover { border-color: #9CA3AF; background: #F9FAFB; }
+
+  .btn-solid {
+    flex: 1.4; padding: 11px;
+    border: none; border-radius: 10px;
+    background: linear-gradient(135deg, #1B3FE0, #4C6EF5);
+    color: white;
+    font-size: 13.5px; font-weight: 600;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    box-shadow: 0 4px 14px rgba(27,63,224,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .btn-solid:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(27,63,224,0.4); }
+
+  /* ===================== OPTION 2 – DARK DRAMATIC ===================== */
+  .modal-2 {
+    background: #0D1117;
+    border-radius: 20px;
+    width: 100%;
+    padding: 0;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .m2-header {
+    background: linear-gradient(135deg, #1B3FE0 0%, #0D0A30 100%);
+    padding: 28px 28px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .m2-header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; left: 0; right: 0; height: 40px;
+    background: #0D1117;
+    clip-path: ellipse(55% 100% at 50% 100%);
+  }
+
+  /* Pulsing circles */
+  .pulse-rings {
+    position: absolute;
+    top: 50%; right: 24px;
+    transform: translateY(-50%);
+  }
+
+  .pulse-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    animation: pulseRing 2s ease-out infinite;
+  }
+
+  .pulse-ring:nth-child(1) { width: 60px; height: 60px; top: -30px; left: -30px; }
+  .pulse-ring:nth-child(2) { width: 90px; height: 90px; top: -45px; left: -45px; animation-delay: 0.5s; }
+  .pulse-ring:nth-child(3) { width: 120px; height: 120px; top: -60px; left: -60px; animation-delay: 1s; }
+
+  @keyframes pulseRing {
+    0%   { opacity: 0.6; transform: scale(0.8); }
+    100% { opacity: 0; transform: scale(1.2); }
+  }
+
+  .m2-icon-circle {
+    width: 44px; height: 44px;
+    background: rgba(255,255,255,0.15);
+    border: 1.5px solid rgba(255,255,255,0.3);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    backdrop-filter: blur(10px);
+    margin-bottom: 12px;
+    position: relative; z-index: 1;
+  }
+
+  .m2-header h2 {
+    font-size: 18px; font-weight: 600; color: #fff;
+    letter-spacing: -0.3px; position: relative; z-index: 1;
+  }
+
+  .m2-header p {
+    font-size: 13px; color: rgba(255,255,255,0.6);
+    margin-top: 4px; position: relative; z-index: 1;
+  }
+
+  .m2-body { padding: 24px 28px 28px; }
+
+  /* Countdown bar */
+  .cd-bar-wrap {
+    background: #1A2030;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .cd-num {
+    font-size: 28px; font-weight: 600;
+    color: #748FFC;
+    font-family: 'DM Mono', monospace;
+    min-width: 48px;
+  }
+
+  .cd-bar-right { flex: 1; }
+
+  .cd-label {
+    font-size: 11px; color: #6b7280;
+    text-transform: uppercase; letter-spacing: 0.8px;
+    margin-bottom: 6px;
+  }
+
+  .cd-track {
+    background: #2D3748;
+    border-radius: 999px;
+    height: 4px;
+    overflow: hidden;
+  }
+
+  .cd-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #1B3FE0, #748FFC);
+    border-radius: 999px;
+    transition: width 1s linear;
+    width: 100%;
+  }
+
+  .m2-info {
+    font-size: 13px; color: #6b7280; line-height: 1.6; margin-bottom: 22px;
+  }
+
+  .m2-actions { display: flex; gap: 10px; }
+
+  .btn-dark-ghost {
+    flex: 1; padding: 11px;
+    border: 1.5px solid #2D3748; border-radius: 10px;
+    background: transparent; color: #9CA3AF;
+    font-size: 13.5px; font-weight: 500;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn-dark-ghost:hover { border-color: #4B5563; color: #D1D5DB; }
+
+  .btn-dark-solid {
+    flex: 1.4; padding: 11px;
+    border: none; border-radius: 10px;
+    background: linear-gradient(135deg, #1B3FE0, #4C6EF5);
+    color: white;
+    font-size: 13.5px; font-weight: 600;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    box-shadow: 0 4px 20px rgba(27,63,224,0.4);
+  }
+
+  /* ===================== OPTION 3 – SOFT FRIENDLY ===================== */
+  .modal-3 {
+    background: #fff;
+    border-radius: 24px;
+    width: 100%;
+    padding: 32px 28px 28px;
+    box-shadow: 0 16px 48px rgba(15,20,40,0.1);
+    position: relative;
+    overflow: hidden;
+    text-align: center;
+  }
+
+  /* Soft blobs background */
+  .m3-bg {
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 160px; height: 160px;
+    background: radial-gradient(circle, #EEF2FF 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  .m3-bg2 {
+    position: absolute;
+    bottom: -30px; left: -30px;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, #EEF2FF 0%, transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+
+  /* Lock animation */
+  .lock-anim {
+    width: 72px; height: 72px;
+    background: linear-gradient(135deg, #EEF2FF, #E0E7FF);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 18px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .lock-anim::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    border: 2px solid #C7D2FE;
+    border-top-color: #1B3FE0;
+    animation: spin 3s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .modal-3 h2 {
+    font-size: 18px; font-weight: 600; color: #0f1428;
+    letter-spacing: -0.3px; margin-bottom: 6px; position: relative; z-index: 1;
+  }
+
+  .modal-3 .m3-sub {
+    font-size: 13px; color: #9ca3af; margin-bottom: 20px;
+    font-family: 'DM Mono', monospace; position: relative; z-index: 1;
+  }
+
+  /* Flip countdown */
+  .flip-cd {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 0 0 20px;
+    position: relative; z-index: 1;
+  }
+
+  .flip-digit {
+    width: 48px; height: 52px;
+    background: #F5F7FF;
+    border: 1.5px solid #E0E7FF;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 600; color: #1B3FE0;
+    font-family: 'DM Mono', monospace;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .flip-digit::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 0; right: 0; height: 1px;
+    background: #C7D2FE;
+  }
+
+  .flip-sep {
+    font-size: 22px; font-weight: 700; color: #C7D2FE;
+    margin-bottom: 4px; font-family: 'DM Mono', monospace;
+  }
+
+  .m3-desc {
+    font-size: 13.5px; color: #6b7280; line-height: 1.6;
+    margin-bottom: 24px; position: relative; z-index: 1;
+  }
+
+  .m3-actions { display: flex; gap: 10px; position: relative; z-index: 1; }
+
+  .btn-m3-ghost {
+    flex: 1; padding: 11px;
+    border: 1.5px solid #E5E7EB; border-radius: 10px;
+    background: white; color: #374151;
+    font-size: 13.5px; font-weight: 500;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    transition: all 0.15s;
+  }
+  .btn-m3-ghost:hover { border-color: #C7D2FE; color: #1B3FE0; background: #F5F7FF; }
+
+  .btn-m3-solid {
+    flex: 1.4; padding: 11px;
+    border: none; border-radius: 10px;
+    background: linear-gradient(135deg, #1B3FE0, #4C6EF5);
+    color: white;
+    font-size: 13.5px; font-weight: 600;
+    cursor: pointer; font-family: 'DM Sans', sans-serif;
+    box-shadow: 0 4px 14px rgba(27,63,224,0.3);
+    transition: transform 0.15s;
+  }
+  .btn-m3-solid:hover { transform: translateY(-1px); }
+
+  /* Flavor tags */
+  .flavor {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-top: 10px;
+  }
+  .flavor-1 { background: #EEF2FF; color: #3730a3; }
+  .flavor-2 { background: #1A2030; color: #748FFC; border: 1px solid #2D3748; }
+  .flavor-3 { background: #EEF2FF; color: #3730a3; }
+
+  /* Flipped / expired states */
+  .expired-banner {
+    display: none;
+    padding: 8px 14px;
+    background: #FEE2E2;
+    border-radius: 8px;
+    font-size: 12.5px;
+    color: #DC2626;
+    font-weight: 500;
+    text-align: center;
+    margin-bottom: 16px;
+    animation: fadeIn 0.3s ease;
+  }
+  @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+
+</style>
+</head>
+<body>
+
+<h1>Ventana de Inactividad · 3 Opciones</h1>
+<p class="subtitle">para Isaac — elige la que más le guste</p>
+
+<div class="grid">
+
+  <!-- ═══════════════ OPCIÓN 1 ═══════════════ -->
+  <div class="card-wrap">
+    <div class="option-label">
+      <div class="option-num">1</div>
+      Limpia y Directa
+    </div>
+    <span class="flavor flavor-1">⚪ Minimalista · Profesional</span>
+
+    <div class="modal-1" style="width:100%">
+      <div class="m1-icon">
+        <svg width="22" height="22" fill="none" viewBox="0 0 24 24">
+          <path d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" stroke="#D97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <h2>Sesión a punto de cerrarse</h2>
+      <p>Has estado inactivo por un tiempo. Por seguridad, cerraremos tu sesión automáticamente en:</p>
+
+      <div class="ring-wrap">
+        <div class="ring-container">
+          <svg class="ring-svg" width="80" height="80" viewBox="0 0 60 60">
+            <circle class="ring-bg" cx="30" cy="30" r="26"/>
+            <circle class="ring-fill" id="ring1" cx="30" cy="30" r="26"/>
+          </svg>
+          <span class="ring-label" id="counter1">30</span>
+        </div>
+      </div>
+
+      <div id="expired1" class="expired-banner">⚠ Sesión cerrada por inactividad</div>
+
+      <div class="m1-actions">
+        <button class="btn-ghost" onclick="logout(1)">Cerrar sesión</button>
+        <button class="btn-solid" onclick="keepAlive(1)">Seguir conectado</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ OPCIÓN 2 ═══════════════ -->
+  <div class="card-wrap">
+    <div class="option-label">
+      <div class="option-num">2</div>
+      Dark & Urgente
+    </div>
+    <span class="flavor flavor-2">⚫ Oscuro · Llamativo</span>
+
+    <div class="modal-2" style="width:100%">
+      <div class="m2-header">
+        <div class="pulse-rings">
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring"></div>
+          <div class="pulse-ring"></div>
+        </div>
+        <div class="m2-icon-circle">
+          <svg width="18" height="18" fill="none" viewBox="0 0 24 24">
+            <path d="M18.364 5.636a9 9 0 11-12.728 0M12 3v9" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <h2>Inactividad detectada</h2>
+        <p>Tu sesión se cerrará automáticamente</p>
+      </div>
+
+      <div class="m2-body">
+        <div class="cd-bar-wrap">
+          <div class="cd-num" id="counter2">30</div>
+          <div class="cd-bar-right">
+            <div class="cd-label">Tiempo restante</div>
+            <div class="cd-track">
+              <div class="cd-fill" id="bar2"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="expired2" class="expired-banner">⚠ Sesión cerrada por inactividad</div>
+
+        <p class="m2-info">Por políticas de seguridad, las sesiones inactivas se cierran automáticamente. Todos tus cambios guardados estarán disponibles al volver a ingresar.</p>
+
+        <div class="m2-actions">
+          <button class="btn-dark-ghost" onclick="logout(2)">Cerrar sesión</button>
+          <button class="btn-dark-solid" onclick="keepAlive(2)">Mantener sesión</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════ OPCIÓN 3 ═══════════════ -->
+  <div class="card-wrap">
+    <div class="option-label">
+      <div class="option-num">3</div>
+      Suave & Amigable
+    </div>
+    <span class="flavor flavor-3">🔵 Centrada · Cálida</span>
+
+    <div class="modal-3" style="width:100%">
+      <div class="m3-bg"></div>
+      <div class="m3-bg2"></div>
+
+      <div class="lock-anim">
+        <svg width="26" height="26" fill="none" viewBox="0 0 24 24">
+          <rect x="3" y="11" width="18" height="11" rx="2" stroke="#1B3FE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M7 11V7a5 5 0 0110 0v4" stroke="#1B3FE0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="12" cy="16" r="1.5" fill="#1B3FE0"/>
+        </svg>
+      </div>
+
+      <h2>¿Sigues ahí?</h2>
+      <p class="m3-sub">Banco de Occidente · Diciembre 2025</p>
+
+      <div class="flip-cd">
+        <div class="flip-digit" id="d10">0</div>
+        <div class="flip-digit" id="d1">30</div>
+        <div class="flip-sep">s</div>
+      </div>
+
+      <div id="expired3" class="expired-banner">⚠ Sesión cerrada por inactividad</div>
+
+      <p class="m3-desc">No hemos detectado actividad reciente. Por seguridad cerraremos tu sesión en breve. ¿Deseas continuar trabajando?</p>
+
+      <div class="m3-actions">
+        <button class="btn-m3-ghost" onclick="logout(3)">No, salir</button>
+        <button class="btn-m3-solid" onclick="keepAlive(3)">Sí, continuar</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const TOTAL = 30;
+  const timers = {};
+  const counts = { 1: TOTAL, 2: TOTAL, 3: TOTAL };
+  const circumference = 2 * Math.PI * 26; // ~163.4
+
+  function startTimer(id) {
+    if (timers[id]) clearInterval(timers[id]);
+    counts[id] = TOTAL;
+    updateUI(id);
+
+    timers[id] = setInterval(() => {
+      counts[id]--;
+      if (counts[id] <= 0) {
+        counts[id] = 0;
+        updateUI(id);
+        clearInterval(timers[id]);
+        showExpired(id);
+        return;
+      }
+      updateUI(id);
+    }, 1000);
+  }
+
+  function updateUI(id) {
+    const n = counts[id];
+    const pct = n / TOTAL;
+
+    if (id === 1) {
+      document.getElementById('counter1').textContent = n;
+      const offset = circumference * (1 - pct);
+      document.getElementById('ring1').style.strokeDashoffset = offset;
+      // color warning
+      document.getElementById('ring1').style.stroke = n <= 10 ? '#EF4444' : '#1B3FE0';
+      document.getElementById('counter1').style.color = n <= 10 ? '#EF4444' : '#0f1428';
+    }
+
+    if (id === 2) {
+      document.getElementById('counter2').textContent = n;
+      document.getElementById('counter2').style.color = n <= 10 ? '#EF4444' : '#748FFC';
+      document.getElementById('bar2').style.width = (pct * 100) + '%';
+      document.getElementById('bar2').style.background = n <= 10
+        ? 'linear-gradient(90deg,#EF4444,#F87171)'
+        : 'linear-gradient(90deg,#1B3FE0,#748FFC)';
+    }
+
+    if (id === 3) {
+      const tens = Math.floor(n / 10);
+      const ones = n % 10;
+      document.getElementById('d10').textContent = tens;
+      document.getElementById('d1').textContent = ones;
+      document.getElementById('d10').style.color = n <= 10 ? '#EF4444' : '#1B3FE0';
+      document.getElementById('d1').style.color = n <= 10 ? '#EF4444' : '#1B3FE0';
+    }
+  }
+
+  function showExpired(id) {
+    document.getElementById(`expired${id}`).style.display = 'block';
+  }
+
+  function keepAlive(id) {
+    document.getElementById(`expired${id}`).style.display = 'none';
+    startTimer(id);
+    // visual feedback
+    const btn = event.target;
+    const original = btn.textContent;
+    btn.textContent = '✓ ¡Sesión extendida!';
+    btn.style.background = 'linear-gradient(135deg,#10B981,#34D399)';
+    setTimeout(() => {
+      btn.textContent = original;
+      btn.style.background = '';
+    }, 1800);
+  }
+
+  function logout(id) {
+    counts[id] = 0;
+    clearInterval(timers[id]);
+    updateUI(id);
+    showExpired(id);
+  }
+
+  // Kick off all three
+  startTimer(1);
+  setTimeout(() => startTimer(2), 0);
+  setTimeout(() => startTimer(3), 0);
+</script>
+</body>
+</html>

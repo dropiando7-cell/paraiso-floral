@@ -223,12 +223,11 @@ export default function ConciliacionPage() {
     const [duplicateConfirm, setDuplicateConfirm] = useState<{ banco: string; tipoCuenta: string; month: string; year: string } | null>(null);
 
     const LOADING_STEPS = [
-        { icon: '📂', text: 'Conectando con Google Drive...' },
-        { icon: '📄', text: 'Leyendo documentos contables...' },
-        { icon: '🤖', text: 'Analizando con Inteligencia Artificial...' },
-        { icon: '🔍', text: 'Identificando diferencias y movimientos...' },
-        { icon: '📊', text: 'Generando conciliación bancaria...' },
-        { icon: '☁️', text: 'Guardando reporte en Google Drive...' },
+        { label: 'Accediendo a Google Drive', sub: 'Iniciando conexión segura' },
+        { label: 'Localizando archivos del período', sub: 'Buscando extractos y registros' },
+        { label: 'Analizando transacciones con IA', sub: 'Leyendo movimientos bancarios' },
+        { label: 'Consolidando información', sub: 'Cruzando registros contables' },
+        { label: 'Generando reporte final', sub: 'Preparando documento de conciliación' },
     ];
 
     const startLoading = () => {
@@ -735,87 +734,118 @@ export default function ConciliacionPage() {
 
             </main>
 
-            {/* ── Premium AI Loading Overlay ────────────────────────────────── */}
+            {/* ── Loading Modal Overlay ──────────────────────────────────────── */}
             {isGenerating && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, #0a0520 0%, #0500A3 50%, #050080 100%)' }}>
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4"
+                    style={{ background: 'rgba(15,20,40,0.50)', backdropFilter: 'blur(6px)', animation: 'fadeIn 0.3s ease' }}
+                >
+                    <div
+                        className="bg-white rounded-[20px] w-full max-w-[460px] relative overflow-hidden"
+                        style={{
+                            padding: '36px 32px 32px',
+                            boxShadow: '0 32px 80px rgba(15,20,40,0.22), 0 0 0 1px rgba(255,255,255,0.8)',
+                            animation: 'slideUp 0.4s cubic-bezier(0.34,1.56,0.64,1)',
+                        }}
+                    >
+                        {/* Shimmer top bar */}
+                        <div className="absolute top-0 left-0 right-0 h-[3px]" style={{
+                            background: 'linear-gradient(90deg,#1B3FE0,#4C6EF5,#748FFC,#1B3FE0)',
+                            backgroundSize: '200%',
+                            animation: 'shimmerBar 1.8s linear infinite',
+                        }} />
 
-                    {/* Animated background particles */}
-                    <div className="absolute inset-0 overflow-hidden">
-                        {[...Array(20)].map((_, i) => (
-                            <div key={i} className="absolute rounded-full opacity-10"
+                        {/* Header */}
+                        <div className="flex items-center gap-3.5 mb-7">
+                            <div className="w-[46px] h-[46px] rounded-xl flex items-center justify-center shrink-0 relative overflow-hidden"
+                                style={{ background: 'linear-gradient(135deg,#1B3FE0,#4C6EF5)' }}>
+                                <svg width="20" height="20" fill="none" viewBox="0 0 24 24">
+                                    <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+                                        stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 className="text-[17px] font-semibold text-[#0f1428] tracking-[-0.3px] leading-tight">Generando Conciliación</h2>
+                                <p className="text-[13px] text-[#6b7280] mt-0.5">{selectedBanco} · {selectedTipoCuenta}</p>
+                                <span className="inline-block bg-[#EEF2FF] text-[#3730a3] text-[11px] font-semibold px-2 py-0.5 rounded-full mt-1" style={{ fontFamily: 'monospace' }}>
+                                    {MONTH_NAMES[selectedMonth]} {selectedYear}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Steps */}
+                        <div className="flex flex-col gap-1">
+                            {LOADING_STEPS.map((step, i) => {
+                                const isDone = i < loadingStep;
+                                const isActive = i === loadingStep;
+                                return (
+                                    <div key={i} className="flex items-start gap-3 px-3 py-2.5 rounded-[10px] transition-all duration-300"
+                                        style={{
+                                            background: isActive ? '#F5F7FF' : 'transparent',
+                                            opacity: isDone ? 0.75 : isActive ? 1 : 0.35,
+                                        }}
+                                    >
+                                        {/* Step icon */}
+                                        <div className="w-[30px] h-[30px] rounded-lg flex items-center justify-center shrink-0 relative"
+                                            style={{
+                                                background: isDone ? '#D1FAE5' : isActive
+                                                    ? 'linear-gradient(135deg,#1B3FE0,#4C6EF5)'
+                                                    : '#E5E7EB',
+                                            }}
+                                        >
+                                            {isActive ? (
+                                                <div className="absolute inset-[3px] rounded-full border-2 border-white/30 border-t-white"
+                                                    style={{ animation: 'spin 0.8s linear infinite' }} />
+                                            ) : isDone ? (
+                                                <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+                                                    <path d="M5 13l4 4L19 7" stroke="#10B981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                                                </svg>
+                                            ) : (
+                                                <div className="w-2 h-2 rounded-full bg-slate-400" />
+                                            )}
+                                        </div>
+                                        {/* Step text */}
+                                        <div className="flex-1 pt-0.5">
+                                            <div className="text-[13.5px] font-medium leading-snug"
+                                                style={{ color: isActive ? '#1B3FE0' : isDone ? '#374151' : '#111827' }}>
+                                                {step.label}
+                                            </div>
+                                            <div className="text-[12px] mt-0.5"
+                                                style={{ color: isActive ? '#6366f1' : '#9ca3af', fontFamily: 'monospace' }}>
+                                                {isActive ? step.sub : isDone ? 'Completado ✓' : step.sub}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="mt-6 bg-[#F3F4F6] rounded-full h-[6px] overflow-hidden relative">
+                            <div className="h-full rounded-full transition-all duration-700"
                                 style={{
-                                    width: `${Math.random() * 8 + 2}px`,
-                                    height: `${Math.random() * 8 + 2}px`,
-                                    background: 'white',
-                                    left: `${Math.random() * 100}%`,
-                                    top: `${Math.random() * 100}%`,
-                                    animation: `pulse ${2 + Math.random() * 3}s ease-in-out infinite`,
-                                    animationDelay: `${Math.random() * 3}s`,
-                                }} />
-                        ))}
+                                    width: `${Math.round((loadingStep / LOADING_STEPS.length) * 100)}%`,
+                                    background: 'linear-gradient(90deg,#1B3FE0,#748FFC)',
+                                }}
+                            />
+                        </div>
+                        <div className="flex justify-between items-center mt-2.5">
+                            <span className="text-[12px] text-[#6b7280]" style={{ fontFamily: 'monospace' }}>
+                                {LOADING_STEPS[loadingStep]?.label ?? 'Finalizando...'}
+                            </span>
+                            <span className="text-[13px] font-semibold text-[#1B3FE0]" style={{ fontFamily: 'monospace' }}>
+                                {Math.round((loadingStep / LOADING_STEPS.length) * 100)}%
+                            </span>
+                        </div>
+
+                        {/* Keyframes */}
+                        <style>{`
+                            @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+                            @keyframes slideUp { from { opacity:0; transform:translateY(24px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+                            @keyframes shimmerBar { 0% { background-position:0% center; } 100% { background-position:200% center; } }
+                            @keyframes spin { to { transform: rotate(360deg); } }
+                        `}</style>
                     </div>
-
-                    <div className="relative flex flex-col items-center gap-10 px-8 text-center max-w-lg">
-
-                        {/* Orbital animation */}
-                        <div className="relative w-40 h-40 flex items-center justify-center">
-                            {/* Outer ring */}
-                            <div className="absolute inset-0 rounded-full border-2 border-white/10"
-                                style={{ animation: 'spin 8s linear infinite' }} />
-                            {/* Middle ring */}
-                            <div className="absolute inset-4 rounded-full border-2 border-blue-400/30"
-                                style={{ animation: 'spin 5s linear infinite reverse' }}>
-                                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-blue-400 shadow-lg"
-                                    style={{ boxShadow: '0 0 12px 4px rgba(96, 165, 250, 0.8)' }} />
-                            </div>
-                            {/* Inner ring */}
-                            <div className="absolute inset-8 rounded-full border-2 border-white/20"
-                                style={{ animation: 'spin 3s linear infinite' }}>
-                                <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-white shadow-lg"
-                                    style={{ boxShadow: '0 0 12px 4px rgba(255,255,255,0.8)' }} />
-                            </div>
-                            {/* Center orb */}
-                            <div className="w-16 h-16 rounded-full flex items-center justify-center text-2xl z-10"
-                                style={{
-                                    background: 'radial-gradient(circle, rgba(255,255,255,0.25) 0%, rgba(96,165,250,0.15) 100%)',
-                                    boxShadow: '0 0 40px 10px rgba(96,165,250,0.3), inset 0 0 20px rgba(255,255,255,0.1)',
-                                    animation: 'pulse 2s ease-in-out infinite',
-                                }}>
-                                {LOADING_STEPS[loadingStep]?.icon}
-                            </div>
-                        </div>
-
-                        {/* Step indicator pills */}
-                        <div className="flex gap-2">
-                            {LOADING_STEPS.map((_, i) => (
-                                <div key={i} className="h-1.5 rounded-full transition-all duration-700"
-                                    style={{
-                                        width: i === loadingStep ? '32px' : '8px',
-                                        background: i <= loadingStep ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.2)',
-                                    }} />
-                            ))}
-                        </div>
-
-                        {/* Step text */}
-                        <div className="space-y-3">
-                            <h2 className="text-white text-2xl font-bold tracking-tight">
-                                Analizando con IA
-                            </h2>
-                            <p className="text-blue-200 text-base font-medium min-h-[24px] transition-all duration-500">
-                                {LOADING_STEPS[loadingStep]?.text}
-                            </p>
-                            <p className="text-white/40 text-sm">
-                                Esto puede tomar entre 30 y 60 segundos
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Keyframes */}
-                    <style>{`
-                        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.7; transform: scale(0.95); } }
-                    `}</style>
                 </div>
             )}
 
