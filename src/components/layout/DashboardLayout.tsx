@@ -1,4 +1,5 @@
 import { MobileDashboardWrapper } from './MobileDashboardWrapper';
+import { InactivityGuard } from '@/components/InactivityGuard';
 
 interface DashboardLayoutProps {
     children: React.ReactNode;
@@ -8,7 +9,9 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, dbUser }: DashboardLayoutProps) {
     return (
         <MobileDashboardWrapper dbUser={dbUser}>
-            {children}
+            <InactivityGuard>
+                {children}
+            </InactivityGuard>
         </MobileDashboardWrapper>
     );
 }

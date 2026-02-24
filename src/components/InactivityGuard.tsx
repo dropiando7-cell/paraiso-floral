@@ -1,0 +1,209 @@
+'use client';
+
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { createClient } from '@/utils/supabase/client';
+import { useRouter } from 'next/navigation';
+
+// TODO: ajustar tiempo final con Isaac
+const INACTIVITY_TIMEOUT_MS = 600_000; // 10 min → mostrará el modal
+const COUNTDOWN_SECONDS = 30;      // segundos para hacer logout automático
+
+const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll'] as const;
+
+export function InactivityGuard({ children }: { children: React.ReactNode }) {
+    const router = useRouter();
+    const [showModal, setShowModal] = useState(false);
+    const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
+
+    // Refs — no queremos re-renders por cada cambio de timer
+    const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+    const modalShown = useRef(false); // evitar doble disparo
+
+    /* ── Logout ─────────────────────────────────────────────────────────── */
+    const doLogout = useCallback(async () => {
+        clearTimeout(inactivityTimer.current!);
+        clearInterval(countdownTimer.current!);
+        const supabase = createClient();
+        await supabase.auth.signOut();
+        router.push('/login');
+    }, [router]);
+
+    /* ── Muestra el modal + inicia countdown ────────────────────────────── */
+    const showInactivityModal = useCallback(() => {
+        if (modalShown.current) return;
+        modalShown.current = true;
+        setCountdown(COUNTDOWN_SECONDS);
+        setShowModal(true);
+
+        let remaining = COUNTDOWN_SECONDS;
+        countdownTimer.current = setInterval(() => {
+            remaining -= 1;
+            setCountdown(remaining);
+            if (remaining <= 0) {
+                clearInterval(countdownTimer.current!);
+                doLogout();
+            }
+        }, 1000);
+    }, [doLogout]);
+
+    /* ── Reinicia el timer de inactividad ───────────────────────────────── */
+    const resetInactivityTimer = useCallback(() => {
+        if (modalShown.current) return; // si el modal está visible, no reiniciar
+        clearTimeout(inactivityTimer.current!);
+        inactivityTimer.current = setTimeout(showInactivityModal, INACTIVITY_TIMEOUT_MS);
+    }, [showInactivityModal]);
+
+    /* ── Sí, continuar ──────────────────────────────────────────────────── */
+    const handleContinue = () => {
+        clearInterval(countdownTimer.current!);
+        modalShown.current = false;
+        setShowModal(false);
+        resetInactivityTimer();
+    };
+
+    /* ── Montar listeners de actividad ──────────────────────────────────── */
+    useEffect(() => {
+        // Inicia el timer la primera vez
+        resetInactivityTimer();
+
+        const handler = () => resetInactivityTimer();
+        ACTIVITY_EVENTS.forEach(ev => window.addEventListener(ev, handler, { passive: true }));
+
+        return () => {
+            // Limpiar todo al desmontar
+            clearTimeout(inactivityTimer.current!);
+            clearInterval(countdownTimer.current!);
+            ACTIVITY_EVENTS.forEach(ev => window.removeEventListener(ev, handler));
+        };
+    }, [resetInactivityTimer]);
+
+    /* ── Dígitos del countdown ──────────────────────────────────────────── */
+    const tens = Math.floor(countdown / 10);
+    const ones = countdown % 10;
+    const isUrgent = countdown <= 10;
+
+    return (
+        <>
+            {children}
+
+            {showModal && (
+                <div
+                    className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+                    style={{
+                        background: 'rgba(15,20,40,0.45)',
+                        backdropFilter: 'blur(6px)',
+                        animation: 'igFadeIn 0.3s ease',
+                    }}
+                >
+                    {/* Modal card */}
+                    <div
+                        className="bg-white rounded-[24px] w-full max-w-[380px] relative overflow-hidden text-center"
+                        style={{
+                            padding: '32px 28px 28px',
+                            boxShadow: '0 16px 48px rgba(15,20,40,0.12)',
+                            animation: 'igSlideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+                        }}
+                    >
+                        {/* Soft blob backgrounds */}
+                        <div className="absolute top-[-40px] right-[-40px] w-[160px] h-[160px] rounded-full pointer-events-none"
+                            style={{ background: 'radial-gradient(circle,#EEF2FF 0%,transparent 70%)' }} />
+                        <div className="absolute bottom-[-30px] left-[-30px] w-[120px] h-[120px] rounded-full pointer-events-none"
+                            style={{ background: 'radial-gradient(circle,#EEF2FF 0%,transparent 70%)' }} />
+
+                        {/* Lock icon with spinning ring */}
+                        <div className="relative z-10 w-[72px] h-[72px] mx-auto mb-[18px] flex items-center justify-center rounded-full"
+                            style={{ background: 'linear-gradient(135deg,#EEF2FF,#E0E7FF)' }}>
+                            {/* spinning border */}
+                            <div className="absolute inset-[-4px] rounded-full border-2 border-[#C7D2FE] border-t-[#1B3FE0]"
+                                style={{ animation: 'igSpin 3s linear infinite' }} />
+                            <svg width="26" height="26" fill="none" viewBox="0 0 24 24" className="relative z-10">
+                                <rect x="3" y="11" width="18" height="11" rx="2" stroke="#1B3FE0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <path d="M7 11V7a5 5 0 0110 0v4" stroke="#1B3FE0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                <circle cx="12" cy="16" r="1.5" fill="#1B3FE0" />
+                            </svg>
+                        </div>
+
+                        {/* Title */}
+                        <h2 className="relative z-10 text-[18px] font-semibold text-[#0f1428] tracking-[-0.3px] mb-1.5">
+                            ¿Sigues ahí?
+                        </h2>
+                        <p className="relative z-10 text-[13px] text-[#9ca3af] mb-5" style={{ fontFamily: 'monospace' }}>
+                            Tu sesión se cerrará automáticamente
+                        </p>
+
+                        {/* Flip countdown */}
+                        <div className="relative z-10 flex items-center justify-center gap-1.5 mb-5">
+                            {/* tens digit */}
+                            <div className="w-12 h-[52px] rounded-[10px] flex items-center justify-center text-[26px] font-semibold relative overflow-hidden"
+                                style={{
+                                    background: '#F5F7FF',
+                                    border: `1.5px solid ${isUrgent ? '#FCA5A5' : '#E0E7FF'}`,
+                                    color: isUrgent ? '#EF4444' : '#1B3FE0',
+                                    fontFamily: 'monospace',
+                                    transition: 'color 0.3s, border-color 0.3s',
+                                }}>
+                                {tens}
+                                <div className="absolute top-1/2 left-0 right-0 h-[1px]"
+                                    style={{ background: isUrgent ? '#FCA5A5' : '#C7D2FE' }} />
+                            </div>
+                            {/* ones digit */}
+                            <div className="w-12 h-[52px] rounded-[10px] flex items-center justify-center text-[26px] font-semibold relative overflow-hidden"
+                                style={{
+                                    background: '#F5F7FF',
+                                    border: `1.5px solid ${isUrgent ? '#FCA5A5' : '#E0E7FF'}`,
+                                    color: isUrgent ? '#EF4444' : '#1B3FE0',
+                                    fontFamily: 'monospace',
+                                    transition: 'color 0.3s, border-color 0.3s',
+                                }}>
+                                {ones}
+                                <div className="absolute top-1/2 left-0 right-0 h-[1px]"
+                                    style={{ background: isUrgent ? '#FCA5A5' : '#C7D2FE' }} />
+                            </div>
+                            <span className="text-[22px] font-bold mb-1"
+                                style={{ color: isUrgent ? '#FCA5A5' : '#C7D2FE', fontFamily: 'monospace' }}>
+                                s
+                            </span>
+                        </div>
+
+                        {/* Description */}
+                        <p className="relative z-10 text-[13.5px] text-[#6b7280] leading-relaxed mb-6">
+                            No hemos detectado actividad reciente. Por seguridad cerraremos tu sesión en breve.
+                            ¿Deseas continuar trabajando?
+                        </p>
+
+                        {/* Actions */}
+                        <div className="relative z-10 flex gap-2.5">
+                            <button
+                                onClick={doLogout}
+                                className="flex-1 py-[11px] rounded-[10px] text-[13.5px] font-medium text-[#374151] bg-white border border-[#E5E7EB] transition-all hover:border-[#C7D2FE] hover:text-[#1B3FE0] hover:bg-[#F5F7FF] cursor-pointer"
+                                style={{ fontFamily: 'inherit' }}
+                            >
+                                No, salir
+                            </button>
+                            <button
+                                onClick={handleContinue}
+                                className="flex-[1.4] py-[11px] rounded-[10px] text-[13.5px] font-semibold text-white cursor-pointer transition-all hover:-translate-y-px"
+                                style={{
+                                    background: 'linear-gradient(135deg,#1B3FE0,#4C6EF5)',
+                                    boxShadow: '0 4px 14px rgba(27,63,224,0.3)',
+                                    fontFamily: 'inherit',
+                                    border: 'none',
+                                }}
+                            >
+                                Sí, continuar
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Keyframes — scoped via style tag to avoid globals */}
+                    <style>{`
+                        @keyframes igFadeIn  { from { opacity:0; } to { opacity:1; } }
+                        @keyframes igSlideUp { from { opacity:0; transform:translateY(20px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+                        @keyframes igSpin    { to { transform: rotate(360deg); } }
+                    `}</style>
+                </div>
+            )}
+        </>
+    );
+}
