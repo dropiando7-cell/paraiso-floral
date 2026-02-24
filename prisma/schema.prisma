@@ -125,12 +125,19 @@ model Event {
 model Conciliation {
   id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String @db.Uuid
-  
+
+  banco          String
+  tipoCuenta     String
   month          Int
   year           Int
-  amount         Decimal @db.Decimal(10, 2)
-  status         String
-  
+  status         String    @default("PROCESSING") // PROCESSING | COMPLETED | FAILED
+  reportContent  Json?     // Full structured report from Claude
+  reportSummary  String?   // Short text summary
+  filesFound     String[]  // List of Drive filenames used
+  isApproved     Boolean   @default(false)
+  approvedBy     String?
+  approvedAt     DateTime?
+
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
