@@ -37,6 +37,7 @@ export async function getCheckinData() {
             organizationId: dbUser.organizationId,
             checkedOut: false
         },
+        include: { kid: true }
     });
 
     return { classrooms, kids, activeCheckins, organizationId: dbUser.organizationId };
