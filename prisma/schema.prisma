@@ -21,6 +21,7 @@ enum Role {
   USER
   CHECKIN_KIDS
   MEDICAL_STAFF
+  EXECUTIVE_ASSISTANT
 }
 
 enum OrganizationStatus {
@@ -57,6 +58,8 @@ model Organization {
   classrooms       Classroom[]
   checkIns         CheckIn[]
   medicalPatients  MedicalPatient[]
+  calendarIntegrations CalendarIntegration[]
+  tasks            Task[]
 
   @@map("organizations")
 }
@@ -83,6 +86,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   medicalRecords MedicalRecord[]
+  calendarIntegrations CalendarIntegration[]
 
   @@map("users")
 }
@@ -274,4 +278,50 @@ model MedicalRecord {
   @@index([visitDate])
 
   @@map("medical_records")
+}
+
+// ==========================================
+// CENTRALIZED CALENDAR & TASKS
+// ==========================================
+
+model CalendarIntegration {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+  userId         String @db.Uuid // who authorized this
+  
+  googleAccessToken  String
+  googleRefreshToken String
+  googleEmail        String
+  syncToken          String?  // For delta sync
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, organizationId])
+  @@map("calendar_integrations")
+}
+
+model Task {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+  
+  title          String
+  description    String?
+  status         String @default("TODO") // TODO, IN_PROGRESS, DONE
+  priority       String @default("MEDIUM") // LOW, MEDIUM, HIGH
+  dueDate        DateTime?
+  
+  // If dragged to the calendar, we map it to googleEventId so we don't duplicate/we can sync back
+  googleEventId  String?
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("tasks")
 }

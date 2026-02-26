@@ -245,6 +245,77 @@ export async function updateClassroom(id: string, data: { name: string, ageRange
     });
 
     revalidatePath("/checkin");
-    return { success: true, classroom: updated };
+}
+
+// =======================
+// MOCK DATA GENERATION
+// =======================
+export async function generateMockKids(count: number = 50) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Unauthorized" };
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { organizationId: true },
+    });
+    if (!dbUser) return { error: "Organization not found" };
+
+    const classrooms = await prisma.classroom.findMany({
+        where: { organizationId: dbUser.organizationId }
+    });
+
+    // Fallback if no classrooms exist
+    if (classrooms.length === 0) return { error: "Debe crear al menos 1 salón antes." };
+
+    const names = ["Mateo", "Sofía", "Santiago", "Valentina", "Sebastián", "Isabella", "Matías", "Camila", "Leonardo", "Valeria", "Diego", "Emma", "Daniel", "Luciana", "Joaquín", "Victoria", "Samuel", "Martina", "Lucas", "Elena"];
+    const lastNames = ["García", "Rodríguez", "Martínez", "Hernández", "López", "González", "Pérez", "Sánchez", "Ramírez", "Torres", "Flores", "Rivera", "Díaz", "Gómez", "Cruz", "Morales", "Ortiz", "Gutiérrez", "Chávez", "Ramos"];
+
+    let createdCount = 0;
+
+    for (let i = 0; i < count; i++) {
+        const name = `${names[Math.floor(Math.random() * names.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
+        const parentName = `${names[Math.floor(Math.random() * names.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
+        const age = Math.floor(Math.random() * 12) + 1;
+        const phone = `+5049999${Math.floor(1000 + Math.random() * 9000)}`;
+        const photo = age <= 3 ? "👧" : age <= 7 ? "🧒" : "👦";
+
+        // Random classroom
+        const cls = classrooms[Math.floor(Math.random() * classrooms.length)];
+
+        const newKid = await prisma.kid.create({
+            data: {
+                organizationId: dbUser.organizationId,
+                name,
+                age,
+                classroomId: cls.id,
+                allergies: Math.random() > 0.8 ? "Maní" : "Ninguna",
+                parentName,
+                parentPhone: phone,
+                photoEmoji: photo
+            }
+        });
+
+        // 80% chance to also check them in right away
+        if (Math.random() > 0.2) {
+            const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            let code = "";
+            for (let j = 0; j < 6; j++) code += chars[Math.floor(Math.random() * chars.length)];
+
+            await prisma.checkIn.create({
+                data: {
+                    organizationId: dbUser.organizationId,
+                    kidId: newKid.id,
+                    securityCode: code,
+                    checkedOut: false
+                }
+            });
+        }
+
+        createdCount++;
+    }
+
+    revalidatePath("/checkin");
+    return { success: true, message: `${createdCount} niños generados.` };
 }
 

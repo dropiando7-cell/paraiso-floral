@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { ChurchCheckInApp } from "@/components/checkin/ChurchCheckInApp";
+import { getCheckinData } from "./actions";
 
 export const metadata = {
     title: "Checkin Kids | Sistemas Elim",
@@ -32,5 +33,8 @@ export default async function CheckinKidsPage() {
         redirect("/unauthorized");
     }
 
-    return <ChurchCheckInApp />;
+    // Fetch initial data on the server
+    const initialData = await getCheckinData();
+
+    return <ChurchCheckInApp initialData={initialData} />;
 }

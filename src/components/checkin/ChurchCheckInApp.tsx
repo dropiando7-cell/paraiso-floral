@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Plus, School, ShieldCheck, FileText, CheckCircle2, XCircle, ArrowLeft, Printer, Users, UserPlus, Info, Edit2, Settings } from "lucide-react";
-import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom } from "@/app/(dashboard)/checkin/actions";
+import { Search, Plus, School, ShieldCheck, FileText, CheckCircle2, XCircle, ArrowLeft, Printer, Users, UserPlus, Info, Edit2, Settings, Beaker } from "lucide-react";
+import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom, generateMockKids } from "@/app/(dashboard)/checkin/actions";
 
 // Mock QR code
 function QRCodeCanvas({ value, size = 120 }: { value: string, size?: number }) {
@@ -75,17 +75,33 @@ function generateTicketCode() {
 
 const VIEWS = { HOME: "home", CHECKIN: "checkin", TICKET: "ticket", CLASSROOMS: "classrooms", CLASSROOM_DETAIL: "classroom_detail", MANAGE_CLASSROOM: "manage_classroom" };
 
-export function ChurchCheckInApp() {
+export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
+    // Determine early if we have data to skip loading skeleton
+    const [isLoading, setIsLoading] = useState(!initialData);
     const [view, setView] = useState(VIEWS.HOME);
     const [searchQuery, setSearchQuery] = useState("");
-    const [checkedInKids, setCheckedInKids] = useState<any[]>([]);
+
+    // Lazy rendering state
+    const [visibleCount, setVisibleCount] = useState(5);
+
+    // Default initialization from initialData
+    const [classrooms, setClassrooms] = useState<any[]>(initialData?.classrooms || []);
+    const [allKids, setAllKids] = useState<any[]>(initialData?.kids || []);
+    const [checkedInKids, setCheckedInKids] = useState<any[]>(() => {
+        if (!initialData?.activeCheckins) return [];
+        return initialData.activeCheckins.map((ci: any) => ({
+            ...ci.kid,
+            code: ci.securityCode,
+            checkInTime: new Date(ci.createdAt).toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
+            qrValue: `IGLESIA-CHECKIN:${ci.kidId}:${ci.securityCode}:${new Date(ci.createdAt).getTime()}`,
+            notifStatus: ci.notifProvider
+        }));
+    });
+
     const [currentTicket, setCurrentTicket] = useState<any>(null);
     const [selectedClassroom, setSelectedClassroom] = useState<any>(null);
     const [activeTab, setActiveTab] = useState("checkin");
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
-
-    const [classrooms, setClassrooms] = useState<any[]>([]);
-    const [allKids, setAllKids] = useState<any[]>([]);
 
     const [newKidForm, setNewKidForm] = useState({ name: "", age: "", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
     const [checkingIn, setCheckingIn] = useState(false);
@@ -99,24 +115,39 @@ export function ChurchCheckInApp() {
     const [savingClassroom, setSavingClassroom] = useState(false);
 
     useEffect(() => {
-        getCheckinData().then(data => {
-            if (data.classrooms) {
-                setClassrooms(data.classrooms);
-                if (data.classrooms.length > 0) setNewKidForm(p => ({ ...p, classroom: data.classrooms[0].id }));
-            }
-            if (data.kids) setAllKids(data.kids);
-            if (data.activeCheckins) {
-                const mapped = data.activeCheckins.map((ci: any) => ({
-                    ...ci.kid,
-                    code: ci.securityCode,
-                    checkInTime: new Date(ci.createdAt).toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
-                    qrValue: `IGLESIA-CHECKIN:${ci.kidId}:${ci.securityCode}:${new Date(ci.createdAt).getTime()}`,
-                    notifStatus: ci.notifProvider
-                }));
-                setCheckedInKids(mapped);
-            }
-        });
-    }, []);
+        if (!initialData) {
+            getCheckinData().then(data => {
+                if (data.classrooms) {
+                    setClassrooms(data.classrooms);
+                    if (data.classrooms.length > 0) setNewKidForm(p => ({ ...p, classroom: data.classrooms[0].id }));
+                }
+                if (data.kids) setAllKids(data.kids);
+                if (data.activeCheckins) {
+                    const mapped = data.activeCheckins.map((ci: any) => ({
+                        ...ci.kid,
+                        code: ci.securityCode,
+                        checkInTime: new Date(ci.createdAt).toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
+                        qrValue: `IGLESIA-CHECKIN:${ci.kidId}:${ci.securityCode}:${new Date(ci.createdAt).getTime()}`,
+                        notifStatus: ci.notifProvider
+                    }));
+                    setCheckedInKids(mapped);
+                }
+                setIsLoading(false);
+            });
+        }
+    }, [initialData]);
+
+    const handleGenerateMockData = async () => {
+        setCheckingIn(true);
+        showToast("Generando 50 niños ficticios...", "info");
+        const res = await generateMockKids(50);
+        if (res.error) showToast(res.error, "error");
+        else {
+            showToast(res.message || "Datos generados. Recargando...", "success");
+            setTimeout(() => window.location.reload(), 1500);
+        }
+        setCheckingIn(false);
+    };
 
     const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
         setToast({ message, type });
@@ -264,6 +295,10 @@ export function ChurchCheckInApp() {
                                     <span className="text-[10px] font-semibold text-brand-100/70">{s.label}</span>
                                 </div>
                             ))}
+                            <button onClick={handleGenerateMockData} disabled={checkingIn} className="bg-fuchsia-500/20 border border-fuchsia-400/30 hover:bg-fuchsia-500/40 backdrop-blur-md rounded-xl px-3 py-1.5 flex items-center gap-2 transition-colors disabled:opacity-50 group">
+                                <Beaker className="w-4 h-4 text-fuchsia-300 group-hover:animate-pulse" />
+                                <span className="text-[10px] font-bold text-fuchsia-100">Generar Data</span>
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -297,13 +332,35 @@ export function ChurchCheckInApp() {
                                 ))}
                             </div>
 
-                            {checkedInKids.length > 0 && (
+                            {isLoading ? (
+                                <>
+                                    <div className="text-xs font-bold tracking-widest uppercase text-slate-400 mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">
+                                        <span>Cargando asistencia...</span>
+                                    </div>
+                                    <div className="space-y-3">
+                                        {[1, 2, 3].map(i => (
+                                            <div key={i} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm relative overflow-hidden h-[66px]">
+                                                <div className="absolute top-0 left-0 w-1 h-full bg-slate-200 animate-pulse"></div>
+                                                <div className="w-10 h-10 rounded-full bg-slate-100 animate-pulse ml-2 shrink-0"></div>
+                                                <div className="flex-1 space-y-2 py-1">
+                                                    <div className="h-4 bg-slate-100 rounded w-1/3 animate-pulse"></div>
+                                                    <div className="h-3 bg-slate-100 rounded w-1/2 animate-pulse"></div>
+                                                </div>
+                                                <div className="flex gap-2 shrink-0">
+                                                    <div className="w-8 h-8 rounded-lg bg-slate-100 animate-pulse shrink-0"></div>
+                                                    <div className="w-14 h-8 rounded-lg bg-red-50/50 animate-pulse shrink-0"></div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            ) : checkedInKids.length > 0 && (
                                 <>
                                     <div className="text-xs font-bold tracking-widest uppercase text-slate-400 mb-3 border-b border-slate-100 pb-2">
                                         Actualmente en iglesia ({checkedInKids.length})
                                     </div>
                                     <div className="space-y-3">
-                                        {checkedInKids.slice(0, 5).map((kid, index) => {
+                                        {checkedInKids.slice(0, visibleCount).map((kid, index) => {
                                             const cls = classrooms.find(c => c.id === kid.classroom);
                                             return (
                                                 <div key={`${kid.id}-${index}`} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm relative overflow-hidden group">
@@ -330,9 +387,9 @@ export function ChurchCheckInApp() {
                                                 </div>
                                             );
                                         })}
-                                        {checkedInKids.length > 5 && (
-                                            <button onClick={() => setView(VIEWS.CHECKIN)} className="w-full py-3 text-sm font-bold text-brand-600 hover:text-brand-700 bg-brand-50 rounded-xl">
-                                                Ver {checkedInKids.length - 5} más...
+                                        {checkedInKids.length > visibleCount && (
+                                            <button onClick={() => setVisibleCount(p => p + 10)} className="w-full py-3 text-sm font-bold text-brand-600 hover:text-brand-700 bg-brand-50 rounded-xl">
+                                                Ver {Math.min(10, checkedInKids.length - visibleCount)} más... ({checkedInKids.length - visibleCount} restantes)
                                             </button>
                                         )}
                                     </div>
@@ -793,14 +850,14 @@ export function ChurchCheckInApp() {
                                 <button onClick={async () => {
                                     if (!classroomForm.name) return;
                                     setSavingClassroom(true);
-                                    let res;
+                                    let res: any;
                                     if (classroomForm.id) {
                                         res = await updateClassroom(classroomForm.id, classroomForm);
                                     } else {
                                         res = await addClassroom(classroomForm);
                                     }
-                                    if (res.error) showToast(res.error, "error");
-                                    else {
+                                    if (res?.error) showToast(res.error, "error");
+                                    else if (res?.classroom) {
                                         showToast(classroomForm.id ? "¡Salón actualizado!" : "¡Salón creado!", "success");
                                         if (classroomForm.id) {
                                             setClassrooms(prev => prev.map(c => c.id === classroomForm.id ? res.classroom : c));
@@ -808,10 +865,11 @@ export function ChurchCheckInApp() {
                                             setClassrooms(prev => [...prev, res.classroom]);
                                         }
                                         setView(VIEWS.CLASSROOMS);
+                                    } else {
+                                        showToast("Error desconocido al guardar", "error");
                                     }
                                     setSavingClassroom(false);
-                                }} disabled={!classroomForm.name || savingClassroom}
-                                    className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl shadow-md transition-all mt-4">
+                                }} disabled={savingClassroom} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-md transition-all mt-4">
                                     {savingClassroom ? "⏳ Guardando..." : "✅ Guardar Salón"}
                                 </button>
                             </div>
@@ -855,6 +913,6 @@ export function ChurchCheckInApp() {
             #print-ticket { display: block !important; }
         }
       `}} />
-        </div>
+        </div >
     );
 }

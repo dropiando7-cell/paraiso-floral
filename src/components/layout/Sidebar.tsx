@@ -57,7 +57,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
     category: 'ESTRATEGIA',
     items: [
       { name: 'Predicción Financiera 2026', href: '/prediccion', icon: TrendingUp },
-      { name: 'Calendario Centralizado', href: '/calendario', icon: Calendar },
+      {
+        name: 'Calendario Centralizado',
+        href: '/calendario',
+        icon: Calendar,
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'EXECUTIVE_ASSISTANT']
+      },
     ]
   },
   {
