@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Search, Shield, Copy, ExternalLink, MoreVertical, Key, Plus, Trash2, Edit } from 'lucide-react'
+import { Search, Shield, Copy, ExternalLink, MoreVertical, Key, Plus, Trash2, Edit, CheckCircle2, XCircle } from 'lucide-react'
 import { decryptVaultPassword, deleteVaultItem } from './actions'
 import { VaultModal } from './VaultModal'
 
@@ -27,6 +27,14 @@ export function VaultClient({ initialItems, userRole }: { initialItems: VaultIte
     // Action state
     const [openMenuId, setOpenMenuId] = useState<string | null>(null)
 
+    // Toast State
+    const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null)
+
+    const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+        setToast({ message, type })
+        setTimeout(() => setToast(null), 3500)
+    }
+
     const categories = ['Todas las categorías', 'Computadoras', 'Memorias RAM', 'Telefonía', 'Servicios Externos', 'Licencias', 'RED']
 
     const filteredItems = initialItems.filter(item => {
@@ -39,29 +47,29 @@ export function VaultClient({ initialItems, userRole }: { initialItems: VaultIte
     const handleCopyPassword = async (id: string, customText?: string) => {
         if (customText) {
             await navigator.clipboard.writeText(customText)
-            alert('Copiado al portapapeles.')
+            showToast('Copiado al portapapeles.')
             return;
         }
         try {
             const password = await decryptVaultPassword(id)
             await navigator.clipboard.writeText(password)
-            alert('Contraseña descifrada y copiada al portapapeles de forma segura.')
+            showToast('Contraseña descifrada y copiada al portapapeles de forma segura.')
         } catch (error) {
             console.error(error)
-            alert('Error al descifrar la contraseña.')
+            showToast('Error al descifrar la contraseña.', 'error')
         }
     }
 
     const handleCopyText = (text: string) => {
         navigator.clipboard.writeText(text)
-        // Toast can be added here
+        showToast('Copiado al portapapeles.')
     }
 
     const handleDelete = (id: string) => {
         if (!confirm('¿Estás seguro de eliminar esta credencial/activo? Esta acción no se puede deshacer.')) return
         startTransition(async () => {
             const res = await deleteVaultItem(id)
-            if (res.error) alert(res.error)
+            if (res.error) showToast(res.error, 'error')
             setOpenMenuId(null)
         })
     }
@@ -392,6 +400,24 @@ export function VaultClient({ initialItems, userRole }: { initialItems: VaultIte
                     onClose={() => setIsModalOpen(false)}
                     forcedCategory={categoryFilter !== 'Todas las categorías' ? categoryFilter : undefined}
                 />
+            )}
+
+            {/* Toast Notification */}
+            {toast && (
+                <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border border-slate-200 bg-white text-slate-800">
+                        {toast.type === 'success' ? (
+                            <div className="w-8 h-8 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
+                                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                            </div>
+                        ) : (
+                            <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+                                <XCircle className="w-5 h-5 text-red-500" />
+                            </div>
+                        )}
+                        <p className="text-sm font-medium">{toast.message}</p>
+                    </div>
+                </div>
             )}
         </div>
     )

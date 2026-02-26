@@ -16,7 +16,8 @@ import {
   Calendar,
   Settings,
   HelpCircle,
-  Baby
+  Baby,
+  Stethoscope
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -69,6 +70,14 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         badge: 'RETIRO',
         badgeColor: 'bg-pink-500/20 text-pink-300',
         roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'CHECKIN_KIDS'],
+      },
+      {
+        name: 'Asistencia Médica',
+        href: '/medico',
+        icon: Stethoscope,
+        badge: 'NUEVO',
+        badgeColor: 'bg-rose-500/20 text-rose-300',
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'MEDICAL_STAFF'],
       },
     ]
   }

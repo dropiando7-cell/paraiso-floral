@@ -20,6 +20,7 @@ enum Role {
   ORG_ADMIN
   USER
   CHECKIN_KIDS
+  MEDICAL_STAFF
 }
 
 enum OrganizationStatus {
@@ -54,6 +55,7 @@ model Organization {
   conciliations    Conciliation[]
   kids             Kid[]
   checkIns         CheckIn[]
+  medicalPatients  MedicalPatient[]
 
   @@map("organizations")
 }
@@ -78,6 +80,8 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  medicalRecords MedicalRecord[]
 
   @@map("users")
 }
@@ -188,4 +192,66 @@ model CheckIn {
   kid          Kid          @relation(fields: [kidId], references: [id], onDelete: Cascade)
 
   @@map("check_ins")
+}
+
+// ==========================================
+// MEDICAL ASSISTANCE
+// ==========================================
+
+model MedicalPatient {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  firstName      String
+  lastName       String
+  dateOfBirth    DateTime
+  gender         String
+  phone          String?
+  email          String?
+  address        String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  
+  bloodType      String?
+  allergies      String?
+  chronicConditions String?
+  currentMedications String?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  records        MedicalRecord[]
+
+  // Indexes for quick searching
+  @@index([organizationId])
+  @@index([firstName, lastName])
+  @@index([phone])
+
+  @@map("medical_patients")
+}
+
+model MedicalRecord {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId      String   @db.Uuid
+  attendedById   String   @db.Uuid // Reference to User ID of Medical Staff
+
+  visitDate      DateTime @default(now())
+  reasonForVisit String
+  vitals         Json?    // Optional: temperature, bloodPressure, heartRate, etc.
+  diagnosis      String?
+  treatment      String?
+  notes          String?
+  
+  status         String   @default("COMPLETED") // e.g., PENDING, IN_PROGRESS, COMPLETED
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  patient        MedicalPatient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  attendedBy     User           @relation(fields: [attendedById], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([visitDate])
+
+  @@map("medical_records")
 }
