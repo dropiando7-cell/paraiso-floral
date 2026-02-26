@@ -1,28 +1,31 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Search, Plus, UserPlus, FileText, CheckCircle2, XCircle, Stethoscope, ArrowLeft, HeartPulse, History, Activity, AlertCircle } from "lucide-react";
-
-// Mock data to visualize UI before hooking to Prisma
-const MOCK_PATIENTS = [
-    { id: "p1", firstName: "María", lastName: "Gómez", age: 45, bloodType: "O+", allergies: "Penicilina", lastVisit: "Hoy 10:30 AM", status: "COMPLETED" },
-    { id: "p2", firstName: "José", lastName: "Martínez", age: 62, bloodType: "A-", allergies: "Ninguna", lastVisit: "Ayer", status: "PENDING" },
-    { id: "p3", firstName: "Ana", lastName: "López", age: 28, bloodType: "B+", allergies: "Aspirina", lastVisit: "Hace 2 meses", status: "COMPLETED" }
-];
+import { getMedicalData, addPatient, addMedicalRecord } from "@/app/(dashboard)/medico/actions";
 
 const VIEWS = { HOME: "home", ADD_PATIENT: "add_patient", PATIENT_DETAIL: "patient_detail" };
 
 export function MedicalApp({ currentUser }: { currentUser: any }) {
     const [view, setView] = useState(VIEWS.HOME);
     const [searchQuery, setSearchQuery] = useState("");
-    const [patients, setPatients] = useState(MOCK_PATIENTS);
+    const [patients, setPatients] = useState<any[]>([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
 
     // New patient form
     const [newPatient, setNewPatient] = useState({ firstName: "", lastName: "", age: "", bloodType: "", allergies: "", phone: "" });
+    const [savingPatient, setSavingPatient] = useState(false);
 
     // Checkup form
     const [newCheckup, setNewCheckup] = useState({ reason: "", notes: "", vitals: { temp: "", pressure: "" } });
+    const [savingCheckup, setSavingCheckup] = useState(false);
+
+    const loadData = async () => {
+        const data = await getMedicalData();
+        if (data.patients) setPatients(data.patients);
+    };
+
+    useEffect(() => { loadData() }, []);
 
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
 
@@ -35,30 +38,56 @@ export function MedicalApp({ currentUser }: { currentUser: any }) {
         `${p.firstName} ${p.lastName}`.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const handleAddPatient = () => {
+    const handleAddPatient = async () => {
         if (!newPatient.firstName || !newPatient.lastName) return;
+        setSavingPatient(true);
         const patientData = {
-            id: "p" + Date.now(),
-            ...newPatient,
+            firstName: newPatient.firstName,
+            lastName: newPatient.lastName,
             age: parseInt(newPatient.age) || 0,
-            lastVisit: "Hoy (Nuevo)",
-            status: "IN_PROGRESS"
+            bloodType: newPatient.bloodType,
+            allergies: newPatient.allergies,
+            phone: newPatient.phone,
         };
-        setPatients([patientData, ...patients]);
-        setSelectedPatient(patientData);
+        const res = await addPatient(patientData as any);
+        if (res.error) {
+            showToast(res.error, "error");
+            setSavingPatient(false);
+            return;
+        }
+
+        const freshPatient = { ...res.patient, status: "PENDING", lastVisit: "Nunca" };
+        setPatients([freshPatient, ...patients]);
+        setSelectedPatient(freshPatient);
         setView(VIEWS.PATIENT_DETAIL);
-        showToast("Paciente registrado exitosamente");
+        showToast("✅ Paciente registrado exitosamente");
         setNewPatient({ firstName: "", lastName: "", age: "", bloodType: "", allergies: "", phone: "" });
+        setSavingPatient(false);
     };
 
-    const handleCreateCheckup = () => {
+    const handleCreateCheckup = async () => {
         if (!newCheckup.reason) return;
-        // Mock updating the patient record
-        const updatedPatient = { ...selectedPatient, lastVisit: "Ahora mismo", status: "COMPLETED" };
+        setSavingCheckup(true);
+
+        const res = await addMedicalRecord(selectedPatient.id, {
+            reason: newCheckup.reason,
+            notes: newCheckup.notes,
+            bloodPressure: newCheckup.vitals.pressure,
+            temperature: newCheckup.vitals.temp
+        });
+
+        if (res.error) {
+            showToast(res.error, "error");
+            setSavingCheckup(false);
+            return;
+        }
+
+        const updatedPatient = { ...selectedPatient, lastVisit: "Hace un momento", status: "COMPLETED" };
         setPatients(prev => prev.map(p => p.id === selectedPatient.id ? updatedPatient : p));
         setSelectedPatient(updatedPatient);
         setNewCheckup({ reason: "", notes: "", vitals: { temp: "", pressure: "" } });
-        showToast("Atención médica guardada exitosamente");
+        showToast("✅ Atención médica guardada en el historial", "success");
+        setSavingCheckup(false);
     };
 
     return (
@@ -238,9 +267,9 @@ export function MedicalApp({ currentUser }: { currentUser: any }) {
                                         placeholder="Detalles médicos importantes..." value={newPatient.allergies} onChange={e => setNewPatient({ ...newPatient, allergies: e.target.value })} />
                                 </div>
 
-                                <button onClick={handleAddPatient} disabled={!newPatient.firstName || !newPatient.lastName}
+                                <button onClick={handleAddPatient} disabled={!newPatient.firstName || !newPatient.lastName || savingPatient}
                                     className="w-full bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-md transition-all mt-4">
-                                    Crear Expediente
+                                    {savingPatient ? "Guardando..." : "Crear Expediente"}
                                 </button>
                             </div>
                         </div>
@@ -308,9 +337,9 @@ export function MedicalApp({ currentUser }: { currentUser: any }) {
                                         placeholder="Instrucciones médicas o medicamentos otorgados..." value={newCheckup.notes} onChange={e => setNewCheckup({ ...newCheckup, notes: e.target.value })} />
                                 </div>
 
-                                <button onClick={handleCreateCheckup} disabled={!newCheckup.reason}
+                                <button onClick={handleCreateCheckup} disabled={!newCheckup.reason || savingCheckup}
                                     className="w-full bg-slate-900 hover:bg-black disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-md transition-all mt-4 flex justify-center items-center gap-2">
-                                    <CheckCircle2 className="w-5 h-5" /> Guardar Atención
+                                    <CheckCircle2 className="w-5 h-5" /> {savingCheckup ? "Registrando..." : "Guardar Atención"}
                                 </button>
                             </div>
                         </div>

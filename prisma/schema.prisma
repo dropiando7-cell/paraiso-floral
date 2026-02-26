@@ -54,6 +54,7 @@ model Organization {
   events           Event[]
   conciliations    Conciliation[]
   kids             Kid[]
+  classrooms       Classroom[]
   checkIns         CheckIn[]
   medicalPatients  MedicalPatient[]
 
@@ -155,13 +156,31 @@ model Conciliation {
 // CHECKIN KIDS MODULE
 // ==========================================
 
+model Classroom {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  name           String
+  ageRange       String?
+  teacher        String?
+  capacity       Int      @default(20)
+  color          String?  @default("bg-brand-100 text-brand-700 border-brand-200")
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kids           Kid[]
+
+  @@map("classrooms")
+}
+
 model Kid {
   id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String   @db.Uuid
   name           String
   age            Int
-  classroomId    String
-  classroomName  String
+  classroomId    String?  @db.Uuid
+  classroomName  String?  // Removed the requirement to keep historic name just in case, or keep it, keeping it doesn't hurt, but if related, better to use relation
   allergies      String   @default("Ninguna")
   parentName     String
   parentPhone    String
@@ -169,8 +188,9 @@ model Kid {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  checkIns     CheckIn[]
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  classroom      Classroom?   @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  checkIns       CheckIn[]
 
   @@map("kids")
 }

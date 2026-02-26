@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Plus, School, ShieldCheck, FileText, CheckCircle2, XCircle, ArrowLeft, Printer, Users, UserPlus, Info } from "lucide-react";
+import { Search, Plus, School, ShieldCheck, FileText, CheckCircle2, XCircle, ArrowLeft, Printer, Users, UserPlus, Info, Edit2, Settings } from "lucide-react";
+import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom } from "@/app/(dashboard)/checkin/actions";
 
 // Mock QR code
 function QRCodeCanvas({ value, size = 120 }: { value: string, size?: number }) {
@@ -72,7 +73,7 @@ function generateTicketCode() {
     return code;
 }
 
-const VIEWS = { HOME: "home", CHECKIN: "checkin", TICKET: "ticket", CLASSROOMS: "classrooms", CLASSROOM_DETAIL: "classroom_detail", ADMIN: "admin" };
+const VIEWS = { HOME: "home", CHECKIN: "checkin", TICKET: "ticket", CLASSROOMS: "classrooms", CLASSROOM_DETAIL: "classroom_detail", MANAGE_CLASSROOM: "manage_classroom" };
 
 export function ChurchCheckInApp() {
     const [view, setView] = useState(VIEWS.HOME);
@@ -83,13 +84,39 @@ export function ChurchCheckInApp() {
     const [activeTab, setActiveTab] = useState("checkin");
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
 
-    const [newKidForm, setNewKidForm] = useState({ name: "", age: "", parentName: "", parentPhone: "", allergies: "", classroom: "c1" });
-    const [allKids, setAllKids] = useState(SAMPLE_KIDS);
+    const [classrooms, setClassrooms] = useState<any[]>([]);
+    const [allKids, setAllKids] = useState<any[]>([]);
+
+    const [newKidForm, setNewKidForm] = useState({ name: "", age: "", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
     const [checkingIn, setCheckingIn] = useState(false);
     const [notifStatus, setNotifStatus] = useState<any>(null);
     const [showNewKidPanel, setShowNewKidPanel] = useState(false);
     const [newKidStep, setNewKidStep] = useState(1);
     const [savingNewKid, setSavingNewKid] = useState(false);
+
+    // Classroom State Handling
+    const [classroomForm, setClassroomForm] = useState({ id: "", name: "", ageRange: "", teacher: "", capacity: 20, color: "bg-brand-100 text-brand-700 border-brand-200" });
+    const [savingClassroom, setSavingClassroom] = useState(false);
+
+    useEffect(() => {
+        getCheckinData().then(data => {
+            if (data.classrooms) {
+                setClassrooms(data.classrooms);
+                if (data.classrooms.length > 0) setNewKidForm(p => ({ ...p, classroom: data.classrooms[0].id }));
+            }
+            if (data.kids) setAllKids(data.kids);
+            if (data.activeCheckins) {
+                const mapped = data.activeCheckins.map((ci: any) => ({
+                    ...ci.kid,
+                    code: ci.securityCode,
+                    checkInTime: new Date(ci.createdAt).toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
+                    qrValue: `IGLESIA-CHECKIN:${ci.kidId}:${ci.securityCode}:${new Date(ci.createdAt).getTime()}`,
+                    notifStatus: ci.notifProvider
+                }));
+                setCheckedInKids(mapped);
+            }
+        });
+    }, []);
 
     const showToast = (message: string, type: 'success' | 'error' | 'info' | 'warning' = 'success') => {
         setToast({ message, type });
@@ -103,55 +130,78 @@ export function ChurchCheckInApp() {
 
     const handleCheckIn = async (kid: any) => {
         setCheckingIn(true);
-        const cls = CLASSROOMS.find(c => c.id === kid.classroom);
-
         const code = generateTicketCode();
-        const checkInTime = new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" });
+
+        const result = await doCheckIn(kid.id, code);
+
+        if (result.error) {
+            showToast(result.error, "error");
+            setCheckingIn(false);
+            return;
+        }
+
         const ticket = {
-            ...kid, code, checkInTime,
+            ...kid, code,
+            checkInTime: new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
             checkInDate: new Date().toLocaleDateString("es-HN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
             qrValue: `IGLESIA-CHECKIN:${kid.id}:${code}:${Date.now()}`,
-            notifStatus: null,
+            notifStatus: result.notification?.sent ? "WhatsApp" : "Ninguna"
         };
 
         setCurrentTicket(ticket);
         setCheckedInKids(prev => [...prev.filter(k => k.id !== kid.id), ticket]);
         setView(VIEWS.TICKET);
-        setNotifStatus({ state: "sending", channel: "WhatsApp" });
 
-        // Mock API Call delay
-        setTimeout(() => {
-            setNotifStatus({ state: "demo", channel: "WhatsApp" });
-            showToast(`✅ ${kid.name} registrado localmente (API en modo demo)`, "info");
-            setCheckingIn(false);
-        }, 800);
+        if (result.notification?.sent) {
+            showToast(`✅ Registrado y notificado por WhatsApp`, "success");
+            setNotifStatus({ state: "sent", channel: "WhatsApp" });
+        } else {
+            showToast(`✅ Registrado (Sin notificar: ${result.notification?.error || "Falta config"})`, "warning");
+            setNotifStatus({ state: "error", channel: "WhatsApp" });
+        }
+
+        setCheckingIn(false);
     };
 
-    const handleCheckOut = (kidId: string) => {
+    const handleCheckOut = async (kidId: string) => {
+        const result = await doCheckOut(kidId);
+        if (result.error) {
+            showToast(result.error, "error");
+            return;
+        }
         setCheckedInKids(prev => prev.filter(k => k.id !== kidId));
         showToast("👋 Niño entregado a sus padres", "info");
     };
 
     const isCheckedIn = (kidId: string) => checkedInKids.some(k => k.id === kidId);
 
-    const handleAddKid = (autoCheckIn = false) => {
+    const handleAddKid = async (autoCheckIn = false) => {
         if (!newKidForm.name || !newKidForm.age || !newKidForm.parentName) return;
         setSavingNewKid(true);
-        const newKid = {
-            id: "k" + Date.now(),
+        const photo = parseInt(newKidForm.age) <= 3 ? "👧" : parseInt(newKidForm.age) <= 7 ? "🧒" : "👦";
+
+        const payload = {
             ...newKidForm,
             age: parseInt(newKidForm.age),
-            allergies: newKidForm.allergies || "Ninguna",
-            photo: parseInt(newKidForm.age) <= 3 ? "👧" : parseInt(newKidForm.age) <= 7 ? "🧒" : "👦",
+            photoEmoji: photo,
+            classroomId: newKidForm.classroom
         };
-        setAllKids(prev => [...prev, newKid]);
-        setNewKidForm({ name: "", age: "", parentName: "", parentPhone: "", allergies: "", classroom: "c1" });
+
+        const result = await addKid(payload);
+        if (result.error) {
+            showToast(result.error, "error");
+            setSavingNewKid(false);
+            return;
+        }
+
+        setAllKids(prev => [...prev, result.kid]);
+        setNewKidForm({ name: "", age: "", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
         setShowNewKidPanel(false);
         setNewKidStep(1);
         setSavingNewKid(false);
         showToast("✅ Niño registrado en el sistema");
         if (autoCheckIn) {
-            setTimeout(() => handleCheckIn(newKid), 150);
+            setTimeout(() => handleCheckIn(result.kid), 150);
         }
     };
 
@@ -205,7 +255,7 @@ export function ChurchCheckInApp() {
                         <div className="flex flex-wrap gap-2 mt-5">
                             {[
                                 { label: "Check-ins", val: totalCheckedIn, icon: "👦" },
-                                { label: "Salones", val: CLASSROOMS.filter(c => classroomKids(c.id).length > 0).length, icon: "🏫" },
+                                { label: "Salones", val: classrooms.filter(c => classroomKids(c.id).length > 0).length, icon: "🏫" },
                                 { label: "Niños", val: allKids.length, icon: "👨‍👩‍👧" },
                             ].map(s => (
                                 <div key={s.label} className="bg-black/20 border border-white/10 backdrop-blur-md rounded-xl px-3 py-1.5 flex items-center gap-2">
@@ -254,7 +304,7 @@ export function ChurchCheckInApp() {
                                     </div>
                                     <div className="space-y-3">
                                         {checkedInKids.slice(0, 5).map(kid => {
-                                            const cls = CLASSROOMS.find(c => c.id === kid.classroom);
+                                            const cls = classrooms.find(c => c.id === kid.classroom);
                                             return (
                                                 <div key={kid.id} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm relative overflow-hidden group">
                                                     <div className={`absolute top-0 left-0 w-1 h-full ${cls?.color.split(' ')[0] || 'bg-brand-500'}`}></div>
@@ -342,7 +392,7 @@ export function ChurchCheckInApp() {
                                         <div className="flex items-center gap-2">
                                             {[1, 2].map(s => (
                                                 <div key={s} className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${newKidStep === s ? 'bg-brand-600 text-white' :
-                                                        newKidStep > s ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'
+                                                    newKidStep > s ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-200 text-slate-400'
                                                     }`}>
                                                     {newKidStep > s ? '✓' : s}
                                                 </div>
@@ -370,7 +420,7 @@ export function ChurchCheckInApp() {
                                                         <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Salón (Auto)</label>
                                                         <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium text-slate-700"
                                                             value={newKidForm.classroom} onChange={e => setNewKidForm(p => ({ ...p, classroom: e.target.value }))}>
-                                                            {CLASSROOMS.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                            {classrooms.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                                         </select>
                                                     </div>
                                                 </div>
@@ -378,7 +428,7 @@ export function ChurchCheckInApp() {
                                                 {newKidForm.age && (() => {
                                                     const age = parseInt(newKidForm.age);
                                                     const suggested = age <= 2 ? "c1" : age <= 5 ? "c2" : age <= 8 ? "c3" : age <= 11 ? "c4" : "c5";
-                                                    const suggestedCls = CLASSROOMS.find(c => c.id === suggested);
+                                                    const suggestedCls = classrooms.find(c => c.id === suggested);
                                                     if (suggested !== newKidForm.classroom) return (
                                                         <button onClick={() => setNewKidForm(p => ({ ...p, classroom: suggested }))}
                                                             className="w-full flex items-center gap-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl px-3 py-2 text-xs font-bold hover:bg-indigo-100 transition-colors text-left">
@@ -407,7 +457,7 @@ export function ChurchCheckInApp() {
                                                     <div className="text-3xl">{parseInt(newKidForm.age) <= 3 ? "👧" : parseInt(newKidForm.age) <= 7 ? "🧒" : "👦"}</div>
                                                     <div className="flex-1">
                                                         <div className="font-bold text-slate-900">{newKidForm.name}</div>
-                                                        <div className="text-xs text-slate-500">{newKidForm.age} años · {CLASSROOMS.find(c => c.id === newKidForm.classroom)?.name}</div>
+                                                        <div className="text-xs text-slate-500">{newKidForm.age} años · {classrooms.find(c => c.id === newKidForm.classroom)?.name}</div>
                                                     </div>
                                                     <button onClick={() => setNewKidStep(1)} className="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded-md">Editar</button>
                                                 </div>
@@ -451,7 +501,7 @@ export function ChurchCheckInApp() {
 
                                     <div className="space-y-3">
                                         {filteredKids.map(kid => {
-                                            const cls = CLASSROOMS.find(c => c.id === kid.classroom);
+                                            const cls = classrooms.find(c => c.id === kid.classroom);
                                             const alreadyIn = isCheckedIn(kid.id);
                                             return (
                                                 <div key={kid.id} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow">
@@ -497,7 +547,7 @@ export function ChurchCheckInApp() {
 
                     {/* TICKET (For Printing / Showing) */}
                     {view === VIEWS.TICKET && currentTicket && (() => {
-                        const cls = CLASSROOMS.find(c => c.id === currentTicket.classroom);
+                        const cls = classrooms.find(c => c.id === currentTicket.classroom);
                         return (
                             <div className="animate-in slide-in-from-right-8 duration-300">
                                 <div className="flex items-center gap-3 mb-4 sticky top-0 bg-slate-50 py-2 z-10 print:hidden">
@@ -570,11 +620,16 @@ export function ChurchCheckInApp() {
                     {/* CLASSROOMS */}
                     {view === VIEWS.CLASSROOMS && (
                         <div className="animate-in fade-in duration-300">
-                            <h2 className="text-lg font-black text-slate-900 mb-4 tracking-tight flex items-center gap-2">
-                                <School className="w-5 h-5 text-indigo-500" /> Monitoreo de Salones
-                            </h2>
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                    <School className="w-5 h-5 text-indigo-500" /> Monitoreo de Salones
+                                </h2>
+                                <button onClick={() => { setClassroomForm({ id: "", name: "", ageRange: "", teacher: "", capacity: 20, color: "bg-brand-100 text-brand-700 border-brand-200" }); setView(VIEWS.MANAGE_CLASSROOM); }} className="w-10 h-10 flex items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm">
+                                    <Plus className="w-5 h-5" />
+                                </button>
+                            </div>
                             <div className="space-y-3">
-                                {CLASSROOMS.map(cls => {
+                                {classrooms.map(cls => {
                                     const kids = classroomKids(cls.id);
                                     const occupancy = (kids.length / cls.capacity) * 100;
                                     const [bgColor, textColor] = cls.color.split(' ');
@@ -588,9 +643,14 @@ export function ChurchCheckInApp() {
                                                     <div className="font-bold text-slate-900 text-lg">{cls.name}</div>
                                                     <div className="text-xs text-slate-500 font-medium">{cls.ageRange} · {cls.teacher}</div>
                                                 </div>
-                                                <div className="text-right">
-                                                    <div className={`text-2xl font-black ${textColor.replace('text-', 'text-').replace('-700', '-600')}`}>{kids.length}</div>
-                                                    <div className="text-[10px] font-bold text-slate-400">de {cls.capacity} disp.</div>
+                                                <div className="flex gap-2 shrink-0">
+                                                    <div className="text-right">
+                                                        <div className={`text-2xl font-black ${textColor.replace('text-', 'text-').replace('-700', '-600')}`}>{kids.length}</div>
+                                                        <div className="text-[10px] font-bold text-slate-400">de {cls.capacity} disp.</div>
+                                                    </div>
+                                                    <button onClick={(e) => { e.stopPropagation(); setClassroomForm({ id: cls.id, name: cls.name, ageRange: cls.ageRange || "", teacher: cls.teacher || "", capacity: cls.capacity || 20, color: cls.color || "bg-indigo-100 text-indigo-700 border-indigo-200" }); setView(VIEWS.MANAGE_CLASSROOM); }} className="w-8 h-8 ml-2 flex items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-indigo-600 transition-colors">
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
                                                 </div>
                                             </div>
 
@@ -600,6 +660,86 @@ export function ChurchCheckInApp() {
                                         </button>
                                     );
                                 })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MANAGE CLASSROOM FORM */}
+                    {view === VIEWS.MANAGE_CLASSROOM && (
+                        <div className="animate-in slide-in-from-right-4 duration-300">
+                            <button onClick={() => setView(VIEWS.CLASSROOMS)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-sm font-bold mb-6">
+                                <ArrowLeft className="w-4 h-4" /> Volver a Salones
+                            </button>
+
+                            <h2 className="text-xl font-black text-slate-900 mb-6 flex items-center gap-2">
+                                <Settings className="w-6 h-6 text-indigo-500" /> {classroomForm.id ? "Editar Salón" : "Nuevo Salón"}
+                            </h2>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Nombre del Salón *</label>
+                                    <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-medium"
+                                        placeholder="ej. Semillitas" value={classroomForm.name} onChange={e => setClassroomForm(p => ({ ...p, name: e.target.value }))} autoFocus />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Edades</label>
+                                        <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-medium"
+                                            placeholder="ej. 0-2 años" value={classroomForm.ageRange} onChange={e => setClassroomForm(p => ({ ...p, ageRange: e.target.value }))} />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Capacidad *</label>
+                                        <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-medium"
+                                            type="number" value={classroomForm.capacity} onChange={e => setClassroomForm(p => ({ ...p, capacity: parseInt(e.target.value) || 0 }))} />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Maestro(a) Encargado</label>
+                                    <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-medium"
+                                        placeholder="Nombre del maestro" value={classroomForm.teacher} onChange={e => setClassroomForm(p => ({ ...p, teacher: e.target.value }))} />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Color de Distinción</label>
+                                    <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700 focus:border-indigo-500 outline-none"
+                                        value={classroomForm.color} onChange={e => setClassroomForm(p => ({ ...p, color: e.target.value }))}>
+                                        <option value="bg-brand-100 text-brand-700 border-brand-200">Naranja (Marca)</option>
+                                        <option value="bg-pink-100 text-pink-700 border-pink-200">Rosado Claro</option>
+                                        <option value="bg-teal-100 text-teal-700 border-teal-200">Verde Teal</option>
+                                        <option value="bg-yellow-100 text-yellow-700 border-yellow-200">Amarillo Fuerte</option>
+                                        <option value="bg-emerald-100 text-emerald-700 border-emerald-200">Esmeralda</option>
+                                        <option value="bg-purple-100 text-purple-700 border-purple-200">Púrpura</option>
+                                        <option value="bg-indigo-100 text-indigo-700 border-indigo-200">Índigo Azul</option>
+                                        <option value="bg-red-100 text-red-700 border-red-200">Rojo Brillante</option>
+                                    </select>
+                                </div>
+
+                                <button onClick={async () => {
+                                    if (!classroomForm.name) return;
+                                    setSavingClassroom(true);
+                                    let res;
+                                    if (classroomForm.id) {
+                                        res = await updateClassroom(classroomForm.id, classroomForm);
+                                    } else {
+                                        res = await addClassroom(classroomForm);
+                                    }
+                                    if (res.error) showToast(res.error, "error");
+                                    else {
+                                        showToast(classroomForm.id ? "¡Salón actualizado!" : "¡Salón creado!", "success");
+                                        if (classroomForm.id) {
+                                            setClassrooms(prev => prev.map(c => c.id === classroomForm.id ? res.classroom : c));
+                                        } else {
+                                            setClassrooms(prev => [...prev, res.classroom]);
+                                        }
+                                        setView(VIEWS.CLASSROOMS);
+                                    }
+                                    setSavingClassroom(false);
+                                }} disabled={!classroomForm.name || savingClassroom}
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl shadow-md transition-all mt-4">
+                                    {savingClassroom ? "⏳ Guardando..." : "✅ Guardar Salón"}
+                                </button>
                             </div>
                         </div>
                     )}
