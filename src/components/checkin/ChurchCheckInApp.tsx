@@ -303,10 +303,10 @@ export function ChurchCheckInApp() {
                                         Actualmente en iglesia ({checkedInKids.length})
                                     </div>
                                     <div className="space-y-3">
-                                        {checkedInKids.slice(0, 5).map(kid => {
+                                        {checkedInKids.slice(0, 5).map((kid, index) => {
                                             const cls = classrooms.find(c => c.id === kid.classroom);
                                             return (
-                                                <div key={kid.id} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm relative overflow-hidden group">
+                                                <div key={`${kid.id}-${index}`} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm relative overflow-hidden group">
                                                     <div className={`absolute top-0 left-0 w-1 h-full ${cls?.color.split(' ')[0] || 'bg-brand-500'}`}></div>
                                                     <div className="w-10 h-10 rounded-full bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 text-xl ml-2">
                                                         {kid.photo}
@@ -558,8 +558,10 @@ export function ChurchCheckInApp() {
                                 </div>
 
                                 {/* Printable Ticket Area */}
-                                <div id="print-ticket" className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-slate-200 mb-6 print:shadow-none print:border-none print:rounded-none">
-                                    <div className={`px-6 py-5 text-center relative overflow-hidden ${cls?.color.split(' ')[0] || 'bg-brand-600'}`}>
+                                <div id="print-ticket" className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-slate-200 mb-6 print:fixed print:inset-0 print:z-[99999] print:m-0 print:p-0 print:w-full print:h-auto print:bg-white print:border-none print:shadow-none print:rounded-none print:block print:overflow-visible">
+
+                                    {/* Screen UI - Hidden on Print */}
+                                    <div className={`px-6 py-5 text-center relative overflow-hidden print:hidden ${cls?.color.split(' ')[0] || 'bg-brand-600'}`}>
                                         <div className="absolute inset-0 bg-black/10"></div>
                                         <div className="relative z-10">
                                             <div className="text-[9px] font-black tracking-[0.2em] text-white/80 uppercase mb-3">Misión Cristiana Elim</div>
@@ -571,7 +573,7 @@ export function ChurchCheckInApp() {
                                         </div>
                                     </div>
 
-                                    <div className="p-6 text-center">
+                                    <div className="p-6 text-center print:hidden">
                                         <div className="inline-block p-4 bg-white rounded-2xl shadow-inner border-2 border-slate-100 mb-2">
                                             <QRCodeCanvas value={currentTicket.qrValue} size={160} />
                                         </div>
@@ -602,6 +604,78 @@ export function ChurchCheckInApp() {
                                                 </div>
                                             </div>
                                         )}
+                                    </div>
+
+                                    {/* Print UI - Only Visible on Print */}
+                                    {/* PAGE 1: Child's Sticker (Planning Center Layout) */}
+                                    <div className="hidden print:flex print:flex-col font-sans text-black bg-white p-4 box-border w-[100mm] h-[62mm] print:break-after-page relative overflow-hidden">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div className="flex-1 pr-2">
+                                                <h1 className="text-[32px] font-extrabold leading-none text-slate-900 tracking-tight mb-1 truncate">
+                                                    {currentTicket.name.split(' ')[0]}
+                                                </h1>
+                                                <h2 className="text-[22px] font-extrabold leading-none text-slate-700 tracking-tight truncate">
+                                                    {currentTicket.name.split(' ').slice(1).join(' ')}
+                                                </h2>
+                                            </div>
+                                            <div className="shrink-0 flex flex-col items-end">
+                                                <div className="bg-slate-700 text-white font-black text-2xl px-3 py-1.5 rounded-xl mb-1 tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black">
+                                                    {currentTicket.code}
+                                                </div>
+                                                <div className="text-[10px] font-bold text-slate-600 print:text-black text-right max-w-[1.2in] leading-tight">
+                                                    Checked in by:<br />{currentTicket.parentName.split(' ')[0]}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <hr className="border-t-[3px] border-slate-800 my-2 print:border-black" />
+
+                                        <div className="flex-1 space-y-1">
+                                            <div className="text-[11px] font-bold text-slate-700 print:text-black flex justify-between">
+                                                <span>{new Date().toLocaleDateString('es-HN', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                                                <span className="truncate ml-2">{cls?.name}</span>
+                                            </div>
+
+                                            {currentTicket.allergies !== "Ninguna" ? (
+                                                <div className="text-sm font-black text-slate-900 flex items-start gap-1 print:text-black mt-1 bg-slate-100 p-1 rounded-md print:bg-white print:border print:border-black">
+                                                    <span>⚠️</span>
+                                                    <span className="leading-tight">{currentTicket.allergies}</span>
+                                                </div>
+                                            ) : (
+                                                <div className="text-[10px] font-semibold text-slate-500 print:text-gray-600 mt-2">Sin alergias reportadas</div>
+                                            )}
+                                        </div>
+
+                                        <div className="absolute bottom-2 right-4 text-[9px] font-bold text-slate-500 print:text-black uppercase tracking-widest text-right">
+                                            Elim Kids
+                                        </div>
+                                    </div>
+
+                                    {/* PAGE 2: Parent Receipt with QR */}
+                                    <div className="hidden print:flex print:flex-col font-sans text-black bg-white p-4 box-border w-[100mm] h-[62mm] relative justify-between overflow-hidden">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1 pr-2">
+                                                <div className="text-[10px] font-black uppercase tracking-widest print:text-black mb-1">Recibo de Padre</div>
+                                                <h2 className="text-lg font-black leading-none text-slate-900 print:text-black truncate">{currentTicket.name}</h2>
+                                                <div className="text-[10px] font-bold print:text-black mt-1">{new Date().toLocaleDateString('es-HN')} · {currentTicket.checkInTime}</div>
+                                            </div>
+                                            <div className="bg-slate-700 text-white font-black text-xl px-2 py-1 rounded-lg tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black shrink-0">
+                                                {currentTicket.code}
+                                            </div>
+                                        </div>
+
+                                        <div className="flex flex-row items-center justify-center gap-4 mt-2 h-full">
+                                            <div className="border-[2px] border-slate-800 print:border-black rounded-xl p-1 shrink-0">
+                                                <QRCodeCanvas value={currentTicket.qrValue} size={90} />
+                                            </div>
+                                            <div className="text-[11px] font-black tracking-wider text-slate-900 print:text-black uppercase text-center leading-relaxed">
+                                                Escanea tu QR <br /> para hacer <br /> check-out
+                                            </div>
+                                        </div>
+
+                                        <div className="absolute bottom-2 right-4 text-[9px] font-bold text-slate-500 print:text-black text-right">
+                                            Por favor no pierda este comprobante.
+                                        </div>
                                     </div>
                                 </div>
 
@@ -776,8 +850,9 @@ export function ChurchCheckInApp() {
                 __html: `
         @media print {
             body { background: white !important; }
-            @page { margin: 0; size: 62mm 100mm; } /* Defaulting to Dymo/Brother thermal size height */
-            /* In print mode, scale the ticket to fill the exact thermal sticker width */
+            @page { margin: 0; size: 100mm 62mm; } /* Landscape ticket size 100mm width x 62mm height */
+            /* Scale elements correctly */
+            #print-ticket { display: block !important; }
         }
       `}} />
         </div>

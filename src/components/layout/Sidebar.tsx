@@ -92,7 +92,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-[280px] bg-[#0500A3] border-r border-[#150ec4] flex flex-col h-full min-h-screen shrink-0">
+    <aside className="w-[280px] bg-[#0500A3] border-r border-[#150ec4] flex flex-col h-full min-h-screen shrink-0 print:hidden">
       {/* Brand / Org Switcher */}
       <div className="h-[72px] flex items-center px-6 border-b border-[#150ec4] shrink-0">
         <div className="flex items-center gap-2 w-full pl-0.5">

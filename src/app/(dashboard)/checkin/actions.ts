@@ -65,7 +65,7 @@ export async function addKid(data: { name: string, age: number, classroomId: str
             organizationId: dbUser.organizationId,
             name: data.name,
             age: data.age,
-            classroomId: data.classroomId || null,
+            classroomId: data.classroomId && data.classroomId !== "" ? data.classroomId : null,
             allergies: data.allergies || "Ninguna",
             parentName: data.parentName,
             parentPhone: phone,
