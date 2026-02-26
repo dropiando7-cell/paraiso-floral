@@ -10,6 +10,7 @@ interface Task {
     description: string | null;
     status: string;
     priority: string;
+    googleEventId: string | null;
 }
 
 export function CalendarApp({ integration, initialTasks }: { integration: any, initialTasks: any[] }) {
@@ -131,8 +132,8 @@ export function CalendarApp({ integration, initialTasks }: { integration: any, i
                                         </p>
                                         <div className="mt-2 flex items-center gap-2">
                                             <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${task.priority === 'HIGH' ? 'bg-rose-100 text-rose-700' :
-                                                    task.priority === 'MEDIUM' ? 'bg-amber-100 text-amber-700' :
-                                                        'bg-slate-100 text-slate-600'
+                                                task.priority === 'MEDIUM' ? 'bg-amber-100 text-amber-700' :
+                                                    'bg-slate-100 text-slate-600'
                                                 }`}>
                                                 {task.priority === 'HIGH' ? 'Alta' : task.priority === 'MEDIUM' ? 'Media' : 'Baja'}
                                             </span>
