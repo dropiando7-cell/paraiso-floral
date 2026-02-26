@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/server'
 import { revalidatePath } from 'next/cache'
 
 // Helper to get current DB user (already authenticated)
-async function getDbUser() {
+export async function getDbUser() {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -47,6 +47,7 @@ export async function getVaultItems() {
             url: item.url,
             notes: item.notes,
             category: item.category,
+            details: (item as any).details,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
         }))
@@ -85,23 +86,34 @@ export async function createVaultItem(formData: FormData) {
         const url = formData.get('url') as string
         const category = formData.get('category') as string
         const notes = formData.get('notes') as string
+        const detailsStr = formData.get('details') as string
 
-        if (!title || !username || !password) {
+        let details = null
+        if (detailsStr) {
+            try {
+                details = JSON.parse(detailsStr)
+            } catch (e) {
+                console.warn('Failed to parse details JSON', e)
+            }
+        }
+
+        if (!title || (!username && category !== 'Memorias RAM') || (!password && category !== 'Memorias RAM')) {
             throw new Error('Title, username, and password are required.')
         }
 
-        const encryptedPass = encrypt(password)
+        const encryptedPass = password ? encrypt(password) : encrypt('NO_PASSWORD')
 
         await prisma.passwordVault.create({
             data: {
                 organizationId: user.organizationId,
                 title,
-                username,
+                username: username || '',
                 encryptedPass,
                 url: url || null,
                 category: category || 'General',
                 notes: notes || null,
-            }
+                details: details as any,
+            } as any
         })
 
         revalidatePath('/boveda')
@@ -126,18 +138,29 @@ export async function updateVaultItem(id: string, formData: FormData) {
         const url = formData.get('url') as string
         const category = formData.get('category') as string
         const notes = formData.get('notes') as string
+        const detailsStr = formData.get('details') as string
 
-        if (!title || !username) {
+        let details = null
+        if (detailsStr) {
+            try {
+                details = JSON.parse(detailsStr)
+            } catch (e) {
+                console.warn('Failed to parse details JSON', e)
+            }
+        }
+
+        if (!title || (!username && category !== 'Memorias RAM')) {
             throw new Error('Title and username are required.')
         }
 
         const dataToUpdate: any = {
             title,
-            username,
+            username: username || '',
             url: url || null,
             category: category || 'General',
             notes: notes || null,
-        }
+            details: details as any,
+        } as any
 
         if (password) {
             dataToUpdate.encryptedPass = encrypt(password)
