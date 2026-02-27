@@ -15,7 +15,8 @@ export async function middleware(request: NextRequest) {
     // For now, everything except /login and static assets is protected.
     const isPublicRoute =
         url.pathname.startsWith('/login') ||
-        url.pathname.startsWith('/auth/')  // OAuth callbacks must not be intercepted
+        url.pathname.startsWith('/auth/callback') ||
+        url.pathname.startsWith('/auth/mfa')
 
     if (!user && !isPublicRoute) {
         url.pathname = '/login'
@@ -23,9 +24,32 @@ export async function middleware(request: NextRequest) {
     }
 
     // 2. Redirect authenticated users away from /login
-    if (user && isPublicRoute) {
+    if (user && url.pathname.startsWith('/login')) {
         url.pathname = '/'
         return NextResponse.redirect(url)
+    }
+
+    // 3. MFA Enforcement (AAL2 Check)
+    if (user && !url.pathname.startsWith('/auth/mfa') && !url.pathname.startsWith('/auth/callback')) {
+        // Fetch session to check AAL level
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session) {
+            // Check if user has enrolled factors
+            const { data: mfaData } = await supabase.auth.mfa.listFactors();
+            const hasVerifiedTotp = mfaData?.all?.some(
+                (factor) => factor.factor_type === 'totp' && factor.status === 'verified'
+            );
+
+            // Fetch the Assurance level
+            const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+            // If they have MFA enrolled but their current session is only AAL1, force them to verify
+            if (hasVerifiedTotp && aalData?.currentLevel === 'aal1') {
+                url.pathname = '/auth/mfa';
+                return NextResponse.redirect(url);
+            }
+        }
     }
 
     // NOTE: For multi-tenant validation, ideally we could check Prisma here,

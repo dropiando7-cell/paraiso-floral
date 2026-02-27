@@ -37,8 +37,14 @@ export async function getTasks() {
     if (!dbUser) return [];
 
     return await prisma.task.findMany({
-        where: { organizationId: dbUser.organizationId },
-        orderBy: { createdAt: 'desc' }
+        where: {
+            organizationId: dbUser.organizationId,
+            status: {
+                not: 'DONE'
+            }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100
     });
 }
 
