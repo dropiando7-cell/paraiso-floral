@@ -4,49 +4,14 @@ import { useState, useEffect, useRef } from "react";
 import { Search, Plus, School, ShieldCheck, FileText, CheckCircle2, XCircle, ArrowLeft, Printer, Users, UserPlus, Info, Edit2, Settings, Beaker } from "lucide-react";
 import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom, generateMockKids } from "@/app/(dashboard)/checkin/actions";
 
-// Mock QR code
+import QRCode from "react-qr-code";
+
 function QRCodeCanvas({ value, size = 120 }: { value: string, size?: number }) {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-
-    useEffect(() => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
-
-        const cellSize = size / 25;
-        const hash = [...value].reduce((acc, c) => acc * 31 + c.charCodeAt(0), 0);
-
-        ctx.fillStyle = "#fff";
-        ctx.fillRect(0, 0, size, size);
-
-        const drawFinder = (x: number, y: number) => {
-            ctx.fillStyle = "#0f172a"; // dark-900
-            ctx.fillRect(x * cellSize, y * cellSize, 7 * cellSize, 7 * cellSize);
-            ctx.fillStyle = "#fff";
-            ctx.fillRect((x + 1) * cellSize, (y + 1) * cellSize, 5 * cellSize, 5 * cellSize);
-            ctx.fillStyle = "#0f172a";
-            ctx.fillRect((x + 2) * cellSize, (y + 2) * cellSize, 3 * cellSize, 3 * cellSize);
-        };
-
-        drawFinder(0, 0); drawFinder(18, 0); drawFinder(0, 18);
-
-        ctx.fillStyle = "#0f172a";
-        let seed = Math.abs(hash);
-        for (let row = 0; row < 25; row++) {
-            for (let col = 0; col < 25; col++) {
-                const inFinder = (row < 8 && col < 8) || (row < 8 && col > 16) || (row > 16 && col < 8);
-                if (!inFinder) {
-                    seed = (seed * 1664525 + 1013904223) & 0xffffffff;
-                    if (Math.abs(seed) % 2 === 0) {
-                        ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
-                    }
-                }
-            }
-        }
-    }, [value, size]);
-
-    return <canvas ref={canvasRef} width={size} height={size} className="rounded-lg" />;
+    return (
+        <div style={{ background: 'white', padding: '8px', borderRadius: '8px', display: 'inline-block' }}>
+            <QRCode value={value} size={size - 16} level="H" />
+        </div>
+    );
 }
 
 // ─── Data ───────────────────────────────────────────────────────────────────
@@ -113,6 +78,10 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     // Classroom State Handling
     const [classroomForm, setClassroomForm] = useState({ id: "", name: "", ageRange: "", teacher: "", capacity: 20, color: "bg-brand-100 text-brand-700 border-brand-200" });
     const [savingClassroom, setSavingClassroom] = useState(false);
+
+    // Checkout Confirmation Handling
+    const [kidToCheckout, setKidToCheckout] = useState<any>(null);
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
 
     useEffect(() => {
         if (!initialData) {
@@ -194,13 +163,18 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         setCheckingIn(false);
     };
 
-    const handleCheckOut = async (kidId: string) => {
-        const result = await doCheckOut(kidId);
+    const handleCheckOut = async () => {
+        if (!kidToCheckout) return;
+        setIsCheckingOut(true);
+        const result = await doCheckOut(kidToCheckout.id);
+        setIsCheckingOut(false);
         if (result.error) {
             showToast(result.error, "error");
+            setKidToCheckout(null);
             return;
         }
-        setCheckedInKids(prev => prev.filter(k => k.id !== kidId));
+        setCheckedInKids(prev => prev.filter(k => k.id !== kidToCheckout.id));
+        setKidToCheckout(null);
         showToast("👋 Niño entregado a sus padres", "info");
     };
 
@@ -315,6 +289,19 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                 {[
                                     { icon: <ShieldCheck className="w-6 h-6 text-emerald-600" />, title: "Check-In Especial", sub: "Buscar y registrar entrada", action: () => { setView(VIEWS.CHECKIN); setShowNewKidPanel(false); setActiveTab("checkin"); }, bg: "bg-emerald-50", border: "border-emerald-100" },
                                     { icon: <UserPlus className="w-6 h-6 text-brand-600" />, title: "Nuevo Visitante", sub: "Registrar primera vez", action: () => { setView(VIEWS.CHECKIN); setShowNewKidPanel(true); setNewKidStep(1); }, bg: "bg-brand-50", border: "border-brand-100" },
+                                    {
+                                        icon: <Search className="w-6 h-6 text-fuchsia-600" />, title: "Escanear QR Gafete", sub: "Simular escáner de Check-out", action: () => {
+                                            const simulatedCode = window.prompt("Simular Escáner QR:\n\nIngresa el CÓDIGO de 6 letras del gafete del niño:");
+                                            if (simulatedCode) {
+                                                const kid = checkedInKids.find(k => k.code.toUpperCase() === simulatedCode.toUpperCase());
+                                                if (kid) {
+                                                    setKidToCheckout(kid);
+                                                } else {
+                                                    showToast("CÓDIGO NO ENCONTRADO", "error");
+                                                }
+                                            }
+                                        }, bg: "bg-fuchsia-50", border: "border-fuchsia-100"
+                                    },
                                     { icon: <School className="w-6 h-6 text-indigo-600" />, title: "Monitorear Salones", sub: "Ver ocupación por clase", action: () => setView(VIEWS.CLASSROOMS), bg: "bg-indigo-50", border: "border-indigo-100" },
                                 ].map(item => (
                                     <button key={item.title} onClick={item.action} className="w-full text-left bg-white border border-slate-200 p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex items-center gap-4 group">
@@ -373,14 +360,14 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                         <div className="text-xs text-slate-500 truncate flex items-center gap-1">
                                                             <span className="font-medium">{cls?.name}</span>
                                                             <span>·</span>
-                                                            <span className="text-emerald-600 font-semibold">{kid.checkInTime}</span>
+                                                            <span className="text-emerald-600 font-semibold" suppressHydrationWarning>{kid.checkInTime}</span>
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-2 shrink-0">
                                                         <button onClick={() => { setCurrentTicket(kid); setView(VIEWS.TICKET); }} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
                                                             <FileText className="w-4 h-4" />
                                                         </button>
-                                                        <button onClick={() => handleCheckOut(kid.id)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition-colors">
+                                                        <button onClick={() => setKidToCheckout(kid)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition-colors">
                                                             Salida
                                                         </button>
                                                     </div>
@@ -527,8 +514,13 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
                                                 <div>
                                                     <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">WhatsApp *</label>
-                                                    <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium"
-                                                        placeholder="+504 9999-0000" type="tel" value={newKidForm.parentPhone} onChange={e => setNewKidForm(p => ({ ...p, parentPhone: e.target.value }))} />
+                                                    <div className="flex bg-slate-50 border border-slate-200 rounded-xl overflow-hidden focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
+                                                        <div className="flex items-center justify-center pl-4 pr-2 bg-slate-100 border-r border-slate-200 text-slate-500 font-bold text-sm select-none">
+                                                            +504
+                                                        </div>
+                                                        <input className="w-full bg-transparent px-3 py-3 text-sm outline-none font-medium"
+                                                            placeholder="9999-0000" type="tel" value={newKidForm.parentPhone.replace(/^\+504\s*/, '')} onChange={e => setNewKidForm(p => ({ ...p, parentPhone: `+504 ${e.target.value}` }))} />
+                                                    </div>
                                                     <p className="text-[10px] text-slate-400 font-medium ml-1 mt-1 text-center">Se enviará el sticker digital por WhatsApp</p>
                                                 </div>
 
@@ -575,7 +567,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                         </div>
                                                     </div>
                                                     {alreadyIn ? (
-                                                        <button onClick={() => handleCheckOut(kid.id)} className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase tracking-wider transition-colors">
+                                                        <button onClick={() => setKidToCheckout(kid)} className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase tracking-wider transition-colors">
                                                             Salida
                                                         </button>
                                                     ) : (
@@ -632,7 +624,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
                                     <div className="p-6 text-center print:hidden">
                                         <div className="inline-block p-4 bg-white rounded-2xl shadow-inner border-2 border-slate-100 mb-2">
-                                            <QRCodeCanvas value={currentTicket.qrValue} size={160} />
+                                            <QRCode value={currentTicket.qrValue} size={160} level="H" />
                                         </div>
                                         <div className="text-[10px] font-bold tracking-[0.2em] text-slate-400 mb-6 uppercase">Escanea para Check-out</div>
 
@@ -723,7 +715,9 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
                                         <div className="flex flex-row items-center justify-center gap-4 mt-2 h-full">
                                             <div className="border-[2px] border-slate-800 print:border-black rounded-xl p-1 shrink-0">
-                                                <QRCodeCanvas value={currentTicket.qrValue} size={90} />
+                                                <div style={{ background: 'white', padding: '2px' }}>
+                                                    <QRCode value={currentTicket.qrValue} size={86} level="L" />
+                                                </div>
                                             </div>
                                             <div className="text-[11px] font-black tracking-wider text-slate-900 print:text-black uppercase text-center leading-relaxed">
                                                 Escanea tu QR <br /> para hacer <br /> check-out
@@ -897,11 +891,53 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                             className={`flex flex-col items-center gap-1 p-2 min-w-[72px] rounded-xl transition-colors ${isActive ? 'text-brand-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
                                 }`}>
                             <div className={`${isActive ? 'scale-110 drop-shadow-sm' : ''} transition-transform`}>{item.icon}</div>
-                            <span className={`text-[10px] font-bold tracking-wide ${isActive ? 'opacity-100' : 'opacity-70'}`}>{item.label}</span>
+                            <span className={`text-[10px] font-bold tracking-wide ${isActive ? 'isActive opacity-100' : 'opacity-70'}`}>{item.label}</span>
                         </button>
                     )
                 })}
             </nav>
+
+            {/* Modal de Check-out */}
+            {kidToCheckout && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                        <div className="bg-red-500 p-6 text-center text-white relative">
+                            <button onClick={() => setKidToCheckout(null)} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
+                                <XCircle className="w-6 h-6" />
+                            </button>
+                            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 text-4xl shadow-inner border border-white/20">
+                                {kidToCheckout.photoEmoji || kidToCheckout.photo || "🧒"}
+                            </div>
+                            <h3 className="text-xl font-black leading-tight tracking-tight">Confirmar Salida</h3>
+                            <p className="text-sm font-medium text-red-100 mt-1 flex items-center justify-center gap-1">
+                                ¿Entregar a <strong className="text-white">{kidToCheckout.name}</strong>?
+                            </p>
+                        </div>
+                        <div className="p-6">
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6 space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Padre / Tutor</span>
+                                    <span className="text-sm font-black text-slate-800 flex items-center gap-1">👤 {kidToCheckout.parentName}</span>
+                                </div>
+                                <div className="w-full h-px bg-slate-200 border-dashed border-b"></div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Salón Actual</span>
+                                    <span className="text-sm font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-lg border border-brand-100">{classrooms.find(c => c.id === kidToCheckout.classroom)?.name || "N/A"}</span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <button onClick={() => setKidToCheckout(null)} disabled={isCheckingOut} className="px-4 py-3.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors shadow-sm">
+                                    Cancelar
+                                </button>
+                                <button onClick={handleCheckOut} disabled={isCheckingOut} className="px-4 py-3.5 rounded-xl font-bold bg-red-500 text-white hover:bg-red-600 transition-colors flex justify-center items-center gap-2 shadow-md">
+                                    {isCheckingOut ? "Entregando..." : "Sí, entregar"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Tailwind Print Styles Injection */}
             <style dangerouslySetInnerHTML={{

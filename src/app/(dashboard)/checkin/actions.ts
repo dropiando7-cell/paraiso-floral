@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/utils/supabase/server";
 import twilio from "twilio";
 import { revalidatePath } from "next/cache";
+import { sendCheckInNotification, sendCheckOutNotification } from "@/lib/checkin-notifications";
 
 export async function getCheckinData() {
     const supabase = await createClient();
@@ -110,30 +111,27 @@ export async function doCheckIn(kidId: string, securityCode: string) {
     let notifError = null;
 
     try {
-        const accountSid = process.env.TWILIO_ACCOUNT_SID;
-        const authToken = process.env.TWILIO_AUTH_TOKEN;
-        const twilioWhatsApp = process.env.TWILIO_WHATSAPP_NUMBER; // e.g., 'whatsapp:+14155238886'
+        const checkInTimeStr = new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" });
+        const result = await sendCheckInNotification({
+            parentName: kid.parentName,
+            parentPhone: kid.parentPhone,
+            kidName: kid.name,
+            kidAge: kid.age,
+            classroomName: dbUser.organizationId ? "Elim" : "Iglesia", // Simplified for now, the classroom string isn't vital for the template to work but we'll fetch it if needed later
+            teacherName: "Maestro(a)",
+            securityCode: securityCode,
+            checkInTime: checkInTimeStr,
+            allergies: kid.allergies || "Ninguna"
+        });
 
-        if (accountSid && authToken && twilioWhatsApp && kid.parentPhone) {
-            const client = twilio(accountSid, authToken);
-
-            // Format phone to WhatsApp compatible format
-            const targetPhone = `whatsapp:${kid.parentPhone.replace(/\s/g, '')}`;
-
-            // Prepare exactly like the Meta/Twilio sandbox requires
-            await client.messages.create({
-                from: twilioWhatsApp,
-                to: targetPhone,
-                body: `✅ Hola ${kid.parentName}, ${kid.name} ha sido registrado(a) en Kids Check-in.
-Su código de seguridad es: *${securityCode}*.
-Guarde este código para presentarlo a la hora de la salida.`
-            });
+        if (result.success) {
             notifSent = true;
         } else {
-            console.log("Twilio no configurado o teléfono faltante", { accountSid: !!accountSid, twilioWhatsApp: !!twilioWhatsApp, phone: kid.parentPhone });
+            console.error("Twilio WhatsApp Error: ", result.error);
+            notifError = result.error;
         }
     } catch (e: any) {
-        console.error("Twilio WhatsApp Error: ", e);
+        console.error("Twilio WhatsApp Exception: ", e);
         notifError = e.message;
     }
 
@@ -175,7 +173,8 @@ export async function doCheckOut(kidId: string) {
             kidId,
             organizationId: dbUser.organizationId,
             checkedOut: false
-        }
+        },
+        include: { kid: true }
     });
 
     if (activeCheckIn) {
@@ -186,6 +185,20 @@ export async function doCheckOut(kidId: string) {
                 checkOutTime: new Date()
             }
         });
+
+        // Send checkout notification
+        if (activeCheckIn.kid.parentPhone) {
+            const checkOutTimeStr = new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" });
+            await sendCheckOutNotification(
+                activeCheckIn.kid.parentName,
+                activeCheckIn.kid.parentPhone,
+                activeCheckIn.kid.name,
+                "Elim", // Placeholder classroom
+                checkOutTimeStr,
+                "Misión Cristiana Elim"
+            );
+        }
+
         revalidatePath("/checkin");
         return { success: true };
     }

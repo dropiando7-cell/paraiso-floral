@@ -77,7 +77,8 @@ function buildCheckOutMessage(
 // ─────────────────────────────────────────────────────────────────────────────
 async function sendTwilioWhatsApp(
     to: string,
-    body: string
+    contentSid: string,
+    contentVariables: Record<string, string>
 ): Promise<NotificationResult> {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -93,6 +94,14 @@ async function sendTwilioWhatsApp(
 
     try {
         const credentials = Buffer.from(`${accountSid}:${authToken}`).toString("base64");
+
+        // When using Twilio Content API (Templates), we must pass ContentSid and ContentVariables
+        const bodyParams = new URLSearchParams();
+        bodyParams.append("From", from);
+        bodyParams.append("To", `whatsapp:${to}`);
+        bodyParams.append("ContentSid", contentSid);
+        bodyParams.append("ContentVariables", JSON.stringify(contentVariables));
+
         const response = await fetch(
             `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
             {
@@ -101,11 +110,7 @@ async function sendTwilioWhatsApp(
                     Authorization: `Basic ${credentials}`,
                     "Content-Type": "application/x-www-form-urlencoded",
                 },
-                body: new URLSearchParams({
-                    From: from,
-                    To: `whatsapp:${to}`,
-                    Body: body,
-                }),
+                body: bodyParams,
             }
         );
 
@@ -139,8 +144,14 @@ export async function sendCheckInNotification(
     payload: CheckInNotificationPayload
 ): Promise<NotificationResult> {
     const cleanPhone = payload.parentPhone.replace(/[\s\-()]/g, "");
-    const body = buildCheckInMessage({ ...payload, parentPhone: cleanPhone });
-    return sendTwilioWhatsApp(cleanPhone, body);
+
+    // Check-in Template SID: HXebe587cd8f88a2a32ab782556b417133
+    // Variable {{1}}: nombre del nino + el aula + el codigo
+    const detalle = `${payload.kidName}, Aula: ${payload.classroomName}, Código: ${payload.securityCode}`;
+
+    return sendTwilioWhatsApp(cleanPhone, "HXebe587cd8f88a2a32ab782556b417133", {
+        "1": detalle
+    });
 }
 
 /** Envía notificación de check-out al padre/madre por WhatsApp */
@@ -153,6 +164,11 @@ export async function sendCheckOutNotification(
     churchName: string
 ): Promise<NotificationResult> {
     const cleanPhone = parentPhone.replace(/[\s\-()]/g, "");
-    const body = buildCheckOutMessage(parentName, kidName, classroomName, checkOutTime, churchName);
-    return sendTwilioWhatsApp(cleanPhone, body);
+
+    // Check-out Template SID: HX793f54fea92578ecd912245a4bc80aac
+    // Variable {{1}}: nombre del nino
+
+    return sendTwilioWhatsApp(cleanPhone, "HX793f54fea92578ecd912245a4bc80aac", {
+        "1": kidName
+    });
 }
