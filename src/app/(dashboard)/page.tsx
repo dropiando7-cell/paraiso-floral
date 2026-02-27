@@ -1,8 +1,24 @@
+import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { AIBanner } from '@/components/dashboard/AIBanner';
 import { EventBanner } from '@/components/dashboard/EventBanner';
 import { KPIGrid } from '@/components/dashboard/KPIGrid';
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user?.email) {
+    const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+    if (dbUser?.role === 'CHECKIN_KIDS') {
+      redirect('/checkin');
+    }
+    if (dbUser?.role === 'MEDICAL_STAFF') {
+      redirect('/medico');
+    }
+  }
+
   return (
     <div className="flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500 ease-out">
       <h1 className="text-2xl font-bold text-slate-800 tracking-tight mb-6">

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/utils/supabase/server'
+import { prisma } from '@/lib/prisma'
 
 export async function login(formData: FormData) {
     const supabase = await createClient()
@@ -12,6 +13,15 @@ export async function login(formData: FormData) {
     const data = {
         email: formData.get('email') as string,
         password: formData.get('password') as string,
+    }
+
+    // Check if user exists in Prisma before attempting to authenticate
+    const authorizedUser = await prisma.user.findUnique({
+        where: { email: data.email }
+    })
+
+    if (!authorizedUser) {
+        return { error: 'Acceso Denegado. Tu cuenta no está autorizada. Contacta a administración.' }
     }
 
     const { error } = await supabase.auth.signInWithPassword({

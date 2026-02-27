@@ -201,13 +201,18 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
         setAllKids(prev => [...prev, result.kid]);
         setNewKidForm({ name: "", age: "", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
+
+        if (autoCheckIn) {
+            // Wait for the checkIn to complete fully so WhatsApp triggers in this same frame
+            await handleCheckIn(result.kid);
+            showToast("✅ Niño registrado e ingresado con éxito");
+        } else {
+            showToast("✅ Niño registrado en el sistema");
+        }
+
         setShowNewKidPanel(false);
         setNewKidStep(1);
         setSavingNewKid(false);
-        showToast("✅ Niño registrado en el sistema");
-        if (autoCheckIn) {
-            setTimeout(() => handleCheckIn(result.kid), 150);
-        }
     };
 
     const classroomKids = (classroomId: string) => checkedInKids.filter(k => k.classroom === classroomId);

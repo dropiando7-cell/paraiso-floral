@@ -60,6 +60,7 @@ model Organization {
   medicalPatients  MedicalPatient[]
   calendarIntegrations CalendarIntegration[]
   tasks            Task[]
+  roleTemplates    RoleTemplate[]
 
   @@map("organizations")
 }
@@ -71,6 +72,8 @@ model User {
   // Tenancy & RBAC
   organizationId String @db.Uuid
   role           Role   @default(USER)
+  customRoleName String? // Mapea al nombre de un RoleTemplate si se usó uno
+  accessibleModules String[] @default([])
 
   // Security & MFA
   phoneNumber       String?
@@ -89,6 +92,26 @@ model User {
   calendarIntegrations CalendarIntegration[]
 
   @@map("users")
+}
+
+// ==========================================
+// ROLE TEMPLATES (Dynamic Roles)
+// ==========================================
+
+model RoleTemplate {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String       @db.Uuid
+  name              String
+  baseRole          Role         @default(USER)
+  accessibleModules String[]     @default([])
+  
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([organizationId, name]) // A organization shouldn't have duplicate role names
+  @@map("role_templates")
 }
 
 // ==========================================

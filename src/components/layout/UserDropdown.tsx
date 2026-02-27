@@ -36,8 +36,14 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
                         Isaac Paz
                     </span>
                     <span className="text-[12px] text-slate-500 capitalize mt-0.5">
-                        {dbUser?.role === 'SUPER_ADMIN' ? 'Administrador General' :
-                            dbUser?.role === 'ORG_ADMIN' ? 'Admin. de Filial' : 'Usuario'}
+                        {dbUser?.customRoleName || (
+                            dbUser?.role === 'SUPER_ADMIN' ? 'Administrador General' :
+                                dbUser?.role === 'ORG_ADMIN' ? 'Admin. de Filial' :
+                                    dbUser?.role === 'CHECKIN_KIDS' ? 'Check-In Kids' :
+                                        dbUser?.role === 'MEDICAL_STAFF' ? 'Asistencia Médica' :
+                                            dbUser?.role === 'EXECUTIVE_ASSISTANT' ? 'Asistente Ejecutivo' :
+                                                'Usuario Limitado'
+                        )}
                     </span>
                 </div>
                 <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-100 shrink-0 relative transition-transform hover:scale-105">

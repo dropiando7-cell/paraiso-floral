@@ -17,7 +17,8 @@ import {
   Settings,
   HelpCircle,
   Baby,
-  Stethoscope
+  Stethoscope,
+  Users
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -85,6 +86,17 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'MEDICAL_STAFF'],
       },
     ]
+  },
+  {
+    category: 'ADMINISTRACIÓN',
+    items: [
+      {
+        name: 'Usuarios y Roles',
+        href: '/admin/users',
+        icon: Users,
+        roles: ['SUPER_ADMIN'],
+      },
+    ]
   }
 ];
 
@@ -130,20 +142,27 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-6 px-4 custom-scrollbar">
-        {menuItems.map((group) => (
-          <div key={group.category} className="flex flex-col gap-2">
-            {group.category !== 'CORE' && (
-              <span className="text-[11px] font-semibold text-white/50 tracking-wider px-2">
-                {group.category}
-              </span>
-            )}
-            <div className="flex flex-col gap-1">
-              {group.items
-                .filter((item) =>
-                  !item.roles || item.roles.includes(dbUser?.role)
-                )
-                .map((item) => {
-                  const isActive = pathname === item.href;
+        {menuItems.map((group) => {
+          const visibleItems = group.items.filter((item) => {
+            if (dbUser?.role === 'SUPER_ADMIN') return true;
+            // Provide fallback if accessibleModules is undefined (e.g. old users)
+            const allowed = dbUser?.accessibleModules || [];
+            return allowed.includes(item.href);
+          });
+
+          if (visibleItems.length === 0) return null;
+
+          return (
+            <div key={group.category} className="flex flex-col gap-2">
+              {group.category !== 'CORE' && (
+                <span className="text-[11px] font-semibold text-white/50 tracking-wider px-2">
+                  {group.category}
+                </span>
+              )}
+              <div className="flex flex-col gap-1">
+                {visibleItems.map((item) => {
+                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+
                   const Icon = item.icon;
 
                   return (
@@ -174,9 +193,10 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                     </Link>
                   );
                 })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Bottom Actions */}

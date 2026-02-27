@@ -146,7 +146,7 @@ export function MfaSettings() {
 
     // Si ya tiene MFA habilitado
     if (mfaStatus === 'enabled') {
-        const canDisable = userRole === 'SUPERADMIN'
+        const canDisable = userRole === 'SUPER_ADMIN' || userRole === 'SUPERADMIN'
 
         return (
             <div className="bg-emerald-50 rounded-2xl border border-emerald-200 p-6 flex items-start gap-4">
