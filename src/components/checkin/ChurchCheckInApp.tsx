@@ -474,14 +474,24 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                     </div>
                                                 </div>
 
-                                                {newKidForm.age && (() => {
+                                                {newKidForm.age && classrooms.length > 0 && (() => {
                                                     const age = parseInt(newKidForm.age);
-                                                    const suggested = age <= 2 ? "c1" : age <= 5 ? "c2" : age <= 8 ? "c3" : age <= 11 ? "c4" : "c5";
-                                                    const suggestedCls = classrooms.find(c => c.id === suggested);
-                                                    if (suggested !== newKidForm.classroom) return (
-                                                        <button onClick={() => setNewKidForm(p => ({ ...p, classroom: suggested }))}
+                                                    const suggestedCls = classrooms.find(c => {
+                                                        if (!c.ageRange) return false;
+                                                        // Extract numbers from something like "3-5 años"
+                                                        const match = c.ageRange.match(/(\d+)[\s-–a]*(\d+)?/);
+                                                        if (match) {
+                                                            const min = parseInt(match[1]);
+                                                            const max = match[2] ? parseInt(match[2]) : min;
+                                                            return age >= min && age <= max;
+                                                        }
+                                                        return false;
+                                                    });
+
+                                                    if (suggestedCls && suggestedCls.id !== newKidForm.classroom) return (
+                                                        <button onClick={() => setNewKidForm(p => ({ ...p, classroom: suggestedCls.id }))}
                                                             className="w-full flex items-center gap-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl px-3 py-2 text-xs font-bold hover:bg-indigo-100 transition-colors text-left">
-                                                            <span>💡</span> <span>Sugerido por edad: <strong>{suggestedCls?.name}</strong>. ¿Asignar?</span>
+                                                            <span>💡</span> <span>Sugerido por edad: <strong>{suggestedCls.name}</strong>. ¿Asignar?</span>
                                                         </button>
                                                     );
                                                 })()}
@@ -628,14 +638,25 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     </div>
 
                                     <div className="p-6 text-center print:hidden">
-                                        <div className="inline-block p-4 bg-white rounded-2xl shadow-inner border-2 border-slate-100 mb-2">
-                                            <QRCode value={currentTicket.qrValue} size={160} level="H" />
-                                        </div>
-                                        <div className="text-[10px] font-bold tracking-[0.2em] text-slate-400 mb-6 uppercase">Escanea para Check-out</div>
+                                        <div className="flex flex-col items-center gap-4 mb-6">
+                                            {/* QR Code */}
+                                            <div className="inline-block p-4 bg-white rounded-2xl shadow-inner border-2 border-slate-100">
+                                                <QRCode value={currentTicket.qrValue} size={160} level="H" />
+                                            </div>
 
-                                        <div className="bg-brand-50 border border-brand-100 rounded-2xl py-3 px-6 mb-6">
-                                            <div className="text-[9px] font-black tracking-widest text-brand-400 uppercase mb-1">CÓDIGO DE PADRE</div>
-                                            <div className="text-3xl font-black tracking-[0.3em] text-brand-700 font-mono">{currentTicket.code}</div>
+                                            <div className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">Escanea para Check-out</div>
+
+                                            {/* Barcode */}
+                                            <div className="w-full bg-white border-2 border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center">
+                                                <img
+                                                    src={`https://barcodeapi.org/api/128/${currentTicket.code}`}
+                                                    alt={`Barcode ${currentTicket.code}`}
+                                                    className="w-full max-w-[200px] h-auto object-contain mb-2"
+                                                />
+                                                <div className="text-3xl font-black tracking-[0.3em] text-brand-700 font-mono mt-2">
+                                                    {currentTicket.code}
+                                                </div>
+                                            </div>
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4 text-left border-t border-dashed border-slate-200 pt-5">

@@ -145,12 +145,19 @@ export async function sendCheckInNotification(
 ): Promise<NotificationResult> {
     const cleanPhone = payload.parentPhone.replace(/[\s\-()]/g, "");
 
-    // Check-in Template SID: HXebe587cd8f88a2a32ab782556b417133
-    // Variable {{1}}: nombre del nino + el aula + el codigo
-    const detalle = `${payload.kidName}, Aula: ${payload.classroomName}, Código: ${payload.securityCode}`;
+    // Template SID de Meta ya aprobado con imagen variable: checkin_pase_recogidav7
+    const sid = "HXb5454650e9b4c3ae537b72b8cc121cb8";
 
-    return sendTwilioWhatsApp(cleanPhone, "HXebe587cd8f88a2a32ab782556b417133", {
-        "1": detalle
+    // URL dinámica que genera la imagen con QR y Barras
+    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://sistemaselim.app";
+    const mediaUrl = `${domain}/api/checkin/pass?name=${encodeURIComponent(payload.kidName)}&room=${encodeURIComponent(payload.classroomName)}&code=${encodeURIComponent(payload.securityCode)}`;
+
+    // La plantilla checkin_pase_recogidav7 usa {{1}} para texto y {{2}} para la imagen dinámica
+    const detalleUnificado = `Niño: ${payload.kidName} · Salón: ${payload.classroomName} · Código: ${payload.securityCode}`;
+
+    return sendTwilioWhatsApp(cleanPhone, sid, {
+        "1": detalleUnificado,
+        "2": mediaUrl
     });
 }
 

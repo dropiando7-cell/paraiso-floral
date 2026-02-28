@@ -16,7 +16,8 @@ export async function middleware(request: NextRequest) {
     const isPublicRoute =
         url.pathname.startsWith('/login') ||
         url.pathname.startsWith('/auth/callback') ||
-        url.pathname.startsWith('/auth/mfa')
+        url.pathname.startsWith('/auth/mfa') ||
+        url.pathname.startsWith('/api/checkin/pass')
 
     if (!user && !isPublicRoute) {
         url.pathname = '/login'

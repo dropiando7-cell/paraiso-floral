@@ -28,11 +28,15 @@ export default async function AuthenticatedLayout({
         redirect("/unauthorized");
     }
 
-    // 2. Here we could also enforce MFA verification if needed
-    // e.g. if (dbUser.twoFactorEnabled && !mfaVerifiedCookie) redirect('/auth/mfa')
+    // Combine Prisma DB user with Supabase Auth Metadata (from Google)
+    const combinedUser = {
+        ...dbUser,
+        fullName: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
+        avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+    };
 
     return (
-        <DashboardLayout dbUser={dbUser}>
+        <DashboardLayout dbUser={combinedUser}>
             {children}
         </DashboardLayout>
     );

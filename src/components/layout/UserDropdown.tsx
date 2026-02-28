@@ -25,6 +25,17 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
+    // Generate initials for fallback avatar
+    const getInitials = (name: string) => {
+        if (!name) return 'SE';
+        const parts = name.split(' ');
+        if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+        return name.slice(0, 2).toUpperCase();
+    };
+
+    const displayName = dbUser?.fullName || 'Usuario Elim';
+    const initials = getInitials(displayName);
+
     return (
         <div className="relative" ref={dropdownRef}>
             <button
@@ -33,7 +44,7 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
             >
                 <div className="flex flex-col items-end hidden md:flex text-right">
                     <span className="text-sm font-semibold text-slate-700 leading-tight">
-                        Isaac Paz
+                        {displayName}
                     </span>
                     <span className="text-[12px] text-slate-500 capitalize mt-0.5">
                         {dbUser?.customRoleName || (
@@ -46,13 +57,19 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
                         )}
                     </span>
                 </div>
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-100 shrink-0 relative transition-transform hover:scale-105">
-                    <Image
-                        src="https://i.ibb.co/99640p19/foto-isaac.png"
-                        alt="Isaac Paz"
-                        fill
-                        className="object-cover"
-                    />
+                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-100 shrink-0 relative transition-transform hover:scale-105 bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm">
+                    {dbUser?.avatarUrl ? (
+                        <Image
+                            src={dbUser.avatarUrl}
+                            alt={displayName}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                            unoptimized={dbUser.avatarUrl.includes('googleusercontent.com') || dbUser.avatarUrl.includes('lh3.google')}
+                        />
+                    ) : (
+                        <span>{initials}</span>
+                    )}
                 </div>
             </button>
 
@@ -60,7 +77,7 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
             {isOpen && (
                 <div className="absolute right-0 mt-3 w-56 bg-white rounded-xl shadow-lg border border-slate-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
                     <div className="px-4 py-2 border-b border-slate-100 mb-2 md:hidden">
-                        <p className="text-sm font-semibold text-slate-700">Isaac Paz</p>
+                        <p className="text-sm font-semibold text-slate-700 truncate">{displayName}</p>
                         <p className="text-xs text-slate-400 truncate">{dbUser?.email}</p>
                     </div>
 
