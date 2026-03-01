@@ -153,7 +153,7 @@ export async function sendCheckInNotification(
     const mediaUrl = `${domain}/api/checkin/pass?name=${encodeURIComponent(payload.kidName)}&room=${encodeURIComponent(payload.classroomName)}&code=${encodeURIComponent(payload.securityCode)}`;
 
     // La plantilla checkin_pase_recogidav7 usa {{1}} para texto y {{2}} para media
-    const detalleUnificado = `Niño: ${payload.kidName} · Salón: ${payload.classroomName} · Código: ${payload.securityCode}`;
+    const detalleUnificado = `${payload.kidName} · Salón: ${payload.classroomName} · Código: ${payload.securityCode}`;
 
     // === Verificación Previa (Pre-flight) ===
     // Forzamos a Vercel a generar (y cachear) la imagen dinámica ANTES de que Twilio la pida.

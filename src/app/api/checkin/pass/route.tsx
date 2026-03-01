@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={barcodeBase64} width="320" height="90" alt="Barcode" />
                                 <div style={{ display: 'flex', marginTop: '16px', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '40px', fontWeight: 900, color: '#0f172a', letterSpacing: '8px', fontFamily: 'monospace' }}>
+                                    <span style={{ fontSize: '42px', fontWeight: 900, color: '#020617', letterSpacing: '12px', fontFamily: "'Courier New', monospace" }}>
                                         {code.split('').join(' ')}
                                     </span>
                                 </div>
