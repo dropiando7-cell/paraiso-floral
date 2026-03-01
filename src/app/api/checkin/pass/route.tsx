@@ -93,8 +93,8 @@ export async function GET(req: NextRequest) {
                             <div style={{ padding: '24px', backgroundColor: 'white', border: '3px solid #0f172a', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '360px' }}>
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={barcodeBase64} width="320" height="90" alt="Barcode" />
-                                <div style={{ display: 'flex', marginTop: '16px', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '42px', fontWeight: 900, color: '#020617', letterSpacing: '12px', fontFamily: "'Courier New', monospace" }}>
+                                <div style={{ display: 'flex', marginTop: '16px', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
+                                    <span style={{ fontSize: '32px', fontWeight: 900, color: '#020617', letterSpacing: '8px', fontFamily: "'Courier New', monospace", textAlign: 'center', width: '100%' }}>
                                         {code.split('').join(' ')}
                                     </span>
                                 </div>
