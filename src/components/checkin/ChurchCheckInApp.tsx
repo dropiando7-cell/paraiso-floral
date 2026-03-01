@@ -90,13 +90,17 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     const [savingClassroom, setSavingClassroom] = useState(false);
 
     // Checkout Confirmation Handling
-    const [kidToCheckout, setKidToCheckout] = useState<any>(null);
+    const [kidsToCheckout, setKidsToCheckout] = useState<any[]>([]);
+    const [selectedKidsForCheckout, setSelectedKidsForCheckout] = useState<Set<string>>(new Set());
     const [isCheckingOut, setIsCheckingOut] = useState(false);
 
     // Scanner Handling
     const [scannerInput, setScannerInput] = useState("");
     const scannerInputRef = useRef<HTMLInputElement>(null);
     const loadMoreRef = useRef<HTMLDivElement>(null);
+
+    // Multi-select for Check-in
+    const [selectedKidsForCheckin, setSelectedKidsForCheckin] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         // Prevent observer from firing immediately on mount when items haven't fully rendered
@@ -128,9 +132,10 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         e.preventDefault();
         const code = scannerInput.trim();
         if (code) {
-            const kid = checkedInKids.find(k => k.code.toUpperCase() === code.toUpperCase());
-            if (kid) {
-                setKidToCheckout(kid);
+            const matchedKids = checkedInKids.filter(k => k.code.toUpperCase() === code.toUpperCase());
+            if (matchedKids.length > 0) {
+                setKidsToCheckout(matchedKids);
+                setSelectedKidsForCheckout(new Set(matchedKids.map(k => k.id)));
                 setView(VIEWS.HOME);
             } else {
                 showToast(`CÓDIGO NO ENCONTRADO (${code})`, "error");
@@ -223,7 +228,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === "Enter") {
                 // Confirm Checkout Modal
-                if (kidToCheckout && !isCheckingOut) {
+                if (kidsToCheckout.length > 0 && !isCheckingOut) {
                     e.preventDefault();
                     handleCheckOut();
                 }
@@ -236,7 +241,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [kidToCheckout, isCheckingOut, showNewKidPanel, newKidStep, savingNewKid, newKidForm]);
+    }, [kidsToCheckout, isCheckingOut, showNewKidPanel, newKidStep, savingNewKid, newKidForm]);
 
     const handleGenerateMockData = async () => {
         setCheckingIn(true);
@@ -275,11 +280,24 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         return passesTextSearch && passesStatusFilter;
     });
 
-    const handleCheckIn = async (kid: any) => {
+    const handleGroupCheckIn = async (kidIds: string[]) => {
+        if (kidIds.length === 0) return;
         setCheckingIn(true);
         const code = generateTicketCode();
 
-        const result = await doCheckIn(kid.id, code);
+        // Check if any of these are already checked in (failsafe)
+        const alreadyCheckedIn = kidIds.filter(id => isCheckedIn(id));
+        if (alreadyCheckedIn.length > 0) {
+            showToast("Algunos niños ya estaban ingresados. Se omitieron.", "warning");
+        }
+
+        const validKidIds = kidIds.filter(id => !isCheckedIn(id));
+        if (validKidIds.length === 0) {
+            setCheckingIn(false);
+            return;
+        }
+
+        const result = await doCheckIn(validKidIds, code);
 
         if (result.error) {
             showToast(result.error, "error");
@@ -287,42 +305,64 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             return;
         }
 
-        const ticket = {
-            ...kid, code,
-            checkInTime: new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
-            checkInDate: new Date().toLocaleDateString("es-HN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
-            qrValue: `IGLESIA-CHECKIN:${kid.id}:${code}:${Date.now()}`,
-            notifStatus: result.notification?.sent ? "WhatsApp" : "Ninguna"
-        };
+        const newTickets = validKidIds.map(id => {
+            const kid = allKids.find(k => k.id === id);
+            return {
+                ...kid, code,
+                checkInTime: new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
+                checkInDate: new Date().toLocaleDateString("es-HN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+                qrValue: `IGLESIA-CHECKIN:FAMILY:${code}:${Date.now()}`,
+                notifStatus: result.notification?.sent ? "WhatsApp" : "Ninguna"
+            };
+        });
 
-        setCurrentTicket(ticket);
-        setCheckedInKids(prev => [...prev.filter(k => k.id !== kid.id), ticket]);
+        // Current ticket should ideally show the "Family Code" or the first kid
+        // We will store the array of tickets to print them all
+        setCurrentTicket({ type: "FAMILY", tickets: newTickets, code, qrValue: newTickets[0].qrValue, parentName: newTickets[0].parentName, checkInTime: newTickets[0].checkInTime });
+
+        setCheckedInKids(prev => {
+            const filtered = prev.filter(k => !validKidIds.includes(k.id));
+            return [...filtered, ...newTickets];
+        });
+
         setView(VIEWS.TICKET);
+        setSelectedKidsForCheckin(new Set()); // clear selection
 
         if (result.notification?.sent) {
-            showToast(`✅ Registrado y notificado por WhatsApp`, "success");
+            showToast(`✅ ${validKidIds.length} registrados y notificados`, "success");
             setNotifStatus({ state: "sent", channel: "WhatsApp" });
         } else {
-            showToast(`✅ Registrado (Sin notificar: ${result.notification?.error || "Falta config"})`, "warning");
+            showToast(`✅ ${validKidIds.length} registrados (Sin WhatsApp: ${result.notification?.error || "Falta config"})`, "warning");
             setNotifStatus({ state: "error", channel: "WhatsApp" });
         }
 
         setCheckingIn(false);
     };
 
+
+
     const handleCheckOut = async () => {
-        if (!kidToCheckout) return;
+        if (kidsToCheckout.length === 0 || selectedKidsForCheckout.size === 0) return;
         setIsCheckingOut(true);
-        const result = await doCheckOut(kidToCheckout.id);
-        setIsCheckingOut(false);
-        if (result.error) {
-            showToast(result.error, "error");
-            setKidToCheckout(null);
-            return;
+
+        const idsArray = Array.from(selectedKidsForCheckout);
+
+        // Loop over the selected kids to check them out
+        for (const kidId of idsArray) {
+            const res = await doCheckOut(kidId);
+            if (res.error) {
+                showToast(res.error, "error");
+                // Stop evaluating the rest if there's an issue
+                setIsCheckingOut(false);
+                return;
+            }
         }
-        setCheckedInKids(prev => prev.filter(k => k.id !== kidToCheckout.id));
-        setKidToCheckout(null);
-        showToast("👋 Niño entregado a sus padres", "info");
+
+        setCheckedInKids(prev => prev.filter(k => !selectedKidsForCheckout.has(k.id)));
+        setKidsToCheckout([]);
+        setSelectedKidsForCheckout(new Set());
+        showToast("👋 Niños seleccionados entregados a sus padres", "info");
+        setIsCheckingOut(false);
     };
 
     const isCheckedIn = (kidId: string) => checkedInKids.some(k => k.id === kidId);
@@ -350,17 +390,40 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         setNewKidForm({ name: "", age: "", gender: "No Especificado", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
 
         if (autoCheckIn) {
-            // Wait for the checkIn to complete fully so WhatsApp triggers in this same frame
-            await handleCheckIn(result.kid);
-            showToast("✅ Niño registrado e ingresado con éxito");
-        } else {
-            showToast("✅ Niño registrado en el sistema");
-        }
+            setCheckingIn(true);
+            const code = generateTicketCode();
 
-        setShowNewKidPanel(false);
-        setNewKidStep(1);
-        setSavingNewKid(false);
-    };
+            const checkInRes = await doCheckIn([result.kid!.id], code);
+
+            if (checkInRes.error) {
+                showToast(checkInRes.error, "error");
+                setCheckingIn(false);
+                return;
+            }
+
+            const ticket = {
+                ...result.kid, code,
+                checkInTime: new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
+                checkInDate: new Date().toLocaleDateString("es-HN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
+                qrValue: `IGLESIA-CHECKIN:FAMILY:${code}:${Date.now()}`,
+                notifStatus: checkInRes.notification?.sent ? "WhatsApp" : "Ninguna"
+            };
+
+            setCurrentTicket({ type: "FAMILY", tickets: [ticket], code, qrValue: ticket.qrValue, parentName: ticket.parentName, checkInTime: ticket.checkInTime });
+            setCheckedInKids(prev => [...prev.filter(k => k.id !== result.kid!.id), ticket]);
+            setView(VIEWS.TICKET);
+
+            if (checkInRes.notification?.sent) {
+                showToast(`✅ Registrado y notificado por WhatsApp`, "success");
+                setNotifStatus({ state: "sent", channel: "WhatsApp" });
+            } else {
+                showToast(`✅ Registrado (Sin notificar: ${checkInRes.notification?.error || "Falta config"})`, "warning");
+                setNotifStatus({ state: "error", channel: "WhatsApp" });
+            }
+
+            setCheckingIn(false);
+        }
+    }
 
     const classroomKids = (classroomId: string) => checkedInKids.filter(k => k.classroom === classroomId);
     const totalCheckedIn = checkedInKids.length;
@@ -548,7 +611,10 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                             <button onClick={() => { setCurrentTicket(kid); setView(VIEWS.TICKET); }} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#F0F4FF] text-[#3B6FE8] hover:bg-[#D6E0FF] transition-colors">
                                                                 <FileText className="w-5 h-5" />
                                                             </button>
-                                                            <button onClick={() => setKidToCheckout(kid)} className="px-4 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition-colors">
+                                                            <button onClick={() => {
+                                                                setKidsToCheckout([kid]);
+                                                                setSelectedKidsForCheckout(new Set([kid.id]));
+                                                            }} className="px-4 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition-colors">
                                                                 Salida
                                                             </button>
                                                         </div>
@@ -878,14 +944,32 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                         </div>
                                                     </div>
                                                     {alreadyIn ? (
-                                                        <button onClick={() => setKidToCheckout(kid)} className="px-5 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase tracking-wider transition-colors">
+                                                        <button onClick={() => {
+                                                            setKidsToCheckout([kid]);
+                                                            setSelectedKidsForCheckout(new Set([kid.id]));
+                                                        }} className="px-5 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase tracking-wider transition-colors">
                                                             Salida
                                                         </button>
                                                     ) : (
-                                                        <button onClick={() => handleCheckIn(kid)} disabled={checkingIn}
-                                                            className="px-5 py-2.5 bg-[#F0F4FF] text-[#3B6FE8] hover:bg-[#3B6FE8] hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50">
-                                                            Entrada
-                                                        </button>
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    const newSet = new Set(selectedKidsForCheckin);
+                                                                    if (newSet.has(kid.id)) newSet.delete(kid.id);
+                                                                    else newSet.add(kid.id);
+                                                                    setSelectedKidsForCheckin(newSet);
+                                                                }}
+                                                                className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-colors ${selectedKidsForCheckin.has(kid.id) ? 'bg-brand-500 border-brand-500 text-white' : 'border-slate-300 bg-white text-transparent hover:border-brand-400'}`}
+                                                            >
+                                                                <CheckCircle2 className="w-5 h-5" />
+                                                            </button>
+                                                            {selectedKidsForCheckin.size === 0 && (
+                                                                <button onClick={() => handleGroupCheckIn([kid.id])} disabled={checkingIn}
+                                                                    className="px-5 py-2.5 bg-[#F0F4FF] text-[#3B6FE8] hover:bg-[#3B6FE8] hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50">
+                                                                    Entrada
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     )}
                                                 </div>
                                             );
@@ -906,6 +990,30 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                             <p className="text-[#7A8DB8] text-sm font-medium">O toca el botón + destacado para registrar por primera vez.</p>
                                         </div>
                                     )}
+
+                                    {/* Floating Group Check-in Bar */}
+                                    {selectedKidsForCheckin.size > 0 && (
+                                        <div className="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 animate-in slide-in-from-bottom-5">
+                                            <div className="bg-slate-900 border border-slate-700 text-white p-3 pr-4 rounded-full shadow-2xl flex items-center gap-4 max-w-sm w-full backdrop-blur-md">
+                                                <div className="bg-brand-500 text-white w-10 h-10 rounded-full flex items-center justify-center font-black">
+                                                    {selectedKidsForCheckin.size}
+                                                </div>
+                                                <div className="flex-1">
+                                                    <div className="font-bold text-sm">Niños Seleccionados</div>
+                                                    <div className="text-[10px] text-slate-400">Listos para Check-in Familiar</div>
+                                                </div>
+
+                                                <button onClick={() => setSelectedKidsForCheckin(new Set())}
+                                                    className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white transition-colors">
+                                                    <XCircle className="w-6 h-6" />
+                                                </button>
+                                                <button onClick={() => handleGroupCheckIn(Array.from(selectedKidsForCheckin))} disabled={checkingIn}
+                                                    className="bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white font-black uppercase tracking-wider text-xs px-5 py-3 rounded-full transition-colors flex items-center gap-2">
+                                                    {checkingIn ? "..." : "Ingresar"}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -913,9 +1021,15 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
                     {/* TICKET (For Printing / Showing) */}
                     {view === VIEWS.TICKET && currentTicket && (() => {
-                        const cls = classrooms.find(c => c.id === currentTicket.classroom);
+                        // For a family checkin, currentTicket looks like:
+                        // { type: "FAMILY", tickets: [ticket1, ticket2], code, qrValue, parentName, checkInTime }
+                        const isFamily = currentTicket.type === "FAMILY";
+                        const tickets = isFamily ? currentTicket.tickets : [currentTicket];
+                        const displayKidCount = tickets.length;
+                        const mainLabelName = displayKidCount > 1 ? "Familia " + (currentTicket.parentName.split(" ")[0]) : tickets[0].name;
+
                         return (
-                            <div className="animate-in slide-in-from-right-8 duration-300">
+                            <div className="animate-in slide-in-from-right-8 duration-300 pb-32">
                                 <div className="flex items-center gap-3 mb-4 sticky top-0 bg-slate-50 py-2 z-10 print:hidden">
                                     <button onClick={() => setView(VIEWS.HOME)} className="w-10 h-10 flex items-center justify-center bg-white border border-slate-200 rounded-full shadow-sm text-slate-600 hover:bg-slate-50">
                                         <ArrowLeft className="w-5 h-5" />
@@ -926,17 +1040,16 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                 {/* Printable Ticket Area */}
                                 <div id="print-ticket" className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-slate-200 mb-6 print:fixed print:inset-0 print:z-[99999] print:m-0 print:p-0 print:w-full print:h-auto print:bg-white print:border-none print:shadow-none print:rounded-none print:block print:overflow-visible">
 
-                                    {/* Screen UI - Hidden on Print */}
-                                    <div className={`px-4 py-3 text-center relative overflow-hidden print:hidden ${cls?.color.split(' ')[0] || 'bg-brand-600'}`}>
+                                    {/* --- Screen UI (Hidden on Print) --- */}
+                                    <div className={`px-4 py-3 text-center relative overflow-hidden print:hidden bg-brand-600`}>
                                         <div className="absolute inset-0 bg-black/10"></div>
                                         <div className="relative z-10 flex flex-col items-center">
                                             <div className="text-[10px] font-black tracking-[0.2em] text-white/90 uppercase mb-2">Elim Honduras</div>
                                             <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full border-2 border-white mx-auto flex items-center justify-center shadow-sm mb-2 overflow-hidden">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                                 <img src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blanco-1.png" alt="Elim Logo" className="w-10 h-10 object-contain" />
                                             </div>
-                                            <h3 className="text-xl font-black text-white leading-tight">{currentTicket.name}</h3>
-                                            <p className="text-xs font-bold text-white/90 mt-0.5">{cls?.name}</p>
+                                            <h3 className="text-xl font-black text-white leading-tight">{mainLabelName}</h3>
+                                            <p className="text-xs font-bold text-white/90 mt-0.5">{displayKidCount} niño(s) ingresados</p>
                                         </div>
                                     </div>
 
@@ -944,7 +1057,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                         <div className="flex flex-col items-center gap-4 mb-6">
                                             {/* QR Code */}
                                             <div className="inline-block p-4 bg-white rounded-2xl shadow-inner border-2 border-slate-100">
-                                                <QRCode value={currentTicket.qrValue} size={160} level="H" />
+                                                <QRCode value={currentTicket.qrValue || tickets[0].qrValue} size={160} level="H" />
                                             </div>
 
                                             <div className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">Escanea para Check-out</div>
@@ -952,12 +1065,12 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                             {/* Barcode */}
                                             <div className="w-full bg-white border-2 border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center">
                                                 <img
-                                                    src={`https://barcodeapi.org/api/128/${currentTicket.code}`}
+                                                    src={`https://barcodeapi.org/api/128/${currentTicket.code || tickets[0].code}`}
                                                     alt={`Barcode ${currentTicket.code}`}
                                                     className="w-full max-w-[200px] h-auto object-contain mb-2"
                                                 />
                                                 <div className="text-3xl font-black tracking-[0.2em] text-[#0f172a] font-mono mt-2 whitespace-nowrap">
-                                                    {currentTicket.code.split('').join(' ')}
+                                                    {(currentTicket.code || tickets[0].code).split('').join(' ')}
                                                 </div>
                                             </div>
                                         </div>
@@ -965,103 +1078,113 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                         <div className="grid grid-cols-2 gap-4 text-left border-t border-dashed border-slate-200 pt-5">
                                             <div>
                                                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Encargado</div>
-                                                <div className="text-sm font-bold text-slate-800 truncate">{currentTicket.parentName}</div>
+                                                <div className="text-sm font-bold text-slate-800 truncate">{currentTicket.parentName || tickets[0].parentName}</div>
                                             </div>
                                             <div className="text-right">
                                                 <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Hora Entrada</div>
-                                                <div className="text-sm font-bold text-slate-800">{currentTicket.checkInTime}</div>
+                                                <div className="text-sm font-bold text-slate-800">{currentTicket.checkInTime || tickets[0].checkInTime}</div>
                                             </div>
                                         </div>
 
-                                        {currentTicket.allergies !== "Ninguna" && (
-                                            <div className="mt-5 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3 flex items-start gap-3 text-left">
-                                                <div className="text-xl">⚠️</div>
-                                                <div>
-                                                    <div className="text-xs font-black uppercase tracking-wider">Alerta Médica</div>
-                                                    <div className="text-sm font-semibold">{currentTicket.allergies}</div>
-                                                </div>
+                                        {/* Display names of kids for on-screen confirmation */}
+                                        <div className="mt-5 text-left bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Niños en este código</div>
+                                            <div className="flex flex-col gap-2">
+                                                {tickets.map((t: any) => (
+                                                    <div key={t.id} className="text-sm font-semibold text-slate-700 flex justify-between items-center">
+                                                        <span>👦 {t.name}</span>
+                                                        <span className="text-xs text-slate-400 bg-white px-2 py-1 rounded border border-slate-200">{classrooms.find(c => c.id === t.classroom)?.name}</span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                        )}
-                                    </div>
-
-                                    {/* Print UI - Only Visible on Print */}
-                                    {/* PAGE 1: Child's Sticker (Planning Center Layout) */}
-                                    <div className="hidden print:flex print:flex-col font-sans text-black bg-white p-3 box-border w-[3in] h-[2in] print:break-after-page relative overflow-hidden">
-                                        <div className="flex justify-between items-start mb-1">
-                                            <div className="flex-1 pr-2">
-                                                <h1 className="text-[28px] font-extrabold leading-none text-slate-900 tracking-tight mb-0.5 truncate">
-                                                    {currentTicket.name.split(' ')[0]}
-                                                </h1>
-                                                <h2 className="text-[20px] font-extrabold leading-none text-slate-700 tracking-tight truncate">
-                                                    {currentTicket.name.split(' ').slice(1).join(' ')}
-                                                </h2>
-                                            </div>
-                                            <div className="shrink-0 flex flex-col items-end">
-                                                <div className="bg-slate-700 text-white font-black text-xl px-2 py-1 rounded-xl mb-1 tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black">
-                                                    {currentTicket.code}
-                                                </div>
-                                                <div className="text-[9px] font-bold text-slate-600 print:text-black text-right max-w-[1.2in] leading-tight">
-                                                    Checked in by:<br />{currentTicket.parentName.split(' ')[0]}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        <hr className="border-t-[2px] border-slate-800 my-1.5 print:border-black" />
-
-                                        <div className="flex-1 space-y-1 mt-0.5">
-                                            <div className="text-[10px] font-bold text-slate-700 print:text-black flex justify-between">
-                                                <span>{new Date().toLocaleDateString('es-HN', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                                                <span className="truncate ml-2">{cls?.name}</span>
-                                            </div>
-
-                                            {currentTicket.allergies !== "Ninguna" ? (
-                                                <div className="text-xs font-black text-slate-900 flex items-start gap-1 print:text-black mt-1 bg-slate-100 p-1 rounded-md print:bg-white print:border print:border-black">
-                                                    <span>⚠️</span>
-                                                    <span className="leading-tight">{currentTicket.allergies}</span>
-                                                </div>
-                                            ) : (
-                                                <div className="text-[9px] font-semibold text-slate-500 print:text-gray-600 mt-1">Sin alergias</div>
-                                            )}
-                                        </div>
-
-                                        <div className="absolute bottom-1.5 right-3 text-[8px] font-bold text-slate-500 print:text-black uppercase tracking-widest text-right">
-                                            Elim Kids
                                         </div>
                                     </div>
 
-                                    {/* PAGE 2: Parent Receipt with QR */}
-                                    <div className="hidden print:flex print:flex-col font-sans text-black bg-white p-3 box-border w-[3in] h-[2in] relative justify-between overflow-hidden">
+                                    {/* --- Print UI (Only Visible on Print) --- */}
+
+                                    {/* N Child Labels */}
+                                    {tickets.map((t: any) => {
+                                        const kidClassroom = classrooms.find(c => c.id === t.classroom);
+                                        return (
+                                            <div key={t.id} className="hidden print:flex print:flex-col font-sans text-black bg-white p-3 box-border w-[3in] h-[2in] print:break-after-page relative overflow-hidden shrink-0">
+                                                <div className="flex justify-between items-start mb-1">
+                                                    <div className="flex-1 pr-2">
+                                                        <h1 className="text-[26px] font-extrabold leading-none text-slate-900 tracking-tight mb-0.5 truncate">
+                                                            {t.name.split(' ')[0]}
+                                                        </h1>
+                                                        <h2 className="text-[18px] font-extrabold leading-none text-slate-700 tracking-tight truncate">
+                                                            {t.name.split(' ').slice(1).join(' ')}
+                                                        </h2>
+                                                    </div>
+                                                    <div className="shrink-0 flex flex-col items-end">
+                                                        <div className="bg-slate-700 text-white font-black text-lg px-2 py-1 rounded-xl mb-1 tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black">
+                                                            {t.code}
+                                                        </div>
+                                                        <div className="text-[9px] font-bold text-slate-600 print:text-black text-right max-w-[1.2in] leading-tight">
+                                                            Pase Fam:<br />{t.parentName.split(' ')[0]}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <hr className="border-t-[2px] border-slate-800 my-1.5 print:border-black" />
+
+                                                <div className="flex-1 space-y-1 mt-0.5">
+                                                    <div className="text-[10px] font-bold text-slate-700 print:text-black flex justify-between">
+                                                        <span>{new Date().toLocaleDateString('es-HN', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                                                        <span className="truncate ml-2">{kidClassroom?.name}</span>
+                                                    </div>
+
+                                                    {t.allergies && t.allergies !== "Ninguna" ? (
+                                                        <div className="text-[11px] font-black text-slate-900 flex items-start gap-1 print:text-black mt-1 bg-slate-100 p-1 rounded-md print:bg-white print:border print:border-black">
+                                                            <span>⚠️</span>
+                                                            <span className="leading-tight truncate">{t.allergies}</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-[9px] font-semibold text-slate-500 print:text-gray-600 mt-1">Sin alergias</div>
+                                                    )}
+                                                </div>
+
+                                                <div className="absolute bottom-1.5 right-3 text-[8px] font-bold text-slate-500 print:text-black uppercase tracking-widest text-right">
+                                                    Elim Kids (Niño)
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+
+                                    {/* 1 Master Parent Label */}
+                                    <div className="hidden print:flex print:flex-col font-sans text-black bg-white p-3 box-border w-[3in] h-[2in] relative justify-between overflow-hidden shrink-0 print:break-after-page">
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1 pr-2">
-                                                <div className="text-[9px] font-black uppercase tracking-widest print:text-black mb-1">Recibo de Padre</div>
-                                                <h2 className="text-base font-black leading-none text-slate-900 print:text-black truncate">{currentTicket.name}</h2>
-                                                <div className="text-[9px] font-bold print:text-black mt-1">{new Date().toLocaleDateString('es-HN')} · {currentTicket.checkInTime}</div>
+                                                <div className="text-[9px] font-black uppercase tracking-widest print:text-black mb-1 shrink-0">Recibo Familiar</div>
+                                                <h2 className="text-sm font-black leading-tight text-slate-900 print:text-black truncate">{currentTicket.parentName || tickets[0].parentName}</h2>
+                                                <div className="text-[9px] font-bold print:text-black mt-0.5">{new Date().toLocaleDateString('es-HN')} · {currentTicket.checkInTime || tickets[0].checkInTime}</div>
+                                                <div className="text-[9px] font-semibold print:text-black mt-1">Niños: {displayKidCount}</div>
                                             </div>
-                                            <div className="bg-slate-700 text-white font-black text-lg px-2 py-1 rounded-lg tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black shrink-0">
-                                                {currentTicket.code}
+                                            <div className="bg-slate-700 text-white font-black text-sm px-2 py-1 rounded-lg tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black shrink-0">
+                                                {currentTicket.code || tickets[0].code}
                                             </div>
                                         </div>
 
                                         <div className="flex flex-row items-center justify-center gap-3 mt-1.5 h-full">
                                             <div className="border-[2px] border-slate-800 print:border-black rounded-lg p-0.5 shrink-0">
                                                 <div style={{ background: 'white', padding: '2px' }}>
-                                                    <QRCode value={currentTicket.qrValue} size={70} level="L" />
+                                                    <QRCode value={currentTicket.qrValue || tickets[0].qrValue} size={65} level="L" />
                                                 </div>
                                             </div>
-                                            <div className="text-[10px] font-black tracking-wider text-slate-900 print:text-black uppercase text-center leading-relaxed">
-                                                Escanea tu QR <br /> para hacer <br /> check-out
+                                            <div className="text-[9px] font-black tracking-wider text-slate-900 print:text-black uppercase text-center leading-relaxed">
+                                                Escanea tu QR <br /> al final del servicio<br />para Check-out
                                             </div>
                                         </div>
 
                                         <div className="absolute bottom-1.5 right-3 text-[8px] font-bold text-slate-500 print:text-black text-right">
-                                            Por favor no pierda este comprobante.
+                                            Por favor no pierdas este comprobante.
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3 print:hidden">
+                                <div className="grid grid-cols-2 gap-3 pb-8 px-4 print:hidden">
                                     <button onClick={() => window.print()} className="bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
-                                        <Printer className="w-5 h-5" /> Imprimir
+                                        <Printer className="w-5 h-5" /> Imprimir ({displayKidCount + 1})
                                     </button>
                                     <button onClick={() => setView(VIEWS.HOME)} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3.5 rounded-xl transition-all">
                                         Nuevo Check-in
@@ -1204,40 +1327,53 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             </div>
 
             {/* Modal de Check-out */}
-            {kidToCheckout && (
+            {kidsToCheckout.length > 0 && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                     <div className="bg-white rounded-[2rem] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
                         <div className="bg-red-500 p-6 text-center text-white relative">
-                            <button onClick={() => setKidToCheckout(null)} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
+                            <button onClick={() => { setKidsToCheckout([]); setSelectedKidsForCheckout(new Set()); }} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
                                 <XCircle className="w-6 h-6" />
                             </button>
                             <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 text-4xl shadow-inner border border-white/20">
-                                {kidToCheckout.photoEmoji || kidToCheckout.photo || "🧒"}
+                                {kidsToCheckout.length === 1 ? (kidsToCheckout[0].photoEmoji || kidsToCheckout[0].photo || "🧒") : "👨‍👩‍👧‍👦"}
                             </div>
                             <h3 className="text-xl font-black leading-tight tracking-tight">Confirmar Salida</h3>
                             <p className="text-sm font-medium text-red-100 mt-1 flex items-center justify-center gap-1">
-                                ¿Entregar a <strong className="text-white">{kidToCheckout.name}</strong>?
+                                {kidsToCheckout.length === 1 ? `¿Entregar a ${kidsToCheckout[0].name}?` : `Hermanos encontrados (${kidsToCheckout.length})`}
                             </p>
                         </div>
                         <div className="p-6">
                             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6 space-y-3">
                                 <div className="flex justify-between items-center">
                                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Padre / Tutor</span>
-                                    <span className="text-sm font-black text-slate-800 flex items-center gap-1">👤 {kidToCheckout.parentName}</span>
+                                    <span className="text-sm font-black text-slate-800 flex items-center gap-1">👤 {kidsToCheckout[0].parentName}</span>
                                 </div>
                                 <div className="w-full h-px bg-slate-200 border-dashed border-b"></div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Salón Actual</span>
-                                    <span className="text-sm font-bold text-brand-700 bg-brand-50 px-2 py-0.5 rounded-lg border border-brand-100">{classrooms.find(c => c.id === kidToCheckout.classroom)?.name || "N/A"}</span>
+                                <div className="flex flex-col gap-2">
+                                    <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Elige a quién dar salida:</span>
+                                    {kidsToCheckout.map(kid => {
+                                        const isSelected = selectedKidsForCheckout.has(kid.id);
+                                        return (
+                                            <label key={kid.id} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-red-50/50 border-red-200 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-red-500 border-red-500' : 'bg-white border-slate-300'}`}>
+                                                    {isSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-sm font-bold text-slate-800 truncate">{kid.name}</div>
+                                                    <div className="text-[10px] uppercase font-semibold text-slate-500">{classrooms.find(c => c.id === kid.classroom)?.name || "N/A"}</div>
+                                                </div>
+                                            </label>
+                                        );
+                                    })}
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">
-                                <button onClick={() => setKidToCheckout(null)} disabled={isCheckingOut} className="px-4 py-3.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors shadow-sm">
+                                <button onClick={() => { setKidsToCheckout([]); setSelectedKidsForCheckout(new Set()); }} disabled={isCheckingOut} className="px-4 py-3.5 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors shadow-sm">
                                     Cancelar
                                 </button>
-                                <button onClick={handleCheckOut} disabled={isCheckingOut} className="px-4 py-3.5 rounded-xl font-bold bg-red-500 text-white hover:bg-red-600 transition-colors flex justify-center items-center gap-2 shadow-md">
-                                    {isCheckingOut ? "Entregando..." : "Sí, entregar"}
+                                <button onClick={handleCheckOut} disabled={isCheckingOut || selectedKidsForCheckout.size === 0} className="px-4 py-3.5 rounded-xl font-bold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors flex justify-center items-center gap-2 shadow-md">
+                                    {isCheckingOut ? "Entregando..." : `Entregar (${selectedKidsForCheckout.size})`}
                                 </button>
                             </div>
                         </div>

@@ -80,7 +80,7 @@ export async function addKid(data: { name: string, age: number, gender: string, 
     return { success: true, kid: newKid };
 }
 
-export async function doCheckIn(kidId: string, securityCode: string) {
+export async function doCheckIn(kidIds: string[], securityCode: string) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: "Unauthorized" };
@@ -91,39 +91,55 @@ export async function doCheckIn(kidId: string, securityCode: string) {
     });
     if (!dbUser) return { error: "Organization not found" };
 
-    const kid = await prisma.kid.findUnique({
-        where: { id: kidId, organizationId: dbUser.organizationId },
+    const kids = await prisma.kid.findMany({
+        where: { id: { in: kidIds }, organizationId: dbUser.organizationId },
         include: { classroom: true }
     });
 
-    if (!kid) return { error: "Kid not found" };
+    if (kids.length === 0) return { error: "Kids not found" };
 
-    // Create CheckIn record
-    const checkInRecord = await prisma.checkIn.create({
-        data: {
-            organizationId: dbUser.organizationId,
-            kidId: kid.id,
-            securityCode,
-            checkedOut: false,
-        }
-    });
+    // Create CheckIn records for all selected kids using the SAME securityCode
+    const checkInRecords = [];
+    for (const kid of kids) {
+        const record = await prisma.checkIn.create({
+            data: {
+                organizationId: dbUser.organizationId,
+                kidId: kid.id,
+                securityCode,
+                checkedOut: false,
+            }
+        });
+        checkInRecords.push(record);
+    }
 
-    // Send WhatsApp notification using Twilio
+    // Send a SINGLE WhatsApp notification using Twilio for the entire group
     let notifSent = false;
     let notifError = null;
 
     try {
         const checkInTimeStr = new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" });
+
+        // Use the primary parent info from the first kid (assuming they are siblings)
+        const representativeKid = kids[0];
+
+        // Group names and classrooms
+        // Format: "Juan (Semillitas), Pedro (Héroes)"
+        const groupedNames = kids.map(k => `${k.name.split(' ')[0]} (${k.classroom?.name || 'Elim'})`).join(", ");
+
+        // Combine allergies if any
+        const allergiesList = kids.filter(k => k.allergies && k.allergies !== "Ninguna").map(k => `${k.name.split(' ')[0]}: ${k.allergies}`).join(" | ");
+        const finalAllergies = allergiesList || "Ninguna";
+
         const result = await sendCheckInNotification({
-            parentName: kid.parentName,
-            parentPhone: kid.parentPhone,
-            kidName: kid.name,
-            kidAge: kid.age,
-            classroomName: kid.classroom?.name || "Elim",
+            parentName: representativeKid.parentName,
+            parentPhone: representativeKid.parentPhone,
+            kidName: groupedNames, // We pass the concatenated names so Twilio prints them
+            kidAge: 0, // Not explicitly used in Twilio template for multiple
+            classroomName: kids.length > 1 ? "Varios" : (representativeKid.classroom?.name || "Elim"),
             teacherName: "Maestro(a)",
             securityCode: securityCode,
             checkInTime: checkInTimeStr,
-            allergies: kid.allergies || "Ninguna"
+            allergies: finalAllergies
         });
 
         if (result.success) {
@@ -137,9 +153,9 @@ export async function doCheckIn(kidId: string, securityCode: string) {
         notifError = e.message;
     }
 
-    // Update CheckIn record with notification status
-    await prisma.checkIn.update({
-        where: { id: checkInRecord.id },
+    // Update all CheckIn records with notification status
+    await prisma.checkIn.updateMany({
+        where: { id: { in: checkInRecords.map(c => c.id) } },
         data: {
             parentNotified: notifSent,
             notifProvider: notifSent ? "twilio_whatsapp" : null,
@@ -149,7 +165,7 @@ export async function doCheckIn(kidId: string, securityCode: string) {
     revalidatePath("/checkin");
     return {
         success: true,
-        checkIn: checkInRecord,
+        checkIns: checkInRecords,
         notification: {
             sent: notifSent,
             error: notifError,
