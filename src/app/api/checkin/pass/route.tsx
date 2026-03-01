@@ -13,18 +13,19 @@ export async function GET(req: NextRequest) {
 
         // Pre-fetch images to avoid Twilio timeouts
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${code}`;
-        const barcodeUrl = `https://barcodeapi.org/api/128/${code}`;
+        // const barcodeUrl = `https://barcodeapi.org/api/128/${code}`;
 
-        const [qrRes, barcodeRes] = await Promise.all([
+        // Fetch only QR code for now to test if barcode fetch was causing timeouts
+        const [qrRes] = await Promise.all([
             fetch(qrUrl),
-            fetch(barcodeUrl)
+            // fetch(barcodeUrl)
         ]);
 
         const qrArrayBuffer = await qrRes.arrayBuffer();
-        const barcodeArrayBuffer = await barcodeRes.arrayBuffer();
+        // const barcodeArrayBuffer = await barcodeRes.arrayBuffer();
 
         const qrBase64 = `data:${qrRes.headers.get('content-type') || 'image/png'};base64,${Buffer.from(qrArrayBuffer).toString('base64')}`;
-        const barcodeBase64 = `data:${barcodeRes.headers.get('content-type') || 'image/png'};base64,${Buffer.from(barcodeArrayBuffer).toString('base64')}`;
+        // const barcodeBase64 = `data:${barcodeRes.headers.get('content-type') || 'image/png'};base64,${Buffer.from(barcodeArrayBuffer).toString('base64')}`;
 
         return new ImageResponse(
             (
@@ -88,9 +89,9 @@ export async function GET(req: NextRequest) {
                     </span>
 
                     {/* Barcode Section */}
+                    {/*
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                         <div style={{ padding: '30px', backgroundColor: 'white', border: '3px solid #0f172a', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '480px' }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={barcodeBase64} width="400" height="120" alt="Barcode" />
                             <div style={{ display: 'flex', marginTop: '20px', alignItems: 'center' }}>
                                 <span style={{ fontSize: '42px', fontWeight: 800, color: '#2563eb', letterSpacing: '10px', fontFamily: 'monospace' }}>
@@ -99,6 +100,7 @@ export async function GET(req: NextRequest) {
                             </div>
                         </div>
                     </div>
+                    */}
                 </div>
             ),
             {
