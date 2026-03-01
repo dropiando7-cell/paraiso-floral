@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 
@@ -25,6 +26,19 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
         document.addEventListener('keydown', handleKey);
         return () => document.removeEventListener('keydown', handleKey);
     }, []);
+
+    const pathname = usePathname();
+    const isCheckin = pathname === '/checkin';
+
+    if (isCheckin) {
+        return (
+            <div className="flex min-h-screen bg-[#F0F4FF]">
+                <main className="flex-1 w-full relative">
+                    {children}
+                </main>
+            </div>
+        );
+    }
 
     return (
         <div className="flex min-h-screen bg-[#f8fafc]">
