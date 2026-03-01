@@ -689,15 +689,16 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                 <div id="print-ticket" className="bg-white rounded-[2rem] shadow-xl overflow-hidden border border-slate-200 mb-6 print:fixed print:inset-0 print:z-[99999] print:m-0 print:p-0 print:w-full print:h-auto print:bg-white print:border-none print:shadow-none print:rounded-none print:block print:overflow-visible">
 
                                     {/* Screen UI - Hidden on Print */}
-                                    <div className={`px-6 py-5 text-center relative overflow-hidden print:hidden ${cls?.color.split(' ')[0] || 'bg-brand-600'}`}>
+                                    <div className={`px-4 py-3 text-center relative overflow-hidden print:hidden ${cls?.color.split(' ')[0] || 'bg-brand-600'}`}>
                                         <div className="absolute inset-0 bg-black/10"></div>
-                                        <div className="relative z-10">
-                                            <div className="text-[9px] font-black tracking-[0.2em] text-white/80 uppercase mb-3">Misión Cristiana Elim</div>
-                                            <div className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-full border-4 border-white mx-auto flex items-center justify-center text-4xl shadow-lg mb-3">
-                                                {currentTicket.photo}
+                                        <div className="relative z-10 flex flex-col items-center">
+                                            <div className="text-[10px] font-black tracking-[0.2em] text-white/90 uppercase mb-2">Elim Honduras</div>
+                                            <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-full border-2 border-white mx-auto flex items-center justify-center shadow-sm mb-2 overflow-hidden">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blanco-1.png" alt="Elim Logo" className="w-10 h-10 object-contain" />
                                             </div>
-                                            <h3 className="text-2xl font-black text-white leading-tight">{currentTicket.name}</h3>
-                                            <p className="text-sm font-bold text-white/90 mt-1">{cls?.name}</p>
+                                            <h3 className="text-xl font-black text-white leading-tight">{currentTicket.name}</h3>
+                                            <p className="text-xs font-bold text-white/90 mt-0.5">{cls?.name}</p>
                                         </div>
                                     </div>
 

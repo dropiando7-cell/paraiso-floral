@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
+                        justifyContent: 'center',
                         backgroundColor: '#ffffff',
                         fontFamily: 'system-ui, sans-serif',
                         padding: '40px',
@@ -54,14 +55,14 @@ export async function GET(req: NextRequest) {
                             alignItems: 'center',
                             backgroundColor: '#2563eb', // brand blue
                             borderRadius: '32px',
-                            padding: '30px', // Reduced padding
+                            padding: '24px', // Reduced padding
                             width: '100%',
                             color: 'white',
                             boxShadow: '0 10px 25px rgba(37, 99, 235, 0.2)'
                         }}
                     >
-                        <span style={{ fontSize: '18px', fontWeight: 600, letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '20px', color: '#bfdbfe' }}>
-                            Misión Cristiana Elim
+                        <span style={{ fontSize: '16px', fontWeight: 600, letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '12px', color: '#bfdbfe' }}>
+                            Elim Honduras
                         </span>
 
                         {/* Church Logo instead of Avatar */}
@@ -70,43 +71,41 @@ export async function GET(req: NextRequest) {
                             marginBottom: '10px'
                         }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={logoBase64} width="100" height="100" style={{ objectFit: 'contain' }} alt="Elim Logo" />
+                            <img src={logoBase64} width="80" height="80" style={{ objectFit: 'contain' }} alt="Elim Logo" />
                         </div>
 
-                        <span style={{ fontSize: '48px', fontWeight: 800, textAlign: 'center', lineHeight: 1.1 }}>
+                        <span style={{ fontSize: '42px', fontWeight: 800, textAlign: 'center', lineHeight: 1.1 }}>
                             {name}
                         </span>
                     </div>
 
-                    {/* QR Code Section */}
-                    <div style={{ display: 'flex', marginTop: '30px', marginBottom: '15px' }}>
-                        <div style={{ padding: '20px', backgroundColor: 'white', border: '2px solid #e2e8f0', borderRadius: '24px', display: 'flex' }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={qrBase64} width="240" height="240" alt="QR Code" />
+                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: '40px', marginTop: '30px', width: '100%' }}>
+                        {/* QR Code Section */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div style={{ padding: '16px', backgroundColor: 'white', border: '2px solid #e2e8f0', borderRadius: '24px', display: 'flex' }}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={qrBase64} width="200" height="200" alt="QR Code" />
+                            </div>
                         </div>
-                    </div>
 
-                    <span style={{ fontSize: '14px', fontWeight: 700, color: '#94a3b8', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '30px' }}>
-                        Escanea para Check-out
-                    </span>
-
-                    {/* Barcode Section */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <div style={{ padding: '30px', backgroundColor: 'white', border: '3px solid #0f172a', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '480px' }}>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={barcodeBase64} width="400" height="120" alt="Barcode" />
-                            <div style={{ display: 'flex', marginTop: '20px', alignItems: 'center' }}>
-                                <span style={{ fontSize: '42px', fontWeight: 800, color: '#2563eb', letterSpacing: '10px', fontFamily: 'monospace' }}>
-                                    {code.split('').join(' ')}
-                                </span>
+                        {/* Barcode Section */}
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                            <div style={{ padding: '24px', backgroundColor: 'white', border: '3px solid #0f172a', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '360px' }}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={barcodeBase64} width="320" height="90" alt="Barcode" />
+                                <div style={{ display: 'flex', marginTop: '16px', alignItems: 'center' }}>
+                                    <span style={{ fontSize: '32px', fontWeight: 800, color: '#2563eb', letterSpacing: '8px', fontFamily: 'monospace' }}>
+                                        {code.split('').join(' ')}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             ),
             {
-                width: 600, // Fixed resolution
-                height: 900,
+                width: 800, // Fixed resolution
+                height: 800,
                 headers: {
                     'Content-Type': 'image/png',
                     'Cache-Control': 'public, max-age=31536000, immutable'
