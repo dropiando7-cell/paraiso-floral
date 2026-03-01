@@ -780,74 +780,74 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
                                     {/* Print UI - Only Visible on Print */}
                                     {/* PAGE 1: Child's Sticker (Planning Center Layout) */}
-                                    <div className="hidden print:flex print:flex-col font-sans text-black bg-white p-4 box-border w-[100mm] h-[62mm] print:break-after-page relative overflow-hidden">
-                                        <div className="flex justify-between items-start mb-2">
+                                    <div className="hidden print:flex print:flex-col font-sans text-black bg-white p-3 box-border w-[3in] h-[2in] print:break-after-page relative overflow-hidden">
+                                        <div className="flex justify-between items-start mb-1">
                                             <div className="flex-1 pr-2">
-                                                <h1 className="text-[32px] font-extrabold leading-none text-slate-900 tracking-tight mb-1 truncate">
+                                                <h1 className="text-[28px] font-extrabold leading-none text-slate-900 tracking-tight mb-0.5 truncate">
                                                     {currentTicket.name.split(' ')[0]}
                                                 </h1>
-                                                <h2 className="text-[22px] font-extrabold leading-none text-slate-700 tracking-tight truncate">
+                                                <h2 className="text-[20px] font-extrabold leading-none text-slate-700 tracking-tight truncate">
                                                     {currentTicket.name.split(' ').slice(1).join(' ')}
                                                 </h2>
                                             </div>
                                             <div className="shrink-0 flex flex-col items-end">
-                                                <div className="bg-slate-700 text-white font-black text-2xl px-3 py-1.5 rounded-xl mb-1 tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black">
+                                                <div className="bg-slate-700 text-white font-black text-xl px-2 py-1 rounded-xl mb-1 tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black">
                                                     {currentTicket.code}
                                                 </div>
-                                                <div className="text-[10px] font-bold text-slate-600 print:text-black text-right max-w-[1.2in] leading-tight">
+                                                <div className="text-[9px] font-bold text-slate-600 print:text-black text-right max-w-[1.2in] leading-tight">
                                                     Checked in by:<br />{currentTicket.parentName.split(' ')[0]}
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <hr className="border-t-[3px] border-slate-800 my-2 print:border-black" />
+                                        <hr className="border-t-[2px] border-slate-800 my-1.5 print:border-black" />
 
-                                        <div className="flex-1 space-y-1">
-                                            <div className="text-[11px] font-bold text-slate-700 print:text-black flex justify-between">
+                                        <div className="flex-1 space-y-1 mt-0.5">
+                                            <div className="text-[10px] font-bold text-slate-700 print:text-black flex justify-between">
                                                 <span>{new Date().toLocaleDateString('es-HN', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                                                 <span className="truncate ml-2">{cls?.name}</span>
                                             </div>
 
                                             {currentTicket.allergies !== "Ninguna" ? (
-                                                <div className="text-sm font-black text-slate-900 flex items-start gap-1 print:text-black mt-1 bg-slate-100 p-1 rounded-md print:bg-white print:border print:border-black">
+                                                <div className="text-xs font-black text-slate-900 flex items-start gap-1 print:text-black mt-1 bg-slate-100 p-1 rounded-md print:bg-white print:border print:border-black">
                                                     <span>⚠️</span>
                                                     <span className="leading-tight">{currentTicket.allergies}</span>
                                                 </div>
                                             ) : (
-                                                <div className="text-[10px] font-semibold text-slate-500 print:text-gray-600 mt-2">Sin alergias reportadas</div>
+                                                <div className="text-[9px] font-semibold text-slate-500 print:text-gray-600 mt-1">Sin alergias</div>
                                             )}
                                         </div>
 
-                                        <div className="absolute bottom-2 right-4 text-[9px] font-bold text-slate-500 print:text-black uppercase tracking-widest text-right">
+                                        <div className="absolute bottom-1.5 right-3 text-[8px] font-bold text-slate-500 print:text-black uppercase tracking-widest text-right">
                                             Elim Kids
                                         </div>
                                     </div>
 
                                     {/* PAGE 2: Parent Receipt with QR */}
-                                    <div className="hidden print:flex print:flex-col font-sans text-black bg-white p-4 box-border w-[100mm] h-[62mm] relative justify-between overflow-hidden">
+                                    <div className="hidden print:flex print:flex-col font-sans text-black bg-white p-3 box-border w-[3in] h-[2in] relative justify-between overflow-hidden">
                                         <div className="flex justify-between items-start">
                                             <div className="flex-1 pr-2">
-                                                <div className="text-[10px] font-black uppercase tracking-widest print:text-black mb-1">Recibo de Padre</div>
-                                                <h2 className="text-lg font-black leading-none text-slate-900 print:text-black truncate">{currentTicket.name}</h2>
-                                                <div className="text-[10px] font-bold print:text-black mt-1">{new Date().toLocaleDateString('es-HN')} · {currentTicket.checkInTime}</div>
+                                                <div className="text-[9px] font-black uppercase tracking-widest print:text-black mb-1">Recibo de Padre</div>
+                                                <h2 className="text-base font-black leading-none text-slate-900 print:text-black truncate">{currentTicket.name}</h2>
+                                                <div className="text-[9px] font-bold print:text-black mt-1">{new Date().toLocaleDateString('es-HN')} · {currentTicket.checkInTime}</div>
                                             </div>
-                                            <div className="bg-slate-700 text-white font-black text-xl px-2 py-1 rounded-lg tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black shrink-0">
+                                            <div className="bg-slate-700 text-white font-black text-lg px-2 py-1 rounded-lg tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black shrink-0">
                                                 {currentTicket.code}
                                             </div>
                                         </div>
 
-                                        <div className="flex flex-row items-center justify-center gap-4 mt-2 h-full">
-                                            <div className="border-[2px] border-slate-800 print:border-black rounded-xl p-1 shrink-0">
+                                        <div className="flex flex-row items-center justify-center gap-3 mt-1.5 h-full">
+                                            <div className="border-[2px] border-slate-800 print:border-black rounded-lg p-0.5 shrink-0">
                                                 <div style={{ background: 'white', padding: '2px' }}>
-                                                    <QRCode value={currentTicket.qrValue} size={86} level="L" />
+                                                    <QRCode value={currentTicket.qrValue} size={70} level="L" />
                                                 </div>
                                             </div>
-                                            <div className="text-[11px] font-black tracking-wider text-slate-900 print:text-black uppercase text-center leading-relaxed">
+                                            <div className="text-[10px] font-black tracking-wider text-slate-900 print:text-black uppercase text-center leading-relaxed">
                                                 Escanea tu QR <br /> para hacer <br /> check-out
                                             </div>
                                         </div>
 
-                                        <div className="absolute bottom-2 right-4 text-[9px] font-bold text-slate-500 print:text-black text-right">
+                                        <div className="absolute bottom-1.5 right-3 text-[8px] font-bold text-slate-500 print:text-black text-right">
                                             Por favor no pierda este comprobante.
                                         </div>
                                     </div>
