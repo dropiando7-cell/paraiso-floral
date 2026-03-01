@@ -29,7 +29,7 @@ export async function getCheckinData() {
 
     const kids = await prisma.kid.findMany({
         where: { organizationId: dbUser.organizationId },
-        orderBy: { name: "asc" }
+        orderBy: { createdAt: "desc" }
     });
 
     // Get today's active checkins (checkedOut = false)
