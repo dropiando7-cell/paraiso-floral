@@ -169,6 +169,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                     <Link
                       key={item.name}
                       href={item.href}
+                      onClick={onClose}
                       className={twMerge(
                         clsx(
                           'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm',
@@ -207,6 +208,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
             <Link
               key={item.name}
               href={item.href}
+              onClick={onClose}
               className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/90 hover:text-white hover:bg-[#1A14B8] transition-all duration-200 text-sm group"
             >
               <Icon className="w-4 h-4 text-white/90 group-hover:text-white" />
