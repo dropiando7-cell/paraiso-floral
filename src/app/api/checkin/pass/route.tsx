@@ -15,16 +15,21 @@ export async function GET(req: NextRequest) {
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${code}`;
         const barcodeUrl = `https://barcodeapi.org/api/128/${code}`;
 
-        const [qrRes, barcodeRes] = await Promise.all([
+        const logoUrl = 'https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blanco-1.png';
+
+        const [qrRes, barcodeRes, logoRes] = await Promise.all([
             fetch(qrUrl),
-            fetch(barcodeUrl)
+            fetch(barcodeUrl),
+            fetch(logoUrl)
         ]);
 
         const qrArrayBuffer = await qrRes.arrayBuffer();
         const barcodeArrayBuffer = await barcodeRes.arrayBuffer();
+        const logoArrayBuffer = await logoRes.arrayBuffer();
 
         const qrBase64 = `data:${qrRes.headers.get('content-type') || 'image/png'};base64,${Buffer.from(qrArrayBuffer).toString('base64')}`;
         const barcodeBase64 = `data:${barcodeRes.headers.get('content-type') || 'image/png'};base64,${Buffer.from(barcodeArrayBuffer).toString('base64')}`;
+        const logoBase64 = `data:${logoRes.headers.get('content-type') || 'image/png'};base64,${Buffer.from(logoArrayBuffer).toString('base64')}`;
 
         return new ImageResponse(
             (
@@ -49,34 +54,32 @@ export async function GET(req: NextRequest) {
                             alignItems: 'center',
                             backgroundColor: '#2563eb', // brand blue
                             borderRadius: '32px',
-                            padding: '40px',
+                            padding: '30px', // Reduced padding
                             width: '100%',
                             color: 'white',
                             boxShadow: '0 10px 25px rgba(37, 99, 235, 0.2)'
                         }}
                     >
-                        <span style={{ fontSize: '18px', fontWeight: 600, letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '30px', color: '#bfdbfe' }}>
+                        <span style={{ fontSize: '18px', fontWeight: 600, letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '20px', color: '#bfdbfe' }}>
                             Misión Cristiana Elim
                         </span>
 
-                        {/* Avatar placeholder circle */}
+                        {/* Church Logo instead of Avatar */}
                         <div style={{
-                            width: '120px',
-                            height: '120px',
-                            borderRadius: '60px',
-                            border: '3px solid white',
                             display: 'flex',
-                            marginBottom: '20px',
-                            backgroundColor: 'transparent'
-                        }}></div>
+                            marginBottom: '10px'
+                        }}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={logoBase64} width="100" height="100" style={{ objectFit: 'contain' }} alt="Elim Logo" />
+                        </div>
 
-                        <span style={{ fontSize: '56px', fontWeight: 800, textAlign: 'center', lineHeight: 1.1 }}>
+                        <span style={{ fontSize: '48px', fontWeight: 800, textAlign: 'center', lineHeight: 1.1 }}>
                             {name}
                         </span>
                     </div>
 
                     {/* QR Code Section */}
-                    <div style={{ display: 'flex', marginTop: '50px', marginBottom: '20px' }}>
+                    <div style={{ display: 'flex', marginTop: '30px', marginBottom: '15px' }}>
                         <div style={{ padding: '20px', backgroundColor: 'white', border: '2px solid #e2e8f0', borderRadius: '24px', display: 'flex' }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={qrBase64} width="240" height="240" alt="QR Code" />
