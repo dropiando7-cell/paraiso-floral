@@ -270,11 +270,12 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
         // 1. Text Search Filter
         const q = searchQuery.toLowerCase().trim();
-        const matchesName = k.name.toLowerCase().includes(q);
-        const matchesParent = k.parentName.toLowerCase().includes(q);
-        const matchesCode = checkedInInfo && checkedInInfo.code.toLowerCase().includes(q);
-
-        const passesTextSearch = q === "" || matchesName || matchesParent || matchesCode;
+        let passesTextSearch = true;
+        if (q !== "") {
+            const terms = q.split(/\s+/);
+            const target = `${k.name} ${k.parentName || ""} ${checkedInInfo ? checkedInInfo.code : ""}`.toLowerCase();
+            passesTextSearch = terms.every(term => target.includes(term));
+        }
 
         // 2. Status Filter
         let passesStatusFilter = true;
@@ -282,6 +283,10 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         if (filterStatus === 'OUT') passesStatusFilter = !isCheckedIn;
 
         return passesTextSearch && passesStatusFilter;
+    }).sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
     });
 
     const handleGroupCheckIn = async (kidIds: string[]) => {
@@ -398,7 +403,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             }
             addedKidIds.push(result.kid!.id);
             addedKidObjects.push(result.kid);
-            setAllKids(prev => [...prev, result.kid]);
+            setAllKids(prev => [result.kid, ...prev]);
         }
 
         if (hasError) {
