@@ -206,6 +206,7 @@ model Kid {
   organizationId String   @db.Uuid
   name           String
   age            Int
+  gender         String   @default("No Especificado")
   classroomId    String?  @db.Uuid
   classroomName  String?  // Removed the requirement to keep historic name just in case, or keep it, keeping it doesn't hurt, but if related, better to use relation
   allergies      String   @default("Ninguna")

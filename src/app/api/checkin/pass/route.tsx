@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
                             boxShadow: '0 10px 25px rgba(37, 99, 235, 0.2)'
                         }}
                     >
-                        <span style={{ fontSize: '16px', fontWeight: 600, letterSpacing: '4px', textTransform: 'uppercase', marginBottom: '12px', color: '#bfdbfe' }}>
+                        <span style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '5px', textTransform: 'uppercase', marginBottom: '16px', color: '#ffffff' }}>
                             Elim Honduras
                         </span>
 
@@ -94,7 +94,7 @@ export async function GET(req: NextRequest) {
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={barcodeBase64} width="320" height="90" alt="Barcode" />
                                 <div style={{ display: 'flex', marginTop: '16px', alignItems: 'center' }}>
-                                    <span style={{ fontSize: '32px', fontWeight: 800, color: '#2563eb', letterSpacing: '8px', fontFamily: 'monospace' }}>
+                                    <span style={{ fontSize: '40px', fontWeight: 900, color: '#0f172a', letterSpacing: '8px', fontFamily: 'monospace' }}>
                                         {code.split('').join(' ')}
                                     </span>
                                 </div>

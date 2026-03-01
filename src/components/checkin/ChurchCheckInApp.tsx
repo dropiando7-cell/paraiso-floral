@@ -70,7 +70,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     const [activeTab, setActiveTab] = useState("checkin");
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
 
-    const [newKidForm, setNewKidForm] = useState({ name: "", age: "", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
+    const [newKidForm, setNewKidForm] = useState({ name: "", age: "", gender: "No Especificado", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
     const [checkingIn, setCheckingIn] = useState(false);
     const [notifStatus, setNotifStatus] = useState<any>(null);
     const [showNewKidPanel, setShowNewKidPanel] = useState(false);
@@ -133,6 +133,25 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         }
     }, [initialData]);
 
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Enter") {
+                // Confirm Checkout Modal
+                if (kidToCheckout && !isCheckingOut) {
+                    e.preventDefault();
+                    handleCheckOut();
+                }
+                // Confirm New Kid Registration
+                else if (showNewKidPanel && newKidStep === 2 && !savingNewKid && newKidForm.parentName && newKidForm.parentPhone) {
+                    e.preventDefault();
+                    handleAddKid(true); // "Registrar y Check-In" action
+                }
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [kidToCheckout, isCheckingOut, showNewKidPanel, newKidStep, savingNewKid, newKidForm]);
+
     const handleGenerateMockData = async () => {
         setCheckingIn(true);
         showToast("Generando 50 niños ficticios...", "info");
@@ -150,10 +169,13 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         setTimeout(() => setToast(null), 4000);
     };
 
-    const filteredKids = allKids.filter(k =>
-        k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        k.parentName.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredKids = allKids.filter(k => {
+        const checkedInInfo = checkedInKids.find(ci => ci.id === k.id);
+        const matchesName = k.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesParent = k.parentName.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesCode = checkedInInfo && checkedInInfo.code.toLowerCase().includes(searchQuery.toLowerCase());
+        return matchesName || matchesParent || matchesCode;
+    });
 
     const handleCheckIn = async (kid: any) => {
         setCheckingIn(true);
@@ -227,7 +249,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         }
 
         setAllKids(prev => [...prev, result.kid]);
-        setNewKidForm({ name: "", age: "", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
+        setNewKidForm({ name: "", age: "", gender: "No Especificado", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
 
         if (autoCheckIn) {
             // Wait for the checkIn to complete fully so WhatsApp triggers in this same frame
@@ -530,12 +552,22 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                             type="number" min="0" max="17" placeholder="ej. 7" value={newKidForm.age} onChange={e => setNewKidForm(p => ({ ...p, age: e.target.value }))} />
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Salón (Auto)</label>
+                                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Sexo *</label>
                                                         <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium text-slate-700"
-                                                            value={newKidForm.classroom} onChange={e => setNewKidForm(p => ({ ...p, classroom: e.target.value }))}>
-                                                            {classrooms.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                            value={newKidForm.gender} onChange={e => setNewKidForm(p => ({ ...p, gender: e.target.value }))}>
+                                                            <option value="No Especificado">Seleccionar...</option>
+                                                            <option value="Masculino">Masculino</option>
+                                                            <option value="Femenino">Femenino</option>
                                                         </select>
                                                     </div>
+                                                </div>
+
+                                                <div>
+                                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Salón (Auto)</label>
+                                                    <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium text-slate-700"
+                                                        value={newKidForm.classroom} onChange={e => setNewKidForm(p => ({ ...p, classroom: e.target.value }))}>
+                                                        {classrooms.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                    </select>
                                                 </div>
 
                                                 {newKidForm.age && classrooms.length > 0 && (() => {
@@ -718,8 +750,8 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                     alt={`Barcode ${currentTicket.code}`}
                                                     className="w-full max-w-[200px] h-auto object-contain mb-2"
                                                 />
-                                                <div className="text-3xl font-black tracking-[0.3em] text-brand-700 font-mono mt-2">
-                                                    {currentTicket.code}
+                                                <div className="text-4xl font-black tracking-[0.2em] text-[#0f172a] font-mono mt-2">
+                                                    {currentTicket.code.split('').join(' ')}
                                                 </div>
                                             </div>
                                         </div>

@@ -44,7 +44,7 @@ export async function getCheckinData() {
     return { classrooms, kids, activeCheckins, organizationId: dbUser.organizationId };
 }
 
-export async function addKid(data: { name: string, age: number, classroomId: string, allergies: string, parentName: string, parentPhone: string, photoEmoji: string }) {
+export async function addKid(data: { name: string, age: number, gender: string, classroomId: string, allergies: string, parentName: string, parentPhone: string, photoEmoji: string }) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: "Unauthorized" };
@@ -67,6 +67,7 @@ export async function addKid(data: { name: string, age: number, classroomId: str
             organizationId: dbUser.organizationId,
             name: data.name,
             age: data.age,
+            gender: data.gender || "No Especificado",
             classroomId: data.classroomId && data.classroomId !== "" ? data.classroomId : null,
             allergies: data.allergies || "Ninguna",
             parentName: data.parentName,
@@ -91,7 +92,8 @@ export async function doCheckIn(kidId: string, securityCode: string) {
     if (!dbUser) return { error: "Organization not found" };
 
     const kid = await prisma.kid.findUnique({
-        where: { id: kidId, organizationId: dbUser.organizationId }
+        where: { id: kidId, organizationId: dbUser.organizationId },
+        include: { classroom: true }
     });
 
     if (!kid) return { error: "Kid not found" };
@@ -117,7 +119,7 @@ export async function doCheckIn(kidId: string, securityCode: string) {
             parentPhone: kid.parentPhone,
             kidName: kid.name,
             kidAge: kid.age,
-            classroomName: dbUser.organizationId ? "Elim" : "Iglesia", // Simplified for now, the classroom string isn't vital for the template to work but we'll fetch it if needed later
+            classroomName: kid.classroom?.name || "Elim",
             teacherName: "Maestro(a)",
             securityCode: securityCode,
             checkInTime: checkInTimeStr,
@@ -301,6 +303,7 @@ export async function generateMockKids(count: number = 50) {
                 organizationId: dbUser.organizationId,
                 name,
                 age,
+                gender: photo === "👦" ? "Masculino" : photo === "👧" ? "Femenino" : "No Especificado",
                 classroomId: cls.id,
                 allergies: Math.random() > 0.8 ? "Maní" : "Ninguna",
                 parentName,
