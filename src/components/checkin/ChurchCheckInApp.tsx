@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Plus, School, ShieldCheck, FileText, CheckCircle2, XCircle, ArrowLeft, Printer, Users, UserPlus, Info, Edit2, Settings, Beaker, Maximize, Minimize } from "lucide-react";
+import { Search, Printer, Plus, Users, UserPlus, FileText, CheckCircle2, ArrowLeft, Maximize, Minimize, CheckSquare, XCircle, Info, ScanLine, Camera, Edit2, Settings, Beaker, School, ShieldCheck } from "lucide-react";
 import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom, generateMockKids } from "@/app/(dashboard)/checkin/actions";
 import { useLayoutControls } from "@/components/layout/MobileDashboardWrapper";
+import ScannerComponent from './ScannerComponent';
 
 import QRCode from "react-qr-code";
 
@@ -72,6 +73,8 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     const [selectedClassroom, setSelectedClassroom] = useState<any>(null);
     const [activeTab, setActiveTab] = useState("checkin");
     const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' | 'info' | 'warning' } | null>(null);
+
+    const [isCameraActive, setIsCameraActive] = useState(false);
 
     const [newKidForm, setNewKidForm] = useState({ name: "", age: "", gender: "No Especificado", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
     const [checkingIn, setCheckingIn] = useState(false);
@@ -501,29 +504,81 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                 <p className="text-[#7A8DB8] text-sm mb-8">Pasa el lector de código de barras físico o escribe el código del gafete.</p>
 
                                 <div className="w-32 h-32 mx-auto bg-[#F0EEFF] rounded-full flex items-center justify-center mb-8 relative">
-                                    <Printer className="w-12 h-12 text-[#3B6FE8] animate-bounce relative z-10" />
+                                    <ScanLine className="w-12 h-12 text-[#3B6FE8] animate-pulse relative z-10" />
                                     <div className="absolute inset-0 rounded-full border-4 border-[#3B6FE8] opacity-20 animate-ping"></div>
                                 </div>
 
-                                <form onSubmit={handleScannerSubmit}>
-                                    <input
-                                        ref={scannerInputRef}
-                                        type="text"
-                                        value={scannerInput}
-                                        onChange={(e) => setScannerInput(e.target.value)}
-                                        placeholder="AB12C..."
-                                        className="w-full text-center text-3xl font-black tracking-[0.2em] text-[#1B2E6B] border-2 border-[#D6E0FF] rounded-xl p-4 uppercase focus:outline-none focus:border-[#3B6FE8] focus:ring-4 focus:ring-[#3B6FE8]/20 transition-all placeholder:text-slate-300"
-                                        autoFocus
-                                    />
-                                    <button type="submit" className="hidden">Buscar</button>
-                                </form>
+                                {!isCameraActive ? (
+                                    <>
+                                        <form onSubmit={handleScannerSubmit}>
+                                            <input
+                                                ref={scannerInputRef}
+                                                type="text"
+                                                value={scannerInput}
+                                                onChange={(e) => setScannerInput(e.target.value)}
+                                                placeholder="AB12C..."
+                                                className="w-full text-center text-3xl font-black tracking-[0.2em] text-[#1B2E6B] border-2 border-[#D6E0FF] rounded-xl p-4 uppercase focus:outline-none focus:border-[#3B6FE8] focus:ring-4 focus:ring-[#3B6FE8]/20 transition-all placeholder:text-slate-300"
+                                                autoFocus
+                                            />
+                                            <button type="submit" className="hidden">Buscar</button>
+                                        </form>
 
-                                <button
-                                    onClick={() => setView(VIEWS.HOME)}
-                                    className="mt-8 text-[#7A8DB8] font-bold text-sm hover:text-[#1B2E6B] transition-colors"
-                                >
-                                    Cancelar y volver
-                                </button>
+                                        <div className="mt-6 flex flex-col gap-3">
+                                            <button
+                                                onClick={() => setIsCameraActive(true)}
+                                                className="w-full flex items-center justify-center gap-2 bg-[#F0F4FF] hover:bg-[#D6E0FF] text-[#3B6FE8] font-bold py-3.5 rounded-xl transition-all"
+                                            >
+                                                <Camera className="w-5 h-5" /> Activar Cámara
+                                            </button>
+
+                                            <button
+                                                onClick={() => setView(VIEWS.HOME)}
+                                                className="w-full text-[#7A8DB8] font-bold text-sm hover:text-[#1B2E6B] transition-colors py-2"
+                                            >
+                                                Cancelar y volver
+                                            </button>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <div className="mt-6">
+                                        <ScannerComponent
+                                            onScan={(decodedText) => {
+                                                console.log("Scanned:", decodedText);
+                                                setIsCameraActive(false);
+
+                                                // If it's the full QR code payload (e.g. IGLESIA-CHECKIN:id:code:timestamp)
+                                                if (decodedText.startsWith("IGLESIA-CHECKIN:")) {
+                                                    const parts = decodedText.split(":");
+                                                    if (parts.length >= 3) {
+                                                        const ticketCode = parts[2];
+                                                        setScannerInput(ticketCode);
+                                                        // Automatically trigger the effect of pressing Enter
+                                                        setTimeout(() => {
+                                                            if (scannerInputRef.current) {
+                                                                const event = new Event('submit', { cancelable: true, bubbles: true });
+                                                                scannerInputRef.current.form?.dispatchEvent(event);
+                                                            }
+                                                        }, 100);
+                                                    }
+                                                } else {
+                                                    // Barcode fallback
+                                                    setScannerInput(decodedText);
+                                                    setTimeout(() => {
+                                                        if (scannerInputRef.current) {
+                                                            const event = new Event('submit', { cancelable: true, bubbles: true });
+                                                            scannerInputRef.current.form?.dispatchEvent(event);
+                                                        }
+                                                    }, 100);
+                                                }
+                                            }}
+                                            onCancel={() => {
+                                                setIsCameraActive(false);
+                                                // Refocus the input
+                                                setTimeout(() => scannerInputRef.current?.focus(), 100);
+                                            }}
+                                        />
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}
