@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Plus, School, ShieldCheck, FileText, CheckCircle2, XCircle, ArrowLeft, Printer, Users, UserPlus, Info, Edit2, Settings, Beaker } from "lucide-react";
+import { Search, Plus, School, ShieldCheck, FileText, CheckCircle2, XCircle, ArrowLeft, Printer, Users, UserPlus, Info, Edit2, Settings, Beaker, Maximize, Minimize } from "lucide-react";
 import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom, generateMockKids } from "@/app/(dashboard)/checkin/actions";
+import { useLayoutControls } from "@/components/layout/MobileDashboardWrapper";
 
 import QRCode from "react-qr-code";
 
@@ -41,6 +42,7 @@ function generateTicketCode() {
 const VIEWS = { HOME: "home", CHECKIN: "checkin", TICKET: "ticket", CLASSROOMS: "classrooms", CLASSROOM_DETAIL: "classroom_detail", MANAGE_CLASSROOM: "manage_classroom", SCANNER: "scanner" };
 
 export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
+    const { isFullscreen, setIsFullscreen } = useLayoutControls();
     // Determine early if we have data to skip loading skeleton
     const [isLoading, setIsLoading] = useState(!initialData);
     const [view, setView] = useState(VIEWS.HOME);
@@ -274,6 +276,17 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                         <div className="w-2 h-2 bg-[#F5A623] rounded-full animate-pulse"></div>
                         EN VIVO · {new Date().toLocaleDateString("es-HN", { weekday: "short", day: "numeric", month: "short" }).replace('.', '')}
                     </div>
+                    {/* Fullscreen Toggle */}
+                    <button
+                        onClick={() => setIsFullscreen(!isFullscreen)}
+                        className="ml-auto flex items-center gap-2 bg-slate-100/50 hover:bg-slate-200 text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-xl transition-colors shrink-0 print:hidden"
+                        title={isFullscreen ? "Salir de pantalla completa" : "Modo Kiosco (Pantalla completa)"}
+                    >
+                        {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                        <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
+                            {isFullscreen ? "Salir Modo Kiosco" : "Modo Kiosco"}
+                        </span>
+                    </button>
                 </div>
 
                 {/* NEW STATS BAR (Demo 1 Style) */}
