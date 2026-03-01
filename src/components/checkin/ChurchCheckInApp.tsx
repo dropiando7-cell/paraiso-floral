@@ -625,7 +625,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
                                     {showRecentCheckIns && (
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                            {checkedInKids.slice(0, visibleCount).map((kid, index) => {
+                                            {[...checkedInKids].reverse().slice(0, visibleCount).map((kid, index) => {
                                                 const cls = classrooms.find(c => c.id === kid.classroom);
                                                 return (
                                                     <div key={`${kid.id}-${index}`} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm relative overflow-hidden group">
@@ -876,7 +876,28 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                                 <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Edad *</label>
                                                                 <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium"
                                                                     type="number" min="0" max="17" placeholder="ej. 7" value={kid.age} onChange={e => {
-                                                                        const k = [...kidsForm]; k[index].age = e.target.value; setKidsForm(k);
+                                                                        const k = [...kidsForm];
+                                                                        k[index].age = e.target.value;
+
+                                                                        // Auto-assign classroom if age matches
+                                                                        const ageVal = parseInt(e.target.value);
+                                                                        if (!isNaN(ageVal) && classrooms.length > 0) {
+                                                                            const suggested = classrooms.find(c => {
+                                                                                if (!c.ageRange) return false;
+                                                                                const match = c.ageRange.match(/(\d+)[\s-–a]*(\d+)?/);
+                                                                                if (match) {
+                                                                                    const min = parseInt(match[1]);
+                                                                                    const max = match[2] ? parseInt(match[2]) : min;
+                                                                                    return ageVal >= min && ageVal <= max;
+                                                                                }
+                                                                                return false;
+                                                                            });
+                                                                            if (suggested) {
+                                                                                k[index].classroom = suggested.id;
+                                                                            }
+                                                                        }
+
+                                                                        setKidsForm(k);
                                                                     }} />
                                                             </div>
                                                             <div>
@@ -1006,12 +1027,20 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                         </div>
                                                     </div>
                                                     {alreadyIn ? (
-                                                        <button onClick={() => {
-                                                            setKidsToCheckout([kid]);
-                                                            setSelectedKidsForCheckout(new Set([kid.id]));
-                                                        }} className="px-5 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase tracking-wider transition-colors">
-                                                            Salida
-                                                        </button>
+                                                        <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                                            <button onClick={() => {
+                                                                setKidsToCheckout([kid]);
+                                                                setSelectedKidsForCheckout(new Set([kid.id]));
+                                                            }} className="w-8 h-8 flex items-center justify-center bg-white text-slate-500 hover:text-brand-600 rounded-xl border border-slate-200 shadow-sm transition-all" title="Ver registro completo">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20" /></svg>
+                                                            </button>
+                                                            <button onClick={() => {
+                                                                setKidsToCheckout([kid]);
+                                                                setSelectedKidsForCheckout(new Set([kid.id]));
+                                                            }} className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border border-red-100 border-b-2 active:border-b-0 active:translate-y-[2px]">
+                                                                Salida
+                                                            </button>
+                                                        </div>
                                                     ) : (
                                                         <div className="flex items-center gap-2">
                                                             <button
@@ -1416,15 +1445,20 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     {kidsToCheckout.map(kid => {
                                         const isSelected = selectedKidsForCheckout.has(kid.id);
                                         return (
-                                            <label key={kid.id} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all ${isSelected ? 'bg-red-50/50 border-red-200 shadow-sm' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
-                                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-red-500 border-red-500' : 'bg-white border-slate-300'}`}>
-                                                    {isSelected && <CheckCircle2 className="w-4 h-4 text-white" />}
+                                            <button key={kid.id} onClick={() => {
+                                                const newSet = new Set(selectedKidsForCheckout);
+                                                if (newSet.has(kid.id)) newSet.delete(kid.id);
+                                                else newSet.add(kid.id);
+                                                setSelectedKidsForCheckout(newSet);
+                                            }} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all border-b-4 active:border-b active:translate-y-[3px] text-left ${isSelected ? 'bg-red-50/50 border-red-200 shadow-sm' : 'bg-white border-slate-200 shadow-sm hover:bg-slate-50'}`}>
+                                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-slate-300'}`}>
+                                                    {isSelected && <CheckCircle2 className="w-4 h-4" />}
                                                 </div>
-                                                <div className="flex-1 min-w-0">
+                                                <div className="flex-1 min-w-0 pointer-events-none">
                                                     <div className="text-sm font-bold text-slate-800 truncate">{kid.name}</div>
                                                     <div className="text-[10px] uppercase font-semibold text-slate-500">{classrooms.find(c => c.id === kid.classroom)?.name || "N/A"}</div>
                                                 </div>
-                                            </label>
+                                            </button>
                                         );
                                     })}
                                 </div>
