@@ -219,9 +219,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     const totalCheckedIn = checkedInKids.length;
 
     return (
-        <div className="min-h-[calc(100vh-4rem)] bg-slate-50 flex flex-col items-center pb-24 font-sans text-slate-800">
-
-            {/* Toast Notification */}
+        <div className="min-h-[calc(100vh-4rem)] bg-[#F0F4FF] flex flex-col items-center pb-24 font-sans text-[#1B2E6B]">
             {toast && (
                 <div className="fixed bottom-24 right-6 z-50 animate-in fade-in slide-in-from-bottom-5 duration-300">
                     <div className="flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border border-slate-200 bg-white text-slate-800 backdrop-blur-md">
@@ -236,50 +234,42 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
             <div className="w-full max-w-md bg-white min-h-[calc(100vh-4rem)] shadow-xl relative overflow-hidden">
 
-                {/* HEADER */}
-                <div className="bg-brand-900 text-white p-6 rounded-b-[2.5rem] relative shrink-0 z-10 shadow-lg print:hidden">
-                    <div className="absolute top-0 left-0 w-full h-full overflow-hidden rounded-b-[2.5rem] pointer-events-none">
-                        <div className="absolute -top-24 -right-12 w-64 h-64 bg-brand-600 rounded-full blur-3xl opacity-30"></div>
-                        <div className="absolute top-12 -left-12 w-48 h-48 bg-brand-400 rounded-full blur-3xl opacity-20"></div>
-                    </div>
-
-                    <div className="relative z-10">
-                        <div className="flex justify-between items-start mb-2">
-                            <div>
-                                <div className="text-[10px] font-bold tracking-widest uppercase text-brand-200 opacity-90 mb-1">✝ Misión Cristiana Elim</div>
-                                <h1 className="text-2xl font-black tracking-tight text-white leading-none">Kids Check-In</h1>
-                                <p className="text-xs text-brand-200 mt-1">Control de asistencia infantil</p>
-                            </div>
-                            <div className="text-right flex flex-col items-end">
-                                <span className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 backdrop-blur text-white text-[10px] font-bold px-3 py-1.5 rounded-full uppercase tracking-wider">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                                    En Vivo
-                                </span>
-                                <span className="text-[10px] text-brand-200 mt-2 font-medium">
-                                    {new Date().toLocaleDateString("es-HN", { weekday: "short", day: "numeric", month: "short" })}
-                                </span>
-                            </div>
+                {/* NEW HEADER (Demo 1 Style) */}
+                <div className="bg-white px-5 py-4 border-b-2 border-slate-200 flex items-center justify-between gap-4 flex-wrap print:hidden shrink-0 z-10 w-full relative rounded-t-3xl">
+                    <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 bg-[#1B2E6B] rounded-xl flex items-center justify-center text-xl shrink-0">
+                            ⛪
                         </div>
-
-                        {/* Stat Pills */}
-                        <div className="flex flex-wrap gap-2 mt-5">
-                            {[
-                                { label: "Check-ins", val: totalCheckedIn, icon: "👦" },
-                                { label: "Salones", val: classrooms.filter(c => classroomKids(c.id).length > 0).length, icon: "🏫" },
-                                { label: "Niños", val: allKids.length, icon: "👨‍👩‍👧" },
-                            ].map(s => (
-                                <div key={s.label} className="bg-black/20 border border-white/10 backdrop-blur-md rounded-xl px-3 py-1.5 flex items-center gap-2">
-                                    <span className="text-sm">{s.icon}</span>
-                                    <span className="text-base font-black text-brand-300">{s.val}</span>
-                                    <span className="text-[10px] font-semibold text-brand-100/70">{s.label}</span>
-                                </div>
-                            ))}
-                            <button onClick={handleGenerateMockData} disabled={checkingIn} className="bg-fuchsia-500/20 border border-fuchsia-400/30 hover:bg-fuchsia-500/40 backdrop-blur-md rounded-xl px-3 py-1.5 flex items-center gap-2 transition-colors disabled:opacity-50 group">
-                                <Beaker className="w-4 h-4 text-fuchsia-300 group-hover:animate-pulse" />
-                                <span className="text-[10px] font-bold text-fuchsia-100">Generar Data</span>
-                            </button>
+                        <div>
+                            <h1 className="text-lg font-extrabold text-[#1B2E6B] leading-tight">Sistema de Check-In</h1>
+                            <span className="text-[11px] text-slate-500 font-medium">Elim Honduras · Kids Ministry</span>
                         </div>
                     </div>
+                    <div className="flex items-center gap-2 bg-[#FFF0D6] border-[1.5px] border-[#F5A623] text-[#B07000] text-[11px] font-bold px-3 py-1.5 rounded-full tracking-wide shrink-0">
+                        <div className="w-2 h-2 bg-[#F5A623] rounded-full animate-pulse"></div>
+                        EN VIVO · {new Date().toLocaleDateString("es-HN", { weekday: "short", day: "numeric", month: "short" }).replace('.', '')}
+                    </div>
+                </div>
+
+                {/* NEW STATS BAR (Demo 1 Style) */}
+                <div className="bg-[#1B2E6B] flex justify-center w-full overflow-x-auto print:hidden shrink-0">
+                    {[
+                        { label: "Check-Ins", val: totalCheckedIn, icon: "🟢" },
+                        { label: "Salones", val: classrooms.filter(c => classroomKids(c.id).length > 0).length, icon: "🏛️" },
+                        { label: "Niños", val: allKids.length, icon: "👶" },
+                    ].map((s, idx) => (
+                        <div key={s.label} className={`flex items-center justify-center gap-3 py-4 flex-1 min-w-[120px] ${idx < 2 ? 'border-r border-white/10' : ''}`}>
+                            <div className="text-2xl">{s.icon}</div>
+                            <div className="flex flex-col">
+                                <div className="text-2xl font-extrabold text-white leading-none">{s.val}</div>
+                                <div className="text-[10px] text-white/60 font-medium uppercase tracking-wider">{s.label}</div>
+                            </div>
+                        </div>
+                    ))}
+                    {/* Tiny Mock Data Button overlaid or aligned next to it */}
+                    <button onClick={handleGenerateMockData} disabled={checkingIn} className="absolute right-2 top-[80px] bg-white/10 hover:bg-white/20 p-2 rounded-xl text-white/80 transition-colors" title="Generar datos demo">
+                        <Beaker className="w-4 h-4" />
+                    </button>
                 </div>
 
                 {/* ── VIEWS ── */}
@@ -290,12 +280,18 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                         <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
                             <h2 className="text-lg font-black text-slate-900 mb-4 tracking-tight">Acciones Rápidas</h2>
 
-                            <div className="grid gap-3 mb-8">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                                 {[
-                                    { icon: <ShieldCheck className="w-6 h-6 text-emerald-600" />, title: "Check-In Especial", sub: "Buscar y registrar entrada", action: () => { setView(VIEWS.CHECKIN); setShowNewKidPanel(false); setActiveTab("checkin"); }, bg: "bg-emerald-50", border: "border-emerald-100" },
-                                    { icon: <UserPlus className="w-6 h-6 text-brand-600" />, title: "Nuevo Visitante", sub: "Registrar primera vez", action: () => { setView(VIEWS.CHECKIN); setShowNewKidPanel(true); setNewKidStep(1); }, bg: "bg-brand-50", border: "border-brand-100" },
                                     {
-                                        icon: <Search className="w-6 h-6 text-fuchsia-600" />, title: "Escanear QR Gafete", sub: "Simular escáner de Check-out", action: () => {
+                                        icon: "✅", title: "Check-In Especial", sub: "Buscar y registrar entrada", action: () => { setView(VIEWS.CHECKIN); setShowNewKidPanel(false); setActiveTab("checkin"); },
+                                        styleClass: "bg-[#1B2E6B] border-[#1B2E6B] text-white col-span-1 sm:col-span-2 shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-white/15", titleColor: "text-white text-[1.15rem]", subColor: "text-white/65", arrow: "text-white/50 group-hover:text-white"
+                                    },
+                                    {
+                                        icon: "👤", title: "Nuevo Visitante", sub: "Registrar primera vez", action: () => { setView(VIEWS.CHECKIN); setShowNewKidPanel(true); setNewKidStep(1); },
+                                        styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#F0EEFF]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
+                                    },
+                                    {
+                                        icon: "📷", title: "Escanear QR Gafete", sub: "Simular escáner de Check-out", action: () => {
                                             const simulatedCode = window.prompt("Simular Escáner QR:\n\nIngresa el CÓDIGO de 6 letras del gafete del niño:");
                                             if (simulatedCode) {
                                                 const kid = checkedInKids.find(k => k.code.toUpperCase() === simulatedCode.toUpperCase());
@@ -305,20 +301,25 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                     showToast("CÓDIGO NO ENCONTRADO", "error");
                                                 }
                                             }
-                                        }, bg: "bg-fuchsia-50", border: "border-fuchsia-100"
+                                        },
+                                        styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#E6FFFE]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                     },
-                                    { icon: <School className="w-6 h-6 text-indigo-600" />, title: "Monitorear Salones", sub: "Ver ocupación por clase", action: () => setView(VIEWS.CLASSROOMS), bg: "bg-indigo-50", border: "border-indigo-100" },
+                                    {
+                                        icon: "🏫", title: "Monitorear Salones", sub: "Ver ocupación por clase", action: () => setView(VIEWS.CLASSROOMS),
+                                        styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#FFF5E6]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
+                                    },
                                 ].map(item => (
-                                    <button key={item.title} onClick={item.action} className="w-full text-left bg-white border border-slate-200 p-4 rounded-2xl shadow-sm hover:shadow-md hover:border-slate-300 transition-all flex items-center gap-4 group">
-                                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${item.bg} border ${item.border} group-hover:scale-110 transition-transform`}>
+                                    <button key={item.title} onClick={item.action}
+                                        className={`w-full text-left border-2 p-6 md:p-8 rounded-[20px] transition-all hover:-translate-y-1 hover:border-[#3B6FE8] flex flex-col items-start gap-3 relative overflow-hidden group ${item.styleClass}`}>
+                                        <div className={`w-[52px] h-[52px] rounded-2xl flex items-center justify-center text-2xl shrink-0 ${item.iconBg}`}>
                                             {item.icon}
                                         </div>
-                                        <div className="flex-1">
-                                            <div className="font-bold text-slate-900">{item.title}</div>
-                                            <div className="text-xs text-slate-500 font-medium">{item.sub}</div>
+                                        <div className="flex-1 z-10">
+                                            <h3 className={`font-bold leading-tight ${item.titleColor}`}>{item.title}</h3>
+                                            <p className={`text-[0.78rem] mt-1 ${item.subColor}`}>{item.sub}</p>
                                         </div>
-                                        <div className="text-slate-300 group-hover:text-brand-500 transition-colors">
-                                            <ArrowLeft className="w-5 h-5 rotate-180" />
+                                        <div className={`absolute bottom-6 right-6 font-sans text-xl transition-transform group-hover:translate-x-1 ${item.arrow}`}>
+                                            →
                                         </div>
                                     </button>
                                 ))}
@@ -905,19 +906,19 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             </div>
 
             {/* REAL BOTTOM NAV (Fixed outside the card for mobile app feel) */}
-            <nav className="fixed bottom-0 w-full max-w-md bg-white border-t border-slate-200 pb-safe pt-2 px-2 flex justify-around z-40 shadow-[0_-10px_40px_rgba(0,0,0,0.04)] print:hidden">
+            <nav className="fixed bottom-0 w-full max-w-md bg-white border-t-2 border-[#D6E0FF] pb-safe pt-3 px-2 flex justify-around z-40 print:hidden">
                 {[
-                    { icon: <ShieldCheck className="w-6 h-6" />, label: "Inicio", v: VIEWS.HOME },
-                    { icon: <Plus className="w-6 h-6" />, label: "Check-in", v: VIEWS.CHECKIN },
-                    { icon: <School className="w-6 h-6" />, label: "Salones", v: VIEWS.CLASSROOMS },
+                    { icon: "🏠", label: "Inicio", v: VIEWS.HOME },
+                    { icon: "✅", label: "Check-in", v: VIEWS.CHECKIN },
+                    { icon: "🏛️", label: "Salones", v: VIEWS.CLASSROOMS },
                 ].map(item => {
                     const isActive = view === item.v || (view === VIEWS.TICKET && item.v === VIEWS.CHECKIN) || (view === VIEWS.CLASSROOM_DETAIL && item.v === VIEWS.CLASSROOMS);
                     return (
                         <button key={item.v} onClick={() => setView(item.v)}
-                            className={`flex flex-col items-center gap-1 p-2 min-w-[72px] rounded-xl transition-colors ${isActive ? 'text-brand-600' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                            className={`flex flex-col items-center gap-1.5 px-6 py-1.5 rounded-xl transition-colors ${isActive ? 'text-[#3B6FE8]' : 'text-[#7A8DB8] hover:text-[#1B2E6B]'
                                 }`}>
-                            <div className={`${isActive ? 'scale-110 drop-shadow-sm' : ''} transition-transform`}>{item.icon}</div>
-                            <span className={`text-[10px] font-bold tracking-wide ${isActive ? 'isActive opacity-100' : 'opacity-70'}`}>{item.label}</span>
+                            <div className={`text-xl ${isActive ? 'scale-110' : ''} transition-transform`}>{item.icon}</div>
+                            <span className={`text-[0.68rem] font-bold uppercase tracking-[0.05em] ${isActive ? 'opacity-100' : 'opacity-80'}`}>{item.label}</span>
                         </button>
                     )
                 })}
