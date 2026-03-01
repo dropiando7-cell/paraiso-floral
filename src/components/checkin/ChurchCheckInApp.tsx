@@ -38,7 +38,7 @@ function generateTicketCode() {
     return code;
 }
 
-const VIEWS = { HOME: "home", CHECKIN: "checkin", TICKET: "ticket", CLASSROOMS: "classrooms", CLASSROOM_DETAIL: "classroom_detail", MANAGE_CLASSROOM: "manage_classroom" };
+const VIEWS = { HOME: "home", CHECKIN: "checkin", TICKET: "ticket", CLASSROOMS: "classrooms", CLASSROOM_DETAIL: "classroom_detail", MANAGE_CLASSROOM: "manage_classroom", SCANNER: "scanner" };
 
 export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     // Determine early if we have data to skip loading skeleton
@@ -82,6 +82,31 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     // Checkout Confirmation Handling
     const [kidToCheckout, setKidToCheckout] = useState<any>(null);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+    // Scanner Handling
+    const [scannerInput, setScannerInput] = useState("");
+    const scannerInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        if (view === VIEWS.SCANNER && scannerInputRef.current) {
+            scannerInputRef.current.focus();
+        }
+    }, [view]);
+
+    const handleScannerSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const code = scannerInput.trim();
+        if (code) {
+            const kid = checkedInKids.find(k => k.code.toUpperCase() === code.toUpperCase());
+            if (kid) {
+                setKidToCheckout(kid);
+                setView(VIEWS.HOME);
+            } else {
+                showToast(`CÓDIGO NO ENCONTRADO (${code})`, "error");
+            }
+        }
+        setScannerInput("");
+    };
 
     useEffect(() => {
         if (!initialData) {
@@ -291,17 +316,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                         styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#F0EEFF]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                     },
                                     {
-                                        icon: "📷", title: "Escanear QR Gafete", sub: "Simular escáner de Check-out", action: () => {
-                                            const simulatedCode = window.prompt("Simular Escáner QR:\n\nIngresa el CÓDIGO de 6 letras del gafete del niño:");
-                                            if (simulatedCode) {
-                                                const kid = checkedInKids.find(k => k.code.toUpperCase() === simulatedCode.toUpperCase());
-                                                if (kid) {
-                                                    setKidToCheckout(kid);
-                                                } else {
-                                                    showToast("CÓDIGO NO ENCONTRADO", "error");
-                                                }
-                                            }
-                                        },
+                                        icon: "📷", title: "Escanear QR Gafete", sub: "Escanear para Check-out", action: () => setView(VIEWS.SCANNER),
                                         styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#E6FFFE]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                     },
                                     {
@@ -388,6 +403,41 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     </div>
                                 </>
                             )}
+                        </div>
+                    )}
+
+                    {/* --- SCANNER VIEW --- */}
+                    {view === VIEWS.SCANNER && (
+                        <div className="flex-1 overflow-y-auto p-4 md:p-8 animate-in fade-in slide-in-from-right-4 duration-300 pb-32">
+                            <div className="max-w-md mx-auto bg-white rounded-3xl p-8 border-2 border-[#D6E0FF] shadow-2xl relative overflow-hidden text-center mt-8">
+                                <h2 className="text-2xl font-black text-[#1B2E6B] mb-2">Modo Escáner</h2>
+                                <p className="text-[#7A8DB8] text-sm mb-8">Pasa el lector de código de barras físico o escribe el código del gafete.</p>
+
+                                <div className="w-32 h-32 mx-auto bg-[#F0EEFF] rounded-full flex items-center justify-center mb-8 relative">
+                                    <Printer className="w-12 h-12 text-[#3B6FE8] animate-bounce relative z-10" />
+                                    <div className="absolute inset-0 rounded-full border-4 border-[#3B6FE8] opacity-20 animate-ping"></div>
+                                </div>
+
+                                <form onSubmit={handleScannerSubmit}>
+                                    <input
+                                        ref={scannerInputRef}
+                                        type="text"
+                                        value={scannerInput}
+                                        onChange={(e) => setScannerInput(e.target.value)}
+                                        placeholder="AB12C..."
+                                        className="w-full text-center text-3xl font-black tracking-[0.2em] text-[#1B2E6B] border-2 border-[#D6E0FF] rounded-xl p-4 uppercase focus:outline-none focus:border-[#3B6FE8] focus:ring-4 focus:ring-[#3B6FE8]/20 transition-all placeholder:text-slate-300"
+                                        autoFocus
+                                    />
+                                    <button type="submit" className="hidden">Buscar</button>
+                                </form>
+
+                                <button
+                                    onClick={() => setView(VIEWS.HOME)}
+                                    className="mt-8 text-[#7A8DB8] font-bold text-sm hover:text-[#1B2E6B] transition-colors"
+                                >
+                                    Cancelar y volver
+                                </button>
+                            </div>
                         </div>
                     )}
 
