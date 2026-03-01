@@ -78,7 +78,8 @@ function buildCheckOutMessage(
 async function sendTwilioWhatsApp(
     to: string,
     contentSid: string,
-    contentVariables: Record<string, string>
+    contentVariables: Record<string, string>,
+    mediaUrl?: string
 ): Promise<NotificationResult> {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -101,6 +102,10 @@ async function sendTwilioWhatsApp(
         bodyParams.append("To", `whatsapp:${to}`);
         bodyParams.append("ContentSid", contentSid);
         bodyParams.append("ContentVariables", JSON.stringify(contentVariables));
+
+        if (mediaUrl) {
+            bodyParams.append("MediaUrl", mediaUrl);
+        }
 
         const response = await fetch(
             `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
@@ -152,13 +157,15 @@ export async function sendCheckInNotification(
     const domain = process.env.NEXT_PUBLIC_APP_URL || "https://sistemaselim.app";
     const mediaUrl = `${domain}/api/checkin/pass?name=${encodeURIComponent(payload.kidName)}&room=${encodeURIComponent(payload.classroomName)}&code=${encodeURIComponent(payload.securityCode)}`;
 
-    // La plantilla checkin_pase_recogidav7 usa {{1}} para texto y {{2}} para la imagen dinámica
+    // La plantilla checkin_pase_recogidav7 usa {{1}} para texto
     const detalleUnificado = `Niño: ${payload.kidName} · Salón: ${payload.classroomName} · Código: ${payload.securityCode}`;
 
-    return sendTwilioWhatsApp(cleanPhone, sid, {
-        "1": detalleUnificado,
-        "2": mediaUrl
-    });
+    return sendTwilioWhatsApp(
+        cleanPhone,
+        sid,
+        { "1": detalleUnificado },
+        mediaUrl
+    );
 }
 
 /** Envía notificación de check-out al padre/madre por WhatsApp */
