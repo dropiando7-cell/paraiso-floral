@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-
 async function testTwilio() {
     const accountSid = process.env.TWILIO_ACCOUNT_SID;
     const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -16,9 +14,9 @@ async function testTwilio() {
     bodyParams.append("To", to);
     bodyParams.append("ContentSid", contentSid);
     bodyParams.append("ContentVariables", JSON.stringify({ "1": "Prueba Twilio API" }));
+    bodyParams.append("MediaUrl", mediaUrl);
 
-    // The Twilio documentation for Content API states we might need to use ContentVariables for Media too.
-    // Let's test providing the mediaUrl inside ContentVariables instead.
+    // Approach 2: ContentVariables inside {{2}} instead of MediaUrl
     const bodyParams2 = new URLSearchParams();
     bodyParams2.append("From", from);
     bodyParams2.append("To", to);
