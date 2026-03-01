@@ -232,7 +232,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                 </div>
             )}
 
-            <div className="w-full max-w-md bg-white min-h-[calc(100vh-4rem)] shadow-xl relative overflow-hidden">
+            <div className="w-full max-w-5xl bg-white min-h-[calc(100vh-4rem)] shadow-xl relative overflow-hidden flex flex-col">
 
                 {/* NEW HEADER (Demo 1 Style) */}
                 <div className="bg-white px-5 py-4 border-b-2 border-slate-200 flex items-center justify-between gap-4 flex-wrap print:hidden shrink-0 z-10 w-full relative rounded-t-3xl">
@@ -330,8 +330,8 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     <div className="text-xs font-bold tracking-widest uppercase text-slate-400 mb-3 border-b border-slate-100 pb-2 flex items-center gap-2">
                                         <span>Cargando asistencia...</span>
                                     </div>
-                                    <div className="space-y-3">
-                                        {[1, 2, 3].map(i => (
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        {[1, 2, 3, 4].map(i => (
                                             <div key={i} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm relative overflow-hidden h-[66px]">
                                                 <div className="absolute top-0 left-0 w-1 h-full bg-slate-200 animate-pulse"></div>
                                                 <div className="w-10 h-10 rounded-full bg-slate-100 animate-pulse ml-2 shrink-0"></div>
@@ -352,7 +352,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     <div className="text-xs font-bold tracking-widest uppercase text-slate-400 mb-3 border-b border-slate-100 pb-2">
                                         Actualmente en iglesia ({checkedInKids.length})
                                     </div>
-                                    <div className="space-y-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                         {checkedInKids.slice(0, visibleCount).map((kid, index) => {
                                             const cls = classrooms.find(c => c.id === kid.classroom);
                                             return (
@@ -362,18 +362,18 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                         {kid.photo}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="font-bold text-slate-900 truncate">{kid.name}</div>
-                                                        <div className="text-xs text-slate-500 truncate flex items-center gap-1">
-                                                            <span className="font-medium">{cls?.name}</span>
+                                                        <div className="font-bold text-[#1B2E6B] text-base truncate leading-tight">{kid.name}</div>
+                                                        <div className="text-xs text-slate-500 mt-0.5 truncate flex items-center gap-1">
+                                                            <span className="font-semibold">{cls?.name}</span>
                                                             <span>·</span>
                                                             <span className="text-emerald-600 font-semibold" suppressHydrationWarning>{kid.checkInTime}</span>
                                                         </div>
                                                     </div>
                                                     <div className="flex gap-2 shrink-0">
-                                                        <button onClick={() => { setCurrentTicket(kid); setView(VIEWS.TICKET); }} className="w-8 h-8 flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 transition-colors">
-                                                            <FileText className="w-4 h-4" />
+                                                        <button onClick={() => { setCurrentTicket(kid); setView(VIEWS.TICKET); }} className="w-10 h-10 flex items-center justify-center rounded-xl bg-[#F0F4FF] text-[#3B6FE8] hover:bg-[#D6E0FF] transition-colors">
+                                                            <FileText className="w-5 h-5" />
                                                         </button>
-                                                        <button onClick={() => setKidToCheckout(kid)} className="px-3 py-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition-colors">
+                                                        <button onClick={() => setKidToCheckout(kid)} className="px-4 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition-colors">
                                                             Salida
                                                         </button>
                                                     </div>
@@ -381,7 +381,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                             );
                                         })}
                                         {checkedInKids.length > visibleCount && (
-                                            <button onClick={() => setVisibleCount(p => p + 10)} className="w-full py-3 text-sm font-bold text-brand-600 hover:text-brand-700 bg-brand-50 rounded-xl">
+                                            <button onClick={() => setVisibleCount(p => p + 10)} className="w-full col-span-1 sm:col-span-2 lg:col-span-3 py-4 text-sm font-bold text-[#3B6FE8] hover:bg-[#F0F4FF] border border-dashed border-[#D6E0FF] rounded-xl transition-colors">
                                                 Ver {Math.min(10, checkedInKids.length - visibleCount)} más... ({checkedInKids.length - visibleCount} restantes)
                                             </button>
                                         )}
@@ -564,31 +564,31 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                         <span>{filteredKids.length} niños</span>
                                     </div>
 
-                                    <div className="space-y-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                         {filteredKids.map(kid => {
                                             const cls = classrooms.find(c => c.id === kid.classroom);
                                             const alreadyIn = isCheckedIn(kid.id);
                                             return (
-                                                <div key={kid.id} className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow">
-                                                    <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-2xl shrink-0 border border-slate-100">
+                                                <div key={kid.id} className="bg-white border border-[#D6E0FF] rounded-2xl p-4 flex items-center gap-4 shadow-sm hover:shadow-[0_8px_32px_rgba(39,72,181,0.12)] transition-shadow">
+                                                    <div className="w-14 h-14 rounded-2xl bg-[#F0EEFF] flex items-center justify-center text-3xl shrink-0 border border-white">
                                                         {kid.photo}
                                                     </div>
                                                     <div className="flex-1 min-w-0">
-                                                        <div className="font-bold text-slate-900 truncate text-base leading-tight">{kid.name}</div>
-                                                        <div className="text-xs text-slate-500 truncate mt-0.5">
-                                                            <span className="font-semibold text-slate-600">{kid.age}a</span> · {cls?.name}
+                                                        <div className="font-bold text-[#1B2E6B] text-lg truncate leading-tight">{kid.name}</div>
+                                                        <div className="text-xs text-[#7A8DB8] mt-0.5 truncate font-medium">
+                                                            <span className="font-semibold text-slate-700">{kid.age}a</span> · {cls?.name}
                                                         </div>
-                                                        <div className="text-[10px] text-slate-400 font-medium mt-1 uppercase tracking-wide">
-                                                            👤 {kid.parentName}
+                                                        <div className="text-[10px] text-slate-400 font-bold mt-1 uppercase tracking-wide flex items-center gap-1">
+                                                            <span>👤</span> {kid.parentName}
                                                         </div>
                                                     </div>
                                                     {alreadyIn ? (
-                                                        <button onClick={() => setKidToCheckout(kid)} className="px-4 py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase tracking-wider transition-colors">
+                                                        <button onClick={() => setKidToCheckout(kid)} className="px-5 py-2.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs font-black uppercase tracking-wider transition-colors">
                                                             Salida
                                                         </button>
                                                     ) : (
                                                         <button onClick={() => handleCheckIn(kid)} disabled={checkingIn}
-                                                            className="px-4 py-2 bg-brand-50 text-brand-700 border border-brand-200 hover:bg-brand-600 hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50 shadow-sm">
+                                                            className="px-5 py-2.5 bg-[#F0F4FF] text-[#3B6FE8] hover:bg-[#3B6FE8] hover:text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all disabled:opacity-50">
                                                             Entrada
                                                         </button>
                                                     )}
@@ -598,11 +598,11 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     </div>
                                     {filteredKids.length === 0 && !searchQuery && (
                                         <div className="text-center py-16 px-4">
-                                            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                                                <Search className="w-8 h-8 text-slate-300" />
+                                            <div className="w-16 h-16 bg-[#F0F4FF] rounded-2xl flex items-center justify-center mx-auto mb-4">
+                                                <Search className="w-8 h-8 text-[#3B6FE8]/50" />
                                             </div>
-                                            <h3 className="text-slate-900 font-bold mb-1">Busca un niño</h3>
-                                            <p className="text-slate-500 text-sm">O toca el botón + naranja para registrar por primera vez.</p>
+                                            <h3 className="text-[#1B2E6B] font-bold mb-1">Busca un niño</h3>
+                                            <p className="text-[#7A8DB8] text-sm font-medium">O toca el botón + destacado para registrar por primera vez.</p>
                                         </div>
                                     )}
                                 </div>
@@ -780,7 +780,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     <Plus className="w-5 h-5" />
                                 </button>
                             </div>
-                            <div className="space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {classrooms.map(cls => {
                                     const kids = classroomKids(cls.id);
                                     const occupancy = (kids.length / cls.capacity) * 100;
@@ -906,7 +906,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             </div>
 
             {/* REAL BOTTOM NAV (Fixed outside the card for mobile app feel) */}
-            <nav className="fixed bottom-0 w-full max-w-md bg-white border-t-2 border-[#D6E0FF] pb-safe pt-3 px-2 flex justify-around z-40 print:hidden">
+            <nav className="fixed bottom-0 w-full max-w-4xl bg-white border-t-2 border-[#D6E0FF] pb-safe pt-3 px-2 flex justify-around z-40 print:hidden">
                 {[
                     { icon: "🏠", label: "Inicio", v: VIEWS.HOME },
                     { icon: "✅", label: "Check-in", v: VIEWS.CHECKIN },
