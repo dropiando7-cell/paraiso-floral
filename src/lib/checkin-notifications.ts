@@ -160,6 +160,21 @@ export async function sendCheckInNotification(
     // La plantilla checkin_pase_recogidav7 usa {{1}} para texto
     const detalleUnificado = `Niño: ${payload.kidName} · Salón: ${payload.classroomName} · Código: ${payload.securityCode}`;
 
+    // === Verificación Previa (Pre-flight) ===
+    // Forzamos a Vercel a generar (y cachear) la imagen dinámica ANTES de que Twilio la pida.
+    // Twilio da timeout muy rápido (error 63019) si la imagen tarda en generarse.
+    try {
+        const preflight = await fetch(mediaUrl, { method: 'GET' });
+        if (!preflight.ok) {
+            // Si hubo un error o Vercel todavía la está procesando, esperamos 500ms e intentamos de nuevo.
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            await fetch(mediaUrl, { method: 'GET' });
+        }
+    } catch (error) {
+        console.warn('Error en pre-flight fetch de la imagen:', error);
+        // Continuamos de igual forma para que Twilio lo reintente.
+    }
+
     return sendTwilioWhatsApp(
         cleanPhone,
         sid,

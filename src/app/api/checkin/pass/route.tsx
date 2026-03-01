@@ -89,10 +89,10 @@ export async function GET(req: NextRequest) {
 
                     {/* Barcode Section */}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                        <div style={{ padding: '30px', backgroundColor: 'white', border: '2px solid #e2e8f0', borderRadius: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '480px' }}>
+                        <div style={{ padding: '30px', backgroundColor: 'white', border: '3px solid #0f172a', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '480px' }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={barcodeBase64} style={{ width: '380px', height: '120px', objectFit: 'contain' }} alt="Barcode" />
-                            <div style={{ display: 'flex', marginTop: '16px', alignItems: 'center' }}>
+                            <img src={barcodeBase64} width="400" height="120" alt="Barcode" />
+                            <div style={{ display: 'flex', marginTop: '20px', alignItems: 'center' }}>
                                 <span style={{ fontSize: '42px', fontWeight: 800, color: '#2563eb', letterSpacing: '10px', fontFamily: 'monospace' }}>
                                     {code.split('').join(' ')}
                                 </span>
