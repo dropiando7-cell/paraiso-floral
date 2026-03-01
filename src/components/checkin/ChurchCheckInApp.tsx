@@ -78,7 +78,9 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     const [isCameraActive, setIsCameraActive] = useState(false);
     const [filterStatus, setFilterStatus] = useState<'ALL' | 'IN' | 'OUT'>('ALL');
 
-    const [newKidForm, setNewKidForm] = useState({ name: "", age: "", gender: "No Especificado", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
+    const defaultKid = { name: "", age: "", gender: "No Especificado", allergies: "", classroom: "" };
+    const [parentForm, setParentForm] = useState({ parentName: "", parentPhone: "" });
+    const [kidsForm, setKidsForm] = useState<any[]>([{ ...defaultKid }]);
     const [checkingIn, setCheckingIn] = useState(false);
     const [notifStatus, setNotifStatus] = useState<any>(null);
     const [showNewKidPanel, setShowNewKidPanel] = useState(false);
@@ -149,7 +151,9 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             getCheckinData().then(data => {
                 if (data.classrooms) {
                     setClassrooms(data.classrooms);
-                    if (data.classrooms.length > 0) setNewKidForm(p => ({ ...p, classroom: data.classrooms[0].id }));
+                    if (data.classrooms.length > 0) {
+                        setKidsForm([{ ...defaultKid, classroom: data.classrooms[0].id }]);
+                    }
                 }
                 if (data.kids) setAllKids(data.kids);
                 if (data.activeCheckins) {
@@ -233,7 +237,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                     handleCheckOut();
                 }
                 // Confirm New Kid Registration
-                else if (showNewKidPanel && newKidStep === 2 && !savingNewKid && newKidForm.parentName && newKidForm.parentPhone) {
+                else if (showNewKidPanel && newKidStep === 2 && !savingNewKid && !kidsForm.some(k => !k.name || !k.age)) {
                     e.preventDefault();
                     handleAddKid(true); // "Registrar y Check-In" action
                 }
@@ -241,7 +245,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         };
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [kidsToCheckout, isCheckingOut, showNewKidPanel, newKidStep, savingNewKid, newKidForm]);
+    }, [kidsToCheckout, isCheckingOut, showNewKidPanel, newKidStep, savingNewKid, parentForm, kidsForm]);
 
     const handleGenerateMockData = async () => {
         setCheckingIn(true);
@@ -368,32 +372,50 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     const isCheckedIn = (kidId: string) => checkedInKids.some(k => k.id === kidId);
 
     const handleAddKid = async (autoCheckIn = false) => {
-        if (!newKidForm.name || !newKidForm.age || !newKidForm.parentName) return;
+        if (!parentForm.parentName || kidsForm.some(k => !k.name || !k.age)) return;
         setSavingNewKid(true);
-        const photo = parseInt(newKidForm.age) <= 3 ? "👧" : parseInt(newKidForm.age) <= 7 ? "🧒" : "👦";
 
-        const payload = {
-            ...newKidForm,
-            age: parseInt(newKidForm.age),
-            photoEmoji: photo,
-            classroomId: newKidForm.classroom
-        };
+        const addedKidIds: string[] = [];
+        const addedKidObjects: any[] = [];
+        let hasError = false;
 
-        const result = await addKid(payload);
-        if (result.error) {
-            showToast(result.error, "error");
+        for (const kidForm of kidsForm) {
+            const photo = parseInt(kidForm.age) <= 3 ? "👧" : parseInt(kidForm.age) <= 7 ? "🧒" : "👦";
+            const payload = {
+                ...kidForm,
+                age: parseInt(kidForm.age),
+                photoEmoji: photo,
+                classroomId: kidForm.classroom,
+                parentName: parentForm.parentName,
+                parentPhone: parentForm.parentPhone
+            };
+
+            const result = await addKid(payload);
+            if (result.error) {
+                showToast(`Error al añadir ${kidForm.name}: ${result.error}`, "error");
+                hasError = true;
+                break;
+            }
+            addedKidIds.push(result.kid!.id);
+            addedKidObjects.push(result.kid);
+            setAllKids(prev => [...prev, result.kid]);
+        }
+
+        if (hasError) {
             setSavingNewKid(false);
             return;
         }
 
-        setAllKids(prev => [...prev, result.kid]);
-        setNewKidForm({ name: "", age: "", gender: "No Especificado", parentName: "", parentPhone: "", allergies: "", classroom: classrooms[0]?.id || "" });
+        setParentForm({ parentName: "", parentPhone: "" });
+        setKidsForm([{ name: "", age: "", gender: "No Especificado", allergies: "", classroom: classrooms[0]?.id || "" }]);
+        setNewKidStep(1);
+        setShowNewKidPanel(false);
 
-        if (autoCheckIn) {
+        if (autoCheckIn && addedKidIds.length > 0) {
             setCheckingIn(true);
             const code = generateTicketCode();
 
-            const checkInRes = await doCheckIn([result.kid!.id], code);
+            const checkInRes = await doCheckIn(addedKidIds, code);
 
             if (checkInRes.error) {
                 showToast(checkInRes.error, "error");
@@ -401,16 +423,20 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                 return;
             }
 
-            const ticket = {
-                ...result.kid, code,
+            const ticketObjects = addedKidObjects.map(k => ({
+                ...k, code,
                 checkInTime: new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
                 checkInDate: new Date().toLocaleDateString("es-HN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
                 qrValue: `IGLESIA-CHECKIN:FAMILY:${code}:${Date.now()}`,
                 notifStatus: checkInRes.notification?.sent ? "WhatsApp" : "Ninguna"
-            };
+            }));
 
-            setCurrentTicket({ type: "FAMILY", tickets: [ticket], code, qrValue: ticket.qrValue, parentName: ticket.parentName, checkInTime: ticket.checkInTime });
-            setCheckedInKids(prev => [...prev.filter(k => k.id !== result.kid!.id), ticket]);
+            setCurrentTicket({ type: "FAMILY", tickets: ticketObjects, code, qrValue: ticketObjects[0].qrValue, parentName: parentForm.parentName, checkInTime: ticketObjects[0].checkInTime });
+
+            setCheckedInKids(prev => {
+                const filtered = prev.filter(k => !addedKidIds.includes(k.id));
+                return [...filtered, ...ticketObjects];
+            });
             setView(VIEWS.TICKET);
 
             if (checkInRes.notification?.sent) {
@@ -422,6 +448,9 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             }
 
             setCheckingIn(false);
+        } else {
+            setSavingNewKid(false);
+            showToast("✅ Registro familiar exitoso", "success");
         }
     }
 
@@ -750,7 +779,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                             {/* Quick "add new" hint when no results */}
                             {!showNewKidPanel && searchQuery && filteredKids.length === 0 && (
                                 <button
-                                    onClick={() => { setShowNewKidPanel(true); setNewKidForm(p => ({ ...p, name: searchQuery })); setSearchQuery(""); setNewKidStep(1); }}
+                                    onClick={() => { setShowNewKidPanel(true); setKidsForm([{ name: searchQuery, age: "", gender: "No Especificado", allergies: "", classroom: classrooms[0]?.id || "" }]); setSearchQuery(""); setNewKidStep(1); }}
                                     className="w-full mb-4 bg-brand-50 border border-brand-200 border-dashed rounded-2xl p-4 text-brand-700 font-bold text-sm text-left flex items-center justify-between hover:bg-brand-100 transition-colors">
                                     <span>➕ Registrar "{searchQuery}" como nuevo</span>
                                     <ArrowLeft className="w-4 h-4 rotate-180" />
@@ -780,91 +809,13 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     </div>
 
                                     <div className="p-5">
-                                        {/* STEP 1 */}
+                                        {/* STEP 1: Parent Info */}
                                         {newKidStep === 1 && (
                                             <div className="space-y-4 animate-in fade-in slide-in-from-left-4">
                                                 <div>
-                                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Nombre completo del niño *</label>
-                                                    <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium"
-                                                        placeholder="ej. Ana González" value={newKidForm.name} onChange={e => setNewKidForm(p => ({ ...p, name: e.target.value }))} autoFocus />
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-3">
-                                                    <div>
-                                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Edad *</label>
-                                                        <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium"
-                                                            type="number" min="0" max="17" placeholder="ej. 7" value={newKidForm.age} onChange={e => setNewKidForm(p => ({ ...p, age: e.target.value }))} />
-                                                    </div>
-                                                    <div>
-                                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Sexo *</label>
-                                                        <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium text-slate-700"
-                                                            value={newKidForm.gender} onChange={e => setNewKidForm(p => ({ ...p, gender: e.target.value }))}>
-                                                            <option value="No Especificado">Seleccionar...</option>
-                                                            <option value="Masculino">Masculino</option>
-                                                            <option value="Femenino">Femenino</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-
-                                                <div>
-                                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Salón (Auto)</label>
-                                                    <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium text-slate-700"
-                                                        value={newKidForm.classroom} onChange={e => setNewKidForm(p => ({ ...p, classroom: e.target.value }))}>
-                                                        {classrooms.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                                    </select>
-                                                </div>
-
-                                                {newKidForm.age && classrooms.length > 0 && (() => {
-                                                    const age = parseInt(newKidForm.age);
-                                                    const suggestedCls = classrooms.find(c => {
-                                                        if (!c.ageRange) return false;
-                                                        // Extract numbers from something like "3-5 años"
-                                                        const match = c.ageRange.match(/(\d+)[\s-–a]*(\d+)?/);
-                                                        if (match) {
-                                                            const min = parseInt(match[1]);
-                                                            const max = match[2] ? parseInt(match[2]) : min;
-                                                            return age >= min && age <= max;
-                                                        }
-                                                        return false;
-                                                    });
-
-                                                    if (suggestedCls && suggestedCls.id !== newKidForm.classroom) return (
-                                                        <button onClick={() => setNewKidForm(p => ({ ...p, classroom: suggestedCls.id }))}
-                                                            className="w-full flex items-center gap-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl px-3 py-2 text-xs font-bold hover:bg-indigo-100 transition-colors text-left">
-                                                            <span>💡</span> <span>Sugerido por edad: <strong>{suggestedCls.name}</strong>. ¿Asignar?</span>
-                                                        </button>
-                                                    );
-                                                })()}
-
-                                                <div>
-                                                    <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Alergias / Notas</label>
-                                                    <input className="w-full bg-slate-50 border border-amber-200/50 rounded-xl px-4 py-3 text-sm focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-all font-medium"
-                                                        placeholder="ej. Maní, Asma · o vacío" value={newKidForm.allergies} onChange={e => setNewKidForm(p => ({ ...p, allergies: e.target.value }))} />
-                                                </div>
-
-                                                <button onClick={() => { if (newKidForm.name && newKidForm.age) setNewKidStep(2); }} disabled={!newKidForm.name || !newKidForm.age}
-                                                    className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl shadow-md transition-all mt-2 flex justify-center items-center gap-2">
-                                                    Siguiente <ArrowLeft className="w-4 h-4 rotate-180" />
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        {/* STEP 2 */}
-                                        {newKidStep === 2 && (
-                                            <div className="space-y-4 animate-in fade-in slide-in-from-right-4">
-                                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center gap-3">
-                                                    <div className="text-3xl">{parseInt(newKidForm.age) <= 3 ? "👧" : parseInt(newKidForm.age) <= 7 ? "🧒" : "👦"}</div>
-                                                    <div className="flex-1">
-                                                        <div className="font-bold text-slate-900">{newKidForm.name}</div>
-                                                        <div className="text-xs text-slate-500">{newKidForm.age} años · {classrooms.find(c => c.id === newKidForm.classroom)?.name}</div>
-                                                    </div>
-                                                    <button onClick={() => setNewKidStep(1)} className="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded-md">Editar</button>
-                                                </div>
-
-                                                <div>
                                                     <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Tutor / Padre *</label>
                                                     <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium"
-                                                        placeholder="ej. Juan González" value={newKidForm.parentName} onChange={e => setNewKidForm(p => ({ ...p, parentName: e.target.value }))} autoFocus />
+                                                        placeholder="ej. Juan González" value={parentForm.parentName} onChange={e => setParentForm(p => ({ ...p, parentName: e.target.value }))} autoFocus />
                                                 </div>
 
                                                 <div>
@@ -874,17 +825,123 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                             +504
                                                         </div>
                                                         <input className="w-full bg-transparent px-3 py-3 text-sm outline-none font-medium"
-                                                            placeholder="9999-0000" type="tel" value={newKidForm.parentPhone.replace(/^\+504\s*/, '')} onChange={e => setNewKidForm(p => ({ ...p, parentPhone: `+504 ${e.target.value}` }))} />
+                                                            placeholder="9999-0000" type="tel" value={parentForm.parentPhone.replace(/^\+504\s*/, '')} onChange={e => setParentForm(p => ({ ...p, parentPhone: `+504 ${e.target.value}` }))} />
                                                     </div>
                                                     <p className="text-[10px] text-slate-400 font-medium ml-1 mt-1 text-center">Se enviará el sticker digital por WhatsApp</p>
                                                 </div>
 
-                                                <div className="grid gap-2 pt-2">
-                                                    <button onClick={() => handleAddKid(true)} disabled={!newKidForm.parentName || !newKidForm.parentPhone || savingNewKid}
+                                                <button onClick={() => { if (parentForm.parentName && parentForm.parentPhone) setNewKidStep(2); }} disabled={!parentForm.parentName || !parentForm.parentPhone}
+                                                    className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl shadow-md transition-all mt-2 flex justify-center items-center gap-2">
+                                                    Siguiente <ArrowLeft className="w-4 h-4 rotate-180" />
+                                                </button>
+                                            </div>
+                                        )}
+
+                                        {/* STEP 2: Kids Info */}
+                                        {newKidStep === 2 && (
+                                            <div className="space-y-6 animate-in fade-in slide-in-from-right-4 max-h-[60vh] overflow-y-auto pr-2 pb-4">
+                                                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex justify-between items-center gap-3 sticky top-0 z-10 shadow-sm">
+                                                    <div className="flex-1">
+                                                        <div className="font-bold text-slate-900">Familia: {parentForm.parentName}</div>
+                                                        <div className="text-xs text-slate-500">{parentForm.parentPhone}</div>
+                                                    </div>
+                                                    <button onClick={() => setNewKidStep(1)} className="text-xs font-bold text-brand-600 bg-brand-50 px-2 py-1 rounded-md">Editar Padre</button>
+                                                </div>
+
+                                                {kidsForm.map((kid, index) => (
+                                                    <div key={index} className="space-y-4 border-l-2 border-brand-200 pl-4 relative pt-2">
+                                                        {kidsForm.length > 1 && (
+                                                            <button onClick={() => setKidsForm(p => p.filter((_, i) => i !== index))} className="absolute top-0 -right-2 text-red-400 hover:text-red-500 bg-white rounded-full">
+                                                                <XCircle className="w-5 h-5" />
+                                                            </button>
+                                                        )}
+                                                        <div className="text-xs font-bold text-brand-700 uppercase flex items-center gap-2">
+                                                            <div className="w-5 h-5 rounded-full bg-brand-100 flex justify-center items-center text-brand-700">{index + 1}</div> Niño
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Nombre completo *</label>
+                                                            <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium"
+                                                                placeholder="ej. Ana González" value={kid.name} onChange={e => {
+                                                                    const k = [...kidsForm]; k[index].name = e.target.value; setKidsForm(k);
+                                                                }} autoFocus={index === 0} />
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-3">
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Edad *</label>
+                                                                <input className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium"
+                                                                    type="number" min="0" max="17" placeholder="ej. 7" value={kid.age} onChange={e => {
+                                                                        const k = [...kidsForm]; k[index].age = e.target.value; setKidsForm(k);
+                                                                    }} />
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Sexo *</label>
+                                                                <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium text-slate-700"
+                                                                    value={kid.gender} onChange={e => {
+                                                                        const k = [...kidsForm]; k[index].gender = e.target.value; setKidsForm(k);
+                                                                    }}>
+                                                                    <option value="No Especificado">Seleccionar...</option>
+                                                                    <option value="Masculino">Masculino</option>
+                                                                    <option value="Femenino">Femenino</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Salón (Auto)</label>
+                                                            <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium text-slate-700"
+                                                                value={kid.classroom} onChange={e => {
+                                                                    const k = [...kidsForm]; k[index].classroom = e.target.value; setKidsForm(k);
+                                                                }}>
+                                                                {classrooms.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                                                            </select>
+                                                        </div>
+
+                                                        {kid.age && classrooms.length > 0 && (() => {
+                                                            const age = parseInt(kid.age);
+                                                            const suggestedCls = classrooms.find(c => {
+                                                                if (!c.ageRange) return false;
+                                                                const match = c.ageRange.match(/(\d+)[\s-–a]*(\d+)?/);
+                                                                if (match) {
+                                                                    const min = parseInt(match[1]);
+                                                                    const max = match[2] ? parseInt(match[2]) : min;
+                                                                    return age >= min && age <= max;
+                                                                }
+                                                                return false;
+                                                            });
+
+                                                            if (suggestedCls && suggestedCls.id !== kid.classroom) return (
+                                                                <button onClick={() => {
+                                                                    const k = [...kidsForm]; k[index].classroom = suggestedCls.id; setKidsForm(k);
+                                                                }}
+                                                                    className="w-full flex items-center gap-2 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl px-3 py-2 text-xs font-bold hover:bg-indigo-100 transition-colors text-left uppercase mt-2">
+                                                                    <span>💡</span> <span>Sugerir salón: <strong>{suggestedCls.name}</strong></span>
+                                                                </button>
+                                                            );
+                                                        })()}
+
+                                                        <div>
+                                                            <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Alergias / Notas</label>
+                                                            <input className="w-full bg-slate-50 border border-amber-200/50 rounded-xl px-4 py-3 text-sm focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-all font-medium"
+                                                                placeholder="ej. Maní, Asma · o vacío" value={kid.allergies} onChange={e => {
+                                                                    const k = [...kidsForm]; k[index].allergies = e.target.value; setKidsForm(k);
+                                                                }} />
+                                                        </div>
+                                                    </div>
+                                                ))}
+
+                                                <button onClick={() => {
+                                                    setKidsForm(p => [...p, { name: "", age: "", gender: "No Especificado", allergies: "", classroom: classrooms[0]?.id || "" }]);
+                                                }} className="w-full py-3 border-2 border-dashed border-brand-300 rounded-xl text-brand-600 font-bold text-sm hover:bg-brand-50 transition-colors flex justify-center items-center gap-2 mt-4">
+                                                    <UserPlus className="w-5 h-5" /> Añadir otro niño
+                                                </button>
+
+                                                <div className="grid gap-2 pt-4 border-t border-slate-200 mt-4">
+                                                    <button onClick={() => handleAddKid(true)} disabled={kidsForm.some(k => !k.name || !k.age) || savingNewKid}
                                                         className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
-                                                        {savingNewKid ? "⏳ Guardando..." : "✅ Registrar y Check-In"}
+                                                        {savingNewKid ? "⏳ Guardando..." : `✅ Registrar y Check-In (${kidsForm.length})`}
                                                     </button>
-                                                    <button onClick={() => handleAddKid(false)} disabled={!newKidForm.parentName || savingNewKid}
+                                                    <button onClick={() => handleAddKid(false)} disabled={kidsForm.some(k => !k.name || !k.age) || savingNewKid}
                                                         className="w-full bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-slate-700 font-bold py-3 rounded-xl transition-all text-sm">
                                                         Registrar sin chequear
                                                     </button>
