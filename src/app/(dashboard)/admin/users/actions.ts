@@ -179,3 +179,106 @@ export async function createRoleTemplate(data: {
         return { success: false, error: 'Error interno del servidor al crear el rol.' };
     }
 }
+
+export async function updateRoleTemplate(id: string, data: {
+    name: string;
+    baseRole: Role;
+    organizationId: string;
+    accessibleModules: string[];
+}) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) return { success: false, error: 'No autenticado.' };
+
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+        if (dbUser?.role !== 'SUPER_ADMIN') return { success: false, error: 'No autorizado.' };
+
+        // Check if renaming to an existing name
+        const existingTemplate = await prisma.roleTemplate.findUnique({ where: { id } });
+        if (!existingTemplate) return { success: false, error: 'Plantilla no encontrada.' };
+
+        if (existingTemplate.name !== data.name) {
+            const duplicate = await prisma.roleTemplate.findFirst({
+                where: {
+                    organizationId: data.organizationId,
+                    name: data.name,
+                    id: { not: id } // Exclude current
+                }
+            });
+            if (duplicate) return { success: false, error: 'Ya existe una plantilla con este nuevo nombre.' };
+        }
+
+        // Use a transaction to update the template AND the users that have this template string
+        await prisma.$transaction(async (tx) => {
+            await tx.roleTemplate.update({
+                where: { id },
+                data: {
+                    name: data.name,
+                    baseRole: data.baseRole,
+                    organizationId: data.organizationId,
+                    accessibleModules: data.accessibleModules,
+                },
+            });
+
+            // Update all users that had the old custom role name to the new name and baseRole
+            if (existingTemplate.name !== data.name || existingTemplate.baseRole !== data.baseRole || JSON.stringify(existingTemplate.accessibleModules) !== JSON.stringify(data.accessibleModules)) {
+                await tx.user.updateMany({
+                    where: {
+                        organizationId: data.organizationId,
+                        customRoleName: existingTemplate.name,
+                    },
+                    data: {
+                        customRoleName: data.name,
+                        role: data.baseRole,
+                        accessibleModules: data.accessibleModules
+                    }
+                });
+            }
+        });
+
+        revalidatePath('/admin/users');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error updating role template:', error);
+        return { success: false, error: 'Error interno del servidor al actualizar el rol.' };
+    }
+}
+
+export async function deleteRoleTemplate(id: string, organizationId: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) return { success: false, error: 'No autenticado.' };
+
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+        if (dbUser?.role !== 'SUPER_ADMIN') return { success: false, error: 'No autorizado.' };
+
+        const existingTemplate = await prisma.roleTemplate.findUnique({ where: { id } });
+        if (!existingTemplate) return { success: false, error: 'Plantilla no encontrada.' };
+
+        // Use a transaction to delete the template AND remove it from users
+        await prisma.$transaction(async (tx) => {
+            await tx.roleTemplate.delete({ where: { id } });
+
+            // Downgrade users who had this template
+            await tx.user.updateMany({
+                where: {
+                    organizationId,
+                    customRoleName: existingTemplate.name,
+                },
+                data: {
+                    customRoleName: null,
+                }
+            });
+        });
+
+        revalidatePath('/admin/users');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error deleting role template:', error);
+        return { success: false, error: 'Error interno del servidor al eliminar el rol.' };
+    }
+}

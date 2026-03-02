@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ success: false, error: "User not found" }, { status: 403 });
         }
 
-        const allowedRoles = ["SUPER_ADMIN", "ORG_ADMIN", "CHECKIN_KIDS"];
+        const allowedRoles = ["SUPER_ADMIN", "ORG_ADMIN", "CHECKIN_KIDS", "CHECKIN_KIDS_ADMIN"];
         if (!allowedRoles.includes(dbUser.role)) {
             return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
         }

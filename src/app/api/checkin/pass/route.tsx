@@ -13,22 +13,22 @@ export async function GET(req: NextRequest) {
 
         // Pre-fetch images to avoid Twilio timeouts
         const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${code}`;
-        const barcodeUrl = `https://barcodeapi.org/api/128/${code}`;
+        // const barcodeUrl = `https://barcodeapi.org/api/128/${code}`; // Comentado por requerimiento del usuario
 
         const logoUrl = 'https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blanco-1.png';
 
-        const [qrRes, barcodeRes, logoRes] = await Promise.all([
+        const [qrRes, logoRes] = await Promise.all([
             fetch(qrUrl),
-            fetch(barcodeUrl),
+            // fetch(barcodeUrl),
             fetch(logoUrl)
         ]);
 
         const qrArrayBuffer = await qrRes.arrayBuffer();
-        const barcodeArrayBuffer = await barcodeRes.arrayBuffer();
+        // const barcodeArrayBuffer = await barcodeRes.arrayBuffer();
         const logoArrayBuffer = await logoRes.arrayBuffer();
 
         const qrBase64 = `data:${qrRes.headers.get('content-type') || 'image/png'};base64,${Buffer.from(qrArrayBuffer).toString('base64')}`;
-        const barcodeBase64 = `data:${barcodeRes.headers.get('content-type') || 'image/png'};base64,${Buffer.from(barcodeArrayBuffer).toString('base64')}`;
+        // const barcodeBase64 = `data:${barcodeRes.headers.get('content-type') || 'image/png'};base64,${Buffer.from(barcodeArrayBuffer).toString('base64')}`;
         const logoBase64 = `data:${logoRes.headers.get('content-type') || 'image/png'};base64,${Buffer.from(logoArrayBuffer).toString('base64')}`;
 
         return new ImageResponse(
@@ -88,10 +88,9 @@ export async function GET(req: NextRequest) {
                             </div>
                         </div>
 
-                        {/* Barcode Section */}
+                        {/* Barcode Section (Comentado temporalmente por requerimiento de velocidad)
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <div style={{ padding: '24px', backgroundColor: 'white', border: '3px solid #0f172a', borderRadius: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '360px' }}>
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img src={barcodeBase64} width="320" height="90" alt="Barcode" />
                                 <div style={{ display: 'flex', marginTop: '16px', alignItems: 'center', width: '100%', justifyContent: 'center' }}>
                                     <span style={{ fontSize: '32px', fontWeight: 900, color: '#020617', letterSpacing: '8px', fontFamily: "'Courier New', monospace", textAlign: 'center', width: '100%' }}>
@@ -100,6 +99,7 @@ export async function GET(req: NextRequest) {
                                 </div>
                             </div>
                         </div>
+                        */}
                     </div>
                 </div>
             ),

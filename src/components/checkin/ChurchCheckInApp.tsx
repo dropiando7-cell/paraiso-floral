@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Printer, Plus, Users, UserPlus, FileText, CheckCircle2, ArrowLeft, Maximize, Minimize, CheckSquare, XCircle, Info, ScanLine, Camera, Edit2, Settings, Beaker, School, ShieldCheck } from "lucide-react";
+import { Search, Printer, Plus, Users, UserPlus, FileText, CheckCircle2, ArrowLeft, Maximize, Minimize, CheckSquare, XCircle, Info, ScanLine, Camera, Edit2, Settings, Beaker, School, ShieldCheck, MessageSquare, Send } from "lucide-react";
 import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom, generateMockKids } from "@/app/(dashboard)/checkin/actions";
 import { useLayoutControls } from "@/components/layout/MobileDashboardWrapper";
 import ScannerComponent from './ScannerComponent';
@@ -41,7 +41,7 @@ function generateTicketCode() {
     return code;
 }
 
-const VIEWS = { HOME: "home", CHECKIN: "checkin", TICKET: "ticket", CLASSROOMS: "classrooms", CLASSROOM_DETAIL: "classroom_detail", MANAGE_CLASSROOM: "manage_classroom", SCANNER: "scanner" };
+const VIEWS = { HOME: "home", CHECKIN: "checkin", TICKET: "ticket", CLASSROOMS: "classrooms", CLASSROOM_DETAIL: "classroom_detail", MANAGE_CLASSROOM: "manage_classroom", SCANNER: "scanner", MESSAGES: "messages" };
 
 export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     const { isFullscreen, setIsFullscreen } = useLayoutControls();
@@ -103,6 +103,17 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
     // Multi-select for Check-in
     const [selectedKidsForCheckin, setSelectedKidsForCheckin] = useState<Set<string>>(new Set());
+
+    // User Role Reference
+    const userRole = initialData?.userRole || "USER";
+    const canSendMassMessages = ["SUPER_ADMIN", "ORG_ADMIN", "CHECKIN_KIDS_ADMIN"].includes(userRole);
+
+    // Messages State
+    const [messageTab, setMessageTab] = useState<'mass' | 'individual'>(canSendMassMessages ? 'mass' : 'individual');
+    const [messageBody, setMessageBody] = useState("");
+    const [messageContext, setMessageContext] = useState(""); // Variable {{1}}
+    const [sendingMessage, setSendingMessage] = useState(false);
+    const [selectedKidForMessage, setSelectedKidForMessage] = useState<any>(null);
 
     useEffect(() => {
         // Prevent observer from firing immediately on mount when items haven't fully rendered
@@ -532,6 +543,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                     {[
                         { icon: "🏠", label: "Inicio", v: VIEWS.HOME },
                         { icon: "✅", label: "Check-in", v: VIEWS.CHECKIN },
+                        { icon: "💬", label: "Mensajes", v: VIEWS.MESSAGES },
                         { icon: "🏛️", label: "Salones", v: VIEWS.CLASSROOMS },
                     ].map(item => {
                         const isActive = view === item.v || (view === VIEWS.TICKET && item.v === VIEWS.CHECKIN) || (view === VIEWS.CLASSROOM_DETAIL && item.v === VIEWS.CLASSROOMS);
@@ -565,11 +577,11 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                         styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#F0EEFF]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                     },
                                     {
-                                        icon: "📷", title: "Escanear QR Gafete", sub: "Escanear para Check-out", action: () => setView(VIEWS.SCANNER),
+                                        icon: "📸", title: "Escanear QR Gafete", sub: "Escanear para Check-out", action: () => setView(VIEWS.SCANNER),
                                         styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#E6FFFE]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                     },
                                     {
-                                        icon: "🏫", title: "Monitorear Salones", sub: "Ver ocupación por clase", action: () => setView(VIEWS.CLASSROOMS),
+                                        icon: "💬", title: "Centro de Mensajes", sub: "Enviar mensaje a padres", action: () => setView(VIEWS.MESSAGES),
                                         styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#FFF5E6]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                     },
                                 ].map(item => (
@@ -1111,6 +1123,163 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                     )}
 
                     {/* TICKET (For Printing / Showing) */}
+                    {/* MESSAGES VIEW */}
+                    {view === VIEWS.MESSAGES && (
+                        <div className="animate-in fade-in duration-300 pb-32">
+                            <h2 className="text-xl font-black text-[#1B2E6B] tracking-tight mb-2 flex items-center gap-2">
+                                <MessageSquare className="w-6 h-6 text-[#3B6FE8]" /> Centro de Comunicaciones
+                            </h2>
+                            <p className="text-sm text-[#7A8DB8] font-medium mb-6">Envía notificaciones de WhatsApp a los padres de los niños registrados.</p>
+
+                            <div className="bg-white rounded-[2rem] border-2 border-[#D6E0FF] shadow-sm overflow-hidden mb-6">
+                                <div className="flex bg-[#F0F4FF] border-b-2 border-[#D6E0FF]">
+                                    {canSendMassMessages && (
+                                        <button onClick={() => setMessageTab('mass')} className={`flex-1 py-4 font-bold text-sm transition-colors ${messageTab === 'mass' ? 'text-[#3B6FE8] border-b-4 border-[#3B6FE8] bg-white' : 'text-[#7A8DB8] hover:text-[#1B2E6B]'}`}>
+                                            📢 Difusión Masiva ({checkedInKids.length})
+                                        </button>
+                                    )}
+                                    <button onClick={() => setMessageTab('individual')} className={`flex-1 py-4 font-bold text-sm transition-colors ${messageTab === 'individual' ? 'text-[#3B6FE8] border-b-4 border-[#3B6FE8] bg-white' : 'text-[#7A8DB8] hover:text-[#1B2E6B]'}`}>
+                                        👤 Mensaje Individual
+                                    </button>
+                                </div>
+
+                                <div className="p-5 sm:p-6">
+                                    <div className="bg-[#E6FFFE] border border-[#2CD9C5] text-[#00A38D] px-4 py-3 rounded-xl text-xs sm:text-sm font-medium mb-6 flex gap-3">
+                                        <Info className="w-5 h-5 shrink-0" />
+                                        <div>
+                                            <p className="font-bold mb-1">Plantilla de WhatsApp configurada (enviar_msg_padres1):</p>
+                                            <p className="opacity-90 italic">"Bendiciones. De parte de <strong>{`{{Remitente}}`}</strong> queremos notificarte lo siguiente: <strong>{`{{Tu mensaje}}`}</strong>. Quedamos atentos a tu llegada al salón asignado para asistirte. Saludos."</p>
+                                        </div>
+                                    </div>
+
+                                    {messageTab === 'individual' && (
+                                        <div className="mb-6 relative">
+                                            <label className="block text-xs font-bold uppercase tracking-wider text-[#7A8DB8] mb-2">1. Selecciona al niño o padre</label>
+
+                                            {!selectedKidForMessage ? (
+                                                <>
+                                                    <div className="relative">
+                                                        <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Buscar por nombre..."
+                                                            className="w-full bg-[#F0F4FF] border-none rounded-xl pl-12 pr-4 py-3.5 text-sm font-bold text-[#1B2E6B] focus:ring-2 focus:ring-[#3B6FE8] outline-none"
+                                                            value={searchQuery}
+                                                            onChange={e => setSearchQuery(e.target.value)}
+                                                        />
+                                                    </div>
+
+                                                    {searchQuery && (
+                                                        <div className="absolute top-full left-0 right-0 mt-2 max-h-60 overflow-y-auto bg-white border-2 border-[#D6E0FF] rounded-xl shadow-xl z-20">
+                                                            {filteredKids.filter(k => isCheckedIn(k.id)).length === 0 ? (
+                                                                <div className="p-4 text-center text-slate-500 font-medium text-sm">No se encontraron niños activos con ese nombre.</div>
+                                                            ) : (
+                                                                filteredKids.filter(k => isCheckedIn(k.id)).map(kid => (
+                                                                    <button
+                                                                        key={kid.id}
+                                                                        onClick={() => { setSelectedKidForMessage(kid); setSearchQuery(""); }}
+                                                                        className="w-full text-left p-3 hover:bg-[#F0F4FF] border-b border-slate-100 flex items-center justify-between transition-colors"
+                                                                    >
+                                                                        <div>
+                                                                            <div className="font-bold text-[#1B2E6B]">{kid.name}</div>
+                                                                            <div className="text-xs text-slate-500">{kid.parentName} · {kid.parentPhone}</div>
+                                                                        </div>
+                                                                        <div className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg font-bold">Activo</div>
+                                                                    </button>
+                                                                ))
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </>
+                                            ) : (
+                                                <div className="flex items-center justify-between bg-[#F0F4FF] p-4 rounded-xl border border-[#D6E0FF]">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-xl shadow-sm">{selectedKidForMessage.photo || '👤'}</div>
+                                                        <div>
+                                                            <div className="font-bold text-[#1B2E6B] leading-tight">{selectedKidForMessage.name}</div>
+                                                            <div className="text-xs text-[#7A8DB8] mt-0.5">Padre: {selectedKidForMessage.parentName} ({selectedKidForMessage.parentPhone})</div>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => setSelectedKidForMessage(null)} className="text-[#3B6FE8] hover:bg-[#D6E0FF] p-2 rounded-lg transition-colors">
+                                                        <XCircle className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-wider text-[#7A8DB8] mb-2">{messageTab === 'individual' ? '2. ' : ''}Remitente {`{{1}}`}</label>
+                                            <input
+                                                type="text"
+                                                placeholder="Ej: Escuela Bíblica, Ministerio Infantil..."
+                                                value={messageContext}
+                                                onChange={e => setMessageContext(e.target.value)}
+                                                className="w-full bg-[#F0F4FF] border border-transparent focus:border-[#3B6FE8] rounded-xl px-4 py-3.5 text-sm font-bold text-[#1B2E6B] focus:ring-0 outline-none"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-xs font-bold uppercase tracking-wider text-[#7A8DB8] mb-2">Mensaje / Eventualidad {`{{2}}`}</label>
+                                            <textarea
+                                                rows={4}
+                                                placeholder="Escribe el mensaje aquí..."
+                                                value={messageBody}
+                                                onChange={e => setMessageBody(e.target.value)}
+                                                className="w-full bg-[#F0F4FF] border border-transparent focus:border-[#3B6FE8] rounded-xl px-4 py-3 text-sm font-medium text-[#1B2E6B] focus:ring-0 outline-none resize-none"
+                                            ></textarea>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        disabled={sendingMessage || !messageBody.trim() || !messageContext.trim() || (messageTab === 'individual' && !selectedKidForMessage) || (messageTab === 'mass' && checkedInKids.length === 0)}
+                                        onClick={async () => {
+                                            if (!messageBody.trim() || !messageContext.trim()) return;
+
+                                            setSendingMessage(true);
+                                            const kidIds = messageTab === 'mass' ? checkedInKids.map(k => k.id) : [selectedKidForMessage.id];
+
+                                            try {
+                                                const res = await fetch('/api/checkin/message', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        kidIds,
+                                                        context: messageContext,
+                                                        message: messageBody,
+                                                        type: messageTab
+                                                    })
+                                                });
+
+                                                const data = await res.json();
+
+                                                if (data.error) {
+                                                    showToast(`Error: ${data.error}`, "error");
+                                                } else {
+                                                    showToast(`✅ Mensaje enviado a ${data.sentCount} destinatarios.`, "success");
+                                                    setMessageBody("");
+                                                    if (messageTab === 'individual') setSelectedKidForMessage(null);
+                                                }
+                                            } catch (e) {
+                                                showToast("Error de conexión al enviar.", "error");
+                                            } finally {
+                                                setSendingMessage(false);
+                                            }
+                                        }}
+                                        className="w-full mt-6 bg-[#2563EB] hover:bg-[#1e40af] disabled:bg-slate-300 disabled:text-slate-500 text-white font-bold py-4 rounded-xl shadow-md transition-all flex justify-center items-center gap-2"
+                                    >
+                                        {sendingMessage ? (
+                                            <span className="flex items-center gap-2">⏳ Enviando...</span>
+                                        ) : (
+                                            <span className="flex items-center gap-2"><Send className="w-5 h-5" /> Enviar por WhatsApp</span>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                     {view === VIEWS.TICKET && currentTicket && (() => {
                         // For a family checkin, currentTicket looks like:
                         // { type: "FAMILY", tickets: [ticket1, ticket2], code, qrValue, parentName, checkInTime }
@@ -1153,7 +1322,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
                                             <div className="text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase">Escanea para Check-out</div>
 
-                                            {/* Barcode */}
+                                            {/* Barcode (Comentado por requerimiento del usuario para acelerar escaneo solo con QR)
                                             <div className="w-full bg-white border-2 border-slate-100 rounded-2xl p-4 flex flex-col items-center justify-center">
                                                 <img
                                                     src={`https://barcodeapi.org/api/128/${currentTicket.code || tickets[0].code}`}
@@ -1164,6 +1333,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                     {(currentTicket.code || tickets[0].code).split('').join(' ')}
                                                 </div>
                                             </div>
+                                            */}
                                         </div>
 
                                         <div className="grid grid-cols-2 gap-4 text-left border-t border-dashed border-slate-200 pt-5">
@@ -1236,7 +1406,8 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                 </div>
 
                                                 <div className="absolute bottom-1.5 right-3 text-[8px] font-bold text-slate-500 print:text-black uppercase tracking-widest text-right">
-                                                    Elim Kids (Niño)
+                                                    Elim Kids (Niño)<br />
+                                                    Tel: {t.parentPhone}
                                                 </div>
                                             </div>
                                         );
@@ -1249,6 +1420,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                 <div className="text-[9px] font-black uppercase tracking-widest print:text-black mb-1 shrink-0">Recibo Familiar</div>
                                                 <h2 className="text-sm font-black leading-tight text-slate-900 print:text-black truncate">{currentTicket.parentName || tickets[0].parentName}</h2>
                                                 <div className="text-[9px] font-bold print:text-black mt-0.5">{new Date().toLocaleDateString('es-HN')} · {currentTicket.checkInTime || tickets[0].checkInTime}</div>
+                                                <div className="text-[9px] font-bold print:text-black mt-0.5 text-slate-500">{currentTicket.parentPhone || tickets[0].parentPhone || ""}</div>
                                                 <div className="text-[9px] font-semibold print:text-black mt-1">Niños: {displayKidCount}</div>
                                             </div>
                                             <div className="bg-slate-700 text-white font-black text-sm px-2 py-1 rounded-lg tabular-nums border-[2px] border-slate-800 print:text-black print:bg-white print:border-black shrink-0">

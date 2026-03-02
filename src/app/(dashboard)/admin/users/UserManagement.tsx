@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { User, Organization, Role, RoleTemplate } from '@prisma/client';
-import { createUser, deleteUser, editUser, createRoleTemplate } from './actions';
+import { createUser, deleteUser, editUser, createRoleTemplate, updateRoleTemplate, deleteRoleTemplate } from './actions';
 import { Plus, Trash2, Pencil, ShieldAlert, Check, X, Building2, Shield, User as UserIcon, Tag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
@@ -32,6 +32,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     const [accessibleModules, setAccessibleModules] = useState<string[]>([]);
 
     // Form State for Role Template
+    const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
     const [newRoleName, setNewRoleName] = useState('');
     const [newRoleBase, setNewRoleBase] = useState<Role>('USER');
     const [newRoleModules, setNewRoleModules] = useState<string[]>(['/']);
@@ -41,17 +42,19 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         ORG_ADMIN: 'ORG_ADMIN',
         USER: 'USER',
         CHECKIN_KIDS: 'CHECKIN_KIDS',
+        CHECKIN_KIDS_ADMIN: 'CHECKIN_KIDS_ADMIN',
         MEDICAL_STAFF: 'MEDICAL_STAFF',
         EXECUTIVE_ASSISTANT: 'EXECUTIVE_ASSISTANT'
     }) as Role[];
 
     const roleTextMapping: Record<Role, string> = {
-        SUPER_ADMIN: 'Administrador General',
-        ORG_ADMIN: 'Admin de Organización',
-        USER: 'Usuario Estándar',
-        CHECKIN_KIDS: 'Check-In Kids',
-        MEDICAL_STAFF: 'Asistencia Médica',
-        EXECUTIVE_ASSISTANT: 'Asistente Ejecutivo'
+        SUPER_ADMIN: 'SUPER_ADMIN',
+        ORG_ADMIN: 'ORG_ADMIN',
+        USER: 'USER',
+        CHECKIN_KIDS: 'CHECKIN_KIDS',
+        CHECKIN_KIDS_ADMIN: 'CHECKIN_KIDS_ADMIN',
+        MEDICAL_STAFF: 'MEDICAL_STAFF',
+        EXECUTIVE_ASSISTANT: 'EXECUTIVE_ASSISTANT'
     };
 
     const availableModules = [
@@ -154,29 +157,70 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         router.refresh();
     };
 
-    const handleCreateTemplate = async (e: React.FormEvent) => {
+    const handleOpenCreateRole = () => {
+        setEditingRoleId(null);
+        setNewRoleName('');
+        setNewRoleBase('USER');
+        setNewRoleModules(['/']);
+        setError(null);
+        setIsRoleModalOpen(true);
+    };
+
+    const handleOpenEditRole = (template: RoleTemplate) => {
+        setEditingRoleId(template.id);
+        setNewRoleName(template.name);
+        setNewRoleBase(template.baseRole);
+        setNewRoleModules(template.accessibleModules);
+        setError(null);
+        setIsRoleModalOpen(true);
+    };
+
+    const handleSaveTemplate = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setError(null);
 
-        const res = await createRoleTemplate({
-            name: newRoleName,
-            baseRole: newRoleBase,
-            organizationId,
-            accessibleModules: newRoleModules
-        });
+        if (editingRoleId) {
+            const res = await updateRoleTemplate(editingRoleId, {
+                name: newRoleName,
+                baseRole: newRoleBase,
+                organizationId,
+                accessibleModules: newRoleModules
+            });
 
-        if (!res.success) {
-            setError(res.error || 'Error al crear la plantilla de rol.');
-            setLoading(false);
-            return;
+            if (!res.success) {
+                setError(res.error || 'Error al actualizar la plantilla de rol.');
+                setLoading(false);
+                return;
+            }
+        } else {
+            const res = await createRoleTemplate({
+                name: newRoleName,
+                baseRole: newRoleBase,
+                organizationId,
+                accessibleModules: newRoleModules
+            });
+
+            if (!res.success) {
+                setError(res.error || 'Error al crear la plantilla de rol.');
+                setLoading(false);
+                return;
+            }
         }
 
         setIsRoleModalOpen(false);
-        setNewRoleName('');
-        setNewRoleBase('USER');
-        setNewRoleModules(['/']);
         setLoading(false);
+        router.refresh();
+    };
+
+    const handleDeleteTemplate = async (id: string, roleName: string) => {
+        if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente el Rol Personalizado "${roleName}"?\nLos usuarios que lo tengan volverán a su rol base.`)) return;
+
+        const res = await deleteRoleTemplate(id, organizationId);
+        if (!res.success) {
+            alert(res.error || 'Error al eliminar el rol');
+            return;
+        }
         router.refresh();
     };
 
@@ -206,7 +250,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
                     <button
-                        onClick={() => setIsRoleModalOpen(true)}
+                        onClick={handleOpenCreateRole}
                         className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-sm"
                     >
                         <Tag className="w-4 h-4" />
@@ -287,6 +331,68 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                     </tbody>
                 </table>
             </div>
+
+            {roleTemplates.length > 0 && (
+                <div className="mt-8">
+                    <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                        <h2 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
+                            <Tag className="w-5 h-5 text-indigo-600" />
+                            Roles Personalizados
+                        </h2>
+                        <p className="text-sm text-slate-500 mt-1">
+                            Plantillas de roles que has creado para asignar permisos específicos.
+                        </p>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm whitespace-nowrap">
+                            <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-medium">
+                                <tr>
+                                    <th className="px-6 py-4">Nombre del Rol</th>
+                                    <th className="px-6 py-4">Rol Base</th>
+                                    <th className="px-6 py-4">Módulos Permitidos</th>
+                                    <th className="px-6 py-4 text-right">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                                {roleTemplates.map((t) => (
+                                    <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
+                                        <td className="px-6 py-4 font-medium text-slate-700">
+                                            {t.name}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                                                <Shield className="w-3 h-3" />
+                                                {roleTextMapping[t.baseRole] || t.baseRole}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-slate-500">
+                                            {t.accessibleModules.length} módulos
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleOpenEditRole(t)}
+                                                    className="text-slate-400 hover:text-indigo-600 transition-colors p-2 rounded-lg hover:bg-indigo-50"
+                                                    title="Editar rol"
+                                                >
+                                                    <Pencil className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteTemplate(t.id, t.name)}
+                                                    className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50"
+                                                    title="Eliminar rol permanentemente"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -428,14 +534,14 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
                         <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
                             <h3 className="font-semibold text-slate-800">
-                                Crear Nuevo Rol
+                                {editingRoleId ? 'Editar Rol Personalizado' : 'Crear Nuevo Rol'}
                             </h3>
                             <button onClick={() => setIsRoleModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleCreateTemplate} className="p-6">
+                        <form onSubmit={handleSaveTemplate} className="p-6">
                             {error && (
                                 <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm flex gap-3 items-start">
                                     <ShieldAlert className="w-5 h-5 shrink-0" />

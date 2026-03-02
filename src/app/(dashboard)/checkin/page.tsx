@@ -27,14 +27,16 @@ export default async function CheckinKidsPage() {
         redirect("/unauthorized");
     }
 
-    // Solo pueden acceder: CHECKIN_KIDS, ORG_ADMIN, SUPER_ADMIN
-    const allowedRoles = ["CHECKIN_KIDS", "ORG_ADMIN", "SUPER_ADMIN"];
+    // Solo pueden acceder: CHECKIN_KIDS, CHECKIN_KIDS_ADMIN, ORG_ADMIN, SUPER_ADMIN
+    const allowedRoles = ["CHECKIN_KIDS", "CHECKIN_KIDS_ADMIN", "ORG_ADMIN", "SUPER_ADMIN"];
     if (!allowedRoles.includes(dbUser.role)) {
         redirect("/unauthorized");
     }
 
     // Fetch initial data on the server
     const initialData = await getCheckinData();
+    // Inject userRole into initialData
+    const dataWithRole = { ...initialData, userRole: dbUser.role };
 
-    return <ChurchCheckInApp initialData={initialData} />;
+    return <ChurchCheckInApp initialData={dataWithRole} />;
 }

@@ -145,14 +145,14 @@ export async function sendCheckInNotification(
 ): Promise<NotificationResult> {
     const cleanPhone = payload.parentPhone.replace(/[\s\-()]/g, "");
 
-    // Template SID de Meta ya aprobado con imagen variable: checkin_pase_recogidav7
-    const sid = "HXb5454650e9b4c3ae537b72b8cc121cb8";
+    // Template SID de Meta ya aprobado con imagen variable: checkin_pase_recogidav8
+    const sid = "HXbbd437cb6c8b5ea474a41418a64cf4cc";
 
     // URL dinámica que genera la imagen con QR y Barras
     const domain = process.env.NEXT_PUBLIC_APP_URL || "https://sistemaselim.app";
     const mediaUrl = `${domain}/api/checkin/pass?name=${encodeURIComponent(payload.kidName)}&room=${encodeURIComponent(payload.classroomName)}&code=${encodeURIComponent(payload.securityCode)}`;
 
-    // La plantilla checkin_pase_recogidav7 usa {{1}} para texto y {{2}} para media
+    // La plantilla checkin_pase_recogidav8 usa {{1}} para texto y {{2}} para media
     const detalleUnificado = `${payload.kidName} · Salón: ${payload.classroomName} · Código: ${payload.securityCode}`;
 
     // === Verificación Previa (Pre-flight) ===
@@ -196,5 +196,26 @@ export async function sendCheckOutNotification(
 
     return sendTwilioWhatsApp(cleanPhone, "HX793f54fea92578ecd912245a4bc80aac", {
         "1": kidName
+    });
+}
+
+/** 
+ * Envía notificación de eventualidad o mensaje directo al padre/madre por WhatsApp 
+ * Requiere una plantilla aprobada con 2 variables, ej:
+ * "Bendiciones. De parte de {{1}} queremos notificarte lo siguiente: {{2}}. Quedamos atentos a tu llegada al salón asignado para asistirte. Saludos."
+ */
+export async function sendEventualityWhatsApp(
+    parentPhone: string,
+    context: string,
+    message: string,
+): Promise<NotificationResult> {
+    const cleanPhone = parentPhone.replace(/[\s\-()]/g, "");
+
+    // Template enviar_msg_padres1 SID
+    const sid = process.env.TWILIO_EVENTUALITY_TEMPLATE_SID || "HXa363e371108b8cd13811d22b75ccbc74";
+
+    return sendTwilioWhatsApp(cleanPhone, sid, {
+        "1": context,
+        "2": message
     });
 }
