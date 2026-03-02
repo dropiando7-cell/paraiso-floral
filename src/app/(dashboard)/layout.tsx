@@ -33,6 +33,7 @@ export default async function AuthenticatedLayout({
         ...dbUser,
         fullName: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
         avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+        authProvider: user.app_metadata?.providers?.[0] || 'email',
     };
 
     return (

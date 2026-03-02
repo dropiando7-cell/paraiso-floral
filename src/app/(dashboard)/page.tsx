@@ -11,6 +11,20 @@ export default async function Home() {
 
   if (user?.email) {
     const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+
+    // Verificar si el usuario tiene acceso al Portal (módulo '/')
+    if (dbUser?.role !== 'SUPER_ADMIN') {
+      const allowedModules = dbUser?.accessibleModules || [];
+      if (!allowedModules.includes('/')) {
+        // Si no tiene acceso al dashboard principal, lo enviamos a su primer módulo o a /unauthorized
+        if (allowedModules.length > 0) {
+          redirect(allowedModules[0]);
+        } else {
+          redirect('/unauthorized');
+        }
+      }
+    }
+
     if (dbUser?.role === 'CHECKIN_KIDS') {
       redirect('/checkin');
     }
