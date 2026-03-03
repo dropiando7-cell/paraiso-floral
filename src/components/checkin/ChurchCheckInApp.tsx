@@ -488,7 +488,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                     parentName: "Carlos García",
                     parentPhone: "+504 9465-5361",
                     qrValue: `IGLESIA-CHECKIN:test1:${testCode}:${Date.now()}`,
-                    allergies: "Ninguna",
+                    allergies: "Maní, Gluten",
                 }
             ]
         };
@@ -1032,9 +1032,10 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                             <div>
                                                                 <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Alergias / Notas</label>
                                                                 <input className="w-full bg-slate-50 border border-amber-200/50 rounded-xl px-4 py-3 text-sm focus:border-amber-400 focus:ring-1 focus:ring-amber-400 outline-none transition-all font-medium"
-                                                                    placeholder="ej. Maní, Asma · o vacío" value={kid.allergies} onChange={e => {
+                                                                    placeholder="ej. Maní, Asma · o vacío" value={kid.allergies} maxLength={60} onChange={e => {
                                                                         const k = [...kidsForm]; k[index].allergies = e.target.value; setKidsForm(k);
                                                                     }} />
+                                                                <p className="text-[10px] text-slate-400 mt-1 ml-1">{kid.allergies.length}/60 carácteres</p>
                                                             </div>
                                                         </div>
                                                     ))}
@@ -1437,54 +1438,74 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                         {/* N Child Labels */}
                                         {tickets.map((t: any) => {
                                             return (
-                                                <div key={t.id} className="hidden print:flex flex-row bg-white text-black overflow-hidden relative p-[2mm] font-sans box-border" style={{ width: '3in', height: '2in', margin: 0, pageBreakAfter: 'always' }}>
-                                                    {/* Left Column */}
-                                                    <div className="flex-[6.5] flex flex-col justify-between pr-2 border-r-[1.5px] border-black">
-                                                        <div className="flex items-center gap-1.5 mt-0.5">
-                                                            <img src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blanco-1.png" className="w-6 h-6 object-contain" style={{ filter: "invert(1) brightness(0)" }} alt="Logo" />
-                                                            <span className="font-bold text-[12px] tracking-widest whitespace-nowrap">Elim Honduras</span>
+                                                <div key={t.id} className="hidden print:flex flex-col bg-white text-black relative font-sans box-border" style={{ width: '3in', height: '2in', margin: 0, pageBreakAfter: 'always', padding: '2mm' }}>
+                                                    {/* Content Row (fills remaining height) */}
+                                                    <div className="flex flex-row flex-1 overflow-hidden">
+                                                        {/* Left Column */}
+                                                        <div className="flex-[6.5] flex flex-col pr-2 border-r-[1.5px] border-black overflow-hidden">
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <img src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blanco-1.png" className="w-8 h-8 object-contain shrink-0" style={{ filter: "invert(1) brightness(0)" }} alt="Logo" />
+                                                                <span className="font-bold text-[14px] tracking-widest whitespace-nowrap">Elim Honduras</span>
+                                                            </div>
+
+                                                            <div className="flex flex-col justify-center flex-1">
+                                                                <div className="text-[10px] font-bold tracking-wide leading-none uppercase text-slate-700">INGRESO NIÑO(A)</div>
+                                                                <div style={{
+                                                                    fontSize: t.name.length > 19 ? '16px' : t.name.length > 14 ? '20px' : '26px',
+                                                                    fontWeight: 900,
+                                                                    lineHeight: 1.1,
+                                                                    marginTop: '2px',
+                                                                    marginBottom: '4px',
+                                                                    wordBreak: 'break-word',
+                                                                    overflowWrap: 'break-word',
+                                                                    hyphens: 'auto',
+                                                                    maxHeight: '2.6em',
+                                                                    overflow: 'hidden',
+                                                                    letterSpacing: '-0.02em',
+                                                                }}>{t.name}</div>
+
+                                                                <div className="text-[11px] font-semibold leading-tight">
+                                                                    {new Date().toLocaleDateString('es-HN')} {t.checkInTime || currentTicket.checkInTime}
+                                                                </div>
+                                                                <div className="text-[14px] font-black uppercase mt-0.5 leading-tight">
+                                                                    NO. CEL: {t.parentPhone?.replace(/^\+504\s*/, '')}
+                                                                </div>
+                                                                <div className="text-[10px] font-bold mt-1 leading-tight truncate">
+                                                                    Padre: {t.parentName}
+                                                                </div>
+                                                                {t.allergies && t.allergies !== 'Ninguna' && t.allergies.trim() !== '' && (
+                                                                    <div style={{
+                                                                        fontSize: t.allergies.length > 40 ? '7px' : t.allergies.length > 25 ? '8px' : '9px',
+                                                                        fontWeight: 800,
+                                                                        textTransform: 'uppercase',
+                                                                        lineHeight: 1.3,
+                                                                        marginTop: '3px',
+                                                                        padding: '1px 4px',
+                                                                        background: '#e5e7eb',
+                                                                        borderRadius: '3px',
+                                                                        wordBreak: 'break-word',
+                                                                        overflowWrap: 'break-word',
+                                                                        maxHeight: '2.8em',
+                                                                        overflow: 'hidden',
+                                                                    }}>
+                                                                        ⚠ Alergias: {t.allergies}
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         </div>
 
-                                                        <div className="flex-1 flex flex-col justify-center mt-1">
-                                                            <div className="text-[10px] font-bold tracking-wide leading-none uppercase text-slate-700">INGRESO NIÑO(A)</div>
-                                                            <div style={{
-                                                                fontSize: t.name.length > 19 ? '16px' : t.name.length > 14 ? '20px' : '26px',
-                                                                fontWeight: 900,
-                                                                lineHeight: 1.1,
-                                                                marginTop: '2px',
-                                                                marginBottom: '4px',
-                                                                wordBreak: 'break-word',
-                                                                overflowWrap: 'break-word',
-                                                                hyphens: 'auto',
-                                                                maxHeight: '2.6em',
-                                                                overflow: 'hidden',
-                                                                letterSpacing: '-0.02em',
-                                                            }}>{t.name}</div>
-
-                                                            <div className="text-[11px] font-semibold leading-tight">
-                                                                {new Date().toLocaleDateString('es-HN')} {t.checkInTime || currentTicket.checkInTime}
+                                                        {/* Right Column */}
+                                                        <div className="flex-[3.5] flex flex-col items-center justify-center pl-1 overflow-hidden">
+                                                            <div className="border-[2px] border-black rounded-[8px] px-2 py-0.5 text-[13px] font-black tracking-widest leading-none mb-2 whitespace-nowrap">
+                                                                {t.code}
                                                             </div>
-                                                            <div className="text-[14px] font-black uppercase mt-0.5 leading-tight">
-                                                                NO. CEL: {t.parentPhone?.replace(/^\+504\s*/, '')}
-                                                            </div>
-                                                            <div className="text-[10px] font-bold mt-1 leading-tight truncate">
-                                                                Padre: {t.parentName}
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="w-full text-center text-[7px] font-medium mb-0 mt-auto opacity-80">
-                                                            Por favor, no pierda este pase de salida.
+                                                            <QRCode value={t.qrValue} size={62} level="H" />
                                                         </div>
                                                     </div>
 
-                                                    {/* Right Column */}
-                                                    <div className="flex-[3.5] flex flex-col items-center justify-center pl-1 py-1">
-                                                        <div className="border-[2px] border-black rounded-[8px] px-2 py-0.5 text-[14px] font-black tracking-widest leading-none mb-2 whitespace-nowrap">
-                                                            {t.code}
-                                                        </div>
-                                                        <div className="w-full flex items-center justify-center bg-white p-0.5">
-                                                            <QRCode value={t.qrValue} size={70} level="H" />
-                                                        </div>
+                                                    {/* Full-width Footer — spans the entire 3in label */}
+                                                    <div className="w-full text-center text-[7px] font-black uppercase tracking-wide whitespace-nowrap border-t border-black/20 mt-1 pt-0.5">
+                                                        NO PIERDAS ESTE PASE &middot; REQUERIDO A LA SALIDA
                                                     </div>
                                                 </div>
                                             );
@@ -1514,8 +1535,8 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                     </div>
                                                 </div>
 
-                                                <div className="w-full text-center text-[7px] font-medium mb-0 mt-auto opacity-80">
-                                                    Por favor, no pierda este pase de salida.
+                                                <div className="w-full text-center text-[7px] font-black uppercase tracking-wide mb-0 mt-auto whitespace-nowrap">
+                                                    NO PIERDAS ESTE PASE &middot; REQUERIDO A LA SALIDA
                                                 </div>
                                             </div>
                                             {/* Right Column (Empty for Parent, or minimal) */}
