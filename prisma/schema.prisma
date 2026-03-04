@@ -62,6 +62,7 @@ model Organization {
   calendarIntegrations CalendarIntegration[]
   tasks            Task[]
   roleTemplates    RoleTemplate[]
+  activosFijos     ActivoFijo[]
 
   @@map("organizations")
 }
@@ -349,4 +350,50 @@ model Task {
 
   @@index([organizationId])
   @@map("tasks")
+}
+
+// ==========================================
+// INVENTARIO DE ACTIVOS FIJOS
+// ==========================================
+
+model ActivoFijo {
+  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId       String    @db.Uuid
+  idQr                 String    // Auto-generado: "PB-A8-OF.EB-0001"
+
+  // Descripción
+  descripcionCorta     String
+  descripcionDetallada String?
+  serie                String?
+  modelo               String?
+
+  // Clasificación
+  area             String    // Abreviatura del área (PB-A1-OF.PASTOR, etc.)
+  cuentaAct        String    // Cuenta contable (Terrenos, Edificios, etc.)
+  estatusContable  String    @default("VIGENTE") // VIGENTE | DEPRECIADO | PROCESO DE BAJA
+
+  // Adquisición
+  fechaAdq         DateTime?
+  integrado        Boolean   @default(false)
+  costoAdq         Decimal?  @db.Decimal(12, 2)
+  origenActivo     String?   // "Compra" | "Donación"
+
+  // Imagen
+  imagenUrl        String?   // URL pública de Cloudflare R2
+
+  // Estado físico
+  estadoDano        String?   // DAÑADO | FALTANTE | NO REGISTRADO | INSERVIBLE
+  tipoIncidencia    String?   // Faltante | Extraviado | No Registrado
+  accionRecomendada String?   // Reparar | Dar de baja | Reponer
+  responsable       String?
+  observaciones     String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, idQr])
+  @@index([organizationId])
+  @@map("activos_fijos")
 }

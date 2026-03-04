@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pases Padre – Elim Honduras</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a2e;
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    padding: 40px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 60px;
+  }
+
+  .page-title {
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    opacity: 0.5;
+    margin-bottom: -40px;
+  }
+
+  /* ─────────────────────────────────────
+     SECTION WRAPPER
+  ───────────────────────────────────── */
+  .section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    max-width: 800px;
+  }
+
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #fff;
+    opacity: 0.35;
+    align-self: flex-start;
+  }
+
+  .concept-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    letter-spacing: 2px;
+    color: #fff;
+    align-self: flex-start;
+    line-height: 1;
+  }
+
+  .concept-desc {
+    font-size: 12px;
+    color: rgba(255,255,255,0.45);
+    align-self: flex-start;
+    max-width: 520px;
+    line-height: 1.6;
+    margin-top: -8px;
+    margin-bottom: 8px;
+  }
+
+  /* ─────────────────────────────────────
+     CONCEPTO A — TICKET MINIMALISTA
+  ───────────────────────────────────── */
+  .card-a {
+    width: 340px;
+    background: #ffffff;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    position: relative;
+  }
+
+  .card-a .top-stripe {
+    background: #0f0f0f;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .card-a .top-stripe .org {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 2px;
+    color: #fff;
+    text-transform: uppercase;
+  }
+
+  .card-a .top-stripe .badge {
+    margin-left: auto;
+    background: #FFD700;
+    color: #0f0f0f;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+  }
+
+  .card-a .qr-zone {
+    background: #f8f8f8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 28px 20px 20px;
+    gap: 10px;
+  }
+
+  .card-a .qr-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: #999;
+    text-transform: uppercase;
+  }
+
+  .qr-placeholder {
+    width: 160px;
+    height: 160px;
+    background: #fff;
+    border: 2px solid #0f0f0f;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .qr-placeholder svg {
+    width: 140px;
+    height: 140px;
+  }
+
+  .card-a .code-big {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 6px;
+    color: #0f0f0f;
+    line-height: 1;
+  }
+
+  .card-a .divider {
+    width: calc(100% - 40px);
+    height: 1px;
+    background: #e5e5e5;
+    margin: 0 20px;
+    position: relative;
+  }
+
+  .card-a .divider::before,
+  .card-a .divider::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: #1a1a2e;
+    border-radius: 50%;
+    top: -10px;
+  }
+  .card-a .divider::before { left: -30px; }
+  .card-a .divider::after  { right: -30px; }
+
+  .card-a .info-zone {
+    padding: 16px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .card-a .child-label {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: #aaa;
+    text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .card-a .child-name {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: #0f0f0f;
+    line-height: 1.2;
+  }
+
+  .card-a .parent-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .card-a .parent-row .parent-tag {
+    background: #0f0f0f;
+    color: #fff;
+    font-size: 8px;
+    letter-spacing: 2px;
+    font-family: 'Space Mono', monospace;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+  }
+
+  .card-a .parent-row .parent-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .card-a .footer-note {
+    background: #0f0f0f;
+    color: rgba(255,255,255,0.5);
+    font-size: 9px;
+    text-align: center;
+    padding: 8px;
+    letter-spacing: 1px;
+    font-family: 'Space Mono', monospace;
+  }
+
+
+  /* ─────────────────────────────────────
+     CONCEPTO B — PASE ESPEJO (COLOR)
+  ───────────────────────────────────── */
+  .card-b {
+    width: 380px;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: row;
+  }
+
+  .card-b .left-band {
+    width: 8px;
+    background: linear-gradient(180deg, #1565C0 0%, #0D47A1 100%);
+    flex-shrink: 0;
+  }
+
+  .card-b .main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .card-b .header {
+    background: #1565C0;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-b .header .title-block {}
+  .card-b .header .type-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 3px;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+  }
+  .card-b .header .org-name {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: #fff;
+    letter-spacing: 1px;
+  }
+
+  .card-b .header .pass-type {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    letter-spacing: 1px;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+
+  .card-b .body {
+    padding: 16px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .card-b .text-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .card-b .field-label {
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: #aaa;
+    text-transform: uppercase;
+    font-family: 'Space Mono', monospace;
+    margin-top: 10px;
+  }
+  .card-b .field-label:first-child { margin-top: 0; }
+
+  .card-b .field-value {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: #111;
+    line-height: 1.2;
+  }
+
+  .card-b .field-value.small {
+    font-size: 13px;
+    font-weight: 600;
+    color: #444;
+  }
+
+  .card-b .qr-side {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .card-b .qr-side .qr-box {
+    width: 100px;
+    height: 100px;
+    border: 2px solid #1565C0;
+    border-radius: 8px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+  }
+
+  .card-b .qr-side .qr-box svg {
+    width: 86px;
+    height: 86px;
+  }
+
+  .card-b .qr-side .code-label {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 4px;
+    color: #1565C0;
+  }
+
+  .card-b .scan-cta {
+    background: #1565C0;
+    color: #fff;
+    text-align: center;
+    padding: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  /* ─────────────────────────────────────
+     CONCEPTO C — BOARDING PASS
+  ───────────────────────────────────── */
+  .card-c {
+    width: 420px;
+    background: #FAFAFA;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .card-c .header {
+    background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%);
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-c .header .left {}
+  .card-c .header .left .pase-tipo {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 4px;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+  }
+  .card-c .header .left .pase-org {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    color: #fff;
+  }
+
+  .card-c .header .stamp {
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.3);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: #fff;
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+
+  .card-c .main-area {
+    display: flex;
+    gap: 0;
+  }
+
+  .card-c .big-code-section {
+    flex: 1;
+    padding: 20px 20px 16px;
+    border-right: 2px dashed #e0e0e0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .card-c .big-code-section .fc-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 3px;
+    color: #bbb;
+    text-transform: uppercase;
+    margin-bottom: 2px;
+  }
+
+  .card-c .big-code {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 72px;
+    letter-spacing: 8px;
+    color: #0f2027;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .card-c .child-info-row {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
+  .card-c .child-info-row .ci-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: #bbb;
+    text-transform: uppercase;
+  }
+
+  .card-c .child-info-row .ci-name {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: #111;
+  }
+
+  .card-c .child-info-row .ci-parent {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+  }
+
+  .card-c .qr-section {
+    width: 140px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 16px 12px;
+    gap: 8px;
+    background: #fff;
+  }
+
+  .card-c .qr-section .scan-arrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 2px;
+    color: #2c5364;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  .card-c .qr-section .qr-box {
+    width: 110px;
+    height: 110px;
+    border: 3px solid #0f2027;
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+  }
+
+  .card-c .qr-section .qr-box svg {
+    width: 96px;
+    height: 96px;
+  }
+
+  .card-c .qr-section .scan-instruction {
+    font-size: 9px;
+    color: #aaa;
+    text-align: center;
+    letter-spacing: 0.5px;
+    font-family: 'DM Sans', sans-serif;
+    line-height: 1.4;
+  }
+
+  .card-c .footer {
+    background: #0f2027;
+    padding: 8px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-c .footer .f-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+  }
+
+  .card-c .footer .f-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 9px;
+    color: rgba(255,255,255,0.6);
+  }
+
+  /* ─────── SHARED QR SVG STYLE ─────── */
+  .qr-svg-base {
+    display: block;
+  }
+
+  /* Separator dots for ticket style */
+  .ticket-dots {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 -10px;
+    margin: 0 -20px;
+    overflow: hidden;
+  }
+
+  /* responsive */
+  @media (max-width: 480px) {
+    .card-b, .card-c { width: 100%; max-width: 380px; }
+    .card-a { width: 100%; max-width: 340px; }
+  }
+</style>
+</head>
+<body>
+
+<p class="page-title">Elim Honduras — Pases para Padre / Tutor</p>
+
+<!-- ══════════════════════════════════════
+     CONCEPTO A
+═══════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label">Concepto A</span>
+  <span class="concept-name">Ticket de Reclamación Minimalista</span>
+  <p class="concept-desc">El QR es el protagonista absoluto. Diseño limpio tipo ticket. El padre solo necesita mostrar este código para retirar a su hijo.</p>
+
+  <div class="card-a">
+    <div class="top-stripe">
+      <span class="org">Elim Honduras</span>
+      <span class="badge">PASE PADRE</span>
+    </div>
+
+    <div class="qr-zone">
+      <span class="qr-label">Escanear para autorizar salida</span>
+      <div class="qr-placeholder">
+        <!-- QR SVG simulado -->
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" class="qr-svg-base">
+          <!-- Position detection squares -->
+          <rect x="5" y="5" width="30" height="30" fill="none" stroke="#000" stroke-width="3"/>
+          <rect x="11" y="11" width="18" height="18" fill="#000"/>
+          <rect x="65" y="5" width="30" height="30" fill="none" stroke="#000" stroke-width="3"/>
+          <rect x="71" y="11" width="18" height="18" fill="#000"/>
+          <rect x="5" y="65" width="30" height="30" fill="none" stroke="#000" stroke-width="3"/>
+          <rect x="11" y="71" width="18" height="18" fill="#000"/>
+          <!-- Data modules pattern -->
+          <rect x="40" y="5" width="6" height="6" fill="#000"/>
+          <rect x="50" y="5" width="6" height="6" fill="#000"/>
+          <rect x="40" y="13" width="6" height="6" fill="#000"/>
+          <rect x="56" y="11" width="6" height="6" fill="#000"/>
+          <rect x="40" y="21" width="6" height="6" fill="#000"/>
+          <rect x="50" y="21" width="6" height="6" fill="#000"/>
+          <rect x="40" y="29" width="6" height="6" fill="#000"/>
+          <rect x="40" y="40" width="6" height="6" fill="#000"/>
+          <rect x="50" y="40" width="6" height="6" fill="#000"/>
+          <rect x="60" y="40" width="6" height="6" fill="#000"/>
+          <rect x="70" y="40" width="6" height="6" fill="#000"/>
+          <rect x="80" y="40" width="6" height="6" fill="#000"/>
+          <rect x="90" y="40" width="6" height="6" fill="#000"/>
+          <rect x="5" y="40" width="6" height="6" fill="#000"/>
+          <rect x="15" y="40" width="6" height="6" fill="#000"/>
+          <rect x="25" y="40" width="6" height="6" fill="#000"/>
+          <rect x="40" y="50" width="6" height="6" fill="#000"/>
+          <rect x="60" y="50" width="6" height="6" fill="#000"/>
+          <rect x="80" y="50" width="6" height="6" fill="#000"/>
+          <rect x="50" y="60" width="6" height="6" fill="#000"/>
+          <rect x="60" y="60" width="6" height="6" fill="#000"/>
+          <rect x="70" y="60" width="6" height="6" fill="#000"/>
+          <rect x="90" y="60" width="6" height="6" fill="#000"/>
+          <rect x="50" y="70" width="6" height="6" fill="#000"/>
+          <rect x="70" y="70" width="6" height="6" fill="#000"/>
+          <rect x="80" y="70" width="6" height="6" fill="#000"/>
+          <rect x="50" y="80" width="6" height="6" fill="#000"/>
+          <rect x="60" y="80" width="6" height="6" fill="#000"/>
+          <rect x="80" y="80" width="6" height="6" fill="#000"/>
+          <rect x="90" y="80" width="6" height="6" fill="#000"/>
+          <rect x="50" y="90" width="6" height="6" fill="#000"/>
+          <rect x="70" y="90" width="6" height="6" fill="#000"/>
+          <rect x="90" y="90" width="6" height="6" fill="#000"/>
+        </svg>
+      </div>
+      <span class="code-big">PCXGT2</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="info-zone">
+      <span class="child-label">Niño(a) a retirar</span>
+      <span class="child-name">Arnold Swuasineger</span>
+      <div class="parent-row">
+        <span class="parent-tag">Padre</span>
+        <span class="parent-name">Carlos García</span>
+      </div>
+    </div>
+
+    <div class="footer-note">NO PIERDA ESTE PASE · REQUERIDO A LA SALIDA</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     CONCEPTO B
+═══════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label">Concepto B</span>
+  <span class="concept-name">Pase Espejo con Color Diferenciado</span>
+  <p class="concept-desc">Mismo formato que la etiqueta del niño pero en azul, para que el personal distinga visualmente al instante que es el pase del padre.</p>
+
+  <div class="card-b">
+    <div class="left-band"></div>
+    <div class="main-content">
+      <div class="header">
+        <div class="title-block">
+          <div class="type-label">Pase de Retiro</div>
+          <div class="org-name">Elim Honduras</div>
+        </div>
+        <div class="pass-type">PADRE / TUTOR</div>
+      </div>
+
+      <div class="body">
+        <div class="text-info">
+          <div class="field-label">Padre / Tutor</div>
+          <div class="field-value">Carlos García</div>
+
+          <div class="field-label">Autorizado a retirar</div>
+          <div class="field-value">Arnold Swuasineger</div>
+
+          <div class="field-label">Fecha de ingreso</div>
+          <div class="field-value small">2/3/2026 – 08:10 p.m.</div>
+
+          <div class="field-label">Celular</div>
+          <div class="field-value small">9465-5361</div>
+        </div>
+
+        <div class="qr-side">
+          <div class="qr-box">
+            <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+              <rect x="5" y="5" width="28" height="28" fill="none" stroke="#1565C0" stroke-width="3"/>
+              <rect x="11" y="11" width="16" height="16" fill="#1565C0"/>
+              <rect x="67" y="5" width="28" height="28" fill="none" stroke="#1565C0" stroke-width="3"/>
+              <rect x="73" y="11" width="16" height="16" fill="#1565C0"/>
+              <rect x="5" y="67" width="28" height="28" fill="none" stroke="#1565C0" stroke-width="3"/>
+              <rect x="11" y="73" width="16" height="16" fill="#1565C0"/>
+              <rect x="38" y="5" width="5" height="5" fill="#1565C0"/>
+              <rect x="45" y="5" width="5" height="5" fill="#1565C0"/>
+              <rect x="55" y="5" width="5" height="5" fill="#1565C0"/>
+              <rect x="38" y="12" width="5" height="5" fill="#1565C0"/>
+              <rect x="55" y="12" width="5" height="5" fill="#1565C0"/>
+              <rect x="38" y="19" width="5" height="5" fill="#1565C0"/>
+              <rect x="45" y="19" width="5" height="5" fill="#1565C0"/>
+              <rect x="38" y="38" width="5" height="5" fill="#1565C0"/>
+              <rect x="48" y="38" width="5" height="5" fill="#1565C0"/>
+              <rect x="58" y="38" width="5" height="5" fill="#1565C0"/>
+              <rect x="68" y="38" width="5" height="5" fill="#1565C0"/>
+              <rect x="78" y="38" width="5" height="5" fill="#1565C0"/>
+              <rect x="88" y="38" width="5" height="5" fill="#1565C0"/>
+              <rect x="5" y="38" width="5" height="5" fill="#1565C0"/>
+              <rect x="15" y="38" width="5" height="5" fill="#1565C0"/>
+              <rect x="25" y="38" width="5" height="5" fill="#1565C0"/>
+              <rect x="38" y="48" width="5" height="5" fill="#1565C0"/>
+              <rect x="58" y="48" width="5" height="5" fill="#1565C0"/>
+              <rect x="78" y="48" width="5" height="5" fill="#1565C0"/>
+              <rect x="48" y="58" width="5" height="5" fill="#1565C0"/>
+              <rect x="68" y="58" width="5" height="5" fill="#1565C0"/>
+              <rect x="88" y="58" width="5" height="5" fill="#1565C0"/>
+              <rect x="48" y="68" width="5" height="5" fill="#1565C0"/>
+              <rect x="58" y="68" width="5" height="5" fill="#1565C0"/>
+              <rect x="78" y="68" width="5" height="5" fill="#1565C0"/>
+              <rect x="48" y="78" width="5" height="5" fill="#1565C0"/>
+              <rect x="68" y="78" width="5" height="5" fill="#1565C0"/>
+              <rect x="88" y="78" width="5" height="5" fill="#1565C0"/>
+              <rect x="48" y="88" width="5" height="5" fill="#1565C0"/>
+              <rect x="68" y="88" width="5" height="5" fill="#1565C0"/>
+            </svg>
+          </div>
+          <div class="code-label">PCXGT2</div>
+        </div>
+      </div>
+
+      <div class="scan-cta">▼ Escanear QR al retirar al niño ▼</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════
+     CONCEPTO C
+═══════════════════════════════════════ -->
+<div class="section">
+  <span class="section-label">Concepto C</span>
+  <span class="concept-name">Pase de Seguridad — Boarding Pass</span>
+  <p class="concept-desc">Código alfanumérico enorme visible a distancia + QR para escaneo. El personal puede verificar sin escáner en momentos de alta concurrencia.</p>
+
+  <div class="card-c">
+    <div class="header">
+      <div class="left">
+        <div class="pase-tipo">Pase de retiro · Padre / Tutor</div>
+        <div class="pase-org">Elim Honduras</div>
+      </div>
+      <div class="stamp">2/3/2026</div>
+    </div>
+
+    <div class="main-area">
+      <div class="big-code-section">
+        <div>
+          <div class="fc-label">Código de seguridad</div>
+          <div class="big-code">PCXGT2</div>
+        </div>
+        <div class="child-info-row">
+          <div class="ci-label">Niño(a)</div>
+          <div class="ci-name">Arnold Swuasineger</div>
+          <div class="ci-label" style="margin-top:6px">Padre / Tutor</div>
+          <div class="ci-parent">Carlos García · 9465-5361</div>
+        </div>
+      </div>
+
+      <div class="qr-section">
+        <div class="scan-arrow">↓ ESCANEAR ↓</div>
+        <div class="qr-box">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <rect x="5" y="5" width="28" height="28" fill="none" stroke="#0f2027" stroke-width="3"/>
+            <rect x="11" y="11" width="16" height="16" fill="#0f2027"/>
+            <rect x="67" y="5" width="28" height="28" fill="none" stroke="#0f2027" stroke-width="3"/>
+            <rect x="73" y="11" width="16" height="16" fill="#0f2027"/>
+            <rect x="5" y="67" width="28" height="28" fill="none" stroke="#0f2027" stroke-width="3"/>
+            <rect x="11" y="73" width="16" height="16" fill="#0f2027"/>
+            <rect x="38" y="5" width="5" height="5" fill="#0f2027"/>
+            <rect x="48" y="5" width="5" height="5" fill="#0f2027"/>
+            <rect x="58" y="5" width="5" height="5" fill="#0f2027"/>
+            <rect x="38" y="12" width="5" height="5" fill="#0f2027"/>
+            <rect x="58" y="12" width="5" height="5" fill="#0f2027"/>
+            <rect x="48" y="19" width="5" height="5" fill="#0f2027"/>
+            <rect x="38" y="38" width="5" height="5" fill="#0f2027"/>
+            <rect x="48" y="38" width="5" height="5" fill="#0f2027"/>
+            <rect x="58" y="38" width="5" height="5" fill="#0f2027"/>
+            <rect x="68" y="38" width="5" height="5" fill="#0f2027"/>
+            <rect x="78" y="38" width="5" height="5" fill="#0f2027"/>
+            <rect x="88" y="38" width="5" height="5" fill="#0f2027"/>
+            <rect x="8"  y="38" width="5" height="5" fill="#0f2027"/>
+            <rect x="18" y="38" width="5" height="5" fill="#0f2027"/>
+            <rect x="28" y="38" width="5" height="5" fill="#0f2027"/>
+            <rect x="38" y="48" width="5" height="5" fill="#0f2027"/>
+            <rect x="58" y="48" width="5" height="5" fill="#0f2027"/>
+            <rect x="78" y="48" width="5" height="5" fill="#0f2027"/>
+            <rect x="48" y="58" width="5" height="5" fill="#0f2027"/>
+            <rect x="68" y="58" width="5" height="5" fill="#0f2027"/>
+            <rect x="88" y="58" width="5" height="5" fill="#0f2027"/>
+            <rect x="48" y="68" width="5" height="5" fill="#0f2027"/>
+            <rect x="68" y="68" width="5" height="5" fill="#0f2027"/>
+            <rect x="78" y="68" width="5" height="5" fill="#0f2027"/>
+            <rect x="48" y="78" width="5" height="5" fill="#0f2027"/>
+            <rect x="68" y="78" width="5" height="5" fill="#0f2027"/>
+            <rect x="88" y="78" width="5" height="5" fill="#0f2027"/>
+            <rect x="58" y="88" width="5" height="5" fill="#0f2027"/>
+            <rect x="78" y="88" width="5" height="5" fill="#0f2027"/>
+          </svg>
+        </div>
+        <div class="scan-instruction">Presente este pase al retirar a su hijo/a</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <span class="f-label">No. Cel</span>
+      <span class="f-value">9465-5361</span>
+      <span class="f-label">Ingreso</span>
+      <span class="f-value">08:10 p.m.</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
