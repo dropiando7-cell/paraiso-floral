@@ -380,6 +380,7 @@ model ActivoFijo {
 
   // Imagen
   imagenUrl        String?   // URL pública de Cloudflare R2
+  imagenPlacaUrl   String?   // URL pública de la placa de especificaciones
 
   // Estado físico
   estadoDano        String?   // DAÑADO | FALTANTE | NO REGISTRADO | INSERVIBLE

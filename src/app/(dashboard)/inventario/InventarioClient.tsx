@@ -109,6 +109,7 @@ type Activo = {
     costoAdq?: any;
     origenActivo?: string | null;
     imagenUrl?: string | null;
+    imagenPlacaUrl?: string | null;
     estadoDano?: string | null;
     tipoIncidencia?: string | null;
     accionRecomendada?: string | null;
@@ -425,12 +426,15 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
     const [isPending, startTransition] = useTransition();
     const [imagenUrl, setImagenUrl] = useState(editActivo?.imagenUrl || '');
     const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
+    const [placaUploadPhase, setPlacaUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
+    const [imagenPlacaUrl, setImagenPlacaUrl] = useState(editActivo?.imagenPlacaUrl || '');
     const [previewQr, setPreviewQr] = useState('');
     const [selectedArea, setSelectedArea] = useState(editActivo?.area || '');
     const [selectedCuenta, setSelectedCuenta] = useState(editActivo?.cuentaAct || '');
     const [aiResult, setAiResult] = useState<AiResult | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const cameraInputRef = useRef<HTMLInputElement>(null);
+    const placaCameraRef = useRef<HTMLInputElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const isEdit = !!editActivo;
     const [cropOpen, setCropOpen] = useState(false);
@@ -445,6 +449,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
     useEffect(() => {
         if (editActivo) {
             setImagenUrl(editActivo.imagenUrl || '');
+            setImagenPlacaUrl(editActivo.imagenPlacaUrl || '');
             setSelectedArea(editActivo.area);
             setSelectedCuenta(editActivo.cuentaAct || '');
             setDescripcionCorta(editActivo.descripcionCorta || '');
@@ -452,8 +457,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
             setModelo(editActivo.modelo || '');
             setResponsable(editActivo.responsable || '');
         } else {
-            setImagenUrl(''); setSelectedArea(''); setSelectedCuenta('');
-            setPreviewQr(''); setAiResult(null); setUploadPhase('idle');
+            setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(''); setSelectedCuenta('');
+            setPreviewQr(''); setAiResult(null); setUploadPhase('idle'); setPlacaUploadPhase('idle');
             setDescripcionCorta(''); setDescripcionDetallada(''); setModelo('');
             setResponsable('');
         }
@@ -545,10 +550,92 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
         }
     }
 
+    async function handlePlacaUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+
+        setPlacaUploadPhase('uploading');
+        try {
+            // Reusing the same upload endpoint for compression and R2 saving
+            const fd = new FormData();
+            fd.append('file', file);
+
+            // Note: Since we need to compress it client side, let's just do the exact same direct-to-R2 flow
+            // Actually, we can reuse `doUpload` logic but we shouldn't open CropModal for the plaque.
+            // Let's implement dynamic compression inline for the plaque
+
+            const url = URL.createObjectURL(file);
+            const img = new Image();
+            img.src = url;
+            await new Promise((resolve) => { img.onload = resolve; });
+            URL.revokeObjectURL(url);
+
+            const canvas = document.createElement('canvas');
+            const MAX_SIZE = 1568;
+            let { width, height } = img;
+            if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+            else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+
+            const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.85));
+
+            const res = await fetch('/api/upload/inventario', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: 'placa.jpg', contentType: 'image/jpeg' }),
+            });
+            if (!res.ok) throw new Error('Error al obtener URL de subida');
+            const { uploadUrl, publicUrl } = await res.json();
+
+            await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+
+            setImagenPlacaUrl(publicUrl);
+            setPlacaUploadPhase('done');
+            analyzePlacaWithAI(publicUrl);
+        } catch (err: any) {
+            setPlacaUploadPhase('idle');
+            alert('Error al subir placa: ' + (err.message || 'Intenta de nuevo'));
+        }
+    }
+
+    async function analyzePlacaWithAI(url: string) {
+        if (!url) return;
+        try {
+            setPlacaUploadPhase('analyzing');
+            const aiRes = await fetch('/api/inventario/analyze-placa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageUrl: url }),
+            });
+            const data = await aiRes.json();
+            if (aiRes.ok && !data.error) {
+                if (data.serie) {
+                    const el = document.querySelector('[name="serie"]') as HTMLInputElement;
+                    if (el) { el.value = data.serie; el.classList.add('bg-purple-50'); }
+                }
+                if (data.modelo) {
+                    setModelo(data.modelo);
+                }
+            } else {
+                alert('La IA no pudo leer la placa: ' + (data.error || 'Error desconocido'));
+            }
+            setPlacaUploadPhase('done');
+        } catch (err: any) {
+            setPlacaUploadPhase('done');
+            alert('Error leyendo placa: ' + (err.message || 'Intenta de nuevo'));
+        }
+    }
+
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
         fd.set('imagenUrl', imagenUrl);
+        fd.set('imagenPlacaUrl', imagenPlacaUrl);
         fd.set('area', selectedArea);
         fd.set('cuentaAct', selectedCuenta);
         fd.set('descripcionCorta', descripcionCorta);
@@ -739,9 +826,39 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                                     {/* Serie + Modelo */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div>
-                                            <FieldLabel>Número de Serie</FieldLabel>
-                                            <input type="text" name="serie" defaultValue={editActivo?.serie || ''}
-                                                placeholder="S/N si no aplica" className={inputCls} />
+                                            <FieldLabel>
+                                                Número de Serie
+                                                {placaUploadPhase === 'analyzing' && <Loader2 className="w-3 h-3 text-purple-500 animate-spin ml-2 inline" />}
+                                                {placaUploadPhase === 'done' && imagenPlacaUrl && <Sparkles className="w-3 h-3 text-purple-500 ml-2 inline" />}
+                                            </FieldLabel>
+                                            <div className="flex gap-2">
+                                                <input type="text" name="serie" defaultValue={editActivo?.serie || ''}
+                                                    placeholder="S/N si no aplica" className={placaUploadPhase === 'done' && imagenPlacaUrl ? inputAiCls : inputCls} />
+
+                                                <input ref={placaCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePlacaUpload} />
+
+                                                {imagenPlacaUrl ? (
+                                                    <div className="shrink-0 relative">
+                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                        <img src={imagenPlacaUrl} alt="Placa" className="w-[42px] h-[42px] object-cover rounded-xl border border-slate-200" />
+                                                        {placaUploadPhase === 'idle' || placaUploadPhase === 'done' ? (
+                                                            <button type="button" onClick={() => setImagenPlacaUrl('')}
+                                                                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center shadow-lg hover:scale-110">
+                                                                <X className="w-3 h-3" />
+                                                            </button>
+                                                        ) : (
+                                                            <div className="absolute inset-0 bg-white/70 rounded-xl flex items-center justify-center">
+                                                                <Loader2 className="w-4 h-4 text-purple-500 animate-spin" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <button type="button" onClick={() => placaCameraRef.current?.click()} disabled={placaUploadPhase === 'uploading' || placaUploadPhase === 'analyzing'}
+                                                        className="shrink-0 w-[42px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl transition-colors disabled:opacity-50" title="Escanear placa con cámara">
+                                                        {placaUploadPhase === 'uploading' ? <Loader2 className="w-4 h-4 animate-spin text-purple-500" /> : <Camera className="w-4 h-4" />}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                         <div>
                                             <FieldLabel>
@@ -880,8 +997,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                             </div>
                         </form>
                     </div>
-                </div>
-            </div>
+                </div >
+            </div >
         </>
     );
 }
