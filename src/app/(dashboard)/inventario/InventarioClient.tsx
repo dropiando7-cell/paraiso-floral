@@ -6,7 +6,7 @@ import {
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera
 } from 'lucide-react';
-import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, uploadActivoImage, previewIdQr } from './actions';
+import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr } from './actions';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -220,12 +220,26 @@ function ActivoModal({
         if (!file) return;
         setUploading(true);
         try {
-            const fd = new FormData();
-            fd.append('file', file);
-            const result = await uploadActivoImage(fd);
-            setImagenUrl(result.url);
-        } catch {
-            alert('Error al subir imagen. Intenta de nuevo.');
+            // Step 1: Get a pre-signed upload URL from our API
+            const res = await fetch('/api/upload/inventario', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: file.name, contentType: file.type }),
+            });
+            if (!res.ok) throw new Error('No se pudo obtener URL de subida');
+            const { uploadUrl, publicUrl } = await res.json();
+
+            // Step 2: Upload the file directly to R2 (no server buffer limit)
+            const uploadRes = await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: { 'Content-Type': file.type },
+                body: file,
+            });
+            if (!uploadRes.ok) throw new Error('Error al enviar imagen a R2');
+
+            setImagenUrl(publicUrl);
+        } catch (err: any) {
+            alert('Error al subir imagen: ' + (err.message || 'Intenta de nuevo'));
         } finally {
             setUploading(false);
         }
