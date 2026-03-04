@@ -470,17 +470,19 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                             <label key={module.id} className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-white rounded-lg transition-colors">
                                                 <input
                                                     type="checkbox"
-                                                    disabled={role === 'SUPER_ADMIN'}
+                                                    disabled={role === 'SUPER_ADMIN' || !!customRoleName}
                                                     checked={role === 'SUPER_ADMIN' || accessibleModules.includes(module.id)}
                                                     onChange={() => toggleModule(module.id)}
-                                                    className="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 disabled:opacity-50"
+                                                    className="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                                 />
                                                 <span className="text-sm text-slate-600 leading-tight">{module.label}</span>
                                             </label>
                                         ))}
                                     </div>
                                     <p className="text-xs text-slate-500 mt-1.5">
-                                        {role === 'SUPER_ADMIN' ? 'Los Super Administradores tienen acceso a todo.' : 'Elige a qué pantallas podrá entrar el usuario.'}
+                                        {role === 'SUPER_ADMIN' ? 'Los Super Administradores tienen acceso a todo.' :
+                                            customRoleName ? 'Los módulos de un rol personalizado están bloqueados y predefinidos por su plantilla.' :
+                                                'Elige a qué pantallas podrá entrar el usuario.'}
                                     </p>
                                 </div>
 
