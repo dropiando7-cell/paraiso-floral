@@ -146,7 +146,7 @@ export async function sendCheckInNotification(
     const cleanPhone = payload.parentPhone.replace(/[\s\-()]/g, "");
 
     // Template SID de Meta ya aprobado con imagen variable: checkin_pase_recogidav8
-    const sid = "HXbbd437cb6c8b5ea474a41418a64cf4cc";
+    const sid = "HXbbd437cb6c585ea474a41418a64cf4cc";
 
     // URL dinámica que genera la imagen con QR y Barras
     const domain = process.env.NEXT_PUBLIC_APP_URL || "https://sistemaselim.app";
