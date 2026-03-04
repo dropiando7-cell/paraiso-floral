@@ -7,6 +7,7 @@ import {
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown
 } from 'lucide-react';
 import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr } from './actions';
+import { removeBackground } from '@imgly/background-removal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -278,6 +279,22 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
     const [crop, setCrop] = useState({ x: 10, y: 10, w: 80, h: 80 });
     const imgRef = useRef<HTMLImageElement>(null);
     const dragRef = useRef<{ type: string; sx: number; sy: number; sc: typeof crop } | null>(null);
+    const [isBgRemoving, setIsBgRemoving] = useState(false);
+    const [currentSrc, setCurrentSrc] = useState(imageSrc);
+
+    async function removeBg() {
+        if (isBgRemoving) return;
+        setIsBgRemoving(true);
+        try {
+            const blob = await removeBackground(currentSrc);
+            const newUrl = URL.createObjectURL(blob);
+            setCurrentSrc(newUrl);
+        } catch (err) {
+            alert('Error al quitar el fondo. Asegúrate de tener conexión.');
+        } finally {
+            setIsBgRemoving(false);
+        }
+    }
 
     function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
 
@@ -351,7 +368,15 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
             <div className="flex-1 overflow-auto flex items-start justify-center"
                 onPointerMove={onMove} onPointerUp={() => { dragRef.current = null; }}>
                 <div className="relative" style={{ maxWidth: 640, width: '100%' }}>
-                    <img ref={imgRef} src={imageSrc} className="block w-full select-none" draggable={false} alt="Vista previa" />
+                    <img ref={imgRef} src={currentSrc} className="block w-full select-none" draggable={false} alt="Vista previa" />
+                    {isBgRemoving && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                            <div className="flex flex-col items-center gap-3">
+                                <Loader2 className="w-8 h-8 text-white animate-spin" />
+                                <span className="text-white font-medium text-sm">Eliminando fondo... (la 1ª vez demora ~10s)</span>
+                            </div>
+                        </div>
+                    )}
                     <div className="absolute border-2 border-white touch-none"
                         style={{
                             left: `${crop.x}%`, top: `${crop.y}%`,
@@ -375,13 +400,18 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-3 p-4 bg-black/80">
-                <button onClick={() => apply(true)}
-                    className="border-2 border-white/30 text-white font-semibold py-4 rounded-2xl active:scale-95 transition-all text-sm">
+                <button onClick={() => apply(true)} disabled={isBgRemoving}
+                    className="border-2 border-white/30 text-white font-semibold py-4 rounded-2xl active:scale-95 transition-all text-sm disabled:opacity-50">
                     Foto completa
                 </button>
-                <button onClick={() => apply(false)}
-                    className="bg-[#0500A3] text-white font-semibold py-4 rounded-2xl active:scale-95 transition-all text-sm">
+                <button onClick={() => apply(false)} disabled={isBgRemoving}
+                    className="bg-[#0500A3] text-white font-semibold py-4 rounded-2xl active:scale-95 transition-all text-sm disabled:opacity-50">
                     ✓ Confirmar recorte
+                </button>
+                <button onClick={removeBg} disabled={isBgRemoving || currentSrc !== imageSrc}
+                    className="col-span-2 border-2 border-purple-500/50 text-purple-200 bg-purple-900/40 font-semibold py-3 rounded-2xl active:scale-95 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    {currentSrc !== imageSrc ? 'Fondo eliminado' : '🪄 Magia: Eliminar Fondo'}
                 </button>
             </div>
         </div>
@@ -479,21 +509,24 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
             if (!uploadRes.ok) throw new Error('Error al enviar imagen a R2');
             setImagenUrl(publicUrl);
             setUploadPhase('done');
+            // Auto-trigger AI analysis right after upload
+            analyzeWithAI(publicUrl);
         } catch (err: any) {
             setUploadPhase('idle');
             alert('Error: ' + (err.message || 'Intenta de nuevo'));
         }
     }
 
-    async function analyzeWithAI() {
-        if (!imagenUrl) return;
+    async function analyzeWithAI(urlOverride?: string) {
+        const url = urlOverride ?? imagenUrl;
+        if (!url) return;
         setAiResult(null);
         try {
             setUploadPhase('analyzing');
             const aiRes = await fetch('/api/inventario/analyze-image', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ imageUrl: imagenUrl }),
+                body: JSON.stringify({ imageUrl: url }),
             });
             const data: AiResult = await aiRes.json();
             if (aiRes.ok && !data.error) {
@@ -657,7 +690,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                                             Seleccionar de Galería
                                         </button>
                                         {!isEdit && !!imagenUrl && !aiResult && (
-                                            <button type="button" onClick={analyzeWithAI}
+                                            <button type="button" onClick={() => analyzeWithAI()}
                                                 disabled={uploadPhase === 'analyzing'}
                                                 className="mt-2 flex items-center justify-center gap-2 text-sm font-semibold bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300 py-3 px-5 rounded-xl active:scale-95 transition-all w-full">
                                                 <Sparkles className="w-4 h-4" />
