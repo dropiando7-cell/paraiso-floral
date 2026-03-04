@@ -338,7 +338,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
         // Current ticket should ideally show the "Family Code" or the first kid
         // We will store the array of tickets to print them all
-        setCurrentTicket({ type: "FAMILY", tickets: newTickets, code, qrValue: newTickets[0].qrValue, parentName: newTickets[0].parentName, checkInTime: newTickets[0].checkInTime });
+        setCurrentTicket({ type: "FAMILY", tickets: newTickets, code, qrValue: newTickets[0].qrValue, parentName: newTickets[0].parentName, checkInTime: newTickets[0].checkInTime, autoPrint: true });
 
         setCheckedInKids(prev => {
             const filtered = prev.filter(k => !validKidIds.includes(k.id));
@@ -447,7 +447,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                 notifStatus: checkInRes.notification?.sent ? "WhatsApp" : "Ninguna"
             }));
 
-            setCurrentTicket({ type: "FAMILY", tickets: ticketObjects, code, qrValue: ticketObjects[0].qrValue, parentName: parentForm.parentName, checkInTime: ticketObjects[0].checkInTime });
+            setCurrentTicket({ type: "FAMILY", tickets: ticketObjects, code, qrValue: ticketObjects[0].qrValue, parentName: parentForm.parentName, checkInTime: ticketObjects[0].checkInTime, autoPrint: true });
 
             setCheckedInKids(prev => {
                 const filtered = prev.filter(k => !addedKidIds.includes(k.id));
@@ -490,7 +490,8 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                     qrValue: `IGLESIA-CHECKIN:test1:${testCode}:${Date.now()}`,
                     allergies: "Maní, Gluten",
                 }
-            ]
+            ],
+            autoPrint: true
         };
         setCurrentTicket(dummyTicket);
         setView(VIEWS.TICKET);
@@ -498,6 +499,17 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
     const classroomKids = (classroomId: string) => checkedInKids.filter(k => k.classroom === classroomId);
     const totalCheckedIn = checkedInKids.length;
+
+    useEffect(() => {
+        if (view === VIEWS.TICKET && currentTicket?.autoPrint) {
+            const timer = setTimeout(() => {
+                window.print();
+                setCurrentTicket((prev: any) => ({ ...prev, autoPrint: false }));
+            }, 500); // Wait 500ms for DOM to render
+
+            return () => clearTimeout(timer);
+        }
+    }, [view, currentTicket]);
 
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-[#F0F4FF] flex flex-col items-center pb-24 font-sans text-[#1B2E6B]">
