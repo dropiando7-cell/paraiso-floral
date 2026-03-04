@@ -121,6 +121,7 @@ type AiResult = {
     modelo?: string;
     cuentaAct?: string;
     confianza?: string;
+    error?: string;
 };
 
 // ─── Searchable Combobox ──────────────────────────────────────────────────────
@@ -274,8 +275,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
 }) {
     const [isPending, startTransition] = useTransition();
     const [imagenUrl, setImagenUrl] = useState(editActivo?.imagenUrl || '');
-    const [uploading, setUploading] = useState(false);
-    const [analyzing, setAnalyzing] = useState(false);
+    const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
     const [previewQr, setPreviewQr] = useState('');
     const [selectedArea, setSelectedArea] = useState(editActivo?.area || '');
     const [selectedCuenta, setSelectedCuenta] = useState(editActivo?.cuentaAct || '');
@@ -302,7 +302,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
             setResponsable(editActivo.responsable || '');
         } else {
             setImagenUrl(''); setSelectedArea(''); setSelectedCuenta('');
-            setPreviewQr(''); setAiResult(null);
+            setPreviewQr(''); setAiResult(null); setUploadPhase('idle');
             setDescripcionCorta(''); setDescripcionDetallada(''); setModelo('');
             setResponsable('');
         }
@@ -327,9 +327,10 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
     async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;
-        setUploading(true);
+        setAiResult(null);
         try {
-            // Step 1: Get pre-signed URL
+            // Phase 1: Upload to R2
+            setUploadPhase('uploading');
             const res = await fetch('/api/upload/inventario', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -338,7 +339,6 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
             if (!res.ok) throw new Error('No se pudo obtener URL de subida');
             const { uploadUrl, publicUrl } = await res.json();
 
-            // Step 2: Upload directly to R2
             const uploadRes = await fetch(uploadUrl, {
                 method: 'PUT',
                 headers: { 'Content-Type': file.type },
@@ -346,32 +346,30 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
             });
             if (!uploadRes.ok) throw new Error('Error al enviar imagen a R2');
             setImagenUrl(publicUrl);
-            setUploading(false);
 
-            // Step 3: Analyze with Claude vision
+            // Phase 2: AI Analysis (only for new assets, only after upload success)
             if (!isEdit) {
-                setAnalyzing(true);
-                try {
-                    const aiRes = await fetch('/api/inventario/analyze-image', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ imageUrl: publicUrl }),
-                    });
-                    if (aiRes.ok) {
-                        const data: AiResult = await aiRes.json();
+                setUploadPhase('analyzing');
+                const aiRes = await fetch('/api/inventario/analyze-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ imageUrl: publicUrl }),
+                });
+                if (aiRes.ok) {
+                    const data: AiResult = await aiRes.json();
+                    if (!data.error) {
                         setAiResult(data);
                         if (data.descripcionCorta) setDescripcionCorta(data.descripcionCorta);
                         if (data.descripcionDetallada) setDescripcionDetallada(data.descripcionDetallada);
                         if (data.modelo) setModelo(data.modelo);
                         if (data.cuentaAct && CUENTAS.includes(data.cuentaAct)) setSelectedCuenta(data.cuentaAct);
                     }
-                } catch {/* silently fail AI step */ }
-                setAnalyzing(false);
+                }
             }
+            setUploadPhase('done');
         } catch (err: any) {
-            setUploading(false);
-            setAnalyzing(false);
-            alert('Error al subir imagen: ' + (err.message || 'Intenta de nuevo'));
+            setUploadPhase('idle');
+            alert('Error: ' + (err.message || 'Intenta de nuevo'));
         }
     }
 
@@ -399,7 +397,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
 
     if (!open) return null;
 
-    const isLoading = uploading || analyzing;
+    const isLoading = uploadPhase === 'uploading' || uploadPhase === 'analyzing';
 
     return (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto">
@@ -434,17 +432,32 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                         <div>
                             <SectionTitle>📸 Fotografía del Activo</SectionTitle>
 
-                            {/* AI status banner */}
-                            {analyzing && (
-                                <div className="mb-4 flex items-center gap-3 bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
-                                    <Loader2 className="w-5 h-5 text-purple-500 animate-spin shrink-0" />
-                                    <div>
-                                        <p className="text-sm font-semibold text-purple-800">Analizando con IA...</p>
-                                        <p className="text-xs text-purple-600">Identificando el activo y clasificando automáticamente</p>
+                            {/* ── Progress bar: upload + AI analysis ── */}
+                            {uploadPhase === 'uploading' && (
+                                <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
+                                        <p className="text-sm font-semibold text-blue-800">Subiendo foto...</p>
                                     </div>
+                                    <div className="w-full h-2 bg-blue-200 rounded-full overflow-hidden">
+                                        <div className="h-full bg-blue-500 rounded-full animate-pulse" style={{ width: '60%' }} />
+                                    </div>
+                                    <p className="text-xs text-blue-600 mt-1">Las fotos del iPad pueden tardar unos segundos</p>
                                 </div>
                             )}
-                            {aiResult && !analyzing && (
+                            {uploadPhase === 'analyzing' && (
+                                <div className="mb-4 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3">
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <Sparkles className="w-4 h-4 text-purple-500 animate-pulse shrink-0" />
+                                        <p className="text-sm font-semibold text-purple-800">IA analizando la imagen...</p>
+                                    </div>
+                                    <div className="w-full h-2 bg-purple-200 rounded-full overflow-hidden">
+                                        <div className="h-full bg-purple-500 rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '80%' }} />
+                                    </div>
+                                    <p className="text-xs text-purple-600 mt-1">Identificando activo, marca y cuenta contable</p>
+                                </div>
+                            )}
+                            {uploadPhase === 'done' && aiResult && (
                                 <div className="mb-4 flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
                                     <Sparkles className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
                                     <div>
@@ -477,7 +490,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                                         </div>
                                     ) : (
                                         <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center bg-slate-50 text-slate-400">
-                                            {uploading ? <Loader2 className="w-8 h-8 animate-spin text-[#0500A3]" /> : <><Eye className="w-8 h-8 mb-1" /><span className="text-xs">Sin foto</span></>}
+                                            {uploadPhase === 'uploading' ? <Loader2 className="w-8 h-8 animate-spin text-blue-500" /> : <><Eye className="w-8 h-8 mb-1" /><span className="text-xs">Sin foto</span></>}
                                         </div>
                                     )}
                                 </div>

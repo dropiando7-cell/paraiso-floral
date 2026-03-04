@@ -52,8 +52,8 @@ Devuelve este JSON:
 }`;
 
         const response = await client.messages.create({
-            model: 'claude-haiku-4-5',
-            max_tokens: 500,
+            model: 'claude-3-5-haiku-20241022',
+            max_tokens: 600,
             messages: [
                 {
                     role: 'user',
