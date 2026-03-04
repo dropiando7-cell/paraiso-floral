@@ -336,7 +336,10 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ fileName: file.name, contentType: file.type }),
             });
-            if (!res.ok) throw new Error('No se pudo obtener URL de subida');
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || `Error ${res.status} al obtener URL de subida`);
+            }
             const { uploadUrl, publicUrl } = await res.json();
 
             const uploadRes = await fetch(uploadUrl, {
