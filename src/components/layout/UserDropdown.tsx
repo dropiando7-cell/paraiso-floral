@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { User, Settings, LogOut } from 'lucide-react';
+import { User, Settings, LogOut, Loader2 } from 'lucide-react';
 import { logout } from '@/app/auth/actions';
 
 interface UserDropdownProps {
@@ -13,6 +13,7 @@ interface UserDropdownProps {
 export function UserDropdown({ dbUser }: UserDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const [isPending, startTransition] = useTransition();
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -101,13 +102,17 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
 
                     <div className="border-t border-slate-100 my-2"></div>
 
-                    <form action={logout}>
+                    <form action={() => startTransition(async () => await logout())}>
                         <button
                             type="submit"
-                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left"
+                            disabled={isPending}
+                            className="w-full flex items-center justify-between px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left disabled:opacity-50"
                         >
-                            <LogOut className="w-4 h-4" />
-                            <span>Cerrar Sesión</span>
+                            <span className="flex items-center gap-3">
+                                <LogOut className="w-4 h-4" />
+                                <span>{isPending ? 'Cerrando sesión...' : 'Cerrar Sesión'}</span>
+                            </span>
+                            {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                         </button>
                     </form>
                 </div>

@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
-import { ShieldAlert } from 'lucide-react'
+import { ShieldAlert, Loader2 } from 'lucide-react'
+import { logout } from '@/app/auth/actions'
 
 export default function SecurityVerificationPage() {
     const supabase = createClient()
@@ -13,6 +14,7 @@ export default function SecurityVerificationPage() {
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [factorId, setFactorId] = useState<string | null>(null)
+    const [isSigningOut, startSignOut] = useTransition()
 
     // Check if user actually needs to be here and load their Factor ID
     useEffect(() => {
@@ -112,9 +114,10 @@ export default function SecurityVerificationPage() {
         }
     }
 
-    const handleSignOut = async () => {
-        await supabase.auth.signOut();
-        router.push('/login');
+    const handleSignOut = () => {
+        startSignOut(async () => {
+            await logout()
+        })
     }
 
     return (
@@ -184,8 +187,16 @@ export default function SecurityVerificationPage() {
                     <div className="mt-6 text-center">
                         <button
                             onClick={handleSignOut}
-                            className="font-medium text-slate-500 hover:text-slate-700 text-sm transition-colors underline">
-                            Cancelar y cerrar sesión
+                            disabled={isSigningOut}
+                            className="font-medium text-slate-500 hover:text-slate-700 text-sm transition-colors underline disabled:opacity-50 inline-flex items-center gap-2">
+                            {isSigningOut ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Cerrando sesión...
+                                </>
+                            ) : (
+                                'Cancelar y cerrar sesión'
+                            )}
                         </button>
                     </div>
 
