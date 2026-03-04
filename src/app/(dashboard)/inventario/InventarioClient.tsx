@@ -930,6 +930,8 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
     const [editActivo, setEditActivo] = useState<Activo | null>(null);
     const [deleteActivo_, setDeleteActivo] = useState<Activo | null>(null);
     const [showFilters, setShowFilters] = useState(false);
+    const [viewActivo, setViewActivo] = useState<Activo | null>(null);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
 
     async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus) {
         setLoading(true);
@@ -1021,12 +1023,12 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                                 <div className="text-xs mt-1">Presiona "Registrar Activo" para comenzar el inventario</div>
                             </td></tr>
                         ) : activos.map(a => (
-                            <tr key={a.id} className="hover:bg-slate-50/60 transition-colors group">
+                            <tr key={a.id} onClick={() => setViewActivo(a)} className="hover:bg-slate-50/60 transition-colors group cursor-pointer">
                                 <td className="px-3 py-3"><div className="font-mono text-[10px] text-[#0500A3] font-bold bg-blue-50 px-1.5 py-0.5 rounded w-fit whitespace-nowrap">{a.idQr}</div></td>
                                 <td className="px-3 py-3">
                                     {a.imagenUrl
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        ? <img src={a.imagenUrl} alt="" className="w-10 h-10 object-cover rounded-lg border border-slate-200" />
+                                        ? <img src={a.imagenUrl} onClick={(e) => { e.stopPropagation(); setPreviewImage(a.imagenUrl!); }} alt="" className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:border-[#0500A3] transition-colors" />
                                         : <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center"><Eye className="w-4 h-4 text-slate-300" /></div>}
                                 </td>
                                 <td className="px-3 py-3 max-w-[200px]">
@@ -1041,8 +1043,8 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                                 <td className="px-3 py-3 max-w-[100px]"><div className="text-[10px] text-slate-600 truncate">{a.responsable || '—'}</div></td>
                                 <td className="px-3 py-3">
                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={() => { setEditActivo(a); setModalOpen(true); }} className="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Editar"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
-                                        <button onClick={() => setDeleteActivo(a)} className="p-2 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); setEditActivo(a); setModalOpen(true); }} className="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Editar"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); setDeleteActivo(a); }} className="p-2 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
                                     </div>
                                 </td>
                             </tr>
@@ -1079,6 +1081,86 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                     onClose={() => setDeleteActivo(null)}
                     onSuccess={() => { refresh(1); setDeleteActivo(null); }}
                 />
+            )}
+
+            {/* Image Preview Modal */}
+            {previewImage && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setPreviewImage(null)}>
+                    <div className="relative max-w-4xl w-full flex flex-col items-center">
+                        <button onClick={() => setPreviewImage(null)} className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white bg-black/50 rounded-full"><X className="w-6 h-6" /></button>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={previewImage} alt="Preview" className="w-auto h-auto max-h-[85vh] object-contain rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                    </div>
+                </div>
+            )}
+
+            {/* View Activo Modal */}
+            {viewActivo && (
+                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto" onClick={() => setViewActivo(null)}>
+                    <div className="min-h-full flex items-center justify-center p-4">
+                        <div className="bg-white w-full rounded-2xl shadow-2xl max-w-xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+                                <h3 className="text-lg font-bold text-[#0500A3]">Detalle del Activo</h3>
+                                <button onClick={() => setViewActivo(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
+                            </div>
+                            <div className="p-6">
+                                <div className="flex gap-6 mb-6">
+                                    <div className="w-32 h-32 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
+                                        {viewActivo.imagenUrl ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={viewActivo.imagenUrl} alt="" className="w-full h-full object-cover cursor-pointer hover:opacity-90" onClick={() => setPreviewImage(viewActivo.imagenUrl!)} />
+                                        ) : (
+                                            <Package className="w-8 h-8 text-slate-300" />
+                                        )}
+                                    </div>
+                                    <div className="flex-1">
+                                        <div className="inline-block px-2 py-1 bg-blue-50 text-[#0500A3] text-xs font-mono font-bold rounded mb-2">{viewActivo.idQr}</div>
+                                        <h4 className="text-xl font-bold text-slate-800 mb-1 leading-tight">{viewActivo.descripcionCorta}</h4>
+                                        <div className="text-sm text-slate-500 mb-3">{viewActivo.cuentaAct}</div>
+                                        <div className="flex gap-2">
+                                            <EstatusBadge estatus={viewActivo.estatusContable} />
+                                            <DanoBadge dano={viewActivo.estadoDano} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {viewActivo.descripcionDetallada && (
+                                    <div className="mb-6 bg-slate-50 rounded-xl p-4 border border-slate-100">
+                                        <h5 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Descripción Detallada</h5>
+                                        <p className="text-sm text-slate-700 whitespace-pre-wrap">{viewActivo.descripcionDetallada}</p>
+                                    </div>
+                                )}
+
+                                <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                                    <div>
+                                        <div className="text-xs text-slate-400 mb-1">Área</div>
+                                        <div className="font-medium text-slate-800 truncate" title={viewActivo.area}>{viewActivo.area}</div>
+                                    </div>
+                                    <div>
+                                        <div className="text-xs text-slate-400 mb-1">Responsable</div>
+                                        <div className="font-medium text-slate-800 truncate" title={viewActivo.responsable || '—'}>{viewActivo.responsable || '—'}</div>
+                                    </div>
+                                    {viewActivo.modelo && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">Modelo</div>
+                                            <div className="font-medium text-slate-800">{viewActivo.modelo}</div>
+                                        </div>
+                                    )}
+                                    {viewActivo.serie && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">No. Serie</div>
+                                            <div className="font-mono text-slate-800">{viewActivo.serie}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
+                                <button onClick={() => { setViewActivo(null); setEditActivo(viewActivo); setModalOpen(true); }} className="flex-1 bg-[#0500A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#0600c2] transition-colors"><Pencil className="w-4 h-4" /> Editar Activo</button>
+                                <button onClick={() => setViewActivo(null)} className="flex-1 border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-semibold hover:bg-slate-100 transition-colors">Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

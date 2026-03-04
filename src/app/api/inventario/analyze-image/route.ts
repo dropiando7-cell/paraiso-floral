@@ -45,7 +45,7 @@ Reglas para clasificar:
 Devuelve este JSON:
 {
   "descripcionCorta": "nombre conciso del activo (máximo 60 caracteres)",
-  "descripcionDetallada": "descripción completa con marca, modelo, color, material y estado aparente",
+  "descripcionDetallada": "descripción completa en exactamente 3 líneas cortas, extrayendo la información más importante del activo (ej: marca, color, material, estado actual)",
   "modelo": "marca y modelo específico si es visible, o vacío si no se puede determinar",
   "cuentaAct": "una de las 9 cuentas contables exactas listadas arriba",
   "confianza": "ALTA | MEDIA | BAJA según qué tan clara es la imagen"
