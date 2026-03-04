@@ -329,7 +329,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
         if (!file) return;
         setAiResult(null);
         try {
-            // Phase 1: Upload to R2
+            // Upload to R2 only — AI analysis is triggered manually
             setUploadPhase('uploading');
             const res = await fetch('/api/upload/inventario', {
                 method: 'POST',
@@ -349,30 +349,37 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
             });
             if (!uploadRes.ok) throw new Error('Error al enviar imagen a R2');
             setImagenUrl(publicUrl);
-
-            // Phase 2: AI Analysis (only for new assets, only after upload success)
-            if (!isEdit) {
-                setUploadPhase('analyzing');
-                const aiRes = await fetch('/api/inventario/analyze-image', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageUrl: publicUrl }),
-                });
-                if (aiRes.ok) {
-                    const data: AiResult = await aiRes.json();
-                    if (!data.error) {
-                        setAiResult(data);
-                        if (data.descripcionCorta) setDescripcionCorta(data.descripcionCorta);
-                        if (data.descripcionDetallada) setDescripcionDetallada(data.descripcionDetallada);
-                        if (data.modelo) setModelo(data.modelo);
-                        if (data.cuentaAct && CUENTAS.includes(data.cuentaAct)) setSelectedCuenta(data.cuentaAct);
-                    }
-                }
-            }
-            setUploadPhase('done');
+            setUploadPhase('done'); // Upload complete — user can now trigger AI
         } catch (err: any) {
             setUploadPhase('idle');
             alert('Error: ' + (err.message || 'Intenta de nuevo'));
+        }
+    }
+
+    async function analyzeWithAI() {
+        if (!imagenUrl) return;
+        setAiResult(null);
+        try {
+            setUploadPhase('analyzing');
+            const aiRes = await fetch('/api/inventario/analyze-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageUrl: imagenUrl }),
+            });
+            const data: AiResult = await aiRes.json();
+            if (aiRes.ok && !data.error) {
+                setAiResult(data);
+                if (data.descripcionCorta) setDescripcionCorta(data.descripcionCorta);
+                if (data.descripcionDetallada) setDescripcionDetallada(data.descripcionDetallada);
+                if (data.modelo) setModelo(data.modelo);
+                if (data.cuentaAct && CUENTAS.includes(data.cuentaAct)) setSelectedCuenta(data.cuentaAct);
+            } else {
+                alert('La IA no pudo analizar la imagen: ' + (data.error || 'Error desconocido'));
+            }
+            setUploadPhase('done');
+        } catch (err: any) {
+            setUploadPhase('done');
+            alert('Error al analizar: ' + (err.message || 'Intenta de nuevo'));
         }
     }
 
@@ -512,9 +519,17 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                                         <Upload className="w-5 h-5" />
                                         Seleccionar de Galería
                                     </button>
-                                    {!isEdit && (
-                                        <p className="text-xs text-purple-600 text-center flex items-center justify-center gap-1">
-                                            <Sparkles className="w-3 h-3" /> La IA identificará el activo automáticamente
+                                    {!isEdit && !!imagenUrl && !aiResult && (
+                                        <button type="button" onClick={analyzeWithAI}
+                                            disabled={uploadPhase === 'analyzing'}
+                                            className="mt-2 flex items-center justify-center gap-2 text-sm font-semibold bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300 py-3 px-5 rounded-xl active:scale-95 transition-all w-full">
+                                            <Sparkles className="w-4 h-4" />
+                                            {uploadPhase === 'analyzing' ? 'Analizando...' : '✨ Analizar foto con IA'}
+                                        </button>
+                                    )}
+                                    {!isEdit && uploadPhase === 'idle' && (
+                                        <p className="text-xs text-purple-600 text-center flex items-center justify-center gap-1 mt-2">
+                                            <Sparkles className="w-3 h-3" /> Sube la foto primero, luego usa la IA
                                         </p>
                                     )}
                                 </div>
