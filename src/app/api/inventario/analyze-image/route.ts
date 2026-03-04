@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/utils/supabase/server';
+import { GoogleGenAI } from '@google/genai';
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY! });
+const genai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 const CUENTAS = [
     'Terrenos', 'Edificios', 'Vehículos', 'Equipo de Cómputo',
@@ -61,6 +61,37 @@ Devuelve este JSON:
         const base64Data = Buffer.from(imgBuffer).toString('base64');
         const mediaType = (imgResp.headers.get('content-type') || 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
 
+        // ---------------------------------------------------------------------
+        // Gemini Implementation
+        // ---------------------------------------------------------------------
+        const response = await genai.models.generateContent({
+            model: 'gemini-1.5-flash',
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        { text: prompt },
+                        {
+                            inlineData: {
+                                mimeType: mediaType,
+                                data: base64Data,
+                            }
+                        }
+                    ]
+                }
+            ],
+            config: {
+                // Ensure output is JSON
+                responseMimeType: 'application/json',
+            }
+        });
+
+        const rawText = response.text || '';
+
+        // ---------------------------------------------------------------------
+        // Older Claude Implementation (Commented Out)
+        // ---------------------------------------------------------------------
+        /*
         const response = await client.messages.create({
             model: 'claude-3-5-sonnet-20241022',
             max_tokens: 600,
@@ -86,6 +117,7 @@ Devuelve este JSON:
         });
 
         const rawText = response.content[0].type === 'text' ? response.content[0].text : '';
+        */
 
         // Parse JSON from Claude's response
         const jsonMatch = rawText.match(/\{[\s\S]*\}/);
