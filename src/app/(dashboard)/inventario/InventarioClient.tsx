@@ -92,7 +92,7 @@ export const CUENTAS = [
 const ESTATUS = ['VIGENTE', 'DEPRECIADO', 'PROCESO DE BAJA'];
 const ESTADO_DANO = ['DAÑADO', 'FALTANTE', 'NO REGISTRADO', 'INSERVIBLE'];
 const TIPO_INCIDENCIA = ['Faltante', 'Extraviado', 'No Registrado'];
-const ACCION_RECOMENDADA = ['Reparar', 'Dar de baja', 'Reponer'];
+const ACCION_RECOMENDADA = ['Reparar', 'Mantenimiento', 'Dar de baja', 'Reponer'];
 
 type Activo = {
     id: string;
@@ -105,6 +105,7 @@ type Activo = {
     cuentaAct: string;
     estatusContable: string;
     fechaAdq?: Date | null;
+    fechaLevantamiento?: Date | null;
     integrado: boolean;
     costoAdq?: any;
     origenActivo?: string | null;
@@ -181,6 +182,7 @@ function Combobox({
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                             <input
                                 type="text"
+                                autoComplete="off"
                                 autoFocus
                                 placeholder="Escribe para buscar..."
                                 value={query}
@@ -688,8 +690,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                                     )}
                                 </div>
                             </div>
-                            <button onClick={onClose} className="p-2.5 hover:bg-slate-100 rounded-xl transition-colors active:scale-95">
-                                <X className="w-5 h-5 text-slate-500" />
+                            <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors active:scale-95">
+                                Cerrar
                             </button>
                         </div>
 
@@ -918,11 +920,17 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         <div>
                                             <FieldLabel>Fecha de Adquisición</FieldLabel>
                                             <input type="date" name="fechaAdq"
                                                 defaultValue={editActivo?.fechaAdq ? new Date(editActivo.fechaAdq).toISOString().split('T')[0] : ''}
+                                                className={inputCls} />
+                                        </div>
+                                        <div>
+                                            <FieldLabel>Fecha de Levantamiento</FieldLabel>
+                                            <input type="date" name="fechaLevantamiento"
+                                                defaultValue={editActivo?.fechaLevantamiento ? new Date(editActivo.fechaLevantamiento).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
                                                 className={inputCls} />
                                         </div>
                                         <div>

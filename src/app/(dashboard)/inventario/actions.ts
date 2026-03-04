@@ -89,6 +89,7 @@ export async function createActivo(formData: FormData) {
 
     const costoStr = formData.get('costoAdq') as string;
     const fechaStr = formData.get('fechaAdq') as string;
+    const fechaLevStr = formData.get('fechaLevantamiento') as string;
 
     await prisma.activoFijo.create({
         data: {
@@ -102,6 +103,7 @@ export async function createActivo(formData: FormData) {
             cuentaAct: formData.get('cuentaAct') as string,
             estatusContable: (formData.get('estatusContable') as string) || 'VIGENTE',
             fechaAdq: fechaStr ? new Date(fechaStr) : null,
+            fechaLevantamiento: fechaLevStr ? new Date(fechaLevStr) : null,
             integrado: formData.get('integrado') === 'true',
             costoAdq: costoStr ? parseFloat(costoStr) : null,
             origenActivo: (formData.get('origenActivo') as string) || null,
@@ -125,6 +127,7 @@ export async function updateActivo(id: string, formData: FormData) {
 
     const costoStr = formData.get('costoAdq') as string;
     const fechaStr = formData.get('fechaAdq') as string;
+    const fechaLevStr = formData.get('fechaLevantamiento') as string;
 
     await prisma.activoFijo.updateMany({
         where: { id, organizationId: orgId },
@@ -137,6 +140,7 @@ export async function updateActivo(id: string, formData: FormData) {
             cuentaAct: formData.get('cuentaAct') as string,
             estatusContable: formData.get('estatusContable') as string,
             fechaAdq: fechaStr ? new Date(fechaStr) : null,
+            fechaLevantamiento: fechaLevStr ? new Date(fechaLevStr) : null,
             integrado: formData.get('integrado') === 'true',
             costoAdq: costoStr ? parseFloat(costoStr) : null,
             origenActivo: (formData.get('origenActivo') as string) || null,
