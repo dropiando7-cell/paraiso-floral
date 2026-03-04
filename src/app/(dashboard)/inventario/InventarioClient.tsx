@@ -1048,7 +1048,7 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
     const [deleteActivo_, setDeleteActivo] = useState<Activo | null>(null);
     const [showFilters, setShowFilters] = useState(false);
     const [viewActivo, setViewActivo] = useState<Activo | null>(null);
-    const [previewImage, setPreviewImage] = useState<string | null>(null);
+    const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
 
     async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus) {
         setLoading(true);
@@ -1145,7 +1145,11 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                                 <td className="px-3 py-3">
                                     {a.imagenUrl
                                         // eslint-disable-next-line @next/next/no-img-element
-                                        ? <img src={a.imagenUrl} onClick={(e) => { e.stopPropagation(); setPreviewImage(a.imagenUrl!); }} alt="" className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:border-[#0500A3] transition-colors" />
+                                        ? <img src={a.imagenUrl} onClick={(e) => {
+                                            e.stopPropagation();
+                                            const imgs = [a.imagenUrl, a.imagenPlacaUrl].filter(Boolean) as string[];
+                                            if (imgs.length > 0) setPreviewImage({ index: 0, images: imgs });
+                                        }} alt="" className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:border-[#0500A3] transition-colors" />
                                         : <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center"><Eye className="w-4 h-4 text-slate-300" /></div>}
                                 </td>
                                 <td className="px-3 py-3 max-w-[200px]">
@@ -1200,13 +1204,49 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                 />
             )}
 
-            {/* Image Preview Modal */}
-            {previewImage && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4" onClick={() => setPreviewImage(null)}>
-                    <div className="relative max-w-4xl w-full flex flex-col items-center">
-                        <button onClick={() => setPreviewImage(null)} className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white bg-black/50 rounded-full"><X className="w-6 h-6" /></button>
+            {/* Image Preview Modal (Slider) */}
+            {previewImage && previewImage.images.length > 0 && (
+                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={() => setPreviewImage(null)}>
+                    <div className="relative max-w-5xl w-full flex items-center justify-center h-full">
+                        {/* Close button */}
+                        <button onClick={() => setPreviewImage(null)} className="absolute top-4 right-4 z-10 p-3 text-white/70 hover:text-white bg-black/50 rounded-full transition-colors active:scale-95"><X className="w-6 h-6" /></button>
+
+                        {/* Prev Button */}
+                        {previewImage.images.length > 1 && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPreviewImage(prev => prev ? { ...prev, index: (prev.index - 1 + prev.images.length) % prev.images.length } : null);
+                                }}
+                                className="absolute left-4 p-4 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-95 z-10">
+                                <ChevronLeft className="w-10 h-10" />
+                            </button>
+                        )}
+
+                        {/* Image */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={previewImage} alt="Preview" className="w-auto h-auto max-h-[85vh] object-contain rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()} />
+                        <img key={previewImage.index} src={previewImage.images[previewImage.index]} alt="Preview" className="w-auto h-auto max-h-[90vh] max-w-full object-contain rounded-xl shadow-2xl transition-opacity animate-in fade-in duration-300" onClick={(e) => e.stopPropagation()} />
+
+                        {/* Next Button */}
+                        {previewImage.images.length > 1 && (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPreviewImage(prev => prev ? { ...prev, index: (prev.index + 1) % prev.images.length } : null);
+                                }}
+                                className="absolute right-4 p-4 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-all active:scale-95 z-10">
+                                <ChevronRight className="w-10 h-10" />
+                            </button>
+                        )}
+
+                        {/* Indicators */}
+                        {previewImage.images.length > 1 && (
+                            <div className="absolute bottom-6 flex gap-2" onClick={e => e.stopPropagation()}>
+                                {previewImage.images.map((_, i) => (
+                                    <div key={i} className={`w-2.5 h-2.5 rounded-full transition-all ${i === previewImage.index ? 'bg-white scale-125' : 'bg-white/30'}`} />
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -1225,7 +1265,10 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                                     <div className="w-32 h-32 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
                                         {viewActivo.imagenUrl ? (
                                             // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={viewActivo.imagenUrl} alt="" className="w-full h-full object-cover cursor-pointer hover:opacity-90" onClick={() => setPreviewImage(viewActivo.imagenUrl!)} />
+                                            <img src={viewActivo.imagenUrl} alt="" className="w-full h-full object-cover cursor-pointer hover:opacity-90" onClick={() => {
+                                                const imgs = [viewActivo.imagenUrl, viewActivo.imagenPlacaUrl].filter(Boolean) as string[];
+                                                setPreviewImage({ index: 0, images: imgs });
+                                            }} />
                                         ) : (
                                             <Package className="w-8 h-8 text-slate-300" />
                                         )}
