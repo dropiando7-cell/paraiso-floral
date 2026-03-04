@@ -12,39 +12,75 @@ import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, p
 
 export const AREAS = [
     { value: 'TEST-AREA', label: '🧪 TEST-AREA — Área de Pruebas (no usar en inventario real)' },
-    { value: 'PB-A1-OF.PASTOR', label: 'PB-A1-OF.PASTOR — Planta Baja · Oficina del Pastor' },
-    { value: 'PB-A2-OF.ADM', label: 'PB-A2-OF.ADM — Planta Baja · Oficina Administrativa' },
-    { value: 'PB-A3-S.CUNA', label: 'PB-A3-S.CUNA — Planta Baja · Sala Cuna' },
-    { value: 'PB-A4-ENFERM', label: 'PB-A4-ENFERM — Planta Baja · Enfermería' },
-    { value: 'PB-A5-S.JUNTAS', label: 'PB-A5-S.JUNTAS — Planta Baja · Sala de Juntas' },
-    { value: 'PB-A6-COCINETA', label: 'PB-A6-COCINETA — Planta Baja · Cocineta' },
-    { value: 'PB-A7-OF.JOVEN', label: 'PB-A7-OF.JOVEN — Planta Baja · Oficina de Jóvenes' },
-    { value: 'PB-A8-OF.EB', label: 'PB-A8-OF.EB — Planta Baja · Oficina de Escuela Bíblica' },
-    { value: 'PB-A9-EB', label: 'PB-A9-EB — Planta Baja · Aula EB "Rayitos"' },
-    { value: 'PB-A10-EB', label: 'PB-A10-EB — Planta Baja · Aula EB "Jardín de Gracia"' },
-    { value: 'PB-A11-COCIN CAF', label: 'PB-A11-COCIN CAF — Planta Baja · Cocina de Cafetería' },
-    { value: 'PB-A12-SALON CAF', label: 'PB-A12-SALON CAF — Planta Baja · Salón de Cafetería' },
-    { value: 'PB-A13-AUDIO', label: 'PB-A13-AUDIO — Planta Baja · Sala de Audio/Consola' },
-    { value: 'PB-A14-MULTI', label: 'PB-A14-MULTI — Planta Baja · Sala de Multimedia' },
-    { value: 'PB-A15-TEMPLO', label: 'PB-A15-TEMPLO — Planta Baja · Salón Templo' },
-    { value: 'PB-A16-PLATAFO', label: 'PB-A16-PLATAFO — Planta Baja · Plataforma de Instrumentos' },
-    { value: 'PB-A17-OF.REC', label: 'PB-A17-OF.REC — Planta Baja · Oficina / Recepción' },
-    { value: 'PB-A18-OF.IMCE', label: 'PB-A18-OF.IMCE — Planta Baja · Oficina Administrativa IMCEH' },
-    { value: 'PA-A1-SAL.MUL', label: 'PA-A1-SAL.MUL — Planta Alta · Salón de Usos Múltiples' },
-    { value: 'PA-A2-OFICINA', label: 'PA-A2-OFICINA — Planta Alta · Oficina Administrativa' },
-    { value: 'PA-A3-EB', label: 'PA-A3-EB — Planta Alta · Aula EB "Soldados de Cristo"' },
-    { value: 'PA-A4-EB', label: 'PA-A4-EB — Planta Alta · Aula EB "Peregrinitos"' },
-    { value: 'PA-A5-EB', label: 'PA-A5-EB — Planta Alta · Aula EB "Rosas de Sarón"' },
-    { value: 'PA-A6-EB', label: 'PA-A6-EB — Planta Alta · Aula EB "Oasis de Alegría"' },
-    { value: 'PA-B1-PASILLO', label: 'PA-B1-PASILLO — Planta Alta · Bodega Pasillo aulas EB' },
-    { value: 'PB-B1-OFICINA', label: 'PB-B1-OFICINA — Planta Baja · Bodega Oficina Administrativa' },
-    { value: 'PB-B2-PASILLO', label: 'PB-B2-PASILLO — Planta Baja · Bodega Pasillo a Enfermería' },
-    { value: 'PB-B3-TRASERA', label: 'PB-B3-TRASERA — Planta Baja · Bodega Trasera de Cocineta' },
-    { value: 'PB-B4-TEMPLO', label: 'PB-B4-TEMPLO — Planta Baja · Bodega Equipo Sonido/Templo' },
-    { value: 'PB-B5-TEMPLO', label: 'PB-B5-TEMPLO — Planta Baja · Bodega Mob. y Eq Diverso/Templo' },
-    { value: 'B6-EXTERNA CV', label: 'B6-EXTERNA CV — Bodega Externa · Sector Cerro Verde' },
-    { value: 'B7-EXTERNA', label: 'B7-EXTERNA — Bodega Externa · Sector General' },
+    { value: 'PB-A1-OF.PASTOR', label: 'PB-A1-OF.PASTOR — Planta Baja- Oficina del Pastor' },
+    { value: 'PB-A2-OF.ADM', label: 'PB-A2-OF.ADM — Planta Baja- Oficina Administrativa' },
+    { value: 'PB-A3-S.CUNA', label: 'PB-A3-S.CUNA — Planta Baja- Sala Cuna' },
+    { value: 'PB-A4-ENFERM', label: 'PB-A4-ENFERM — Planta Baja- Enfermería' },
+    { value: 'PB-A5-S.JUNTAS', label: 'PB-A5-S.JUNTAS — Planta Baja- Sala de Juntas' },
+    { value: 'PB-A6-COCINETA', label: 'PB-A6-COCINETA — Planta Baja- Cocineta' },
+    { value: 'PB-A7-OF.JOVEN', label: 'PB-A7-OF.JOVEN — Planta Baja- Oficina de Jóvenes' },
+    { value: 'PB-A8-OF.EB', label: 'PB-A8-OF.EB — Planta Baja- Oficina de Escuela Bíblica' },
+    { value: 'PB-A9-EB', label: 'PB-A9-EB — Planta Baja- Aula de Escuela Bíblica "Rayitos"' },
+    { value: 'PB-A10-EB', label: 'PB-A10-EB — Planta Baja- Aula de Escuela Bíblica "Jardín de Gracia"' },
+    { value: 'PB-A11-COCIN CAF', label: 'PB-A11-COCIN CAF — Planta Baja- Cocina de Cafetería' },
+    { value: 'PB-A12-SALON CAF', label: 'PB-A12-SALON CAF — Planta Baja- Salón de Cafetería' },
+    { value: 'PB-A13-AUDIO', label: 'PB-A13-AUDIO — Planta Baja- Sala de Audio/Consola' },
+    { value: 'PB-A14-MULTI', label: 'PB-A14-MULTI — Planta Baja- Sala de Multimedia' },
+    { value: 'PB-A15-TEMPLO', label: 'PB-A15-TEMPLO — Planta Baja- Salon Templo' },
+    { value: 'PB-A16-PLATAFO', label: 'PB-A16-PLATAFO — Planta Baja- Plataforma de Instrumentos/Alabanza' },
+    { value: 'PB-A17-OF.REC', label: 'PB-A17-OF.REC — Planta Baja- Oficina / Recepción' },
+    { value: 'PB-A18-OF. IMCE', label: 'PB-A18-OF. IMCE — Planta Baja- Oficina Administrativa de IMCEH' },
+    { value: 'PA-A1-SAL.MUL', label: 'PA-A1-SAL.MUL — Planta Alta- Salón de Usos Múltiples' },
+    { value: 'PA-A2-OFICINA', label: 'PA-A2-OFICINA — Planta Alta- Oficina Apoyo Ministerial' },
+    { value: 'PA-A3-EB', label: 'PA-A3-EB — Planta Alta- Aula de Escuela Bíblica "Soldados de Cristo"' },
+    { value: 'PA-A4-EB', label: 'PA-A4-EB — Planta Alta- Aula de Escuela Bíblica "Peregrinitos"' },
+    { value: 'PA-A5-EB', label: 'PA-A5-EB — Planta Alta- Aula de Escuela Bíblica "Rosas de Sarón"' },
+    { value: 'PA-A6-EB', label: 'PA-A6-EB — Planta Alta- Aula de Escuela Bíblica "Oasis de Alegría"' },
+    { value: 'PA-B1-PASILLO', label: 'PA-B1-PASILLO — Planta Alta- Bodega Pasillo de aulas de Escuela Bíblica' },
+    { value: 'PB-B1-OFICINA', label: 'PB-B1-OFICINA — Planta Baja- Bodega Oficina Administrativa' },
+    { value: 'PB-B2-PASILLO', label: 'PB-B2-PASILLO — Planta Baja- Bodega pasillo a enfermería' },
+    { value: 'PB-B3-TRASERA', label: 'PB-B3-TRASERA — Planta Baja- Bodega traseras de cocineta' },
+    { value: 'PB-B4-TEMPLO', label: 'PB-B4-TEMPLO — Planta Baja- Bodega de Equipo de Sonido/al Templo' },
+    { value: 'PB-B5-TEMPLO', label: 'PB-B5-TEMPLO — Planta Baja- Bodega de Mob. y Eq Diverso/al Templo' },
+    { value: 'B6-EXTERNA CV', label: 'B6-EXTERNA CV — Bodega Externa /Sector Cerro Verde' },
+    { value: 'B7-EXTERNA', label: 'B7-EXTERNA — Bodega Externa /Sector' },
 ];
+
+// Responsable por defecto según área (editable en el formulario)
+export const RESPONSABLES: Record<string, string> = {
+    'PB-A1-OF.PASTOR': 'ROGER DIAZ',
+    'PB-A2-OF.ADM': 'ROBERTO FUNEZ',
+    'PB-A3-S.CUNA': 'BELINDA DE VEGA',
+    'PB-A4-ENFERM': 'JORGE PUERTO',
+    'PB-A5-S.JUNTAS': 'JORGE PUERTO',
+    'PB-A6-COCINETA': 'MIRIAM DE PUERTO',
+    'PB-A7-OF.JOVEN': 'JOSUE RODRIGUEZ',
+    'PB-A8-OF.EB': 'YOLANDA MONROY',
+    'PB-A9-EB': 'YOLANDA MONROY',
+    'PB-A10-EB': 'YOLANDA MONROY',
+    'PB-A11-COCIN CAF': 'GENOVEBA MATUTE',
+    'PB-A12-SALON CAF': 'GENOVEBA MATUTE',
+    'PB-A13-AUDIO': 'OSCAR BEJARANO',
+    'PB-A14-MULTI': 'ISAAC PAZ',
+    'PB-A15-TEMPLO': 'JORGE PUERTO',
+    'PB-A16-PLATAFO': 'EDIE PAZ',
+    'PB-A17-OF.REC': 'ISAAC PAZ',
+    'PB-A18-OF. IMCE': 'ISAAC PAZ',
+    'PA-A1-SAL.MUL': 'JORGE PUERTO',
+    'PA-A2-OFICINA': 'DAVID DIAZ',
+    'PA-A3-EB': 'YOLANDA MONROY',
+    'PA-A4-EB': 'YOLANDA MONROY',
+    'PA-A5-EB': 'YOLANDA MONROY',
+    'PA-A6-EB': 'YOLANDA MONROY',
+    'PA-B1-PASILLO': 'JORGE PUERTO',
+    'PB-B1-OFICINA': 'ISAAC PAZ',
+    'PB-B2-PASILLO': 'MIRIAM DE PUERTO',
+    'PB-B3-TRASERA': 'MIRIAM DE PUERTO',
+    'PB-B4-TEMPLO': 'OSCAR BEJARANO',
+    'PB-B5-TEMPLO': 'JORGE PUERTO',
+    'B6-EXTERNA CV': 'ISAAC PAZ',
+    'B7-EXTERNA': 'JESMY PEREZ',
+};
 
 export const CUENTAS = [
     'Terrenos', 'Edificios', 'Vehículos', 'Equipo de Cómputo',
@@ -127,15 +163,15 @@ function Combobox({
                 className={`w-full flex items-center justify-between text-base border-2 rounded-xl px-4 py-3.5 text-left transition-all focus:outline-none
                     ${aiHighlight ? 'border-purple-400 bg-purple-50' : 'border-slate-200 bg-white'}
                     ${open ? 'ring-2 ring-[#0500A3]/30 border-[#0500A3]/50' : 'hover:border-slate-300'}`}>
-                <span className={selected ? 'text-slate-900' : 'text-slate-400'}>
+                <span className={`truncate ${selected ? 'text-slate-900' : 'text-slate-400'}`}>
                     {selected ? selected.label : (placeholder || 'Seleccionar...')}
                 </span>
                 <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ml-2 ${open ? 'rotate-180' : ''}`} />
             </button>
 
-            {/* Dropdown */}
+            {/* Dropdown — min-w-full so it's never narrower than the trigger */}
             {open && (
-                <div className="absolute z-50 w-full mt-1 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden">
+                <div className="absolute z-50 left-0 min-w-full w-max max-w-[min(600px,90vw)] mt-1 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden">
                     {/* Search */}
                     <div className="p-2 border-b border-slate-100">
                         <div className="relative">
@@ -151,12 +187,12 @@ function Combobox({
                         </div>
                     </div>
                     {/* Options */}
-                    <div className="max-h-56 overflow-y-auto">
+                    <div className="max-h-64 overflow-y-auto">
                         {filtered.length === 0 ? (
-                            <div className="text-sm text-slate-400 text-center py-4">Sin resultados para "{query}"</div>
+                            <div className="text-sm text-slate-400 text-center py-4">Sin resultados para &ldquo;{query}&rdquo;</div>
                         ) : filtered.map(o => (
                             <button key={o.value} type="button" onClick={() => select(o.value)}
-                                className={`w-full text-left px-4 py-3 text-sm hover:bg-blue-50 transition-colors
+                                className={`w-full text-left px-4 py-3 text-sm whitespace-nowrap hover:bg-blue-50 transition-colors
                                     ${o.value === value ? 'bg-[#0500A3]/5 font-semibold text-[#0500A3]' : 'text-slate-700'}`}>
                                 {o.label}
                             </button>
@@ -253,6 +289,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
     const [descripcionCorta, setDescripcionCorta] = useState(editActivo?.descripcionCorta || '');
     const [descripcionDetallada, setDescripcionDetallada] = useState(editActivo?.descripcionDetallada || '');
     const [modelo, setModelo] = useState(editActivo?.modelo || '');
+    const [responsable, setResponsable] = useState(editActivo?.responsable || '');
 
     useEffect(() => {
         if (editActivo) {
@@ -262,10 +299,12 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
             setDescripcionCorta(editActivo.descripcionCorta || '');
             setDescripcionDetallada(editActivo.descripcionDetallada || '');
             setModelo(editActivo.modelo || '');
+            setResponsable(editActivo.responsable || '');
         } else {
             setImagenUrl(''); setSelectedArea(''); setSelectedCuenta('');
             setPreviewQr(''); setAiResult(null);
             setDescripcionCorta(''); setDescripcionDetallada(''); setModelo('');
+            setResponsable('');
         }
     }, [editActivo, open]);
 
@@ -277,6 +316,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
 
     async function handleAreaChange(area: string) {
         setSelectedArea(area);
+        // Auto-fill responsable from the CSV map (but keep it editable)
+        if (area && RESPONSABLES[area]) setResponsable(RESPONSABLES[area]);
         if (area && !isEdit) {
             const qr = await previewIdQr(area);
             setPreviewQr(qr);
@@ -610,7 +651,9 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                                 </div>
                                 <div>
                                     <FieldLabel>Responsable / Custodio</FieldLabel>
-                                    <input type="text" name="responsable" defaultValue={editActivo?.responsable || ''}
+                                    <input type="text" name="responsable"
+                                        value={responsable}
+                                        onChange={e => setResponsable(e.target.value)}
                                         placeholder="Nombre del custodio del área" className={inputCls} />
                                 </div>
                                 <div>
