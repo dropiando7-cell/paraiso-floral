@@ -269,6 +269,125 @@ function DanoBadge({ dano }: { dano?: string | null }) {
     return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-100 text-red-700">{dano}</span>;
 }
 
+// ─── CropModal ─────────────────────────────────────────────────────────────────
+function CropModal({ imageSrc, onConfirm, onCancel }: {
+    imageSrc: string;
+    onConfirm: (blob: Blob) => void;
+    onCancel: () => void;
+}) {
+    const [crop, setCrop] = useState({ x: 10, y: 10, w: 80, h: 80 });
+    const imgRef = useRef<HTMLImageElement>(null);
+    const dragRef = useRef<{ type: string; sx: number; sy: number; sc: typeof crop } | null>(null);
+
+    function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
+
+    function pct(e: React.PointerEvent) {
+        const r = imgRef.current!.getBoundingClientRect();
+        return { px: (e.clientX - r.left) / r.width * 100, py: (e.clientY - r.top) / r.height * 100 };
+    }
+
+    function startDrag(type: string, e: React.PointerEvent) {
+        e.preventDefault(); e.stopPropagation();
+        (e.currentTarget as Element).setPointerCapture(e.pointerId);
+        const { px, py } = pct(e);
+        dragRef.current = { type, sx: px, sy: py, sc: { ...crop } };
+    }
+
+    function onMove(e: React.PointerEvent) {
+        if (!dragRef.current) return;
+        const { type, sx, sy, sc } = dragRef.current;
+        const { px, py } = pct(e);
+        const dx = px - sx, dy = py - sy, MIN = 15;
+        setCrop(() => {
+            let { x, y, w, h } = sc;
+            if (type === 'move') {
+                x = clamp(sc.x + dx, 0, 100 - w); y = clamp(sc.y + dy, 0, 100 - h);
+            } else if (type === 'br') {
+                w = clamp(sc.w + dx, MIN, 100 - x); h = clamp(sc.h + dy, MIN, 100 - y);
+            } else if (type === 'tl') {
+                const nx = clamp(sc.x + dx, 0, sc.x + sc.w - MIN);
+                const ny = clamp(sc.y + dy, 0, sc.y + sc.h - MIN);
+                w = sc.x + sc.w - nx; h = sc.y + sc.h - ny; x = nx; y = ny;
+            } else if (type === 'tr') {
+                const ny = clamp(sc.y + dy, 0, sc.y + sc.h - MIN);
+                w = clamp(sc.w + dx, MIN, 100 - sc.x); h = sc.y + sc.h - ny; y = ny;
+            } else if (type === 'bl') {
+                const nx = clamp(sc.x + dx, 0, sc.x + sc.w - MIN);
+                w = sc.x + sc.w - nx; x = nx; h = clamp(sc.h + dy, MIN, 100 - sc.y);
+            }
+            return { x, y, w, h };
+        });
+    }
+
+    function apply(full: boolean) {
+        const img = imgRef.current!;
+        const { naturalWidth: nw, naturalHeight: nh } = img;
+        const [sx, sy, sw, sh] = full
+            ? [0, 0, nw, nh]
+            : [Math.round(crop.x / 100 * nw), Math.round(crop.y / 100 * nh),
+            Math.round(crop.w / 100 * nw), Math.round(crop.h / 100 * nh)];
+        const MAX = 1568;
+        const ratio = Math.min(1, MAX / Math.max(sw, sh));
+        const dw = Math.round(sw * ratio), dh = Math.round(sh * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = dw; canvas.height = dh;
+        canvas.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+        canvas.toBlob(blob => { if (blob) onConfirm(blob); }, 'image/jpeg', 0.85);
+    }
+
+    const handles = [
+        { id: 'tl', style: { top: -8, left: -8, cursor: 'nwse-resize' } as React.CSSProperties },
+        { id: 'tr', style: { top: -8, right: -8, cursor: 'nesw-resize' } as React.CSSProperties },
+        { id: 'bl', style: { bottom: -8, left: -8, cursor: 'nesw-resize' } as React.CSSProperties },
+        { id: 'br', style: { bottom: -8, right: -8, cursor: 'nwse-resize' } as React.CSSProperties },
+    ];
+
+    return (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-black" style={{ touchAction: 'none' }}>
+            <div className="flex items-center justify-between px-4 py-3 bg-black/80">
+                <p className="text-white text-sm font-medium">📐 Arrastra el recuadro para recortar</p>
+                <button onClick={onCancel} className="p-2 text-white/70 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex-1 overflow-auto flex items-start justify-center"
+                onPointerMove={onMove} onPointerUp={() => { dragRef.current = null; }}>
+                <div className="relative" style={{ maxWidth: 640, width: '100%' }}>
+                    <img ref={imgRef} src={imageSrc} className="block w-full select-none" draggable={false} alt="Vista previa" />
+                    <div className="absolute border-2 border-white touch-none"
+                        style={{
+                            left: `${crop.x}%`, top: `${crop.y}%`,
+                            width: `${crop.w}%`, height: `${crop.h}%`,
+                            boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)', cursor: 'move',
+                        }}
+                        onPointerDown={e => startDrag('move', e)}>
+                        <div className="absolute inset-0 pointer-events-none">
+                            <div className="absolute top-1/3 left-0 right-0 h-px bg-white/30" />
+                            <div className="absolute top-2/3 left-0 right-0 h-px bg-white/30" />
+                            <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/30" />
+                            <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/30" />
+                        </div>
+                        {handles.map(h => (
+                            <div key={h.id}
+                                className="absolute w-7 h-7 bg-white rounded border-2 border-[#0500A3] touch-none"
+                                style={{ ...h.style, position: 'absolute' }}
+                                onPointerDown={e => startDrag(h.id, e)} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 p-4 bg-black/80">
+                <button onClick={() => apply(true)}
+                    className="border-2 border-white/30 text-white font-semibold py-4 rounded-2xl active:scale-95 transition-all text-sm">
+                    Foto completa
+                </button>
+                <button onClick={() => apply(false)}
+                    className="bg-[#0500A3] text-white font-semibold py-4 rounded-2xl active:scale-95 transition-all text-sm">
+                    ✓ Confirmar recorte
+                </button>
+            </div>
+        </div>
+    );
+}
+
 // ─── Modal Form (iPad-first + AI vision) ─────────────────────────────────────
 function ActivoModal({ open, onClose, editActivo, onSuccess }: {
     open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void;
@@ -284,6 +403,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
     const cameraInputRef = useRef<HTMLInputElement>(null);
     const formRef = useRef<HTMLFormElement>(null);
     const isEdit = !!editActivo;
+    const [cropOpen, setCropOpen] = useState(false);
+    const [cropImgSrc, setCropImgSrc] = useState('');
 
     // Dynamic field values (controlled for AI fill)
     const [descripcionCorta, setDescripcionCorta] = useState(editActivo?.descripcionCorta || '');
@@ -327,29 +448,37 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
     async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;
+        e.target.value = '';
         setAiResult(null);
+        const url = URL.createObjectURL(file);
+        setCropImgSrc(url);
+        setCropOpen(true);
+    }
+
+    async function doUpload(blob: Blob) {
+        setCropOpen(false);
+        URL.revokeObjectURL(cropImgSrc);
+        setCropImgSrc('');
+        setUploadPhase('uploading');
         try {
-            // Upload to R2 only — AI analysis is triggered manually
-            setUploadPhase('uploading');
             const res = await fetch('/api/upload/inventario', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: file.name, contentType: file.type }),
+                body: JSON.stringify({ fileName: 'activo.jpg', contentType: 'image/jpeg' }),
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
                 throw new Error(errData.error || `Error ${res.status} al obtener URL de subida`);
             }
             const { uploadUrl, publicUrl } = await res.json();
-
             const uploadRes = await fetch(uploadUrl, {
                 method: 'PUT',
-                headers: { 'Content-Type': file.type },
-                body: file,
+                headers: { 'Content-Type': 'image/jpeg' },
+                body: blob,
             });
             if (!uploadRes.ok) throw new Error('Error al enviar imagen a R2');
             setImagenUrl(publicUrl);
-            setUploadPhase('done'); // Upload complete — user can now trigger AI
+            setUploadPhase('done');
         } catch (err: any) {
             setUploadPhase('idle');
             alert('Error: ' + (err.message || 'Intenta de nuevo'));
@@ -410,308 +539,317 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
     const isLoading = uploadPhase === 'uploading' || uploadPhase === 'analyzing';
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto">
-            <div className="min-h-full flex items-start justify-center p-0 sm:p-4 md:p-6">
-                <div className="bg-white w-full sm:rounded-2xl shadow-2xl sm:max-w-2xl sm:my-4">
+        <>
+            {cropOpen && (
+                <CropModal
+                    imageSrc={cropImgSrc}
+                    onConfirm={doUpload}
+                    onCancel={() => { setCropOpen(false); URL.revokeObjectURL(cropImgSrc); setCropImgSrc(''); }}
+                />
+            )}
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto">
+                <div className="min-h-full flex items-start justify-center p-0 sm:p-4 md:p-6">
+                    <div className="bg-white w-full sm:rounded-2xl shadow-2xl sm:max-w-2xl sm:my-4">
 
-                    {/* ── Sticky Header ── */}
-                    <div className="sticky top-0 z-10 bg-white flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100 sm:rounded-t-2xl">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-[#0500A3]/10 p-2.5 rounded-xl">
-                                <QrCode className="w-5 h-5 text-[#0500A3]" />
+                        {/* ── Sticky Header ── */}
+                        <div className="sticky top-0 z-10 bg-white flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100 sm:rounded-t-2xl">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-[#0500A3]/10 p-2.5 rounded-xl">
+                                    <QrCode className="w-5 h-5 text-[#0500A3]" />
+                                </div>
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-900">
+                                        {isEdit ? 'Editar Activo' : 'Registrar Activo'}
+                                    </h2>
+                                    {(previewQr || isEdit) && (
+                                        <p className="text-xs font-mono text-[#0500A3] font-bold mt-0.5">
+                                            ID QR: {isEdit ? editActivo?.idQr : previewQr}
+                                        </p>
+                                    )}
+                                </div>
                             </div>
+                            <button onClick={onClose} className="p-2.5 hover:bg-slate-100 rounded-xl transition-colors active:scale-95">
+                                <X className="w-5 h-5 text-slate-500" />
+                            </button>
+                        </div>
+
+                        <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
+
+                            {/* ── SECCIÓN 1: FOTOGRAFÍA ── */}
                             <div>
-                                <h2 className="text-lg font-bold text-slate-900">
-                                    {isEdit ? 'Editar Activo' : 'Registrar Activo'}
-                                </h2>
-                                {(previewQr || isEdit) && (
-                                    <p className="text-xs font-mono text-[#0500A3] font-bold mt-0.5">
-                                        ID QR: {isEdit ? editActivo?.idQr : previewQr}
-                                    </p>
+                                <SectionTitle>📸 Fotografía del Activo</SectionTitle>
+
+                                {/* ── Progress bar: upload + AI analysis ── */}
+                                {uploadPhase === 'uploading' && (
+                                    <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
+                                            <p className="text-sm font-semibold text-blue-800">Subiendo foto...</p>
+                                        </div>
+                                        <div className="w-full h-2 bg-blue-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-blue-500 rounded-full animate-pulse" style={{ width: '60%' }} />
+                                        </div>
+                                        <p className="text-xs text-blue-600 mt-1">Las fotos del iPad pueden tardar unos segundos</p>
+                                    </div>
                                 )}
-                            </div>
-                        </div>
-                        <button onClick={onClose} className="p-2.5 hover:bg-slate-100 rounded-xl transition-colors active:scale-95">
-                            <X className="w-5 h-5 text-slate-500" />
-                        </button>
-                    </div>
-
-                    <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
-
-                        {/* ── SECCIÓN 1: FOTOGRAFÍA ── */}
-                        <div>
-                            <SectionTitle>📸 Fotografía del Activo</SectionTitle>
-
-                            {/* ── Progress bar: upload + AI analysis ── */}
-                            {uploadPhase === 'uploading' && (
-                                <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
-                                        <p className="text-sm font-semibold text-blue-800">Subiendo foto...</p>
-                                    </div>
-                                    <div className="w-full h-2 bg-blue-200 rounded-full overflow-hidden">
-                                        <div className="h-full bg-blue-500 rounded-full animate-pulse" style={{ width: '60%' }} />
-                                    </div>
-                                    <p className="text-xs text-blue-600 mt-1">Las fotos del iPad pueden tardar unos segundos</p>
-                                </div>
-                            )}
-                            {uploadPhase === 'analyzing' && (
-                                <div className="mb-4 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <Sparkles className="w-4 h-4 text-purple-500 animate-pulse shrink-0" />
-                                        <p className="text-sm font-semibold text-purple-800">IA analizando la imagen...</p>
-                                    </div>
-                                    <div className="w-full h-2 bg-purple-200 rounded-full overflow-hidden">
-                                        <div className="h-full bg-purple-500 rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '80%' }} />
-                                    </div>
-                                    <p className="text-xs text-purple-600 mt-1">Identificando activo, marca y cuenta contable</p>
-                                </div>
-                            )}
-                            {uploadPhase === 'done' && aiResult && (
-                                <div className="mb-4 flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
-                                    <Sparkles className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
-                                    <div>
-                                        <p className="text-sm font-semibold text-purple-800">
-                                            ✅ Campos completados por IA
-                                            {aiResult.confianza && <span className="ml-2 text-xs font-normal text-purple-600">Confianza: {aiResult.confianza}</span>}
-                                        </p>
-                                        <p className="text-xs text-purple-600">Revisa y ajusta los campos resaltados en morado si es necesario</p>
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <div className="flex justify-center sm:justify-start">
-                                    {imagenUrl ? (
-                                        <div className="relative">
-                                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                                            <img src={imagenUrl} alt="Activo" className="w-32 h-32 object-cover rounded-2xl border-2 border-slate-200 shadow-md" />
-                                            {!isLoading && (
-                                                <button type="button" onClick={() => { setImagenUrl(''); setAiResult(null); }}
-                                                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg active:scale-95">
-                                                    <X className="w-4 h-4" />
-                                                </button>
-                                            )}
-                                            {isLoading && (
-                                                <div className="absolute inset-0 bg-white/70 rounded-2xl flex items-center justify-center">
-                                                    <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
-                                                </div>
-                                            )}
+                                {uploadPhase === 'analyzing' && (
+                                    <div className="mb-4 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <Sparkles className="w-4 h-4 text-purple-500 animate-pulse shrink-0" />
+                                            <p className="text-sm font-semibold text-purple-800">IA analizando la imagen...</p>
                                         </div>
-                                    ) : (
-                                        <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center bg-slate-50 text-slate-400">
-                                            {uploadPhase === 'uploading' ? <Loader2 className="w-8 h-8 animate-spin text-blue-500" /> : <><Eye className="w-8 h-8 mb-1" /><span className="text-xs">Sin foto</span></>}
+                                        <div className="w-full h-2 bg-purple-200 rounded-full overflow-hidden">
+                                            <div className="h-full bg-purple-500 rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '80%' }} />
                                         </div>
-                                    )}
-                                </div>
-                                <div className="flex-1 flex flex-col gap-3 justify-center">
-                                    <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
-                                    <button type="button" onClick={() => cameraInputRef.current?.click()}
-                                        disabled={isLoading}
-                                        className="flex items-center justify-center gap-3 text-base font-semibold bg-[#0500A3] text-white py-4 px-5 rounded-2xl active:scale-95 transition-all disabled:opacity-50 shadow-md">
-                                        <Camera className="w-5 h-5" />
-                                        {isLoading ? 'Procesando...' : 'Tomar Foto con Cámara'}
-                                    </button>
-                                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                                    <button type="button" onClick={() => fileInputRef.current?.click()}
-                                        disabled={isLoading}
-                                        className="flex items-center justify-center gap-3 text-base font-medium border-2 border-slate-200 text-slate-600 py-3.5 px-5 rounded-2xl active:scale-95 transition-all disabled:opacity-50">
-                                        <Upload className="w-5 h-5" />
-                                        Seleccionar de Galería
-                                    </button>
-                                    {!isEdit && !!imagenUrl && !aiResult && (
-                                        <button type="button" onClick={analyzeWithAI}
-                                            disabled={uploadPhase === 'analyzing'}
-                                            className="mt-2 flex items-center justify-center gap-2 text-sm font-semibold bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300 py-3 px-5 rounded-xl active:scale-95 transition-all w-full">
-                                            <Sparkles className="w-4 h-4" />
-                                            {uploadPhase === 'analyzing' ? 'Analizando...' : '✨ Analizar foto con IA'}
+                                        <p className="text-xs text-purple-600 mt-1">Identificando activo, marca y cuenta contable</p>
+                                    </div>
+                                )}
+                                {uploadPhase === 'done' && aiResult && (
+                                    <div className="mb-4 flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
+                                        <Sparkles className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-purple-800">
+                                                ✅ Campos completados por IA
+                                                {aiResult.confianza && <span className="ml-2 text-xs font-normal text-purple-600">Confianza: {aiResult.confianza}</span>}
+                                            </p>
+                                            <p className="text-xs text-purple-600">Revisa y ajusta los campos resaltados en morado si es necesario</p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div className="flex flex-col sm:flex-row gap-4">
+                                    <div className="flex justify-center sm:justify-start">
+                                        {imagenUrl ? (
+                                            <div className="relative">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={imagenUrl} alt="Activo" className="w-32 h-32 object-cover rounded-2xl border-2 border-slate-200 shadow-md" />
+                                                {!isLoading && (
+                                                    <button type="button" onClick={() => { setImagenUrl(''); setAiResult(null); }}
+                                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg active:scale-95">
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                )}
+                                                {isLoading && (
+                                                    <div className="absolute inset-0 bg-white/70 rounded-2xl flex items-center justify-center">
+                                                        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ) : (
+                                            <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center bg-slate-50 text-slate-400">
+                                                {uploadPhase === 'uploading' ? <Loader2 className="w-8 h-8 animate-spin text-blue-500" /> : <><Eye className="w-8 h-8 mb-1" /><span className="text-xs">Sin foto</span></>}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 flex flex-col gap-3 justify-center">
+                                        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                                        <button type="button" onClick={() => cameraInputRef.current?.click()}
+                                            disabled={isLoading}
+                                            className="flex items-center justify-center gap-3 text-base font-semibold bg-[#0500A3] text-white py-4 px-5 rounded-2xl active:scale-95 transition-all disabled:opacity-50 shadow-md">
+                                            <Camera className="w-5 h-5" />
+                                            {isLoading ? 'Procesando...' : 'Tomar Foto con Cámara'}
                                         </button>
-                                    )}
-                                    {!isEdit && uploadPhase === 'idle' && (
-                                        <p className="text-xs text-purple-600 text-center flex items-center justify-center gap-1 mt-2">
-                                            <Sparkles className="w-3 h-3" /> Sube la foto primero, luego usa la IA
-                                        </p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* ── SECCIÓN 2: IDENTIFICACIÓN ── */}
-                        <div>
-                            <SectionTitle>📋 Identificación</SectionTitle>
-                            <div className="space-y-4">
-                                {/* Área — Searchable */}
-                                <div>
-                                    <FieldLabel required>Área / Ubicación</FieldLabel>
-                                    <Combobox
-                                        options={AREAS}
-                                        value={selectedArea}
-                                        onChange={handleAreaChange}
-                                        placeholder="Escribe o selecciona el área..."
-                                        label="area"
-                                        required
-                                    />
-                                </div>
-
-                                {/* Descripción Corta — AI controlled */}
-                                <div>
-                                    <FieldLabel required>
-                                        Nombre / Descripción Corta
-                                        {aiResult?.descripcionCorta && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
-                                    </FieldLabel>
-                                    <input type="text" name="descripcionCorta" required
-                                        value={descripcionCorta}
-                                        onChange={e => setDescripcionCorta(e.target.value)}
-                                        placeholder="Ej: Silla Ejecutiva, Escritorio 4 Gavetas..."
-                                        className={aiResult?.descripcionCorta ? inputAiCls : inputCls} />
-                                </div>
-
-                                {/* Serie + Modelo */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <FieldLabel>Número de Serie</FieldLabel>
-                                        <input type="text" name="serie" defaultValue={editActivo?.serie || ''}
-                                            placeholder="S/N si no aplica" className={inputCls} />
-                                    </div>
-                                    <div>
-                                        <FieldLabel>
-                                            Marca / Modelo
-                                            {aiResult?.modelo && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
-                                        </FieldLabel>
-                                        <input type="text" name="modelo"
-                                            value={modelo}
-                                            onChange={e => setModelo(e.target.value)}
-                                            placeholder="Ej: Yamaha P-125..."
-                                            className={aiResult?.modelo ? inputAiCls : inputCls} />
+                                        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                        <button type="button" onClick={() => fileInputRef.current?.click()}
+                                            disabled={isLoading}
+                                            className="flex items-center justify-center gap-3 text-base font-medium border-2 border-slate-200 text-slate-600 py-3.5 px-5 rounded-2xl active:scale-95 transition-all disabled:opacity-50">
+                                            <Upload className="w-5 h-5" />
+                                            Seleccionar de Galería
+                                        </button>
+                                        {!isEdit && !!imagenUrl && !aiResult && (
+                                            <button type="button" onClick={analyzeWithAI}
+                                                disabled={uploadPhase === 'analyzing'}
+                                                className="mt-2 flex items-center justify-center gap-2 text-sm font-semibold bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300 py-3 px-5 rounded-xl active:scale-95 transition-all w-full">
+                                                <Sparkles className="w-4 h-4" />
+                                                {uploadPhase === 'analyzing' ? 'Analizando...' : '✨ Analizar foto con IA'}
+                                            </button>
+                                        )}
+                                        {!isEdit && uploadPhase === 'idle' && (
+                                            <p className="text-xs text-purple-600 text-center flex items-center justify-center gap-1 mt-2">
+                                                <Sparkles className="w-3 h-3" /> Sube la foto primero, luego usa la IA
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
-
-                                {/* Descripción Detallada — AI controlled */}
-                                <div>
-                                    <FieldLabel>
-                                        Descripción Detallada
-                                        {aiResult?.descripcionDetallada && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
-                                    </FieldLabel>
-                                    <textarea name="descripcionDetallada" rows={3}
-                                        value={descripcionDetallada}
-                                        onChange={e => setDescripcionDetallada(e.target.value)}
-                                        placeholder="Marca, modelo, color, características adicionales..."
-                                        className={`${aiResult?.descripcionDetallada ? inputAiCls : inputCls} resize-none`} />
-                                </div>
                             </div>
-                        </div>
 
-                        {/* ── SECCIÓN 3: CLASIFICACIÓN CONTABLE ── */}
-                        <div>
-                            <SectionTitle>📊 Clasificación Contable</SectionTitle>
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    {/* Cuenta — Searchable + AI */}
+                            {/* ── SECCIÓN 2: IDENTIFICACIÓN ── */}
+                            <div>
+                                <SectionTitle>📋 Identificación</SectionTitle>
+                                <div className="space-y-4">
+                                    {/* Área — Searchable */}
+                                    <div>
+                                        <FieldLabel required>Área / Ubicación</FieldLabel>
+                                        <Combobox
+                                            options={AREAS}
+                                            value={selectedArea}
+                                            onChange={handleAreaChange}
+                                            placeholder="Escribe o selecciona el área..."
+                                            label="area"
+                                            required
+                                        />
+                                    </div>
+
+                                    {/* Descripción Corta — AI controlled */}
                                     <div>
                                         <FieldLabel required>
-                                            Cuenta Contable
-                                            {aiResult?.cuentaAct && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
+                                            Nombre / Descripción Corta
+                                            {aiResult?.descripcionCorta && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
                                         </FieldLabel>
-                                        <Combobox
-                                            options={CUENTAS.map(c => ({ value: c, label: c }))}
-                                            value={selectedCuenta}
-                                            onChange={setSelectedCuenta}
-                                            placeholder="Seleccionar cuenta..."
-                                            aiHighlight={!!aiResult?.cuentaAct}
-                                        />
-                                        <input type="hidden" name="cuentaAct" value={selectedCuenta} required />
+                                        <input type="text" name="descripcionCorta" required
+                                            value={descripcionCorta}
+                                            onChange={e => setDescripcionCorta(e.target.value)}
+                                            placeholder="Ej: Silla Ejecutiva, Escritorio 4 Gavetas..."
+                                            className={aiResult?.descripcionCorta ? inputAiCls : inputCls} />
                                     </div>
+
+                                    {/* Serie + Modelo */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <FieldLabel>Número de Serie</FieldLabel>
+                                            <input type="text" name="serie" defaultValue={editActivo?.serie || ''}
+                                                placeholder="S/N si no aplica" className={inputCls} />
+                                        </div>
+                                        <div>
+                                            <FieldLabel>
+                                                Marca / Modelo
+                                                {aiResult?.modelo && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
+                                            </FieldLabel>
+                                            <input type="text" name="modelo"
+                                                value={modelo}
+                                                onChange={e => setModelo(e.target.value)}
+                                                placeholder="Ej: Yamaha P-125..."
+                                                className={aiResult?.modelo ? inputAiCls : inputCls} />
+                                        </div>
+                                    </div>
+
+                                    {/* Descripción Detallada — AI controlled */}
                                     <div>
-                                        <FieldLabel>Estatus Contable</FieldLabel>
-                                        <select name="estatusContable" defaultValue={editActivo?.estatusContable || 'VIGENTE'}
-                                            className={selectCls}
-                                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '40px' }}>
-                                            {ESTATUS.map(e => <option key={e}>{e}</option>)}
-                                        </select>
+                                        <FieldLabel>
+                                            Descripción Detallada
+                                            {aiResult?.descripcionDetallada && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
+                                        </FieldLabel>
+                                        <textarea name="descripcionDetallada" rows={3}
+                                            value={descripcionDetallada}
+                                            onChange={e => setDescripcionDetallada(e.target.value)}
+                                            placeholder="Marca, modelo, color, características adicionales..."
+                                            className={`${aiResult?.descripcionDetallada ? inputAiCls : inputCls} resize-none`} />
                                     </div>
                                 </div>
-
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div>
-                                        <FieldLabel>Fecha de Adquisición</FieldLabel>
-                                        <input type="date" name="fechaAdq"
-                                            defaultValue={editActivo?.fechaAdq ? new Date(editActivo.fechaAdq).toISOString().split('T')[0] : ''}
-                                            className={inputCls} />
-                                    </div>
-                                    <div>
-                                        <FieldLabel>Costo de Adquisición (L.)</FieldLabel>
-                                        <input type="number" name="costoAdq" step="0.01" min="0"
-                                            defaultValue={editActivo?.costoAdq ? Number(editActivo.costoAdq) : ''}
-                                            placeholder="0.00" className={inputCls} />
-                                    </div>
-                                </div>
-
-                                <label className="flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 cursor-pointer hover:border-[#0500A3]/40 active:scale-[0.99] transition-all">
-                                    <input type="hidden" name="integrado" value="false" />
-                                    <input type="checkbox" name="integrado" value="true"
-                                        defaultChecked={editActivo?.integrado}
-                                        className="w-6 h-6 accent-[#0500A3] rounded" />
-                                    <div>
-                                        <div className="text-base font-semibold text-slate-800">Activo Integrado</div>
-                                        <div className="text-xs text-slate-500">El activo forma parte de un conjunto mayor</div>
-                                    </div>
-                                </label>
                             </div>
-                        </div>
 
-                        {/* ── SECCIÓN 4: ESTADO FÍSICO ── */}
-                        <div>
-                            <SectionTitle>⚠️ Estado Físico / Incidencia</SectionTitle>
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                    {[
-                                        { name: 'estadoDano', label: 'Estado / Daño', opts: ESTADO_DANO, empty: 'Sin daño ✓', default: editActivo?.estadoDano },
-                                        { name: 'tipoIncidencia', label: 'Tipo de Incidencia', opts: TIPO_INCIDENCIA, empty: '— N/A —', default: editActivo?.tipoIncidencia },
-                                        { name: 'accionRecomendada', label: 'Acción Recomendada', opts: ACCION_RECOMENDADA, empty: '— N/A —', default: editActivo?.accionRecomendada },
-                                    ].map(f => (
-                                        <div key={f.name}>
-                                            <FieldLabel>{f.label}</FieldLabel>
-                                            <select name={f.name} defaultValue={f.default || ''}
+                            {/* ── SECCIÓN 3: CLASIFICACIÓN CONTABLE ── */}
+                            <div>
+                                <SectionTitle>📊 Clasificación Contable</SectionTitle>
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {/* Cuenta — Searchable + AI */}
+                                        <div>
+                                            <FieldLabel required>
+                                                Cuenta Contable
+                                                {aiResult?.cuentaAct && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
+                                            </FieldLabel>
+                                            <Combobox
+                                                options={CUENTAS.map(c => ({ value: c, label: c }))}
+                                                value={selectedCuenta}
+                                                onChange={setSelectedCuenta}
+                                                placeholder="Seleccionar cuenta..."
+                                                aiHighlight={!!aiResult?.cuentaAct}
+                                            />
+                                            <input type="hidden" name="cuentaAct" value={selectedCuenta} required />
+                                        </div>
+                                        <div>
+                                            <FieldLabel>Estatus Contable</FieldLabel>
+                                            <select name="estatusContable" defaultValue={editActivo?.estatusContable || 'VIGENTE'}
                                                 className={selectCls}
                                                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '40px' }}>
-                                                <option value="">{f.empty}</option>
-                                                {f.opts.map(o => <option key={o}>{o}</option>)}
+                                                {ESTATUS.map(e => <option key={e}>{e}</option>)}
                                             </select>
                                         </div>
-                                    ))}
-                                </div>
-                                <div>
-                                    <FieldLabel>Responsable / Custodio</FieldLabel>
-                                    <input type="text" name="responsable"
-                                        value={responsable}
-                                        onChange={e => setResponsable(e.target.value)}
-                                        placeholder="Nombre del custodio del área" className={inputCls} />
-                                </div>
-                                <div>
-                                    <FieldLabel>Observaciones</FieldLabel>
-                                    <textarea name="observaciones" rows={3} defaultValue={editActivo?.observaciones || ''}
-                                        placeholder="Notas adicionales, reparaciones pendientes..."
-                                        className={`${inputCls} resize-none`} />
+                                    </div>
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        <div>
+                                            <FieldLabel>Fecha de Adquisición</FieldLabel>
+                                            <input type="date" name="fechaAdq"
+                                                defaultValue={editActivo?.fechaAdq ? new Date(editActivo.fechaAdq).toISOString().split('T')[0] : ''}
+                                                className={inputCls} />
+                                        </div>
+                                        <div>
+                                            <FieldLabel>Costo de Adquisición (L.)</FieldLabel>
+                                            <input type="number" name="costoAdq" step="0.01" min="0"
+                                                defaultValue={editActivo?.costoAdq ? Number(editActivo.costoAdq) : ''}
+                                                placeholder="0.00" className={inputCls} />
+                                        </div>
+                                    </div>
+
+                                    <label className="flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 cursor-pointer hover:border-[#0500A3]/40 active:scale-[0.99] transition-all">
+                                        <input type="hidden" name="integrado" value="false" />
+                                        <input type="checkbox" name="integrado" value="true"
+                                            defaultChecked={editActivo?.integrado}
+                                            className="w-6 h-6 accent-[#0500A3] rounded" />
+                                        <div>
+                                            <div className="text-base font-semibold text-slate-800">Activo Integrado</div>
+                                            <div className="text-xs text-slate-500">El activo forma parte de un conjunto mayor</div>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
-                        </div>
 
-                        {/* ── FOOTER ── */}
-                        <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-slate-100">
-                            <button type="button" onClick={onClose}
-                                className="flex-1 text-base font-medium border-2 border-slate-200 text-slate-600 py-4 rounded-2xl hover:bg-slate-50 active:scale-[0.98] transition-all">
-                                Cancelar
-                            </button>
-                            <button type="submit" disabled={isPending || isLoading}
-                                className="flex-1 flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white py-4 rounded-2xl hover:bg-[#0600c2] active:scale-[0.98] transition-all disabled:opacity-60 shadow-lg">
-                                {isPending && <Loader2 className="w-5 h-5 animate-spin" />}
-                                {isEdit ? '💾 Guardar Cambios' : '✅ Registrar Activo'}
-                            </button>
-                        </div>
-                    </form>
+                            {/* ── SECCIÓN 4: ESTADO FÍSICO ── */}
+                            <div>
+                                <SectionTitle>⚠️ Estado Físico / Incidencia</SectionTitle>
+                                <div className="space-y-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        {[
+                                            { name: 'estadoDano', label: 'Estado / Daño', opts: ESTADO_DANO, empty: 'Sin daño ✓', default: editActivo?.estadoDano },
+                                            { name: 'tipoIncidencia', label: 'Tipo de Incidencia', opts: TIPO_INCIDENCIA, empty: '— N/A —', default: editActivo?.tipoIncidencia },
+                                            { name: 'accionRecomendada', label: 'Acción Recomendada', opts: ACCION_RECOMENDADA, empty: '— N/A —', default: editActivo?.accionRecomendada },
+                                        ].map(f => (
+                                            <div key={f.name}>
+                                                <FieldLabel>{f.label}</FieldLabel>
+                                                <select name={f.name} defaultValue={f.default || ''}
+                                                    className={selectCls}
+                                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '40px' }}>
+                                                    <option value="">{f.empty}</option>
+                                                    {f.opts.map(o => <option key={o}>{o}</option>)}
+                                                </select>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div>
+                                        <FieldLabel>Responsable / Custodio</FieldLabel>
+                                        <input type="text" name="responsable"
+                                            value={responsable}
+                                            onChange={e => setResponsable(e.target.value)}
+                                            placeholder="Nombre del custodio del área" className={inputCls} />
+                                    </div>
+                                    <div>
+                                        <FieldLabel>Observaciones</FieldLabel>
+                                        <textarea name="observaciones" rows={3} defaultValue={editActivo?.observaciones || ''}
+                                            placeholder="Notas adicionales, reparaciones pendientes..."
+                                            className={`${inputCls} resize-none`} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ── FOOTER ── */}
+                            <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-slate-100">
+                                <button type="button" onClick={onClose}
+                                    className="flex-1 text-base font-medium border-2 border-slate-200 text-slate-600 py-4 rounded-2xl hover:bg-slate-50 active:scale-[0.98] transition-all">
+                                    Cancelar
+                                </button>
+                                <button type="submit" disabled={isPending || isLoading}
+                                    className="flex-1 flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white py-4 rounded-2xl hover:bg-[#0600c2] active:scale-[0.98] transition-all disabled:opacity-60 shadow-lg">
+                                    {isPending && <Loader2 className="w-5 h-5 animate-spin" />}
+                                    {isEdit ? '💾 Guardar Cambios' : '✅ Registrar Activo'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
             </div>
-        </div>
+        </>
     );
 }
 
