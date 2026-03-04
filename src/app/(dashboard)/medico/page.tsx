@@ -25,12 +25,6 @@ export default async function MedicoPage() {
         redirect("/unauthorized");
     }
 
-    // Role verification specifically for Medical Module
-    const allowedRoles = ["MEDICAL_STAFF", "ORG_ADMIN", "SUPER_ADMIN"];
-    if (!allowedRoles.includes(dbUser.role)) {
-        redirect("/unauthorized");
-    }
-
     // Pass the user information to the frontend application if necessary
     const currentUser = {
         id: user.id,

@@ -21,9 +21,6 @@ export default async function InventarioPage() {
 
     if (!dbUser) redirect('/unauthorized');
 
-    const allowedRoles = ['SUPER_ADMIN', 'ORG_ADMIN'];
-    if (!allowedRoles.includes(dbUser.role)) redirect('/unauthorized');
-
     const orgId = dbUser.organizationId;
 
     // Pre-load first page of activos and stats server-side to avoid client loading flash
