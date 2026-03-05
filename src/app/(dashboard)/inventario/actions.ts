@@ -20,6 +20,43 @@ async function getOrgId(): Promise<string> {
     return dbUser.organizationId;
 }
 
+// Mapa basado en Codigos_Activos_Elim_CORRECTO.csv para códigos base
+const PREFIX_MAP: Record<string, string> = {
+    'PB-A1-OF.PASTOR': 'ELIM-PB-A01-OF',
+    'PB-A2-OF.ADM': 'ELIM-PB-A02-OF',
+    'PB-A3-S.CUNA': 'ELIM-PB-A03-SC',
+    'PB-A4-ENFERM': 'ELIM-PB-A04-EN',
+    'PB-A5-S.JUNTAS': 'ELIM-PB-A05-SJ',
+    'PB-A6-COCINETA': 'ELIM-PB-A06-CK',
+    'PB-A7-OF.JOVEN': 'ELIM-PB-A07-OF',
+    'PB-A8-OF.EB': 'ELIM-PB-A08-OF',
+    'PB-A9-EB': 'ELIM-PB-A09-EB',
+    'PB-A10-EB': 'ELIM-PB-A10-EB',
+    'PB-A11-COCIN CAF': 'ELIM-PB-A11-CA',
+    'PB-A12-SALON CAF': 'ELIM-PB-A12-CA',
+    'PB-A13-AUDIO': 'ELIM-PB-A13-AU',
+    'PB-A14-MULTI': 'ELIM-PB-A14-ML',
+    'PB-A15-TEMPLO': 'ELIM-PB-A15-TM',
+    'PB-A16-PLATAFO': 'ELIM-PB-A16-PL',
+    'PB-A17-OF.REC': 'ELIM-PB-A17-RC',
+    'PB-A18-OF. IMCE': 'ELIM-PB-A18-OF',
+    'PA-A1-SAL.MUL': 'ELIM-PA-A19-SL',
+    'PA-A2-OFICINA': 'ELIM-PA-A20-OF',
+    'PA-A3-EB': 'ELIM-PA-A21-EB',
+    'PA-A4-EB': 'ELIM-PA-A22-EB',
+    'PA-A5-EB': 'ELIM-PA-A23-EB',
+    'PA-A6-EB': 'ELIM-PA-A24-EB',
+    'PA-B1-PASILLO': 'ELIM-PA-A25-BD',
+    'PB-B1-OFICINA': 'ELIM-PB-A26-BD',
+    'PB-B2-PASILLO': 'ELIM-PB-A27-BD',
+    'PB-B3-TRASERA': 'ELIM-PB-A28-BD',
+    'PB-B4-TEMPLO': 'ELIM-PB-A29-BD',
+    'PB-B5-TEMPLO': 'ELIM-PB-A30-BD',
+    'B6-EXTERNA CV': 'ELIM-EX-A31-BD',
+    'B7-EXTERNA': 'ELIM-EX-A32-BD',
+    'TEST-AREA': 'TEST-AREA', // fallback para test
+};
+
 // ─── Auto-generate ID QR ─────────────────────────────────────────────────────
 async function generateIdQr(organizationId: string, area: string): Promise<string> {
     // Count existing activos in this area for this org
@@ -27,7 +64,8 @@ async function generateIdQr(organizationId: string, area: string): Promise<strin
         where: { organizationId, area },
     });
     const correlative = String(count + 1).padStart(4, '0');
-    return `${area}-${correlative}`;
+    const prefijo = PREFIX_MAP[area] || area;
+    return `${prefijo}-${correlative}`;
 }
 
 // ─── READ: List with pagination, search, filters ─────────────────────────────

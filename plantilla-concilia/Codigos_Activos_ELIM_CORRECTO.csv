@@ -1,0 +1,39 @@
+#,NOMBRE DEL ÁREA,PISO,ÁREA ID,ZONA,CÓDIGO BASE,RESPONSABLE
+1,Planta Baja - Oficina del Pastor,Planta Baja,A01,Oficina,ELIM-PB-A01-OF-0001,ROGER DIAZ
+2,Planta Baja - Oficina Administrativa,Planta Baja,A02,Oficina,ELIM-PB-A02-OF-0001,ROBERTO FUNEZ
+3,Planta Baja - Sala Cuna,Planta Baja,A03,Sala Cuna,ELIM-PB-A03-SC-0001,BELINDA DE VEGA
+4,Planta Baja - Enfermería,Planta Baja,A04,Enfermería,ELIM-PB-A04-EN-0001,JORGE PUERTO
+5,Planta Baja - Sala de Juntas,Planta Baja,A05,Sala Juntas,ELIM-PB-A05-SJ-0001,JORGE PUERTO
+6,Planta Baja - Cocineta,Planta Baja,A06,Cocina/Cocineta,ELIM-PB-A06-CK-0001,MIRIAM DE PUERTO
+7,Planta Baja - Oficina de Jóvenes,Planta Baja,A07,Oficina,ELIM-PB-A07-OF-0001,JOSUE RODRIGUEZ
+8,Planta Baja - Oficina de Escuela Bíblica,Planta Baja,A08,Oficina,ELIM-PB-A08-OF-0001,YOLANDA MONROY
+9,"Planta Baja - Aula E.B. ""Rayitos""",Planta Baja,A09,Escuela Bíblica,ELIM-PB-A09-EB-0001,YOLANDA MONROY
+10,"Planta Baja - Aula E.B. ""Jardín de Gracia""",Planta Baja,A10,Escuela Bíblica,ELIM-PB-A10-EB-0001,YOLANDA MONROY
+11,Planta Baja - Cocina de Cafetería,Planta Baja,A11,Cafetería,ELIM-PB-A11-CA-0001,GENOVEBA MATUTE
+12,Planta Baja - Salón de Cafetería,Planta Baja,A12,Cafetería,ELIM-PB-A12-CA-0001,GENOVEBA MATUTE
+13,Planta Baja - Sala de Audio / Consola,Planta Baja,A13,Audio,ELIM-PB-A13-AU-0001,OSCAR BEJARANO
+14,Planta Baja - Sala de Multimedia,Planta Baja,A14,Multimedia,ELIM-PB-A14-ML-0001,ISAAC PAZ
+15,Planta Baja - Salón Templo,Planta Baja,A15,Templo,ELIM-PB-A15-TM-0001,JORGE PUERTO
+16,Planta Baja - Plataforma Instrumentos / Alabanza,Planta Baja,A16,Plataforma,ELIM-PB-A16-PL-0001,EDIE PAZ
+17,Planta Baja - Oficina / Recepción,Planta Baja,A17,Recepción,ELIM-PB-A17-RC-0001,ISAAC PAZ
+18,Planta Baja - Oficina Administrativa IMCEH,Planta Baja,A18,Oficina,ELIM-PB-A18-OF-0001,ISAAC PAZ
+19,Planta Alta - Salón de Usos Múltiples,Planta Alta,A19,Salón,ELIM-PA-A19-SL-0001,JORGE PUERTO
+20,Planta Alta - Oficina Apoyo Ministerial,Planta Alta,A20,Oficina,ELIM-PA-A20-OF-0001,DAVID DIAZ
+21,"Planta Alta - Aula E.B. ""Soldados de Cristo""",Planta Alta,A21,Escuela Bíblica,ELIM-PA-A21-EB-0001,YOLANDA MONROY
+22,"Planta Alta - Aula E.B. ""Peregrinitos""",Planta Alta,A22,Escuela Bíblica,ELIM-PA-A22-EB-0001,YOLANDA MONROY
+23,"Planta Alta - Aula E.B. ""Rosas de Sarón""",Planta Alta,A23,Escuela Bíblica,ELIM-PA-A23-EB-0001,YOLANDA MONROY
+24,"Planta Alta - Aula E.B. ""Oasis de Alegría""",Planta Alta,A24,Escuela Bíblica,ELIM-PA-A24-EB-0001,YOLANDA MONROY
+25,Planta Alta - Bodega Pasillo Aulas E.B.,Planta Alta,A25,Bodega,ELIM-PA-A25-BD-0001,JORGE PUERTO
+26,Planta Baja - Bodega Oficina Administrativa,Planta Baja,A26,Bodega,ELIM-PB-A26-BD-0001,ISAAC PAZ
+27,Planta Baja - Bodega Pasillo a Enfermería,Planta Baja,A27,Bodega,ELIM-PB-A27-BD-0001,MIRIAM DE PUERTO
+28,Planta Baja - Bodega Trasera de Cocineta,Planta Baja,A28,Bodega,ELIM-PB-A28-BD-0001,MIRIAM DE PUERTO
+29,Planta Baja - Bodega Equipo de Sonido / Templo,Planta Baja,A29,Bodega,ELIM-PB-A29-BD-0001,OSCAR BEJARANO
+30,Planta Baja - Bodega Mob. y Equipo Diverso / Templo,Planta Baja,A30,Bodega,ELIM-PB-A30-BD-0001,JORGE PUERTO
+31,Bodega Externa - Sector Cerro Verde,Exterior,A31,Bodega,ELIM-EX-A31-BD-0001,ISAAC PAZ
+32,Bodega Externa - Sector (Sin especificar),Exterior,A32,Bodega,ELIM-EX-A32-BD-0001,JESMY PEREZ
+,,,,,,
+LEYENDA:,,,,,,
+ZONAS:  OF=Oficina  |  SC=Sala Cuna  |  EN=Enfermería  |  SJ=Sala de Juntas  |  CK=Cocina/Cocineta,,,,,,
+EB=Escuela Bíblica  |  CA=Cafetería  |  AU=Audio  |  ML=Multimedia  |  TM=Templo  |  PL=Plataforma  |  RC=Recepción  |  SL=Salón  |  BD=Bodega,,,,,,
+PISOS:  PB=Planta Baja  |  PA=Planta Alta  |  EX=Exterior,,,,,,
+NOTA: Cada área inicia su correlativo en 0001. El código base identifica el área; el correlativo identifica el activo dentro de ella.,,,,,,

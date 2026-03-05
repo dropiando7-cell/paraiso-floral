@@ -1150,8 +1150,8 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                         disabled={debugPrinting}
                         title="Enviar etiqueta de prueba a la impresora Tally"
                         className={`flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 disabled:opacity-60 ${debugStatus === 'sent' ? 'bg-green-50 border-green-400 text-green-700' :
-                                debugStatus === 'error' ? 'bg-red-50 border-red-400 text-red-700' :
-                                    'bg-yellow-50 border-yellow-400 text-yellow-700 hover:bg-yellow-100'
+                            debugStatus === 'error' ? 'bg-red-50 border-red-400 text-red-700' :
+                                'bg-yellow-50 border-yellow-400 text-yellow-700 hover:bg-yellow-100'
                             }`}
                     >
                         {debugPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
