@@ -47,9 +47,9 @@ export async function GET(req: NextRequest) {
         );
     }
 
-    // Producción: QR del activo
-    const qrData = encodeURIComponent(`${req.nextUrl.origin}/activo/${idQr}`);
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${qrData}&margin=0`;
+    // Producción: QR del activo (Apunta a la ficha técnica)
+    const qrData = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${qrData}&margin=0&color=000000&bgcolor=FFFFFF`;
 
     return new ImageResponse(
         (
@@ -60,55 +60,84 @@ export async function GET(req: NextRequest) {
                     width: W,
                     height: H,
                     backgroundColor: '#FFFFFF',
-                    padding: '8px',
+                    padding: '12px 14px',
                     fontFamily: 'sans-serif',
                     boxSizing: 'border-box',
+                    position: 'relative',
                 }}
             >
-                {/* Columna izquierda - Texto */}
+                {/* Columna Izquierda - Datos */}
                 <div
                     style={{
                         display: 'flex',
                         flexDirection: 'column',
                         flex: 1,
-                        paddingRight: '6px',
+                        paddingRight: '10px',
                         justifyContent: 'space-between',
                     }}
                 >
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ fontSize: 7, color: '#555' }}>Misión Cristiana Elim — HN</div>
+                    {/* Header con Logo */}
+                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: '4px' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blue-vineta.png"
+                            width={45}
+                            height={45}
+                            alt="Logo Elim"
+                            style={{ objectFit: 'contain', marginRight: '8px' }}
+                        />
+                        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                            <span style={{ fontSize: 9, color: '#000', lineHeight: 1 }}>Iglesia de Cristo</span>
+                            <span style={{ fontSize: 13, fontWeight: 900, color: '#000', lineHeight: 1.1 }}>Misión Cristiana Elim</span>
+                            <span style={{ fontSize: 9, color: '#000', lineHeight: 1 }}>Honduras</span>
+                        </div>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ fontSize: 7, color: '#333', fontWeight: 600 }}>ID.</div>
-                        <div style={{ fontSize: 13, fontWeight: 900, color: '#CC0000', lineHeight: 1 }}>
+
+                    {/* Fila ID */}
+                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'baseline', marginBottom: '4px' }}>
+                        <span style={{ fontSize: 24, fontWeight: 500, color: '#000', marginRight: '6px' }}>ID.</span>
+                        <span style={{ fontSize: 32, fontWeight: 800, color: '#CC0000', letterSpacing: '-1px' }}>
                             {idQr}
-                        </div>
+                        </span>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <div style={{ fontSize: 7, fontWeight: 700, color: '#000', lineHeight: 1.3 }}>
-                            CTA. {cuenta.substring(0, 14)}
-                        </div>
-                        <div style={{ fontSize: 7, fontWeight: 700, color: '#000', lineHeight: 1.3 }}>
-                            AREA.{area}
-                        </div>
+
+                    {/* Fila CTA y MOB */}
+                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: '2px' }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: '#000' }}>
+                            CTA. {cuenta.substring(0, 18).toUpperCase()}
+                        </span>
                     </div>
-                    <div style={{ fontSize: 7, color: '#555', lineHeight: 1.2 }}>
-                        {descripcion.substring(0, 40)}
+
+                    {/* Fila AREA */}
+                    <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: 14, fontWeight: 500, color: '#000' }}>
+                            AREA. {area.substring(0, 25).toUpperCase()}
+                        </span>
+                    </div>
+
+                    {/* Footer - Nombre del Activo y Serie */}
+                    <div style={{ display: 'flex', flexDirection: 'column', marginTop: 'auto' }}>
+                        <span style={{ fontSize: 16, fontWeight: 600, color: '#000', lineHeight: 1.1, textTransform: 'uppercase' }}>
+                            {descripcion.substring(0, 30)}
+                        </span>
+                        <span style={{ fontSize: 10, fontWeight: 500, color: '#000', marginTop: '2px', textTransform: 'uppercase' }}>
+                            SISTEMAS ELIM - GESTIÓN DE ACTIVOS
+                        </span>
                     </div>
                 </div>
 
-                {/* QR */}
+                {/* Columna Derecha - Código QR grande */}
                 <div
                     style={{
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'center',
-                        width: 120,
-                        flexShrink: 0,
+                        justifyContent: 'flex-end',
+                        width: 150,
+                        height: '100%',
                     }}
                 >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={qrUrl} width={115} height={115} alt="QR" style={{ display: 'block' }} />
+                    <img src={qrUrl} width={150} height={150} alt="QR Ficha Tecnica" style={{ backgroundColor: '#fff' }} />
                 </div>
             </div>
         ),
