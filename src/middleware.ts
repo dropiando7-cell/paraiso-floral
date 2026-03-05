@@ -17,7 +17,8 @@ export async function middleware(request: NextRequest) {
         url.pathname.startsWith('/login') ||
         url.pathname.startsWith('/auth/callback') ||
         url.pathname.startsWith('/auth/mfa') ||
-        url.pathname.startsWith('/api/checkin/pass')
+        url.pathname.startsWith('/api/checkin/pass') ||
+        url.pathname.startsWith('/api/impresion')
 
     if (!user && !isPublicRoute) {
         url.pathname = '/login'
