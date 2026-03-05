@@ -63,6 +63,7 @@ model Organization {
   tasks            Task[]
   roleTemplates    RoleTemplate[]
   activosFijos     ActivoFijo[]
+  colaImpresion    ColaImpresion[]
 
   @@map("organizations")
 }
@@ -395,7 +396,31 @@ model ActivoFijo {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  colaImpresion ColaImpresion[]
+
   @@unique([organizationId, idQr])
   @@index([organizationId])
   @@map("activos_fijos")
+}
+
+// ==========================================
+// SERVIDOR DE IMPRESION LOCAL
+// ==========================================
+
+model ColaImpresion {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  activoId       String   @db.Uuid
+  urlImagen      String   // URL de la etiqueta en S3/Cloudflare R2
+  estado         String   @default("PENDIENTE") // PENDIENTE | COMPLETADO
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  activo         ActivoFijo   @relation(fields: [activoId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([estado])
+  @@map("cola_impresion")
 }

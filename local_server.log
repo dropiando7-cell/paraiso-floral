@@ -1,0 +1,26 @@
+
+> temp-app@0.1.0 start
+> next start
+
+▲ Next.js 16.1.6
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.10:3000
+
+✓ Starting...
+use-cache: initializing cache handlers
+use-cache: setting "default" cache handler from default
+use-cache: setting "remote" cache handler from default
+✓ Ready in 280ms
+use-cache: cache handlers already initialized
+IncrementalCache: using filesystem cache handler
+FileSystemCache: using memory store for fetch cache
+use-cache: cache handlers already initialized
+IncrementalCache: using filesystem cache handler
+FileSystemCache: memory store already initialized
+use-cache: cache handlers already initialized
+IncrementalCache: using filesystem cache handler
+FileSystemCache: memory store already initialized
+use-cache: cache handlers already initialized
+IncrementalCache: using filesystem cache handler
+FileSystemCache: using memory store for fetch cache
+FileSystemCache: get /login APP_PAGE false

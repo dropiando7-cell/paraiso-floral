@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useRef, useCallback } from 'react';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
-    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown
+    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer
 } from 'lucide-react';
 import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr } from './actions';
 import { removeBackground } from '@imgly/background-removal';
@@ -1057,6 +1057,64 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
     const [showFilters, setShowFilters] = useState(false);
     const [viewActivo, setViewActivo] = useState<Activo | null>(null);
     const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
+    const [printingId, setPrintingId] = useState<string | null>(null);
+    const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+    async function handlePrintLabel(activo: Activo) {
+        setPrintingId(activo.id);
+        setPrintStatus('sending');
+        try {
+            // Construir la URL de la etiqueta generada
+            const params = new URLSearchParams({
+                idQr: activo.idQr,
+                descripcion: activo.descripcionCorta,
+                area: activo.area,
+                cuenta: activo.cuentaAct,
+            });
+            const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
+
+            // Encolar en la base de datos para que la laptop lo reciba
+            const res = await fetch('/api/impresion/encolar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ activoId: activo.id, urlImagen }),
+            });
+
+            if (!res.ok) throw new Error('Error al encolar impresión');
+            setPrintStatus('sent');
+            setTimeout(() => { setPrintStatus('idle'); setPrintingId(null); }, 3000);
+        } catch {
+            setPrintStatus('error');
+            setTimeout(() => { setPrintStatus('idle'); setPrintingId(null); }, 3000);
+        }
+    }
+
+    const [debugPrinting, setDebugPrinting] = useState(false);
+    const [debugStatus, setDebugStatus] = useState<'idle' | 'sent' | 'error'>('idle');
+
+    async function handleDebugPrint() {
+        setDebugPrinting(true);
+        setDebugStatus('idle');
+        try {
+            // Etiqueta de prueba: texto simple "IMPRESION EXITOSA ELIM"
+            const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?debug=1&idQr=TEST-DEBUG`;
+            const res = await fetch('/api/impresion/encolar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    activoId: '00000000-0000-0000-0000-000000000000', // ID placeholder para debug
+                    urlImagen,
+                }),
+            });
+            if (!res.ok) throw new Error();
+            setDebugStatus('sent');
+        } catch {
+            setDebugStatus('error');
+        } finally {
+            setDebugPrinting(false);
+            setTimeout(() => setDebugStatus('idle'), 4000);
+        }
+    }
 
     async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus) {
         setLoading(true);
@@ -1085,10 +1143,25 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                     </h1>
                     <p className="text-sm text-slate-500 mt-0.5">Control patrimonial físico y contable · Iglesia Elim Central</p>
                 </div>
-                <button onClick={() => { setEditActivo(null); setModalOpen(true); }}
-                    className="flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl hover:bg-[#0600c2] active:scale-95 transition-all shadow-md">
-                    <Plus className="w-5 h-5" /> Registrar Activo
-                </button>
+                <div className="flex items-center gap-2">
+                    {/* Botón de debug para probar el servidor de impresión */}
+                    <button
+                        onClick={handleDebugPrint}
+                        disabled={debugPrinting}
+                        title="Enviar etiqueta de prueba a la impresora Tally"
+                        className={`flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 disabled:opacity-60 ${debugStatus === 'sent' ? 'bg-green-50 border-green-400 text-green-700' :
+                                debugStatus === 'error' ? 'bg-red-50 border-red-400 text-red-700' :
+                                    'bg-yellow-50 border-yellow-400 text-yellow-700 hover:bg-yellow-100'
+                            }`}
+                    >
+                        {debugPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                        {debugStatus === 'sent' ? '✅ Enviado' : debugStatus === 'error' ? '❌ Error' : 'Debug Impr.'}
+                    </button>
+                    <button onClick={() => { setEditActivo(null); setModalOpen(true); }}
+                        className="flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl hover:bg-[#0600c2] active:scale-95 transition-all shadow-md">
+                        <Plus className="w-5 h-5" /> Registrar Activo
+                    </button>
+                </div>
             </div>
 
             <StatsCards stats={stats} />
@@ -1322,9 +1395,30 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                                     )}
                                 </div>
                             </div>
-                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex gap-3">
-                                <button onClick={() => { setViewActivo(null); setEditActivo(viewActivo); setModalOpen(true); }} className="flex-1 bg-[#0500A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#0600c2] transition-colors"><Pencil className="w-4 h-4" /> Editar Activo</button>
-                                <button onClick={() => setViewActivo(null)} className="flex-1 border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-semibold hover:bg-slate-100 transition-colors">Cerrar</button>
+                            <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-3">
+                                {/* Botón imprimir etiqueta */}
+                                <button
+                                    onClick={() => handlePrintLabel(viewActivo!)}
+                                    disabled={printingId === viewActivo?.id}
+                                    className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold transition-all active:scale-95 shadow-md ${printStatus === 'sent' && printingId === viewActivo?.id
+                                        ? 'bg-green-500 text-white'
+                                        : printStatus === 'error' && printingId === viewActivo?.id
+                                            ? 'bg-red-500 text-white'
+                                            : 'bg-black text-white hover:bg-black/80'
+                                        } disabled:opacity-70`}
+                                >
+                                    {printingId === viewActivo?.id && printStatus === 'sending' && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    {printingId === viewActivo?.id && printStatus === 'sent' && <CheckCircle2 className="w-4 h-4" />}
+                                    {(printingId !== viewActivo?.id || printStatus === 'idle') && <Printer className="w-4 h-4" />}
+                                    {printingId === viewActivo?.id && printStatus === 'sending' ? 'Enviando a impresora...' :
+                                        printingId === viewActivo?.id && printStatus === 'sent' ? '✅ Enviado a impresora local' :
+                                            printingId === viewActivo?.id && printStatus === 'error' ? '❌ Error al enviar' :
+                                                '🖨️ Imprimir Etiqueta'}
+                                </button>
+                                <div className="flex gap-3">
+                                    <button onClick={() => { setViewActivo(null); setEditActivo(viewActivo); setModalOpen(true); }} className="flex-1 bg-[#0500A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#0600c2] transition-colors"><Pencil className="w-4 h-4" /> Editar Activo</button>
+                                    <button onClick={() => setViewActivo(null)} className="flex-1 border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-semibold hover:bg-slate-100 transition-colors">Cerrar</button>
+                                </div>
                             </div>
                         </div>
                     </div>
