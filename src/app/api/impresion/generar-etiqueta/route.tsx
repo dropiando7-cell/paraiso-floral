@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
     const H = 203;
 
     if (debug) {
-        // Etiqueta de prueba simple para verificar que el servidor Python recibe la impresión
+        // Etiqueta de prueba bien grande y en NEGRO PURO para impresoras térmicas
         return new ImageResponse(
             (
                 <div
@@ -35,14 +35,11 @@ export async function GET(req: NextRequest) {
                         fontFamily: 'sans-serif',
                     }}
                 >
-                    <div style={{ fontSize: 18, fontWeight: 900, color: '#000', textAlign: 'center' }}>
-                        ✅ IMPRESION EXITOSA
+                    <div style={{ fontSize: 40, fontWeight: 900, color: '#000000', textAlign: 'center', letterSpacing: '-1px' }}>
+                        God Bless You
                     </div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0500A3', marginTop: 6, textAlign: 'center' }}>
-                        ELIM - Activos Fijos
-                    </div>
-                    <div style={{ fontSize: 9, color: '#888', marginTop: 6, textAlign: 'center' }}>
-                        sistemaselim.app — Tally Dascom DL-210
+                    <div style={{ fontSize: 24, fontWeight: 800, color: '#000000', marginTop: 10, textAlign: 'center' }}>
+                        Prueba de Impresión
                     </div>
                 </div>
             ),
