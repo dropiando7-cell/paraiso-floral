@@ -38,7 +38,7 @@ const PREFIX_MAP: Record<string, string> = {
     'PB-A14-MULTI': 'ELIM-PB-A14-ML',
     'PB-A15-TEMPLO': 'ELIM-PB-A15-TM',
     'PB-A16-PLATAFO': 'ELIM-PB-A16-PL',
-    'PB-A17-OF.REC': 'ELIM-PB-A17-RC',
+    'PB-A17-OF': 'ELIM-PB-A17-OF',
     'PB-A18-OF. IMCE': 'ELIM-PB-A18-OF',
     'PA-A1-SAL.MUL': 'ELIM-PA-A19-SL',
     'PA-A2-OFICINA': 'ELIM-PA-A20-OF',
