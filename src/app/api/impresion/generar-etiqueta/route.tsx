@@ -78,10 +78,10 @@ export async function GET(req: NextRequest) {
                 }}
             >
                 {/* Columna Izquierda - Estilo Stacked Clean */}
-                <div style={{ display: 'flex', flexDirection: 'column', width: 284, flexShrink: 0, height: H, backgroundColor: '#FFFFFF' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', width: 270, flexShrink: 0, height: H, backgroundColor: '#FFFFFF' }}>
 
                     {/* Header - Fondo Blanco (Logo completo) */}
-                    <div style={{ display: 'flex', flexDirection: 'row', height: 54, padding: '20px 4px 2px', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'row', height: 54, padding: '16px 4px 2px', alignItems: 'center', justifyContent: 'center' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blue-vineta.png"
@@ -94,8 +94,9 @@ export async function GET(req: NextRequest) {
 
                     {/* ID Row - Fondo Blanco */}
                     <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', color: '#000000', padding: '4px 8px', height: 52, justifyContent: 'center', overflow: 'hidden', borderBottom: '2.5px solid #000', width: '100%', boxSizing: 'border-box' }}>
-                        <span style={{ fontSize: 11, fontWeight: 900, color: '#333333', letterSpacing: 1 }}>ID DEL ACTIVO</span>
-                        <span style={{ fontSize: idFontSize, fontWeight: 900, lineHeight: 1.1, marginTop: '1px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#000000', width: '100%' }}>
+                        <span style={{ fontSize: 13, fontWeight: 900, color: '#333333', letterSpacing: 1, fontFamily: 'sans-serif' }}>ID DEL ACTIVO</span>
+                        {/* NOTA: weight en 900 es el maximo standard, podemos simular más stroke si fuera web, pero en ImageResponse 900 es lo más denso */}
+                        <span style={{ fontSize: idFontSize, fontWeight: 900, lineHeight: 1.1, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#000000', width: '100%', fontFamily: 'sans-serif', letterSpacing: -0.5 }}>
                             {finalIdQr}
                         </span>
                     </div>
@@ -107,11 +108,11 @@ export async function GET(req: NextRequest) {
                         {/* Cuenta */}
                         <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center', borderBottom: '2.5px solid #000' }}>
                             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 10, fontWeight: 900, color: '#000' }}>CUENTA</span>
+                                <span style={{ fontSize: 11, fontWeight: 900, color: '#000', fontFamily: 'sans-serif' }}>CUENTA</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
-                                <span style={{ fontSize: cuentaFontSize, fontWeight: 900, color: '#000', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <span style={{ fontSize: cuentaFontSize + 1, fontWeight: 900, color: '#000', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'sans-serif', letterSpacing: -0.2 }}>
                                     {cuentaStr}
                                 </span>
                             </div>
@@ -120,11 +121,11 @@ export async function GET(req: NextRequest) {
                         {/* Área */}
                         <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center', borderBottom: '2.5px solid #000' }}>
                             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 10, fontWeight: 900, color: '#000' }}>ÁREA</span>
+                                <span style={{ fontSize: 11, fontWeight: 900, color: '#000', fontFamily: 'sans-serif' }}>ÁREA</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
-                                <span style={{ fontSize: areaFontSize, fontWeight: 900, color: '#000', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <span style={{ fontSize: areaFontSize + 1, fontWeight: 900, color: '#000', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'sans-serif', letterSpacing: -0.2 }}>
                                     {areaStr}
                                 </span>
                             </div>
@@ -133,11 +134,11 @@ export async function GET(req: NextRequest) {
                         {/* Descripción (Antes Tipo) */}
                         <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center' }}>
                             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 10, fontWeight: 900, color: '#000' }}>DESC</span>
+                                <span style={{ fontSize: 11, fontWeight: 900, color: '#000', fontFamily: 'sans-serif' }}>DESC</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
-                                <span style={{ fontSize: descFontSize, fontWeight: 900, color: '#000', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                <span style={{ fontSize: descFontSize + 1, fontWeight: 900, color: '#000', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'sans-serif', letterSpacing: -0.2 }}>
                                     {descStr}
                                 </span>
                             </div>
@@ -150,14 +151,14 @@ export async function GET(req: NextRequest) {
                 <div style={{ width: 4, flexShrink: 0, backgroundColor: '#000000', height: '100%' }} />
 
                 {/* Columna Derecha - QR */}
-                <div style={{ display: 'flex', flexDirection: 'column', width: 118, flexShrink: 0, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', height: H, padding: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', width: 132, flexShrink: 0, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', height: H, padding: '4px' }}>
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={qrUrl} width={96} height={96} alt="QR" style={{ backgroundColor: '#fff' }} />
+                        <img src={qrUrl} width={118} height={118} alt="QR" style={{ backgroundColor: '#fff' }} />
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: 'center', marginTop: '6px' }}>
-                        <span style={{ fontSize: 9, fontWeight: 900, color: '#000' }}>sistemaselim.app</span>
+                        <span style={{ fontSize: 11, fontWeight: 900, color: '#000', fontFamily: 'sans-serif', letterSpacing: 0.5 }}>sistemaselim.app</span>
                     </div>
                 </div>
 
