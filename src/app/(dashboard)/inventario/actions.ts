@@ -53,7 +53,7 @@ const PREFIX_MAP: Record<string, string> = {
     'PB-B4-TEMPLO': 'ELIM-PB-A29-BD',
     'PB-B5-TEMPLO': 'ELIM-PB-A30-BD',
     'B6-EXTERNA CV': 'ELIM-EX-A31-BD',
-    'B7-EXTERNA': 'ELIM-EX-A32-BD',
+    'PB-A32-PT.VIGILANCIA': 'ELIM-PB-A32-PT',
     'TEST-AREA': 'TEST-AREA', // fallback para test
 };
 

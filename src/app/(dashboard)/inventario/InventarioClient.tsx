@@ -44,7 +44,7 @@ export const AREAS = [
     { value: 'PB-B4-TEMPLO', label: 'PB-B4-TEMPLO — Planta Baja- Bodega de Equipo de Sonido/al Templo' },
     { value: 'PB-B5-TEMPLO', label: 'PB-B5-TEMPLO — Planta Baja- Bodega de Mob. y Eq Diverso/al Templo' },
     { value: 'B6-EXTERNA CV', label: 'B6-EXTERNA CV — Bodega Externa /Sector Cerro Verde' },
-    { value: 'B7-EXTERNA', label: 'B7-EXTERNA — Bodega Externa /Sector' },
+    { value: 'PB-A32-PT.VIGILANCIA', label: 'PB-A32-PT.VIGILANCIA — Planta Baja - Pasillo Externo Sector Vigilancia' },
 ];
 
 // Responsable por defecto según área (editable en el formulario)
@@ -80,7 +80,7 @@ export const RESPONSABLES: Record<string, string> = {
     'PB-B4-TEMPLO': 'OSCAR BEJARANO',
     'PB-B5-TEMPLO': 'JORGE PUERTO',
     'B6-EXTERNA CV': 'ISAAC PAZ',
-    'B7-EXTERNA': 'JESMY PEREZ',
+    'PB-A32-PT.VIGILANCIA': 'JESMY PEREZ',
 };
 
 export const CUENTAS = [
