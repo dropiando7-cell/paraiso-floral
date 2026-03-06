@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
             ? `${activo.descripcionCorta} | Ficha Técnica — Sistemas Elim`
             : 'Activo no encontrado | Sistemas Elim',
         description: activo
-            ? `Ficha técnica del activo ${activo.idQr} de la Misión Cristiana Elim Honduras`
+            ? `Ficha técnica del activo ${activo.idQr} de Iglesia Misión Cristiana Elim Honduras`
             : 'El activo solicitado no fue encontrado.',
     };
 }
