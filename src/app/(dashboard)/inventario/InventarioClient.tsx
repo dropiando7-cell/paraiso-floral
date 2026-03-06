@@ -1243,10 +1243,10 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                                 <td className="px-3 py-3"><EstatusBadge estatus={a.estatusContable} /></td>
                                 <td className="px-3 py-3"><DanoBadge dano={a.estadoDano} /></td>
                                 <td className="px-3 py-3 max-w-[100px]"><div className="text-[10px] text-slate-600 truncate">{a.responsable || '—'}</div></td>
-                                <td className="px-3 py-3">
-                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button onClick={(e) => { e.stopPropagation(); setEditActivo(a); setModalOpen(true); }} className="p-2 hover:bg-slate-100 rounded-lg transition-colors" title="Editar"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); setDeleteActivo(a); }} className="p-2 hover:bg-red-50 rounded-lg transition-colors" title="Eliminar"><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
+                                <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                                    <div className="flex items-center gap-1">
+                                        <button onClick={(e) => { e.stopPropagation(); setEditActivo(a); setModalOpen(true); }} className="p-2 hover:bg-slate-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Editar"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); setDeleteActivo(a); }} className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-400 hover:text-red-600" title="Eliminar activo"><Trash2 className="w-3.5 h-3.5" /></button>
                                     </div>
                                 </td>
                             </tr>
@@ -1416,7 +1416,14 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                                                 '🖨️ Imprimir Etiqueta'}
                                 </button>
                                 <div className="flex gap-3">
-                                    <button onClick={() => { setViewActivo(null); setEditActivo(viewActivo); setModalOpen(true); }} className="flex-1 bg-[#0500A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#0600c2] transition-colors"><Pencil className="w-4 h-4" /> Editar Activo</button>
+                                    <button onClick={() => { setViewActivo(null); setEditActivo(viewActivo); setModalOpen(true); }} className="flex-1 bg-[#0500A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#0600c2] transition-colors"><Pencil className="w-4 h-4" /> Editar</button>
+                                    <button
+                                        onClick={() => { const a = viewActivo; setViewActivo(null); setDeleteActivo(a); }}
+                                        className="px-4 bg-red-50 text-red-600 border-2 border-red-200 py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-red-100 hover:border-red-300 transition-colors"
+                                        title="Eliminar activo"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
                                     <button onClick={() => setViewActivo(null)} className="flex-1 border-2 border-slate-200 text-slate-600 py-3 rounded-xl font-semibold hover:bg-slate-100 transition-colors">Cerrar</button>
                                 </div>
                             </div>

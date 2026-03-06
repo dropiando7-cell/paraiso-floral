@@ -3,8 +3,8 @@ import { DollarSign, TrendingUp, Users, Activity, ArrowUpRight } from 'lucide-re
 const kpis = [
     {
         title: 'Saldo Consolidado',
-        value: 'L 3,245,890',
-        trend: '+15.2%',
+        value: 'L 0',
+        trend: '0%',
         icon: DollarSign,
         iconColor: 'text-success',
         iconBg: 'bg-emerald-50',
@@ -12,8 +12,8 @@ const kpis = [
     },
     {
         title: 'Activos Totales',
-        value: 'L 18,450,200',
-        trend: '+8.4%',
+        value: 'L 0',
+        trend: '0%',
         icon: TrendingUp,
         iconColor: 'text-brand-500',
         iconBg: 'bg-brand-50',
@@ -21,8 +21,8 @@ const kpis = [
     },
     {
         title: 'Miembros Activos',
-        value: '12,458',
-        trend: '+3.1%',
+        value: '0',
+        trend: '0%',
         icon: Users,
         iconColor: 'text-event-purple',
         iconBg: 'bg-event-purple/10',
@@ -30,8 +30,8 @@ const kpis = [
     },
     {
         title: 'Transacciones Hoy',
-        value: '156',
-        trend: '+22%',
+        value: '0',
+        trend: '0%',
         icon: Activity,
         iconColor: 'text-orange-500',
         iconBg: 'bg-orange-50',

@@ -41,9 +41,8 @@ export async function GET(req: NextRequest) {
         finalCuenta = 'MOB.TEMPLO';
     }
 
-    // 1" x 2" a 203 DPI
-    // Ancho = 2" * 203 = 406px, Alto = 1" * 203 = 203px  
-    // (orientación horizontal: 2" de ancho, 1" de alto)
+    // 2" x 1" a 203 DPI (50.8mm x 25.4mm)
+    // Ancho = 2" * 203 = 406px, Alto = 1" * 203 = 203px
     const W = 406;
     const H = 203;
 
@@ -73,13 +72,13 @@ export async function GET(req: NextRequest) {
                     flexDirection: 'row',
                     width: W,
                     height: H,
-                    backgroundColor: '#000000', // Borde general negro entre columnas
+                    backgroundColor: '#000000', // Borde negro total entre columnas
                     fontFamily: 'sans-serif',
                     boxSizing: 'border-box',
                 }}
             >
                 {/* Columna Izquierda - Estilo Stacked Clean */}
-                <div style={{ display: 'flex', flexDirection: 'column', width: 284, height: H, backgroundColor: '#FFFFFF' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', width: 284, flexShrink: 0, height: H, backgroundColor: '#FFFFFF' }}>
 
                     {/* Header - Fondo Blanco (Logo completo) */}
                     <div style={{ display: 'flex', flexDirection: 'row', height: 46, padding: '4px', alignItems: 'center', justifyContent: 'center' }}>
@@ -95,8 +94,8 @@ export async function GET(req: NextRequest) {
 
                     {/* ID Row - Fondo Negro */}
                     <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#000000', color: '#FFFFFF', padding: '4px 12px', height: 60, justifyContent: 'center', overflow: 'hidden' }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: '#AAAAAA', letterSpacing: '2px' }}>// ID ACTIVO</span>
-                        <span style={{ fontSize: idFontSize, fontWeight: 900, lineHeight: 1.1, letterSpacing: '1px', marginTop: '0px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: '#AAAAAA' }}>// ID ACTIVO</span>
+                        <span style={{ fontSize: idFontSize, fontWeight: 900, lineHeight: 1.1, marginTop: '0px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {finalIdQr}
                         </span>
                     </div>
@@ -108,7 +107,7 @@ export async function GET(req: NextRequest) {
                         {/* Cuenta */}
                         <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center', borderBottom: '2.5px solid #000' }}>
                             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 8.5, fontWeight: 800, color: '#666', letterSpacing: '1px' }}>CUENTA</span>
+                                <span style={{ fontSize: 8.5, fontWeight: 800, color: '#666' }}>CUENTA</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
@@ -121,7 +120,7 @@ export async function GET(req: NextRequest) {
                         {/* Área */}
                         <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center', borderBottom: '2.5px solid #000' }}>
                             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 8.5, fontWeight: 800, color: '#666', letterSpacing: '1px' }}>ÁREA</span>
+                                <span style={{ fontSize: 8.5, fontWeight: 800, color: '#666' }}>ÁREA</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
@@ -134,7 +133,7 @@ export async function GET(req: NextRequest) {
                         {/* Descripción (Antes Tipo) */}
                         <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center' }}>
                             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 8.5, fontWeight: 800, color: '#666', letterSpacing: '1px' }}>DESC</span>
+                                <span style={{ fontSize: 8.5, fontWeight: 800, color: '#666' }}>DESC</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
@@ -148,17 +147,17 @@ export async function GET(req: NextRequest) {
                 </div>
 
                 {/* LÍNEA DIVISORIA */}
-                <div style={{ width: 4, backgroundColor: '#000000', height: '100%' }} />
+                <div style={{ width: 4, flexShrink: 0, backgroundColor: '#000000', height: '100%' }} />
 
                 {/* Columna Derecha - QR */}
-                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', height: H, padding: '8px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', width: 118, flexShrink: 0, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', height: H, padding: '8px' }}>
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={qrUrl} width={96} height={96} alt="QR" style={{ backgroundColor: '#fff' }} />
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: 'center', marginTop: '6px' }}>
-                        <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: '1.5px', color: '#000' }}>sistemaselim.app</span>
+                        <span style={{ fontSize: 9, fontWeight: 900, color: '#000' }}>sistemaselim.app</span>
                     </div>
                 </div>
 

@@ -18,7 +18,9 @@ export async function middleware(request: NextRequest) {
         url.pathname.startsWith('/auth/callback') ||
         url.pathname.startsWith('/auth/mfa') ||
         url.pathname.startsWith('/api/checkin/pass') ||
-        url.pathname.startsWith('/api/impresion')
+        url.pathname.startsWith('/api/impresion') ||
+        url.pathname.startsWith('/api/inventario/ficha') ||  // Public: QR ficha técnica API
+        url.pathname.startsWith('/ficha-tecnica')            // Public: QR ficha técnica page
 
     if (!user && !isPublicRoute) {
         url.pathname = '/login'
