@@ -129,7 +129,7 @@ type AiResult = {
 
 // ─── Searchable Combobox ──────────────────────────────────────────────────────
 function Combobox({
-    options, value, onChange, placeholder, required, label, aiHighlight
+    options, value, onChange, placeholder, required, label, aiHighlight, allowClear
 }: {
     options: { value: string; label: string }[];
     value: string;
@@ -138,6 +138,7 @@ function Combobox({
     required?: boolean;
     label?: string;
     aiHighlight?: boolean;
+    allowClear?: boolean;
 }) {
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
@@ -170,7 +171,19 @@ function Combobox({
                 <span className={`truncate ${selected ? 'text-slate-900' : 'text-slate-400'}`}>
                     {selected ? selected.label : (placeholder || 'Seleccionar...')}
                 </span>
-                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform shrink-0 ml-2 ${open ? 'rotate-180' : ''}`} />
+                <div className="flex items-center gap-1 shrink-0 ml-2">
+                    {allowClear && value && (
+                        <span
+                            role="button"
+                            onClick={(e) => { e.stopPropagation(); onChange(''); setOpen(false); setQuery(''); }}
+                            className="text-slate-400 hover:text-slate-600 transition-colors p-0.5 rounded"
+                            title="Limpiar filtro"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </span>
+                    )}
+                    <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+                </div>
             </button>
 
             {/* Dropdown — min-w-full so it's never narrower than the trigger */}
@@ -193,6 +206,13 @@ function Combobox({
                     </div>
                     {/* Options */}
                     <div className="max-h-64 overflow-y-auto">
+                        {allowClear && (
+                            <button type="button" onClick={() => select('')}
+                                className={`w-full text-left px-4 py-3 text-sm whitespace-nowrap hover:bg-blue-50 transition-colors italic
+                                    ${!value ? 'bg-[#0500A3]/5 font-semibold text-[#0500A3]' : 'text-slate-400'}`}>
+                                — Todas las áreas —
+                            </button>
+                        )}
                         {filtered.length === 0 ? (
                             <div className="text-sm text-slate-400 text-center py-4">Sin resultados para &ldquo;{query}&rdquo;</div>
                         ) : filtered.map(o => (
@@ -1186,6 +1206,7 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                         <label className="block text-xs font-semibold text-slate-500 mb-1.5">Área</label>
                         <Combobox options={AREAS} value={filtroArea}
                             onChange={setFiltroArea}
+                            allowClear
                             placeholder="Todas las áreas" />
                     </div>
                     <div>
