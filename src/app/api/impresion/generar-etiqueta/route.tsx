@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
                 <div style={{ display: 'flex', flexDirection: 'column', width: 284, flexShrink: 0, height: H, backgroundColor: '#FFFFFF' }}>
 
                     {/* Header - Fondo Blanco (Logo completo) */}
-                    <div style={{ display: 'flex', flexDirection: 'row', height: 54, padding: '6px 4px 4px', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'row', height: 54, padding: '8px 4px 2px', alignItems: 'center', justifyContent: 'center' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blue-vineta.png"
@@ -93,9 +93,9 @@ export async function GET(req: NextRequest) {
                     </div>
 
                     {/* ID Row - Fondo Blanco */}
-                    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', color: '#000000', padding: '4px 12px', height: 52, justifyContent: 'center', overflow: 'hidden', borderBottom: '2.5px solid #000' }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: '#888888' }}>// ID ACTIVO</span>
-                        <span style={{ fontSize: idFontSize, fontWeight: 900, lineHeight: 1.1, marginTop: '0px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#000000' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', color: '#000000', padding: '4px 8px', height: 52, justifyContent: 'center', overflow: 'hidden', borderBottom: '2.5px solid #000', width: '100%', boxSizing: 'border-box' }}>
+                        <span style={{ fontSize: 11, fontWeight: 900, color: '#333333', letterSpacing: 1 }}>ID DEL ACTIVO</span>
+                        <span style={{ fontSize: idFontSize, fontWeight: 900, lineHeight: 1.1, marginTop: '1px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#000000', width: '100%' }}>
                             {finalIdQr}
                         </span>
                     </div>
@@ -107,7 +107,7 @@ export async function GET(req: NextRequest) {
                         {/* Cuenta */}
                         <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center', borderBottom: '2.5px solid #000' }}>
                             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 8.5, fontWeight: 800, color: '#666' }}>CUENTA</span>
+                                <span style={{ fontSize: 10, fontWeight: 900, color: '#000' }}>CUENTA</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
                         {/* Área */}
                         <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center', borderBottom: '2.5px solid #000' }}>
                             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 8.5, fontWeight: 800, color: '#666' }}>ÁREA</span>
+                                <span style={{ fontSize: 10, fontWeight: 900, color: '#000' }}>ÁREA</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
@@ -133,7 +133,7 @@ export async function GET(req: NextRequest) {
                         {/* Descripción (Antes Tipo) */}
                         <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center' }}>
                             <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 8.5, fontWeight: 800, color: '#666' }}>DESC</span>
+                                <span style={{ fontSize: 10, fontWeight: 900, color: '#000' }}>DESC</span>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
                             <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
