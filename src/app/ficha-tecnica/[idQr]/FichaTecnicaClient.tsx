@@ -120,15 +120,15 @@ export default function FichaTecnicaClient({ activo }: { activo: Activo }) {
                     {/* Logo + Brand */}
                     <div className="flex items-center gap-2 mb-6 opacity-80">
                         <Building2 className="w-4 h-4" />
-                        <span className="text-xs font-semibold uppercase tracking-widest">Misión Cristiana Elim Honduras</span>
+                        <span className="text-xs font-bold uppercase tracking-widest">Iglesia Misión Cristiana Elim Honduras</span>
                     </div>
 
                     {/* ID QR */}
                     <div className="flex items-center gap-2 mb-3">
-                        <div className="bg-white/20 rounded-lg px-2.5 py-1">
-                            <span className="text-xs font-mono font-bold tracking-widest text-white/90">{activo.idQr}</span>
+                        <div className="rounded-lg px-2.5 py-1">
+                            <span className="text-sm font-mono font-bold tracking-widest text-white">{activo.idQr}</span>
                         </div>
-                        <QrCode className="w-4 h-4 text-white/50" />
+                        <QrCode className="w-4 h-4 text-white/60" />
                     </div>
 
                     {/* Asset name */}
@@ -303,8 +303,8 @@ export default function FichaTecnicaClient({ activo }: { activo: Activo }) {
                     <div className="text-xs text-slate-400">
                         Registrado: {fecha(activo.createdAt)}
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-[#0500A3]">
-                        <Building2 className="w-3.5 h-3.5" />
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-[#0500A3]">
+                        <Building2 className="w-4 h-4" />
                         sistemaselim.app
                     </div>
                 </div>
@@ -312,7 +312,7 @@ export default function FichaTecnicaClient({ activo }: { activo: Activo }) {
 
             {/* Sub-brand */}
             <p className="mt-6 text-xs text-white/30 text-center">
-                Inventario de Activos Fijos · Misión Cristiana Elim Honduras
+                Inventario de Activos Fijos · Iglesia Misión Cristiana Elim Honduras
             </p>
         </div>
     );
