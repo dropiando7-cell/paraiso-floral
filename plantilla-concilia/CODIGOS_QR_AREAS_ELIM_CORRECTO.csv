@@ -1,0 +1,41 @@
+#,NOMBRE DEL ÁREA,PISO,ÁREA ID,ZONA,CÓDIGO BASE (ACTIVOS),CÓDIGO QR ORIENTACIÓN,RESPONSABLE
+1,Planta Baja - Oficina del Pastor,Planta Baja,A01,Oficina,ELIM-PB-A01-OF-0001,ELIM-QR-PB-A01-OFI,ROGER DIAZ
+2,Planta Baja - Oficina Administrativa,Planta Baja,A02,Oficina,ELIM-PB-A02-OF-0001,ELIM-QR-PB-A02-OFI,ROBERTO FUNEZ
+3,Planta Baja - Sala Cuna,Planta Baja,A03,Sala Cuna,ELIM-PB-A03-SC-0001,ELIM-QR-PB-A03-SCU,BELINDA DE VEGA
+4,Planta Baja - Enfermería,Planta Baja,A04,Enfermería,ELIM-PB-A04-EN-0001,ELIM-QR-PB-A04-ENF,JORGE PUERTO
+5,Planta Baja - Sala de Juntas,Planta Baja,A05,Sala Juntas,ELIM-PB-A05-SJ-0001,ELIM-QR-PB-A05-SJU,JORGE PUERTO
+6,Planta Baja - Cocineta,Planta Baja,A06,Cocina/Cocineta,ELIM-PB-A06-CK-0001,ELIM-QR-PB-A06-COC,MIRIAM DE PUERTO
+7,Planta Baja - Oficina de Jóvenes,Planta Baja,A07,Oficina,ELIM-PB-A07-OF-0001,ELIM-QR-PB-A07-OFI,JOSUE RODRIGUEZ
+8,Planta Baja - Oficina de Escuela Bíblica,Planta Baja,A08,Oficina,ELIM-PB-A08-OF-0001,ELIM-QR-PB-A08-OFI,YOLANDA MONROY
+9,"Planta Baja - Aula E.B. ""Rayitos""",Planta Baja,A09,Escuela Bíblica,ELIM-PB-A09-EB-0001,ELIM-QR-PB-A09-EBE,YOLANDA MONROY
+10,"Planta Baja - Aula E.B. ""Jardín de Gracia""",Planta Baja,A10,Escuela Bíblica,ELIM-PB-A10-EB-0001,ELIM-QR-PB-A10-EBE,YOLANDA MONROY
+11,Planta Baja - Cocina de Cafetería,Planta Baja,A11,Cafetería,ELIM-PB-A11-CA-0001,ELIM-QR-PB-A11-CAF,GENOVEBA MATUTE
+12,Planta Baja - Salón de Cafetería,Planta Baja,A12,Cafetería,ELIM-PB-A12-CA-0001,ELIM-QR-PB-A12-CAF,GENOVEBA MATUTE
+13,Planta Baja - Sala de Audio / Consola,Planta Baja,A13,Audio,ELIM-PB-A13-AU-0001,ELIM-QR-PB-A13-AUD,OSCAR BEJARANO
+14,Planta Baja - Sala de Multimedia,Planta Baja,A14,Multimedia,ELIM-PB-A14-ML-0001,ELIM-QR-PB-A14-MUL,ISAAC PAZ
+15,Planta Baja - Salón Templo,Planta Baja,A15,Templo,ELIM-PB-A15-TM-0001,ELIM-QR-PB-A15-TMP,JORGE PUERTO
+16,Planta Baja - Plataforma Instrumentos / Alabanza,Planta Baja,A16,Plataforma,ELIM-PB-A16-PL-0001,ELIM-QR-PB-A16-PLA,EDIE PAZ
+17,Planta Baja - Oficina,Planta Baja,A17,Oficina,ELIM-PB-A17-OF-0001,ELIM-QR-PB-A17-OFI,ISAAC PAZ
+18,Planta Baja - Oficina Administrativa IMCEH,Planta Baja,A18,Oficina,ELIM-PB-A18-OF-0001,ELIM-QR-PB-A18-OFI,ISAAC PAZ
+19,Planta Alta - Salón de Usos Múltiples,Planta Alta,A19,Salón,ELIM-PA-A19-SL-0001,ELIM-QR-PA-A19-SLM,JORGE PUERTO
+20,Planta Alta - Oficina Apoyo Ministerial,Planta Alta,A20,Oficina,ELIM-PA-A20-OF-0001,ELIM-QR-PA-A20-OFI,DAVID DIAZ
+21,"Planta Alta - Aula E.B. ""Soldados de Cristo""",Planta Alta,A21,Escuela Bíblica,ELIM-PA-A21-EB-0001,ELIM-QR-PA-A21-EBE,YOLANDA MONROY
+22,"Planta Alta - Aula E.B. ""Peregrinitos""",Planta Alta,A22,Escuela Bíblica,ELIM-PA-A22-EB-0001,ELIM-QR-PA-A22-EBE,YOLANDA MONROY
+23,"Planta Alta - Aula E.B. ""Rosas de Sarón""",Planta Alta,A23,Escuela Bíblica,ELIM-PA-A23-EB-0001,ELIM-QR-PA-A23-EBE,YOLANDA MONROY
+24,"Planta Alta - Aula E.B. ""Oasis de Alegría""",Planta Alta,A24,Escuela Bíblica,ELIM-PA-A24-EB-0001,ELIM-QR-PA-A24-EBE,YOLANDA MONROY
+25,Planta Alta - BDGega Pasillo Aulas E.B.,Planta Alta,A25,BDGega,ELIM-PA-A25-BD-0001,ELIM-QR-PA-A25-BDG,JORGE PUERTO
+26,Planta Baja - BDGega Oficina Administrativa,Planta Baja,A26,BDGega,ELIM-PB-A26-BD-0001,ELIM-QR-PB-A26-BDG,ISAAC PAZ
+27,Planta Baja - BDGega Pasillo a Enfermería,Planta Baja,A27,BDGega,ELIM-PB-A27-BD-0001,ELIM-QR-PB-A27-BDG,MIRIAM DE PUERTO
+28,Planta Baja - BDGega Trasera de Cocineta,Planta Baja,A28,BDGega,ELIM-PB-A28-BD-0001,ELIM-QR-PB-A28-BDG,MIRIAM DE PUERTO
+29,Planta Baja - BDGega Equipo de Sonido / Templo,Planta Baja,A29,BDGega,ELIM-PB-A29-BD-0001,ELIM-QR-PB-A29-BDG,OSCAR BEJARANO
+30,Planta Baja - BDGega Mob. y Equipo Diverso / Templo,Planta Baja,A30,BDGega,ELIM-PB-A30-BD-0001,ELIM-QR-PB-A30-BDG,JORGE PUERTO
+31,BDGega Externa - Sector Cerro Verde,Exterior,A31,BDGega,ELIM-EX-A31-BD-0001,ELIM-QR-EX-A31-BDG,ISAAC PAZ
+32,Pasillo Externo - Sector Vigilancia,Planta Baja,A32,Patio,ELIM-PB-A32-PT-0001,ELIM-QR-PB-A32-PAT,JESMY PEREZ
+,,,,,,,
+LEYENDA:,,,,,,,
+ZONAS (Código Base 2 chars):  OF=Oficina  |  SC=Sala Cuna  |  EN=Enfermería  |  SJ=Sala de Juntas  |  CK=Cocina/Cocineta,,,,,,,
+EB=Escuela Bíblica  |  CA=Cafetería  |  AU=Audio  |  ML=Multimedia  |  TM=Templo  |  PL=Plataforma  |  RC=Recepción  |  SL=Salón  |  BD=BDGega  |  PT=Patio,,,,,,,
+ZONAS (Código QR 3 chars):  OFI=Oficina  |  SCU=Sala Cuna  |  ENF=Enfermería  |  SJU=Sala de Juntas  |  COC=Cocina/Cocineta,,,,,,,
+EBE=Escuela Bíblica  |  CAF=Cafetería  |  AUD=Audio  |  MUL=Multimedia  |  TMP=Templo  |  PLA=Plataforma  |  REC=Recepción  |  SAL=Salón  |  BDG=BDGega  |  PAT=Patio,,,,,,,
+PISOS:  PB=Planta Baja  |  PA=Planta Alta  |  EX=Exterior,,,,,,,
+NOTA CÓDIGO QR: El segmento QR identifica el área para orientación de inventario. NO lleva correlativo porque no es un activo. El sistema lo usa para preseleccionar el área en el formulario de registro.,,,,,,,
