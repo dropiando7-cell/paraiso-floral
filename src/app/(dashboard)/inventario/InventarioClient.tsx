@@ -4,7 +4,7 @@ import { useState, useEffect, useTransition, useRef, useCallback } from 'react';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
-    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer
+    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink
 } from 'lucide-react';
 import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr } from './actions';
 import { removeBackground } from '@imgly/background-removal';
@@ -1396,6 +1396,16 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                                 </div>
                             </div>
                             <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-3">
+                                {/* Botón ficha técnica */}
+                                <a
+                                    href={`/ficha-tecnica/${viewActivo?.idQr}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold transition-all active:scale-95 border-2 border-[#0500A3]/30 text-[#0500A3] bg-blue-50 hover:bg-blue-100 hover:border-[#0500A3]/50 text-sm"
+                                >
+                                    <ExternalLink className="w-4 h-4" />
+                                    Ver Ficha Técnica Digital
+                                </a>
                                 {/* Botón imprimir etiqueta */}
                                 <button
                                     onClick={() => handlePrintLabel(viewActivo!)}
