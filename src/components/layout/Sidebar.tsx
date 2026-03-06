@@ -18,7 +18,8 @@ import {
   HelpCircle,
   Baby,
   Stethoscope,
-  Users
+  Users,
+  Key
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -95,6 +96,18 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         href: '/admin/users',
         icon: Users,
         roles: ['SUPER_ADMIN'],
+      },
+      {
+        name: 'Avance de Inventario',
+        href: '/admin/inventario',
+        icon: Key,
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
+      },
+      {
+        name: 'Bodegas y Áreas',
+        href: '/admin/areas',
+        icon: Key,
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
       },
     ]
   }

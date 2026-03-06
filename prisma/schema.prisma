@@ -64,6 +64,8 @@ model Organization {
   roleTemplates    RoleTemplate[]
   activosFijos     ActivoFijo[]
   colaImpresion    ColaImpresion[]
+  areaInventoryStatuses AreaInventoryStatus[]
+  areas                 Area[]
 
   @@map("organizations")
 }
@@ -93,6 +95,10 @@ model User {
 
   medicalRecords MedicalRecord[]
   calendarIntegrations CalendarIntegration[]
+  
+  openedAreas AreaInventoryStatus[] @relation("AreaOpenedBy")
+  closedAreas AreaInventoryStatus[] @relation("AreaClosedBy")
+  approvedAreas AreaInventoryStatus[] @relation("AreaApprovedBy")
 
   @@map("users")
 }
@@ -403,6 +409,35 @@ model ActivoFijo {
   @@map("activos_fijos")
 }
 
+model AreaInventoryStatus {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @db.Uuid
+  
+  areaCode       String    // El código interno del área que se guarda en ActivoFijo.area (ej. PB-A1-OF.PASTOR)
+  qrCode         String    // El código QR físico de la puerta (ej. ELIM-QR-PB-A01-OFI)
+  status         String    @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED
+  
+  openedById     String?   @db.Uuid // Usuario que escaneó el QR por primera vez
+  closedById     String?   @db.Uuid // Usuario que indicó "Terminé de inventariar"
+  approvedById   String?   @db.Uuid // Admin que autorizó la reapertura
+  
+  openedAt       DateTime?
+  closedAt       DateTime?
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  openedBy       User?        @relation("AreaOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+  closedBy       User?        @relation("AreaClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  approvedBy     User?        @relation("AreaApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([organizationId, areaCode])
+  @@unique([organizationId, qrCode])
+  @@index([organizationId])
+  @@map("area_inventory_status")
+}
+
 // ==========================================
 // SERVIDOR DE IMPRESION LOCAL
 // ==========================================
@@ -423,4 +458,29 @@ model ColaImpresion {
   @@index([organizationId])
   @@index([estado])
   @@map("cola_impresion")
+}
+
+// ==========================================
+// MANTENIMIENTO DINAMICO DE AREAS
+// ==========================================
+
+model Area {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String    @db.Uuid
+  
+  name           String    // Nombre/Código único corto del área (ej. PB-A1-OF.PASTOR)
+  prefix         String    // Prefijo para IDs (ej. ELIM-PB-A01-OF)
+  qrCode         String    // Código QR que se imprime y pega en la puerta (ej. ELIM-QR-PB-A01-OFI)
+  
+  description    String?   // Descripción o ubicación detallada opcional
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@unique([organizationId, qrCode])
+  @@index([organizationId])
+  @@map("areas")
 }

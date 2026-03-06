@@ -57,5 +57,10 @@ export default async function InventarioPage() {
         areasRegistradas: areasCount.length,
     };
 
-    return <InventarioClient initialData={initialData} initialStats={initialStats} />;
+    const dbAreas = await prisma.area.findMany({
+        where: { organizationId: orgId },
+        orderBy: { name: 'asc' },
+    });
+
+    return <InventarioClient initialData={initialData} initialStats={initialStats} dbAreas={dbAreas} />;
 }

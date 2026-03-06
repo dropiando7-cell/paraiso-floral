@@ -6,46 +6,13 @@ import {
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink
 } from 'lucide-react';
-import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr } from './actions';
+import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea } from './actions';
 import { removeBackground } from '@imgly/background-removal';
+import { AreaScannerModal } from './AreaScannerModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-export const AREAS = [
-    { value: 'TEST-AREA', label: '🧪 TEST-AREA — Área de Pruebas (no usar en inventario real)' },
-    { value: 'PB-A1-OF.PASTOR', label: 'PB-A1-OF.PASTOR — Planta Baja- Oficina del Pastor' },
-    { value: 'PB-A2-OF.ADM', label: 'PB-A2-OF.ADM — Planta Baja- Oficina Administrativa' },
-    { value: 'PB-A3-S.CUNA', label: 'PB-A3-S.CUNA — Planta Baja- Sala Cuna' },
-    { value: 'PB-A4-ENFERM', label: 'PB-A4-ENFERM — Planta Baja- Enfermería' },
-    { value: 'PB-A5-S.JUNTAS', label: 'PB-A5-S.JUNTAS — Planta Baja- Sala de Juntas' },
-    { value: 'PB-A6-COCINETA', label: 'PB-A6-COCINETA — Planta Baja- Cocineta' },
-    { value: 'PB-A7-OF.JOVEN', label: 'PB-A7-OF.JOVEN — Planta Baja- Oficina de Jóvenes' },
-    { value: 'PB-A8-OF.EB', label: 'PB-A8-OF.EB — Planta Baja- Oficina de Escuela Bíblica' },
-    { value: 'PB-A9-EB', label: 'PB-A9-EB — Planta Baja- Aula de Escuela Bíblica "Rayitos"' },
-    { value: 'PB-A10-EB', label: 'PB-A10-EB — Planta Baja- Aula de Escuela Bíblica "Jardín de Gracia"' },
-    { value: 'PB-A11-COCIN CAF', label: 'PB-A11-COCIN CAF — Planta Baja- Cocina de Cafetería' },
-    { value: 'PB-A12-SALON CAF', label: 'PB-A12-SALON CAF — Planta Baja- Salón de Cafetería' },
-    { value: 'PB-A13-AUDIO', label: 'PB-A13-AUDIO — Planta Baja- Sala de Audio/Consola' },
-    { value: 'PB-A14-MULTI', label: 'PB-A14-MULTI — Planta Baja- Sala de Multimedia' },
-    { value: 'PB-A15-TEMPLO', label: 'PB-A15-TEMPLO — Planta Baja- Salon Templo' },
-    { value: 'PB-A16-PLATAFO', label: 'PB-A16-PLATAFO — Planta Baja- Plataforma de Instrumentos/Alabanza' },
-    { value: 'PB-A17-OF', label: 'PB-A17-OF — Planta Baja - Oficina' },
-    { value: 'PB-A18-OF. IMCE', label: 'PB-A18-OF. IMCE — Planta Baja- Oficina Administrativa de IMCEH' },
-    { value: 'PA-A1-SAL.MUL', label: 'PA-A1-SAL.MUL — Planta Alta- Salón de Usos Múltiples' },
-    { value: 'PA-A2-OFICINA', label: 'PA-A2-OFICINA — Planta Alta- Oficina Apoyo Ministerial' },
-    { value: 'PA-A3-EB', label: 'PA-A3-EB — Planta Alta- Aula de Escuela Bíblica "Soldados de Cristo"' },
-    { value: 'PA-A4-EB', label: 'PA-A4-EB — Planta Alta- Aula de Escuela Bíblica "Peregrinitos"' },
-    { value: 'PA-A5-EB', label: 'PA-A5-EB — Planta Alta- Aula de Escuela Bíblica "Rosas de Sarón"' },
-    { value: 'PA-A6-EB', label: 'PA-A6-EB — Planta Alta- Aula de Escuela Bíblica "Oasis de Alegría"' },
-    { value: 'PA-B1-PASILLO', label: 'PA-B1-PASILLO — Planta Alta- Bodega Pasillo de aulas de Escuela Bíblica' },
-    { value: 'PB-B1-OFICINA', label: 'PB-B1-OFICINA — Planta Baja- Bodega Oficina Administrativa' },
-    { value: 'PB-B2-PASILLO', label: 'PB-B2-PASILLO — Planta Baja- Bodega pasillo a enfermería' },
-    { value: 'PB-B3-TRASERA', label: 'PB-B3-TRASERA — Planta Baja- Bodega traseras de cocineta' },
-    { value: 'PB-B4-TEMPLO', label: 'PB-B4-TEMPLO — Planta Baja- Bodega de Equipo de Sonido/al Templo' },
-    { value: 'PB-B5-TEMPLO', label: 'PB-B5-TEMPLO — Planta Baja- Bodega de Mob. y Eq Diverso/al Templo' },
-    { value: 'B6-EXTERNA CV', label: 'B6-EXTERNA CV — Bodega Externa /Sector Cerro Verde' },
-    { value: 'PB-A32-PT.VIGILANCIA', label: 'PB-A32-PT.VIGILANCIA — Planta Baja - Pasillo Externo Sector Vigilancia' },
-];
+// Las áreas se cargan dinámicamente de la tabla "Area" mediante getAreas
 
 // Responsable por defecto según área (editable en el formulario)
 export const RESPONSABLES: Record<string, string> = {
@@ -442,16 +409,20 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
 }
 
 // ─── Modal Form (iPad-first + AI vision) ─────────────────────────────────────
-function ActivoModal({ open, onClose, editActivo, onSuccess }: {
-    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void;
+function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [] }: {
+    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[];
 }) {
+    const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
+        value: a.name,
+        label: a.description ? `${a.name} — ${a.description}` : a.name
+    })) : [{ value: 'TEST-AREA', label: '🧪 TEST-AREA — Área genérica' }];
     const [isPending, startTransition] = useTransition();
     const [imagenUrl, setImagenUrl] = useState(editActivo?.imagenUrl || '');
     const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
     const [placaUploadPhase, setPlacaUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
     const [imagenPlacaUrl, setImagenPlacaUrl] = useState(editActivo?.imagenPlacaUrl || '');
     const [previewQr, setPreviewQr] = useState('');
-    const [selectedArea, setSelectedArea] = useState(editActivo?.area || '');
+    const [selectedArea, setSelectedArea] = useState(editActivo?.area || lockedArea || '');
     const [selectedCuenta, setSelectedCuenta] = useState(editActivo?.cuentaAct || '');
     const [aiResult, setAiResult] = useState<AiResult | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -479,12 +450,12 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
             setModelo(editActivo.modelo || '');
             setResponsable(editActivo.responsable || '');
         } else {
-            setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(''); setSelectedCuenta('');
+            setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
             setPreviewQr(''); setAiResult(null); setUploadPhase('idle'); setPlacaUploadPhase('idle');
             setDescripcionCorta(''); setDescripcionDetallada(''); setModelo('');
-            setResponsable('');
+            setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
         }
-    }, [editActivo, open]);
+    }, [editActivo, open, lockedArea]);
 
     useEffect(() => {
         if (open) document.body.style.overflow = 'hidden';
@@ -819,17 +790,25 @@ function ActivoModal({ open, onClose, editActivo, onSuccess }: {
                             <div>
                                 <SectionTitle>📋 Identificación</SectionTitle>
                                 <div className="space-y-4">
-                                    {/* Área — Searchable */}
+                                    {/* Área — Searchable / Locked */}
                                     <div>
                                         <FieldLabel required>Área / Ubicación</FieldLabel>
-                                        <Combobox
-                                            options={AREAS}
-                                            value={selectedArea}
-                                            onChange={handleAreaChange}
-                                            placeholder="Escribe o selecciona el área..."
-                                            label="area"
-                                            required
-                                        />
+                                        {!isEdit && lockedArea ? (
+                                            <div className="w-full flex items-center gap-2 text-base border-2 border-[#0500A3]/30 bg-blue-50/50 rounded-xl px-4 py-3.5 text-[#0500A3] font-semibold">
+                                                <div className="bg-[#0500A3] w-2 h-2 rounded-full animate-pulse shrink-0" />
+                                                <span className="truncate">{AREAS.find(a => a.value === lockedArea)?.label || lockedArea}</span>
+                                                <input type="hidden" name="area" value={lockedArea} />
+                                            </div>
+                                        ) : (
+                                            <Combobox
+                                                options={AREAS}
+                                                value={selectedArea}
+                                                onChange={handleAreaChange}
+                                                placeholder="Escribe o selecciona el área..."
+                                                label="area"
+                                                required
+                                            />
+                                        )}
                                     </div>
 
                                     {/* Descripción Corta — AI controlled */}
@@ -1061,7 +1040,11 @@ function DeleteConfirm({ activo, onClose, onSuccess }: { activo: Activo; onClose
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export function InventarioClient({ initialData, initialStats }: { initialData?: any; initialStats?: any }) {
+export function InventarioClient({ initialData, initialStats, dbAreas = [] }: { initialData?: any; initialStats?: any; dbAreas?: any[] }) {
+    const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
+        value: a.name,
+        label: a.description ? `${a.name} — ${a.description}` : a.name
+    })) : [{ value: 'TEST-AREA', label: '🧪 TEST-AREA — Área genérica' }];
     const [activos, setActivos] = useState<Activo[]>(initialData?.activos || []);
     const [total, setTotal] = useState(initialData?.total || 0);
     const [totalPages, setTotalPages] = useState(initialData?.totalPages || 1);
@@ -1079,6 +1062,11 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
     const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
     const [printingId, setPrintingId] = useState<string | null>(null);
     const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+
+    // QR Area Control
+    const [lockedArea, setLockedArea] = useState<string | null>(null);
+    const [scannerOpen, setScannerOpen] = useState(false);
+    const [isClosingAct, startClosingAct] = useTransition();
 
     async function handlePrintLabel(activo: Activo) {
         setPrintingId(activo.id);
@@ -1163,26 +1151,54 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
                     </h1>
                     <p className="text-sm text-slate-500 mt-0.5">Control patrimonial físico y contable · Iglesia Elim Central</p>
                 </div>
-                <div className="flex items-center gap-2">
-                    {/* Botón de debug para probar el servidor de impresión */}
-                    <button
-                        onClick={handleDebugPrint}
-                        disabled={debugPrinting}
-                        title="Enviar etiqueta de prueba a la impresora Tally"
-                        className={`flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 disabled:opacity-60 ${debugStatus === 'sent' ? 'bg-green-50 border-green-400 text-green-700' :
-                            debugStatus === 'error' ? 'bg-red-50 border-red-400 text-red-700' :
-                                'bg-yellow-50 border-yellow-400 text-yellow-700 hover:bg-yellow-100'
-                            }`}
-                    >
-                        {debugPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                        {debugStatus === 'sent' ? '✅ Enviado' : debugStatus === 'error' ? '❌ Error' : 'Debug Impr.'}
-                    </button>
-                    <button onClick={() => { setEditActivo(null); setModalOpen(true); }}
-                        className="flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl hover:bg-[#0600c2] active:scale-95 transition-all shadow-md">
-                        <Plus className="w-5 h-5" /> Registrar Activo
-                    </button>
+                <div className="flex flex-col items-end gap-2 w-full sm:w-auto mt-4 sm:mt-0">
+                    <div className="flex items-center gap-2">
+                        {/* Botón de debug para probar el servidor de impresión */}
+                        <button
+                            onClick={handleDebugPrint}
+                            disabled={debugPrinting}
+                            title="Enviar etiqueta de prueba a la impresora Tally"
+                            className={`flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 disabled:opacity-60 hidden sm:flex ${debugStatus === 'sent' ? 'bg-green-50 border-green-400 text-green-700' :
+                                debugStatus === 'error' ? 'bg-red-50 border-red-400 text-red-700' :
+                                    'bg-yellow-50 border-yellow-400 text-yellow-700 hover:bg-yellow-100'
+                                }`}
+                        >
+                            {debugPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                            {debugStatus === 'sent' ? '✅ Enviado' : debugStatus === 'error' ? '❌ Error' : 'Debug Impr.'}
+                        </button>
+                        <button onClick={() => {
+                            if (!lockedArea) setScannerOpen(true);
+                            else { setEditActivo(null); setModalOpen(true); }
+                        }}
+                            className="flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl hover:bg-[#0600c2] active:scale-95 transition-all shadow-md w-full sm:w-auto justify-center">
+                            <Plus className="w-5 h-5" /> Registrar Activo
+                        </button>
+                    </div>
                 </div>
             </div>
+
+            {/* Active Area Banner */}
+            {lockedArea && (
+                <div className="mb-6 bg-[#0500A3] rounded-xl border border-[#0600c2] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+                    <div className="flex items-center gap-3 text-white">
+                        <div className="bg-white/20 p-2.5 rounded-xl"><QrCode className="w-6 h-6" /></div>
+                        <div>
+                            <div className="text-xs font-semibold text-white/80 uppercase tracking-widest mb-0.5">Área de Inventario Abierta</div>
+                            <div className="text-base font-bold">{AREAS.find(a => a.value === lockedArea)?.label || lockedArea}</div>
+                        </div>
+                    </div>
+                    <button
+                        disabled={isClosingAct}
+                        onClick={() => startClosingAct(async () => {
+                            await closeArea(lockedArea);
+                            setLockedArea(null);
+                        })}
+                        className="flex-shrink-0 flex items-center justify-center gap-2 text-sm font-bold bg-white text-[#0500A3] py-2.5 px-5 rounded-xl hover:bg-slate-100 active:scale-95 transition-all w-full sm:w-auto">
+                        {isClosingAct ? <Loader2 className="w-4 h-4 animate-spin text-[#0500A3]" /> : <CheckCircle2 className="w-4 h-4" />}
+                        Terminar / Cerrar Área
+                    </button>
+                </div>
+            )}
 
             <StatsCards stats={stats} />
 
@@ -1293,11 +1309,24 @@ export function InventarioClient({ initialData, initialStats }: { initialData?: 
             </div>
 
             <ActivoModal
+                dbAreas={dbAreas}
                 open={modalOpen}
                 onClose={() => { setModalOpen(false); setEditActivo(null); }}
                 editActivo={editActivo}
                 onSuccess={() => refresh(1)}
+                lockedArea={lockedArea}
             />
+            {scannerOpen && (
+                <AreaScannerModal
+                    open={scannerOpen}
+                    onClose={() => setScannerOpen(false)}
+                    onSuccess={(area) => {
+                        setScannerOpen(false);
+                        setLockedArea(area);
+                        setModalOpen(true);
+                    }}
+                />
+            )}
             {deleteActivo_ && (
                 <DeleteConfirm
                     activo={deleteActivo_}

@@ -20,42 +20,8 @@ async function getOrgId(): Promise<string> {
     return dbUser.organizationId;
 }
 
-// Mapa basado en Codigos_Activos_Elim_CORRECTO.csv para códigos base
-const PREFIX_MAP: Record<string, string> = {
-    'PB-A1-OF.PASTOR': 'ELIM-PB-A01-OF',
-    'PB-A2-OF.ADM': 'ELIM-PB-A02-OF',
-    'PB-A3-S.CUNA': 'ELIM-PB-A03-SC',
-    'PB-A4-ENFERM': 'ELIM-PB-A04-EN',
-    'PB-A5-S.JUNTAS': 'ELIM-PB-A05-SJ',
-    'PB-A6-COCINETA': 'ELIM-PB-A06-CK',
-    'PB-A7-OF.JOVEN': 'ELIM-PB-A07-OF',
-    'PB-A8-OF.EB': 'ELIM-PB-A08-OF',
-    'PB-A9-EB': 'ELIM-PB-A09-EB',
-    'PB-A10-EB': 'ELIM-PB-A10-EB',
-    'PB-A11-COCIN CAF': 'ELIM-PB-A11-CA',
-    'PB-A12-SALON CAF': 'ELIM-PB-A12-CA',
-    'PB-A13-AUDIO': 'ELIM-PB-A13-AU',
-    'PB-A14-MULTI': 'ELIM-PB-A14-ML',
-    'PB-A15-TEMPLO': 'ELIM-PB-A15-TM',
-    'PB-A16-PLATAFO': 'ELIM-PB-A16-PL',
-    'PB-A17-OF': 'ELIM-PB-A17-OF',
-    'PB-A18-OF. IMCE': 'ELIM-PB-A18-OF',
-    'PA-A1-SAL.MUL': 'ELIM-PA-A19-SL',
-    'PA-A2-OFICINA': 'ELIM-PA-A20-OF',
-    'PA-A3-EB': 'ELIM-PA-A21-EB',
-    'PA-A4-EB': 'ELIM-PA-A22-EB',
-    'PA-A5-EB': 'ELIM-PA-A23-EB',
-    'PA-A6-EB': 'ELIM-PA-A24-EB',
-    'PA-B1-PASILLO': 'ELIM-PA-A25-BD',
-    'PB-B1-OFICINA': 'ELIM-PB-A26-BD',
-    'PB-B2-PASILLO': 'ELIM-PB-A27-BD',
-    'PB-B3-TRASERA': 'ELIM-PB-A28-BD',
-    'PB-B4-TEMPLO': 'ELIM-PB-A29-BD',
-    'PB-B5-TEMPLO': 'ELIM-PB-A30-BD',
-    'B6-EXTERNA CV': 'ELIM-EX-A31-BD',
-    'PB-A32-PT.VIGILANCIA': 'ELIM-PB-A32-PT',
-    'TEST-AREA': 'TEST-AREA', // fallback para test
-};
+// Se eliminaron las constantes estáticas PREFIX_MAP y QR_TO_AREA_MAP 
+// porque ahora se usa el modelo Area desde Prisma.
 
 // ─── Auto-generate ID QR ─────────────────────────────────────────────────────
 async function generateIdQr(organizationId: string, area: string): Promise<string> {
@@ -64,7 +30,13 @@ async function generateIdQr(organizationId: string, area: string): Promise<strin
         where: { organizationId, area },
     });
     const correlative = String(count + 1).padStart(4, '0');
-    const prefijo = PREFIX_MAP[area] || area;
+    // Buscar el area real en BD para obtener el prefijo exacto
+    const areaRecord = await prisma.area.findFirst({
+        where: { organizationId, name: area }
+    });
+
+    // Si no existe, usamos el nombre genérico
+    const prefijo = areaRecord?.prefix || area;
     return `${prefijo}-${correlative}`;
 }
 
@@ -222,4 +194,130 @@ export async function uploadActivoImage(formData: FormData): Promise<{ url: stri
 export async function previewIdQr(area: string): Promise<string> {
     const orgId = await getOrgId();
     return generateIdQr(orgId, area);
+}
+
+// ─── AREA ACTIVATION CONTROL ─────────────────────────────────────────────────
+
+export async function validateAndOpenArea(qrCode: string) {
+    const orgId = await getOrgId();
+
+    // Validar si el QR existe en la base de datos de Areas
+    const areaRecord = await prisma.area.findFirst({
+        where: { organizationId: orgId, qrCode }
+    });
+
+    if (!areaRecord) {
+        return { success: false, error: 'Código QR de área no reconocido o inválido.' };
+    }
+
+    const areaCode = areaRecord.name;
+
+    // Obtener el ID del usuario
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    let userId = null;
+    if (user) {
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+        if (dbUser) userId = dbUser.id;
+    }
+
+    // Buscar o crear el estatus del área (upsert) para evitar duplicados
+    const status = await prisma.areaInventoryStatus.upsert({
+        where: {
+            organizationId_areaCode: { organizationId: orgId, areaCode }
+        },
+        create: {
+            organizationId: orgId,
+            areaCode,
+            qrCode,
+            status: 'IN_PROGRESS',
+            openedById: userId,
+            openedAt: new Date(),
+        },
+        update: {}
+    });
+
+    if (status.status === 'COMPLETED') {
+        return { success: false, error: 'Esta área ya fue inventariada y cerrada. Si quedó pendiente algo, solicita al administrador su reapertura.' };
+    }
+
+    // Si estaba "PENDING" o ya estaba en progreso, aseguramos que nos marque a nosotros
+    if (status.status !== 'IN_PROGRESS') {
+        await prisma.areaInventoryStatus.update({
+            where: { id: status.id },
+            data: { status: 'IN_PROGRESS', openedById: userId, openedAt: new Date() }
+        });
+    }
+
+    return { success: true, areaCode };
+}
+
+export async function closeArea(areaCode: string) {
+    const orgId = await getOrgId();
+
+    // Obtener el ID del usuario
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    let userId = null;
+    if (user) {
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+        if (dbUser) userId = dbUser.id;
+    }
+
+    try {
+        await prisma.areaInventoryStatus.update({
+            where: {
+                organizationId_areaCode: { organizationId: orgId, areaCode }
+            },
+            data: {
+                status: 'COMPLETED',
+                closedById: userId,
+                closedAt: new Date()
+            }
+        });
+        revalidatePath('/inventario');
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function reopenArea(areaCode: string) {
+    const orgId = await getOrgId();
+
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    let userId = null;
+    if (user) {
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+        if (dbUser) userId = dbUser.id;
+    }
+
+    await prisma.areaInventoryStatus.update({
+        where: {
+            organizationId_areaCode: { organizationId: orgId, areaCode }
+        },
+        data: {
+            status: 'IN_PROGRESS',
+            approvedById: userId,
+        }
+    });
+
+    revalidatePath('/admin/inventario');
+    return { success: true };
+}
+
+export async function getAreaStatuses() {
+    const orgId = await getOrgId();
+
+    const statuses = await prisma.areaInventoryStatus.findMany({
+        where: { organizationId: orgId },
+        include: {
+            openedBy: { select: { email: true } },
+            closedBy: { select: { email: true } },
+            approvedBy: { select: { email: true } }
+        },
+        orderBy: { areaCode: 'asc' }
+    });
+    return statuses;
 }

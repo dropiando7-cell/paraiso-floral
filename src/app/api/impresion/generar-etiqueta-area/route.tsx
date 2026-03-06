@@ -5,23 +5,40 @@ export const runtime = 'edge';
 
 // Genera un PNG de la etiqueta de ÁREA para impresión con la Tally Dascom DL-210
 // Dimensiones: 1" x 2" a 203 DPI = 203px ancho x 406px alto (2" width, 1" height = 406x203)
+// Layout optimizado para legibilidad a distancia
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
-    const codigoQr = searchParams.get('codigoQr') || 'ELIM-QR-TEST-001';
-    const nombreArea = searchParams.get('nombreArea') || 'Área de Prueba';
+    const idQr = searchParams.get('idQr') || 'ELIM-QR-AREA-TEST';
+    const areaName = searchParams.get('areaName') || 'ÁREA DESCONOCIDA';
+    const areaPrefix = searchParams.get('areaPrefix') || 'ELIM-TEST';
+    const debug = searchParams.get('debug') === '1';
+
+    let finalIdQr = idQr;
+    let finalAreaName = areaName;
+    let finalAreaPrefix = areaPrefix;
+
+    if (debug) {
+        // En modo debug sobreescribimos con datos de prueba
+        finalIdQr = 'ELIM-QR-PB-A01-OFI';
+        finalAreaName = 'Planta Alta - Salón Multiusos 2';
+        finalAreaPrefix = 'PA-A1-SAL.MUL';
+    }
 
     // 2" x 1" a 203 DPI (50.8mm x 25.4mm)
     // Ancho = 2" * 203 = 406px, Alto = 1" * 203 = 203px
     const W = 406;
     const H = 203;
 
-    // Producción: QR del área (Apunta directamente al texto del código para ser leído por el escáner)
-    const qrData = encodeURIComponent(codigoQr);
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${qrData}&margin=0&color=000000&bgcolor=FFFFFF`;
+    // Producción: QR Code con el ID del código de área (la llave física para abrirla)
+    const qrData = encodeURIComponent(finalIdQr);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${qrData}&margin=0&color=000000&bgcolor=FFFFFF`;
 
-    // Cálculos dinámicos de tamaño de fuente
-    const nombreFontSize = nombreArea.length > 40 ? 14 : nombreArea.length > 25 ? 16 : 22;
+    // Calcular tamaño de fuente dinámico para el nombre para que quepa bien
+    const nameStr = finalAreaName.toUpperCase();
+    const nameFontSize = nameStr.length > 35 ? 16 : nameStr.length > 25 ? 18 : nameStr.length > 15 ? 22 : 26;
+
+    const prefixFontSize = finalAreaPrefix.length > 18 ? 20 : finalAreaPrefix.length > 14 ? 24 : 32;
 
     return new ImageResponse(
         (
@@ -31,57 +48,62 @@ export async function GET(req: NextRequest) {
                     flexDirection: 'row',
                     width: W,
                     height: H,
-                    backgroundColor: '#000000', // Borde negro total entre columnas
+                    backgroundColor: '#FFFFFF',
                     fontFamily: 'sans-serif',
                     boxSizing: 'border-box',
+                    border: '4px solid #000' // Borde grueso visible
                 }}
             >
-                {/* Columna Izquierda */}
-                <div style={{ display: 'flex', flexDirection: 'column', width: 284, flexShrink: 0, height: H, backgroundColor: '#FFFFFF' }}>
+                {/* Columna Izquierda - Data */}
+                <div style={{ display: 'flex', flexDirection: 'column', width: 230, flexShrink: 0, height: '100%', backgroundColor: '#FFFFFF', borderRight: '4px solid #000', padding: '6px' }}>
 
-                    {/* Header - Fondo Blanco (Logo completo) */}
-                    <div style={{ display: 'flex', flexDirection: 'row', height: 50, padding: '10px 4px 2px', alignItems: 'center', justifyContent: 'center' }}>
+                    {/* Logo/Header */}
+                    <div style={{ display: 'flex', flexDirection: 'row', height: 40, alignItems: 'center', justifyContent: 'center', borderBottom: '2px dashed #000', paddingBottom: '4px' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blue-vineta.png"
-                            width={160}
-                            height={38}
+                            width={140}
+                            height={32}
                             alt="Logo Elim"
                             style={{ objectFit: 'contain', filter: 'grayscale(100%)' }}
                         />
                     </div>
 
-                    {/* Título - Ahora es el Código */}
-                    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', color: '#000000', padding: '4px 8px', height: 40, justifyContent: 'center', alignItems: 'center', borderBottom: '2.5px solid #000', width: '100%', boxSizing: 'border-box' }}>
-                        <span style={{ fontSize: codigoQr.length > 18 ? 16 : 18, fontWeight: 900, color: '#333333', letterSpacing: 1 }}>{codigoQr}</span>
+                    {/* Titulo */}
+                    <div style={{ display: 'flex', padding: '6px 0 2px 0', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ fontSize: 13, fontWeight: 900, color: '#000', letterSpacing: 1, fontFamily: 'sans-serif' }}>CÓDIGO DE ÁREA</span>
                     </div>
 
-                    {/* Nombre del Área */}
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#FFFFFF', padding: '8px', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
-                        <span style={{ fontSize: nombreFontSize, fontWeight: 900, color: '#000', lineHeight: 1.2 }}>
-                            {nombreArea.toUpperCase()}
+                    {/* Area Name Completo */}
+                    <div style={{ display: 'flex', flex: 1, justifyContent: 'center', alignItems: 'center', textAlign: 'center', overflow: 'hidden', padding: '0 4px' }}>
+                        <span style={{
+                            fontSize: nameFontSize, fontWeight: 900, color: '#000', lineHeight: 1.1, fontFamily: 'sans-serif', letterSpacing: -0.5,
+                            display: '-webkit-box', WebkitBoxOrient: 'vertical', WebkitLineClamp: 3, overflow: 'hidden'
+                        }}>
+                            {nameStr}
                         </span>
                     </div>
 
+                    {/* Prefix Area Bottom */}
+                    <div style={{ display: 'flex', height: 40, alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden', borderTop: '2px solid #000', paddingTop: '4px' }}>
+                        <span style={{ fontSize: prefixFontSize, fontWeight: 900, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#000', fontFamily: 'sans-serif', letterSpacing: -0.5 }}>
+                            {finalAreaPrefix}
+                        </span>
+                    </div>
                 </div>
 
-                {/* LÍNEA DIVISORIA */}
-                <div style={{ width: 4, flexShrink: 0, backgroundColor: '#000000', height: '100%' }} />
-
-                {/* Columna Derecha - QR más grande */}
-                <div style={{ display: 'flex', flexDirection: 'column', width: 118, flexShrink: 0, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', height: H, padding: '4px' }}>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {/* Columna Derecha - QR Grande al centro */}
+                <div style={{ display: 'flex', flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', padding: '6px' }}>
+                    <div style={{ display: 'flex', padding: '4px', border: '2px solid #000', borderRadius: '4px' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={qrUrl} width={108} height={108} alt="QR" style={{ backgroundColor: '#fff' }} />
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: 'center', marginTop: '4px' }}>
-                        <span style={{ fontSize: 8, fontWeight: 900, color: '#000', textAlign: 'center', lineHeight: 1 }}>ESCANEAR PARA<br />INVENTARIAR</span>
+                        <img src={qrUrl} width={150} height={150} alt="QR de Área" style={{ display: 'flex' }} />
                     </div>
                 </div>
-
             </div>
         ),
-        { width: W, height: H }
+        {
+            width: W,
+            height: H,
+        }
     );
 }
