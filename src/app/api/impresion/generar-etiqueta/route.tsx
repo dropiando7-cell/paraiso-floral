@@ -81,21 +81,21 @@ export async function GET(req: NextRequest) {
                 <div style={{ display: 'flex', flexDirection: 'column', width: 284, flexShrink: 0, height: H, backgroundColor: '#FFFFFF' }}>
 
                     {/* Header - Fondo Blanco (Logo completo) */}
-                    <div style={{ display: 'flex', flexDirection: 'row', height: 46, padding: '4px', alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'row', height: 54, padding: '6px 4px 4px', alignItems: 'center', justifyContent: 'center' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blue-vineta.png"
-                            width={160}
-                            height={34}
+                            width={180}
+                            height={42}
                             alt="Logo Elim"
                             style={{ objectFit: 'contain', filter: 'grayscale(100%)' }}
                         />
                     </div>
 
-                    {/* ID Row - Fondo Negro */}
-                    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#000000', color: '#FFFFFF', padding: '4px 12px', height: 60, justifyContent: 'center', overflow: 'hidden' }}>
-                        <span style={{ fontSize: 9, fontWeight: 700, color: '#AAAAAA' }}>// ID ACTIVO</span>
-                        <span style={{ fontSize: idFontSize, fontWeight: 900, lineHeight: 1.1, marginTop: '0px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {/* ID Row - Fondo Blanco */}
+                    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', color: '#000000', padding: '4px 12px', height: 52, justifyContent: 'center', overflow: 'hidden', borderBottom: '2.5px solid #000' }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: '#888888' }}>// ID ACTIVO</span>
+                        <span style={{ fontSize: idFontSize, fontWeight: 900, lineHeight: 1.1, marginTop: '0px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#000000' }}>
                             {finalIdQr}
                         </span>
                     </div>
