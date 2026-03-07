@@ -19,7 +19,9 @@ import {
   Baby,
   Stethoscope,
   Users,
-  Key
+  Key,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -29,6 +31,12 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
+interface SubMenuItem {
+  name: string;
+  href: string;
+  roles?: string[];
+}
+
 interface MenuItem {
   name: string;
   href: string;
@@ -36,6 +44,7 @@ interface MenuItem {
   badge?: string;
   badgeColor?: string;
   roles?: string[];
+  subItems?: SubMenuItem[];
 }
 
 const menuItems: { category: string; items: MenuItem[] }[] = [
@@ -51,7 +60,16 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
     category: 'LEGAL & ACTIVOS',
     items: [
       { name: 'Gestor de Contraseñas', href: '/boveda', icon: Shield },
-      { name: 'Inventario de Activos', href: '/inventario', icon: Box },
+      {
+        name: 'Recursos y Patrimonio',
+        href: '#',
+        icon: Box,
+        subItems: [
+          { name: 'Inventario de Activos', href: '/inventario' },
+          { name: 'Avance de Inventario', href: '/admin/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Bodegas y Áreas', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] }
+        ]
+      },
       { name: 'Actas de Junta', href: '/actas', icon: FileText, badge: 'OCR', badgeColor: 'bg-dark-800 text-brand-100' },
     ]
   },
@@ -96,19 +114,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         href: '/admin/users',
         icon: Users,
         roles: ['SUPER_ADMIN'],
-      },
-      {
-        name: 'Avance de Inventario',
-        href: '/admin/inventario',
-        icon: Key,
-        roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
-      },
-      {
-        name: 'Bodegas y Áreas',
-        href: '/admin/areas',
-        icon: Key,
-        roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
-      },
+      }
     ]
   }
 ];
@@ -120,6 +126,17 @@ const bottomItems = [
 
 export function Sidebar({ dbUser, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
+    'Recursos y Patrimonio': true // Default open for now
+  });
+
+  const toggleMenu = (name: string, e: React.MouseEvent) => {
+    e.preventDefault();
+    setOpenMenus(prev => ({
+      ...prev,
+      [name]: !prev[name]
+    }));
+  };
 
   return (
     <aside className="w-[280px] bg-[#0500A3] border-r border-[#150ec4] flex flex-col h-full min-h-screen shrink-0 print:hidden">
@@ -174,37 +191,97 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
               )}
               <div className="flex flex-col gap-1">
                 {visibleItems.map((item) => {
-                  const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                  const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
+
+                  // Filter subItems based on role
+                  const visibleSubItems = item.subItems?.filter(subItem => {
+                    if (dbUser?.role === 'SUPER_ADMIN') return true;
+                    if (!subItem.roles) return true;
+                    return subItem.roles.includes(dbUser?.role);
+                  }) || [];
+
+                  const hasSubMenu = visibleSubItems.length > 0;
+                  const isOpen = openMenus[item.name];
+                  // If we are currently on a submenu page, we should highlight the parent differently or keep it open
+                  const isChildActive = hasSubMenu && visibleSubItems.some(sub => pathname === sub.href || pathname.startsWith(sub.href + '/'));
+                  const isEffectivelyActive = isActive && !isChildActive;
 
                   const Icon = item.icon;
 
                   return (
-                    <Link
-                      key={item.name}
-                      href={item.href}
-                      onClick={onClose}
-                      className={twMerge(
-                        clsx(
-                          'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm',
-                          isActive
-                            ? 'bg-white text-[#0500A3] font-bold shadow-md'
-                            : 'text-white/90 hover:text-white hover:bg-[#1A14B8]'
-                        )
+                    <div key={item.name} className="flex flex-col gap-1">
+                      {hasSubMenu ? (
+                        <button
+                          onClick={(e) => toggleMenu(item.name, e)}
+                          className={twMerge(
+                            clsx(
+                              'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm w-full',
+                              isEffectivelyActive || isChildActive
+                                ? 'bg-white/10 text-white font-bold'
+                                : 'text-white/90 hover:text-white hover:bg-[#1A14B8]'
+                            )
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Icon className={clsx('w-4 h-4', (isEffectivelyActive || isChildActive) ? 'text-white' : 'text-white/90 group-hover:text-white')} />
+                            <span>{item.name}</span>
+                          </div>
+                          <ChevronDown className={clsx("w-4 h-4 transition-transform duration-200", isOpen ? "rotate-180" : "rotate-0")} />
+                        </button>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          onClick={onClose}
+                          className={twMerge(
+                            clsx(
+                              'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm',
+                              isActive
+                                ? 'bg-white text-[#0500A3] font-bold shadow-md'
+                                : 'text-white/90 hover:text-white hover:bg-[#1A14B8]'
+                            )
+                          )}
+                        >
+                          <div className="flex items-center gap-3">
+                            <Icon className={clsx('w-4 h-4', isActive ? 'text-[#0500A3]' : 'text-white/90 group-hover:text-white')} />
+                            <span>{item.name}</span>
+                          </div>
+                          {item.badge && (
+                            <span className={clsx(
+                              'text-[10px] px-2 py-0.5 rounded-full font-medium',
+                              item.badgeColor
+                            )}>
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
                       )}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className={clsx('w-4 h-4', isActive ? 'text-[#0500A3]' : 'text-white/90 group-hover:text-white')} />
-                        <span>{item.name}</span>
-                      </div>
-                      {item.badge && (
-                        <span className={clsx(
-                          'text-[10px] px-2 py-0.5 rounded-full font-medium',
-                          item.badgeColor
-                        )}>
-                          {item.badge}
-                        </span>
+
+                      {/* Render SubMenu */}
+                      {hasSubMenu && isOpen && (
+                        <div className="flex flex-col gap-1 pl-4 mt-1 border-l-2 border-[#1A14B8] ml-4">
+                          {visibleSubItems.map((subItem) => {
+                            const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href + '/');
+                            return (
+                              <Link
+                                key={subItem.name}
+                                href={subItem.href}
+                                onClick={onClose}
+                                className={twMerge(
+                                  clsx(
+                                    'flex items-center px-3 py-2 rounded-xl transition-all duration-200 group text-sm relative',
+                                    isSubActive
+                                      ? 'bg-white text-[#0500A3] font-bold shadow-sm'
+                                      : 'text-white/70 hover:text-white hover:bg-[#1A14B8]'
+                                  )
+                                )}
+                              >
+                                <span>{subItem.name}</span>
+                              </Link>
+                            );
+                          })}
+                        </div>
                       )}
-                    </Link>
+                    </div>
                   );
                 })}
               </div>

@@ -74,20 +74,45 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '')
     return { activos, total, totalPages: Math.ceil(total / PER_PAGE) };
 }
 
-// ─── READ: Stats for cards ───────────────────────────────────────────────────
 export async function getActivoStats() {
     const orgId = await getOrgId();
 
-    const [total, vigente, depreciado, procesoBaja, conDano, areasCount] = await Promise.all([
-        prisma.activoFijo.count({ where: { organizationId: orgId } }),
-        prisma.activoFijo.count({ where: { organizationId: orgId, estatusContable: 'VIGENTE' } }),
-        prisma.activoFijo.count({ where: { organizationId: orgId, estatusContable: 'DEPRECIADO' } }),
-        prisma.activoFijo.count({ where: { organizationId: orgId, estatusContable: 'PROCESO DE BAJA' } }),
-        prisma.activoFijo.count({ where: { organizationId: orgId, estadoDano: { not: null } } }),
-        prisma.activoFijo.groupBy({ by: ['area'], where: { organizationId: orgId } }),
-    ]);
+    const statsRaw = await prisma.$queryRaw<
+        Array<{
+            total: bigint;
+            vigente: bigint;
+            depreciado: bigint;
+            proceso_baja: bigint;
+            con_dano: bigint;
+            areas_count: bigint;
+        }>
+    >`
+        WITH org_areas AS (
+            SELECT COUNT(DISTINCT "area") as areas_count 
+            FROM "activos_fijos" 
+            WHERE "organizationId" = ${orgId}::uuid
+        )
+        SELECT 
+            COUNT(*) as total,
+            COUNT(*) FILTER (WHERE "estatusContable" = 'VIGENTE') as vigente,
+            COUNT(*) FILTER (WHERE "estatusContable" = 'DEPRECIADO') as depreciado,
+            COUNT(*) FILTER (WHERE "estatusContable" = 'PROCESO DE BAJA') as proceso_baja,
+            COUNT(*) FILTER (WHERE "estadoDano" IS NOT NULL) as con_dano,
+            (SELECT areas_count FROM org_areas)
+        FROM "activos_fijos"
+        WHERE "organizationId" = ${orgId}::uuid
+    `;
 
-    return { total, vigente, depreciado, procesoBaja, conDano, areasRegistradas: areasCount.length };
+    const row = statsRaw[0];
+
+    return {
+        total: Number(row?.total || 0),
+        vigente: Number(row?.vigente || 0),
+        depreciado: Number(row?.depreciado || 0),
+        procesoBaja: Number(row?.proceso_baja || 0),
+        conDano: Number(row?.con_dano || 0),
+        areasRegistradas: Number(row?.areas_count || 0)
+    };
 }
 
 // ─── CREATE ──────────────────────────────────────────────────────────────────

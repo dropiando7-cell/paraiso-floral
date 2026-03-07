@@ -2,7 +2,7 @@
 
 import React, { useState, useTransition } from 'react';
 import { Area } from '@prisma/client';
-import { Plus, Edit2, Trash2, Printer, Search, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Printer, Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { createArea, updateArea, deleteArea } from './actions';
 
 interface Props {
@@ -12,6 +12,8 @@ interface Props {
 export default function AdminAreasClient({ initialAreas }: Props) {
     const [areas, setAreas] = useState<Area[]>(initialAreas);
     const [search, setSearch] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     // Modal states
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -26,6 +28,16 @@ export default function AdminAreasClient({ initialAreas }: Props) {
         a.name.toLowerCase().includes(search.toLowerCase()) ||
         a.prefix.toLowerCase().includes(search.toLowerCase())
     );
+
+    const totalPages = Math.max(1, Math.ceil(filteredAreas.length / ITEMS_PER_PAGE));
+    const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+    const startIndex = (validCurrentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedAreas = filteredAreas.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearch(e.target.value);
+        setCurrentPage(1);
+    };
 
     const handleOpenModal = (area?: Area) => {
         setSelectedArea(area || null);
@@ -112,7 +124,7 @@ export default function AdminAreasClient({ initialAreas }: Props) {
                             type="text"
                             placeholder="Buscar por nombre o prefijo..."
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={handleSearchChange}
                             className="block w-full pl-10 sm:text-sm border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 py-2 border shadow-sm"
                         />
                     </div>
@@ -133,14 +145,14 @@ export default function AdminAreasClient({ initialAreas }: Props) {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredAreas.length === 0 ? (
+                            {paginatedAreas.length === 0 ? (
                                 <tr>
                                     <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
                                         No se encontraron áreas.
                                     </td>
                                 </tr>
                             ) : (
-                                filteredAreas.map((area) => (
+                                paginatedAreas.map((area) => (
                                     <tr key={area.id} className="hover:bg-gray-50">
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <div className="text-sm font-medium text-gray-900">{area.name}</div>
@@ -171,15 +183,70 @@ export default function AdminAreasClient({ initialAreas }: Props) {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                    <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 mt-4 rounded-b-lg">
+                        <div className="flex flex-1 justify-between sm:hidden">
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={validCurrentPage === 1}
+                                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Anterior
+                            </button>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={validCurrentPage === totalPages}
+                                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                        <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+                            <div>
+                                <p className="text-sm text-gray-700">
+                                    Mostrando <span className="font-medium">{startIndex + 1}</span> a{' '}
+                                    <span className="font-medium">
+                                        {Math.min(startIndex + ITEMS_PER_PAGE, filteredAreas.length)}
+                                    </span>{' '}
+                                    de <span className="font-medium">{filteredAreas.length}</span> resultados
+                                </p>
+                            </div>
+                            <div>
+                                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                        disabled={validCurrentPage === 1}
+                                        className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                                    >
+                                        <span className="sr-only">Anterior</span>
+                                        <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                                    </button>
+                                    <span className="relative inline-flex items-center px-4 py-2 text-sm font-semibold text-gray-900 ring-1 ring-inset ring-gray-300 focus:outline-offset-0">
+                                        {validCurrentPage} / {totalPages}
+                                    </span>
+                                    <button
+                                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                        disabled={validCurrentPage === totalPages}
+                                        className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50"
+                                    >
+                                        <span className="sr-only">Siguiente</span>
+                                        <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Modal CRUD */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 overflow-y-auto">
-                    <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={handleCloseModal}></div>
-                        <span className="hidden sm:inline-block sm:align-middle sm:h-screen">&#8203;</span>
-                        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0 bg-slate-900/50 backdrop-blur-sm">
+                    <div className="absolute inset-0" onClick={handleCloseModal}></div>
+                    <div className="relative bg-white rounded-xl shadow-xl transform transition-all sm:max-w-lg sm:w-full max-h-[90vh] flex flex-col overflow-hidden">
+                        <div className="overflow-y-auto w-full">
                             <form onSubmit={handleSubmit}>
                                 <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                                     <div className="sm:flex sm:items-start">
@@ -226,10 +293,10 @@ export default function AdminAreasClient({ initialAreas }: Props) {
 
             {/* Print Preview Modal */}
             {isPreviewOpen && printingArea && (
-                <div className="fixed inset-0 z-50 overflow-y-auto">
-                    <div className="flex items-center justify-center min-h-screen p-4 text-center sm:p-0">
-                        <div className="fixed inset-0 bg-gray-900 bg-opacity-75 transition-opacity" onClick={() => setIsPreviewOpen(false)}></div>
-                        <div className="relative bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:max-w-xl sm:w-full">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-0 bg-slate-900/50 backdrop-blur-sm">
+                    <div className="absolute inset-0" onClick={() => setIsPreviewOpen(false)}></div>
+                    <div className="relative bg-white rounded-xl shadow-xl transform transition-all sm:max-w-xl sm:w-full max-h-[90vh] flex flex-col overflow-hidden">
+                        <div className="overflow-y-auto w-full">
                             <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
                                 <h3 className="text-lg leading-6 font-medium text-gray-900">Vista Previa de Etiqueta QR</h3>
                                 <p className="mt-1 max-w-2xl text-sm text-gray-500">Asegúrate de que la impresora Tally Dascom de 2x1" esté conectada y lista.</p>

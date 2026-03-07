@@ -23,39 +23,10 @@ export default async function InventarioPage() {
 
     const orgId = dbUser.organizationId;
 
-    // Pre-load first page of activos and stats server-side to avoid client loading flash
-    const [activosRaw, total, statsData] = await Promise.all([
-        prisma.activoFijo.findMany({
-            where: { organizationId: orgId },
-            orderBy: { createdAt: 'desc' },
-            take: 10,
-        }),
-        prisma.activoFijo.count({ where: { organizationId: orgId } }),
-        Promise.all([
-            prisma.activoFijo.count({ where: { organizationId: orgId, estatusContable: 'VIGENTE' } }),
-            prisma.activoFijo.count({ where: { organizationId: orgId, estatusContable: 'DEPRECIADO' } }),
-            prisma.activoFijo.count({ where: { organizationId: orgId, estatusContable: 'PROCESO DE BAJA' } }),
-            prisma.activoFijo.count({ where: { organizationId: orgId, estadoDano: { not: null } } }),
-            prisma.activoFijo.groupBy({ by: ['area'], where: { organizationId: orgId } }),
-        ]),
-    ]);
-
-    const [vigente, depreciado, procesoBaja, conDano, areasCount] = statsData;
-
-    const initialData = {
-        activos: JSON.parse(JSON.stringify(activosRaw)),
-        total,
-        totalPages: Math.ceil(total / 10),
-    };
-
-    const initialStats = {
-        total,
-        vigente,
-        depreciado,
-        procesoBaja,
-        conDano,
-        areasRegistradas: areasCount.length,
-    };
+    // Remove heavy SSR blocking queries for assets and stats.
+    // The client component will fetch these asynchronously on mount to avoid freezing the UI navigation.
+    const initialData = { activos: [], total: 0, totalPages: 1 };
+    const initialStats = null;
 
     const dbAreas = await prisma.area.findMany({
         where: { organizationId: orgId },

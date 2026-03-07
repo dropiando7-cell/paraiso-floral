@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useTransition, useRef, useCallback } from 'react';
+import { useState, useEffect, useTransition, useRef } from 'react';
+import Image from 'next/image';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
@@ -559,7 +560,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             // Let's implement dynamic compression inline for the plaque
 
             const url = URL.createObjectURL(file);
-            const img = new Image();
+            const img = new window.Image();
             img.src = url;
             await new Promise((resolve) => { img.onload = resolve; });
             URL.revokeObjectURL(url);
@@ -1053,7 +1054,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [] }: { 
     const [search, setSearch] = useState('');
     const [filtroArea, setFiltroArea] = useState('');
     const [filtroEstatus, setFiltroEstatus] = useState('');
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [modalOpen, setModalOpen] = useState(false);
     const [editActivo, setEditActivo] = useState<Activo | null>(null);
     const [deleteActivo_, setDeleteActivo] = useState<Activo | null>(null);
@@ -1062,6 +1063,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [] }: { 
     const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
     const [printingId, setPrintingId] = useState<string | null>(null);
     const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+    const hasMounted = useRef(false);
 
     // QR Area Control
     const [lockedArea, setLockedArea] = useState<string | null>(null);
@@ -1133,6 +1135,14 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [] }: { 
     }
 
     useEffect(() => {
+        // Ejecutar inmediatamente en el primer montaje para rehidratar la UI
+        if (!hasMounted.current) {
+            hasMounted.current = true;
+            refresh(1, search, filtroArea, filtroEstatus);
+            return;
+        }
+
+        // Debounce para búsquedas subsiguientes
         const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus); }, 300);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1262,12 +1272,11 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [] }: { 
                                 <td className="px-3 py-3"><div className="font-mono text-[10px] text-[#0500A3] font-bold bg-blue-50 px-1.5 py-0.5 rounded w-fit whitespace-nowrap">{a.idQr}</div></td>
                                 <td className="px-3 py-3">
                                     {a.imagenUrl
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        ? <img src={a.imagenUrl} onClick={(e) => {
+                                        ? <Image src={a.imagenUrl} width={40} height={40} onClick={(e) => {
                                             e.stopPropagation();
                                             const imgs = [a.imagenUrl, a.imagenPlacaUrl].filter(Boolean) as string[];
                                             if (imgs.length > 0) setPreviewImage({ index: 0, images: imgs });
-                                        }} alt="" className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:border-[#0500A3] transition-colors" />
+                                        }} alt="Activo" className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:border-[#0500A3] transition-colors" />
                                         : <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center"><Eye className="w-4 h-4 text-slate-300" /></div>}
                                 </td>
                                 <td className="px-3 py-3 max-w-[200px]">
@@ -1395,8 +1404,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [] }: { 
                                 <div className="flex gap-6 mb-6">
                                     <div className="w-32 h-32 shrink-0 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center">
                                         {viewActivo.imagenUrl ? (
-                                            // eslint-disable-next-line @next/next/no-img-element
-                                            <img src={viewActivo.imagenUrl} alt="" className="w-full h-full object-cover cursor-pointer hover:opacity-90" onClick={() => {
+                                            <Image src={viewActivo.imagenUrl} width={128} height={128} alt="Activo" className="w-full h-full object-cover cursor-pointer hover:opacity-90" onClick={() => {
                                                 const imgs = [viewActivo.imagenUrl, viewActivo.imagenPlacaUrl].filter(Boolean) as string[];
                                                 setPreviewImage({ index: 0, images: imgs });
                                             }} />

@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     const nameStr = finalAreaName.toUpperCase();
     const nameFontSize = nameStr.length > 35 ? 16 : nameStr.length > 25 ? 18 : nameStr.length > 15 ? 22 : 26;
 
-    const prefixFontSize = finalAreaPrefix.length > 18 ? 20 : finalAreaPrefix.length > 14 ? 24 : 32;
+    const prefixFontSize = Math.min(26, Math.max(10, Math.floor(330 / Math.max(1, finalAreaPrefix.length))));
 
     return new ImageResponse(
         (
@@ -85,8 +85,8 @@ export async function GET(req: NextRequest) {
                     </div>
 
                     {/* Prefix Area Bottom */}
-                    <div style={{ display: 'flex', height: 40, alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden', borderTop: '2px solid #000', paddingTop: '4px' }}>
-                        <span style={{ fontSize: prefixFontSize, fontWeight: 900, lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#000', fontFamily: 'sans-serif', letterSpacing: -0.5 }}>
+                    <div style={{ display: 'flex', height: 40, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderTop: '2px solid #000', paddingTop: '4px' }}>
+                        <span style={{ fontSize: prefixFontSize, fontWeight: 900, lineHeight: 1, whiteSpace: 'nowrap', color: '#000', fontFamily: 'sans-serif', letterSpacing: -0.5 }}>
                             {finalAreaPrefix}
                         </span>
                     </div>

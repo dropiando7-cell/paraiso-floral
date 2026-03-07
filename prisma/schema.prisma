@@ -406,6 +406,9 @@ model ActivoFijo {
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
+  @@index([organizationId, estatusContable])
+  @@index([organizationId, estadoDano])
+  @@index([organizationId, area])
   @@map("activos_fijos")
 }
 
