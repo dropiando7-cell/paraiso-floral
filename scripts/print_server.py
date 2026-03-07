@@ -37,9 +37,11 @@ def imprimir_etiqueta(url_imagen):
         # SI LA IMPRESORA ESTÁ BIEN CONFIGURADA EN WINDOWS A 2x1", AQUI VEREMOS 406x203 (a 203dpi)
         print(f"[*] Margen Lógico Windows: Ancho {ancho_printer}px, Alto {alto_printer}px")
 
-        # 5. Forzar la imagen web a encajar EXACTAMENTE en el canvas reportado.
-        # Esto soluciona que la imagen no quepa y fuerce la máquina a saltar otra etiqueta
-        img_scaled = img.resize((ancho_printer, alto_printer), Image.LANCZOS)
+        # 5. Escalar imagen al ancho reportado MANTENIENDO PROPORCIÓN (Lógica V4)
+        # Esto evita que Windows detecte violación de Y y salte 2 etiquetas.
+        ratio = ancho_printer / float(img.width)
+        nuevo_alto = int(img.height * ratio)
+        img_scaled = img.resize((ancho_printer, nuevo_alto), Image.LANCZOS)
 
         # 6. Binarización profunda para papel térmico (Todo o nada)
         img_gris = img_scaled.convert("L")
@@ -49,9 +51,9 @@ def imprimir_etiqueta(url_imagen):
         hDC.StartDoc("Etiqueta Activo ELIM")
         hDC.StartPage()
 
-        # Dibujar imagen ocupando el 100% (0,0 hasta ancho,alto)
+        # Dibujar imagen ocupando el ancho completo, permitiendo alto proporcional
         dib = ImageWin.Dib(img_final)
-        dib.draw(hDC.GetHandleOutput(), (0, 0, ancho_printer, alto_printer))
+        dib.draw(hDC.GetHandleOutput(), (0, 0, ancho_printer, nuevo_alto))
 
         hDC.EndPage()
         hDC.EndDoc()
@@ -66,7 +68,7 @@ def imprimir_etiqueta(url_imagen):
 
 def iniciar():
     print("=========================================")
-    print(" SERVIDOR DE IMPRESION ELIM - V5 (Escala Exacta)")
+    print(" SERVIDOR DE IMPRESION ELIM - V6 (Escala Proporcional V4 Restored)")
     print(f" Impresora: {IMPRESORA}")
     print("=========================================\n")
     while True:
