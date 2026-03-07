@@ -5,9 +5,9 @@ import Image from 'next/image';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
-    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink
+    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser
 } from 'lucide-react';
-import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea } from './actions';
+import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue } from './actions';
 import { removeBackground } from '@imgly/background-removal';
 import { AreaScannerModal } from './AreaScannerModal';
 
@@ -1041,7 +1041,7 @@ function DeleteConfirm({ activo, onClose, onSuccess }: { activo: Activo; onClose
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export function InventarioClient({ initialData, initialStats, dbAreas = [] }: { initialData?: any; initialStats?: any; dbAreas?: any[] }) {
+export function InventarioClient({ initialData, initialStats, dbAreas = [], userRole }: { initialData?: any; initialStats?: any; dbAreas?: any[]; userRole?: string }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
         label: a.description ? `${a.name} — ${a.description}` : a.name
@@ -1101,6 +1101,20 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [] }: { 
 
     const [debugPrinting, setDebugPrinting] = useState(false);
     const [debugStatus, setDebugStatus] = useState<'idle' | 'sent' | 'error'>('idle');
+    const [clearingQueue, setClearingQueue] = useState(false);
+
+    async function handleClearQueue() {
+        if (!confirm('¿Estás seguro que deseas limpiar TODA la cola de impresión de la iglesia?')) return;
+        setClearingQueue(true);
+        try {
+            await clearPrintQueue();
+            alert('Cola de impresión limpiada exitosamente');
+        } catch {
+            alert('Error al limpiar cola');
+        } finally {
+            setClearingQueue(false);
+        }
+    }
 
     async function handleDebugPrint() {
         setDebugPrinting(true);
@@ -1163,19 +1177,32 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [] }: { 
                 </div>
                 <div className="flex flex-col items-end gap-2 w-full sm:w-auto mt-4 sm:mt-0">
                     <div className="flex items-center gap-2">
-                        {/* Botón de debug para probar el servidor de impresión */}
-                        <button
-                            onClick={handleDebugPrint}
-                            disabled={debugPrinting}
-                            title="Enviar etiqueta de prueba a la impresora Tally"
-                            className={`flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 disabled:opacity-60 hidden sm:flex ${debugStatus === 'sent' ? 'bg-green-50 border-green-400 text-green-700' :
-                                debugStatus === 'error' ? 'bg-red-50 border-red-400 text-red-700' :
-                                    'bg-yellow-50 border-yellow-400 text-yellow-700 hover:bg-yellow-100'
-                                }`}
-                        >
-                            {debugPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                            {debugStatus === 'sent' ? '✅ Enviado' : debugStatus === 'error' ? '❌ Error' : 'Debug Impr.'}
-                        </button>
+                        {/* Funciones de Impresión para ADMIN */}
+                        {userRole === 'SUPER_ADMIN' && (
+                            <>
+                                <button
+                                    onClick={handleClearQueue}
+                                    disabled={clearingQueue}
+                                    title="Limpiar cola de impresión pendiente completa"
+                                    className="flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 disabled:opacity-60 hidden sm:flex bg-red-50 border-red-200 text-red-600 hover:bg-red-100 hover:border-red-300"
+                                >
+                                    {clearingQueue ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eraser className="w-4 h-4" />}
+                                    Limpiar Cola
+                                </button>
+                                <button
+                                    onClick={handleDebugPrint}
+                                    disabled={debugPrinting}
+                                    title="Enviar etiqueta de prueba a la impresora Tally"
+                                    className={`flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 disabled:opacity-60 hidden sm:flex ${debugStatus === 'sent' ? 'bg-green-50 border-green-400 text-green-700' :
+                                        debugStatus === 'error' ? 'bg-red-50 border-red-400 text-red-700' :
+                                            'bg-yellow-50 border-yellow-400 text-yellow-700 hover:bg-yellow-100'
+                                        }`}
+                                >
+                                    {debugPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                                    {debugStatus === 'sent' ? '✅ Enviado' : debugStatus === 'error' ? '❌ Error' : 'Debug Impr.'}
+                                </button>
+                            </>
+                        )}
                         <button onClick={() => {
                             if (!lockedArea) setScannerOpen(true);
                             else { setEditActivo(null); setModalOpen(true); }

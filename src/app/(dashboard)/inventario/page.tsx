@@ -33,5 +33,5 @@ export default async function InventarioPage() {
         orderBy: { name: 'asc' },
     });
 
-    return <InventarioClient initialData={initialData} initialStats={initialStats} dbAreas={dbAreas} />;
+    return <InventarioClient initialData={initialData} initialStats={initialStats} dbAreas={dbAreas} userRole={dbUser.role} />;
 }

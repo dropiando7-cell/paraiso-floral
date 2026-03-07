@@ -346,3 +346,11 @@ export async function getAreaStatuses() {
     });
     return statuses;
 }
+
+export async function clearPrintQueue() {
+    const orgId = await getOrgId();
+    await prisma.colaImpresion.deleteMany({
+        where: { organizationId: orgId, estado: 'PENDIENTE' }
+    });
+    return { success: true };
+}
