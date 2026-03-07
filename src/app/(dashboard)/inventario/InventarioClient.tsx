@@ -1081,6 +1081,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 area: activo.area,
                 cuenta: activo.cuentaAct,
             });
+
             const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
 
             // Encolar en la base de datos para que la laptop lo reciba
