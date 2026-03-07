@@ -75,10 +75,11 @@ export async function GET(req: NextRequest) {
                     backgroundColor: '#000000', // Borde negro total entre columnas
                     fontFamily: 'sans-serif',
                     boxSizing: 'border-box',
+                    overflow: 'hidden',
                 }}
             >
                 {/* Columna Izquierda - Estilo Stacked Clean */}
-                <div style={{ display: 'flex', flexDirection: 'column', width: 270, flexShrink: 0, height: H, backgroundColor: '#FFFFFF' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', width: 270, flexShrink: 0, height: H, backgroundColor: '#FFFFFF', boxSizing: 'border-box', overflow: 'hidden' }}>
 
                     {/* Header - Fondo Blanco (Logo completo) */}
                     <div style={{ display: 'flex', flexDirection: 'row', height: 54, padding: '16px 4px 2px', alignItems: 'center', justifyContent: 'center' }}>
@@ -151,7 +152,7 @@ export async function GET(req: NextRequest) {
                 <div style={{ width: 4, flexShrink: 0, backgroundColor: '#000000', height: '100%' }} />
 
                 {/* Columna Derecha - QR */}
-                <div style={{ display: 'flex', flexDirection: 'column', width: 132, flexShrink: 0, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', height: H, padding: '4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', height: H, padding: '4px', boxSizing: 'border-box', overflow: 'hidden' }}>
                     <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={qrUrl} width={118} height={118} alt="QR" style={{ backgroundColor: '#fff' }} />
