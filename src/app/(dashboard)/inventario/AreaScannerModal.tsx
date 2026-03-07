@@ -83,7 +83,7 @@ export function AreaScannerModal({
                 </div>
 
                 <div className="p-4 bg-black">
-                    <div id="qr-reader-area" className="w-full text-white bg-black min-h-[300px] flex items-center justify-center rounded-xl overflow-hidden [&_video]:object-cover" />
+                    <div id="qr-reader-area" className="w-full text-white bg-black rounded-xl overflow-hidden" />
                 </div>
 
                 <div className="p-5 flex flex-col items-center justify-center border-t border-slate-100 text-center">
@@ -109,11 +109,15 @@ export function AreaScannerModal({
             {/* Inyectamos estilos para sobreescribir el diseño feo por defecto de html5-qrcode */}
             <style dangerouslySetInnerHTML={{
                 __html: `
-                #qr-reader-area__scan_region { min-height: 250px; display: flex; align-items: center; justify-content: center; background: #000; }
+                #qr-reader-area { border: none !important; width: 100% !important; }
+                #qr-reader-area__scan_region { width: 100% !important; display: block; min-height: 250px; background: #000; text-align: center; }
+                #qr-reader-area__scan_region video { width: 100% !important; max-width: 100% !important; height: auto !important; object-fit: cover !important; border-radius: 8px !important; }
                 #qr-reader-area__scan_region img { display: none; }
-                #qr-reader-area__dashboard_section_csr button { background: #0500A3 !important; color: white !important; border: none !important; padding: 10px 16px !important; border-radius: 12px !important; font-weight: bold !important; font-family: inherit !important; margin-top: 10px !important; cursor: pointer; }
-                #qr-reader-area__dashboard_section_csr select { padding: 8px !important; border-radius: 8px !important; border: 1px solid #ccc !important; font-family: inherit !important; max-width: 100%; }
+                #qr-reader-area__dashboard_section_csr { display: flex; flex-direction: column; align-items: center; gap: 8px; padding-top: 12px; }
+                #qr-reader-area__dashboard_section_csr button { background: #0500A3 !important; color: white !important; border: none !important; padding: 10px 16px !important; border-radius: 12px !important; font-weight: bold !important; font-family: inherit !important; margin: 0 !important; cursor: pointer; width: 100%; max-width: 200px; }
+                #qr-reader-area__dashboard_section_csr select { padding: 8px !important; border-radius: 8px !important; border: 1px solid #ccc !important; font-family: inherit !important; max-width: 100%;  width: 100%; color: #000; }
                 #qr-reader-area a { display: none !important; }
+                #qr-reader-area__dashboard_section_swaplink { display: none !important; }
             `}} />
         </div>
     );
