@@ -23,6 +23,7 @@ export default function AdminAreasClient({ initialAreas }: Props) {
     // Print Preview Modal states
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
     const [printingArea, setPrintingArea] = useState<Area | null>(null);
+    const [isPrinting, setIsPrinting] = useState(false);
 
     const filteredAreas = areas.filter(a =>
         a.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -92,11 +93,33 @@ export default function AdminAreasClient({ initialAreas }: Props) {
         });
     };
 
-    const printLabelFromPreview = () => {
+    const printLabelFromPreview = async () => {
         if (!printingArea) return;
-        alert("Enviando etiqueta de " + printingArea.name + " a la cola de impresión local...");
-        // En un futuro conectar al websocket / python script
-        setIsPreviewOpen(false);
+        setIsPrinting(true);
+        try {
+            const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta-area?idQr=${encodeURIComponent(printingArea.qrCode)}&areaName=${encodeURIComponent(printingArea.description || printingArea.name)}&areaPrefix=${encodeURIComponent(printingArea.prefix)}`;
+
+            const res = await fetch('/api/impresion/encolar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    activoId: null, // El backend usará el primer activo de la org
+                    urlImagen
+                }),
+            });
+
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Error al encolar impresión');
+            }
+
+            alert("Etiqueta añadida a la cola de impresión exitosamente. La impresora Tally Dascom debería estar escaneando.");
+            setIsPreviewOpen(false);
+        } catch (error: any) {
+            alert(error.message);
+        } finally {
+            setIsPrinting(false);
+        }
     }
 
     return (
@@ -315,10 +338,11 @@ export default function AdminAreasClient({ initialAreas }: Props) {
                                 <p className="text-xs text-gray-400 mt-4 text-center">La imagen de arriba es exactamente el archivo que se enviará al spooler.</p>
                             </div>
                             <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-                                <button type="button" onClick={printLabelFromPreview} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm">
-                                    <Printer className="mr-2 h-4 w-4" /> Imprimir Etiqueta
+                                <button type="button" onClick={printLabelFromPreview} disabled={isPrinting} className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-green-600 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50">
+                                    {isPrinting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Printer className="mr-2 h-4 w-4" />}
+                                    {isPrinting ? 'Enviando...' : 'Imprimir Etiqueta'}
                                 </button>
-                                <button type="button" onClick={() => setIsPreviewOpen(false)} className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                                <button type="button" onClick={() => setIsPreviewOpen(false)} disabled={isPrinting} className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50">
                                     Cerrar
                                 </button>
                             </div>
