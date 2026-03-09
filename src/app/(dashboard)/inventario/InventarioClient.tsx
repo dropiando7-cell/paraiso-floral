@@ -584,10 +584,14 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ fileName: 'placa.jpg', contentType: 'image/jpeg' }),
             });
-            if (!res.ok) throw new Error('Error al obtener URL de subida');
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || `Error ${res.status}: Falló URL de subida`);
+            }
             const { uploadUrl, publicUrl } = await res.json();
 
-            await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+            const uploadRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+            if (!uploadRes.ok) throw new Error('Error al enviar imagen de placa a R2');
 
             setImagenPlacaUrl(publicUrl);
             setPlacaUploadPhase('done');

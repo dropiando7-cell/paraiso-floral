@@ -25,18 +25,33 @@ async function getOrgId(): Promise<string> {
 
 // ─── Auto-generate ID QR ─────────────────────────────────────────────────────
 async function generateIdQr(organizationId: string, area: string): Promise<string> {
-    // Count existing activos in this area for this org
-    const count = await prisma.activoFijo.count({
-        where: { organizationId, area },
-    });
-    const correlative = String(count + 1).padStart(4, '0');
     // Buscar el area real en BD para obtener el prefijo exacto
     const areaRecord = await prisma.area.findFirst({
         where: { organizationId, name: area }
     });
 
-    // Si no existe, usamos el nombre genérico
     const prefijo = areaRecord?.prefix || area;
+
+    // Buscar el último activo con ese prefijo para no repetir IDs de eliminados
+    const lastActivo = await prisma.activoFijo.findFirst({
+        where: { organizationId, idQr: { startsWith: `${prefijo}-` } },
+        orderBy: { idQr: 'desc' },
+    });
+
+    if (lastActivo) {
+        const parts = lastActivo.idQr.split('-');
+        const lastPart = parts[parts.length - 1];
+        if (!isNaN(Number(lastPart))) {
+            const nextNum = Number(lastPart) + 1;
+            return `${prefijo}-${String(nextNum).padStart(4, '0')}`;
+        }
+    }
+
+    // Si no hay ninguno o no pudimos parsear el número
+    const count = await prisma.activoFijo.count({
+        where: { organizationId, area },
+    });
+    const correlative = String(count + 1).padStart(4, '0');
     return `${prefijo}-${correlative}`;
 }
 

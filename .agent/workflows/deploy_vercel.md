@@ -6,7 +6,7 @@ Cuando se requiera desplegar la aplicación `sistemas-elim-app` a Vercel, o cuan
 
 Sigue estos pasos:
 
-1. Asegúrate de estar en el directorio `d:\sistemas-elim-app`.
+1. Asegúrate de estar en el directorio `/Users/elimmini/sistemas-elim-app`.
 2. Ejecuta el CLI localmente para compilar y desplegar a producción. Usa el flag `--yes` para saltarte confirmaciones.
 // turbo
 3. `npx vercel --prod --yes`
