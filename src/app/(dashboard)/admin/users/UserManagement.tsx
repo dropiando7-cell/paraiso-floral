@@ -25,7 +25,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
     // Form State for User
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
+    const [authType, setAuthType] = useState<'GOOGLE' | 'CLASSIC'>('GOOGLE');
     const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [role, setRole] = useState<Role>('USER');
     const [customRoleName, setCustomRoleName] = useState<string | null>(null);
     const [organizationId, setOrganizationId] = useState(organizations[0]?.id || '');
@@ -110,7 +112,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
     const handleOpenCreate = () => {
         setEditingUserId(null);
+        setAuthType('GOOGLE');
         setEmail('');
+        setPassword('');
         setRole('USER');
         setCustomRoleName(null);
         setOrganizationId(organizations[0]?.id || '');
@@ -121,7 +125,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
     const handleOpenEdit = (user: UserWithOrg) => {
         setEditingUserId(user.id);
+        setAuthType('GOOGLE'); // Edit doesn't allow changing auth type or password easily here
         setEmail(user.email);
+        setPassword('');
         setRole(user.role);
         setCustomRoleName(user.customRoleName || null);
         setOrganizationId(user.organizationId);
@@ -143,7 +149,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 return;
             }
         } else {
-            const res = await createUser({ email, role, customRoleName, organizationId, accessibleModules });
+            const res = await createUser({ email, password: authType === 'CLASSIC' ? password : undefined, role, customRoleName, organizationId, accessibleModules });
             if (!res.success) {
                 setError(res.error || 'Ocurrió un error al crear');
                 setLoading(false);
@@ -415,9 +421,36 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                             )}
 
                             <div className="space-y-4">
+                                {!editingUserId && (
+                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex gap-4">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="authType"
+                                                value="GOOGLE"
+                                                checked={authType === 'GOOGLE'}
+                                                onChange={() => setAuthType('GOOGLE')}
+                                                className="text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span className="text-sm font-medium text-slate-700">Google Workspace</span>
+                                        </label>
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="radio"
+                                                name="authType"
+                                                value="CLASSIC"
+                                                checked={authType === 'CLASSIC'}
+                                                onChange={() => setAuthType('CLASSIC')}
+                                                className="text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span className="text-sm font-medium text-slate-700">Correo Clásico</span>
+                                        </label>
+                                    </div>
+                                )}
+
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                                        Correo Electrónico (Válido de Google)
+                                        Correo Electrónico {authType === 'GOOGLE' && '(Válido de Google)'}
                                     </label>
                                     <input
                                         type="email"
@@ -425,13 +458,34 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                         disabled={!!editingUserId}
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder="ej. usuario@gmail.com o @elimhonduras.org"
+                                        placeholder={authType === 'GOOGLE' ? "ej. usuario@gmail.com o @elimhonduras.org" : "ej. usuario@hotmail.com"}
                                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm disabled:bg-slate-50 disabled:text-slate-500"
                                     />
                                     <p className="text-xs text-slate-500 mt-1.5">
-                                        {editingUserId ? "El correo no se puede cambiar ya que está vinculado a Google Sign-In." : "El usuario usará Google Sign-In con este correo."}
+                                        {editingUserId ? "El correo no se puede cambiar ya que está vinculado a una sesión." :
+                                            authType === 'GOOGLE' ? "El usuario usará Google Sign-In con este correo." :
+                                                "El usuario iniciará sesión con Correo y Contraseña."}
                                     </p>
                                 </div>
+
+                                {!editingUserId && authType === 'CLASSIC' && (
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                                            Contraseña Inicial
+                                        </label>
+                                        <input
+                                            type="text"
+                                            required={authType === 'CLASSIC'}
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="ej. Segura2026*"
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                        />
+                                        <p className="text-xs text-slate-500 mt-1.5">
+                                            Asegúrate de compartir esta contraseña con el usuario. Mínimo 6 caracteres.
+                                        </p>
+                                    </div>
+                                )}
 
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -514,7 +568,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={loading || !email || !organizationId}
+                                    disabled={loading || !email || !organizationId || (authType === 'CLASSIC' && !password && !editingUserId)}
                                     className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px] text-sm"
                                 >
                                     {loading ? (

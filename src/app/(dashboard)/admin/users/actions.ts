@@ -3,10 +3,12 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { createAdminClient } from '@/utils/supabase/admin';
 import { Role } from '@prisma/client';
 
 export async function createUser(data: {
     email: string;
+    password?: string;
     role: Role;
     customRoleName?: string | null;
     organizationId: string;
@@ -35,6 +37,21 @@ export async function createUser(data: {
 
         if (existingUser) {
             return { success: false, error: 'El usuario ya existe en el sistema.' };
+        }
+
+        // Create in Supabase Auth if a password was provided (Classic Email)
+        if (data.password) {
+            const adminAuthClient = createAdminClient();
+            const { error: authError } = await adminAuthClient.auth.admin.createUser({
+                email: data.email,
+                password: data.password,
+                email_confirm: true, // Auto-confirm for admin creations
+            });
+
+            if (authError) {
+                console.error('Error creating auth user:', authError);
+                return { success: false, error: 'Error al registrar la credencial de seguridad: ' + authError.message };
+            }
         }
 
         // Create user in Prisma

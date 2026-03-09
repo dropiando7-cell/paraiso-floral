@@ -3,7 +3,19 @@
 import { useState, useEffect } from 'react';
 import { MfaSettings } from '@/components/perfil/MfaSettings';
 import { createClient } from '@/utils/supabase/client';
-import { ExternalLink, ShieldAlert } from 'lucide-react';
+import { ExternalLink, ShieldAlert, Check, X } from 'lucide-react';
+import { updateProfile } from './actions';
+import { getUserProfileData } from './data';
+
+const roleTextMapping: Record<string, string> = {
+    SUPER_ADMIN: 'Administrador General',
+    ORG_ADMIN: 'Admin de Organización',
+    USER: 'Usuario Estándar',
+    CHECKIN_KIDS: 'Check-in Kids',
+    CHECKIN_KIDS_ADMIN: 'Admin Check-in Kids',
+    MEDICAL_STAFF: 'Staff Médico',
+    EXECUTIVE_ASSISTANT: 'Asistente Ejecutivo'
+};
 
 export default function ProfilePage() {
     const [isUploading, setIsUploading] = useState(false);
@@ -14,17 +26,43 @@ export default function ProfilePage() {
     const [authProvider, setAuthProvider] = useState<string>('email');
     const [userEmail, setUserEmail] = useState<string>('');
     const [userFullName, setUserFullName] = useState<string>('');
+    const [userPhone, setUserPhone] = useState<string>('');
+    const [userRole, setUserRole] = useState<string>('USER');
+
+    // Editing State
+    const [isEditing, setIsEditing] = useState(false);
+    const [editName, setEditName] = useState('');
+    const [editPhone, setEditPhone] = useState('');
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         const fetchUser = async () => {
             const supabase = createClient();
             const { data: { user } } = await supabase.auth.getUser();
             if (user) {
-                setAuthProvider(user.app_metadata?.providers?.[0] || 'email');
+                const provider = user.app_metadata?.providers?.[0] || 'email';
+                setAuthProvider(provider);
                 setUserEmail(user.email || '');
-                setUserFullName(user.user_metadata?.full_name || user.user_metadata?.name || 'Usuario');
+
+                const name = user.user_metadata?.full_name || user.user_metadata?.name || 'Usuario';
+                setUserFullName(name);
+                setEditName(name);
+
                 if (user.user_metadata?.avatar_url || user.user_metadata?.picture) {
                     setProfilePic(user.user_metadata?.avatar_url || user.user_metadata?.picture);
+                } else {
+                    setProfilePic(''); // Clear default to let initials show
+                }
+
+                // Fetch extra data from Prisma
+                if (user.email) {
+                    const dbData = await getUserProfileData(user.email);
+                    if (dbData) {
+                        setUserRole(dbData.customRoleName || dbData.role || 'USER');
+                        const phone = dbData.phoneNumber || '';
+                        setUserPhone(phone);
+                        setEditPhone(phone);
+                    }
                 }
             }
             setLoadingAuth(false);
@@ -99,6 +137,28 @@ export default function ProfilePage() {
         }
     };
 
+    const handleSaveProfile = async () => {
+        setIsSaving(true);
+        const res = await updateProfile({ fullName: editName, phone: editPhone });
+        if (res.success) {
+            setUserFullName(editName);
+            setUserPhone(editPhone);
+            setIsEditing(false);
+        } else {
+            alert(res.error || 'Error al guardar el perfil');
+        }
+        setIsSaving(false);
+    };
+
+    const getInitials = (name: string) => {
+        if (!name || name === 'Usuario') return 'US';
+        const parts = name.trim().split(' ');
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+        return name.substring(0, 2).toUpperCase();
+    };
+
     const [activeTab, setActiveTab] = useState<'info' | 'security'>('info');
     return (
         <div className="w-full max-w-4xl mx-auto space-y-6">
@@ -156,11 +216,13 @@ export default function ProfilePage() {
                                     )}
                                 </div>
                                 <div className="px-6 py-5 flex items-center gap-6">
-                                    <div className="w-20 h-20 rounded-full bg-slate-100 border-2 border-slate-200 overflow-hidden relative shrink-0">
+                                    <div className="w-20 h-20 rounded-full bg-slate-100 border-2 border-slate-200 overflow-hidden relative shrink-0 flex items-center justify-center text-slate-400">
                                         {loadingAuth ? (
                                             <div className="w-full h-full bg-slate-200 animate-pulse"></div>
-                                        ) : (
+                                        ) : profilePic ? (
                                             <img src={profilePic} alt="Profile" className="object-cover w-full h-full" />
+                                        ) : (
+                                            <span className="text-2xl font-bold text-slate-500">{getInitials(userFullName)}</span>
                                         )}
                                     </div>
                                     <div>
@@ -192,41 +254,95 @@ export default function ProfilePage() {
                                 </div>
                             </div>
 
-                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-                                    <h3 className="text-base font-semibold leading-6 text-slate-900">Detalles Personales</h3>
-                                    {authProvider !== 'google' && (
-                                        <button className="text-sm font-medium text-brand-600 hover:text-brand-500">Editar</button>
-                                    )}
-                                </div>
-                                <div className="px-6 py-5">
-                                    <dl className="space-y-4">
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <dt className="text-sm font-medium text-slate-500">Nombre completo</dt>
-                                            <dd className="text-sm text-slate-900 col-span-2">
-                                                {loadingAuth ? <div className="h-4 bg-slate-200 rounded animate-pulse w-32"></div> : userFullName}
-                                            </dd>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <dt className="text-sm font-medium text-slate-500">Correo Electrónico</dt>
-                                            <dd className="text-sm text-slate-900 col-span-2">
-                                                {loadingAuth ? <div className="h-4 bg-slate-200 rounded animate-pulse w-48"></div> : userEmail}
-                                            </dd>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <dt className="text-sm font-medium text-slate-500">Número de Teléfono</dt>
-                                            <dd className="text-sm text-slate-900 col-span-2">+504 9999-9999</dd>
-                                        </div>
-                                        <div className="grid grid-cols-3 gap-4">
-                                            <dt className="text-sm font-medium text-slate-500">Rol en el Sistema</dt>
-                                            <dd className="col-span-2">
-                                                <span className="inline-flex items-center rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-700/10">
-                                                    Administrador General
-                                                </span>
-                                            </dd>
-                                        </div>
-                                    </dl>
-                                </div>
+                            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+                                <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(); }} className="flex flex-col flex-1">
+                                    <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                                        <h3 className="text-base font-semibold leading-6 text-slate-900">Detalles Personales</h3>
+                                        {authProvider !== 'google' && (
+                                            <div>
+                                                {isEditing ? (
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => { setIsEditing(false); setEditName(userFullName); setEditPhone(userPhone); }}
+                                                            className="text-sm font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                                                            disabled={isSaving}
+                                                        >
+                                                            <X className="w-4 h-4" /> Cancelar
+                                                        </button>
+                                                        <button
+                                                            type="submit"
+                                                            className="text-sm font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1 ml-2"
+                                                            disabled={isSaving || !editName}
+                                                        >
+                                                            <Check className="w-4 h-4" /> {isSaving ? 'Guardando...' : 'Guardar'}
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <button type="button" onClick={() => setIsEditing(true)} className="text-sm font-medium text-brand-600 hover:text-brand-500">
+                                                        Editar
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="px-6 py-5">
+                                        <dl className="space-y-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 items-center">
+                                                <dt className="text-sm font-medium text-slate-500">Nombre completo</dt>
+                                                <dd className="col-span-1 md:col-span-2">
+                                                    {loadingAuth ? <div className="h-4 bg-slate-200 rounded animate-pulse w-32"></div> :
+                                                        isEditing ? (
+                                                            <input
+                                                                type="text"
+                                                                value={editName}
+                                                                onChange={(e) => setEditName(e.target.value)}
+                                                                className="w-full max-w-sm px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                                                                required
+                                                            />
+                                                        ) : (
+                                                            <span className="text-sm text-slate-900">{userFullName}</span>
+                                                        )
+                                                    }
+                                                </dd>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 items-center">
+                                                <dt className="text-sm font-medium text-slate-500">Correo Electrónico</dt>
+                                                <dd className="text-sm text-slate-900 col-span-1 md:col-span-2">
+                                                    {loadingAuth ? <div className="h-4 bg-slate-200 rounded animate-pulse w-48"></div> : userEmail}
+                                                </dd>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 items-center">
+                                                <dt className="text-sm font-medium text-slate-500">Número de Teléfono</dt>
+                                                <dd className="col-span-1 md:col-span-2">
+                                                    {loadingAuth ? <div className="h-4 bg-slate-200 rounded animate-pulse w-32"></div> :
+                                                        isEditing ? (
+                                                            <input
+                                                                type="tel"
+                                                                value={editPhone}
+                                                                onChange={(e) => setEditPhone(e.target.value)}
+                                                                placeholder="+504 0000-0000"
+                                                                className="w-full max-w-sm px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                                                            />
+                                                        ) : (
+                                                            <span className="text-sm text-slate-900">{userPhone || 'No registrado'}</span>
+                                                        )
+                                                    }
+                                                </dd>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 items-center">
+                                                <dt className="text-sm font-medium text-slate-500">Rol en el Sistema</dt>
+                                                <dd className="col-span-1 md:col-span-2">
+                                                    {loadingAuth ? <div className="h-6 bg-slate-200 rounded-full animate-pulse w-24"></div> :
+                                                        <span className="inline-flex items-center rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-700/10">
+                                                            {roleTextMapping[userRole] || userRole}
+                                                        </span>
+                                                    }
+                                                </dd>
+                                            </div>
+                                        </dl>
+                                    </div>
+                                </form>
                             </div>
                         </>
                     ) : (
