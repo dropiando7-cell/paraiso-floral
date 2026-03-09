@@ -86,6 +86,11 @@ model User {
   twoFactorSecret   String?
   twoFactorEnabled  Boolean       @default(false)
 
+  // User Preferences
+  defaultModule     String?
+  timezone          String?       @default("America/Tegucigalpa")
+  theme             String?       @default("system")
+
   // Auth Relation (Supabase Auth ID will map to this ID or we can query by email)
   
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)

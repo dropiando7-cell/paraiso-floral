@@ -34,5 +34,11 @@ export async function login(formData: FormData) {
     }
 
     revalidatePath('/', 'layout')
-    redirect('/') // Redirects to MFA/Security Verification or Dashboard
+
+    // Redirect to default module if configured, otherwise root
+    if (authorizedUser.defaultModule) {
+        redirect(authorizedUser.defaultModule)
+    } else {
+        redirect('/') // Redirects to Dashboard
+    }
 }
