@@ -6,6 +6,7 @@ import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
 import { Role, EmailTemplateType } from '@prisma/client';
 import { Resend } from 'resend';
+import { render } from '@react-email/render';
 import WelcomeEmailDynamic from '@/emails/WelcomeEmailDynamic';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -109,20 +110,23 @@ export async function createUser(data: {
             console.log('--- ENVIANDO CORREO NUEVO USUARIO ---');
             console.log('Sender:', senderEmail, 'To:', data.email, 'Subject:', activeTemplate.subject);
             console.log('RESEND_API_KEY Configured?', !!process.env.RESEND_API_KEY);
+            // 4. Pre-render the component to an HTML string to avoid Vercel Edge SSR crashes
+            const htmlEmail = await render(WelcomeEmailDynamic({
+                type: templateType,
+                title: activeTemplate.title,
+                body: activeTemplate.body,
+                buttonText: activeTemplate.buttonText,
+                firstName: computedFirstName,
+                email: data.email,
+                password: data.password,
+                loginUrl: `${appUrl}/login`,
+            }));
+
             await resend.emails.send({
                 from: senderEmail,
                 to: data.email,
                 subject: activeTemplate.subject,
-                react: WelcomeEmailDynamic({
-                    type: templateType,
-                    title: activeTemplate.title,
-                    body: activeTemplate.body,
-                    buttonText: activeTemplate.buttonText,
-                    firstName: computedFirstName,
-                    email: data.email,
-                    password: data.password,
-                    loginUrl: `${appUrl}/login`,
-                }),
+                html: htmlEmail,
             });
 
         } catch (emailError: any) {
@@ -479,20 +483,23 @@ export async function sendManualWelcomeEmail(userId: string) {
         console.log('Sender:', senderEmail, 'To:', targetUser.email, 'Subject:', activeTemplate.subject);
         console.log('RESEND_API_KEY Configured?', !!process.env.RESEND_API_KEY);
         try {
+            // Pre-render the HTML
+            const htmlEmail = await render(WelcomeEmailDynamic({
+                type: templateType,
+                title: activeTemplate.title,
+                body: activeTemplate.body,
+                buttonText: activeTemplate.buttonText,
+                firstName: computedFirstName,
+                email: targetUser.email,
+                password: newTempPassword || undefined,
+                loginUrl: `${appUrl}/login`,
+            }));
+
             const sendResult = await resend.emails.send({
                 from: senderEmail,
                 to: targetUser.email,
                 subject: activeTemplate.subject,
-                react: WelcomeEmailDynamic({
-                    type: templateType,
-                    title: activeTemplate.title,
-                    body: activeTemplate.body,
-                    buttonText: activeTemplate.buttonText,
-                    firstName: computedFirstName,
-                    email: targetUser.email,
-                    password: newTempPassword || undefined,
-                    loginUrl: `${appUrl}/login`,
-                }),
+                html: htmlEmail,
             });
             console.log("Resultado de Resend API:", sendResult);
         } catch (emailError: any) {
