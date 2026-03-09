@@ -85,7 +85,7 @@ export const WelcomeEmailDynamic = ({
 
                         <Section className="mt-[32px] mb-[24px]">
                             <Img
-                                src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-elim-JDBUvG0Nn5G7c2G0kI95vBw2cO9yUo.png"
+                                src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/logo-sistemas-elim-azul.png"
                                 width="150"
                                 alt="Sistemas Elim"
                                 className="my-0 mx-auto"
