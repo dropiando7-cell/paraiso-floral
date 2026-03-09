@@ -1351,7 +1351,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
             {/* Print Only Header */}
             <div className="hidden print:block mb-8 pb-4 border-b-2 border-slate-800">
                 <h1 className="text-2xl font-bold text-slate-900">Reporte de Inventario de Activos Fijos</h1>
-                <div className="text-zinc-600 mt-1">Iglesia Misión Cristiana Elim Central - Tegucigalpa, Honduras</div>
+                <div className="text-zinc-600 mt-1">Iglesia Misión Cristiana Elim Central - San Pedro Sula, Honduras</div>
                 <div className="mt-4 flex justify-between font-bold text-slate-800 text-sm">
                     <div>Filtro de Área: {filtroArea ? (AREAS.find(a => a.value === filtroArea)?.label || filtroArea) : 'TODAS LAS ÁREAS'}</div>
                     <div>Fecha de Reporte: {new Date().toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
@@ -1364,7 +1364,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                     <thead>
                         <tr className="border-b border-slate-100 bg-slate-50">
                             {['ID QR', 'FOTO', 'DESCRIPCIÓN', 'ÁREA', 'CUENTA', 'ESTATUS', 'ESTADO', 'RESPONSABLE', ''].map(h => (
-                                <th key={h} className={`text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 py-3 ${h === '' ? 'hide-on-print' : ''}`}>{h}</th>
+                                <th key={h} className={`text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 py-3 ${h === '' || h === 'FOTO' ? 'hide-on-print' : ''}`}>{h}</th>
                             ))}
                         </tr>
                     </thead>
@@ -1382,7 +1382,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                         ) : activos.map(a => (
                             <tr key={a.id} onClick={() => setViewActivo(a)} className="hover:bg-slate-50/60 transition-colors group cursor-pointer">
                                 <td className="px-3 py-3"><div className="font-mono text-[10px] text-[#0500A3] font-bold bg-blue-50 px-1.5 py-0.5 rounded w-fit whitespace-nowrap">{a.idQr}</div></td>
-                                <td className="px-3 py-3">
+                                <td className="px-3 py-3 hide-on-print">
                                     {a.imagenUrl
                                         ? <Image src={a.imagenUrl} width={40} height={40} onClick={(e) => {
                                             e.stopPropagation();
