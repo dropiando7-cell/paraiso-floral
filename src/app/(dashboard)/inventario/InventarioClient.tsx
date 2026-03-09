@@ -1079,6 +1079,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [isClosingAct, startClosingAct] = useTransition();
 
     // Lógica para interceptar Deep Links y/o autocompletar área activa
+    const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
+
     useEffect(() => {
         async function initArea() {
             setLoading(true);
@@ -1240,10 +1242,16 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                             </>
                         )}
                         <button onClick={() => {
+                            window.print();
+                        }}
+                            className="flex items-center justify-center gap-2 text-base font-bold bg-white text-slate-700 border-2 border-slate-200 px-5 py-3 rounded-2xl hover:bg-slate-50 active:scale-95 transition-all w-full sm:w-auto mt-2 sm:mt-0 hide-on-print">
+                            <Printer className="w-5 h-5 text-slate-500" /> Imprimir Reporte
+                        </button>
+                        <button onClick={() => {
                             if (!lockedArea) setScannerOpen(true);
                             else { setEditActivo(null); setModalOpen(true); }
                         }}
-                            className="flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl hover:bg-[#0600c2] active:scale-95 transition-all shadow-md w-full sm:w-auto justify-center">
+                            className="flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl hover:bg-[#0600c2] active:scale-95 transition-all shadow-md w-full sm:w-auto justify-center hide-on-print">
                             <Plus className="w-5 h-5" /> Registrar Activo
                         </button>
                     </div>
@@ -1261,15 +1269,46 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                         </div>
                     </div>
                     <button
-                        disabled={isClosingAct}
-                        onClick={() => startClosingAct(async () => {
-                            await closeArea(lockedArea);
-                            setLockedArea(null);
-                        })}
-                        className="flex-shrink-0 flex items-center justify-center gap-2 text-sm font-bold bg-white text-[#0500A3] py-2.5 px-5 rounded-xl hover:bg-slate-100 active:scale-95 transition-all w-full sm:w-auto">
-                        {isClosingAct ? <Loader2 className="w-4 h-4 animate-spin text-[#0500A3]" /> : <CheckCircle2 className="w-4 h-4" />}
+                        onClick={() => setIsClosingModalOpen(true)}
+                        className="flex-shrink-0 flex items-center justify-center gap-2 text-sm font-bold bg-white text-[#0500A3] py-2.5 px-5 rounded-xl hover:bg-slate-100 active:scale-95 transition-all w-full sm:w-auto hide-on-print">
+                        <CheckCircle2 className="w-4 h-4" />
                         Terminar / Cerrar Área
                     </button>
+                </div>
+            )}
+
+            {/* Modal Confirmación de Cierre */}
+            {isClosingModalOpen && lockedArea && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 hide-on-print">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+                        <div className="bg-amber-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <AlertTriangle className="w-6 h-6 text-amber-600" />
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-900 mb-2">Cerrar Área</h2>
+                        <p className="text-slate-600 mb-6 font-medium">¿Estás completamente seguro de cerrar esta área?</p>
+
+                        <div className="flex flex-col gap-3">
+                            <button
+                                disabled={isClosingAct}
+                                onClick={() => startClosingAct(async () => {
+                                    await closeArea(lockedArea);
+                                    setLockedArea(null);
+                                    setIsClosingModalOpen(false);
+                                })}
+                                className="flex items-center justify-center gap-2 text-base font-bold bg-amber-500 text-white rounded-2xl py-4 hover:bg-amber-600 active:scale-[0.98] transition-all disabled:opacity-60"
+                            >
+                                {isClosingAct && <Loader2 className="w-5 h-5 animate-spin" />}
+                                SI estoy seguro
+                            </button>
+                            <button
+                                onClick={() => setIsClosingModalOpen(false)}
+                                disabled={isClosingAct}
+                                className="flex items-center justify-center text-base font-bold border-2 border-slate-200 text-slate-700 rounded-2xl py-4 hover:bg-slate-50 active:scale-[0.98] transition-all"
+                            >
+                                NO
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

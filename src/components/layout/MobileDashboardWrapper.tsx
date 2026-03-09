@@ -66,7 +66,7 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
                 <div
                     className={`
           fixed inset-y-0 left-0 z-50 lg:static lg:z-auto lg:translate-x-0
-          transition-transform duration-300 ease-in-out
+          transition-transform duration-300 ease-in-out hide-on-print
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
         `}
                 >
@@ -74,10 +74,12 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
                 </div>
 
                 {/* Main content */}
-                <div className="flex-1 flex flex-col min-w-0 w-full">
-                    <Header dbUser={dbUser} onMenuClick={() => setSidebarOpen(o => !o)} />
-                    <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-                        <div className="max-w-7xl mx-auto w-full">
+                <div className="flex-1 flex flex-col min-w-0 w-full print-expand">
+                    <div className="hide-on-print">
+                        <Header dbUser={dbUser} onMenuClick={() => setSidebarOpen(o => !o)} />
+                    </div>
+                    <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 print-expand">
+                        <div className="max-w-7xl mx-auto w-full print-expand">
                             {children}
                         </div>
                     </main>

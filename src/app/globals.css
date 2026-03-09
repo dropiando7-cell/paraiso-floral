@@ -29,11 +29,23 @@ body {
 
 @media print {
   @page {
-    margin: 0;
+    margin: 1cm;
     size: auto;
   }
   body {
     background-color: white !important;
     margin: 0;
+  }
+  .hide-on-print {
+    display: none !important;
+  }
+  .print-expand {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background-color: white !important;
+    box-shadow: none !important;
+    border: none !important;
   }
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { Loader2, Unlock, Lock, Clock, CheckCircle2, User } from 'lucide-react';
+import { Loader2, Unlock, Lock, Clock, CheckCircle2, User, Eye } from 'lucide-react';
 import { reopenArea } from '@/app/(dashboard)/inventario/actions';
 
 type AreaStatus = {
@@ -116,20 +116,29 @@ export default function AdminInventarioClient({ initialStatuses, dbAreas = [] }:
                                             </div>
                                         </td>
                                         <td className="px-5 py-4 text-right">
-                                            {isCompleted && (
-                                                <button
-                                                    disabled={isPending && loadingId === s.areaCode}
-                                                    onClick={() => handleReopen(s.areaCode)}
-                                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border-2 border-[#0500A3]/20 text-[#0500A3] font-bold rounded-xl hover:bg-blue-50 hover:border-[#0500A3]/40 active:scale-95 transition-all disabled:opacity-50"
+                                            <div className="flex items-center justify-end gap-2">
+                                                <a
+                                                    href={`/inventario?area=${encodeURIComponent(s.areaCode)}`}
+                                                    className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 border-2 border-transparent text-slate-700 font-bold rounded-xl hover:bg-slate-200 active:scale-95 transition-all"
                                                 >
-                                                    {isPending && loadingId === s.areaCode ? (
-                                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                                    ) : (
-                                                        <Unlock className="w-4 h-4" />
-                                                    )}
-                                                    Reabrir Área
-                                                </button>
-                                            )}
+                                                    <Eye className="w-4 h-4" />
+                                                    Ver Activos
+                                                </a>
+                                                {isCompleted && (
+                                                    <button
+                                                        disabled={isPending && loadingId === s.areaCode}
+                                                        onClick={() => handleReopen(s.areaCode)}
+                                                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-white border-2 border-[#0500A3]/20 text-[#0500A3] font-bold rounded-xl hover:bg-blue-50 hover:border-[#0500A3]/40 active:scale-95 transition-all disabled:opacity-50"
+                                                    >
+                                                        {isPending && loadingId === s.areaCode ? (
+                                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                                        ) : (
+                                                            <Unlock className="w-4 h-4" />
+                                                        )}
+                                                        Reabrir Área
+                                                    </button>
+                                                )}
+                                            </div>
                                         </td>
                                     </tr>
                                 );
