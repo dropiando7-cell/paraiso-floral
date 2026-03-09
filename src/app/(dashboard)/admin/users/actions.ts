@@ -106,6 +106,9 @@ export async function createUser(data: {
             };
 
             // 3. Send email using the Dynamic component
+            console.log('--- ENVIANDO CORREO NUEVO USUARIO ---');
+            console.log('Sender:', senderEmail, 'To:', data.email, 'Subject:', activeTemplate.subject);
+            console.log('RESEND_API_KEY Configured?', !!process.env.RESEND_API_KEY);
             await resend.emails.send({
                 from: senderEmail,
                 to: data.email,
@@ -122,8 +125,11 @@ export async function createUser(data: {
                 }),
             });
 
-        } catch (emailError) {
-            console.error('Error enviando el correo de bienvenida con Resend:', emailError);
+        } catch (emailError: any) {
+            console.error('---- ERROR FATAL ENVIANDO EL CORREO (CREATE) ----');
+            console.error(emailError);
+            if (emailError?.response) console.error('Response:', emailError.response);
+            if (emailError?.message) console.error('Message:', emailError.message);
             // We do not return an error here so the user creation process still succeeds in UI
         }
 
@@ -469,21 +475,32 @@ export async function sendManualWelcomeEmail(userId: string) {
         };
 
         const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
-            from: senderEmail,
-            to: targetUser.email,
-            subject: activeTemplate.subject,
-            react: WelcomeEmailDynamic({
-                type: templateType,
-                title: activeTemplate.title,
-                body: activeTemplate.body,
-                buttonText: activeTemplate.buttonText,
-                firstName: computedFirstName,
-                email: targetUser.email,
-                password: newTempPassword || undefined,
-                loginUrl: `${appUrl}/login`,
-            }),
-        });
+        console.log('--- ENVIANDO CORREO MANUAL ---');
+        console.log('Sender:', senderEmail, 'To:', targetUser.email, 'Subject:', activeTemplate.subject);
+        console.log('RESEND_API_KEY Configured?', !!process.env.RESEND_API_KEY);
+        try {
+            const sendResult = await resend.emails.send({
+                from: senderEmail,
+                to: targetUser.email,
+                subject: activeTemplate.subject,
+                react: WelcomeEmailDynamic({
+                    type: templateType,
+                    title: activeTemplate.title,
+                    body: activeTemplate.body,
+                    buttonText: activeTemplate.buttonText,
+                    firstName: computedFirstName,
+                    email: targetUser.email,
+                    password: newTempPassword || undefined,
+                    loginUrl: `${appUrl}/login`,
+                }),
+            });
+            console.log("Resultado de Resend API:", sendResult);
+        } catch (emailError: any) {
+            console.error('---- ERROR FATAL ENVIANDO EL CORREO (MANUAL) ----');
+            console.error(emailError);
+            if (emailError?.response) console.error('Response:', emailError.response);
+            if (emailError?.message) console.error('Message:', emailError.message);
+        }
 
         return { success: true, message: newTempPassword ? 'Correo enviado con nueva contraseña temporal.' : 'Correo de invitación enviado con éxito.' };
     } catch (error: any) {

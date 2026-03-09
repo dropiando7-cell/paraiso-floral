@@ -374,7 +374,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                         {u.organization?.name}
                                     </td>
                                     <td className="px-6 py-4 text-slate-500">
-                                        {String(u.createdAt).substring(0, 10)}
+                                        {u.createdAt ? new Date(u.createdAt).toISOString().split('T')[0] : 'N/A'}
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex justify-end gap-2">
