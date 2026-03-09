@@ -126,7 +126,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
             if (result.success) {
                 alert(result.message);
             } else {
-                setError(result.error);
+                setError(result.error || 'Error desconocido');
             }
         } catch (err) {
             setError('Error inesperado al enviar correo.');
