@@ -4,10 +4,16 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { createAdminClient } from '@/utils/supabase/admin';
-import { Role } from '@prisma/client';
+import { Role, EmailTemplateType } from '@prisma/client';
+import { Resend } from 'resend';
+import WelcomeEmailDynamic from '@/emails/WelcomeEmailDynamic';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function createUser(data: {
     email: string;
+    firstName?: string;
+    lastName?: string;
     password?: string;
     role: Role;
     customRoleName?: string | null;
@@ -41,11 +47,15 @@ export async function createUser(data: {
 
         // Create in Supabase Auth if a password was provided (Classic Email)
         if (data.password) {
+            const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
             const adminAuthClient = createAdminClient();
             const { error: authError } = await adminAuthClient.auth.admin.createUser({
                 email: data.email,
                 password: data.password,
                 email_confirm: true, // Auto-confirm for admin creations
+                user_metadata: {
+                    full_name: fullName || undefined // Pass the full name here for the profile
+                }
             });
 
             if (authError) {
@@ -64,6 +74,58 @@ export async function createUser(data: {
                 accessibleModules: data.accessibleModules,
             },
         });
+
+        // Send Welcome Email asynchronously
+        try {
+            // Provide a graceful fallback if the URL environment variable isn't set
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sistemaselim.app';
+            // Use the specific email domain the client requested
+            const senderEmail = 'Sistemas Elim <admin@mail.sistemaselim.app>';
+            const computedFirstName = data.firstName || data.email.split('@')[0];
+
+            // 1. Fetch the corresponding custom template from the database
+            const templateType = data.password ? 'CLASSIC_WELCOME' : 'GOOGLE_WELCOME';
+            const emailTemplate = await prisma.emailTemplate.findUnique({
+                where: {
+                    organizationId_type: {
+                        organizationId: data.organizationId,
+                        type: templateType
+                    }
+                }
+            });
+
+            // 2. Set Fallback content if no active template exists or it's deactivated
+            const activeTemplate = emailTemplate?.isActive ? emailTemplate : {
+                subject: data.password ? '¡Bienvenido a Sistemas Elim!' : '¡Acceso Concedido a Sistemas Elim!',
+                title: data.password ? '¡Bienvenido a Sistemas Elim!' : '¡Acceso Concedido!',
+                body: data.password
+                    ? 'Tu cuenta ha sido creada exitosamente. \nTus credenciales son: \nCorreo: {{email}} \nContraseña Temporal: {{password}}'
+                    : 'Nos complace informarte que tu cuenta de Google Workspace ({{email}}) ha sido autorizada para ingresar a Sistemas Elim. \n\nYa puedes ingresar a la plataforma utilizando el botón de "Continuar con Google". No necesitas contraseña.',
+                buttonText: data.password ? 'Iniciar Sesión Ahora' : 'Entrar con Google Workspace',
+                type: templateType
+            };
+
+            // 3. Send email using the Dynamic component
+            await resend.emails.send({
+                from: senderEmail,
+                to: data.email,
+                subject: activeTemplate.subject,
+                react: WelcomeEmailDynamic({
+                    type: templateType,
+                    title: activeTemplate.title,
+                    body: activeTemplate.body,
+                    buttonText: activeTemplate.buttonText,
+                    firstName: computedFirstName,
+                    email: data.email,
+                    password: data.password,
+                    loginUrl: `${appUrl}/login`,
+                }),
+            });
+
+        } catch (emailError) {
+            console.error('Error enviando el correo de bienvenida con Resend:', emailError);
+            // We do not return an error here so the user creation process still succeeds in UI
+        }
 
         revalidatePath('/admin/users');
         return { success: true, user: newUser };
@@ -98,6 +160,36 @@ export async function deleteUser(id: string) {
             return { success: false, error: 'No puedes eliminar tu propia cuenta.' };
         }
 
+        const adminAuthClient = createAdminClient();
+
+        // Buscamos el ID del usuario en Supabase Auth usando su email
+        let page = 1;
+        let authUserIdToDelete = null;
+        let hasMore = true;
+
+        while (hasMore) {
+            const { data: { users }, error: listError } = await adminAuthClient.auth.admin.listUsers({ page, perPage: 100 });
+            if (listError || !users) break;
+
+            const found = users.find(u => u.email === targetUser.email);
+            if (found) {
+                authUserIdToDelete = found.id;
+                break;
+            }
+            if (users.length < 100) hasMore = false;
+            page++;
+        }
+
+        // Si lo encontramos en Auth, lo eliminamos de ahí también
+        if (authUserIdToDelete) {
+            const { error: deleteAuthError } = await adminAuthClient.auth.admin.deleteUser(authUserIdToDelete);
+            if (deleteAuthError) {
+                console.error("Error eliminando perfil de Auth:", deleteAuthError);
+                return { success: false, error: 'Error al eliminar credencial de acceso: ' + deleteAuthError.message };
+            }
+        }
+
+        // Luego eliminamos de la base de datos de Prisma
         await prisma.user.delete({ where: { id } });
 
         revalidatePath('/admin/users');
@@ -297,5 +389,105 @@ export async function deleteRoleTemplate(id: string, organizationId: string) {
     } catch (error: any) {
         console.error('Error deleting role template:', error);
         return { success: false, error: 'Error interno del servidor al eliminar el rol.' };
+    }
+}
+
+export async function sendManualWelcomeEmail(userId: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) return { success: false, error: 'No autenticado.' };
+
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+        if (dbUser?.role !== 'SUPER_ADMIN') return { success: false, error: 'No autorizado.' };
+
+        const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+        if (!targetUser) return { success: false, error: 'Usuario no encontrado en la base de datos.' };
+
+        const adminAuthClient = createAdminClient();
+
+        let page = 1;
+        let authTargetUser = null;
+        let hasMore = true;
+
+        while (hasMore) {
+            const { data: { users }, error: listError } = await adminAuthClient.auth.admin.listUsers({ page, perPage: 100 });
+            if (listError || !users) break;
+
+            const found = users.find(u => u.email === targetUser.email);
+            if (found) {
+                authTargetUser = found;
+                break;
+            }
+            if (users.length < 100) hasMore = false;
+            page++;
+        }
+
+        if (!authTargetUser) {
+            return { success: false, error: 'Usuario no encontrado en el sistema de autenticación.' };
+        }
+
+        const isGoogle = authTargetUser.app_metadata?.providers?.includes('google');
+        const computedFirstName = authTargetUser.user_metadata?.full_name?.split(' ')[0] || targetUser.email.split('@')[0];
+
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sistemaselim.app';
+        const senderEmail = 'Sistemas Elim <admin@mail.sistemaselim.app>';
+
+        let newTempPassword = null;
+        let templateType: EmailTemplateType = 'GOOGLE_WELCOME';
+
+        if (!isGoogle) {
+            // It's a classic user. Generate a new secure temporary password
+            newTempPassword = Math.random().toString(36).slice(-8) + 'A1!';
+            templateType = 'CLASSIC_WELCOME';
+            // Update auth user with new password
+            await adminAuthClient.auth.admin.updateUserById(authTargetUser.id, {
+                password: newTempPassword
+            });
+        }
+
+        // Fetch the active custom template from the database
+        const emailTemplate = await prisma.emailTemplate.findUnique({
+            where: {
+                organizationId_type: {
+                    organizationId: targetUser.organizationId,
+                    type: templateType
+                }
+            }
+        });
+
+        // Set Fallback content if no template is active
+        const activeTemplate = emailTemplate?.isActive ? emailTemplate : {
+            subject: newTempPassword ? '¡Bienvenido a Sistemas Elim!' : '¡Acceso Concedido a Sistemas Elim!',
+            title: newTempPassword ? '¡Bienvenido a Sistemas Elim!' : '¡Acceso Concedido!',
+            body: newTempPassword
+                ? 'Tu cuenta ha sido creada exitosamente. \nTus credenciales son: \nCorreo: {{email}} \nContraseña Temporal: {{password}}'
+                : 'Nos complace informarte que tu cuenta de Google Workspace ({{email}}) ha sido autorizada para ingresar a Sistemas Elim. \n\nYa puedes ingresar a la plataforma utilizando el botón de "Continuar con Google". No necesitas contraseña.',
+            buttonText: newTempPassword ? 'Iniciar Sesión Ahora' : 'Entrar con Google Workspace',
+            type: templateType
+        };
+
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+            from: senderEmail,
+            to: targetUser.email,
+            subject: activeTemplate.subject,
+            react: WelcomeEmailDynamic({
+                type: templateType,
+                title: activeTemplate.title,
+                body: activeTemplate.body,
+                buttonText: activeTemplate.buttonText,
+                firstName: computedFirstName,
+                email: targetUser.email,
+                password: newTempPassword || undefined,
+                loginUrl: `${appUrl}/login`,
+            }),
+        });
+
+        return { success: true, message: newTempPassword ? 'Correo enviado con nueva contraseña temporal.' : 'Correo de invitación enviado con éxito.' };
+    } catch (error: any) {
+        console.error('Error enviando correo manual:', error);
+        return { success: false, error: 'Error interno del servidor al enviar correo.' };
     }
 }

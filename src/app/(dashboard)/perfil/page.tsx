@@ -31,7 +31,8 @@ export default function ProfilePage() {
 
     // Editing State
     const [isEditing, setIsEditing] = useState(false);
-    const [editName, setEditName] = useState('');
+    const [editFirstName, setEditFirstName] = useState('');
+    const [editLastName, setEditLastName] = useState('');
     const [editPhone, setEditPhone] = useState('');
     const [isSaving, setIsSaving] = useState(false);
 
@@ -46,7 +47,10 @@ export default function ProfilePage() {
 
                 const name = user.user_metadata?.full_name || user.user_metadata?.name || 'Usuario';
                 setUserFullName(name);
-                setEditName(name);
+
+                const parts = name.split(' ');
+                setEditFirstName(parts[0] || '');
+                setEditLastName(parts.length > 1 ? parts.slice(1).join(' ') : '');
 
                 if (user.user_metadata?.avatar_url || user.user_metadata?.picture) {
                     setProfilePic(user.user_metadata?.avatar_url || user.user_metadata?.picture);
@@ -139,9 +143,10 @@ export default function ProfilePage() {
 
     const handleSaveProfile = async () => {
         setIsSaving(true);
-        const res = await updateProfile({ fullName: editName, phone: editPhone });
+        const combinedName = `${editFirstName} ${editLastName}`.trim();
+        const res = await updateProfile({ fullName: combinedName, phone: editPhone });
         if (res.success) {
-            setUserFullName(editName);
+            setUserFullName(combinedName);
             setUserPhone(editPhone);
             setIsEditing(false);
         } else {
@@ -264,7 +269,12 @@ export default function ProfilePage() {
                                                     <div className="flex gap-2">
                                                         <button
                                                             type="button"
-                                                            onClick={() => { setIsEditing(false); setEditName(userFullName); setEditPhone(userPhone); }}
+                                                            onClick={() => {
+                                                                setIsEditing(false);
+                                                                setEditFirstName(userFullName.split(' ')[0] || '');
+                                                                setEditLastName(userFullName.split(' ').slice(1).join(' '));
+                                                                setEditPhone(userPhone);
+                                                            }}
                                                             className="text-sm font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1"
                                                             disabled={isSaving}
                                                         >
@@ -273,7 +283,7 @@ export default function ProfilePage() {
                                                         <button
                                                             type="submit"
                                                             className="text-sm font-medium text-brand-600 hover:text-brand-700 flex items-center gap-1 ml-2"
-                                                            disabled={isSaving || !editName}
+                                                            disabled={isSaving || (!editFirstName && !editLastName)}
                                                         >
                                                             <Check className="w-4 h-4" /> {isSaving ? 'Guardando...' : 'Guardar'}
                                                         </button>
@@ -288,30 +298,58 @@ export default function ProfilePage() {
                                     </div>
                                     <div className="px-6 py-5">
                                         <dl className="space-y-4">
-                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 items-center">
-                                                <dt className="text-sm font-medium text-slate-500">Nombre completo</dt>
+                                            {/* SECCIÓN DE NOMBRE */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 items-start">
+                                                <dt className="text-sm font-medium text-slate-500 pt-2">Nombre completo</dt>
                                                 <dd className="col-span-1 md:col-span-2">
                                                     {loadingAuth ? <div className="h-4 bg-slate-200 rounded animate-pulse w-32"></div> :
-                                                        isEditing ? (
-                                                            <input
-                                                                type="text"
-                                                                value={editName}
-                                                                onChange={(e) => setEditName(e.target.value)}
-                                                                className="w-full max-w-sm px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
-                                                                required
-                                                            />
+                                                        authProvider === 'email' ? (
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                                <div>
+                                                                    <label className="block text-xs font-medium text-slate-500 mb-1">Nombre</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={isEditing ? editFirstName : userFullName.split(' ')[0] || ''}
+                                                                        onChange={(e) => setEditFirstName(e.target.value)}
+                                                                        disabled={!isEditing}
+                                                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white disabled:bg-slate-50 disabled:text-slate-500 focus:ring-2 focus:ring-brand-500 outline-none transition-shadow"
+                                                                    />
+                                                                </div>
+                                                                <div>
+                                                                    <label className="block text-xs font-medium text-slate-500 mb-1">Apellido</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={isEditing ? editLastName : userFullName.split(' ').slice(1).join(' ')}
+                                                                        onChange={(e) => setEditLastName(e.target.value)}
+                                                                        disabled={!isEditing}
+                                                                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white disabled:bg-slate-50 disabled:text-slate-500 focus:ring-2 focus:ring-brand-500 outline-none transition-shadow"
+                                                                    />
+                                                                </div>
+                                                            </div>
                                                         ) : (
-                                                            <span className="text-sm text-slate-900">{userFullName}</span>
+                                                            <div>
+                                                                <input
+                                                                    type="text"
+                                                                    value={userFullName}
+                                                                    disabled
+                                                                    className="w-full max-w-sm px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50 text-slate-500 outline-none"
+                                                                />
+                                                                <p className="text-xs text-slate-500 mt-1">Este campo se gestiona desde tu cuenta de Google.</p>
+                                                            </div>
                                                         )
                                                     }
                                                 </dd>
                                             </div>
+
+                                            {/* CORREO */}
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 items-center">
                                                 <dt className="text-sm font-medium text-slate-500">Correo Electrónico</dt>
                                                 <dd className="text-sm text-slate-900 col-span-1 md:col-span-2">
                                                     {loadingAuth ? <div className="h-4 bg-slate-200 rounded animate-pulse w-48"></div> : userEmail}
                                                 </dd>
                                             </div>
+
+                                            {/* TELÉFONO */}
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 items-center">
                                                 <dt className="text-sm font-medium text-slate-500">Número de Teléfono</dt>
                                                 <dd className="col-span-1 md:col-span-2">
@@ -322,7 +360,7 @@ export default function ProfilePage() {
                                                                 value={editPhone}
                                                                 onChange={(e) => setEditPhone(e.target.value)}
                                                                 placeholder="+504 0000-0000"
-                                                                className="w-full max-w-sm px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none"
+                                                                className="w-full max-w-sm px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none transition-shadow"
                                                             />
                                                         ) : (
                                                             <span className="text-sm text-slate-900">{userPhone || 'No registrado'}</span>
@@ -330,11 +368,13 @@ export default function ProfilePage() {
                                                     }
                                                 </dd>
                                             </div>
+
+                                            {/* ROL */}
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 items-center">
                                                 <dt className="text-sm font-medium text-slate-500">Rol en el Sistema</dt>
                                                 <dd className="col-span-1 md:col-span-2">
                                                     {loadingAuth ? <div className="h-6 bg-slate-200 rounded-full animate-pulse w-24"></div> :
-                                                        <span className="inline-flex items-center rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-700/10">
+                                                        <span className="inline-flex items-center rounded-md bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-700 ring-1 ring-inset ring-brand-700/10">
                                                             {roleTextMapping[userRole] || userRole}
                                                         </span>
                                                     }
@@ -348,9 +388,8 @@ export default function ProfilePage() {
                     ) : (
                         <MfaSettings />
                     )}
-
                 </div>
             </div>
         </div>
-    )
+    );
 }

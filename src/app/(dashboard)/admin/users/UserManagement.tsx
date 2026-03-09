@@ -2,8 +2,8 @@
 
 import React, { useState } from 'react';
 import { User, Organization, Role, RoleTemplate } from '@prisma/client';
-import { createUser, deleteUser, editUser, createRoleTemplate, updateRoleTemplate, deleteRoleTemplate } from './actions';
-import { Plus, Trash2, Pencil, ShieldAlert, Check, X, Building2, Shield, User as UserIcon, Tag } from 'lucide-react';
+import { createUser, deleteUser, editUser, createRoleTemplate, updateRoleTemplate, deleteRoleTemplate, sendManualWelcomeEmail } from './actions';
+import { Plus, Trash2, Pencil, ShieldAlert, Check, X, Building2, Shield, User as UserIcon, Tag, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Mail, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 type UserWithOrg = User & { organization: Organization };
@@ -21,12 +21,20 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [sendingEmailId, setSendingEmailId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // Pagination & Search State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     // Form State for User
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [authType, setAuthType] = useState<'GOOGLE' | 'CLASSIC'>('GOOGLE');
     const [email, setEmail] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
     const [password, setPassword] = useState('');
     const [role, setRole] = useState<Role>('USER');
     const [customRoleName, setCustomRoleName] = useState<string | null>(null);
@@ -110,10 +118,29 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         }
     };
 
+    const handleResendEmail = async (userId: string) => {
+        setSendingEmailId(userId);
+        setError(null);
+        try {
+            const result = await sendManualWelcomeEmail(userId);
+            if (result.success) {
+                alert(result.message);
+            } else {
+                setError(result.error);
+            }
+        } catch (err) {
+            setError('Error inesperado al enviar correo.');
+        } finally {
+            setSendingEmailId(null);
+        }
+    };
+
     const handleOpenCreate = () => {
         setEditingUserId(null);
         setAuthType('GOOGLE');
         setEmail('');
+        setFirstName('');
+        setLastName('');
         setPassword('');
         setRole('USER');
         setCustomRoleName(null);
@@ -149,7 +176,16 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 return;
             }
         } else {
-            const res = await createUser({ email, password: authType === 'CLASSIC' ? password : undefined, role, customRoleName, organizationId, accessibleModules });
+            const res = await createUser({
+                email,
+                firstName: authType === 'CLASSIC' ? firstName : undefined,
+                lastName: authType === 'CLASSIC' ? lastName : undefined,
+                password: authType === 'CLASSIC' ? password : undefined,
+                role,
+                customRoleName,
+                organizationId,
+                accessibleModules
+            });
             if (!res.success) {
                 setError(res.error || 'Ocurrió un error al crear');
                 setLoading(false);
@@ -242,6 +278,22 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         router.refresh();
     };
 
+    // --- Search & Pagination Logic ---
+    const filteredUsers = initialUsers.filter(u => {
+        const query = searchQuery.toLowerCase();
+        const customRoleRaw = u.customRoleName || '';
+        return (
+            u.email.toLowerCase().includes(query) ||
+            u.role.toLowerCase().includes(query) ||
+            customRoleRaw.toLowerCase().includes(query) ||
+            u.organization.name.toLowerCase().includes(query)
+        );
+    });
+
+    const totalPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
@@ -272,6 +324,23 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 </div>
             </div>
 
+            {/* Search Bar */}
+            <div className="p-4 border-b border-slate-100 bg-white">
+                <div className="relative max-w-md">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                        type="text"
+                        placeholder="Buscar por correo, rol u organización..."
+                        value={searchQuery}
+                        onChange={(e) => {
+                            setSearchQuery(e.target.value);
+                            setCurrentPage(1); // Reset page on new search
+                        }}
+                        className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
+                    />
+                </div>
+            </div>
+
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm whitespace-nowrap">
                     <thead className="bg-slate-50 border-b border-slate-100 text-slate-500 font-medium">
@@ -284,59 +353,116 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {initialUsers.map((u) => (
-                            <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
-                                <td className="px-6 py-4 font-medium text-slate-700">
-                                    {u.email}
-                                </td>
-                                <td className="px-6 py-4">
-                                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium 
+                        {paginatedUsers.length > 0 ? (
+                            paginatedUsers.map((u) => (
+                                <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="px-6 py-4 font-medium text-slate-700">
+                                        {u.email}
+                                    </td>
+                                    <td className="px-6 py-4">
+                                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium 
                     ${u.role === 'SUPER_ADMIN' ? 'bg-purple-100 text-purple-700 border border-purple-200' :
-                                            u.role === 'CHECKIN_KIDS' || u.customRoleName ? 'bg-pink-100 text-pink-700 border border-pink-200' :
-                                                u.role === 'MEDICAL_STAFF' ? 'bg-rose-100 text-rose-700 border border-rose-200' :
-                                                    'bg-blue-50 text-blue-700 border border-blue-100'}`}>
-                                        <Shield className="w-3 h-3" />
-                                        {u.customRoleName || roleTextMapping[u.role] || u.role}
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 text-slate-600 flex items-center gap-2">
-                                    <Building2 className="w-4 h-4 text-slate-400" />
-                                    {u.organization?.name}
-                                </td>
-                                <td className="px-6 py-4 text-slate-500">
-                                    {String(u.createdAt).substring(0, 10)}
-                                </td>
-                                <td className="px-6 py-4 text-right">
-                                    <div className="flex justify-end gap-2">
-                                        <button
-                                            onClick={() => handleOpenEdit(u)}
-                                            className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded-lg hover:bg-blue-50"
-                                            title="Editar usuario"
-                                        >
-                                            <Pencil className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(u.id, u.email)}
-                                            disabled={u.id === currentUserId}
-                                            className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
-                                            title={u.id === currentUserId ? "No puedes eliminarte a ti mismo" : "Eliminar usuario"}
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                        {initialUsers.length === 0 && (
+                                                u.role === 'CHECKIN_KIDS' || u.customRoleName ? 'bg-pink-100 text-pink-700 border border-pink-200' :
+                                                    u.role === 'MEDICAL_STAFF' ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                                                        'bg-blue-50 text-blue-700 border border-blue-100'}`}>
+                                            <Shield className="w-3 h-3" />
+                                            {u.customRoleName || roleTextMapping[u.role] || u.role}
+                                        </span>
+                                    </td>
+                                    <td className="px-6 py-4 text-slate-600 flex items-center gap-2">
+                                        <Building2 className="w-4 h-4 text-slate-400" />
+                                        {u.organization?.name}
+                                    </td>
+                                    <td className="px-6 py-4 text-slate-500">
+                                        {String(u.createdAt).substring(0, 10)}
+                                    </td>
+                                    <td className="px-6 py-4 text-right">
+                                        <div className="flex justify-end gap-2">
+                                            <button
+                                                onClick={() => handleResendEmail(u.id)}
+                                                disabled={sendingEmailId === u.id}
+                                                className="text-slate-400 hover:text-indigo-600 transition-colors p-2 rounded-lg hover:bg-indigo-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                                                title="Reenviar correo de bienvenida manual"
+                                            >
+                                                {sendingEmailId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                                            </button>
+                                            <button
+                                                onClick={() => handleOpenEdit(u)}
+                                                className="text-slate-400 hover:text-blue-600 transition-colors p-2 rounded-lg hover:bg-blue-50"
+                                                title="Editar usuario"
+                                            >
+                                                <Pencil className="w-4 h-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(u.id, u.email)}
+                                                disabled={u.id === currentUserId}
+                                                className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
+                                                title={u.id === currentUserId ? "No puedes eliminarte a ti mismo" : "Eliminar usuario"}
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ))
+                        ) : (
                             <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-slate-500">
-                                    No hay usuarios registrados.
+                                <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
+                                    No se encontraron usuarios que coincidan con la búsqueda.
                                 </td>
                             </tr>
                         )}
                     </tbody>
                 </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+                <div className="p-4 border-t border-slate-100 bg-white flex flex-col sm:flex-row items-center justify-between text-sm gap-4">
+                    <span className="text-slate-500">
+                        Mostrando {startIndex + 1} a {Math.min(startIndex + itemsPerPage, filteredUsers.length)} de {filteredUsers.length} registros
+                    </span>
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={() => setCurrentPage(1)}
+                            disabled={currentPage === 1}
+                            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent"
+                            title="Primera página"
+                        >
+                            <ChevronsLeft className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                            disabled={currentPage === 1}
+                            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent"
+                            title="Página anterior"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                        </button>
+
+                        <span className="px-3 py-1 bg-slate-50 rounded-lg font-medium text-slate-700">
+                            {currentPage} de {totalPages}
+                        </span>
+
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                            disabled={currentPage === totalPages}
+                            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent"
+                            title="Página siguiente"
+                        >
+                            <ChevronRight className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={() => setCurrentPage(totalPages)}
+                            disabled={currentPage === totalPages}
+                            className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:hover:bg-transparent"
+                            title="Última página"
+                        >
+                            <ChevronsRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {roleTemplates.length > 0 && (
                 <div className="mt-8">
@@ -481,9 +607,38 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                             placeholder="ej. Segura2026*"
                                             className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
                                         />
-                                        <p className="text-xs text-slate-500 mt-1.5">
+                                        <div className="text-xs text-slate-500 mt-1">
                                             Asegúrate de compartir esta contraseña con el usuario. Mínimo 6 caracteres.
-                                        </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {!editingUserId && authType === 'CLASSIC' && (
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Nombre</label>
+                                            <input
+                                                type="text"
+                                                disabled={!!editingUserId}
+                                                value={firstName}
+                                                onChange={e => setFirstName(e.target.value)}
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-shadow bg-white disabled:bg-slate-50 disabled:text-slate-500"
+                                                placeholder="Ej. Juan"
+                                                required={!editingUserId}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Apellido</label>
+                                            <input
+                                                type="text"
+                                                disabled={!!editingUserId}
+                                                value={lastName}
+                                                onChange={e => setLastName(e.target.value)}
+                                                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-shadow bg-white disabled:bg-slate-50 disabled:text-slate-500"
+                                                placeholder="Ej. Pérez"
+                                                required={!editingUserId}
+                                            />
+                                        </div>
                                     </div>
                                 )}
 

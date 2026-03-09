@@ -15,6 +15,7 @@
     "@aws-sdk/s3-request-presigner": "^3.995.0",
     "@imgly/background-removal": "^1.7.0",
     "@prisma/client": "^5.22.0",
+    "@react-email/components": "^1.0.8",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.97.0",
     "@types/pdf-parse": "^1.1.5",
@@ -30,6 +31,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-qr-code": "^2.0.18",
+    "resend": "^6.9.3",
     "tailwind-merge": "^3.5.0",
     "twilio": "^5.12.2",
     "xlsx": "^0.18.5"

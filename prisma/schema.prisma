@@ -36,6 +36,11 @@ enum TwoFactorType {
   TOTP
 }
 
+enum EmailTemplateType {
+  CLASSIC_WELCOME
+  GOOGLE_WELCOME
+}
+
 // ==========================================
 // MULTI-TENANT ARCHITECTURE (SistemasElim.app)
 // ==========================================
@@ -62,6 +67,7 @@ model Organization {
   calendarIntegrations CalendarIntegration[]
   tasks            Task[]
   roleTemplates    RoleTemplate[]
+  emailTemplates   EmailTemplate[]
   activosFijos     ActivoFijo[]
   colaImpresion    ColaImpresion[]
   areaInventoryStatuses AreaInventoryStatus[]
@@ -126,6 +132,31 @@ model RoleTemplate {
   
   @@unique([organizationId, name]) // A organization shouldn't have duplicate role names
   @@map("role_templates")
+}
+
+// ==========================================
+// EMAIL TEMPLATES (Customization)
+// ==========================================
+
+model EmailTemplate {
+  id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String            @db.Uuid
+  type           EmailTemplateType
+  
+  subject        String            
+  title          String            
+  body           String            @db.Text
+  buttonText     String            
+  
+  isActive       Boolean           @default(true) // Si es falso, se usaría un fallback por defecto en el código
+  
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([organizationId, type]) // Solo puede haber un template activo por tipo por organización
+  @@map("email_templates")
 }
 
 // ==========================================
