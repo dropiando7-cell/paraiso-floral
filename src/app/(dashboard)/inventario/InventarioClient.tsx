@@ -1206,7 +1206,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-6">
             {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6 hide-on-print">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
                         <Package className="w-6 h-6 text-[#0500A3]" /> Inventario de Activos
@@ -1260,7 +1260,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
             {/* Active Area Banner */}
             {lockedArea && (
-                <div className="mb-6 bg-[#0500A3] rounded-xl border border-[#0600c2] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+                <div className="mb-6 bg-[#0500A3] rounded-xl border border-[#0600c2] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg hide-on-print">
                     <div className="flex items-center gap-3 text-white">
                         <div className="bg-white/20 p-2.5 rounded-xl"><QrCode className="w-6 h-6" /></div>
                         <div>
@@ -1312,10 +1312,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 </div>
             )}
 
-            <StatsCards stats={stats} />
+            <div className="hide-on-print"><StatsCards stats={stats} /></div>
 
             {/* Search + filter toggle */}
-            <div className="flex gap-2 mb-3">
+            <div className="flex gap-2 mb-3 hide-on-print">
                 <div className="relative flex-1">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input type="text" placeholder="Buscar por ID, descripción, serie, responsable..."
@@ -1329,7 +1329,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
             </div>
 
             {showFilters && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 p-4 bg-white rounded-xl border border-slate-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 p-4 bg-white rounded-xl border border-slate-200 hide-on-print">
                     <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1.5">Área</label>
                         <Combobox options={AREAS} value={filtroArea}
@@ -1348,13 +1348,23 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 </div>
             )}
 
+            {/* Print Only Header */}
+            <div className="hidden print:block mb-8 pb-4 border-b-2 border-slate-800">
+                <h1 className="text-2xl font-bold text-slate-900">Reporte de Inventario de Activos Fijos</h1>
+                <div className="text-zinc-600 mt-1">Iglesia Misión Cristiana Elim Central - Tegucigalpa, Honduras</div>
+                <div className="mt-4 flex justify-between font-bold text-slate-800 text-sm">
+                    <div>Filtro de Área: {filtroArea ? (AREAS.find(a => a.value === filtroArea)?.label || filtroArea) : 'TODAS LAS ÁREAS'}</div>
+                    <div>Fecha de Reporte: {new Date().toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                </div>
+            </div>
+
             {/* Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto print-expand">
                 <table className="w-full text-xs min-w-[800px]">
                     <thead>
                         <tr className="border-b border-slate-100 bg-slate-50">
                             {['ID QR', 'FOTO', 'DESCRIPCIÓN', 'ÁREA', 'CUENTA', 'ESTATUS', 'ESTADO', 'RESPONSABLE', ''].map(h => (
-                                <th key={h} className="text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 py-3">{h}</th>
+                                <th key={h} className={`text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 py-3 ${h === '' ? 'hide-on-print' : ''}`}>{h}</th>
                             ))}
                         </tr>
                     </thead>
@@ -1391,7 +1401,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                                 <td className="px-3 py-3"><EstatusBadge estatus={a.estatusContable} /></td>
                                 <td className="px-3 py-3"><DanoBadge dano={a.estadoDano} /></td>
                                 <td className="px-3 py-3 max-w-[100px]"><div className="text-[10px] text-slate-600 truncate">{a.responsable || '—'}</div></td>
-                                <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                                <td className="px-3 py-3 hide-on-print" onClick={e => e.stopPropagation()}>
                                     <div className="flex items-center gap-1">
                                         <button onClick={(e) => { e.stopPropagation(); setEditActivo(a); setModalOpen(true); }} className="p-2 hover:bg-slate-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Editar"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
                                         <button onClick={(e) => { e.stopPropagation(); setDeleteActivo(a); }} className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-400 hover:text-red-600" title="Eliminar activo"><Trash2 className="w-3.5 h-3.5" /></button>
@@ -1403,7 +1413,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 </table>
 
                 {/* Pagination */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100">
+                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 hide-on-print">
                     <span className="text-xs text-slate-400">
                         {total === 0 ? 'Sin activos registrados' : `${Math.min((page - 1) * PER_PAGE + 1, total)}–${Math.min(page * PER_PAGE, total)} de ${total}`}
                     </span>
