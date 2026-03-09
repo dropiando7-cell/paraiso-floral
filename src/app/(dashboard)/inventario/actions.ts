@@ -354,3 +354,36 @@ export async function clearPrintQueue() {
     });
     return { success: true };
 }
+
+export async function getActiveUserArea() {
+    try {
+        const orgId = await getOrgId();
+
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, areaCode: null };
+
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+        if (!dbUser) return { success: false, areaCode: null };
+
+        // Buscar si este usuario tiene algún área IN_PROGRESS
+        const activeStatus = await prisma.areaInventoryStatus.findFirst({
+            where: {
+                organizationId: orgId,
+                status: 'IN_PROGRESS',
+                openedById: dbUser.id
+            },
+            orderBy: {
+                openedAt: 'desc'
+            }
+        });
+
+        if (activeStatus) {
+            return { success: true, areaCode: activeStatus.areaCode };
+        }
+
+        return { success: true, areaCode: null };
+    } catch (e: any) {
+        return { success: false, error: e.message, areaCode: null };
+    }
+}

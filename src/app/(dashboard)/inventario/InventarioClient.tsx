@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useTransition, useRef } from 'react';
 import Image from 'next/image';
+import { useSearchParams, useRouter } from 'next/navigation';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser
 } from 'lucide-react';
-import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue } from './actions';
+import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea } from './actions';
 import { removeBackground } from '@imgly/background-removal';
 import { AreaScannerModal } from './AreaScannerModal';
 
@@ -794,11 +795,11 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                     {/* Área — Searchable / Locked */}
                                     <div>
                                         <FieldLabel required>Área / Ubicación</FieldLabel>
-                                        {!isEdit && lockedArea ? (
+                                        {!isEdit ? (
                                             <div className="w-full flex items-center gap-2 text-base border-2 border-[#0500A3]/30 bg-blue-50/50 rounded-xl px-4 py-3.5 text-[#0500A3] font-semibold">
                                                 <div className="bg-[#0500A3] w-2 h-2 rounded-full animate-pulse shrink-0" />
                                                 <span className="truncate">{AREAS.find(a => a.value === lockedArea)?.label || lockedArea}</span>
-                                                <input type="hidden" name="area" value={lockedArea} />
+                                                <input type="hidden" name="area" value={lockedArea || ''} />
                                             </div>
                                         ) : (
                                             <Combobox
@@ -1065,10 +1066,46 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
     const hasMounted = useRef(false);
 
+    const searchParams = useSearchParams();
+    const router = useRouter();
+
     // QR Area Control
     const [lockedArea, setLockedArea] = useState<string | null>(null);
     const [scannerOpen, setScannerOpen] = useState(false);
     const [isClosingAct, startClosingAct] = useTransition();
+
+    // Lógica para interceptar Deep Links y/o autocompletar área activa
+    useEffect(() => {
+        async function initArea() {
+            setLoading(true);
+            const areaQrParam = searchParams.get('areaQr');
+
+            if (areaQrParam) {
+                // Si entró por enlace (escaneado de QR real de la pared)
+                const res = await validateAndOpenArea(areaQrParam);
+                if (res.success && res.areaCode) {
+                    setLockedArea(res.areaCode);
+                } else {
+                    alert(res.error || 'Código de área inválido');
+                }
+                // Limpiar la URL para no volver a ejecutar esto en caso de refresh manual
+                router.replace('/inventario');
+            } else {
+                // Intentar recuperar el área que dejó abierta el usuario
+                const activeRes = await getActiveUserArea();
+                if (activeRes.success && activeRes.areaCode) {
+                    setLockedArea(activeRes.areaCode);
+                }
+            }
+            // Realizar la búsqueda general inicial
+            refresh(1, search, filtroArea, filtroEstatus);
+        }
+
+        if (!hasMounted.current) {
+            hasMounted.current = true;
+            initArea();
+        }
+    }, [searchParams, router]);
 
     async function handlePrintLabel(activo: Activo) {
         setPrintingId(activo.id);
@@ -1150,14 +1187,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     }
 
     useEffect(() => {
-        // Ejecutar inmediatamente en el primer montaje para rehidratar la UI
-        if (!hasMounted.current) {
-            hasMounted.current = true;
-            refresh(1, search, filtroArea, filtroEstatus);
-            return;
-        }
-
-        // Debounce para búsquedas subsiguientes
+        // Debounce para búsquedas subsiguientes (excluimos el montaje inicial que se maneja arriba)
+        if (!hasMounted.current) return;
         const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus); }, 300);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps

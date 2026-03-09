@@ -30,8 +30,13 @@ export async function GET(req: NextRequest) {
     const W = 406;
     const H = 203;
 
-    // Producción: QR Code con el ID del código de área (la llave física para abrirla)
-    const qrData = encodeURIComponent(finalIdQr);
+    // Obtener host de los headers para construir la URL absoluta (Deep Link)
+    const host = req.headers.get('host') || 'sistemaselim.app';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const fullUrl = `${protocol}://${host}/inventario?areaQr=${finalIdQr}`;
+
+    // Producción: QR Code con el URL completo hacia la pantalla de inventario
+    const qrData = encodeURIComponent(fullUrl);
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${qrData}&margin=0&color=000000&bgcolor=FFFFFF`;
 
     // Calcular tamaño de fuente dinámico para el nombre para que quepa bien

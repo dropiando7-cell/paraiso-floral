@@ -38,7 +38,21 @@ export function AreaScannerModal({
                         setError(null);
 
                         try {
-                            const res = await validateAndOpenArea(decodedText.trim());
+                            const rawText = decodedText.trim();
+                            let qrToValidate = rawText;
+
+                            // Check if the scanned QR is a URL (from our new Deep Link implementation)
+                            try {
+                                const url = new URL(rawText);
+                                const areaQrParam = url.searchParams.get('areaQr');
+                                if (areaQrParam) {
+                                    qrToValidate = areaQrParam;
+                                }
+                            } catch (e) {
+                                // Not a valid URL, it means it's an old plain-text QR. Use it as is.
+                            }
+
+                            const res = await validateAndOpenArea(qrToValidate);
                             if (res.success && res.areaCode) {
                                 html5QrcodeScanner.clear();
                                 onSuccess(res.areaCode);
