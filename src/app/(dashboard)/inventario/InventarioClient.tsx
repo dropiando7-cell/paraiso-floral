@@ -8,7 +8,7 @@ import {
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser
 } from 'lucide-react';
-import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea } from './actions';
+import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion } from './actions';
 import { removeBackground } from '@imgly/background-removal';
 import { AreaScannerModal } from './AreaScannerModal';
 
@@ -131,7 +131,7 @@ type AiResult = {
 
 // ─── Searchable Combobox ──────────────────────────────────────────────────────
 function Combobox({
-    options, value, onChange, placeholder, required, label, aiHighlight, allowClear
+    options, value, onChange, placeholder, required, label, aiHighlight, allowClear, allowCustom
 }: {
     options: { value: string; label: string }[];
     value: string;
@@ -141,6 +141,7 @@ function Combobox({
     label?: string;
     aiHighlight?: boolean;
     allowClear?: boolean;
+    allowCustom?: boolean;
 }) {
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
@@ -170,8 +171,8 @@ function Combobox({
                 className={`w-full flex items-center justify-between text-base border-2 rounded-xl px-4 py-3.5 text-left transition-all focus:outline-none
                     ${aiHighlight ? 'border-purple-400 bg-purple-50' : 'border-slate-200 bg-white'}
                     ${open ? 'ring-2 ring-[#0500A3]/30 border-[#0500A3]/50' : 'hover:border-slate-300'}`}>
-                <span className={`truncate ${selected ? 'text-slate-900' : 'text-slate-400'}`}>
-                    {selected ? selected.label : (placeholder || 'Seleccionar...')}
+                <span className={`truncate ${selected || (allowCustom && value) ? 'text-slate-900' : 'text-slate-400'}`}>
+                    {selected ? selected.label : (allowCustom && value ? value : (placeholder || 'Seleccionar...'))}
                 </span>
                 <div className="flex items-center gap-1 shrink-0 ml-2">
                     {allowClear && value && (
@@ -215,15 +216,24 @@ function Combobox({
                                 — Todas las áreas —
                             </button>
                         )}
-                        {filtered.length === 0 ? (
+                        {filtered.length === 0 && !allowCustom ? (
                             <div className="text-sm text-slate-400 text-center py-4">Sin resultados para &ldquo;{query}&rdquo;</div>
                         ) : filtered.map(o => (
                             <button key={o.value} type="button" onClick={() => select(o.value)}
                                 className={`w-full text-left px-4 py-3 text-sm whitespace-nowrap hover:bg-blue-50 transition-colors
-                                    ${o.value === value ? 'bg-[#0500A3]/5 font-semibold text-[#0500A3]' : 'text-slate-700'}`}>
+                                    ${value === o.value ? 'bg-blue-50/50 font-medium text-[#0500A3]' : 'text-slate-700'}`}>
                                 {o.label}
                             </button>
                         ))}
+
+                        {/* Custom Option Button */}
+                        {allowCustom && query.trim() !== '' && !options.some(o => o.value.toLowerCase() === query.trim().toLowerCase()) && (
+                            <button type="button" onClick={() => select(query.trim())}
+                                className="w-full text-left px-4 py-3 text-sm whitespace-nowrap hover:bg-green-50 transition-colors text-green-700 font-medium border-t border-slate-100 flex items-center gap-2">
+                                <Sparkles className="w-4 h-4" />
+                                Usar nuevo: "{query}"
+                            </button>
+                        )}
                     </div>
                 </div>
             )}
@@ -472,6 +482,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [descripcionDetallada, setDescripcionDetallada] = useState(editActivo?.descripcionDetallada || '');
     const [modelo, setModelo] = useState(editActivo?.modelo || '');
     const [codigoGrupo, setCodigoGrupo] = useState(editActivo?.codigoGrupo || '001');
+    const [isBatchMode, setIsBatchMode] = useState(false);
+    const [cantidad, setCantidad] = useState('1'); // Nivel de lote
     const [responsable, setResponsable] = useState(editActivo?.responsable || '');
     const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? new Date(editActivo.fechaAdq).toISOString().split('T')[0] : '');
     const [costoAdq, setCostoAdq] = useState<string>(editActivo?.costoAdq ? Number(editActivo.costoAdq).toString() : '');
@@ -486,6 +498,13 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
     const [categoriaDepreciacion, setCategoriaDepreciacion] = useState(editActivo?.categoriaDepreciacion || '');
     const [vidaUtilOverride, setVidaUtilOverride] = useState<string>(editActivo?.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
+
+    // ─── Grupos Autocompletables ───
+    const [gruposDisponibles, setGruposDisponibles] = useState<any[]>([]);
+
+    useEffect(() => {
+        getGruposAutocompletado().then(res => setGruposDisponibles(res));
+    }, []);
 
     // Historic auto-search debounce
     useEffect(() => {
@@ -523,6 +542,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setDescripcionDetallada(editActivo.descripcionDetallada || '');
             setModelo(editActivo.modelo || '');
             setCodigoGrupo(editActivo.codigoGrupo || '001');
+            setIsBatchMode(false); // Editable form never uses batch mode
+            setCantidad('1'); // En edición no permitimos lotes
             setResponsable(editActivo.responsable || '');
             setCategoriaDepreciacion(editActivo.categoriaDepreciacion || '');
             setVidaUtilOverride(editActivo.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
@@ -532,7 +553,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
             setPreviewQr(''); setAiResult(null); setUploadPhase('idle'); setPlacaUploadPhase('idle');
-            setDescripcionCorta(''); setDescripcionDetallada(''); setModelo(''); setCodigoGrupo('001');
+            setDescripcionCorta(''); setDescripcionDetallada(''); setModelo(''); setCodigoGrupo('001'); setCantidad('1'); setIsBatchMode(false);
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
             setFechaAdq(''); setCostoAdq('');
@@ -740,10 +761,15 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         fd.set('imagenPlacaUrl', imagenPlacaUrl);
         fd.set('area', selectedArea);
         fd.set('cuentaAct', selectedCuenta);
-        fd.set('descripcionCorta', descripcionCorta);
-        fd.set('descripcionDetallada', descripcionDetallada);
-        fd.set('modelo', modelo);
-        fd.set('codigoGrupo', codigoGrupo);
+
+        // Si no está en batch mode ni editando, generamos un grupo único aleatorio para no chocar
+        let finalCodigoGrupo = codigoGrupo;
+        if (!isEdit && !isBatchMode) {
+            finalCodigoGrupo = 'UNQ-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        fd.set('codigoGrupo', finalCodigoGrupo);
+        if (!isEdit) fd.set('cantidad', isBatchMode ? cantidad : '1'); // Solo modo creación y lote
         if (selectedHistorico) fd.set('historicoId', selectedHistorico.id);
         fd.set('categoriaDepreciacion', categoriaDepreciacion);
         if (vidaUtilOverride) fd.set('vidaUtilOverride', vidaUtilOverride);
@@ -925,20 +951,65 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             )}
                                         </div>
 
-                                        {/* Código Grupo */}
-                                        <div>
-                                            <FieldLabel required={!isEdit}>Código de Grupo</FieldLabel>
-                                            <input
-                                                type="text"
-                                                name="codigoGrupo"
-                                                disabled={isEdit}
-                                                value={codigoGrupo}
-                                                onChange={e => setCodigoGrupo(e.target.value)}
-                                                placeholder="Ej: 001"
-                                                className={`${inputCls} font-mono bg-blue-50/30 font-bold tracking-widest text-[#0500A3] ${isEdit && 'opacity-60 cursor-not-allowed'}`}
-                                            />
-                                            {!isEdit && <p className="text-[10px] text-slate-400 mt-1 leading-tight">Usa 001, 002... para agrupar activos idénticos en esta misma área (Ej. sillas metálicas vs sillas de plástico).</p>}
-                                        </div>
+                                        {/* Código Grupo y Cantidad - Toggle para creación */}
+                                        {!isEdit && (
+                                            <div className="flex items-center gap-2 mb-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                                <div
+                                                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${isBatchMode ? 'bg-[#0500A3]' : 'bg-slate-300'}`}
+                                                    onClick={() => setIsBatchMode(!isBatchMode)}
+                                                >
+                                                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isBatchMode ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                </div>
+                                                <div>
+                                                    <p className="font-bold text-sm text-slate-800">Registrar en Lote (Mismos Activos)</p>
+                                                    <p className="text-[10px] text-slate-500">Actívalo solo si registrarás muchas sillas, mesas o activos idénticos a la vez.</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Solo mostrar Grupo y Cantidad si estamos editando (readonly) o si encendieron Batch Mode */}
+                                        {(isEdit || isBatchMode) && (
+                                            <div className="flex gap-3 bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
+                                                <div className="flex-[2]">
+                                                    <FieldLabel required={!isEdit}>Código Grupo</FieldLabel>
+                                                    {isEdit ? (
+                                                        <input
+                                                            type="text"
+                                                            disabled
+                                                            value={codigoGrupo}
+                                                            className={`${inputCls} font-mono bg-blue-50/10 font-bold tracking-widest text-[#0500A3] opacity-60 cursor-not-allowed border-transparent`}
+                                                        />
+                                                    ) : (
+                                                        <Combobox
+                                                            options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
+                                                            value={codigoGrupo}
+                                                            onChange={(val) => {
+                                                                setCodigoGrupo(val);
+                                                                const match = gruposDisponibles.find(g => g.codigoGrupo === val);
+                                                                if (match && match.descripcionCorta && !descripcionCorta) setDescripcionCorta(match.descripcionCorta);
+                                                            }}
+                                                            placeholder="Ej: 001"
+                                                            allowCustom={true}
+                                                        />
+                                                    )}
+                                                    {!isEdit && <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight">Agrupa estos activos.</p>}
+                                                </div>
+
+                                                {!isEdit && (
+                                                    <div className="flex-1">
+                                                        <FieldLabel required>Cantidad</FieldLabel>
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            value={cantidad}
+                                                            onChange={e => setCantidad(e.target.value)}
+                                                            className={`${inputCls} font-mono font-bold text-center border-blue-200 focus:ring-blue-500`}
+                                                        />
+                                                        <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight text-center">En Lote</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {/* Descripción Corta — AI controlled */}
@@ -1288,6 +1359,79 @@ function DeleteConfirm({ activo, onClose, onSuccess }: { activo: Activo; onClose
     );
 }
 
+// ─── Imprimir Lote Modal ──────────────────────────────────────────────────────
+function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean; onClose: () => void; grupos: any[]; onSuccess: () => void }) {
+    const [grupo, setGrupo] = useState('');
+    const [desde, setDesde] = useState('');
+    const [hasta, setHasta] = useState('');
+    const [isPending, startTransition] = useTransition();
+
+    if (!open) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative">
+                <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
+                    <X className="w-5 h-5" />
+                </button>
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-blue-100 p-2.5 rounded-xl"><Printer className="w-5 h-5 text-[#0500A3]" /></div>
+                    <div>
+                        <h2 className="text-lg font-bold text-slate-900">Imprimir Lote</h2>
+                        <p className="text-xs text-slate-500 mt-0.5">Enviar grupo a la impresora en masa</p>
+                    </div>
+                </div>
+
+                <div className="space-y-4 mb-6 mt-6">
+                    <div>
+                        <FieldLabel required>Código de Grupo</FieldLabel>
+                        <Combobox
+                            options={grupos.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
+                            value={grupo}
+                            onChange={setGrupo}
+                            placeholder="Ej: 001"
+                            allowCustom={true}
+                        />
+                    </div>
+                    <div className="flex gap-4">
+                        <div className="flex-1">
+                            <FieldLabel required>Del (№ Correlativo)</FieldLabel>
+                            <input type="number" min="1" value={desde} onChange={e => setDesde(e.target.value)}
+                                className={inputCls} placeholder="Ej: 1" />
+                        </div>
+                        <div className="flex-1">
+                            <FieldLabel required>Al (№ Correlativo)</FieldLabel>
+                            <input type="number" min="1" value={hasta} onChange={e => setHasta(e.target.value)}
+                                className={inputCls} placeholder="Ej: 50" />
+                        </div>
+                    </div>
+                </div>
+
+                <button onClick={() => startTransition(async () => {
+                    if (!grupo || !desde || !hasta) return alert('Completa todos los campos');
+                    if (Number(desde) > Number(hasta)) return alert('Rango inválido');
+
+                    try {
+                        const res = await encolarLoteImpresion(grupo, Number(desde), Number(hasta));
+                        if (res.error) alert(res.error);
+                        else {
+                            alert(`Se enviaron ${res.count} etiquetas a la cola de impresión exitosamente.`);
+                            onSuccess();
+                            onClose();
+                        }
+                    } catch (e) {
+                        alert('Error conectando con el servidor');
+                    }
+                })}
+                    disabled={isPending || !grupo || !desde || !hasta}
+                    className="w-full flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white rounded-2xl py-4 hover:bg-[#0600c2] active:scale-[0.98] transition-all disabled:opacity-60">
+                    {isPending && <Loader2 className="w-5 h-5 animate-spin" />} Enviar a Cola
+                </button>
+            </div>
+        </div>
+    );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function InventarioClient({ initialData, initialStats, dbAreas = [], userRole }: { initialData?: any; initialStats?: any; dbAreas?: any[]; userRole?: string }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
@@ -1311,7 +1455,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
     const [printingId, setPrintingId] = useState<string | null>(null);
     const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+    const [loteModalOpen, setLoteModalOpen] = useState(false);
     const hasMounted = useRef(false);
+
+    // Grupos autocompletables prefetch para el lote printer
+    const [gruposDisponibles, setGruposDisponibles] = useState<any[]>([]);
+    useEffect(() => { getGruposAutocompletado().then(res => setGruposDisponibles(res)); }, []);
 
     const searchParams = useSearchParams();
     const router = useRouter();
@@ -1490,6 +1639,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                             className="flex items-center justify-center gap-2 text-base font-bold bg-white text-slate-700 border-2 border-slate-200 px-5 py-3 rounded-2xl hover:bg-slate-50 active:scale-95 transition-all w-full sm:w-auto mt-2 sm:mt-0 hide-on-print">
                             <Printer className="w-5 h-5 text-slate-500" /> Imprimir Reporte
                         </button>
+                        <button onClick={() => setLoteModalOpen(true)}
+                            className="flex items-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print">
+                            <Printer className="w-5 h-5" /> Imprimir Lote
+                        </button>
                         <button onClick={() => {
                             if (!lockedArea) setScannerOpen(true);
                             else { setEditActivo(null); setModalOpen(true); }
@@ -1554,6 +1707,13 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                     </div>
                 </div>
             )}
+
+            <ImprimirLoteModal
+                open={loteModalOpen}
+                onClose={() => setLoteModalOpen(false)}
+                grupos={gruposDisponibles}
+                onSuccess={() => { refresh() }}
+            />
 
             <div className="hide-on-print"><StatsCards stats={stats} /></div>
 

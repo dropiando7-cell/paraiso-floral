@@ -24,7 +24,7 @@ async function getOrgId(): Promise<string> {
 // porque ahora se usa el modelo Area desde Prisma.
 
 // ─── Auto-generate ID QR ─────────────────────────────────────────────────────
-async function generateIdQr(organizationId: string, area: string, codigoGrupo: string = '001'): Promise<string> {
+async function generateIdQr(organizationId: string, area: string, codigoGrupo: string = '001', cantidadRegistros: number = 1): Promise<string[]> {
     // Buscar el area real en BD para obtener el prefijo base
     const areaRecord = await prisma.area.findFirst({
         where: { organizationId, name: area }
@@ -33,27 +33,70 @@ async function generateIdQr(organizationId: string, area: string, codigoGrupo: s
     const prefijoBase = areaRecord?.prefix || area;
     const prefijoConGrupo = `${prefijoBase}-${codigoGrupo.padStart(3, '0')}`;
 
-    // Buscar el último activo con ese (Prefijo + Grupo) exacto
+    // Buscar el último activo de la ORGANIZACIÓN completa que pertenezca a este CODIGO DE GRUPO
+    // Para no depender del prefijo del área, buscamos cualquiera cuyo ID termine con -xxx donde xxx es el correlativo
+    // y cuyo codigoGrupo sea el que estamos buscando.
     const lastActivo = await prisma.activoFijo.findFirst({
-        where: { organizationId, idQr: { startsWith: `${prefijoConGrupo}-` } },
-        orderBy: { idQr: 'desc' },
+        where: { organizationId, codigoGrupo },
+        orderBy: { createdAt: 'desc' }, // Asumimos que el último creado tiene el correlativo mayor para su grupo (O podríamos ordenar por idQr desc pero varía el prefijo)
     });
 
-    if (lastActivo) {
-        const parts = lastActivo.idQr.split('-');
-        const lastPart = parts[parts.length - 1]; // Extraer el último correlativo
+    // Validemos buscando todos los de ese grupo para sacar el maximo número si es mas seguro
+    const todosDeGrupo = await prisma.activoFijo.findMany({
+        where: { organizationId, codigoGrupo },
+        select: { idQr: true }
+    });
+
+    let maxCorrelativo = 0;
+    for (const act of todosDeGrupo) {
+        const parts = act.idQr.split('-');
+        const lastPart = parts[parts.length - 1];
         if (!isNaN(Number(lastPart))) {
-            const nextNum = Number(lastPart) + 1;
-            return `${prefijoConGrupo}-${String(nextNum).padStart(4, '0')}`;
+            const num = Number(lastPart);
+            if (num > maxCorrelativo) maxCorrelativo = num;
         }
     }
 
-    // Si no hay ninguno o no pudimos parsear el número, generamos el primero para este grupo
-    const count = await prisma.activoFijo.count({
-        where: { organizationId, area, codigoGrupo },
-    });
-    const correlative = String(count + 1).padStart(4, '0');
-    return `${prefijoConGrupo}-${correlative}`;
+    const startNum = maxCorrelativo + 1;
+    const ids = [];
+
+    for (let i = 0; i < cantidadRegistros; i++) {
+        ids.push(`${prefijoConGrupo}-${String(startNum + i).padStart(4, '0')}`);
+    }
+
+    return ids;
+}
+
+// ─── Autocompletar Groupos Existentes ─────────────────────────────────────────
+export async function getGruposAutocompletado() {
+    try {
+        const orgId = await getOrgId();
+
+        // Agrupar por codigoGrupo para obtener cantidad y descripcion sugerida
+        const agrupados = await prisma.activoFijo.groupBy({
+            by: ['codigoGrupo'],
+            where: { organizationId: orgId, codigoGrupo: { not: null } },
+            _count: { id: true }
+        });
+
+        // Para evitar múltiples queries, optamos por mapear y luego enriquecer
+        const resultados = await Promise.all(agrupados.map(async (g) => {
+            const last = await prisma.activoFijo.findFirst({
+                where: { organizationId: orgId, codigoGrupo: g.codigoGrupo },
+                orderBy: { createdAt: 'desc' },
+                select: { descripcionCorta: true }
+            });
+            return {
+                codigoGrupo: g.codigoGrupo!,
+                cantidad: g._count.id,
+                descripcionCorta: last?.descripcionCorta || ''
+            };
+        }));
+
+        return resultados.sort((a, b) => a.codigoGrupo.localeCompare(b.codigoGrupo));
+    } catch (e) {
+        return [];
+    }
 }
 
 // ─── READ: List with pagination, search, filters ─────────────────────────────
@@ -137,45 +180,56 @@ export async function createActivo(formData: FormData) {
 
     const area = formData.get('area') as string;
     const codigoGrupo = (formData.get('codigoGrupo') as string) || '001';
-    const idQr = await generateIdQr(orgId, area, codigoGrupo);
+    const cantidadForm = formData.get('cantidad') as string;
+    const cantidadRegistros = cantidadForm ? parseInt(cantidadForm, 10) : 1;
+
+    const idQrs = await generateIdQr(orgId, area, codigoGrupo, cantidadRegistros);
 
     const costoStr = formData.get('costoAdq') as string;
     const fechaStr = formData.get('fechaAdq') as string;
     const fechaLevStr = formData.get('fechaLevantamiento') as string;
     const vidaUtilOverrideStr = formData.get('vidaUtilOverride') as string;
 
-    await prisma.activoFijo.create({
-        data: {
-            organizationId: orgId,
-            idQr,
-            area,
-            codigoGrupo,
-            descripcionCorta: formData.get('descripcionCorta') as string,
-            descripcionDetallada: (formData.get('descripcionDetallada') as string) || null,
-            serie: (formData.get('serie') as string) || null,
-            modelo: (formData.get('modelo') as string) || null,
-            cuentaAct: formData.get('cuentaAct') as string,
-            estatusContable: (formData.get('estatusContable') as string) || 'VIGENTE',
-            fechaAdq: fechaStr ? new Date(fechaStr) : null,
-            fechaLevantamiento: fechaLevStr ? new Date(fechaLevStr) : null,
-            integrado: formData.get('integrado') === 'true',
-            costoAdq: costoStr ? parseFloat(costoStr) : null,
-            origenActivo: (formData.get('origenActivo') as string) || null,
-            imagenUrl: (formData.get('imagenUrl') as string) || null,
-            imagenPlacaUrl: (formData.get('imagenPlacaUrl') as string) || null,
-            estadoDano: (formData.get('estadoDano') as string) || null,
-            tipoIncidencia: (formData.get('tipoIncidencia') as string) || null,
-            accionRecomendada: (formData.get('accionRecomendada') as string) || null,
-            responsable: (formData.get('responsable') as string) || null,
-            observaciones: (formData.get('observaciones') as string) || null,
-            historicoId: (formData.get('historicoId') as string) || null,
-            categoriaDepreciacion: (formData.get('categoriaDepreciacion') as string) || null,
-            vidaUtilOverride: vidaUtilOverrideStr ? parseFloat(vidaUtilOverrideStr) : null,
-        },
+    const baseData = {
+        organizationId: orgId,
+        area,
+        codigoGrupo,
+        descripcionCorta: formData.get('descripcionCorta') as string,
+        descripcionDetallada: (formData.get('descripcionDetallada') as string) || null,
+        serie: (formData.get('serie') as string) || null,
+        modelo: (formData.get('modelo') as string) || null,
+        cuentaAct: formData.get('cuentaAct') as string,
+        estatusContable: (formData.get('estatusContable') as string) || 'VIGENTE',
+        fechaAdq: fechaStr ? new Date(fechaStr) : null,
+        fechaLevantamiento: fechaLevStr ? new Date(fechaLevStr) : null,
+        integrado: formData.get('integrado') === 'true',
+        costoAdq: costoStr ? parseFloat(costoStr) : null,
+        origenActivo: (formData.get('origenActivo') as string) || null,
+        imagenUrl: (formData.get('imagenUrl') as string) || null,
+        imagenPlacaUrl: (formData.get('imagenPlacaUrl') as string) || null,
+        estadoDano: (formData.get('estadoDano') as string) || null,
+        tipoIncidencia: (formData.get('tipoIncidencia') as string) || null,
+        accionRecomendada: (formData.get('accionRecomendada') as string) || null,
+        responsable: (formData.get('responsable') as string) || null,
+        observaciones: (formData.get('observaciones') as string) || null,
+        historicoId: (formData.get('historicoId') as string) || null,
+        categoriaDepreciacion: (formData.get('categoriaDepreciacion') as string) || null,
+        vidaUtilOverride: vidaUtilOverrideStr ? parseFloat(vidaUtilOverrideStr) : null,
+    };
+
+    const dataToInsert = idQrs.map(idQr => ({
+        ...baseData,
+        idQr
+    }));
+
+    await prisma.activoFijo.createMany({
+        data: dataToInsert
     });
 
     revalidatePath('/inventario');
-    return { success: true, idQr };
+
+    // Devolvemos el primero para compatibilidad o la lista completa si el UI la necesita
+    return { success: true, idQr: idQrs[0], count: idQrs.length };
 }
 
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
@@ -244,7 +298,8 @@ export async function uploadActivoImage(formData: FormData): Promise<{ url: stri
 // ─── PREVIEW ID QR (for form) ────────────────────────────────────────────────
 export async function previewIdQr(area: string): Promise<string> {
     const orgId = await getOrgId();
-    return generateIdQr(orgId, area);
+    const ids = await generateIdQr(orgId, area);
+    return ids[0];
 }
 
 // ─── AREA ACTIVATION CONTROL ─────────────────────────────────────────────────
@@ -412,4 +467,65 @@ export async function getActiveUserArea() {
     } catch (e: any) {
         return { success: false, error: e.message, areaCode: null };
     }
+}
+
+export async function encolarLoteImpresion(codigoGrupo: string, desde: number, hasta: number) {
+    const orgId = await getOrgId();
+
+    // Buscar todos los activos con ese codigo de grupo para la organizacion de forma global
+    const activos = await prisma.activoFijo.findMany({
+        where: {
+            organizationId: orgId,
+            codigoGrupo
+        },
+        select: {
+            id: true,
+            idQr: true,
+            descripcionCorta: true,
+            area: true,
+            cuentaAct: true
+        }
+    });
+
+    // Filtrar en memoria por el correlativo ya que extraer la ultima parte con split es complejo en prisma orm pura
+    const activosEnRango = activos.filter(act => {
+        const parts = act.idQr.split('-');
+        const correlativoStr = parts[parts.length - 1];
+        if (!isNaN(Number(correlativoStr))) {
+            const numero = Number(correlativoStr);
+            return numero >= desde && numero <= hasta;
+        }
+        return false;
+    });
+
+    if (activosEnRango.length === 0) {
+        return { success: false, error: 'No se encontraron activos en ese rango para el grupo seleccionado' };
+    }
+
+    // Preparar el host desde env variable o localhost temporalmente. 
+    // Usualmente window.location.origin no está en servers actions, 
+    // asumiendo hostname de prod si no está
+    const host = process.env.NEXT_PUBLIC_APP_URL || 'https://sistemas-elim.vercel.app';
+
+    const printJobs = activosEnRango.map(activo => {
+        const params = new URLSearchParams({
+            idQr: activo.idQr,
+            descripcion: activo.descripcionCorta,
+            area: activo.area,
+            cuenta: activo.cuentaAct,
+        });
+        const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+        return {
+            organizationId: orgId,
+            activoId: activo.id,
+            urlImagen,
+            estado: 'PENDIENTE'
+        };
+    });
+
+    const countPayload = await prisma.colaImpresion.createMany({
+        data: printJobs
+    });
+
+    return { success: true, count: countPayload.count };
 }
