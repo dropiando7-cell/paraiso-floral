@@ -8,13 +8,16 @@ export async function GET(request: Request) {
     const code = searchParams.get('code')
     // if "next" is in param, use it as the redirect URL
     const next = searchParams.get('next') ?? '/'
+    const requestUrl = new URL(request.url)
 
     if (code) {
         try {
             const supabase = await createClient()
             const { error, data } = await supabase.auth.exchangeCodeForSession(code)
 
-            if (!error && data?.user?.email) {
+            if (error) {
+                console.error('[auth/callback] Error exchanging code for session:', error)
+            } else if (data?.user?.email) {
                 // Check if user is authorized in Prisma
                 let authorizedUser = null
                 try {
@@ -23,40 +26,38 @@ export async function GET(request: Request) {
                     })
                 } catch (dbErr) {
                     console.error('[auth/callback] Prisma lookup failed:', dbErr)
-                    // If DB is temporarily unavailable, still allow login
-                    // The per-page auth checks will enforce access control
                     authorizedUser = { email: data.user.email } // minimal fallback
                 }
 
                 if (!authorizedUser) {
-                    // If not authorized, sign them out and redirect to unauthorized page
                     await supabase.auth.signOut()
-                    return NextResponse.redirect(`${origin}/unauthorized`)
+                    return NextResponse.redirect(new URL('/unauthorized', request.url))
                 }
-
-                const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
-                const isLocalEnv = process.env.NODE_ENV === 'development'
 
                 let redirectPath = next;
                 if (redirectPath === '/' && authorizedUser.defaultModule) {
                     redirectPath = authorizedUser.defaultModule;
                 }
 
+                const forwardedHost = request.headers.get('x-forwarded-host')
+                const isLocalEnv = process.env.NODE_ENV === 'development'
+
                 if (isLocalEnv) {
-                    // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-                    return NextResponse.redirect(`${origin}${redirectPath}`)
+                    return NextResponse.redirect(new URL(redirectPath, request.url))
                 } else if (forwardedHost) {
                     return NextResponse.redirect(`https://${forwardedHost}${redirectPath}`)
                 } else {
-                    return NextResponse.redirect(`${origin}${redirectPath}`)
+                    return NextResponse.redirect(new URL(redirectPath, request.url))
                 }
+            } else {
+                console.error('[auth/callback] No error, but no user data returned.')
             }
         } catch (err) {
             console.error('[auth/callback] Unexpected error during OAuth callback:', err)
-            return NextResponse.redirect(`${origin}/unauthorized`)
+            return NextResponse.redirect(new URL('/unauthorized', request.url))
         }
     }
 
     // return the user to an error page with instructions
-    return NextResponse.redirect(`${origin}/login`)
+    return NextResponse.redirect(new URL('/login?error=auth_callback_failed', request.url))
 }

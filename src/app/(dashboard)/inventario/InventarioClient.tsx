@@ -189,9 +189,9 @@ function Combobox({
                 </div>
             </button>
 
-            {/* Dropdown — min-w-full so it's never narrower than the trigger */}
+            {/* Dropdown — bounds to trigger width */}
             {open && (
-                <div className="absolute z-50 left-0 min-w-full w-max max-w-[min(600px,90vw)] mt-1 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden">
+                <div className="absolute z-50 left-0 w-full mt-1 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden">
                     {/* Search */}
                     <div className="p-2 border-b border-slate-100">
                         <div className="relative">
@@ -220,7 +220,7 @@ function Combobox({
                             <div className="text-sm text-slate-400 text-center py-4">Sin resultados para &ldquo;{query}&rdquo;</div>
                         ) : filtered.map(o => (
                             <button key={o.value} type="button" onClick={() => select(o.value)}
-                                className={`w-full text-left px-4 py-3 text-sm whitespace-nowrap hover:bg-blue-50 transition-colors
+                                className={`w-full text-left px-4 py-3 text-sm truncate hover:bg-blue-50 transition-colors
                                     ${value === o.value ? 'bg-blue-50/50 font-medium text-[#0500A3]' : 'text-slate-700'}`}>
                                 {o.label}
                             </button>
@@ -229,7 +229,7 @@ function Combobox({
                         {/* Custom Option Button */}
                         {allowCustom && query.trim() !== '' && !options.some(o => o.value.toLowerCase() === query.trim().toLowerCase()) && (
                             <button type="button" onClick={() => select(query.trim())}
-                                className="w-full text-left px-4 py-3 text-sm whitespace-nowrap hover:bg-green-50 transition-colors text-green-700 font-medium border-t border-slate-100 flex items-center gap-2">
+                                className="w-full text-left px-4 py-3 text-sm truncate hover:bg-green-50 transition-colors text-green-700 font-medium border-t border-slate-100 flex items-center gap-2">
                                 <Sparkles className="w-4 h-4" />
                                 Usar nuevo: "{query}"
                             </button>
