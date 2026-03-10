@@ -102,6 +102,24 @@ const CATEGORIAS_DEPRECIACION = [
     { value: 'OTRAS_INSTALACIONES_10', label: 'Otras Instalaciones (10 años)', years: 10 },
 ];
 
+function getMatchingCategoriaDepreciacion(cuenta: string | null | undefined, vidaUtil: string | number | null | undefined): string | null {
+    let matchCatVal = null;
+    if (cuenta) {
+        if (cuenta.includes('Mobiliario') || cuenta.includes('Equipo de Oficina') || cuenta.includes('Templo')) matchCatVal = 'MOBILIARIO_10';
+        else if (cuenta.includes('Audio')) matchCatVal = 'AUDIO_INSTRUMENTOS_10';
+        else if (cuenta.includes('Cómputo') || cuenta.includes('Computo')) matchCatVal = 'COMPUTACION_10';
+        else if (cuenta.includes('Mejoras')) matchCatVal = 'MEJORAS_EDIFICIOS_10';
+        else if (cuenta.includes('Edificios')) matchCatVal = 'EDIFICIOS_40';
+        else if (cuenta.includes('Vehículos') || cuenta.includes('Vehiculos')) matchCatVal = 'VEHICULOS_5';
+        else if (cuenta.includes('Instalaciones')) matchCatVal = 'OTRAS_INSTALACIONES_10';
+    }
+    if (!matchCatVal && vidaUtil) {
+        const matchCatObj = CATEGORIAS_DEPRECIACION.find(c => c.years === Number(vidaUtil));
+        if (matchCatObj) matchCatVal = matchCatObj.value;
+    }
+    return matchCatVal;
+}
+
 type AiResult = {
     descripcionCorta?: string;
     descripcionDetallada?: string;
@@ -455,6 +473,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [modelo, setModelo] = useState(editActivo?.modelo || '');
     const [codigoGrupo, setCodigoGrupo] = useState(editActivo?.codigoGrupo || '001');
     const [responsable, setResponsable] = useState(editActivo?.responsable || '');
+    const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? new Date(editActivo.fechaAdq).toISOString().split('T')[0] : '');
+    const [costoAdq, setCostoAdq] = useState<string>(editActivo?.costoAdq ? Number(editActivo.costoAdq).toString() : '');
 
     // ─── Historic Matcher States ───
     const [searchHistoricoText, setSearchHistoricoText] = useState('');
@@ -506,6 +526,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setResponsable(editActivo.responsable || '');
             setCategoriaDepreciacion(editActivo.categoriaDepreciacion || '');
             setVidaUtilOverride(editActivo.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
+            setFechaAdq(editActivo.fechaAdq ? new Date(editActivo.fechaAdq).toISOString().split('T')[0] : '');
+            setCostoAdq(editActivo.costoAdq ? Number(editActivo.costoAdq).toString() : '');
             // For now, not fetching full historic record on edit, just handling its absence.
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
@@ -513,6 +535,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setDescripcionCorta(''); setDescripcionDetallada(''); setModelo(''); setCodigoGrupo('001');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
+            setFechaAdq(''); setCostoAdq('');
         }
     }, [editActivo, open, lockedArea]);
 
@@ -683,10 +706,16 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 setSearchHistoricoText(res[0].nombrePropiedad);
                                 if (res[0].vidaUtil) {
                                     setVidaUtilOverride(Number(res[0].vidaUtil).toString());
-                                    const matchCat = CATEGORIAS_DEPRECIACION.find(c => c.years === Number(res[0].vidaUtil));
-                                    if (matchCat) setCategoriaDepreciacion(matchCat.value);
                                 }
+                                const matchCat = getMatchingCategoriaDepreciacion(res[0].cuentaContable, res[0].vidaUtil);
+                                if (matchCat) setCategoriaDepreciacion(matchCat);
                                 if (res[0].cuentaContable && CUENTAS.includes(res[0].cuentaContable)) setSelectedCuenta(res[0].cuentaContable);
+                                if (res[0].fechaAdquisicion) {
+                                    setFechaAdq(new Date(res[0].fechaAdquisicion).toISOString().split('T')[0]);
+                                }
+                                if (res[0].costoAdquisicion) {
+                                    setCostoAdq(Number(res[0].costoAdquisicion).toString());
+                                }
                                 setDescripcionCorta(prev => prev || res[0].nombrePropiedad);
                             }
                         }).catch(() => { });
@@ -1034,13 +1063,19 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                             // Auto-Fill Form from Record!
                                                             if (opt.vidaUtil) {
                                                                 setVidaUtilOverride(Number(opt.vidaUtil).toString());
-                                                                // Pre-choose a category just in case, though Override holds priority
-                                                                const matchCat = CATEGORIAS_DEPRECIACION.find(c => c.years === Number(opt.vidaUtil));
-                                                                if (matchCat) setCategoriaDepreciacion(matchCat.value);
                                                             }
+                                                            const matchCat = getMatchingCategoriaDepreciacion(opt.cuentaContable, opt.vidaUtil);
+                                                            if (matchCat) setCategoriaDepreciacion(matchCat);
+
                                                             if (opt.cuentaContable && CUENTAS.includes(opt.cuentaContable)) setSelectedCuenta(opt.cuentaContable);
                                                             if (!descripcionCorta) setDescripcionCorta(opt.nombrePropiedad);
                                                             if (!modelo && opt.marcaModelo) setModelo(opt.marcaModelo);
+                                                            if (opt.fechaAdquisicion) {
+                                                                setFechaAdq(new Date(opt.fechaAdquisicion).toISOString().split('T')[0]);
+                                                            }
+                                                            if (opt.costoAdquisicion) {
+                                                                setCostoAdq(Number(opt.costoAdquisicion).toString());
+                                                            }
                                                         }}
                                                     >
                                                         <div className="text-sm font-semibold text-slate-800">{opt.nombrePropiedad}</div>
@@ -1137,7 +1172,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <div>
                                             <FieldLabel>Fecha de Adquisición</FieldLabel>
                                             <input type="date" name="fechaAdq"
-                                                defaultValue={editActivo?.fechaAdq ? new Date(editActivo.fechaAdq).toISOString().split('T')[0] : ''}
+                                                value={fechaAdq} onChange={e => setFechaAdq(e.target.value)}
                                                 className={inputCls} />
                                         </div>
                                         <div>
@@ -1149,7 +1184,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <div>
                                             <FieldLabel>Costo de Adquisición (L.)</FieldLabel>
                                             <input type="number" name="costoAdq" step="0.01" min="0"
-                                                defaultValue={editActivo?.costoAdq ? Number(editActivo.costoAdq) : ''}
+                                                value={costoAdq} onChange={e => setCostoAdq(e.target.value)}
                                                 placeholder="0.00" className={inputCls} />
                                         </div>
                                     </div>
