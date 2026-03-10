@@ -499,6 +499,35 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [categoriaDepreciacion, setCategoriaDepreciacion] = useState(editActivo?.categoriaDepreciacion || '');
     const [vidaUtilOverride, setVidaUtilOverride] = useState<string>(editActivo?.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
 
+    const [aiMatchFailed, setAiMatchFailed] = useState(false);
+
+    function applyHistoricRecord(record: any) {
+        setSelectedHistorico(record);
+        setSearchHistoricoText(record.nombrePropiedad);
+        if (record.vidaUtil) {
+            setVidaUtilOverride(Number(record.vidaUtil).toString());
+        }
+        const matchCat = getMatchingCategoriaDepreciacion(record.cuentaContable, record.vidaUtil);
+        if (matchCat) setCategoriaDepreciacion(matchCat);
+        if (record.cuentaContable && CUENTAS.includes(record.cuentaContable)) {
+            setSelectedCuenta(record.cuentaContable);
+        }
+        if (record.fechaAdquisicion) {
+            setFechaAdq(new Date(record.fechaAdquisicion).toISOString().split('T')[0]);
+        }
+        if (record.costoAdquisicion) {
+            setCostoAdq(Number(record.costoAdquisicion).toString());
+        }
+        setDescripcionCorta(prev => prev || record.nombrePropiedad);
+        setAiMatchFailed(false);
+
+        // Batch auto-fill logic
+        if (record.cantidad && record.cantidad > 1) {
+            setIsBatchMode(true);
+            setCantidad(record.cantidad.toString());
+        }
+    }
+
     // ─── Grupos Autocompletables ───
     const [gruposDisponibles, setGruposDisponibles] = useState<any[]>([]);
 
@@ -622,6 +651,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         const url = urlOverride ?? imagenUrl;
         if (!url) return;
         setAiResult(null);
+        setAiMatchFailed(false);
         try {
             setUploadPhase('analyzing');
             const aiRes = await fetch('/api/inventario/analyze-image', {
@@ -636,6 +666,26 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                 if (data.descripcionDetallada) setDescripcionDetallada(data.descripcionDetallada);
                 if (data.modelo) setModelo(data.modelo);
                 if (data.cuentaAct && CUENTAS.includes(data.cuentaAct)) setSelectedCuenta(data.cuentaAct);
+
+                // Silent lookup in Historical records using combined short description and model
+                const searchQueries = [data.descripcionCorta, data.modelo].filter(Boolean).join(' ');
+                if (searchQueries) {
+                    try {
+                        const searchRes = await fetch(`/api/inventario/historico/search?q=${encodeURIComponent(searchQueries)}`);
+                        if (searchRes.ok) {
+                            const historicos = await searchRes.json();
+                            if (historicos && historicos.length > 0) {
+                                applyHistoricRecord(historicos[0]);
+                            } else {
+                                setAiMatchFailed(true);
+                            }
+                        } else {
+                            setAiMatchFailed(true);
+                        }
+                    } catch (e) {
+                        setAiMatchFailed(true);
+                    }
+                }
             } else {
                 alert('La IA no pudo analizar la imagen: ' + (data.error || 'Error desconocido'));
             }
@@ -705,6 +755,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
     async function analyzePlacaWithAI(url: string) {
         if (!url) return;
+        setAiMatchFailed(false);
         try {
             setPlacaUploadPhase('analyzing');
             const aiRes = await fetch('/api/inventario/analyze-placa', {
@@ -723,23 +774,16 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                         .then(r => r.json())
                         .then(res => {
                             if (res && res.length > 0) {
-                                setSelectedHistorico(res[0]);
-                                setSearchHistoricoText(res[0].nombrePropiedad);
-                                if (res[0].vidaUtil) {
-                                    setVidaUtilOverride(Number(res[0].vidaUtil).toString());
-                                }
-                                const matchCat = getMatchingCategoriaDepreciacion(res[0].cuentaContable, res[0].vidaUtil);
-                                if (matchCat) setCategoriaDepreciacion(matchCat);
-                                if (res[0].cuentaContable && CUENTAS.includes(res[0].cuentaContable)) setSelectedCuenta(res[0].cuentaContable);
-                                if (res[0].fechaAdquisicion) {
-                                    setFechaAdq(new Date(res[0].fechaAdquisicion).toISOString().split('T')[0]);
-                                }
-                                if (res[0].costoAdquisicion) {
-                                    setCostoAdq(Number(res[0].costoAdquisicion).toString());
-                                }
-                                setDescripcionCorta(prev => prev || res[0].nombrePropiedad);
+                                applyHistoricRecord(res[0]);
+                            } else {
+                                setAiMatchFailed(true);
                             }
-                        }).catch(() => { });
+                        }).catch(() => {
+                            setAiMatchFailed(true);
+                        });
+                } else {
+                    // Si no detectó serie también lo consideramos un "fallo de match histórico" porque no hay con qué cruzarlo
+                    setAiMatchFailed(true);
                 }
                 if (data.modelo) {
                     setModelo(data.modelo);
@@ -750,7 +794,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setPlacaUploadPhase('done');
         } catch (err: any) {
             setPlacaUploadPhase('done');
-            alert('Error leyendo placa: ' + (err.message || 'Intenta de nuevo'));
+            alert('Error al analizar placa: ' + (err.message || 'Intenta de nuevo'));
         }
     }
 
@@ -1097,17 +1141,21 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
                                     {/* Flujo B: Buscador Histórico CSV */}
                                     <div ref={historicoRef} className="relative z-20">
-                                        <FieldLabel>Conciliación Histórica (Archivo CSV 2026)</FieldLabel>
+                                        <FieldLabel>
+                                            Conciliación Histórica (Archivo CSV 2026)
+                                            {aiMatchFailed && <span className="ml-2 text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-md inline-flex items-center gap-1">⚠️ Búsqueda manual requerida</span>}
+                                        </FieldLabel>
                                         <div className="relative">
                                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                                             <input
                                                 type="text"
                                                 placeholder="Buscar equipo antiguo por nombre, marca o modelo..."
-                                                className={`${inputCls} pl-11`}
+                                                className={`${aiMatchFailed ? 'w-full px-5 py-3.5 rounded-xl border-2 focus:outline-none transition-all shadow-sm text-base pl-11 border-amber-300 bg-amber-50/50 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500' : inputCls} pl-11`}
                                                 value={searchHistoricoText}
                                                 onChange={(e) => {
                                                     setSearchHistoricoText(e.target.value);
                                                     setShowHistoricoDropdown(true);
+                                                    if (aiMatchFailed) setAiMatchFailed(false); // Clear warning on manual interaction
                                                     if (selectedHistorico) {
                                                         setSelectedHistorico(null); // Borrar selección si edita el texto
                                                     }
