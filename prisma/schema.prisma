@@ -409,6 +409,7 @@ model ActivoFijo {
   descripcionDetallada String?
   serie                String?
   modelo               String?
+  codigoGrupo          String?   // "001" (asignado manualmente para agrupar en ELIM-PB-A01-TMP-001)
 
   // Clasificación
   area             String    // Abreviatura del área (PB-A1-OF.PASTOR, etc.)

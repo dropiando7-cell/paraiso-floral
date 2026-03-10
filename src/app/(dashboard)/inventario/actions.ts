@@ -24,35 +24,36 @@ async function getOrgId(): Promise<string> {
 // porque ahora se usa el modelo Area desde Prisma.
 
 // ─── Auto-generate ID QR ─────────────────────────────────────────────────────
-async function generateIdQr(organizationId: string, area: string): Promise<string> {
-    // Buscar el area real en BD para obtener el prefijo exacto
+async function generateIdQr(organizationId: string, area: string, codigoGrupo: string = '001'): Promise<string> {
+    // Buscar el area real en BD para obtener el prefijo base
     const areaRecord = await prisma.area.findFirst({
         where: { organizationId, name: area }
     });
 
-    const prefijo = areaRecord?.prefix || area;
+    const prefijoBase = areaRecord?.prefix || area;
+    const prefijoConGrupo = `${prefijoBase}-${codigoGrupo.padStart(3, '0')}`;
 
-    // Buscar el último activo con ese prefijo para no repetir IDs de eliminados
+    // Buscar el último activo con ese (Prefijo + Grupo) exacto
     const lastActivo = await prisma.activoFijo.findFirst({
-        where: { organizationId, idQr: { startsWith: `${prefijo}-` } },
+        where: { organizationId, idQr: { startsWith: `${prefijoConGrupo}-` } },
         orderBy: { idQr: 'desc' },
     });
 
     if (lastActivo) {
         const parts = lastActivo.idQr.split('-');
-        const lastPart = parts[parts.length - 1];
+        const lastPart = parts[parts.length - 1]; // Extraer el último correlativo
         if (!isNaN(Number(lastPart))) {
             const nextNum = Number(lastPart) + 1;
-            return `${prefijo}-${String(nextNum).padStart(4, '0')}`;
+            return `${prefijoConGrupo}-${String(nextNum).padStart(4, '0')}`;
         }
     }
 
-    // Si no hay ninguno o no pudimos parsear el número
+    // Si no hay ninguno o no pudimos parsear el número, generamos el primero para este grupo
     const count = await prisma.activoFijo.count({
-        where: { organizationId, area },
+        where: { organizationId, area, codigoGrupo },
     });
     const correlative = String(count + 1).padStart(4, '0');
-    return `${prefijo}-${correlative}`;
+    return `${prefijoConGrupo}-${correlative}`;
 }
 
 // ─── READ: List with pagination, search, filters ─────────────────────────────
@@ -135,7 +136,8 @@ export async function createActivo(formData: FormData) {
     const orgId = await getOrgId();
 
     const area = formData.get('area') as string;
-    const idQr = await generateIdQr(orgId, area);
+    const codigoGrupo = (formData.get('codigoGrupo') as string) || '001';
+    const idQr = await generateIdQr(orgId, area, codigoGrupo);
 
     const costoStr = formData.get('costoAdq') as string;
     const fechaStr = formData.get('fechaAdq') as string;
@@ -147,6 +149,7 @@ export async function createActivo(formData: FormData) {
             organizationId: orgId,
             idQr,
             area,
+            codigoGrupo,
             descripcionCorta: formData.get('descripcionCorta') as string,
             descripcionDetallada: (formData.get('descripcionDetallada') as string) || null,
             serie: (formData.get('serie') as string) || null,

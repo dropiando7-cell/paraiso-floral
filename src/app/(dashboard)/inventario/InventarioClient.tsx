@@ -89,6 +89,7 @@ type Activo = {
     historicoId?: string | null;
     categoriaDepreciacion?: string | null;
     vidaUtilOverride?: any;
+    codigoGrupo?: string | null;
 };
 
 const CATEGORIAS_DEPRECIACION = [
@@ -452,6 +453,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [descripcionCorta, setDescripcionCorta] = useState(editActivo?.descripcionCorta || '');
     const [descripcionDetallada, setDescripcionDetallada] = useState(editActivo?.descripcionDetallada || '');
     const [modelo, setModelo] = useState(editActivo?.modelo || '');
+    const [codigoGrupo, setCodigoGrupo] = useState(editActivo?.codigoGrupo || '001');
     const [responsable, setResponsable] = useState(editActivo?.responsable || '');
 
     // ─── Historic Matcher States ───
@@ -500,6 +502,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setDescripcionCorta(editActivo.descripcionCorta || '');
             setDescripcionDetallada(editActivo.descripcionDetallada || '');
             setModelo(editActivo.modelo || '');
+            setCodigoGrupo(editActivo.codigoGrupo || '001');
             setResponsable(editActivo.responsable || '');
             setCategoriaDepreciacion(editActivo.categoriaDepreciacion || '');
             setVidaUtilOverride(editActivo.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
@@ -507,7 +510,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
             setPreviewQr(''); setAiResult(null); setUploadPhase('idle'); setPlacaUploadPhase('idle');
-            setDescripcionCorta(''); setDescripcionDetallada(''); setModelo('');
+            setDescripcionCorta(''); setDescripcionDetallada(''); setModelo(''); setCodigoGrupo('001');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
         }
@@ -711,7 +714,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         fd.set('descripcionCorta', descripcionCorta);
         fd.set('descripcionDetallada', descripcionDetallada);
         fd.set('modelo', modelo);
-
+        fd.set('codigoGrupo', codigoGrupo);
         if (selectedHistorico) fd.set('historicoId', selectedHistorico.id);
         fd.set('categoriaDepreciacion', categoriaDepreciacion);
         if (vidaUtilOverride) fd.set('vidaUtilOverride', vidaUtilOverride);
@@ -871,25 +874,42 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                             <div>
                                 <SectionTitle>📋 Identificación</SectionTitle>
                                 <div className="space-y-4">
-                                    {/* Área — Searchable / Locked */}
-                                    <div>
-                                        <FieldLabel required>Área / Ubicación</FieldLabel>
-                                        {!isEdit ? (
-                                            <div className="w-full flex items-center gap-2 text-base border-2 border-[#0500A3]/30 bg-blue-50/50 rounded-xl px-4 py-3.5 text-[#0500A3] font-semibold">
-                                                <div className="bg-[#0500A3] w-2 h-2 rounded-full animate-pulse shrink-0" />
-                                                <span className="truncate">{AREAS.find(a => a.value === lockedArea)?.label || lockedArea}</span>
-                                                <input type="hidden" name="area" value={lockedArea || ''} />
-                                            </div>
-                                        ) : (
-                                            <Combobox
-                                                options={AREAS}
-                                                value={selectedArea}
-                                                onChange={handleAreaChange}
-                                                placeholder="Escribe o selecciona el área..."
-                                                label="area"
-                                                required
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {/* Área — Searchable / Locked */}
+                                        <div>
+                                            <FieldLabel required>Área / Ubicación</FieldLabel>
+                                            {!isEdit ? (
+                                                <div className="w-full flex items-center gap-2 text-base border-2 border-[#0500A3]/30 bg-blue-50/50 rounded-xl px-4 py-3.5 text-[#0500A3] font-semibold">
+                                                    <div className="bg-[#0500A3] w-2 h-2 rounded-full animate-pulse shrink-0" />
+                                                    <span className="truncate">{AREAS.find(a => a.value === lockedArea)?.label || lockedArea}</span>
+                                                    <input type="hidden" name="area" value={lockedArea || ''} />
+                                                </div>
+                                            ) : (
+                                                <Combobox
+                                                    options={AREAS}
+                                                    value={selectedArea}
+                                                    onChange={handleAreaChange}
+                                                    placeholder="Escribe o selecciona el área..."
+                                                    label="area"
+                                                    required
+                                                />
+                                            )}
+                                        </div>
+
+                                        {/* Código Grupo */}
+                                        <div>
+                                            <FieldLabel required={!isEdit}>Código de Grupo</FieldLabel>
+                                            <input
+                                                type="text"
+                                                name="codigoGrupo"
+                                                disabled={isEdit}
+                                                value={codigoGrupo}
+                                                onChange={e => setCodigoGrupo(e.target.value)}
+                                                placeholder="Ej: 001"
+                                                className={`${inputCls} font-mono bg-blue-50/30 font-bold tracking-widest text-[#0500A3] ${isEdit && 'opacity-60 cursor-not-allowed'}`}
                                             />
-                                        )}
+                                            {!isEdit && <p className="text-[10px] text-slate-400 mt-1 leading-tight">Usa 001, 002... para agrupar activos idénticos en esta misma área (Ej. sillas metálicas vs sillas de plástico).</p>}
+                                        </div>
                                     </div>
 
                                     {/* Descripción Corta — AI controlled */}

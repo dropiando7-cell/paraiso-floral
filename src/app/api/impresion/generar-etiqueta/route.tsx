@@ -53,7 +53,8 @@ export async function GET(req: NextRequest) {
     const dateStr = new Date().toISOString().split('T')[0];
 
     // Cálculos dinámicos de tamaño de fuente
-    const idFontSize = finalIdQr.length > 18 ? 22 : finalIdQr.length > 14 ? 28 : finalIdQr.length > 10 ? 34 : 40;
+    // SOPORTE EXTENDIDO: Para IDs Grupo de 24 caracteres (ej ELIM-PB-A01-TMP-001-0001) reducimos la fuente a 18
+    const idFontSize = finalIdQr.length >= 22 ? 18 : finalIdQr.length > 18 ? 22 : finalIdQr.length > 14 ? 28 : finalIdQr.length > 10 ? 34 : 40;
 
     const cuentaStr = finalCuenta.toUpperCase() || 'N/A';
     const cuentaFontSize = cuentaStr.length > 24 ? 11 : cuentaStr.length > 18 ? 13 : 16;
