@@ -519,6 +519,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setCostoAdq(Number(record.costoAdquisicion).toString());
         }
         setDescripcionCorta(prev => prev || record.nombrePropiedad);
+        setModelo(prev => prev || record.marcaModelo);
         setAiMatchFailed(false);
 
         // Batch auto-fill logic
@@ -1175,26 +1176,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                         type="button"
                                                         className="w-full text-left p-3 border-b border-slate-50 hover:bg-blue-50 transition-colors flex flex-col gap-1"
                                                         onClick={() => {
-                                                            setSelectedHistorico(opt);
-                                                            setSearchHistoricoText(opt.nombrePropiedad);
+                                                            applyHistoricRecord(opt);
                                                             setShowHistoricoDropdown(false);
-
-                                                            // Auto-Fill Form from Record!
-                                                            if (opt.vidaUtil) {
-                                                                setVidaUtilOverride(Number(opt.vidaUtil).toString());
-                                                            }
-                                                            const matchCat = getMatchingCategoriaDepreciacion(opt.cuentaContable, opt.vidaUtil);
-                                                            if (matchCat) setCategoriaDepreciacion(matchCat);
-
-                                                            if (opt.cuentaContable && CUENTAS.includes(opt.cuentaContable)) setSelectedCuenta(opt.cuentaContable);
-                                                            if (!descripcionCorta) setDescripcionCorta(opt.nombrePropiedad);
-                                                            if (!modelo && opt.marcaModelo) setModelo(opt.marcaModelo);
-                                                            if (opt.fechaAdquisicion) {
-                                                                setFechaAdq(new Date(opt.fechaAdquisicion).toISOString().split('T')[0]);
-                                                            }
-                                                            if (opt.costoAdquisicion) {
-                                                                setCostoAdq(Number(opt.costoAdquisicion).toString());
-                                                            }
                                                         }}
                                                     >
                                                         <div className="text-sm font-semibold text-slate-800">{opt.nombrePropiedad}</div>
