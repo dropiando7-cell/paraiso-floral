@@ -433,6 +433,12 @@ model ActivoFijo {
   responsable       String?
   observaciones     String?
 
+  // Depreciación & Conciliación Histórica (Reglamento Hondureño)
+  historicoId           String?              @db.Uuid
+  inventarioHistorico   InventarioHistorico? @relation(fields: [historicoId], references: [id], onDelete: SetNull)
+  categoriaDepreciacion String?              // Asignación manual para "Activos Nuevos" (ej. "COMPUTACION_10")
+  vidaUtilOverride      Decimal?            @db.Decimal(5, 2) // Sobrescritura opcional por parte del usuario (ej. "Mejoras a Edificios")
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
@@ -523,3 +529,31 @@ model Area {
   @@index([organizationId])
   @@map("areas")
 }
+
+// ==========================================
+// INVENTARIO HISTORICO (CONCILIACIÓN)
+// ==========================================
+
+model InventarioHistorico {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String   @db.Uuid
+
+  cantidad         Int      @default(1)
+  nombrePropiedad  String
+  marcaModelo      String?
+  serie            String?
+  fechaAdquisicion DateTime?
+  costoAdquisicion Decimal? @db.Decimal(12, 2)
+  cuentaContable   String?
+  vidaUtil         Decimal? @db.Decimal(5, 2) // Pre-calculado en base a Ley Hondureña desde el CSV
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  activosFijos     ActivoFijo[]
+
+  @@index([organizationId])
+  @@index([serie])
+  @@map("inventario_historico")
+}
+

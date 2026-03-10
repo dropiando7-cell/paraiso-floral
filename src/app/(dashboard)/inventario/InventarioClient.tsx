@@ -85,7 +85,21 @@ type Activo = {
     accionRecomendada?: string | null;
     responsable?: string | null;
     observaciones?: string | null;
+
+    historicoId?: string | null;
+    categoriaDepreciacion?: string | null;
+    vidaUtilOverride?: any;
 };
+
+const CATEGORIAS_DEPRECIACION = [
+    { value: 'EDIFICIOS_40', label: 'Edificios (40 años)', years: 40 },
+    { value: 'MEJORAS_EDIFICIOS_10', label: 'Mejoras a Edificios (10 años mín)', years: 10 },
+    { value: 'VEHICULOS_5', label: 'Vehículos (5 años)', years: 5 },
+    { value: 'COMPUTACION_10', label: 'Equipo de Cómputo (10 años)', years: 10 },
+    { value: 'MOBILIARIO_10', label: 'Mobiliario y Equipo (10 años)', years: 10 },
+    { value: 'AUDIO_INSTRUMENTOS_10', label: 'Audio e Instrumentos (10 años)', years: 10 },
+    { value: 'OTRAS_INSTALACIONES_10', label: 'Otras Instalaciones (10 años)', years: 10 },
+];
 
 type AiResult = {
     descripcionCorta?: string;
@@ -435,11 +449,47 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [cropOpen, setCropOpen] = useState(false);
     const [cropImgSrc, setCropImgSrc] = useState('');
 
-    // Dynamic field values (controlled for AI fill)
     const [descripcionCorta, setDescripcionCorta] = useState(editActivo?.descripcionCorta || '');
     const [descripcionDetallada, setDescripcionDetallada] = useState(editActivo?.descripcionDetallada || '');
     const [modelo, setModelo] = useState(editActivo?.modelo || '');
     const [responsable, setResponsable] = useState(editActivo?.responsable || '');
+
+    // ─── Historic Matcher States ───
+    const [searchHistoricoText, setSearchHistoricoText] = useState('');
+    const [historicoOptions, setHistoricoOptions] = useState<any[]>([]);
+    const [isSearchingHistorico, setIsSearchingHistorico] = useState(false);
+    const [selectedHistorico, setSelectedHistorico] = useState<any | null>(null);
+    const [showHistoricoDropdown, setShowHistoricoDropdown] = useState(false);
+    const historicoRef = useRef<HTMLDivElement>(null);
+
+    const [categoriaDepreciacion, setCategoriaDepreciacion] = useState(editActivo?.categoriaDepreciacion || '');
+    const [vidaUtilOverride, setVidaUtilOverride] = useState<string>(editActivo?.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
+
+    // Historic auto-search debounce
+    useEffect(() => {
+        if (!searchHistoricoText || searchHistoricoText.length < 3) {
+            setHistoricoOptions([]);
+            return;
+        }
+        const delay = setTimeout(async () => {
+            setIsSearchingHistorico(true);
+            try {
+                const res = await fetch(`/api/inventario/historico/search?q=${encodeURIComponent(searchHistoricoText)}`);
+                if (res.ok) setHistoricoOptions(await res.json());
+            } catch (e) { }
+            setIsSearchingHistorico(false);
+        }, 500);
+        return () => clearTimeout(delay);
+    }, [searchHistoricoText]);
+
+    // Close historic dropdown on outside click
+    useEffect(() => {
+        function handler(e: MouseEvent) {
+            if (historicoRef.current && !historicoRef.current.contains(e.target as Node)) setShowHistoricoDropdown(false);
+        }
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
 
     useEffect(() => {
         if (editActivo) {
@@ -451,11 +501,15 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setDescripcionDetallada(editActivo.descripcionDetallada || '');
             setModelo(editActivo.modelo || '');
             setResponsable(editActivo.responsable || '');
+            setCategoriaDepreciacion(editActivo.categoriaDepreciacion || '');
+            setVidaUtilOverride(editActivo.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
+            // For now, not fetching full historic record on edit, just handling its absence.
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
             setPreviewQr(''); setAiResult(null); setUploadPhase('idle'); setPlacaUploadPhase('idle');
             setDescripcionCorta(''); setDescripcionDetallada(''); setModelo('');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
+            setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
         }
     }, [editActivo, open, lockedArea]);
 
@@ -616,6 +670,23 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                 if (data.serie) {
                     const el = document.querySelector('[name="serie"]') as HTMLInputElement;
                     if (el) { el.value = data.serie; el.classList.add('bg-purple-50'); }
+
+                    // Silent lookup in Historical records
+                    fetch(`/api/inventario/historico/search?serie=${encodeURIComponent(data.serie)}`)
+                        .then(r => r.json())
+                        .then(res => {
+                            if (res && res.length > 0) {
+                                setSelectedHistorico(res[0]);
+                                setSearchHistoricoText(res[0].nombrePropiedad);
+                                if (res[0].vidaUtil) {
+                                    setVidaUtilOverride(Number(res[0].vidaUtil).toString());
+                                    const matchCat = CATEGORIAS_DEPRECIACION.find(c => c.years === Number(res[0].vidaUtil));
+                                    if (matchCat) setCategoriaDepreciacion(matchCat.value);
+                                }
+                                if (res[0].cuentaContable && CUENTAS.includes(res[0].cuentaContable)) setSelectedCuenta(res[0].cuentaContable);
+                                setDescripcionCorta(prev => prev || res[0].nombrePropiedad);
+                            }
+                        }).catch(() => { });
                 }
                 if (data.modelo) {
                     setModelo(data.modelo);
@@ -640,6 +711,10 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         fd.set('descripcionCorta', descripcionCorta);
         fd.set('descripcionDetallada', descripcionDetallada);
         fd.set('modelo', modelo);
+
+        if (selectedHistorico) fd.set('historicoId', selectedHistorico.id);
+        fd.set('categoriaDepreciacion', categoriaDepreciacion);
+        if (vidaUtilOverride) fd.set('vidaUtilOverride', vidaUtilOverride);
 
         startTransition(async () => {
             try {
@@ -895,9 +970,122 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 </div>
                             </div>
 
-                            {/* ── SECCIÓN 3: CLASIFICACIÓN CONTABLE ── */}
+                            {/* ── SECCIÓN 3: CONCILIACIÓN HISTÓRICA & DEPRECIACIÓN ── */}
                             <div>
-                                <SectionTitle>📊 Clasificación Contable</SectionTitle>
+                                <SectionTitle>📚 Contabilidad & Depreciación</SectionTitle>
+                                <div className="space-y-5 bg-slate-50/50 p-4 rounded-xl border border-slate-200/60">
+
+                                    {/* Flujo B: Buscador Histórico CSV */}
+                                    <div ref={historicoRef} className="relative z-20">
+                                        <FieldLabel>Conciliación Histórica (Archivo CSV 2026)</FieldLabel>
+                                        <div className="relative">
+                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar equipo antiguo por nombre, marca o modelo..."
+                                                className={`${inputCls} pl-11`}
+                                                value={searchHistoricoText}
+                                                onChange={(e) => {
+                                                    setSearchHistoricoText(e.target.value);
+                                                    setShowHistoricoDropdown(true);
+                                                    if (selectedHistorico) {
+                                                        setSelectedHistorico(null); // Borrar selección si edita el texto
+                                                    }
+                                                }}
+                                                onFocus={() => setShowHistoricoDropdown(true)}
+                                            />
+                                            {isSearchingHistorico && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#0500A3] animate-spin" />}
+                                            {selectedHistorico && !isSearchingHistorico && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
+                                        </div>
+
+                                        {/* Dropdown de Opciones Históricas */}
+                                        {showHistoricoDropdown && historicoOptions.length > 0 && (
+                                            <div className="absolute top-full mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
+                                                {historicoOptions.map(opt => (
+                                                    <button
+                                                        key={opt.id}
+                                                        type="button"
+                                                        className="w-full text-left p-3 border-b border-slate-50 hover:bg-blue-50 transition-colors flex flex-col gap-1"
+                                                        onClick={() => {
+                                                            setSelectedHistorico(opt);
+                                                            setSearchHistoricoText(opt.nombrePropiedad);
+                                                            setShowHistoricoDropdown(false);
+
+                                                            // Auto-Fill Form from Record!
+                                                            if (opt.vidaUtil) {
+                                                                setVidaUtilOverride(Number(opt.vidaUtil).toString());
+                                                                // Pre-choose a category just in case, though Override holds priority
+                                                                const matchCat = CATEGORIAS_DEPRECIACION.find(c => c.years === Number(opt.vidaUtil));
+                                                                if (matchCat) setCategoriaDepreciacion(matchCat.value);
+                                                            }
+                                                            if (opt.cuentaContable && CUENTAS.includes(opt.cuentaContable)) setSelectedCuenta(opt.cuentaContable);
+                                                            if (!descripcionCorta) setDescripcionCorta(opt.nombrePropiedad);
+                                                            if (!modelo && opt.marcaModelo) setModelo(opt.marcaModelo);
+                                                        }}
+                                                    >
+                                                        <div className="text-sm font-semibold text-slate-800">{opt.nombrePropiedad}</div>
+                                                        <div className="text-xs text-slate-500 flex items-center justify-between">
+                                                            <span>L. {Number(opt.costoAdquisicion || 0).toFixed(2)} — Cuenta: {opt.cuentaContable || 'N/D'}</span>
+                                                            <span className="font-medium text-[#0500A3] bg-[#0500A3]/10 px-2 py-0.5 rounded-md">{opt.vidaUtil ? `${opt.vidaUtil} años` : 'Sin Vida útil'}</span>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {selectedHistorico && (
+                                        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-start gap-3">
+                                            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                                            <div>
+                                                <p className="text-sm font-bold text-green-800">Enlazado con Inventario Histórico CSV</p>
+                                                <p className="text-xs text-green-700">El modelo matemático usará el costo base original y pre-calculará la vida útil heredada. <strong>Puedes editar los años de vida útil si es una Mejora de Edificio</strong> u otro caso excepcional.</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {/* Dropdown Legal (Gob Hondureño) */}
+                                        <div>
+                                            <FieldLabel required={!selectedHistorico}>Categoría de Depreciación</FieldLabel>
+                                            <select
+                                                className={selectCls}
+                                                value={categoriaDepreciacion}
+                                                onChange={e => {
+                                                    setCategoriaDepreciacion(e.target.value);
+                                                    const matchCat = CATEGORIAS_DEPRECIACION.find(c => c.value === e.target.value);
+                                                    if (matchCat) setVidaUtilOverride(matchCat.years.toString());
+                                                }}
+                                                required={!selectedHistorico} // Obligatorio solo si no es histórico
+                                            >
+                                                <option value="" disabled>Seleccione categoría...</option>
+                                                {CATEGORIAS_DEPRECIACION.map(cat => (
+                                                    <option value={cat.value} key={cat.value}>{cat.label}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        {/* Editable Vida Util */}
+                                        <div>
+                                            <FieldLabel required>Años de Vida Útil {selectedHistorico && '(Editable)'}</FieldLabel>
+                                            <div className="relative">
+                                                <input
+                                                    type="number"
+                                                    className={`${inputCls} font-mono`}
+                                                    value={vidaUtilOverride}
+                                                    onChange={e => setVidaUtilOverride(e.target.value)}
+                                                    required
+                                                />
+                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm italic pointer-events-none">Años</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* ── SECCIÓN 4: CLASIFICACIÓN CONTABLE ADICIONAL ── */}
+                            <div>
+                                <SectionTitle>📋 Estado Adicional</SectionTitle>
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {/* Cuenta — Searchable + AI */}

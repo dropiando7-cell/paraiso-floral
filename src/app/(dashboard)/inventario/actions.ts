@@ -140,6 +140,7 @@ export async function createActivo(formData: FormData) {
     const costoStr = formData.get('costoAdq') as string;
     const fechaStr = formData.get('fechaAdq') as string;
     const fechaLevStr = formData.get('fechaLevantamiento') as string;
+    const vidaUtilOverrideStr = formData.get('vidaUtilOverride') as string;
 
     await prisma.activoFijo.create({
         data: {
@@ -164,6 +165,9 @@ export async function createActivo(formData: FormData) {
             accionRecomendada: (formData.get('accionRecomendada') as string) || null,
             responsable: (formData.get('responsable') as string) || null,
             observaciones: (formData.get('observaciones') as string) || null,
+            historicoId: (formData.get('historicoId') as string) || null,
+            categoriaDepreciacion: (formData.get('categoriaDepreciacion') as string) || null,
+            vidaUtilOverride: vidaUtilOverrideStr ? parseFloat(vidaUtilOverrideStr) : null,
         },
     });
 
@@ -178,6 +182,7 @@ export async function updateActivo(id: string, formData: FormData) {
     const costoStr = formData.get('costoAdq') as string;
     const fechaStr = formData.get('fechaAdq') as string;
     const fechaLevStr = formData.get('fechaLevantamiento') as string;
+    const vidaUtilOverrideStr = formData.get('vidaUtilOverride') as string;
 
     await prisma.activoFijo.updateMany({
         where: { id, organizationId: orgId },
@@ -201,6 +206,9 @@ export async function updateActivo(id: string, formData: FormData) {
             accionRecomendada: (formData.get('accionRecomendada') as string) || null,
             responsable: (formData.get('responsable') as string) || null,
             observaciones: (formData.get('observaciones') as string) || null,
+            historicoId: (formData.get('historicoId') as string) || null,
+            categoriaDepreciacion: (formData.get('categoriaDepreciacion') as string) || null,
+            vidaUtilOverride: vidaUtilOverrideStr ? parseFloat(vidaUtilOverrideStr) : null,
         },
     });
 
