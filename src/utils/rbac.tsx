@@ -35,10 +35,11 @@ export function withRoleGuard(
         // Check against dynamic role template modules or specific role hardcoded paths
         const allowedModules = dbUser.accessibleModules || [];
 
-        // Exact match or sub-path match (e.g. /admin/users matches /admin/users)
+        // Exact match or sub-path match (parent allowing child, or child allowing parent layout to render)
         const hasAccess = allowedModules.some(m =>
             m === requiredModulePath ||
-            (requiredModulePath.startsWith(m + '/') && m !== '/')
+            (requiredModulePath.startsWith(m + '/') && m !== '/') ||
+            (m.startsWith(requiredModulePath + '/') && requiredModulePath !== '/')
         );
 
         if (!hasAccess) {

@@ -66,6 +66,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         icon: Box,
         subItems: [
           { name: 'Inventario de Activos', href: '/inventario' },
+          { name: 'Editor Histórico', href: '/inventario/historico', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Avance de Inventario', href: '/admin/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Bodegas y Áreas', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] }
         ]
@@ -193,9 +194,12 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                 {visibleItems.map((item) => {
                   const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
 
-                  // Filter subItems based on role
+                  // Filter subItems based on role or explicit module access
                   const visibleSubItems = item.subItems?.filter(subItem => {
                     if (dbUser?.role === 'SUPER_ADMIN') return true;
+                    // Provide fallback if accessibleModules is undefined
+                    const allowed = dbUser?.accessibleModules || [];
+                    if (allowed.includes(subItem.href)) return true;
                     if (!subItem.roles) return true;
                     return subItem.roles.includes(dbUser?.role);
                   }) || [];
