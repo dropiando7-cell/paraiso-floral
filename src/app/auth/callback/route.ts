@@ -22,11 +22,12 @@ export async function GET(request: Request) {
                 let authorizedUser = null
                 try {
                     authorizedUser = await prisma.user.findUnique({
-                        where: { email: data.user.email }
+                        where: { email: data.user.email },
+                        select: { email: true, defaultModule: true } // Only fetch what we need
                     })
                 } catch (dbErr) {
                     console.error('[auth/callback] Prisma lookup failed:', dbErr)
-                    authorizedUser = { email: data.user.email } // minimal fallback
+                    authorizedUser = { email: data.user.email } as any // minimal fallback
                 }
 
                 if (!authorizedUser) {

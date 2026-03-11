@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useRef, useEffect, useTransition } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { User, Settings, LogOut, Loader2 } from 'lucide-react';
-import { logout } from '@/app/auth/actions';
+import { createClient } from '@/utils/supabase/client';
+import { useRouter } from 'next/navigation';
 
 interface UserDropdownProps {
     dbUser: any;
@@ -12,8 +13,10 @@ interface UserDropdownProps {
 
 export function UserDropdown({ dbUser }: UserDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
+    const [isPending, setIsPending] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const [isPending, startTransition] = useTransition();
+    const supabase = createClient();
+    const router = useRouter();
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -25,6 +28,16 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    async function handleLogout() {
+        if (isPending) return;
+        setIsPending(true);
+        setIsOpen(false);
+        // Client-side sign out — no server round-trip needed, instant!
+        await supabase.auth.signOut();
+        router.push('/login');
+        router.refresh();
+    }
 
     // Generate initials for fallback avatar
     const getInitials = (name: string) => {
@@ -59,7 +72,9 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
                     </span>
                 </div>
                 <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-100 shrink-0 relative transition-transform hover:scale-105 bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm">
-                    {dbUser?.avatarUrl ? (
+                    {isPending ? (
+                        <Loader2 className="w-5 h-5 text-red-500 animate-spin" />
+                    ) : dbUser?.avatarUrl ? (
                         <Image
                             src={dbUser.avatarUrl}
                             alt={displayName}
@@ -102,19 +117,18 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
 
                     <div className="border-t border-slate-100 my-2"></div>
 
-                    <form action={() => startTransition(async () => await logout())}>
-                        <button
-                            type="submit"
-                            disabled={isPending}
-                            className="w-full flex items-center justify-between px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left disabled:opacity-50"
-                        >
-                            <span className="flex items-center gap-3">
-                                <LogOut className="w-4 h-4" />
-                                <span>{isPending ? 'Cerrando sesión...' : 'Cerrar Sesión'}</span>
-                            </span>
-                            {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                        </button>
-                    </form>
+                    <button
+                        type="button"
+                        onClick={handleLogout}
+                        disabled={isPending}
+                        className="w-full flex items-center justify-between px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors text-left disabled:opacity-50"
+                    >
+                        <span className="flex items-center gap-3">
+                            <LogOut className="w-4 h-4" />
+                            <span>{isPending ? 'Cerrando sesión...' : 'Cerrar Sesión'}</span>
+                        </span>
+                        {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                    </button>
                 </div>
             )}
         </div>
