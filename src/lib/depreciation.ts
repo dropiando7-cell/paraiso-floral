@@ -78,4 +78,4 @@ export function calcDepreciacion(input: DepreciacionInput): DepreciacionResult |
 
     return { valResidual, baseDeprec, deprecMensual: factorDiario, deprecAcum, valorLibros };
 }
-}
+
