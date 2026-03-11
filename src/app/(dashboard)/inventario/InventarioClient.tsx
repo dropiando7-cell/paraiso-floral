@@ -834,11 +834,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         fd.set('area', selectedArea);
         fd.set('cuentaAct', selectedCuenta);
 
-        // Si no está en batch mode ni editando, generamos un grupo único aleatorio para no chocar
-        let finalCodigoGrupo = codigoGrupo;
-        if (!isEdit && !isBatchMode) {
-            finalCodigoGrupo = 'UNQ-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-        }
+        // Use proper group code — generateIdQr handles auto-increment sequence
+        let finalCodigoGrupo = codigoGrupo || '001';
 
         fd.set('codigoGrupo', finalCodigoGrupo);
         if (!isEdit) fd.set('cantidad', isBatchMode ? cantidad : '1');
@@ -850,16 +847,62 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         setPendingFormData(fd);
     }
 
+    // ─── Depreciation helper ───
+    function calcDepreciacionAcumulada(): string {
+        const costo = parseFloat(costoAdq || '0');
+        const vidaRaw = vidaUtilOverride || (selectedHistorico?.vidaUtil ? String(selectedHistorico.vidaUtil) : '');
+        const vidaAnios = parseFloat(vidaRaw || '0');
+        const fechaBase = fechaAdq || (selectedHistorico?.fechaAdquisicion ? getLocalDateString(selectedHistorico.fechaAdquisicion) : '');
+        if (!costo || !vidaAnios || !fechaBase) return '—';
+        const inicio = new Date(fechaBase);
+        const hoy = new Date();
+        const aniosTranscurridos = Math.min((hoy.getFullYear() - inicio.getFullYear()) + (hoy.getMonth() - inicio.getMonth()) / 12, vidaAnios);
+        const depreciado = (costo / vidaAnios) * Math.max(aniosTranscurridos, 0);
+        return `L. ${depreciado.toFixed(2)}`;
+    }
+
+    const lps = (v: string | number | undefined | null) => {
+        if (!v && v !== 0) return '—';
+        return `L. ${Number(v).toFixed(2)}`;
+    };
+
     function confirmSave() {
         if (!pendingFormData) return;
         const fd = pendingFormData;
         startTransition(async () => {
             try {
-                if (isEdit) await updateActivo(editActivo!.id, fd);
-                else await createActivo(fd);
-                setPendingFormData(null);
-                onSuccess();
-                onClose();
+                if (isEdit) {
+                    await updateActivo(editActivo!.id, fd);
+                    setPendingFormData(null);
+                    onSuccess();
+                    onClose();
+                } else {
+                    const result = await createActivo(fd);
+                    setPendingFormData(null);
+                    onSuccess();
+                    onClose();
+
+                    // Auto-print label for the newly created activo
+                    if (result?.id && result?.idQr) {
+                        try {
+                            const params = new URLSearchParams({
+                                idQr: result.idQr,
+                                descripcion: fd.get('descripcionCorta') as string || '',
+                                area: fd.get('area') as string || '',
+                                cuenta: fd.get('cuentaAct') as string || '',
+                            });
+                            const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
+                            await fetch('/api/impresion/encolar', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ activoId: result.id, urlImagen }),
+                            });
+                        } catch {
+                            // Print failure is non-fatal — asset was still saved
+                            console.warn('Auto-print enqueue failed');
+                        }
+                    }
+                }
             } catch (err: any) {
                 alert('Error al guardar: ' + err.message);
                 setPendingFormData(null);
@@ -939,9 +982,19 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
                                     {/* Info Grid */}
                                     <div className="grid grid-cols-2 gap-2">
+                                        <div className="col-span-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
+                                            <QrCode className="w-4 h-4 text-[#0500A3] shrink-0" />
+                                            <div>
+                                                <p className="text-[10px] font-bold text-[#0500A3]/60 uppercase tracking-wider">Código QR (se generará)</p>
+                                                <p className="text-xs font-black text-[#0500A3] font-mono tracking-tight">
+                                                    ELIM-{selectedArea.split('-').slice(0, 3).join('-')}-{(codigoGrupo || '001').padStart(3, '0')}-####
+                                                </p>
+                                            </div>
+                                        </div>
                                         <PreviewField label="Área" value={AREAS.find(a => a.value === selectedArea)?.label || selectedArea || '—'} />
                                         <PreviewField label="Cuenta Contable" value={selectedCuenta || '—'} />
-                                        <PreviewField label="Costo Adq." value={costoAdq ? `L. ${Number(costoAdq).toLocaleString()}` : '—'} />
+                                        <PreviewField label="Costo Adq." value={lps(costoAdq)} />
+                                        <PreviewField label="Deprec. Acumulada" value={calcDepreciacionAcumulada()} />
                                         <PreviewField label="Vida Útil" value={vidaUtilOverride ? `${vidaUtilOverride} años` : selectedHistorico?.vidaUtil ? `${selectedHistorico.vidaUtil} años` : '—'} />
                                         <PreviewField label="Fecha Adq." value={fechaAdq || '—'} />
                                         {isBatchMode && <PreviewField label="Cantidad (Lote)" value={cantidad} highlight />}
@@ -958,7 +1011,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         className="flex items-center justify-center gap-2 text-base font-bold bg-green-600 text-white py-4 px-5 rounded-2xl hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
                                     >
                                         {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                                        {isPending ? 'Guardando...' : '✅ Confirmar y Registrar Activo'}
+                                        {isPending ? 'Guardando e imprimiendo...' : '✅ Confirmar, Registrar e Imprimir'}
                                     </button>
                                     <button
                                         type="button"

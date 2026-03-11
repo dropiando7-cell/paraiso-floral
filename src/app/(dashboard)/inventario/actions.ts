@@ -228,8 +228,13 @@ export async function createActivo(formData: FormData) {
 
     revalidatePath('/inventario');
 
-    // Devolvemos el primero para compatibilidad o la lista completa si el UI la necesita
-    return { success: true, idQr: idQrs[0], count: idQrs.length };
+    // Fetch the newly created record's UUID for the client (needed for print queue)
+    const firstCreated = await prisma.activoFijo.findFirst({
+        where: { organizationId: orgId, idQr: idQrs[0] },
+        select: { id: true, idQr: true }
+    });
+
+    return { success: true, idQr: idQrs[0], id: firstCreated?.id ?? null, count: idQrs.length };
 }
 
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
