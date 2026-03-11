@@ -130,6 +130,19 @@ type AiResult = {
     palabrasClaveBusqueda?: string[];
 };
 
+function getLocalDateString(dateInput?: Date | string | null): string {
+    let d = new Date();
+    if (dateInput) {
+        d = new Date(dateInput);
+        // Fallback for invalid dates
+        if (isNaN(d.getTime())) d = new Date();
+    }
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 // ─── Searchable Combobox ──────────────────────────────────────────────────────
 function Combobox({
     options, value, onChange, placeholder, required, label, aiHighlight, allowClear, allowCustom
@@ -486,7 +499,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [isBatchMode, setIsBatchMode] = useState(false);
     const [cantidad, setCantidad] = useState('1'); // Nivel de lote
     const [responsable, setResponsable] = useState(editActivo?.responsable || '');
-    const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? new Date(editActivo.fechaAdq).toISOString().split('T')[0] : '');
+    const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
     const [costoAdq, setCostoAdq] = useState<string>(editActivo?.costoAdq ? Number(editActivo.costoAdq).toString() : '');
 
     // ─── Historic Matcher States ───
@@ -514,7 +527,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setSelectedCuenta(record.cuentaContable);
         }
         if (record.fechaAdquisicion) {
-            setFechaAdq(new Date(record.fechaAdquisicion).toISOString().split('T')[0]);
+            setFechaAdq(getLocalDateString(record.fechaAdquisicion));
         }
         if (record.costoAdquisicion) {
             setCostoAdq(Number(record.costoAdquisicion).toString());
@@ -578,7 +591,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setResponsable(editActivo.responsable || '');
             setCategoriaDepreciacion(editActivo.categoriaDepreciacion || '');
             setVidaUtilOverride(editActivo.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
-            setFechaAdq(editActivo.fechaAdq ? new Date(editActivo.fechaAdq).toISOString().split('T')[0] : '');
+            setFechaAdq(editActivo.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
             setCostoAdq(editActivo.costoAdq ? Number(editActivo.costoAdq).toString() : '');
             // For now, not fetching full historic record on edit, just handling its absence.
         } else {
@@ -1284,8 +1297,9 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <div>
                                             <FieldLabel>Fecha de Levantamiento</FieldLabel>
                                             <input type="date" name="fechaLevantamiento"
-                                                defaultValue={editActivo?.fechaLevantamiento ? new Date(editActivo.fechaLevantamiento).toISOString().split('T')[0] : new Date().toISOString().split('T')[0]}
-                                                className={inputCls} />
+                                                defaultValue={editActivo?.fechaLevantamiento ? getLocalDateString(editActivo.fechaLevantamiento) : getLocalDateString()}
+                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 focus:bg-white transition-all text-slate-700"
+                                            />
                                         </div>
                                         <div>
                                             <FieldLabel>Costo de Adquisición (L.)</FieldLabel>
