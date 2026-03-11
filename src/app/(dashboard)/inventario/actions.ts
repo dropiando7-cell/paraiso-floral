@@ -186,6 +186,11 @@ export async function createActivo(formData: FormData) {
 
     const idQrs = await generateIdQr(orgId, area, codigoGrupo, cantidadRegistros);
 
+    const costoStr = formData.get('costoAdq') as string;
+    const fechaStr = formData.get('fechaAdq') as string;
+    const fechaLevStr = formData.get('fechaLevantamiento') as string;
+    const vidaUtilOverrideStr = formData.get('vidaUtilOverride') as string;
+
     const costoAdqNum = costoStr ? parseFloat(costoStr) : null;
     const fechaAdqDate = fechaStr ? new Date(fechaStr) : null;
     const vidaUtilNum = vidaUtilOverrideStr ? parseFloat(vidaUtilOverrideStr) : null;
@@ -262,6 +267,11 @@ export async function createActivo(formData: FormData) {
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
 export async function updateActivo(id: string, formData: FormData) {
     const orgId = await getOrgId();
+
+    const costoStr = formData.get('costoAdq') as string;
+    const fechaStr = formData.get('fechaAdq') as string;
+    const fechaLevStr = formData.get('fechaLevantamiento') as string;
+    const vidaUtilOverrideStr = formData.get('vidaUtilOverride') as string;
 
     const costoAdqNum = costoStr ? parseFloat(costoStr) : null;
     const fechaAdqDate = fechaStr ? new Date(fechaStr) : null;
