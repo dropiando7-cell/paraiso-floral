@@ -1,16 +1,34 @@
 import { NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
+import { createClient } from '@/utils/supabase/server';
 
 const prisma = new PrismaClient();
-const ORG_ID = "62be2897-4e63-4acc-b1c4-1422ab88a044"; // Fixed organization ID from the first run
 
 export async function GET(request: Request) {
     try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+        }
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email! },
+            select: { organizationId: true }
+        });
+
+        if (!dbUser?.organizationId) {
+            return NextResponse.json({ error: 'Organización no encontrada' }, { status: 403 });
+        }
+
+        const orgId = dbUser.organizationId;
+
         const { searchParams } = new URL(request.url);
         const query = searchParams.get('q') || '';
         const serie = searchParams.get('serie') || '';
 
-        let whereClause: any = { organizationId: ORG_ID };
+        let whereClause: any = { organizationId: orgId };
 
         // Si se envía una serie exacta (para autocompletado mágico desde la cámara AI)
         if (serie) {

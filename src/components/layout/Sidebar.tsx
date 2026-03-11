@@ -264,7 +264,11 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                       {hasSubMenu && isOpen && (
                         <div className="flex flex-col gap-1 pl-4 mt-1 border-l-2 border-[#1A14B8] ml-4">
                           {visibleSubItems.map((subItem) => {
-                            const isSubActive = pathname === subItem.href || pathname.startsWith(subItem.href + '/');
+                            const isExactMatch = pathname === subItem.href;
+                            const isNestedMatch = pathname.startsWith(subItem.href + '/');
+                            // Avoid `/inventario` showing active when user is in `/inventario/historico`
+                            const isSpecificNestedMatch = subItem.href === '/inventario' ? false : isNestedMatch;
+                            const isSubActive = isExactMatch || isSpecificNestedMatch;
                             return (
                               <Link
                                 key={subItem.name}
