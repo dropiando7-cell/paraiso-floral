@@ -176,9 +176,20 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
         {menuItems.map((group) => {
           const visibleItems = group.items.filter((item) => {
             if (dbUser?.role === 'SUPER_ADMIN') return true;
-            // Provide fallback if accessibleModules is undefined (e.g. old users)
             const allowed = dbUser?.accessibleModules || [];
-            return allowed.includes(item.href);
+            if (allowed.includes(item.href)) return true;
+
+            // Also visibly enable the parent if any of its subItems are visible to the user
+            if (item.subItems) {
+              const visibleSubs = item.subItems.filter(subItem => {
+                if (allowed.includes(subItem.href)) return true;
+                if (!subItem.roles) return true;
+                return subItem.roles.includes(dbUser?.role);
+              });
+              if (visibleSubs.length > 0) return true;
+            }
+
+            return false;
           });
 
           if (visibleItems.length === 0) return null;

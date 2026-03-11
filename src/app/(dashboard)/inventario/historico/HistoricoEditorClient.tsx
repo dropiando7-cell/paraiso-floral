@@ -3,7 +3,8 @@
 import { useState, useEffect, useTransition } from 'react';
 import { getHistoricoPaginated, updateHistorico } from './actions';
 import { uploadActivoImage } from '../actions';
-import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles } from 'lucide-react';
+import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles, Maximize, Minimize } from 'lucide-react';
+import { useLayoutControls } from '@/components/layout/MobileDashboardWrapper';
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -23,6 +24,13 @@ export default function HistoricoEditorClient() {
     const [page, setPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
     const limit = 10;
+
+    // Attempt to get LayoutControls. Since HistoricoEditorClient is usually wrapped in DashboardLayout,
+    // this context will be available.
+    const layoutControls = useLayoutControls();
+    // Fallback in case it's used somewhere else without the provider
+    const isFullscreen = layoutControls?.isFullscreen || false;
+    const setIsFullscreen = layoutControls?.setIsFullscreen || (() => { });
 
     useEffect(() => {
         setPage(1);
@@ -60,16 +68,26 @@ export default function HistoricoEditorClient() {
                     </p>
                 </div>
 
-                <div className="relative w-full md:w-96 shrink-0">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                    <input
-                        type="text"
-                        placeholder="Buscar por nombre, modelo o serie..."
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0500A3]/20 focus:border-[#0500A3] transition-all"
-                    />
-                    {isLoading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#0500A3] animate-spin" />}
+                <div className="flex items-center gap-3 w-full md:w-auto shrink-0 relative">
+                    <div className="relative w-full md:w-80 shrink-0">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                        <input
+                            type="text"
+                            placeholder="Buscar por nombre, modelo o serie..."
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0500A3]/20 focus:border-[#0500A3] transition-all"
+                        />
+                        {isLoading && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#0500A3] animate-spin" />}
+                    </div>
+
+                    <button
+                        onClick={() => setIsFullscreen(!isFullscreen)}
+                        className="hidden md:flex p-3 items-center justify-center rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-500 hover:text-[#0500A3] transition-all shadow-sm shrink-0"
+                        title={isFullscreen ? "Restaurar vista" : "Pantalla completa (Ocultar Menú)"}
+                    >
+                        {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                    </button>
                 </div>
             </div>
 
