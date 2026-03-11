@@ -127,6 +127,7 @@ type AiResult = {
     cuentaAct?: string;
     confianza?: string;
     error?: string;
+    palabrasClaveBusqueda?: string[];
 };
 
 // ─── Searchable Combobox ──────────────────────────────────────────────────────
@@ -668,8 +669,11 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                 if (data.modelo) setModelo(data.modelo);
                 if (data.cuentaAct && CUENTAS.includes(data.cuentaAct)) setSelectedCuenta(data.cuentaAct);
 
-                // Silent lookup in Historical records using combined short description and model
-                const searchQueries = [data.descripcionCorta, data.modelo].filter(Boolean).join(' ');
+                // Silent lookup in Historical records using smart keywords or fallback to short description and model
+                const rawKeywords = data.palabrasClaveBusqueda && data.palabrasClaveBusqueda.length > 0
+                    ? data.palabrasClaveBusqueda
+                    : [data.descripcionCorta, data.modelo];
+                const searchQueries = rawKeywords.filter(Boolean).join(' ');
                 if (searchQueries) {
                     try {
                         const searchRes = await fetch(`/api/inventario/historico/search?q=${encodeURIComponent(searchQueries)}`);

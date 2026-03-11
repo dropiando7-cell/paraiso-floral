@@ -45,10 +45,11 @@ Reglas para clasificar:
 Devuelve este JSON:
 {
   "descripcionCorta": "nombre conciso del activo (máximo 60 caracteres)",
-  "descripcionDetallada": "descripción de máximo 120 caracteres en total (equivalente a 3 líneas en la pantalla de un celular), extrayendo la información más importante visible (ej: marca, color, material, estado actual)",
+  "descripcionDetallada": "OBLIGATORIO: MÁXIMO ABSOLUTO 120 CARACTERES. Describe extra de la foto (marca, color, material, estado). Si te pasas del límite serás penalizado. Sé extremadamente breve y directo.",
   "modelo": "marca y modelo específico si es visible, o vacío si no se puede determinar",
   "cuentaAct": "una de las 9 cuentas contables exactas listadas arriba",
-  "confianza": "ALTA | MEDIA | BAJA según qué tan clara es la imagen"
+  "confianza": "ALTA | MEDIA | BAJA según qué tan clara es la imagen",
+  "palabrasClaveBusqueda": ["Sustantivo principal", "Marca"] // 1 o 2 palabras clave clave (ej. "Consola", "Behringer") sin palabras conectoras (ej. no uses "de", "con", "para") que sirvan para buscar en la base de datos histórica.
 }`;
 
         // Download the image from R2 and convert to base64
