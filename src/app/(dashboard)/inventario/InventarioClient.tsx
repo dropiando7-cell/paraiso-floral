@@ -267,6 +267,15 @@ function FieldLabel({ children, required }: { children: React.ReactNode; require
     );
 }
 
+function PreviewField({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+    return (
+        <div className={`rounded-xl px-3 py-2.5 ${highlight ? 'bg-blue-50 border border-blue-200' : 'bg-white border border-slate-200'}`}>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">{label}</p>
+            <p className={`text-sm font-semibold leading-snug truncate ${highlight ? 'text-blue-700' : 'text-slate-800'}`}>{value}</p>
+        </div>
+    );
+}
+
 const inputCls = "w-full text-base border-2 border-slate-200 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 focus:border-[#0500A3]/50 bg-white transition-all placeholder:text-slate-300";
 const inputAiCls = "w-full text-base border-2 border-purple-400 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-purple-300 bg-purple-50 transition-all placeholder:text-slate-300";
 const selectCls = "w-full text-base border-2 border-slate-200 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 focus:border-[#0500A3]/50 bg-white transition-all appearance-none";
@@ -514,6 +523,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [vidaUtilOverride, setVidaUtilOverride] = useState<string>(editActivo?.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
 
     const [aiMatchFailed, setAiMatchFailed] = useState(false);
+    const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
 
     function applyHistoricRecord(record: any) {
         setSelectedHistorico(record);
@@ -831,19 +841,28 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         }
 
         fd.set('codigoGrupo', finalCodigoGrupo);
-        if (!isEdit) fd.set('cantidad', isBatchMode ? cantidad : '1'); // Solo modo creación y lote
+        if (!isEdit) fd.set('cantidad', isBatchMode ? cantidad : '1');
         if (selectedHistorico) fd.set('historicoId', selectedHistorico.id);
         fd.set('categoriaDepreciacion', categoriaDepreciacion);
         if (vidaUtilOverride) fd.set('vidaUtilOverride', vidaUtilOverride);
 
+        // Show preview instead of saving immediately
+        setPendingFormData(fd);
+    }
+
+    function confirmSave() {
+        if (!pendingFormData) return;
+        const fd = pendingFormData;
         startTransition(async () => {
             try {
                 if (isEdit) await updateActivo(editActivo!.id, fd);
                 else await createActivo(fd);
+                setPendingFormData(null);
                 onSuccess();
                 onClose();
             } catch (err: any) {
                 alert('Error al guardar: ' + err.message);
+                setPendingFormData(null);
             }
         });
     }
@@ -887,491 +906,557 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                             </button>
                         </div>
 
-                        <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
-
-                            {/* ── SECCIÓN 1: FOTOGRAFÍA ── */}
-                            <div>
-                                <SectionTitle>📸 Fotografía del Activo</SectionTitle>
-
-                                {/* ── Progress bar: upload + AI analysis ── */}
-                                {uploadPhase === 'uploading' && (
-                                    <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
-                                            <p className="text-sm font-semibold text-blue-800">Subiendo foto...</p>
-                                        </div>
-                                        <div className="w-full h-2 bg-blue-200 rounded-full overflow-hidden">
-                                            <div className="h-full bg-blue-500 rounded-full animate-pulse" style={{ width: '60%' }} />
-                                        </div>
-                                        <p className="text-xs text-blue-600 mt-1">Las fotos del iPad pueden tardar unos segundos</p>
+                        {/* ── Preview / Confirm Screen ── */}
+                        {pendingFormData ? (
+                            <div className="px-5 py-6">
+                                <div className="mb-5 flex items-center gap-3">
+                                    <div className="bg-green-100 p-2.5 rounded-xl">
+                                        <CheckCircle2 className="w-5 h-5 text-green-600" />
                                     </div>
-                                )}
-                                {uploadPhase === 'analyzing' && (
-                                    <div className="mb-4 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <Sparkles className="w-4 h-4 text-purple-500 animate-pulse shrink-0" />
-                                            <p className="text-sm font-semibold text-purple-800">IA analizando la imagen...</p>
-                                        </div>
-                                        <div className="w-full h-2 bg-purple-200 rounded-full overflow-hidden">
-                                            <div className="h-full bg-purple-500 rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '80%' }} />
-                                        </div>
-                                        <p className="text-xs text-purple-600 mt-1">Identificando activo, marca y cuenta contable</p>
+                                    <div>
+                                        <h3 className="font-bold text-slate-900 text-base">Revisa antes de registrar</h3>
+                                        <p className="text-xs text-slate-400">Confirma que la información es correcta</p>
                                     </div>
-                                )}
-                                {uploadPhase === 'done' && aiResult && (
-                                    <div className="mb-4 flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
-                                        <Sparkles className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
-                                        <div>
-                                            <p className="text-sm font-semibold text-purple-800">
-                                                ✅ Campos completados por IA
-                                                {aiResult.confianza && <span className="ml-2 text-xs font-normal text-purple-600">Confianza: {aiResult.confianza}</span>}
-                                            </p>
-                                            <p className="text-xs text-purple-600">Revisa y ajusta los campos resaltados en morado si es necesario</p>
-                                        </div>
-                                    </div>
-                                )}
+                                </div>
 
-                                <div className="flex flex-col sm:flex-row gap-4">
-                                    <div className="flex justify-center sm:justify-start">
+                                <div className="grid grid-cols-1 gap-3">
+                                    {/* Image + Identificación row */}
+                                    <div className="flex gap-4 items-start bg-slate-50 rounded-2xl p-4">
                                         {imagenUrl ? (
-                                            <div className="relative">
-                                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                <img src={imagenUrl} alt="Activo" className="w-32 h-32 object-cover rounded-2xl border-2 border-slate-200 shadow-md" />
-                                                {!isLoading && (
-                                                    <button type="button" onClick={() => { setImagenUrl(''); setAiResult(null); }}
-                                                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg active:scale-95">
-                                                        <X className="w-4 h-4" />
-                                                    </button>
-                                                )}
-                                                {isLoading && (
-                                                    <div className="absolute inset-0 bg-white/70 rounded-2xl flex items-center justify-center">
-                                                        <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
-                                                    </div>
-                                                )}
-                                            </div>
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={imagenUrl} alt="activo" className="w-20 h-20 object-cover rounded-xl shrink-0 border border-slate-200 shadow" />
                                         ) : (
-                                            <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center bg-slate-50 text-slate-400">
-                                                {uploadPhase === 'uploading' ? <Loader2 className="w-8 h-8 animate-spin text-blue-500" /> : <><Eye className="w-8 h-8 mb-1" /><span className="text-xs">Sin foto</span></>}
+                                            <div className="w-20 h-20 bg-slate-200 rounded-xl shrink-0 flex items-center justify-center">
+                                                <Eye className="w-7 h-7 text-slate-400" />
                                             </div>
                                         )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-black text-slate-900 text-base leading-snug truncate">{descripcionCorta || '—'}</p>
+                                            <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">{descripcionDetallada || '—'}</p>
+                                            {modelo && <span className="inline-block mt-1.5 bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-md">{modelo}</span>}
+                                        </div>
                                     </div>
-                                    <div className="flex-1 flex flex-col gap-3 justify-center">
-                                        <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
-                                        <button type="button" onClick={() => cameraInputRef.current?.click()}
-                                            disabled={isLoading}
-                                            className="flex items-center justify-center gap-3 text-base font-semibold bg-[#0500A3] text-white py-4 px-5 rounded-2xl active:scale-95 transition-all disabled:opacity-50 shadow-md">
-                                            <Camera className="w-5 h-5" />
-                                            {isLoading ? 'Procesando...' : 'Tomar Foto con Cámara'}
-                                        </button>
-                                        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-                                        <button type="button" onClick={() => fileInputRef.current?.click()}
-                                            disabled={isLoading}
-                                            className="flex items-center justify-center gap-3 text-base font-medium border-2 border-slate-200 text-slate-600 py-3.5 px-5 rounded-2xl active:scale-95 transition-all disabled:opacity-50">
-                                            <Upload className="w-5 h-5" />
-                                            Seleccionar de Galería
-                                        </button>
-                                        {!isEdit && !!imagenUrl && !aiResult && (
-                                            <button type="button" onClick={() => analyzeWithAI()}
-                                                disabled={uploadPhase === 'analyzing'}
-                                                className="mt-2 flex items-center justify-center gap-2 text-sm font-semibold bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300 py-3 px-5 rounded-xl active:scale-95 transition-all w-full">
-                                                <Sparkles className="w-4 h-4" />
-                                                {uploadPhase === 'analyzing' ? 'Analizando...' : '✨ Analizar foto con IA'}
-                                            </button>
-                                        )}
-                                        {!isEdit && uploadPhase === 'idle' && (
-                                            <p className="text-xs text-purple-600 text-center flex items-center justify-center gap-1 mt-2">
-                                                <Sparkles className="w-3 h-3" /> Sube la foto primero, luego usa la IA
-                                            </p>
-                                        )}
+
+                                    {/* Info Grid */}
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <PreviewField label="Área" value={AREAS.find(a => a.value === selectedArea)?.label || selectedArea || '—'} />
+                                        <PreviewField label="Cuenta Contable" value={selectedCuenta || '—'} />
+                                        <PreviewField label="Costo Adq." value={costoAdq ? `L. ${Number(costoAdq).toLocaleString()}` : '—'} />
+                                        <PreviewField label="Vida Útil" value={vidaUtilOverride ? `${vidaUtilOverride} años` : selectedHistorico?.vidaUtil ? `${selectedHistorico.vidaUtil} años` : '—'} />
+                                        <PreviewField label="Fecha Adq." value={fechaAdq || '—'} />
+                                        {isBatchMode && <PreviewField label="Cantidad (Lote)" value={cantidad} highlight />}
+                                        {responsable && <PreviewField label="Responsable" value={responsable} />}
+                                        {selectedHistorico && <PreviewField label="📋 Histórico" value={selectedHistorico.nombrePropiedad} highlight />}
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* ── SECCIÓN 2: IDENTIFICACIÓN ── */}
-                            <div>
-                                <SectionTitle>📋 Identificación</SectionTitle>
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {/* Área — Searchable / Locked */}
-                                        <div>
-                                            <FieldLabel required>Área / Ubicación</FieldLabel>
-                                            {!isEdit ? (
-                                                <div className="w-full flex items-center gap-2 text-base border-2 border-[#0500A3]/30 bg-blue-50/50 rounded-xl px-4 py-3.5 text-[#0500A3] font-semibold">
-                                                    <div className="bg-[#0500A3] w-2 h-2 rounded-full animate-pulse shrink-0" />
-                                                    <span className="truncate">{AREAS.find(a => a.value === lockedArea)?.label || lockedArea}</span>
-                                                    <input type="hidden" name="area" value={lockedArea || ''} />
-                                                </div>
-                                            ) : (
-                                                <Combobox
-                                                    options={AREAS}
-                                                    value={selectedArea}
-                                                    onChange={handleAreaChange}
-                                                    placeholder="Escribe o selecciona el área..."
-                                                    label="area"
-                                                    required
-                                                />
-                                            )}
-                                        </div>
-
-                                        {/* Código Grupo y Cantidad - Toggle para creación */}
-                                        {!isEdit && (
-                                            <div className="flex items-center gap-2 mb-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                                                <div
-                                                    className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${isBatchMode ? 'bg-[#0500A3]' : 'bg-slate-300'}`}
-                                                    onClick={() => setIsBatchMode(!isBatchMode)}
-                                                >
-                                                    <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isBatchMode ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                </div>
-                                                <div>
-                                                    <p className="font-bold text-sm text-slate-800">Registrar en Lote (Mismos Activos)</p>
-                                                    <p className="text-[10px] text-slate-500">Actívalo solo si registrarás muchas sillas, mesas o activos idénticos a la vez.</p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Solo mostrar Grupo y Cantidad si estamos editando (readonly) o si encendieron Batch Mode */}
-                                        {(isEdit || isBatchMode) && (
-                                            <div className="flex gap-3 bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
-                                                <div className="flex-[2]">
-                                                    <FieldLabel required={!isEdit}>Código Grupo</FieldLabel>
-                                                    {isEdit ? (
-                                                        <input
-                                                            type="text"
-                                                            disabled
-                                                            value={codigoGrupo}
-                                                            className={`${inputCls} font-mono bg-blue-50/10 font-bold tracking-widest text-[#0500A3] opacity-60 cursor-not-allowed border-transparent`}
-                                                        />
-                                                    ) : (
-                                                        <Combobox
-                                                            options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
-                                                            value={codigoGrupo}
-                                                            onChange={(val) => {
-                                                                setCodigoGrupo(val);
-                                                                const match = gruposDisponibles.find(g => g.codigoGrupo === val);
-                                                                if (match && match.descripcionCorta && !descripcionCorta) setDescripcionCorta(match.descripcionCorta);
-                                                            }}
-                                                            placeholder="Ej: 001"
-                                                            allowCustom={true}
-                                                        />
-                                                    )}
-                                                    {!isEdit && <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight">Agrupa estos activos.</p>}
-                                                </div>
-
-                                                {!isEdit && (
-                                                    <div className="flex-1">
-                                                        <FieldLabel required>Cantidad</FieldLabel>
-                                                        <input
-                                                            type="number"
-                                                            min="1"
-                                                            value={cantidad}
-                                                            onChange={e => setCantidad(e.target.value)}
-                                                            className={`${inputCls} font-mono font-bold text-center border-blue-200 focus:ring-blue-500`}
-                                                        />
-                                                        <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight text-center">En Lote</p>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Descripción Corta — AI controlled */}
-                                    <div>
-                                        <FieldLabel required>
-                                            Nombre / Descripción Corta
-                                            {aiResult?.descripcionCorta && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
-                                        </FieldLabel>
-                                        <input type="text" name="descripcionCorta" required
-                                            value={descripcionCorta}
-                                            onChange={e => setDescripcionCorta(e.target.value)}
-                                            placeholder="Ej: Silla Ejecutiva, Escritorio 4 Gavetas..."
-                                            className={aiResult?.descripcionCorta ? inputAiCls : inputCls} />
-                                    </div>
-
-                                    {/* Serie + Modelo */}
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        <div>
-                                            <FieldLabel>
-                                                Número de Serie
-                                                {placaUploadPhase === 'analyzing' && <Loader2 className="w-3 h-3 text-purple-500 animate-spin ml-2 inline" />}
-                                                {placaUploadPhase === 'done' && imagenPlacaUrl && <Sparkles className="w-3 h-3 text-purple-500 ml-2 inline" />}
-                                            </FieldLabel>
-                                            <div className="flex gap-2">
-                                                <input type="text" name="serie" defaultValue={editActivo?.serie || ''}
-                                                    placeholder="S/N si no aplica" className={placaUploadPhase === 'done' && imagenPlacaUrl ? inputAiCls : inputCls} />
-
-                                                <input ref={placaCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePlacaUpload} />
-
-                                                {imagenPlacaUrl ? (
-                                                    <div className="shrink-0 relative">
-                                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                        <img src={imagenPlacaUrl} alt="Placa" className="w-[42px] h-[42px] object-cover rounded-xl border border-slate-200" />
-                                                        {placaUploadPhase === 'idle' || placaUploadPhase === 'done' ? (
-                                                            <button type="button" onClick={() => setImagenPlacaUrl('')}
-                                                                className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center shadow-lg hover:scale-110">
-                                                                <X className="w-3 h-3" />
-                                                            </button>
-                                                        ) : (
-                                                            <div className="absolute inset-0 bg-white/70 rounded-xl flex items-center justify-center">
-                                                                <Loader2 className="w-4 h-4 text-purple-500 animate-spin" />
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <button type="button" onClick={() => placaCameraRef.current?.click()} disabled={placaUploadPhase === 'uploading' || placaUploadPhase === 'analyzing'}
-                                                        className="shrink-0 w-[42px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl transition-colors disabled:opacity-50" title="Escanear placa con cámara">
-                                                        {placaUploadPhase === 'uploading' ? <Loader2 className="w-4 h-4 animate-spin text-purple-500" /> : <Camera className="w-4 h-4" />}
-                                                    </button>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <FieldLabel>
-                                                Marca / Modelo
-                                                {aiResult?.modelo && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
-                                            </FieldLabel>
-                                            <input type="text" name="modelo"
-                                                value={modelo}
-                                                onChange={e => setModelo(e.target.value)}
-                                                placeholder="Ej: Yamaha P-125..."
-                                                className={aiResult?.modelo ? inputAiCls : inputCls} />
-                                        </div>
-                                    </div>
-
-                                    {/* Descripción Detallada — AI controlled */}
-                                    <div>
-                                        <FieldLabel>
-                                            Descripción Detallada
-                                            {aiResult?.descripcionDetallada && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
-                                        </FieldLabel>
-                                        <textarea name="descripcionDetallada" rows={3}
-                                            value={descripcionDetallada}
-                                            onChange={e => setDescripcionDetallada(e.target.value)}
-                                            placeholder="Marca, modelo, color, características adicionales..."
-                                            className={`${aiResult?.descripcionDetallada ? inputAiCls : inputCls} resize-none`} />
-                                    </div>
+                                <div className="mt-6 flex flex-col gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={confirmSave}
+                                        disabled={isPending}
+                                        className="flex items-center justify-center gap-2 text-base font-bold bg-green-600 text-white py-4 px-5 rounded-2xl hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
+                                    >
+                                        {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                                        {isPending ? 'Guardando...' : '✅ Confirmar y Registrar Activo'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setPendingFormData(null)}
+                                        disabled={isPending}
+                                        className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 border-2 border-slate-200 py-3.5 px-5 rounded-2xl hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-60"
+                                    >
+                                        ✏️ Volver a editar
+                                    </button>
                                 </div>
                             </div>
+                        ) : (
+                            <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
 
-                            {/* ── SECCIÓN 3: CONCILIACIÓN HISTÓRICA & DEPRECIACIÓN ── */}
-                            <div>
-                                <SectionTitle>📚 Contabilidad & Depreciación</SectionTitle>
-                                <div className="space-y-5 bg-slate-50/50 p-4 rounded-xl border border-slate-200/60">
+                                {/* ── SECCIÓN 1: FOTOGRAFÍA ── */}
+                                <div>
+                                    <SectionTitle>📸 Fotografía del Activo</SectionTitle>
 
-                                    {/* Flujo B: Buscador Histórico CSV */}
-                                    <div ref={historicoRef} className="relative z-20">
-                                        <FieldLabel>
-                                            Conciliación Histórica (Archivo CSV 2026)
-                                            {aiMatchFailed && <span className="ml-2 text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-md inline-flex items-center gap-1">⚠️ Búsqueda manual requerida</span>}
-                                        </FieldLabel>
-                                        <div className="relative">
-                                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                                            <input
-                                                type="text"
-                                                placeholder="Buscar equipo antiguo por nombre, marca o modelo..."
-                                                className={`${aiMatchFailed ? 'w-full px-5 py-3.5 rounded-xl border-2 focus:outline-none transition-all shadow-sm text-base pl-11 border-amber-300 bg-amber-50/50 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500' : inputCls} pl-11`}
-                                                value={searchHistoricoText}
-                                                onChange={(e) => {
-                                                    setSearchHistoricoText(e.target.value);
-                                                    setShowHistoricoDropdown(true);
-                                                    if (aiMatchFailed) setAiMatchFailed(false); // Clear warning on manual interaction
-                                                    if (selectedHistorico) {
-                                                        setSelectedHistorico(null); // Borrar selección si edita el texto
-                                                    }
-                                                }}
-                                                onFocus={() => setShowHistoricoDropdown(true)}
-                                            />
-                                            {isSearchingHistorico && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#0500A3] animate-spin" />}
-                                            {selectedHistorico && !isSearchingHistorico && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
-                                        </div>
-
-                                        {/* Dropdown de Opciones Históricas */}
-                                        {showHistoricoDropdown && historicoOptions.length > 0 && (
-                                            <div className="absolute top-full mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
-                                                {historicoOptions.map(opt => (
-                                                    <button
-                                                        key={opt.id}
-                                                        type="button"
-                                                        className="w-full text-left p-3 border-b border-slate-50 hover:bg-blue-50 transition-colors flex flex-col gap-1"
-                                                        onClick={() => {
-                                                            applyHistoricRecord(opt);
-                                                            setShowHistoricoDropdown(false);
-                                                        }}
-                                                    >
-                                                        <div className="text-sm font-semibold text-slate-800">{opt.nombrePropiedad}</div>
-                                                        <div className="text-xs text-slate-500 flex items-center justify-between">
-                                                            <span>L. {Number(opt.costoAdquisicion || 0).toFixed(2)} — Cuenta: {opt.cuentaContable || 'N/D'}</span>
-                                                            <span className="font-medium text-[#0500A3] bg-[#0500A3]/10 px-2 py-0.5 rounded-md">{opt.vidaUtil ? `${opt.vidaUtil} años` : 'Sin Vida útil'}</span>
-                                                        </div>
-                                                    </button>
-                                                ))}
+                                    {/* ── Progress bar: upload + AI analysis ── */}
+                                    {uploadPhase === 'uploading' && (
+                                        <div className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Loader2 className="w-4 h-4 text-blue-500 animate-spin shrink-0" />
+                                                <p className="text-sm font-semibold text-blue-800">Subiendo foto...</p>
                                             </div>
-                                        )}
-                                    </div>
-
-                                    {selectedHistorico && (
-                                        <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-start gap-3">
-                                            <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                                            <div className="w-full h-2 bg-blue-200 rounded-full overflow-hidden">
+                                                <div className="h-full bg-blue-500 rounded-full animate-pulse" style={{ width: '60%' }} />
+                                            </div>
+                                            <p className="text-xs text-blue-600 mt-1">Las fotos del iPad pueden tardar unos segundos</p>
+                                        </div>
+                                    )}
+                                    {uploadPhase === 'analyzing' && (
+                                        <div className="mb-4 rounded-2xl border border-purple-200 bg-purple-50 px-4 py-3">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Sparkles className="w-4 h-4 text-purple-500 animate-pulse shrink-0" />
+                                                <p className="text-sm font-semibold text-purple-800">IA analizando la imagen...</p>
+                                            </div>
+                                            <div className="w-full h-2 bg-purple-200 rounded-full overflow-hidden">
+                                                <div className="h-full bg-purple-500 rounded-full animate-[progress_2s_ease-in-out_infinite]" style={{ width: '80%' }} />
+                                            </div>
+                                            <p className="text-xs text-purple-600 mt-1">Identificando activo, marca y cuenta contable</p>
+                                        </div>
+                                    )}
+                                    {uploadPhase === 'done' && aiResult && (
+                                        <div className="mb-4 flex items-start gap-3 bg-purple-50 border border-purple-200 rounded-xl px-4 py-3">
+                                            <Sparkles className="w-5 h-5 text-purple-500 shrink-0 mt-0.5" />
                                             <div>
-                                                <p className="text-sm font-bold text-green-800">Enlazado con Inventario Histórico CSV</p>
-                                                <p className="text-xs text-green-700">El modelo matemático usará el costo base original y pre-calculará la vida útil heredada. <strong>Puedes editar los años de vida útil si es una Mejora de Edificio</strong> u otro caso excepcional.</p>
+                                                <p className="text-sm font-semibold text-purple-800">
+                                                    ✅ Campos completados por IA
+                                                    {aiResult.confianza && <span className="ml-2 text-xs font-normal text-purple-600">Confianza: {aiResult.confianza}</span>}
+                                                </p>
+                                                <p className="text-xs text-purple-600">Revisa y ajusta los campos resaltados en morado si es necesario</p>
                                             </div>
                                         </div>
                                     )}
 
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {/* Dropdown Legal (Gob Hondureño) */}
-                                        <div>
-                                            <FieldLabel required={!selectedHistorico}>Categoría de Depreciación</FieldLabel>
-                                            <select
-                                                className={selectCls}
-                                                value={categoriaDepreciacion}
-                                                onChange={e => {
-                                                    setCategoriaDepreciacion(e.target.value);
-                                                    const matchCat = CATEGORIAS_DEPRECIACION.find(c => c.value === e.target.value);
-                                                    if (matchCat) setVidaUtilOverride(matchCat.years.toString());
-                                                }}
-                                                required={!selectedHistorico} // Obligatorio solo si no es histórico
-                                            >
-                                                <option value="" disabled>Seleccione categoría...</option>
-                                                {CATEGORIAS_DEPRECIACION.map(cat => (
-                                                    <option value={cat.value} key={cat.value}>{cat.label}</option>
-                                                ))}
-                                            </select>
+                                    <div className="flex flex-col sm:flex-row gap-4">
+                                        <div className="flex justify-center sm:justify-start">
+                                            {imagenUrl ? (
+                                                <div className="relative">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={imagenUrl} alt="Activo" className="w-32 h-32 object-cover rounded-2xl border-2 border-slate-200 shadow-md" />
+                                                    {!isLoading && (
+                                                        <button type="button" onClick={() => { setImagenUrl(''); setAiResult(null); }}
+                                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg active:scale-95">
+                                                            <X className="w-4 h-4" />
+                                                        </button>
+                                                    )}
+                                                    {isLoading && (
+                                                        <div className="absolute inset-0 bg-white/70 rounded-2xl flex items-center justify-center">
+                                                            <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="w-32 h-32 rounded-2xl border-2 border-dashed border-slate-300 flex flex-col items-center justify-center bg-slate-50 text-slate-400">
+                                                    {uploadPhase === 'uploading' ? <Loader2 className="w-8 h-8 animate-spin text-blue-500" /> : <><Eye className="w-8 h-8 mb-1" /><span className="text-xs">Sin foto</span></>}
+                                                </div>
+                                            )}
                                         </div>
-
-                                        {/* Editable Vida Util */}
-                                        <div>
-                                            <FieldLabel required>Años de Vida Útil {selectedHistorico && '(Editable)'}</FieldLabel>
-                                            <div className="relative">
-                                                <input
-                                                    type="number"
-                                                    className={`${inputCls} font-mono`}
-                                                    value={vidaUtilOverride}
-                                                    onChange={e => setVidaUtilOverride(e.target.value)}
-                                                    required
-                                                />
-                                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm italic pointer-events-none">Años</div>
-                                            </div>
+                                        <div className="flex-1 flex flex-col gap-3 justify-center">
+                                            <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                                            <button type="button" onClick={() => cameraInputRef.current?.click()}
+                                                disabled={isLoading}
+                                                className="flex items-center justify-center gap-3 text-base font-semibold bg-[#0500A3] text-white py-4 px-5 rounded-2xl active:scale-95 transition-all disabled:opacity-50 shadow-md">
+                                                <Camera className="w-5 h-5" />
+                                                {isLoading ? 'Procesando...' : 'Tomar Foto con Cámara'}
+                                            </button>
+                                            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                                            <button type="button" onClick={() => fileInputRef.current?.click()}
+                                                disabled={isLoading}
+                                                className="flex items-center justify-center gap-3 text-base font-medium border-2 border-slate-200 text-slate-600 py-3.5 px-5 rounded-2xl active:scale-95 transition-all disabled:opacity-50">
+                                                <Upload className="w-5 h-5" />
+                                                Seleccionar de Galería
+                                            </button>
+                                            {!isEdit && !!imagenUrl && !aiResult && (
+                                                <button type="button" onClick={() => analyzeWithAI()}
+                                                    disabled={uploadPhase === 'analyzing'}
+                                                    className="mt-2 flex items-center justify-center gap-2 text-sm font-semibold bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300 py-3 px-5 rounded-xl active:scale-95 transition-all w-full">
+                                                    <Sparkles className="w-4 h-4" />
+                                                    {uploadPhase === 'analyzing' ? 'Analizando...' : '✨ Analizar foto con IA'}
+                                                </button>
+                                            )}
+                                            {!isEdit && uploadPhase === 'idle' && (
+                                                <p className="text-xs text-purple-600 text-center flex items-center justify-center gap-1 mt-2">
+                                                    <Sparkles className="w-3 h-3" /> Sube la foto primero, luego usa la IA
+                                                </p>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* ── SECCIÓN 4: CLASIFICACIÓN CONTABLE ADICIONAL ── */}
-                            <div>
-                                <SectionTitle>📋 Estado Adicional</SectionTitle>
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                        {/* Cuenta — Searchable + AI */}
+                                {/* ── SECCIÓN 2: IDENTIFICACIÓN ── */}
+                                <div>
+                                    <SectionTitle>📋 Identificación</SectionTitle>
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {/* Área — Searchable / Locked */}
+                                            <div>
+                                                <FieldLabel required>Área / Ubicación</FieldLabel>
+                                                {!isEdit ? (
+                                                    <div className="w-full flex items-center gap-2 text-base border-2 border-[#0500A3]/30 bg-blue-50/50 rounded-xl px-4 py-3.5 text-[#0500A3] font-semibold">
+                                                        <div className="bg-[#0500A3] w-2 h-2 rounded-full animate-pulse shrink-0" />
+                                                        <span className="truncate">{AREAS.find(a => a.value === lockedArea)?.label || lockedArea}</span>
+                                                        <input type="hidden" name="area" value={lockedArea || ''} />
+                                                    </div>
+                                                ) : (
+                                                    <Combobox
+                                                        options={AREAS}
+                                                        value={selectedArea}
+                                                        onChange={handleAreaChange}
+                                                        placeholder="Escribe o selecciona el área..."
+                                                        label="area"
+                                                        required
+                                                    />
+                                                )}
+                                            </div>
+
+                                            {/* Código Grupo y Cantidad - Toggle para creación */}
+                                            {!isEdit && (
+                                                <div className="flex items-center gap-2 mb-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+                                                    <div
+                                                        className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${isBatchMode ? 'bg-[#0500A3]' : 'bg-slate-300'}`}
+                                                        onClick={() => setIsBatchMode(!isBatchMode)}
+                                                    >
+                                                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isBatchMode ? 'translate-x-4' : 'translate-x-0'}`} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-bold text-sm text-slate-800">Registrar en Lote (Mismos Activos)</p>
+                                                        <p className="text-[10px] text-slate-500">Actívalo solo si registrarás muchas sillas, mesas o activos idénticos a la vez.</p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* Solo mostrar Grupo y Cantidad si estamos editando (readonly) o si encendieron Batch Mode */}
+                                            {(isEdit || isBatchMode) && (
+                                                <div className="flex gap-3 bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
+                                                    <div className="flex-[2]">
+                                                        <FieldLabel required={!isEdit}>Código Grupo</FieldLabel>
+                                                        {isEdit ? (
+                                                            <input
+                                                                type="text"
+                                                                disabled
+                                                                value={codigoGrupo}
+                                                                className={`${inputCls} font-mono bg-blue-50/10 font-bold tracking-widest text-[#0500A3] opacity-60 cursor-not-allowed border-transparent`}
+                                                            />
+                                                        ) : (
+                                                            <Combobox
+                                                                options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
+                                                                value={codigoGrupo}
+                                                                onChange={(val) => {
+                                                                    setCodigoGrupo(val);
+                                                                    const match = gruposDisponibles.find(g => g.codigoGrupo === val);
+                                                                    if (match && match.descripcionCorta && !descripcionCorta) setDescripcionCorta(match.descripcionCorta);
+                                                                }}
+                                                                placeholder="Ej: 001"
+                                                                allowCustom={true}
+                                                            />
+                                                        )}
+                                                        {!isEdit && <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight">Agrupa estos activos.</p>}
+                                                    </div>
+
+                                                    {!isEdit && (
+                                                        <div className="flex-1">
+                                                            <FieldLabel required>Cantidad</FieldLabel>
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                value={cantidad}
+                                                                onChange={e => setCantidad(e.target.value)}
+                                                                className={`${inputCls} font-mono font-bold text-center border-blue-200 focus:ring-blue-500`}
+                                                            />
+                                                            <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight text-center">En Lote</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Descripción Corta — AI controlled */}
                                         <div>
                                             <FieldLabel required>
-                                                Cuenta Contable
-                                                {aiResult?.cuentaAct && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
+                                                Nombre / Descripción Corta
+                                                {aiResult?.descripcionCorta && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
                                             </FieldLabel>
-                                            <Combobox
-                                                options={CUENTAS.map(c => ({ value: c, label: c }))}
-                                                value={selectedCuenta}
-                                                onChange={setSelectedCuenta}
-                                                placeholder="Seleccionar cuenta..."
-                                                aiHighlight={!!aiResult?.cuentaAct}
-                                            />
-                                            <input type="hidden" name="cuentaAct" value={selectedCuenta} required />
+                                            <input type="text" name="descripcionCorta" required
+                                                value={descripcionCorta}
+                                                onChange={e => setDescripcionCorta(e.target.value)}
+                                                placeholder="Ej: Silla Ejecutiva, Escritorio 4 Gavetas..."
+                                                className={aiResult?.descripcionCorta ? inputAiCls : inputCls} />
                                         </div>
+
+                                        {/* Serie + Modelo */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div>
+                                                <FieldLabel>
+                                                    Número de Serie
+                                                    {placaUploadPhase === 'analyzing' && <Loader2 className="w-3 h-3 text-purple-500 animate-spin ml-2 inline" />}
+                                                    {placaUploadPhase === 'done' && imagenPlacaUrl && <Sparkles className="w-3 h-3 text-purple-500 ml-2 inline" />}
+                                                </FieldLabel>
+                                                <div className="flex gap-2">
+                                                    <input type="text" name="serie" defaultValue={editActivo?.serie || ''}
+                                                        placeholder="S/N si no aplica" className={placaUploadPhase === 'done' && imagenPlacaUrl ? inputAiCls : inputCls} />
+
+                                                    <input ref={placaCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePlacaUpload} />
+
+                                                    {imagenPlacaUrl ? (
+                                                        <div className="shrink-0 relative">
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src={imagenPlacaUrl} alt="Placa" className="w-[42px] h-[42px] object-cover rounded-xl border border-slate-200" />
+                                                            {placaUploadPhase === 'idle' || placaUploadPhase === 'done' ? (
+                                                                <button type="button" onClick={() => setImagenPlacaUrl('')}
+                                                                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center shadow-lg hover:scale-110">
+                                                                    <X className="w-3 h-3" />
+                                                                </button>
+                                                            ) : (
+                                                                <div className="absolute inset-0 bg-white/70 rounded-xl flex items-center justify-center">
+                                                                    <Loader2 className="w-4 h-4 text-purple-500 animate-spin" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <button type="button" onClick={() => placaCameraRef.current?.click()} disabled={placaUploadPhase === 'uploading' || placaUploadPhase === 'analyzing'}
+                                                            className="shrink-0 w-[42px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl transition-colors disabled:opacity-50" title="Escanear placa con cámara">
+                                                            {placaUploadPhase === 'uploading' ? <Loader2 className="w-4 h-4 animate-spin text-purple-500" /> : <Camera className="w-4 h-4" />}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <FieldLabel>
+                                                    Marca / Modelo
+                                                    {aiResult?.modelo && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
+                                                </FieldLabel>
+                                                <input type="text" name="modelo"
+                                                    value={modelo}
+                                                    onChange={e => setModelo(e.target.value)}
+                                                    placeholder="Ej: Yamaha P-125..."
+                                                    className={aiResult?.modelo ? inputAiCls : inputCls} />
+                                            </div>
+                                        </div>
+
+                                        {/* Descripción Detallada — AI controlled */}
                                         <div>
-                                            <FieldLabel>Estatus Contable</FieldLabel>
-                                            <select name="estatusContable" defaultValue={editActivo?.estatusContable || 'VIGENTE'}
-                                                className={selectCls}
-                                                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '40px' }}>
-                                                {ESTATUS.map(e => <option key={e}>{e}</option>)}
-                                            </select>
+                                            <FieldLabel>
+                                                Descripción Detallada
+                                                {aiResult?.descripcionDetallada && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
+                                            </FieldLabel>
+                                            <textarea name="descripcionDetallada" rows={3}
+                                                value={descripcionDetallada}
+                                                onChange={e => setDescripcionDetallada(e.target.value)}
+                                                placeholder="Marca, modelo, color, características adicionales..."
+                                                className={`${aiResult?.descripcionDetallada ? inputAiCls : inputCls} resize-none`} />
                                         </div>
                                     </div>
-
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        <div>
-                                            <FieldLabel>Fecha de Adquisición</FieldLabel>
-                                            <input type="date" name="fechaAdq"
-                                                value={fechaAdq} onChange={e => setFechaAdq(e.target.value)}
-                                                className={inputCls} />
-                                        </div>
-                                        <div>
-                                            <FieldLabel>Fecha de Levantamiento</FieldLabel>
-                                            <input type="date" name="fechaLevantamiento"
-                                                defaultValue={editActivo?.fechaLevantamiento ? getLocalDateString(editActivo.fechaLevantamiento) : getLocalDateString()}
-                                                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 focus:bg-white transition-all text-slate-700"
-                                            />
-                                        </div>
-                                        <div>
-                                            <FieldLabel>Costo de Adquisición (L.)</FieldLabel>
-                                            <input type="number" name="costoAdq" step="0.01" min="0"
-                                                value={costoAdq} onChange={e => setCostoAdq(e.target.value)}
-                                                placeholder="0.00" className={inputCls} />
-                                        </div>
-                                    </div>
-
-                                    <label className="flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 cursor-pointer hover:border-[#0500A3]/40 active:scale-[0.99] transition-all">
-                                        <input type="hidden" name="integrado" value="false" />
-                                        <input type="checkbox" name="integrado" value="true"
-                                            defaultChecked={editActivo?.integrado}
-                                            className="w-6 h-6 accent-[#0500A3] rounded" />
-                                        <div>
-                                            <div className="text-base font-semibold text-slate-800">Activo Integrado</div>
-                                            <div className="text-xs text-slate-500">El activo forma parte de un conjunto mayor</div>
-                                        </div>
-                                    </label>
                                 </div>
-                            </div>
 
-                            {/* ── SECCIÓN 4: ESTADO FÍSICO ── */}
-                            <div>
-                                <SectionTitle>⚠️ Estado Físico / Incidencia</SectionTitle>
-                                <div className="space-y-4">
-                                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                        {[
-                                            { name: 'estadoDano', label: 'Estado / Daño', opts: ESTADO_DANO, empty: 'Sin daño ✓', default: editActivo?.estadoDano },
-                                            { name: 'tipoIncidencia', label: 'Tipo de Incidencia', opts: TIPO_INCIDENCIA, empty: '— N/A —', default: editActivo?.tipoIncidencia },
-                                            { name: 'accionRecomendada', label: 'Acción Recomendada', opts: ACCION_RECOMENDADA, empty: '— N/A —', default: editActivo?.accionRecomendada },
-                                        ].map(f => (
-                                            <div key={f.name}>
-                                                <FieldLabel>{f.label}</FieldLabel>
-                                                <select name={f.name} defaultValue={f.default || ''}
+                                {/* ── SECCIÓN 3: CONCILIACIÓN HISTÓRICA & DEPRECIACIÓN ── */}
+                                <div>
+                                    <SectionTitle>📚 Contabilidad & Depreciación</SectionTitle>
+                                    <div className="space-y-5 bg-slate-50/50 p-4 rounded-xl border border-slate-200/60">
+
+                                        {/* Flujo B: Buscador Histórico CSV */}
+                                        <div ref={historicoRef} className="relative z-20">
+                                            <FieldLabel>
+                                                Conciliación Histórica (Archivo CSV 2026)
+                                                {aiMatchFailed && <span className="ml-2 text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-md inline-flex items-center gap-1">⚠️ Búsqueda manual requerida</span>}
+                                            </FieldLabel>
+                                            <div className="relative">
+                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar equipo antiguo por nombre, marca o modelo..."
+                                                    className={`${aiMatchFailed ? 'w-full px-5 py-3.5 rounded-xl border-2 focus:outline-none transition-all shadow-sm text-base pl-11 border-amber-300 bg-amber-50/50 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500' : inputCls} pl-11`}
+                                                    value={searchHistoricoText}
+                                                    onChange={(e) => {
+                                                        setSearchHistoricoText(e.target.value);
+                                                        setShowHistoricoDropdown(true);
+                                                        if (aiMatchFailed) setAiMatchFailed(false); // Clear warning on manual interaction
+                                                        if (selectedHistorico) {
+                                                            setSelectedHistorico(null); // Borrar selección si edita el texto
+                                                        }
+                                                    }}
+                                                    onFocus={() => setShowHistoricoDropdown(true)}
+                                                />
+                                                {isSearchingHistorico && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#0500A3] animate-spin" />}
+                                                {selectedHistorico && !isSearchingHistorico && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
+                                            </div>
+
+                                            {/* Dropdown de Opciones Históricas */}
+                                            {showHistoricoDropdown && historicoOptions.length > 0 && (
+                                                <div className="absolute top-full mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
+                                                    {historicoOptions.map(opt => (
+                                                        <button
+                                                            key={opt.id}
+                                                            type="button"
+                                                            className="w-full text-left p-3 border-b border-slate-50 hover:bg-blue-50 transition-colors flex flex-col gap-1"
+                                                            onClick={() => {
+                                                                applyHistoricRecord(opt);
+                                                                setShowHistoricoDropdown(false);
+                                                            }}
+                                                        >
+                                                            <div className="text-sm font-semibold text-slate-800">{opt.nombrePropiedad}</div>
+                                                            <div className="text-xs text-slate-500 flex items-center justify-between">
+                                                                <span>L. {Number(opt.costoAdquisicion || 0).toFixed(2)} — Cuenta: {opt.cuentaContable || 'N/D'}</span>
+                                                                <span className="font-medium text-[#0500A3] bg-[#0500A3]/10 px-2 py-0.5 rounded-md">{opt.vidaUtil ? `${opt.vidaUtil} años` : 'Sin Vida útil'}</span>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {selectedHistorico && (
+                                            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-start gap-3">
+                                                <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
+                                                <div>
+                                                    <p className="text-sm font-bold text-green-800">Enlazado con Inventario Histórico CSV</p>
+                                                    <p className="text-xs text-green-700">El modelo matemático usará el costo base original y pre-calculará la vida útil heredada. <strong>Puedes editar los años de vida útil si es una Mejora de Edificio</strong> u otro caso excepcional.</p>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {/* Dropdown Legal (Gob Hondureño) */}
+                                            <div>
+                                                <FieldLabel required={!selectedHistorico}>Categoría de Depreciación</FieldLabel>
+                                                <select
                                                     className={selectCls}
-                                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '40px' }}>
-                                                    <option value="">{f.empty}</option>
-                                                    {f.opts.map(o => <option key={o}>{o}</option>)}
+                                                    value={categoriaDepreciacion}
+                                                    onChange={e => {
+                                                        setCategoriaDepreciacion(e.target.value);
+                                                        const matchCat = CATEGORIAS_DEPRECIACION.find(c => c.value === e.target.value);
+                                                        if (matchCat) setVidaUtilOverride(matchCat.years.toString());
+                                                    }}
+                                                    required={!selectedHistorico} // Obligatorio solo si no es histórico
+                                                >
+                                                    <option value="" disabled>Seleccione categoría...</option>
+                                                    {CATEGORIAS_DEPRECIACION.map(cat => (
+                                                        <option value={cat.value} key={cat.value}>{cat.label}</option>
+                                                    ))}
                                                 </select>
                                             </div>
-                                        ))}
-                                    </div>
-                                    <div>
-                                        <FieldLabel>Responsable / Custodio</FieldLabel>
-                                        <input type="text" name="responsable"
-                                            value={responsable}
-                                            onChange={e => setResponsable(e.target.value)}
-                                            placeholder="Nombre del custodio del área" className={inputCls} />
-                                    </div>
-                                    <div>
-                                        <FieldLabel>Observaciones</FieldLabel>
-                                        <textarea name="observaciones" rows={3} defaultValue={editActivo?.observaciones || ''}
-                                            placeholder="Notas adicionales, reparaciones pendientes..."
-                                            className={`${inputCls} resize-none`} />
+
+                                            {/* Editable Vida Util */}
+                                            <div>
+                                                <FieldLabel required>Años de Vida Útil {selectedHistorico && '(Editable)'}</FieldLabel>
+                                                <div className="relative">
+                                                    <input
+                                                        type="number"
+                                                        className={`${inputCls} font-mono`}
+                                                        value={vidaUtilOverride}
+                                                        onChange={e => setVidaUtilOverride(e.target.value)}
+                                                        required
+                                                    />
+                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm italic pointer-events-none">Años</div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            {/* ── FOOTER ── */}
-                            <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-slate-100">
-                                <button type="button" onClick={onClose}
-                                    className="flex-1 text-base font-medium border-2 border-slate-200 text-slate-600 py-4 rounded-2xl hover:bg-slate-50 active:scale-[0.98] transition-all">
-                                    Cancelar
-                                </button>
-                                <button type="submit" disabled={isPending || isLoading}
-                                    className="flex-1 flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white py-4 rounded-2xl hover:bg-[#0600c2] active:scale-[0.98] transition-all disabled:opacity-60 shadow-lg">
-                                    {isPending && <Loader2 className="w-5 h-5 animate-spin" />}
-                                    {isEdit ? '💾 Guardar Cambios' : '✅ Registrar Activo'}
-                                </button>
-                            </div>
-                        </form>
+                                {/* ── SECCIÓN 4: CLASIFICACIÓN CONTABLE ADICIONAL ── */}
+                                <div>
+                                    <SectionTitle>📋 Estado Adicional</SectionTitle>
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            {/* Cuenta — Searchable + AI */}
+                                            <div>
+                                                <FieldLabel required>
+                                                    Cuenta Contable
+                                                    {aiResult?.cuentaAct && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
+                                                </FieldLabel>
+                                                <Combobox
+                                                    options={CUENTAS.map(c => ({ value: c, label: c }))}
+                                                    value={selectedCuenta}
+                                                    onChange={setSelectedCuenta}
+                                                    placeholder="Seleccionar cuenta..."
+                                                    aiHighlight={!!aiResult?.cuentaAct}
+                                                />
+                                                <input type="hidden" name="cuentaAct" value={selectedCuenta} required />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Estatus Contable</FieldLabel>
+                                                <select name="estatusContable" defaultValue={editActivo?.estatusContable || 'VIGENTE'}
+                                                    className={selectCls}
+                                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '40px' }}>
+                                                    {ESTATUS.map(e => <option key={e}>{e}</option>)}
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            <div>
+                                                <FieldLabel>Fecha de Adquisición</FieldLabel>
+                                                <input type="date" name="fechaAdq"
+                                                    value={fechaAdq} onChange={e => setFechaAdq(e.target.value)}
+                                                    className={inputCls} />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Fecha de Levantamiento</FieldLabel>
+                                                <input type="date" name="fechaLevantamiento"
+                                                    defaultValue={editActivo?.fechaLevantamiento ? getLocalDateString(editActivo.fechaLevantamiento) : getLocalDateString()}
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 focus:bg-white transition-all text-slate-700"
+                                                />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Costo de Adquisición (L.)</FieldLabel>
+                                                <input type="number" name="costoAdq" step="0.01" min="0"
+                                                    value={costoAdq} onChange={e => setCostoAdq(e.target.value)}
+                                                    placeholder="0.00" className={inputCls} />
+                                            </div>
+                                        </div>
+
+                                        <label className="flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 cursor-pointer hover:border-[#0500A3]/40 active:scale-[0.99] transition-all">
+                                            <input type="hidden" name="integrado" value="false" />
+                                            <input type="checkbox" name="integrado" value="true"
+                                                defaultChecked={editActivo?.integrado}
+                                                className="w-6 h-6 accent-[#0500A3] rounded" />
+                                            <div>
+                                                <div className="text-base font-semibold text-slate-800">Activo Integrado</div>
+                                                <div className="text-xs text-slate-500">El activo forma parte de un conjunto mayor</div>
+                                            </div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                {/* ── SECCIÓN 4: ESTADO FÍSICO ── */}
+                                <div>
+                                    <SectionTitle>⚠️ Estado Físico / Incidencia</SectionTitle>
+                                    <div className="space-y-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                            {[
+                                                { name: 'estadoDano', label: 'Estado / Daño', opts: ESTADO_DANO, empty: 'Sin daño ✓', default: editActivo?.estadoDano },
+                                                { name: 'tipoIncidencia', label: 'Tipo de Incidencia', opts: TIPO_INCIDENCIA, empty: '— N/A —', default: editActivo?.tipoIncidencia },
+                                                { name: 'accionRecomendada', label: 'Acción Recomendada', opts: ACCION_RECOMENDADA, empty: '— N/A —', default: editActivo?.accionRecomendada },
+                                            ].map(f => (
+                                                <div key={f.name}>
+                                                    <FieldLabel>{f.label}</FieldLabel>
+                                                    <select name={f.name} defaultValue={f.default || ''}
+                                                        className={selectCls}
+                                                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '40px' }}>
+                                                        <option value="">{f.empty}</option>
+                                                        {f.opts.map(o => <option key={o}>{o}</option>)}
+                                                    </select>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div>
+                                            <FieldLabel>Responsable / Custodio</FieldLabel>
+                                            <input type="text" name="responsable"
+                                                value={responsable}
+                                                onChange={e => setResponsable(e.target.value)}
+                                                placeholder="Nombre del custodio del área" className={inputCls} />
+                                        </div>
+                                        <div>
+                                            <FieldLabel>Observaciones</FieldLabel>
+                                            <textarea name="observaciones" rows={3} defaultValue={editActivo?.observaciones || ''}
+                                                placeholder="Notas adicionales, reparaciones pendientes..."
+                                                className={`${inputCls} resize-none`} />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* ── FOOTER ── */}
+                                <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-slate-100">
+                                    <button type="button" onClick={onClose}
+                                        className="flex-1 text-base font-medium border-2 border-slate-200 text-slate-600 py-4 rounded-2xl hover:bg-slate-50 active:scale-[0.98] transition-all">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit" disabled={isPending || isLoading}
+                                        className="flex-1 flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white py-4 rounded-2xl hover:bg-[#0600c2] active:scale-[0.98] transition-all disabled:opacity-60 shadow-lg">
+                                        {isPending && <Loader2 className="w-5 h-5 animate-spin" />}
+                                        {isEdit ? '💾 Guardar Cambios' : '✅ Registrar Activo'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
                     </div>
                 </div >
             </div >
