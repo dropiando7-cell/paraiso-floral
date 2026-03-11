@@ -524,6 +524,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
     const [aiMatchFailed, setAiMatchFailed] = useState(false);
     const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
+    const [previewCode, setPreviewCode] = useState<string>('...');
 
     function applyHistoricRecord(record: any) {
         setSelectedHistorico(record);
@@ -843,8 +844,9 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         fd.set('categoriaDepreciacion', categoriaDepreciacion);
         if (vidaUtilOverride) fd.set('vidaUtilOverride', vidaUtilOverride);
 
-        // Show preview instead of saving immediately
+        // Show preview and fetch real next code in parallel
         setPendingFormData(fd);
+        previewIdQr(selectedArea, finalCodigoGrupo).then(code => setPreviewCode(code)).catch(() => setPreviewCode('—'));
     }
 
     // ─── Depreciation helper ───
@@ -853,11 +855,30 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         const vidaRaw = vidaUtilOverride || (selectedHistorico?.vidaUtil ? String(selectedHistorico.vidaUtil) : '');
         const vidaAnios = parseFloat(vidaRaw || '0');
         const fechaBase = fechaAdq || (selectedHistorico?.fechaAdquisicion ? getLocalDateString(selectedHistorico.fechaAdquisicion) : '');
+
         if (!costo || !vidaAnios || !fechaBase) return '—';
+
+        // ─── Lógica 30/360 (Calendario Comercial) ───
         const inicio = new Date(fechaBase);
         const hoy = new Date();
-        const aniosTranscurridos = Math.min((hoy.getFullYear() - inicio.getFullYear()) + (hoy.getMonth() - inicio.getMonth()) / 12, vidaAnios);
-        const depreciado = (costo / vidaAnios) * Math.max(aniosTranscurridos, 0);
+
+        // Helper interno dias comerciales 30/360
+        const y1 = inicio.getFullYear();
+        const m1 = inicio.getMonth() + 1;
+        const d1 = Math.min(inicio.getDate(), 30);
+        const y2 = hoy.getFullYear();
+        const m2 = hoy.getMonth() + 1;
+        const d2 = Math.min(hoy.getDate(), 30);
+        const diasComerciales = Math.max(0, (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1));
+
+        const valResidual = parseFloat((costo * 0.01).toFixed(2));
+        const baseDeprec = costo - valResidual;
+        const diasTotales = vidaAnios * 360;
+
+        // Factor diario redondeado a 4 decimales
+        const factorDiario = parseFloat((baseDeprec / diasTotales).toFixed(4));
+        const depreciado = Math.min(factorDiario * diasComerciales, baseDeprec);
+
         return `L. ${depreciado.toFixed(2)}`;
     }
 
@@ -985,9 +1006,9 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <div className="col-span-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
                                             <QrCode className="w-4 h-4 text-[#0500A3] shrink-0" />
                                             <div>
-                                                <p className="text-[10px] font-bold text-[#0500A3]/60 uppercase tracking-wider">Código QR (se generará)</p>
+                                                <p className="text-[10px] font-bold text-[#0500A3]/60 uppercase tracking-wider">Código QR que se asignará</p>
                                                 <p className="text-xs font-black text-[#0500A3] font-mono tracking-tight">
-                                                    ELIM-{selectedArea.split('-').slice(0, 3).join('-')}-{(codigoGrupo || '001').padStart(3, '0')}-####
+                                                    {previewCode}
                                                 </p>
                                             </div>
                                         </div>

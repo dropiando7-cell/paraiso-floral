@@ -24,16 +24,24 @@ export interface DepreciacionResult {
 }
 
 /**
- * Calcula los meses completos entre dos fechas.
+ * Calcula los días transcurridos bajo la convención comercial 30/360.
+ * Cada mes se considera de 30 días y el año de 360 días.
  */
-function mesesEntre(desde: Date, hasta: Date): number {
-    const anios = hasta.getFullYear() - desde.getFullYear();
-    const meses = hasta.getMonth() - desde.getMonth();
-    return Math.max(0, anios * 12 + meses);
+function diasComerciales360(desde: Date, hasta: Date): number {
+    const y1 = desde.getFullYear();
+    const m1 = desde.getMonth() + 1; // getMonth() es 0-11
+    const d1 = Math.min(desde.getDate(), 30); // Si es 31, tratar como 30
+
+    const y2 = hasta.getFullYear();
+    const m2 = hasta.getMonth() + 1;
+    const d2 = Math.min(hasta.getDate(), 30);
+
+    const dias = (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1);
+    return Math.max(0, dias);
 }
 
 /**
- * Calcula la depreciación de un activo fijo según la Ley hondureña.
+ * Calcula la depreciación de un activo fijo según la Ley hondureña y Calendario Comercial.
  * Retorna null si los datos son insuficientes para calcular.
  */
 export function calcDepreciacion(input: DepreciacionInput): DepreciacionResult | null {
@@ -50,21 +58,24 @@ export function calcDepreciacion(input: DepreciacionInput): DepreciacionResult |
     }
 
     const hoy = new Date();
-    const meses = mesesEntre(fechaAdq, hoy);
-    const mesesTotales = vidaUtilAnios * 12;
+    const diasTranscurridos = diasComerciales360(fechaAdq, hoy);
+    const diasTotales = vidaUtilAnios * 360; // 360 días por año comercial
 
     // Art. 8°: valor residual = 1% del costo original
     const valResidual = parseFloat((costoAdq * 0.01).toFixed(2));
     const baseDeprec = parseFloat((costoAdq - valResidual).toFixed(2));
-    const deprecMensual = parseFloat((baseDeprec / mesesTotales).toFixed(4));
+
+    // Factor diario redondeado a 4 decimales (coincidir con Excel)
+    const factorDiario = parseFloat((baseDeprec / diasTotales).toFixed(4));
 
     // Depreciación acumulada: no puede superar la base depreciable
-    const deprecAcumRaw = deprecMensual * meses;
+    const deprecAcumRaw = factorDiario * diasTranscurridos;
     const deprecAcum = parseFloat(Math.min(deprecAcumRaw, baseDeprec).toFixed(2));
 
     // Valor en libros: no puede bajar del valor residual
     const valorLibrosRaw = costoAdq - deprecAcum;
     const valorLibros = parseFloat(Math.max(valorLibrosRaw, valResidual).toFixed(2));
 
-    return { valResidual, baseDeprec, deprecMensual, deprecAcum, valorLibros };
+    return { valResidual, baseDeprec, deprecMensual: factorDiario, deprecAcum, valorLibros };
+}
 }

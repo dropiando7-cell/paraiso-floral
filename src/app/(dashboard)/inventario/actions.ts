@@ -354,9 +354,9 @@ export async function uploadActivoImage(formData: FormData): Promise<{ url: stri
 }
 
 // ─── PREVIEW ID QR (for form) ────────────────────────────────────────────────
-export async function previewIdQr(area: string): Promise<string> {
+export async function previewIdQr(area: string, codigoGrupo: string = '001'): Promise<string> {
     const orgId = await getOrgId();
-    const ids = await generateIdQr(orgId, area);
+    const ids = await generateIdQr(orgId, area, codigoGrupo);
     return ids[0];
 }
 
