@@ -24,7 +24,7 @@ async function getOrgId(): Promise<string> {
     return dbUser.organizationId;
 }
 
-export async function getHistoricoPaginated(query: string, page: number = 1, limit: number = 50) {
+export async function getHistoricoPaginated(query: string, page: number = 1, limit: number = 10) {
     const orgId = await getOrgId();
     const skip = (page - 1) * limit;
 

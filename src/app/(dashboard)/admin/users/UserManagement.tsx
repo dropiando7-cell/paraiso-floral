@@ -75,6 +75,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/ingresos', label: 'Ingresos Congregacionales' },
         { id: '/boveda', label: 'Gestor de Contraseñas' },
         { id: '/inventario', label: 'Inventario de Activos' },
+        { id: '/inventario/historico', label: 'Editor Histórico' },
         { id: '/actas', label: 'Actas de Junta' },
         { id: '/prediccion', label: 'Predicción Financiera' },
         { id: '/calendario', label: 'Calendario Centralizado' },

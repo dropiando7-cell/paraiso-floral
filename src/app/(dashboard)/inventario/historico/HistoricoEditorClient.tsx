@@ -22,7 +22,7 @@ export default function HistoricoEditorClient() {
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
-    const limit = 50;
+    const limit = 10;
 
     useEffect(() => {
         setPage(1);
