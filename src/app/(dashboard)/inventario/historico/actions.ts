@@ -12,9 +12,15 @@ async function getOrgId(): Promise<string> {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
-        select: { organizationId: true },
+        select: { organizationId: true, role: true },
     });
     if (!dbUser) redirect('/unauthorized');
+
+    const allowedRoles = ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'];
+    if (!allowedRoles.includes(dbUser.role)) {
+        throw new Error('No tienes permisos suficientes (Requiere Administrador o Editor de Inventario)');
+    }
+
     return dbUser.organizationId;
 }
 
@@ -29,7 +35,8 @@ export async function getHistoricoPaginated(query: string, page: number = 1, lim
     if (query) {
         whereClause.OR = [
             { nombrePropiedad: { contains: query, mode: 'insensitive' } },
-            { marcaModelo: { contains: query, mode: 'insensitive' } },
+            { marca: { contains: query, mode: 'insensitive' } },
+            { modelo: { contains: query, mode: 'insensitive' } },
             { serie: { contains: query, mode: 'insensitive' } },
         ];
     }
@@ -50,11 +57,16 @@ export async function getHistoricoPaginated(query: string, page: number = 1, lim
         }),
         prisma.inventarioHistorico.count({ where: whereClause })
     ]);
+    const serializedItems = items.map(item => ({
+        ...item,
+        costoAdquisicion: item.costoAdquisicion ? item.costoAdquisicion.toNumber() : null,
+        vidaUtil: item.vidaUtil ? item.vidaUtil.toNumber() : null,
+    }));
 
-    return { items, total };
+    return { items: serializedItems, total };
 }
 
-export async function updateHistorico(id: string, data: { nombrePropiedad?: string, marcaModelo?: string }) {
+export async function updateHistorico(id: string, data: { nombrePropiedad?: string, marca?: string, modelo?: string, descripcionCorta?: string, observaciones?: string, serie?: string, imagenUrl?: string, imagenPlacaUrl?: string, descripcionDetallada?: string }) {
     const orgId = await getOrgId();
 
     // Configurar dueño / org
@@ -67,9 +79,16 @@ export async function updateHistorico(id: string, data: { nombrePropiedad?: stri
     await prisma.inventarioHistorico.update({
         where: { id },
         data: {
-            // solo actualizamos nombrePropiedad y marcaModelo si vienen definidos
+            // solo actualizamos si vienen definidos
             ...(data.nombrePropiedad !== undefined && { nombrePropiedad: data.nombrePropiedad }),
-            ...(data.marcaModelo !== undefined && { marcaModelo: data.marcaModelo })
+            ...(data.marca !== undefined && { marca: data.marca }),
+            ...(data.modelo !== undefined && { modelo: data.modelo }),
+            ...(data.descripcionCorta !== undefined && { descripcionCorta: data.descripcionCorta }),
+            ...(data.observaciones !== undefined && { observaciones: data.observaciones }),
+            ...(data.serie !== undefined && { serie: data.serie }),
+            ...(data.imagenUrl !== undefined && { imagenUrl: data.imagenUrl }),
+            ...(data.imagenPlacaUrl !== undefined && { imagenPlacaUrl: data.imagenPlacaUrl }),
+            ...(data.descripcionDetallada !== undefined && { descripcionDetallada: data.descripcionDetallada })
         }
     });
 

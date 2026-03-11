@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useTransition } from 'react';
 import { getHistoricoPaginated, updateHistorico } from './actions';
-import { Search, Loader2, Save, FileEdit, CheckCircle2, Package } from 'lucide-react';
+import { uploadActivoImage } from '../actions';
+import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles } from 'lucide-react';
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -77,10 +78,10 @@ export default function HistoricoEditorClient() {
                     {/* Header */}
                     <div className="grid grid-cols-[100px_minmax(300px,1fr)_minmax(200px,1fr)_200px_100px] gap-4 p-4 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
                         <div className="text-center">Cant.</div>
-                        <div>Nombre / Descripción</div>
+                        <div>Nombre / Desc. Corta</div>
                         <div>Marca / Modelo</div>
-                        <div>Costo / Vida</div>
-                        <div className="text-center">Status</div>
+                        <div>Costo / Status</div>
+                        <div className="text-center">Acción</div>
                     </div>
 
                     {/* Table Body */}
@@ -131,27 +132,151 @@ export default function HistoricoEditorClient() {
 }
 
 function EditableRow({ item }: { item: any }) {
-    const [nombre, setNombre] = useState(item.nombrePropiedad || '');
-    const [marca, setMarca] = useState(item.marcaModelo || '');
+    const [descCorta, setDescCorta] = useState(item.descripcionCorta || '');
+    const [descDetallada, setDescDetallada] = useState(item.descripcionDetallada || '');
+    const [marca, setMarca] = useState(item.marca || '');
+    const [modelo, setModelo] = useState(item.modelo || '');
+    const [serie, setSerie] = useState(item.serie && item.serie !== item.serieOriginal ? item.serie : '');
     const [isSaving, startTransition] = useTransition();
     const [saved, setSaved] = useState(false);
 
+    const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
+    const [placaUploadPhase, setPlacaUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
+
     const matchCount = item._count?.activosFijos || 0;
 
+    async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setUploadPhase('uploading');
+            const form = new FormData();
+            form.append('file', file);
+            const { url } = await uploadActivoImage(form);
+
+            setUploadPhase('analyzing');
+            const aiRes = await fetch('/api/inventario/analyze-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageUrl: url }),
+            });
+            const data = await aiRes.json();
+
+            if (aiRes.ok && !data.error) {
+                const newData = {
+                    descripcionCorta: data.descripcionCorta || descCorta,
+                    marca: data.marca || marca,
+                    modelo: data.modelo || modelo,
+                    imagenUrl: url,
+                    descripcionDetallada: data.descripcionDetallada || descDetallada,
+                };
+                setDescCorta(newData.descripcionCorta);
+                setDescDetallada(newData.descripcionDetallada || '');
+                setMarca(newData.marca);
+                setModelo(newData.modelo);
+
+                startTransition(async () => {
+                    await updateHistorico(item.id, newData);
+                    item.descripcionCorta = newData.descripcionCorta;
+                    item.descripcionDetallada = newData.descripcionDetallada;
+                    item.marca = newData.marca;
+                    item.modelo = newData.modelo;
+                    item.imagenUrl = url;
+                    setSaved(true); setTimeout(() => setSaved(false), 2000);
+                });
+            } else {
+                alert('No se pudo analizar la imagen: ' + data.error);
+            }
+        } catch (err: any) {
+            alert('Error al analizar imagen: ' + err.message);
+        } finally {
+            setUploadPhase('done');
+            setTimeout(() => setUploadPhase('idle'), 3000);
+        }
+    }
+
+    async function handlePlacaUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        try {
+            setPlacaUploadPhase('uploading');
+            const form = new FormData();
+            form.append('file', file);
+            const { url } = await uploadActivoImage(form);
+
+            setPlacaUploadPhase('analyzing');
+            const aiRes = await fetch('/api/inventario/analyze-placa', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ imageUrl: url }),
+            });
+            const data = await aiRes.json();
+
+            if (aiRes.ok && !data.error) {
+                const newData = {
+                    serie: data.serie || serie,
+                    imagenPlacaUrl: url,
+                    marca: data.marca || marca,
+                    modelo: data.modelo || modelo,
+                };
+                setSerie(newData.serie);
+                setMarca(newData.marca);
+                setModelo(newData.modelo);
+
+                startTransition(async () => {
+                    await updateHistorico(item.id, newData);
+                    item.serie = newData.serie;
+                    item.marca = newData.marca;
+                    item.modelo = newData.modelo;
+                    item.imagenPlacaUrl = url;
+                    setSaved(true); setTimeout(() => setSaved(false), 2000);
+                });
+            } else {
+                alert('No se pudo analizar la placa: ' + data.error);
+            }
+        } catch (err: any) {
+            alert('Error al analizar placa: ' + err.message);
+        } finally {
+            setPlacaUploadPhase('done');
+            setTimeout(() => setPlacaUploadPhase('idle'), 3000);
+        }
+    }
+
     function handleSave() {
-        if (nombre === item.nombrePropiedad && marca === item.marcaModelo) return;
+        if (
+            marca === item.marca &&
+            modelo === item.modelo &&
+            descCorta === item.descripcionCorta &&
+            descDetallada === (item.descripcionDetallada || '') &&
+            serie === (item.serie !== item.serieOriginal ? item.serie : '')
+        ) return;
+
         startTransition(async () => {
             try {
-                await updateHistorico(item.id, { nombrePropiedad: nombre, marcaModelo: marca });
+                await updateHistorico(item.id, {
+                    marca: marca,
+                    modelo: modelo,
+                    descripcionCorta: descCorta,
+                    descripcionDetallada: descDetallada || null,
+                    serie: serie || null,
+                });
                 // local mutation
-                item.nombrePropiedad = nombre;
-                item.marcaModelo = marca;
+                item.descripcionCorta = descCorta;
+                item.descripcionDetallada = descDetallada || null;
+                item.marca = marca;
+                item.modelo = modelo;
+                item.serie = serie || null;
                 setSaved(true);
                 setTimeout(() => setSaved(false), 2000);
             } catch (e: any) {
                 alert('Error al guardar: ' + e.message);
-                setNombre(item.nombrePropiedad);
-                setMarca(item.marcaModelo);
+                setDescCorta(item.descripcionCorta || '');
+                setDescDetallada(item.descripcionDetallada || '');
+                setMarca(item.marca || '');
+                setModelo(item.modelo || '');
+                setSerie(item.serie !== item.serieOriginal ? item.serie : '');
             }
         });
     }
@@ -159,41 +284,91 @@ function EditableRow({ item }: { item: any }) {
     return (
         <div className="grid grid-cols-[100px_minmax(300px,1fr)_minmax(200px,1fr)_200px_100px] gap-4 p-2 items-center hover:bg-slate-50/80 transition-colors group">
             {/* Cantidad/Serie */}
-            <div className="text-center flex flex-col items-center justify-center gap-1">
+            <div className="text-center flex flex-col items-center justify-center gap-1.5">
                 <div className="bg-slate-100 text-slate-700 text-sm font-bold px-3 py-1 rounded-lg w-fit">
                     {item.cantidad}
                 </div>
-                {item.serie && <div className="text-[10px] font-mono text-slate-400 truncate max-w-full print:hidden" title={item.serie}>{item.serie}</div>}
+                <div className="flex items-center gap-1 w-full bg-white border border-slate-200 rounded px-1 group/serie hover:border-[#0500A3] transition-colors">
+                    <input
+                        type="text"
+                        value={serie || ''}
+                        onChange={e => setSerie(e.target.value)}
+                        onBlur={handleSave}
+                        className="w-full text-[10px] font-mono text-slate-600 bg-transparent focus:outline-none py-1 placeholder:text-slate-300"
+                        placeholder="Serie..."
+                    />
+                    <label className="cursor-pointer p-1 text-slate-400 hover:text-[#0500A3] flex-shrink-0 relative">
+                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePlacaUpload} />
+                        {placaUploadPhase === 'idle' && <Camera className="w-3.5 h-3.5" />}
+                        {placaUploadPhase === 'uploading' && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0500A3]" />}
+                        {placaUploadPhase === 'analyzing' && <Sparkles className="w-3.5 h-3.5 animate-pulse text-purple-600" />}
+                        {placaUploadPhase === 'done' && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
+                    </label>
+                </div>
+                {item.serieOriginal && (
+                    <div className="text-[9px] text-slate-400 mt-0.5" title="Serie guardada en CSV original">
+                        CSV: {item.serieOriginal}
+                    </div>
+                )}
             </div>
 
-            {/* Nombre editable */}
-            <div>
+            {/* Nombre estático y editables de IA */}
+            <div className="flex flex-col gap-1 justify-center">
+                <div className="w-full bg-transparent px-2 py-1 text-sm font-bold text-slate-800 leading-tight">
+                    {item.nombrePropiedad}
+                </div>
+
+                <div className="flex items-center gap-1 bg-blue-50/50 border border-transparent hover:border-blue-200 focus-within:border-[#0500A3] focus-within:bg-white rounded-xl transition-all focus-within:ring-2 focus-within:ring-[#0500A3]/10">
+                    <input
+                        type="text"
+                        value={descCorta || ''}
+                        onChange={(e) => setDescCorta(e.target.value)}
+                        onBlur={handleSave}
+                        className="w-full bg-transparent px-2 py-1.5 text-xs font-semibold text-blue-700 placeholder:text-blue-300 focus:outline-none"
+                        placeholder="Desc. Corta (IA Match)..."
+                    />
+                    <label className="cursor-pointer p-1.5 mr-1 text-slate-400 hover:text-[#0500A3] flex-shrink-0 relative bg-white shadow-sm rounded-lg border border-slate-100">
+                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                        {uploadPhase === 'idle' && <Camera className="w-4 h-4" />}
+                        {uploadPhase === 'uploading' && <Loader2 className="w-4 h-4 animate-spin text-[#0500A3]" />}
+                        {uploadPhase === 'analyzing' && <Sparkles className="w-4 h-4 animate-pulse text-purple-600" />}
+                        {uploadPhase === 'done' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
+                    </label>
+                </div>
                 <input
                     type="text"
-                    value={nombre}
-                    onChange={(e) => setNombre(e.target.value)}
+                    value={descDetallada || ''}
+                    onChange={(e) => setDescDetallada(e.target.value)}
                     onBlur={handleSave}
-                    className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-sm font-semibold text-slate-800 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-4 focus:ring-[#0500A3]/10"
-                    placeholder="Escriba el nombre..."
+                    className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-2 py-1 text-[11px] font-medium text-slate-500 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-[#0500A3]/10 mt-0.5"
+                    placeholder="Descripción detallada (Marca, color, estado)..."
                 />
             </div>
 
-            {/* Marca editable */}
-            <div>
+            {/* Marca y Modelo editable */}
+            <div className="flex flex-col gap-1">
                 <input
                     type="text"
-                    value={marca}
+                    value={marca || ''}
                     onChange={(e) => setMarca(e.target.value)}
                     onBlur={handleSave}
-                    className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-sm text-slate-600 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-4 focus:ring-[#0500A3]/10"
-                    placeholder="Escriba marca/modelo..."
+                    className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-2 py-1.5 text-xs font-bold text-slate-600 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-[#0500A3]/10"
+                    placeholder="Marca..."
+                />
+                <input
+                    type="text"
+                    value={modelo || ''}
+                    onChange={(e) => setModelo(e.target.value)}
+                    onBlur={handleSave}
+                    className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-2 py-1.5 text-xs text-slate-500 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-[#0500A3]/10"
+                    placeholder="Modelo..."
                 />
             </div>
 
-            {/* Atributos solo lectura */}
+            {/* Atributos solo lectura (Sin costo) */}
             <div className="flex flex-col justify-center px-3">
-                <span className="text-sm font-medium text-slate-700">L. {Number(item.costoAdquisicion || 0).toLocaleString()}</span>
-                <span className="text-xs text-slate-400">{item.cuentaContable || 'Sin cuenta'} • {item.vidaUtil ? `${item.vidaUtil} años` : '0 años'}</span>
+                <span className="text-xs text-slate-500 font-medium">Cuenta: {item.cuentaContable || 'N/A'}</span>
+                <span className="text-xs text-slate-400">Vida útil: {item.vidaUtil ? `${item.vidaUtil} años` : '0 años'}</span>
             </div>
 
             {/* Estado e interacciones */}

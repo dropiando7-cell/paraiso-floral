@@ -12,9 +12,14 @@ export default async function HistoricoPage() {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user?.email! },
-        select: { organizationId: true }
+        select: { organizationId: true, role: true }
     });
     if (!dbUser) redirect('/unauthorized');
+
+    const allowedRoles = ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'];
+    if (!allowedRoles.includes(dbUser.role)) {
+        redirect('/unauthorized');
+    }
 
     return <HistoricoEditorClient />;
 }

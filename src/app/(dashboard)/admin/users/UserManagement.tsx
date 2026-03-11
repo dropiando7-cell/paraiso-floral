@@ -54,7 +54,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         CHECKIN_KIDS: 'CHECKIN_KIDS',
         CHECKIN_KIDS_ADMIN: 'CHECKIN_KIDS_ADMIN',
         MEDICAL_STAFF: 'MEDICAL_STAFF',
-        EXECUTIVE_ASSISTANT: 'EXECUTIVE_ASSISTANT'
+        EXECUTIVE_ASSISTANT: 'EXECUTIVE_ASSISTANT',
+        INVENTARIO_EDITOR: 'INVENTARIO_EDITOR'
     }) as Role[];
 
     const roleTextMapping: Record<Role, string> = {
@@ -64,7 +65,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         CHECKIN_KIDS: 'CHECKIN_KIDS',
         CHECKIN_KIDS_ADMIN: 'CHECKIN_KIDS_ADMIN',
         MEDICAL_STAFF: 'MEDICAL_STAFF',
-        EXECUTIVE_ASSISTANT: 'EXECUTIVE_ASSISTANT'
+        EXECUTIVE_ASSISTANT: 'EXECUTIVE_ASSISTANT',
+        INVENTARIO_EDITOR: 'Editor de Inventario'
     };
 
     const availableModules = [
@@ -101,6 +103,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
             setAccessibleModules(['/', '/checkin']);
         } else if (newRole === 'MEDICAL_STAFF') {
             setAccessibleModules(['/', '/medico']);
+        } else if (newRole === 'INVENTARIO_EDITOR') {
+            setAccessibleModules(['/', '/inventario/historico']);
         } else {
             setAccessibleModules(['/']);
         }

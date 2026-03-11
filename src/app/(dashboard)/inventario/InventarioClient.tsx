@@ -68,8 +68,9 @@ type Activo = {
     idQr: string;
     descripcionCorta: string;
     descripcionDetallada?: string | null;
-    serie?: string | null;
+    marca?: string | null;
     modelo?: string | null;
+    serie?: string | null;
     area: string;
     cuentaAct: string;
     estatusContable: string;
@@ -123,6 +124,7 @@ function getMatchingCategoriaDepreciacion(cuenta: string | null | undefined, vid
 type AiResult = {
     descripcionCorta?: string;
     descripcionDetallada?: string;
+    marca?: string;
     modelo?: string;
     cuentaAct?: string;
     confianza?: string;
@@ -503,6 +505,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
     const [descripcionCorta, setDescripcionCorta] = useState(editActivo?.descripcionCorta || '');
     const [descripcionDetallada, setDescripcionDetallada] = useState(editActivo?.descripcionDetallada || '');
+    const [marca, setMarca] = useState(editActivo?.marca || '');
     const [modelo, setModelo] = useState(editActivo?.modelo || '');
     const [codigoGrupo, setCodigoGrupo] = useState(editActivo?.codigoGrupo || '001');
     const [isBatchMode, setIsBatchMode] = useState(false);
@@ -543,8 +546,12 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         if (record.costoAdquisicion) {
             setCostoAdq(Number(record.costoAdquisicion).toString());
         }
-        setDescripcionCorta(prev => prev || record.nombrePropiedad);
-        setModelo(prev => prev || record.marcaModelo);
+        setDescripcionCorta(prev => prev || record.nombrePropiedad || record.descripcionCorta);
+        setDescripcionDetallada(prev => prev || record.descripcionDetallada || '');
+        setMarca(prev => prev || record.marca);
+        setModelo(prev => prev || record.modelo);
+        if (record.imagenUrl && !imagenUrl) setImagenUrl(record.imagenUrl);
+        if (record.imagenPlacaUrl && !imagenPlacaUrl) setImagenPlacaUrl(record.imagenPlacaUrl);
         setAiMatchFailed(false);
 
         // Batch auto-fill logic
@@ -595,6 +602,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setSelectedCuenta(editActivo.cuentaAct || '');
             setDescripcionCorta(editActivo.descripcionCorta || '');
             setDescripcionDetallada(editActivo.descripcionDetallada || '');
+            setMarca(editActivo.marca || '');
             setModelo(editActivo.modelo || '');
             setCodigoGrupo(editActivo.codigoGrupo || '001');
             setIsBatchMode(false); // Editable form never uses batch mode
@@ -608,7 +616,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
             setPreviewQr(''); setAiResult(null); setUploadPhase('idle'); setPlacaUploadPhase('idle');
-            setDescripcionCorta(''); setDescripcionDetallada(''); setModelo(''); setCodigoGrupo('001'); setCantidad('1'); setIsBatchMode(false);
+            setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setCodigoGrupo('001'); setCantidad('1'); setIsBatchMode(false);
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
             setFechaAdq(''); setCostoAdq('');
@@ -690,13 +698,14 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                 setAiResult(data);
                 if (data.descripcionCorta) setDescripcionCorta(data.descripcionCorta);
                 if (data.descripcionDetallada) setDescripcionDetallada(data.descripcionDetallada);
+                if (data.marca) setMarca(data.marca);
                 if (data.modelo) setModelo(data.modelo);
                 if (data.cuentaAct && CUENTAS.includes(data.cuentaAct)) setSelectedCuenta(data.cuentaAct);
 
                 // Silent lookup in Historical records using smart keywords or fallback to short description and model
                 const rawKeywords = data.palabrasClaveBusqueda && data.palabrasClaveBusqueda.length > 0
                     ? data.palabrasClaveBusqueda
-                    : [data.descripcionCorta, data.modelo];
+                    : [data.descripcionCorta, data.marca, data.modelo];
                 const searchQueries = rawKeywords.filter(Boolean).join(' ');
                 if (searchQueries) {
                     try {
@@ -814,9 +823,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                     // Si no detectó serie también lo consideramos un "fallo de match histórico" porque no hay con qué cruzarlo
                     setAiMatchFailed(true);
                 }
-                if (data.modelo) {
-                    setModelo(data.modelo);
-                }
+                if (data.marca) setMarca(data.marca);
+                if (data.modelo) setModelo(data.modelo);
             } else {
                 alert('La IA no pudo leer la placa: ' + (data.error || 'Error desconocido'));
             }
@@ -997,7 +1005,10 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <div className="flex-1 min-w-0">
                                             <p className="font-black text-slate-900 text-base leading-snug truncate">{descripcionCorta || '—'}</p>
                                             <p className="text-sm text-slate-500 mt-0.5 line-clamp-2">{descripcionDetallada || '—'}</p>
-                                            {modelo && <span className="inline-block mt-1.5 bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-md">{modelo}</span>}
+                                            <div className="flex gap-2 mt-1.5 flex-wrap">
+                                                {marca && <span className="inline-block bg-indigo-100 text-indigo-700 text-xs font-semibold px-2 py-0.5 rounded-md">{marca}</span>}
+                                                {modelo && <span className="inline-block bg-blue-100 text-blue-700 text-xs font-semibold px-2 py-0.5 rounded-md">{modelo}</span>}
+                                            </div>
                                         </div>
                                     </div>
 
@@ -1284,13 +1295,24 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             </div>
                                             <div>
                                                 <FieldLabel>
-                                                    Marca / Modelo
+                                                    Marca
+                                                    {aiResult?.marca && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
+                                                </FieldLabel>
+                                                <input type="text" name="marca"
+                                                    value={marca}
+                                                    onChange={e => setMarca(e.target.value)}
+                                                    placeholder="Ej: Yamaha, Sony..."
+                                                    className={aiResult?.marca ? inputAiCls : inputCls} />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>
+                                                    Modelo
                                                     {aiResult?.modelo && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
                                                 </FieldLabel>
                                                 <input type="text" name="modelo"
                                                     value={modelo}
                                                     onChange={e => setModelo(e.target.value)}
-                                                    placeholder="Ej: Yamaha P-125..."
+                                                    placeholder="Ej: P-125..."
                                                     className={aiResult?.modelo ? inputAiCls : inputCls} />
                                             </div>
                                         </div>

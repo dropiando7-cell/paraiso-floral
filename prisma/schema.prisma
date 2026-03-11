@@ -23,6 +23,7 @@ enum Role {
   CHECKIN_KIDS_ADMIN
   MEDICAL_STAFF
   EXECUTIVE_ASSISTANT
+  INVENTARIO_EDITOR
 }
 
 enum OrganizationStatus {
@@ -46,30 +47,30 @@ enum EmailTemplateType {
 // ==========================================
 
 model Organization {
-  id       String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  name     String
-  slug     String             @unique
-  domain   String?            @unique
-  logoUrl  String?
-  status   OrganizationStatus @default(ACTIVE)
+  id      String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name    String
+  slug    String             @unique
+  domain  String?            @unique
+  logoUrl String?
+  status  OrganizationStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users            User[]
-  passwordVaults   PasswordVault[]
-  events           Event[]
-  conciliations    Conciliation[]
-  kids             Kid[]
-  classrooms       Classroom[]
-  checkIns         CheckIn[]
-  medicalPatients  MedicalPatient[]
-  calendarIntegrations CalendarIntegration[]
-  tasks            Task[]
-  roleTemplates    RoleTemplate[]
-  emailTemplates   EmailTemplate[]
-  activosFijos     ActivoFijo[]
-  colaImpresion    ColaImpresion[]
+  users                 User[]
+  passwordVaults        PasswordVault[]
+  events                Event[]
+  conciliations         Conciliation[]
+  kids                  Kid[]
+  classrooms            Classroom[]
+  checkIns              CheckIn[]
+  medicalPatients       MedicalPatient[]
+  calendarIntegrations  CalendarIntegration[]
+  tasks                 Task[]
+  roleTemplates         RoleTemplate[]
+  emailTemplates        EmailTemplate[]
+  activosFijos          ActivoFijo[]
+  colaImpresion         ColaImpresion[]
   areaInventoryStatuses AreaInventoryStatus[]
   areas                 Area[]
 
@@ -77,38 +78,38 @@ model Organization {
 }
 
 model User {
-  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  email          String @unique
-  
+  id    String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email String @unique
+
   // Tenancy & RBAC
-  organizationId String @db.Uuid
-  role           Role   @default(USER)
-  customRoleName String? // Mapea al nombre de un RoleTemplate si se usó uno
+  organizationId    String   @db.Uuid
+  role              Role     @default(USER)
+  customRoleName    String? // Mapea al nombre de un RoleTemplate si se usó uno
   accessibleModules String[] @default([])
 
   // Security & MFA
-  phoneNumber       String?
-  twoFactorType     TwoFactorType @default(NONE)
-  twoFactorSecret   String?
-  twoFactorEnabled  Boolean       @default(false)
+  phoneNumber      String?
+  twoFactorType    TwoFactorType @default(NONE)
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean       @default(false)
 
   // User Preferences
-  defaultModule     String?
-  timezone          String?       @default("America/Tegucigalpa")
-  theme             String?       @default("system")
+  defaultModule String?
+  timezone      String? @default("America/Tegucigalpa")
+  theme         String? @default("system")
 
   // Auth Relation (Supabase Auth ID will map to this ID or we can query by email)
-  
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  medicalRecords MedicalRecord[]
+  medicalRecords       MedicalRecord[]
   calendarIntegrations CalendarIntegration[]
-  
-  openedAreas AreaInventoryStatus[] @relation("AreaOpenedBy")
-  closedAreas AreaInventoryStatus[] @relation("AreaClosedBy")
+
+  openedAreas   AreaInventoryStatus[] @relation("AreaOpenedBy")
+  closedAreas   AreaInventoryStatus[] @relation("AreaClosedBy")
   approvedAreas AreaInventoryStatus[] @relation("AreaApprovedBy")
 
   @@map("users")
@@ -119,17 +120,17 @@ model User {
 // ==========================================
 
 model RoleTemplate {
-  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId    String       @db.Uuid
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String   @db.Uuid
   name              String
-  baseRole          Role         @default(USER)
-  accessibleModules String[]     @default([])
-  
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  
-  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
+  baseRole          Role     @default(USER)
+  accessibleModules String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   @@unique([organizationId, name]) // A organization shouldn't have duplicate role names
   @@map("role_templates")
 }
@@ -142,19 +143,19 @@ model EmailTemplate {
   id             String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String            @db.Uuid
   type           EmailTemplateType
-  
-  subject        String            
-  title          String            
-  body           String            @db.Text
-  buttonText     String            
-  
-  isActive       Boolean           @default(true) // Si es falso, se usaría un fallback por defecto en el código
-  
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @updatedAt
-  
-  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
+
+  subject    String
+  title      String
+  body       String @db.Text
+  buttonText String
+
+  isActive Boolean @default(true) // Si es falso, se usaría un fallback por defecto en el código
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   @@unique([organizationId, type]) // Solo puede haber un template activo por tipo por organización
   @@map("email_templates")
 }
@@ -166,16 +167,16 @@ model EmailTemplate {
 model PasswordVault {
   id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String @db.Uuid
-  
-  title          String
-  username       String
-  encryptedPass  String
-  url            String?
-  notes          String?
-  category       String @default("General")
-  details        Json?  // Propiedades dinámicas guardadas en JSONB
-  
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  title         String
+  username      String
+  encryptedPass String
+  url           String?
+  notes         String?
+  category      String  @default("General")
+  details       Json? // Propiedades dinámicas guardadas en JSONB
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -186,13 +187,13 @@ model PasswordVault {
 model Event {
   id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String @db.Uuid
-  
-  name           String
-  description    String?
-  startDate      DateTime
-  endDate        DateTime
-  
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -204,19 +205,19 @@ model Conciliation {
   id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String @db.Uuid
 
-  banco          String
-  tipoCuenta     String
-  month          Int
-  year           Int
-  status         String    @default("PROCESSING") // PROCESSING | COMPLETED | FAILED
-  reportContent  Json?     // Full structured report from Claude
-  reportSummary  String?   // Short text summary
-  filesFound     String[]  // List of Drive filenames used
-  isApproved     Boolean   @default(false)
-  approvedBy     String?
-  approvedAt     DateTime?
+  banco         String
+  tipoCuenta    String
+  month         Int
+  year          Int
+  status        String    @default("PROCESSING") // PROCESSING | COMPLETED | FAILED
+  reportContent Json? // Full structured report from Claude
+  reportSummary String? // Short text summary
+  filesFound    String[] // List of Drive filenames used
+  isApproved    Boolean   @default(false)
+  approvedBy    String?
+  approvedAt    DateTime?
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -229,19 +230,19 @@ model Conciliation {
 // ==========================================
 
 model Classroom {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @db.Uuid
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String  @db.Uuid
   name           String
   ageRange       String?
   teacher        String?
-  capacity       Int      @default(20)
-  color          String?  @default("bg-brand-100 text-brand-700 border-brand-200")
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  capacity       Int     @default(20)
+  color          String? @default("bg-brand-100 text-brand-700 border-brand-200")
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  kids           Kid[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  kids         Kid[]
 
   @@map("classrooms")
 }
@@ -253,7 +254,7 @@ model Kid {
   age            Int
   gender         String   @default("No Especificado")
   classroomId    String?  @db.Uuid
-  classroomName  String?  // Removed the requirement to keep historic name just in case, or keep it, keeping it doesn't hurt, but if related, better to use relation
+  classroomName  String? // Removed the requirement to keep historic name just in case, or keep it, keeping it doesn't hurt, but if related, better to use relation
   allergies      String   @default("Ninguna")
   parentName     String
   parentPhone    String
@@ -261,9 +262,9 @@ model Kid {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  classroom      Classroom?   @relation(fields: [classroomId], references: [id], onDelete: SetNull)
-  checkIns       CheckIn[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  classroom    Classroom?   @relation(fields: [classroomId], references: [id], onDelete: SetNull)
+  checkIns     CheckIn[]
 
   @@map("kids")
 }
@@ -292,60 +293,58 @@ model CheckIn {
 // ==========================================
 
 model MedicalPatient {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @db.Uuid
-  firstName      String
-  lastName       String
-  dateOfBirth    DateTime
-  gender         String
-  phone          String?
-  email          String?
-  address        String?
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String   @db.Uuid
+  firstName             String
+  lastName              String
+  dateOfBirth           DateTime
+  gender                String
+  phone                 String?
+  email                 String?
+  address               String?
   emergencyContactName  String?
   emergencyContactPhone String?
-  
-  bloodType      String?
-  allergies      String?
-  chronicConditions String?
-  currentMedications String?
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  records        MedicalRecord[]
+  bloodType          String?
+  allergies          String?
+  chronicConditions  String?
+  currentMedications String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  records      MedicalRecord[]
 
   // Indexes for quick searching
   @@index([organizationId])
   @@index([firstName, lastName])
   @@index([phone])
-
   @@map("medical_patients")
 }
 
 model MedicalRecord {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  patientId      String   @db.Uuid
-  attendedById   String   @db.Uuid // Reference to User ID of Medical Staff
+  id           String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  patientId    String @db.Uuid
+  attendedById String @db.Uuid // Reference to User ID of Medical Staff
 
   visitDate      DateTime @default(now())
   reasonForVisit String
-  vitals         Json?    // Optional: temperature, bloodPressure, heartRate, etc.
+  vitals         Json? // Optional: temperature, bloodPressure, heartRate, etc.
   diagnosis      String?
   treatment      String?
   notes          String?
-  
-  status         String   @default("COMPLETED") // e.g., PENDING, IN_PROGRESS, COMPLETED
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
 
-  patient        MedicalPatient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  attendedBy     User           @relation(fields: [attendedById], references: [id], onDelete: SetNull)
+  status String @default("COMPLETED") // e.g., PENDING, IN_PROGRESS, COMPLETED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  patient    MedicalPatient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  attendedBy User           @relation(fields: [attendedById], references: [id], onDelete: SetNull)
 
   @@index([patientId])
   @@index([visitDate])
-
   @@map("medical_records")
 }
 
@@ -357,18 +356,18 @@ model CalendarIntegration {
   id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String @db.Uuid
   userId         String @db.Uuid // who authorized this
-  
+
   googleAccessToken  String
   googleRefreshToken String
   googleEmail        String
-  syncToken          String?  // For delta sync
-  
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncToken          String? // For delta sync
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@unique([userId, organizationId])
   @@map("calendar_integrations")
 }
@@ -376,17 +375,17 @@ model CalendarIntegration {
 model Task {
   id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String @db.Uuid
-  
-  title          String
-  description    String?
-  status         String @default("TODO") // TODO, IN_PROGRESS, DONE
-  priority       String @default("MEDIUM") // LOW, MEDIUM, HIGH
-  dueDate        DateTime?
-  
+
+  title       String
+  description String?
+  status      String    @default("TODO") // TODO, IN_PROGRESS, DONE
+  priority    String    @default("MEDIUM") // LOW, MEDIUM, HIGH
+  dueDate     DateTime?
+
   // If dragged to the calendar, we map it to googleEventId so we don't duplicate/we can sync back
-  googleEventId  String?
-  
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  googleEventId String?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -400,52 +399,53 @@ model Task {
 // ==========================================
 
 model ActivoFijo {
-  id                   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId       String    @db.Uuid
-  idQr                 String    // Auto-generado: "PB-A8-OF.EB-0001"
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+  idQr           String // Auto-generado: "PB-A8-OF.EB-0001"
 
   // Descripción
   descripcionCorta     String
   descripcionDetallada String?
-  serie                String?
+  marca                String?
   modelo               String?
-  codigoGrupo          String?   // "001" (asignado manualmente para agrupar en ELIM-PB-A01-TMP-001)
+  serie                String?
+  codigoGrupo          String? // "001" (asignado manualmente para agrupar en ELIM-PB-A01-TMP-001)
 
   // Clasificación
-  area             String    // Abreviatura del área (PB-A1-OF.PASTOR, etc.)
-  cuentaAct        String    // Cuenta contable (Terrenos, Edificios, etc.)
-  estatusContable  String    @default("VIGENTE") // VIGENTE | DEPRECIADO | PROCESO DE BAJA
+  area            String // Abreviatura del área (PB-A1-OF.PASTOR, etc.)
+  cuentaAct       String // Cuenta contable (Terrenos, Edificios, etc.)
+  estatusContable String @default("VIGENTE") // VIGENTE | DEPRECIADO | PROCESO DE BAJA
 
   // Adquisición
-  fechaAdq         DateTime?
+  fechaAdq           DateTime?
   fechaLevantamiento DateTime? // Fecha en la que se levantó físicamente el inventario
-  integrado        Boolean   @default(false)
-  costoAdq         Decimal?  @db.Decimal(12, 2)
-  origenActivo     String?   // "Compra" | "Donación"
+  integrado          Boolean   @default(false)
+  costoAdq           Decimal?  @db.Decimal(12, 2)
+  origenActivo       String? // "Compra" | "Donación"
 
   // Imagen
-  imagenUrl        String?   // URL pública de Cloudflare R2
-  imagenPlacaUrl   String?   // URL pública de la placa de especificaciones
+  imagenUrl      String? // URL pública de Cloudflare R2
+  imagenPlacaUrl String? // URL pública de la placa de especificaciones
 
   // Estado físico
-  estadoDano        String?   // DAÑADO | FALTANTE | NO REGISTRADO | INSERVIBLE
-  tipoIncidencia    String?   // Faltante | Extraviado | No Registrado
-  accionRecomendada String?   // Reparar | Dar de baja | Reponer
+  estadoDano        String? // DAÑADO | FALTANTE | NO REGISTRADO | INSERVIBLE
+  tipoIncidencia    String? // Faltante | Extraviado | No Registrado
+  accionRecomendada String? // Reparar | Dar de baja | Reponer
   responsable       String?
   observaciones     String?
 
   // Depreciación & Conciliación Histórica (Reglamento Hondureño)
   historicoId           String?              @db.Uuid
   inventarioHistorico   InventarioHistorico? @relation(fields: [historicoId], references: [id], onDelete: SetNull)
-  categoriaDepreciacion String?              // Asignación manual para "Activos Nuevos" (ej. "COMPUTACION_10")
-  vidaUtilOverride      Decimal?            @db.Decimal(5, 2) // Sobrescritura opcional por parte del usuario (ej. "Mejoras a Edificios")
+  categoriaDepreciacion String? // Asignación manual para "Activos Nuevos" (ej. "COMPUTACION_10")
+  vidaUtilOverride      Decimal?             @db.Decimal(5, 2) // Sobrescritura opcional por parte del usuario (ej. "Mejoras a Edificios")
 
   // ── Depreciación (Reglamento Especial Honduras, Acuerdo Nº1, Línea Recta) ──
-  valResidual      Decimal?  @db.Decimal(12, 2)  // Costo × 1% (Art. 8°)
-  baseDeprec       Decimal?  @db.Decimal(12, 2)  // Costo - valResidual
-  deprecMensual    Decimal?  @db.Decimal(12, 4)  // baseDeprec ÷ (vidaUtil × 12)
-  deprecAcum       Decimal?  @db.Decimal(12, 2)  // deprecMensual × mesesTranscurridos (tope: baseDeprec)
-  valorLibros      Decimal?  @db.Decimal(12, 2)  // Costo - deprecAcum (mínimo: valResidual)
+  valResidual   Decimal? @db.Decimal(12, 2) // Costo × 1% (Art. 8°)
+  baseDeprec    Decimal? @db.Decimal(12, 2) // Costo - valResidual
+  deprecMensual Decimal? @db.Decimal(12, 4) // baseDeprec ÷ (vidaUtil × 12)
+  deprecAcum    Decimal? @db.Decimal(12, 2) // deprecMensual × mesesTranscurridos (tope: baseDeprec)
+  valorLibros   Decimal? @db.Decimal(12, 2) // Costo - deprecAcum (mínimo: valResidual)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -463,27 +463,27 @@ model ActivoFijo {
 }
 
 model AreaInventoryStatus {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String    @db.Uuid
-  
-  areaCode       String    // El código interno del área que se guarda en ActivoFijo.area (ej. PB-A1-OF.PASTOR)
-  qrCode         String    // El código QR físico de la puerta (ej. ELIM-QR-PB-A01-OFI)
-  status         String    @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED
-  
-  openedById     String?   @db.Uuid // Usuario que escaneó el QR por primera vez
-  closedById     String?   @db.Uuid // Usuario que indicó "Terminé de inventariar"
-  approvedById   String?   @db.Uuid // Admin que autorizó la reapertura
-  
-  openedAt       DateTime?
-  closedAt       DateTime?
-  
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  openedBy       User?        @relation("AreaOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
-  closedBy       User?        @relation("AreaClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
-  approvedBy     User?        @relation("AreaApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
 
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  areaCode String // El código interno del área que se guarda en ActivoFijo.area (ej. PB-A1-OF.PASTOR)
+  qrCode   String // El código QR físico de la puerta (ej. ELIM-QR-PB-A01-OFI)
+  status   String @default("PENDING") // PENDING | IN_PROGRESS | COMPLETED
+
+  openedById   String? @db.Uuid // Usuario que escaneó el QR por primera vez
+  closedById   String? @db.Uuid // Usuario que indicó "Terminé de inventariar"
+  approvedById String? @db.Uuid // Admin que autorizó la reapertura
+
+  openedAt DateTime?
+  closedAt DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  openedBy     User?        @relation("AreaOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+  closedBy     User?        @relation("AreaClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  approvedBy   User?        @relation("AreaApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([organizationId, areaCode])
   @@unique([organizationId, qrCode])
@@ -496,17 +496,17 @@ model AreaInventoryStatus {
 // ==========================================
 
 model ColaImpresion {
-  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String   @db.Uuid
-  activoId       String   @db.Uuid
-  urlImagen      String   // URL de la etiqueta en S3/Cloudflare R2
-  estado         String   @default("PENDIENTE") // PENDIENTE | COMPLETADO
-  
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  activo         ActivoFijo   @relation(fields: [activoId], references: [id], onDelete: Cascade)
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+  activoId       String @db.Uuid
+  urlImagen      String // URL de la etiqueta en S3/Cloudflare R2
+  estado         String @default("PENDIENTE") // PENDIENTE | COMPLETADO
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  activo       ActivoFijo   @relation(fields: [activoId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([estado])
@@ -518,19 +518,19 @@ model ColaImpresion {
 // ==========================================
 
 model Area {
-  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId String    @db.Uuid
-  
-  name           String    // Nombre/Código único corto del área (ej. PB-A1-OF.PASTOR)
-  prefix         String    // Prefijo para IDs (ej. ELIM-PB-A01-OF)
-  qrCode         String    // Código QR que se imprime y pega en la puerta (ej. ELIM-QR-PB-A01-OFI)
-  
-  description    String?   // Descripción o ubicación detallada opcional
-  
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
+
+  name   String // Nombre/Código único corto del área (ej. PB-A1-OF.PASTOR)
+  prefix String // Prefijo para IDs (ej. ELIM-PB-A01-OF)
+  qrCode String // Código QR que se imprime y pega en la puerta (ej. ELIM-QR-PB-A01-OFI)
+
+  description String? // Descripción o ubicación detallada opcional
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, name])
   @@unique([organizationId, qrCode])
@@ -543,25 +543,32 @@ model Area {
 // ==========================================
 
 model InventarioHistorico {
-  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId   String   @db.Uuid
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String @db.Uuid
 
-  cantidad         Int      @default(1)
+  cantidad         Int       @default(1)
   nombrePropiedad  String
-  marcaModelo      String?
+  nombreOriginal   String?
+  descripcionCorta String?
+  descripcionDetallada String?
+  marca            String?
+  modelo           String?
   serie            String?
+  serieOriginal    String?
+  observaciones    String?
+  imagenUrl        String?
+  imagenPlacaUrl   String?
   fechaAdquisicion DateTime?
-  costoAdquisicion Decimal? @db.Decimal(12, 2)
+  costoAdquisicion Decimal?  @db.Decimal(12, 2)
   cuentaContable   String?
-  vidaUtil         Decimal? @db.Decimal(5, 2) // Pre-calculado en base a Ley Hondureña desde el CSV
+  vidaUtil         Decimal?  @db.Decimal(5, 2) // Pre-calculado en base a Ley Hondureña desde el CSV
 
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  activosFijos     ActivoFijo[]
+  activosFijos ActivoFijo[]
 
   @@index([organizationId])
   @@index([serie])
   @@map("inventario_historico")
 }
-
