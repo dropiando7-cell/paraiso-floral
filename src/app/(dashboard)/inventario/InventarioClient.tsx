@@ -1517,6 +1517,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     // QR Area Control
     const [lockedArea, setLockedArea] = useState<string | null>(null);
     const [scannerOpen, setScannerOpen] = useState(false);
+    const [noAreaModalOpen, setNoAreaModalOpen] = useState(false);
     const [isClosingAct, startClosingAct] = useTransition();
 
     // Lógica para interceptar Deep Links y/o autocompletar área activa
@@ -1693,7 +1694,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                             <Printer className="w-5 h-5" /> Imprimir Lote
                         </button>
                         <button onClick={() => {
-                            if (!lockedArea) setScannerOpen(true);
+                            if (!lockedArea) setNoAreaModalOpen(true);
                             else { setEditActivo(null); setModalOpen(true); }
                         }}
                             className="flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl hover:bg-[#0600c2] active:scale-95 transition-all shadow-md w-full sm:w-auto justify-center hide-on-print">
@@ -1889,6 +1890,34 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 onSuccess={() => refresh(1)}
                 lockedArea={lockedArea}
             />
+            {/* No Area Open Modal */}
+            {noAreaModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
+                        <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <QrCode className="w-8 h-8 text-amber-600" />
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-900 mb-2">Área no abierta</h2>
+                        <p className="text-slate-600 mb-1 font-medium">Para registrar un activo, primero debes abrir un área.</p>
+                        <p className="text-sm text-slate-400 mb-6">Escanea el código QR del área con la llave de inventario para iniciar.</p>
+                        <div className="flex flex-col gap-3">
+                            <button
+                                onClick={() => { setNoAreaModalOpen(false); setScannerOpen(true); }}
+                                className="flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white rounded-2xl py-4 hover:bg-[#0600c2] active:scale-[0.98] transition-all"
+                            >
+                                <QrCode className="w-5 h-5" />
+                                Abrir Área con QR
+                            </button>
+                            <button
+                                onClick={() => setNoAreaModalOpen(false)}
+                                className="text-sm font-semibold text-slate-500 hover:text-slate-700 py-2 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {scannerOpen && (
                 <AreaScannerModal
                     open={scannerOpen}
