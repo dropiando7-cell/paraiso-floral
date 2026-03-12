@@ -66,7 +66,7 @@ export async function getHistoricoPaginated(query: string, page: number = 1, lim
     return { items: serializedItems, total };
 }
 
-export async function updateHistorico(id: string, data: { nombrePropiedad?: string, marca?: string, modelo?: string, descripcionCorta?: string, observaciones?: string, serie?: string, imagenUrl?: string, imagenPlacaUrl?: string, descripcionDetallada?: string }) {
+export async function updateHistorico(id: string, data: { nombrePropiedad?: string, marca?: string | null, modelo?: string | null, descripcionCorta?: string | null, observaciones?: string | null, serie?: string | null, imagenUrl?: string | null, imagenPlacaUrl?: string | null, descripcionDetallada?: string | null }) {
     const orgId = await getOrgId();
 
     // Configurar dueño / org
