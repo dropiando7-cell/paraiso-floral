@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { MfaSettings } from '@/components/perfil/MfaSettings';
+import { PasswordChange } from '@/components/perfil/PasswordChange';
 import { createClient } from '@/utils/supabase/client';
 import { ExternalLink, ShieldAlert, Check, X } from 'lucide-react';
 import { updateProfile } from './actions';
@@ -386,7 +387,10 @@ export default function ProfilePage() {
                             </div>
                         </>
                     ) : (
-                        <MfaSettings />
+                        <div className="flex flex-col gap-6">
+                            {authProvider === 'email' && <PasswordChange />}
+                            <MfaSettings />
+                        </div>
                     )}
                 </div>
             </div>
