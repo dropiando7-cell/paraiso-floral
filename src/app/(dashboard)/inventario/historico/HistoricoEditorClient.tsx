@@ -93,19 +93,12 @@ export default function HistoricoEditorClient() {
 
             <div className="flex-1 overflow-auto p-4 md:p-6 custom-scrollbar">
                 <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden min-w-[800px]">
-                    {/* Header */}
-                    <div className="grid grid-cols-[100px_minmax(300px,1fr)_minmax(200px,1fr)_200px_100px] gap-4 p-4 bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        <div className="text-center">Cant.</div>
-                        <div>Nombre / Desc. Corta</div>
-                        <div>Marca / Modelo</div>
-                        <div>Costo / Status</div>
-                        <div className="text-center">Acción</div>
-                    </div>
+                    {/* Header removed for card layout */}
 
-                    {/* Table Body */}
-                    <div className="divide-y divide-slate-100 relative">
+                    {/* Cards Container */}
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 p-4 bg-slate-50 relative min-h-[300px]">
                         {items.length === 0 && !isLoading && (
-                            <div className="p-12 text-center text-slate-400">
+                            <div className="col-span-full p-12 text-center text-slate-400 bg-white rounded-2xl border border-slate-200 border-dashed">
                                 No se encontraron registros.
                             </div>
                         )}
@@ -149,6 +142,45 @@ export default function HistoricoEditorClient() {
     );
 }
 
+// ─── Image Compression Utility (from InventarioClient pattern) ───
+async function compressAndUpload(file: File, endpoint: 'activo.jpg' | 'placa.jpg'): Promise<string> {
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.src = url;
+    await new Promise((resolve) => { img.onload = resolve; });
+    URL.revokeObjectURL(url);
+
+    const canvas = document.createElement('canvas');
+    const MAX_SIZE = 1568;
+    let { width, height } = img;
+    if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+    else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx?.drawImage(img, 0, 0, width, height);
+
+    const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.85));
+
+    const res = await fetch('/api/upload/inventario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: endpoint, contentType: 'image/jpeg' }),
+    });
+
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Error ${res.status}: Falló URL de subida`);
+    }
+
+    const { uploadUrl, publicUrl } = await res.json();
+    const uploadRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+    if (!uploadRes.ok) throw new Error('Error al enviar imagen a R2');
+
+    return publicUrl;
+}
+
 function EditableRow({ item }: { item: any }) {
     const [descCorta, setDescCorta] = useState(item.descripcionCorta || '');
     const [descDetallada, setDescDetallada] = useState(item.descripcionDetallada || '');
@@ -169,9 +201,7 @@ function EditableRow({ item }: { item: any }) {
 
         try {
             setUploadPhase('uploading');
-            const form = new FormData();
-            form.append('file', file);
-            const { url } = await uploadActivoImage(form);
+            const url = await compressAndUpload(file, 'activo.jpg');
 
             setUploadPhase('analyzing');
             const aiRes = await fetch('/api/inventario/analyze-image', {
@@ -220,9 +250,7 @@ function EditableRow({ item }: { item: any }) {
 
         try {
             setPlacaUploadPhase('uploading');
-            const form = new FormData();
-            form.append('file', file);
-            const { url } = await uploadActivoImage(form);
+            const url = await compressAndUpload(file, 'placa.jpg');
 
             setPlacaUploadPhase('analyzing');
             const aiRes = await fetch('/api/inventario/analyze-placa', {
@@ -280,7 +308,6 @@ function EditableRow({ item }: { item: any }) {
                     descripcionDetallada: descDetallada || null,
                     serie: serie || null,
                 });
-                // local mutation
                 item.descripcionCorta = descCorta;
                 item.descripcionDetallada = descDetallada || null;
                 item.marca = marca;
@@ -300,113 +327,159 @@ function EditableRow({ item }: { item: any }) {
     }
 
     return (
-        <div className="grid grid-cols-[100px_minmax(300px,1fr)_minmax(200px,1fr)_200px_100px] gap-4 p-2 items-center hover:bg-slate-50/80 transition-colors group">
-            {/* Cantidad/Serie */}
-            <div className="text-center flex flex-col items-center justify-center gap-1.5">
-                <div className="bg-slate-100 text-slate-700 text-sm font-bold px-3 py-1 rounded-lg w-fit">
-                    {item.cantidad}
-                </div>
-                <div className="flex items-center gap-1 w-full bg-white border border-slate-200 rounded px-1 group/serie hover:border-[#0500A3] transition-colors">
-                    <input
-                        type="text"
-                        value={serie || ''}
-                        onChange={e => setSerie(e.target.value)}
-                        onBlur={handleSave}
-                        className="w-full text-[10px] font-mono text-slate-600 bg-transparent focus:outline-none py-1 placeholder:text-slate-300"
-                        placeholder="Serie..."
-                    />
-                    <label className="cursor-pointer p-1 text-slate-400 hover:text-[#0500A3] flex-shrink-0 relative">
-                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePlacaUpload} />
-                        {placaUploadPhase === 'idle' && <Camera className="w-3.5 h-3.5" />}
-                        {placaUploadPhase === 'uploading' && <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0500A3]" />}
-                        {placaUploadPhase === 'analyzing' && <Sparkles className="w-3.5 h-3.5 animate-pulse text-purple-600" />}
-                        {placaUploadPhase === 'done' && <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />}
-                    </label>
-                </div>
-                {item.serieOriginal && (
-                    <div className="text-[9px] text-slate-400 mt-0.5" title="Serie guardada en CSV original">
-                        CSV: {item.serieOriginal}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col gap-4 relative overflow-hidden group">
+
+            {/* Header: Titulo Original y Matches */}
+            <div className="flex justify-between items-start gap-3 border-b border-slate-100 pb-3">
+                <div className="flex-1">
+                    <div className="text-sm font-bold text-slate-800 leading-snug">
+                        {item.nombrePropiedad}
                     </div>
-                )}
+                    {item.serieOriginal && (
+                        <div className="text-xs text-slate-500 mt-1 font-mono">
+                            SN Original: {item.serieOriginal}
+                        </div>
+                    )}
+                </div>
+                <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className="bg-slate-100 text-slate-700 text-xs font-black px-2.5 py-1 rounded-md">
+                        CANT: {item.cantidad}
+                    </div>
+                    {matchCount > 0 && (
+                        <div className="flex items-center gap-1 bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-[10px] font-bold" title={`${matchCount} activos ya emparejados con este registro`}>
+                            <Package className="w-3 h-3" />
+                            {matchCount} Match
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Nombre estático y editables de IA */}
-            <div className="flex flex-col gap-1 justify-center">
-                <div className="w-full bg-transparent px-2 py-1 text-sm font-bold text-slate-800 leading-tight">
-                    {item.nombrePropiedad}
+            {/* Inputs Principales */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Columna Izquierda: Descripciones e IA General */}
+                <div className="flex flex-col gap-3">
+                    <div className="flex items-stretch gap-2">
+                        <div className="flex-1">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Desc. Corta (IA Match)</label>
+                            <input
+                                type="text"
+                                value={descCorta || ''}
+                                onChange={(e) => setDescCorta(e.target.value)}
+                                onBlur={handleSave}
+                                className="w-full bg-slate-50 border border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-sm font-bold text-blue-700 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-[#0500A3]/10"
+                                placeholder="..."
+                            />
+                        </div>
+                        <label className="cursor-pointer self-end w-12 h-[38px] flex items-center justify-center bg-blue-50 text-[#0500A3] hover:bg-[#0500A3] hover:text-white border border-blue-200 rounded-xl transition-all shadow-sm">
+                            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                            {uploadPhase === 'idle' && <Camera className="w-5 h-5" />}
+                            {uploadPhase === 'uploading' && <Loader2 className="w-5 h-5 animate-spin" />}
+                            {uploadPhase === 'analyzing' && <Sparkles className="w-5 h-5 animate-pulse" />}
+                            {uploadPhase === 'done' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
+                        </label>
+                    </div>
+
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Descripción Detallada</label>
+                        <input
+                            type="text"
+                            value={descDetallada || ''}
+                            onChange={(e) => setDescDetallada(e.target.value)}
+                            onBlur={handleSave}
+                            className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-xs font-medium text-slate-600 placeholder:text-slate-300 transition-all focus:outline-none hover:bg-slate-50"
+                            placeholder="Marca, color, estado..."
+                        />
+                    </div>
                 </div>
 
-                <div className="flex items-center gap-1 bg-blue-50/50 border border-transparent hover:border-blue-200 focus-within:border-[#0500A3] focus-within:bg-white rounded-xl transition-all focus-within:ring-2 focus-within:ring-[#0500A3]/10">
-                    <input
-                        type="text"
-                        value={descCorta || ''}
-                        onChange={(e) => setDescCorta(e.target.value)}
-                        onBlur={handleSave}
-                        className="w-full bg-transparent px-2 py-1.5 text-xs font-semibold text-blue-700 placeholder:text-blue-300 focus:outline-none"
-                        placeholder="Desc. Corta (IA Match)..."
-                    />
-                    <label className="cursor-pointer p-1.5 mr-1 text-slate-400 hover:text-[#0500A3] flex-shrink-0 relative bg-white shadow-sm rounded-lg border border-slate-100">
-                        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
-                        {uploadPhase === 'idle' && <Camera className="w-4 h-4" />}
-                        {uploadPhase === 'uploading' && <Loader2 className="w-4 h-4 animate-spin text-[#0500A3]" />}
-                        {uploadPhase === 'analyzing' && <Sparkles className="w-4 h-4 animate-pulse text-purple-600" />}
-                        {uploadPhase === 'done' && <CheckCircle2 className="w-4 h-4 text-green-500" />}
-                    </label>
+                {/* Columna Derecha: Marca, Modelo, Serie */}
+                <div className="flex flex-col gap-3">
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Marca</label>
+                            <input
+                                type="text"
+                                value={marca || ''}
+                                onChange={(e) => setMarca(e.target.value)}
+                                onBlur={handleSave}
+                                className="w-full bg-slate-50 border border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 placeholder:text-slate-300 transition-all focus:outline-none"
+                                placeholder="..."
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Modelo</label>
+                            <input
+                                type="text"
+                                value={modelo || ''}
+                                onChange={(e) => setModelo(e.target.value)}
+                                onBlur={handleSave}
+                                className="w-full bg-slate-50 border border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 placeholder:text-slate-300 transition-all focus:outline-none"
+                                placeholder="..."
+                            />
+                        </div>
+                    </div>
+
+                    <div className="flex items-stretch gap-2">
+                        <div className="flex-1">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Serie / Placa</label>
+                            <input
+                                type="text"
+                                value={serie || ''}
+                                onChange={e => setSerie(e.target.value)}
+                                onBlur={handleSave}
+                                className="w-full bg-slate-50 border border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-xs font-mono text-slate-700 placeholder:text-slate-300 transition-all focus:outline-none"
+                                placeholder="S/N..."
+                            />
+                        </div>
+                        <label className="cursor-pointer self-end w-12 h-[34px] flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200 rounded-xl transition-all shadow-sm">
+                            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePlacaUpload} />
+                            {placaUploadPhase === 'idle' && <Camera className="w-4 h-4" />}
+                            {placaUploadPhase === 'uploading' && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {placaUploadPhase === 'analyzing' && <Sparkles className="w-4 h-4 animate-pulse text-purple-600" />}
+                            {placaUploadPhase === 'done' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                        </label>
+                    </div>
                 </div>
-                <input
-                    type="text"
-                    value={descDetallada || ''}
-                    onChange={(e) => setDescDetallada(e.target.value)}
-                    onBlur={handleSave}
-                    className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-2 py-1 text-[11px] font-medium text-slate-500 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-[#0500A3]/10 mt-0.5"
-                    placeholder="Descripción detallada (Marca, color, estado)..."
-                />
             </div>
 
-            {/* Marca y Modelo editable */}
-            <div className="flex flex-col gap-1">
-                <input
-                    type="text"
-                    value={marca || ''}
-                    onChange={(e) => setMarca(e.target.value)}
-                    onBlur={handleSave}
-                    className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-2 py-1.5 text-xs font-bold text-slate-600 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-[#0500A3]/10"
-                    placeholder="Marca..."
-                />
-                <input
-                    type="text"
-                    value={modelo || ''}
-                    onChange={(e) => setModelo(e.target.value)}
-                    onBlur={handleSave}
-                    className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-2 py-1.5 text-xs text-slate-500 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-[#0500A3]/10"
-                    placeholder="Modelo..."
-                />
-            </div>
-
-            {/* Atributos solo lectura (Sin costo) */}
-            <div className="flex flex-col justify-center px-3">
-                <span className="text-xs text-slate-500 font-medium">Cuenta: {item.cuentaContable || 'N/A'}</span>
-                <span className="text-xs text-slate-400">Vida útil: {item.vidaUtil ? `${item.vidaUtil} años` : '0 años'}</span>
-            </div>
-
-            {/* Estado e interacciones */}
-            <div className="flex items-center justify-center gap-2">
-                {isSaving ? (
-                    <Loader2 className="w-5 h-5 text-[#0500A3] animate-spin" />
-                ) : saved ? (
-                    <CheckCircle2 className="w-5 h-5 text-green-500" />
-                ) : (
-                    <div className="w-5 h-5 flex items-center justify-center text-slate-300 group-hover:text-[#0500A3] transition-colors cursor-pointer" onClick={handleSave} title="Forzar guardado">
-                        <Save className="w-4 h-4 opacity-0 group-hover:opacity-100" />
+            {/* Footer de Tarjeta: Info de Solo Lectura y Estado */}
+            <div className="flex items-center justify-between pt-3 mt-1 border-t border-slate-100 bg-slate-50/50 -mx-5 -mb-5 px-5 pb-4">
+                <div className="flex gap-4">
+                    <div className="flex flex-col">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Cuenta Contable</span>
+                        <span className="text-xs text-slate-600 font-medium">{item.cuentaContable || 'N/A'}</span>
                     </div>
-                )}
-
-                {matchCount > 0 && (
-                    <div className="flex items-center gap-1 bg-green-100 text-green-700 px-2 py-1 rounded-md text-[10px] font-bold" title={`${matchCount} activos ya emparejados con este registro`}>
-                        <Package className="w-3 h-3" />
-                        {matchCount}
+                    <div className="flex flex-col hidden sm:flex">
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Vida útil</span>
+                        <span className="text-xs text-slate-600 font-medium">{item.vidaUtil ? `${item.vidaUtil} años` : '0 años'}</span>
                     </div>
-                )}
+                    {item.costoAdquisicion && (
+                        <div className="flex flex-col hidden sm:flex">
+                            <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Costo Orig.</span>
+                            <span className="text-xs text-slate-600 font-medium">L. {Number(item.costoAdquisicion).toLocaleString()}</span>
+                        </div>
+                    )}
+                </div>
+
+                {/* Guardado Status */}
+                <div className="flex items-center">
+                    {isSaving ? (
+                        <div className="flex items-center gap-2 text-[#0500A3]">
+                            <span className="text-[11px] font-bold">Guardando</span>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                        </div>
+                    ) : saved ? (
+                        <div className="flex items-center gap-2 text-emerald-500">
+                            <span className="text-[11px] font-bold">Guardado</span>
+                            <CheckCircle2 className="w-4 h-4" />
+                        </div>
+                    ) : (
+                        <button onClick={handleSave} className="flex items-center gap-2 text-slate-400 hover:text-[#0500A3] transition-colors py-1 px-2 rounded-lg hover:bg-blue-50">
+                            <span className="text-[11px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">Forzar Guardado</span>
+                            <Save className="w-4 h-4" />
+                        </button>
+                    )}
+                </div>
             </div>
         </div>
     );
