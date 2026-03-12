@@ -95,3 +95,57 @@ export async function updateHistorico(id: string, data: { nombrePropiedad?: stri
     revalidatePath('/inventario/historico');
     return { success: true };
 }
+
+export async function splitHistorico(id: string) {
+    const orgId = await getOrgId();
+
+    const existing = await prisma.inventarioHistorico.findUnique({
+        where: { id }
+    });
+
+    if (!existing || existing.organizationId !== orgId) {
+        throw new Error("Registro no encontrado o no pertenece a tu organización");
+    }
+
+    if (existing.cantidad <= 1) {
+        throw new Error("No se puede desdoblar un registro con cantidad 1 o menor");
+    }
+
+    // Usar transacción para asegurar desdoble atómico
+    await prisma.$transaction(async (tx) => {
+        // 1. Reducir en 1 el original
+        await tx.inventarioHistorico.update({
+            where: { id },
+            data: {
+                cantidad: existing.cantidad - 1,
+            }
+        });
+
+        // 2. Crear una nueva copia exacta (pero cantidad = 1)
+        // sin transferir relaciones ni IDs, y dejando el costo intacto (según requerimiento)
+        await tx.inventarioHistorico.create({
+            data: {
+                organizationId: existing.organizationId,
+                nombrePropiedad: existing.nombrePropiedad,
+                cantidad: 1,
+                nombreOriginal: existing.nombreOriginal,
+                descripcionCorta: existing.descripcionCorta,
+                descripcionDetallada: existing.descripcionDetallada,
+                marca: existing.marca,
+                modelo: existing.modelo,
+                serie: existing.serie,
+                serieOriginal: existing.serieOriginal,
+                observaciones: existing.observaciones,
+                imagenUrl: existing.imagenUrl,
+                imagenPlacaUrl: existing.imagenPlacaUrl,
+                fechaAdquisicion: existing.fechaAdquisicion,
+                costoAdquisicion: existing.costoAdquisicion, // Sin dividir
+                cuentaContable: existing.cuentaContable,
+                vidaUtil: existing.vidaUtil,
+            }
+        });
+    });
+
+    revalidatePath('/inventario/historico');
+    return { success: true };
+}

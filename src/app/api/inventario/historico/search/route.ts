@@ -46,7 +46,9 @@ export async function GET(request: Request) {
                 whereClause.OR = terms.map(term => ({
                     OR: [
                         { nombrePropiedad: { contains: term, mode: 'insensitive' } },
-                        { marcaModelo: { contains: term, mode: 'insensitive' } }
+                        { descripcionCorta: { contains: term, mode: 'insensitive' } },
+                        { marca: { contains: term, mode: 'insensitive' } },
+                        { modelo: { contains: term, mode: 'insensitive' } }
                     ]
                 }));
             }
@@ -68,8 +70,8 @@ export async function GET(request: Request) {
             const terms = query.trim().toLowerCase().split(/\s+/).filter(t => t.length > 0);
 
             resultados.sort((a: any, b: any) => {
-                const textA = ((a.nombrePropiedad || '') + ' ' + (a.marcaModelo || '')).toLowerCase();
-                const textB = ((b.nombrePropiedad || '') + ' ' + (b.marcaModelo || '')).toLowerCase();
+                const textA = ((a.nombrePropiedad || '') + ' ' + (a.descripcionCorta || '') + ' ' + (a.marca || '') + ' ' + (a.modelo || '')).toLowerCase();
+                const textB = ((b.nombrePropiedad || '') + ' ' + (b.descripcionCorta || '') + ' ' + (b.marca || '') + ' ' + (b.modelo || '')).toLowerCase();
 
                 let scoreA = 0; let scoreB = 0;
                 terms.forEach(t => {

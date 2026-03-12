@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { getHistoricoPaginated, updateHistorico } from './actions';
+import { getHistoricoPaginated, updateHistorico, splitHistorico } from './actions';
 import { uploadActivoImage } from '../actions';
-import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles, Maximize, Minimize } from 'lucide-react';
+import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles, Maximize, Minimize, Split } from 'lucide-react';
 import { useLayoutControls } from '@/components/layout/MobileDashboardWrapper';
 
 // Debounce hook
@@ -103,7 +103,7 @@ export default function HistoricoEditorClient() {
                             </div>
                         )}
                         {items.map(item => (
-                            <EditableRow key={item.id} item={item} />
+                            <EditableRow key={item.id} item={item} onSplit={() => fetchData(debouncedQuery, page)} />
                         ))}
 
                         {total > limit && (
@@ -181,7 +181,7 @@ async function compressAndUpload(file: File, endpoint: 'activo.jpg' | 'placa.jpg
     return publicUrl;
 }
 
-function EditableRow({ item }: { item: any }) {
+function EditableRow({ item, onSplit }: { item: any, onSplit: () => void }) {
     const [descCorta, setDescCorta] = useState(item.descripcionCorta || '');
     const [descDetallada, setDescDetallada] = useState(item.descripcionDetallada || '');
     const [marca, setMarca] = useState(item.marca || '');
@@ -189,6 +189,8 @@ function EditableRow({ item }: { item: any }) {
     const [serie, setSerie] = useState(item.serie && item.serie !== item.serieOriginal ? item.serie : '');
     const [isSaving, startTransition] = useTransition();
     const [saved, setSaved] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
+    const [isSplitting, setIsSplitting] = useState(false);
 
     const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
     const [placaUploadPhase, setPlacaUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
@@ -291,6 +293,9 @@ function EditableRow({ item }: { item: any }) {
     }
 
     function handleSave() {
+        // Remove focus state when saving finishes
+        setIsFocused(false);
+
         if (
             marca === item.marca &&
             modelo === item.modelo &&
@@ -326,8 +331,23 @@ function EditableRow({ item }: { item: any }) {
         });
     }
 
+    async function handleSplit() {
+        if (!confirm('¿Deseas extraer 1 unidad de este grupo en un registro individual nuevo?')) return;
+        setIsSplitting(true);
+        try {
+            await splitHistorico(item.id);
+            onSplit();
+        } catch (error: any) {
+            alert('Error al desdoblar: ' + error.message);
+            setIsSplitting(false);
+        }
+    }
+
     return (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col gap-4 relative overflow-hidden group">
+        <div
+            className={`border rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 p-5 flex flex-col gap-4 relative overflow-hidden group ${isFocused ? 'bg-indigo-50/60 border-indigo-200 ring-2 ring-indigo-500/10' : 'bg-white border-slate-200'
+                }`}
+        >
 
             {/* Header: Titulo Original y Matches */}
             <div className="flex justify-between items-start gap-3 border-b border-slate-100 pb-3">
@@ -342,8 +362,21 @@ function EditableRow({ item }: { item: any }) {
                     )}
                 </div>
                 <div className="flex flex-col items-end gap-2 shrink-0">
-                    <div className="bg-slate-100 text-slate-700 text-xs font-black px-2.5 py-1 rounded-md">
-                        CANT: {item.cantidad}
+                    <div className="flex items-center gap-2">
+                        {item.cantidad > 1 && (
+                            <button
+                                onClick={handleSplit}
+                                disabled={isSplitting}
+                                className="flex items-center gap-1.5 bg-orange-100 text-orange-700 hover:bg-orange-200 px-2.5 py-1 rounded-md text-xs font-bold transition-colors disabled:opacity-50"
+                                title="Separar 1 unidad en un nuevo registro"
+                            >
+                                {isSplitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Split className="w-3.5 h-3.5" />}
+                                Desdoblar
+                            </button>
+                        )}
+                        <div className="bg-slate-100 text-slate-700 text-xs font-black px-2.5 py-1 rounded-md">
+                            CANT: {item.cantidad}
+                        </div>
                     </div>
                     {matchCount > 0 && (
                         <div className="flex items-center gap-1 bg-green-100 text-green-700 px-2.5 py-1 rounded-md text-[10px] font-bold" title={`${matchCount} activos ya emparejados con este registro`}>
@@ -365,8 +398,10 @@ function EditableRow({ item }: { item: any }) {
                                 type="text"
                                 value={descCorta || ''}
                                 onChange={(e) => setDescCorta(e.target.value)}
+                                onFocus={() => setIsFocused(true)}
                                 onBlur={handleSave}
-                                className="w-full bg-slate-50 border border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-sm font-bold text-blue-700 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-[#0500A3]/10"
+                                className={`w-full border rounded-xl px-3 py-2 text-sm font-bold text-blue-700 placeholder:text-slate-300 transition-all focus:outline-none focus:ring-2 focus:ring-[#0500A3]/10 ${isFocused ? 'bg-white border-[#0500A3]/50' : 'bg-slate-50 border-slate-200 focus:border-[#0500A3]'
+                                    }`}
                                 placeholder="..."
                             />
                         </div>
@@ -385,8 +420,10 @@ function EditableRow({ item }: { item: any }) {
                             type="text"
                             value={descDetallada || ''}
                             onChange={(e) => setDescDetallada(e.target.value)}
+                            onFocus={() => setIsFocused(true)}
                             onBlur={handleSave}
-                            className="w-full bg-transparent border border-transparent hover:border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-xs font-medium text-slate-600 placeholder:text-slate-300 transition-all focus:outline-none hover:bg-slate-50"
+                            className={`w-full border rounded-xl px-3 py-2 text-xs font-medium text-slate-600 placeholder:text-slate-300 transition-all focus:outline-none ${isFocused ? 'bg-white border-[#0500A3]/30' : 'bg-transparent border-transparent hover:border-slate-200 hover:bg-slate-50'
+                                }`}
                             placeholder="Marca, color, estado..."
                         />
                     </div>
@@ -401,8 +438,10 @@ function EditableRow({ item }: { item: any }) {
                                 type="text"
                                 value={marca || ''}
                                 onChange={(e) => setMarca(e.target.value)}
+                                onFocus={() => setIsFocused(true)}
                                 onBlur={handleSave}
-                                className="w-full bg-slate-50 border border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 placeholder:text-slate-300 transition-all focus:outline-none"
+                                className={`w-full border rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 placeholder:text-slate-300 transition-all focus:outline-none ${isFocused ? 'bg-white border-[#0500A3]/40' : 'bg-slate-50 border-slate-200'
+                                    }`}
                                 placeholder="..."
                             />
                         </div>
@@ -412,8 +451,10 @@ function EditableRow({ item }: { item: any }) {
                                 type="text"
                                 value={modelo || ''}
                                 onChange={(e) => setModelo(e.target.value)}
+                                onFocus={() => setIsFocused(true)}
                                 onBlur={handleSave}
-                                className="w-full bg-slate-50 border border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 placeholder:text-slate-300 transition-all focus:outline-none"
+                                className={`w-full border rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 placeholder:text-slate-300 transition-all focus:outline-none ${isFocused ? 'bg-white border-[#0500A3]/40' : 'bg-slate-50 border-slate-200'
+                                    }`}
                                 placeholder="..."
                             />
                         </div>
@@ -426,8 +467,10 @@ function EditableRow({ item }: { item: any }) {
                                 type="text"
                                 value={serie || ''}
                                 onChange={e => setSerie(e.target.value)}
+                                onFocus={() => setIsFocused(true)}
                                 onBlur={handleSave}
-                                className="w-full bg-slate-50 border border-slate-200 focus:border-[#0500A3] focus:bg-white rounded-xl px-3 py-2 text-xs font-mono text-slate-700 placeholder:text-slate-300 transition-all focus:outline-none"
+                                className={`w-full border rounded-xl px-3 py-2 text-xs font-mono text-slate-700 placeholder:text-slate-300 transition-all focus:outline-none ${isFocused ? 'bg-white border-[#0500A3]/40' : 'bg-slate-50 border-slate-200'
+                                    }`}
                                 placeholder="S/N..."
                             />
                         </div>
