@@ -131,7 +131,18 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '')
         prisma.activoFijo.count({ where }),
     ]);
 
-    return { activos, total, totalPages: Math.ceil(total / PER_PAGE) };
+    const plainActivos = activos.map(a => ({
+        ...a,
+        costoAdq: a.costoAdq ? Number(a.costoAdq) : null,
+        vidaUtilOverride: a.vidaUtilOverride ? Number(a.vidaUtilOverride) : null,
+        valResidual: a.valResidual ? Number(a.valResidual) : null,
+        baseDeprec: a.baseDeprec ? Number(a.baseDeprec) : null,
+        deprecMensual: a.deprecMensual ? Number(a.deprecMensual) : null,
+        deprecAcum: a.deprecAcum ? Number(a.deprecAcum) : null,
+        valorLibros: a.valorLibros ? Number(a.valorLibros) : null,
+    }));
+
+    return { activos: plainActivos, total, totalPages: Math.ceil(total / PER_PAGE) };
 }
 
 export async function getActivoStats() {
