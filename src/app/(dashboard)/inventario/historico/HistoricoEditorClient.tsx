@@ -19,7 +19,8 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function HistoricoEditorClient() {
     const [query, setQuery] = useState('');
     const debouncedQuery = useDebounce(query, 500);
-    const [items, setItems] = useState<Record<string, unknown>[]>([]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const [items, setItems] = useState<any[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
