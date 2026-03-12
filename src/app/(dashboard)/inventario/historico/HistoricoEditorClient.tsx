@@ -215,6 +215,8 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
     const [serie, setSerie] = useState(item.serie && item.serie !== item.serieOriginal ? item.serie : '');
     const [imagenUrl, setImagenUrl] = useState<string | null>(item.imagenUrl || null);
     const [imagenPlacaUrl, setImagenPlacaUrl] = useState<string | null>(item.imagenPlacaUrl || null);
+    const [observaciones, setObservaciones] = useState(item.observaciones || '');
+    const [confirmDelete, setConfirmDelete] = useState<'activo' | 'placa' | null>(null);
     const [isSaving, startTransition] = useTransition();
     const [saved, setSaved] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -325,8 +327,6 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
     }
 
     function handleDeleteImage(type: 'activo' | 'placa') {
-        if (!confirm('¿Estás seguro de que deseas eliminar esta imagen (No se puede deshacer)?')) return;
-
         startTransition(async () => {
             try {
                 const updateData = type === 'activo' ? { imagenUrl: null } : { imagenPlacaUrl: null };
@@ -356,7 +356,8 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
             modelo === item.modelo &&
             descCorta === item.descripcionCorta &&
             descDetallada === (item.descripcionDetallada || '') &&
-            serie === (item.serie !== item.serieOriginal ? item.serie : '')
+            serie === (item.serie !== item.serieOriginal ? item.serie : '') &&
+            observaciones === (item.observaciones || '')
         ) return;
 
         startTransition(async () => {
@@ -367,12 +368,14 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
                     descripcionCorta: descCorta,
                     descripcionDetallada: descDetallada || null,
                     serie: serie || null,
+                    observaciones: observaciones || null,
                 });
                 item.descripcionCorta = descCorta;
                 item.descripcionDetallada = descDetallada || null;
                 item.marca = marca;
                 item.modelo = modelo;
                 item.serie = serie || null;
+                item.observaciones = observaciones || null;
                 setSaved(true);
                 setTimeout(() => setSaved(false), 2000);
             } catch (e) {
@@ -383,6 +386,7 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
                 setMarca(item.marca || '');
                 setModelo(item.modelo || '');
                 setSerie(item.serie !== item.serieOriginal ? item.serie : '');
+                setObservaciones(item.observaciones || '');
             }
         });
     }
@@ -471,12 +475,21 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
                                     onClick={() => onPreview(imagenUrl)}
                                 />
                                 <button
-                                    onClick={() => handleDeleteImage('activo')}
+                                    onClick={(e) => { e.stopPropagation(); setConfirmDelete('activo'); }}
                                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md transition-all scale-95 hover:scale-105 z-10"
                                     title="Eliminar foto"
                                 >
                                     <X className="w-3.5 h-3.5" />
                                 </button>
+                                {confirmDelete === 'activo' && (
+                                    <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-20 rounded-xl flex flex-col items-center justify-center gap-1.5 border border-red-200">
+                                        <span className="text-[9px] font-bold text-red-600 text-center leading-tight">¿Borrar?</span>
+                                        <div className="flex gap-1">
+                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteImage('activo'); setConfirmDelete(null); }} className="bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded text-[9px] font-bold">Sí</button>
+                                            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-0.5 rounded text-[9px] font-bold">No</button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <label className="cursor-pointer self-end w-14 h-14 shrink-0 flex items-center justify-center bg-blue-50 text-[#0500A3] hover:bg-[#0500A3] hover:text-white border border-blue-200 rounded-xl transition-all shadow-sm">
@@ -500,6 +513,19 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
                             className={`w-full border rounded-xl px-3 py-2 text-xs font-medium text-slate-600 placeholder:text-slate-300 transition-all focus:outline-none ${isFocused ? 'bg-white border-[#0500A3]/30' : 'bg-transparent border-transparent hover:border-slate-200 hover:bg-slate-50'
                                 }`}
                             placeholder="Marca, color, estado..."
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1 ml-1">Observaciones</label>
+                        <input
+                            type="text"
+                            value={observaciones || ''}
+                            onChange={(e) => setObservaciones(e.target.value)}
+                            onFocus={() => setIsFocused(true)}
+                            onBlur={handleSave}
+                            className={`w-full border rounded-xl px-3 py-2 text-xs font-medium text-amber-700 placeholder:text-slate-300 transition-all focus:outline-none ${isFocused ? 'bg-white border-amber-500/30' : 'bg-transparent border-transparent hover:border-slate-200 hover:bg-slate-50'
+                                }`}
+                            placeholder="Ej. Vendido, Baja, Roto..."
                         />
                     </div>
                 </div>
@@ -558,12 +584,21 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
                                     onClick={() => onPreview(imagenPlacaUrl)}
                                 />
                                 <button
-                                    onClick={() => handleDeleteImage('placa')}
+                                    onClick={(e) => { e.stopPropagation(); setConfirmDelete('placa'); }}
                                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md transition-all scale-95 hover:scale-105 z-10"
                                     title="Eliminar placa"
                                 >
                                     <X className="w-3.5 h-3.5" />
                                 </button>
+                                {confirmDelete === 'placa' && (
+                                    <div className="absolute inset-0 bg-white/90 backdrop-blur-sm z-20 rounded-xl flex flex-col items-center justify-center gap-1.5 border border-red-200">
+                                        <span className="text-[9px] font-bold text-red-600 text-center leading-tight">¿Borrar?</span>
+                                        <div className="flex gap-1">
+                                            <button onClick={(e) => { e.stopPropagation(); handleDeleteImage('placa'); setConfirmDelete(null); }} className="bg-red-500 hover:bg-red-600 text-white px-2 py-0.5 rounded text-[9px] font-bold">Sí</button>
+                                            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(null); }} className="bg-slate-200 hover:bg-slate-300 text-slate-700 px-2 py-0.5 rounded text-[9px] font-bold">No</button>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         ) : (
                             <label className="cursor-pointer self-end w-14 h-14 shrink-0 flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200 rounded-xl transition-all shadow-sm">
@@ -610,8 +645,8 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
                             <CheckCircle2 className="w-4 h-4" />
                         </div>
                     ) : (
-                        <button onClick={handleSave} className="flex items-center gap-2 text-slate-400 hover:text-[#0500A3] transition-colors py-1 px-2 rounded-lg hover:bg-blue-50">
-                            <span className="text-[11px] font-bold opacity-0 group-hover:opacity-100 transition-opacity">Forzar Guardado</span>
+                        <button onClick={handleSave} className="flex items-center gap-2 bg-[#0500A3] hover:bg-blue-800 text-white transition-colors py-1.5 px-3 rounded-lg shadow-sm">
+                            <span className="text-[11px] font-bold">Guardar</span>
                             <Save className="w-4 h-4" />
                         </button>
                     )}
