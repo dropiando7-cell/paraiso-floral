@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from 'react';
 import { getHistoricoPaginated, updateHistorico, splitHistorico } from './actions';
 import { uploadActivoImage } from '../actions';
-import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles, Maximize, Minimize, Split } from 'lucide-react';
+import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles, Maximize, Minimize, Split, X } from 'lucide-react';
 import { useLayoutControls } from '@/components/layout/MobileDashboardWrapper';
 
 // Debounce hook
@@ -19,10 +19,11 @@ function useDebounce<T>(value: T, delay: number): T {
 export default function HistoricoEditorClient() {
     const [query, setQuery] = useState('');
     const debouncedQuery = useDebounce(query, 500);
-    const [items, setItems] = useState<any[]>([]);
+    const [items, setItems] = useState<Record<string, unknown>[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
+    const [previewImage, setPreviewImage] = useState<string | null>(null);
     const limit = 10;
 
     // Attempt to get LayoutControls. Since HistoricoEditorClient is usually wrapped in DashboardLayout,
@@ -31,17 +32,6 @@ export default function HistoricoEditorClient() {
     // Fallback in case it's used somewhere else without the provider
     const isFullscreen = layoutControls?.isFullscreen || false;
     const setIsFullscreen = layoutControls?.setIsFullscreen || (() => { });
-
-    useEffect(() => {
-        setPage(1);
-        fetchData(debouncedQuery, 1);
-    }, [debouncedQuery]);
-
-    useEffect(() => {
-        if (page > 1) {
-            fetchData(debouncedQuery, page);
-        }
-    }, [page]);
 
     async function fetchData(q: string, p: number) {
         setIsLoading(true);
@@ -55,6 +45,17 @@ export default function HistoricoEditorClient() {
         setIsLoading(false);
     }
 
+    useEffect(() => {
+        setPage(1);
+        fetchData(debouncedQuery, 1);
+    }, [debouncedQuery]);
+
+    useEffect(() => {
+        if (page > 1) {
+            fetchData(debouncedQuery, page);
+        }
+    }, [page]);
+
     return (
         <div className="flex flex-col h-[calc(100vh-80px)] md:h-screen w-full bg-[#f8fafc] overflow-hidden">
             <div className="flex-none p-6 bg-white border-b border-slate-200 shadow-sm z-10 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
@@ -64,7 +65,7 @@ export default function HistoricoEditorClient() {
                         Editor de Histórico 2026
                     </h1>
                     <p className="text-sm text-slate-500 mt-1">
-                        Limpia las descripciones o agrega marcas para que la IA haga "match" automático más fácilmente. ({total} registros)
+                        Limpia las descripciones o agrega marcas para que la IA haga &quot;match&quot; automático más fácilmente. ({total} registros)
                     </p>
                 </div>
 
@@ -103,7 +104,7 @@ export default function HistoricoEditorClient() {
                             </div>
                         )}
                         {items.map(item => (
-                            <EditableRow key={item.id} item={item} onSplit={() => fetchData(debouncedQuery, page)} />
+                            <EditableRow key={item.id} item={item} onSplit={() => fetchData(debouncedQuery, page)} onPreview={setPreviewImage} />
                         ))}
 
                         {total > limit && (
@@ -132,6 +133,29 @@ export default function HistoricoEditorClient() {
                     </div>
                 </div>
             </div>
+
+            {previewImage && (
+                <div
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+                    onClick={() => setPreviewImage(null)}
+                >
+                    <div className="relative max-w-5xl max-h-[95vh] w-full flex items-center justify-center">
+                        <button
+                            className="absolute -top-12 right-0 text-white/70 hover:text-white bg-black/20 hover:bg-black/50 p-2 rounded-full transition-all"
+                            onClick={() => setPreviewImage(null)}
+                            title="Cerrar vista previa"
+                        >
+                            <X className="w-8 h-8" />
+                        </button>
+                        <img
+                            src={previewImage}
+                            alt="Vista ampliada"
+                            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                </div>
+            )}
 
             <style jsx global>{`
                 .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -181,12 +205,15 @@ async function compressAndUpload(file: File, endpoint: 'activo.jpg' | 'placa.jpg
     return publicUrl;
 }
 
-function EditableRow({ item, onSplit }: { item: any, onSplit: () => void }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => void, onPreview: (url: string) => void }) {
     const [descCorta, setDescCorta] = useState(item.descripcionCorta || '');
     const [descDetallada, setDescDetallada] = useState(item.descripcionDetallada || '');
     const [marca, setMarca] = useState(item.marca || '');
     const [modelo, setModelo] = useState(item.modelo || '');
     const [serie, setSerie] = useState(item.serie && item.serie !== item.serieOriginal ? item.serie : '');
+    const [imagenUrl, setImagenUrl] = useState<string | null>(item.imagenUrl || null);
+    const [imagenPlacaUrl, setImagenPlacaUrl] = useState<string | null>(item.imagenPlacaUrl || null);
     const [isSaving, startTransition] = useTransition();
     const [saved, setSaved] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -233,13 +260,15 @@ function EditableRow({ item, onSplit }: { item: any, onSplit: () => void }) {
                     item.marca = newData.marca;
                     item.modelo = newData.modelo;
                     item.imagenUrl = url;
+                    setImagenUrl(url);
                     setSaved(true); setTimeout(() => setSaved(false), 2000);
                 });
             } else {
                 alert('No se pudo analizar la imagen: ' + data.error);
             }
-        } catch (err: any) {
-            alert('Error al analizar imagen: ' + err.message);
+        } catch (err) {
+            const error = err as Error;
+            alert('Error al analizar imagen: ' + error.message);
         } finally {
             setUploadPhase('done');
             setTimeout(() => setUploadPhase('idle'), 3000);
@@ -279,17 +308,42 @@ function EditableRow({ item, onSplit }: { item: any, onSplit: () => void }) {
                     item.marca = newData.marca;
                     item.modelo = newData.modelo;
                     item.imagenPlacaUrl = url;
+                    setImagenPlacaUrl(url);
                     setSaved(true); setTimeout(() => setSaved(false), 2000);
                 });
             } else {
                 alert('No se pudo analizar la placa: ' + data.error);
             }
-        } catch (err: any) {
-            alert('Error al analizar placa: ' + err.message);
+        } catch (err) {
+            const error = err as Error;
+            alert('Error al analizar placa: ' + error.message);
         } finally {
             setPlacaUploadPhase('done');
             setTimeout(() => setPlacaUploadPhase('idle'), 3000);
         }
+    }
+
+    function handleDeleteImage(type: 'activo' | 'placa') {
+        if (!confirm('¿Estás seguro de que deseas eliminar esta imagen (No se puede deshacer)?')) return;
+
+        startTransition(async () => {
+            try {
+                const updateData = type === 'activo' ? { imagenUrl: null } : { imagenPlacaUrl: null };
+                await updateHistorico(item.id, updateData);
+                if (type === 'activo') {
+                    setImagenUrl(null);
+                    item.imagenUrl = null;
+                } else {
+                    setImagenPlacaUrl(null);
+                    item.imagenPlacaUrl = null;
+                }
+                setSaved(true);
+                setTimeout(() => setSaved(false), 2000);
+            } catch (e) {
+                const error = e as Error;
+                alert('Error al eliminar imagen: ' + error.message);
+            }
+        });
     }
 
     function handleSave() {
@@ -320,8 +374,9 @@ function EditableRow({ item, onSplit }: { item: any, onSplit: () => void }) {
                 item.serie = serie || null;
                 setSaved(true);
                 setTimeout(() => setSaved(false), 2000);
-            } catch (e: any) {
-                alert('Error al guardar: ' + e.message);
+            } catch (e) {
+                const err = e as Error;
+                alert('Error al guardar: ' + err.message);
                 setDescCorta(item.descripcionCorta || '');
                 setDescDetallada(item.descripcionDetallada || '');
                 setMarca(item.marca || '');
@@ -337,8 +392,9 @@ function EditableRow({ item, onSplit }: { item: any, onSplit: () => void }) {
         try {
             await splitHistorico(item.id);
             onSplit();
-        } catch (error: any) {
-            alert('Error al desdoblar: ' + error.message);
+        } catch (error) {
+            const err = error as Error;
+            alert('Error al desdoblar: ' + err.message);
             setIsSplitting(false);
         }
     }
@@ -405,13 +461,31 @@ function EditableRow({ item, onSplit }: { item: any, onSplit: () => void }) {
                                 placeholder="..."
                             />
                         </div>
-                        <label className="cursor-pointer self-end w-12 h-[38px] flex items-center justify-center bg-blue-50 text-[#0500A3] hover:bg-[#0500A3] hover:text-white border border-blue-200 rounded-xl transition-all shadow-sm">
-                            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
-                            {uploadPhase === 'idle' && <Camera className="w-5 h-5" />}
-                            {uploadPhase === 'uploading' && <Loader2 className="w-5 h-5 animate-spin" />}
-                            {uploadPhase === 'analyzing' && <Sparkles className="w-5 h-5 animate-pulse" />}
-                            {uploadPhase === 'done' && <CheckCircle2 className="w-5 h-5 text-emerald-400" />}
-                        </label>
+                        {imagenUrl ? (
+                            <div className="relative self-end w-14 h-14 shrink-0 cursor-pointer group rounded-xl shadow-sm border border-slate-200 overflow-visible">
+                                <img
+                                    src={imagenUrl}
+                                    alt="Activo"
+                                    className="w-full h-full object-cover rounded-xl"
+                                    onClick={() => onPreview(imagenUrl)}
+                                />
+                                <button
+                                    onClick={() => handleDeleteImage('activo')}
+                                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md transition-all scale-95 hover:scale-105 z-10"
+                                    title="Eliminar foto"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        ) : (
+                            <label className="cursor-pointer self-end w-14 h-14 shrink-0 flex items-center justify-center bg-blue-50 text-[#0500A3] hover:bg-[#0500A3] hover:text-white border border-blue-200 rounded-xl transition-all shadow-sm">
+                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleImageUpload} />
+                                {uploadPhase === 'idle' && <Camera className="w-6 h-6" />}
+                                {uploadPhase === 'uploading' && <Loader2 className="w-6 h-6 animate-spin" />}
+                                {uploadPhase === 'analyzing' && <Sparkles className="w-6 h-6 animate-pulse" />}
+                                {uploadPhase === 'done' && <CheckCircle2 className="w-6 h-6 text-emerald-400" />}
+                            </label>
+                        )}
                     </div>
 
                     <div>
@@ -474,13 +548,31 @@ function EditableRow({ item, onSplit }: { item: any, onSplit: () => void }) {
                                 placeholder="S/N..."
                             />
                         </div>
-                        <label className="cursor-pointer self-end w-12 h-[34px] flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200 rounded-xl transition-all shadow-sm">
-                            <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePlacaUpload} />
-                            {placaUploadPhase === 'idle' && <Camera className="w-4 h-4" />}
-                            {placaUploadPhase === 'uploading' && <Loader2 className="w-4 h-4 animate-spin" />}
-                            {placaUploadPhase === 'analyzing' && <Sparkles className="w-4 h-4 animate-pulse text-purple-600" />}
-                            {placaUploadPhase === 'done' && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
-                        </label>
+                        {imagenPlacaUrl ? (
+                            <div className="relative self-end w-14 h-14 shrink-0 cursor-pointer group rounded-xl shadow-sm border border-slate-200 overflow-visible">
+                                <img
+                                    src={imagenPlacaUrl}
+                                    alt="Placa"
+                                    className="w-full h-full object-cover rounded-xl"
+                                    onClick={() => onPreview(imagenPlacaUrl)}
+                                />
+                                <button
+                                    onClick={() => handleDeleteImage('placa')}
+                                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-md transition-all scale-95 hover:scale-105 z-10"
+                                    title="Eliminar placa"
+                                >
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        ) : (
+                            <label className="cursor-pointer self-end w-14 h-14 shrink-0 flex items-center justify-center bg-slate-100 text-slate-500 hover:bg-slate-200 border border-slate-200 rounded-xl transition-all shadow-sm">
+                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePlacaUpload} />
+                                {placaUploadPhase === 'idle' && <Camera className="w-6 h-6" />}
+                                {placaUploadPhase === 'uploading' && <Loader2 className="w-6 h-6 animate-spin" />}
+                                {placaUploadPhase === 'analyzing' && <Sparkles className="w-6 h-6 animate-pulse text-purple-600" />}
+                                {placaUploadPhase === 'done' && <CheckCircle2 className="w-6 h-6 text-emerald-500" />}
+                            </label>
+                        )}
                     </div>
                 </div>
             </div>
