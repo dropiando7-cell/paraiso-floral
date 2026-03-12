@@ -3,7 +3,7 @@
 import { useState, useEffect, useTransition } from 'react';
 import { getHistoricoPaginated, updateHistorico, splitHistorico } from './actions';
 import { uploadActivoImage } from '../actions';
-import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles, Maximize, Minimize, Split, X } from 'lucide-react';
+import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles, Maximize, Minimize, Split, X, RotateCcw, RotateCw } from 'lucide-react';
 import { useLayoutControls } from '@/components/layout/MobileDashboardWrapper';
 
 // Debounce hook
@@ -168,23 +168,43 @@ export default function HistoricoEditorClient() {
 }
 
 // ─── Image Compression Utility (from InventarioClient pattern) ───
-async function compressAndUpload(file: File, endpoint: 'activo.jpg' | 'placa.jpg'): Promise<string> {
+async function compressAndUpload(file: File, endpoint: 'activo.jpg' | 'placa.jpg', rotationDegrees: number = 0): Promise<string> {
     const url = URL.createObjectURL(file);
     const img = new window.Image();
     img.src = url;
-    await new Promise((resolve) => { img.onload = resolve; });
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; });
     URL.revokeObjectURL(url);
 
     const canvas = document.createElement('canvas');
     const MAX_SIZE = 1568;
-    let { width, height } = img;
-    if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
-    else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+    
+    const rot = ((rotationDegrees % 360) + 360) % 360;
+    const swapDims = rot === 90 || rot === 270;
 
-    canvas.width = width;
-    canvas.height = height;
+    let { width, height } = img;
+    let calcWidth = swapDims ? height : width;
+    let calcHeight = swapDims ? width : height;
+
+    if (calcWidth > calcHeight && calcWidth > MAX_SIZE) { 
+        calcHeight *= MAX_SIZE / calcWidth; 
+        calcWidth = MAX_SIZE; 
+    } else if (calcHeight > MAX_SIZE) { 
+        calcWidth *= MAX_SIZE / calcHeight; 
+        calcHeight = MAX_SIZE; 
+    }
+
+    canvas.width = calcWidth;
+    canvas.height = calcHeight;
     const ctx = canvas.getContext('2d');
-    ctx?.drawImage(img, 0, 0, width, height);
+    
+    if (ctx) {
+        ctx.translate(calcWidth / 2, calcHeight / 2);
+        ctx.rotate((rot * Math.PI) / 180);
+        
+        const drawWidth = swapDims ? calcHeight : calcWidth;
+        const drawHeight = swapDims ? calcWidth : calcHeight;
+        ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    }
 
     const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.85));
 
@@ -217,6 +237,8 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
     const [imagenPlacaUrl, setImagenPlacaUrl] = useState<string | null>(item.imagenPlacaUrl || null);
     const [observaciones, setObservaciones] = useState(item.observaciones || '');
     const [confirmDelete, setConfirmDelete] = useState<'activo' | 'placa' | null>(null);
+    const [pendingFile, setPendingFile] = useState<{file: File, type: 'activo' | 'placa', previewUrl: string} | null>(null);
+    const [rotation, setRotation] = useState(0);
     const [isSaving, startTransition] = useTransition();
     const [saved, setSaved] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
@@ -227,13 +249,46 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
 
     const matchCount = item._count?.activosFijos || 0;
 
-    async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
         if (!file) return;
+        setPendingFile({ file, type: 'activo', previewUrl: URL.createObjectURL(file) });
+        setRotation(0);
+        e.target.value = '';
+    }
 
+    function handlePlacaUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setPendingFile({ file, type: 'placa', previewUrl: URL.createObjectURL(file) });
+        setRotation(0);
+        e.target.value = '';
+    }
+
+    function closeRotateModal() {
+        if (pendingFile) URL.revokeObjectURL(pendingFile.previewUrl);
+        setPendingFile(null);
+        setRotation(0);
+    }
+
+    async function confirmUpload() {
+        if (!pendingFile) return;
+        const file = pendingFile.file;
+        const type = pendingFile.type;
+        const currentRot = rotation;
+        closeRotateModal();
+
+        if (type === 'activo') {
+            await processActivoUpload(file, currentRot);
+        } else {
+            await processPlacaUpload(file, currentRot);
+        }
+    }
+
+    async function processActivoUpload(file: File, rot: number) {
         try {
             setUploadPhase('uploading');
-            const url = await compressAndUpload(file, 'activo.jpg');
+            const url = await compressAndUpload(file, 'activo.jpg', rot);
 
             setUploadPhase('analyzing');
             const aiRes = await fetch('/api/inventario/analyze-image', {
@@ -278,13 +333,10 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
         }
     }
 
-    async function handlePlacaUpload(e: React.ChangeEvent<HTMLInputElement>) {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
+    async function processPlacaUpload(file: File, rot: number) {
         try {
             setPlacaUploadPhase('uploading');
-            const url = await compressAndUpload(file, 'placa.jpg');
+            const url = await compressAndUpload(file, 'placa.jpg', rot);
 
             setPlacaUploadPhase('analyzing');
             const aiRes = await fetch('/api/inventario/analyze-placa', {
@@ -523,7 +575,7 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
                             onChange={(e) => setObservaciones(e.target.value)}
                             onFocus={() => setIsFocused(true)}
                             onBlur={handleSave}
-                            className={`w-full border rounded-xl px-3 py-2 text-xs font-medium text-amber-700 placeholder:text-slate-300 transition-all focus:outline-none ${isFocused ? 'bg-white border-amber-500/30' : 'bg-transparent border-transparent hover:border-slate-200 hover:bg-slate-50'
+                            className={`w-full border rounded-xl px-3 py-2 text-xs font-semibold text-amber-700 placeholder:text-slate-300 transition-all focus:outline-none ${isFocused ? 'bg-white border-amber-500/40' : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-white'
                                 }`}
                             placeholder="Ej. Vendido, Baja, Roto..."
                         />
@@ -652,6 +704,42 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
                     )}
                 </div>
             </div>
+
+            {/* Modal de Rotación y Previsualización */}
+            {pendingFile && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4" onClick={closeRotateModal}>
+                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full flex flex-col items-center gap-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <div className="text-center">
+                            <h3 className="font-extrabold text-slate-800 text-xl tracking-tight">Ajustar Imagen</h3>
+                            <p className="text-xs text-slate-500 mt-1">Rota la foto si quedó volteada para ayudar a la IA a leerla mejor.</p>
+                        </div>
+                        <div className="relative w-full aspect-square border-2 border-slate-100 rounded-2xl overflow-hidden flex items-center justify-center bg-slate-50 shadow-inner">
+                            <img 
+                                src={pendingFile.previewUrl} 
+                                style={{ transform: `rotate(${rotation}deg)` }} 
+                                className="max-w-full max-h-full object-contain transition-transform duration-300" 
+                                alt="Preview"
+                            />
+                        </div>
+                        <div className="flex gap-4 w-full">
+                            <button onClick={() => setRotation(r => (r - 90) % 360)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors border border-transparent hover:border-slate-300">
+                                <RotateCcw className="w-5 h-5" />
+                                <span className="text-sm">Izquierda</span>
+                            </button>
+                            <button onClick={() => setRotation(r => (r + 90) % 360)} className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl flex items-center justify-center gap-2 transition-colors border border-transparent hover:border-slate-300">
+                                <RotateCw className="w-5 h-5" />
+                                <span className="text-sm">Derecha</span>
+                            </button>
+                        </div>
+                        <div className="flex gap-3 w-full mt-2">
+                            <button onClick={closeRotateModal} className="flex-1 py-3.5 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-600 font-bold rounded-xl transition-all">Cancelar</button>
+                            <button onClick={confirmUpload} className="flex-[1.5] py-3.5 bg-[#0500A3] hover:bg-blue-800 text-white font-bold rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
+                                Subir <Sparkles className="w-4 h-4 text-blue-200" />
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
