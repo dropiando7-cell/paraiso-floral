@@ -179,7 +179,7 @@ export function InactivityGuard({ children }: { children: React.ReactNode }) {
                                 className="flex-1 py-[11px] rounded-[10px] text-[13.5px] font-medium text-[#374151] bg-white border border-[#E5E7EB] transition-all hover:border-[#C7D2FE] hover:text-[#1B3FE0] hover:bg-[#F5F7FF] cursor-pointer"
                                 style={{ fontFamily: 'inherit' }}
                             >
-                                No, salir
+                                Salir
                             </button>
                             <button
                                 onClick={handleContinue}

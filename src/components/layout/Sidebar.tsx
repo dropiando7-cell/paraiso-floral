@@ -65,7 +65,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         href: '#',
         icon: Box,
         subItems: [
-          { name: 'Inventario de Activos', href: '/inventario' },
+          { name: 'Inventario de Activos', href: '/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Editor Histórico', href: '/inventario/historico', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
           { name: 'Avance de Inventario', href: '/admin/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Bodegas y Áreas', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] }

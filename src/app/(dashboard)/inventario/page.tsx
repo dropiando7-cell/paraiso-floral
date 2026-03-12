@@ -3,6 +3,7 @@ import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { InventarioClient } from './InventarioClient';
 
+
 export const metadata = {
     title: 'Inventario de Activos | Sistemas Elim',
     description: 'Gestión y control del patrimonio institucional de Misión Cristiana Elim Honduras',
@@ -20,6 +21,11 @@ export default async function InventarioPage() {
     });
 
     if (!dbUser) redirect('/unauthorized');
+
+    // @ts-ignore - Prisma client needs regeneration to include INVENTARIO_EDITOR
+    if (dbUser.role === 'INVENTARIO_EDITOR') {
+        redirect('/inventario/historico');
+    }
 
     const orgId = dbUser.organizationId;
 
