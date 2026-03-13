@@ -1711,7 +1711,26 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3 pb-8 px-4 print:hidden">
-                                        <button onClick={() => window.print()} className="bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
+                                        <button onClick={async () => {
+                                            if (printMode === 'SERVER') {
+                                                try {
+                                                    const res = await fetch('/api/checkin/encolar', {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({ ticketData: currentTicket, impresora: 'TSC TE200' })
+                                                    });
+                                                    if (res.ok) {
+                                                        showToast("Enviado a impresora de Red ✅", "success");
+                                                    } else {
+                                                        showToast("Error al encolar impresión", "error");
+                                                    }
+                                                } catch (e) {
+                                                    showToast("Error de conexión", "error");
+                                                }
+                                            } else {
+                                                window.print();
+                                            }
+                                        }} className="bg-brand-600 hover:bg-brand-700 text-white font-bold py-3.5 rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
                                             <Printer className="w-5 h-5" /> Imprimir ({displayKidCount + 1})
                                         </button>
                                         <button onClick={() => setView(VIEWS.HOME)} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3.5 rounded-xl transition-all">
