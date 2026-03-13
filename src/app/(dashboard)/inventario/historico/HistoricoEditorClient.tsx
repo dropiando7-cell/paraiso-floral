@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useRef } from 'react';
 import { getHistoricoPaginated, updateHistorico, splitHistorico } from './actions';
 import { uploadActivoImage } from '../actions';
 import { Search, Loader2, Save, FileEdit, CheckCircle2, Package, Camera, Sparkles, Maximize, Minimize, Split, X, RotateCcw, RotateCw } from 'lucide-react';
 import { useLayoutControls } from '@/components/layout/MobileDashboardWrapper';
+import { removeBackground } from '@imgly/background-removal';
 
 // Debounce hook
 function useDebounce<T>(value: T, delay: number): T {
@@ -226,6 +227,174 @@ async function compressAndUpload(file: File, endpoint: 'activo.jpg' | 'placa.jpg
     return publicUrl;
 }
 
+async function uploadDirectly(blob: Blob, endpoint: 'activo.jpg' | 'placa.jpg'): Promise<string> {
+    const res = await fetch('/api/upload/inventario', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: endpoint, contentType: 'image/jpeg' }),
+    });
+
+    if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Error ${res.status}: Falló URL de subida`);
+    }
+
+    const { uploadUrl, publicUrl } = await res.json();
+    const uploadRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+    if (!uploadRes.ok) throw new Error('Error al enviar imagen a R2');
+
+    return publicUrl;
+}
+
+// ─── CropModal ─────────────────────────────────────────────────────────────────
+function CropModal({ imageSrc, onConfirm, onCancel }: {
+    imageSrc: string;
+    onConfirm: (blob: Blob) => void;
+    onCancel: () => void;
+}) {
+    const [crop, setCrop] = useState({ x: 10, y: 10, w: 80, h: 80 });
+    const imgRef = useRef<HTMLImageElement>(null);
+    const dragRef = useRef<{ type: string; sx: number; sy: number; sc: typeof crop } | null>(null);
+    const [isBgRemoving, setIsBgRemoving] = useState(false);
+    const [currentSrc, setCurrentSrc] = useState(imageSrc);
+
+    async function removeBg() {
+        if (isBgRemoving) return;
+        setIsBgRemoving(true);
+        try {
+            const blob = await removeBackground(currentSrc);
+            const newUrl = URL.createObjectURL(blob);
+            setCurrentSrc(newUrl);
+        } catch (err) {
+            alert('Error al quitar el fondo. Asegúrate de tener conexión.');
+        } finally {
+            setIsBgRemoving(false);
+        }
+    }
+
+    function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
+
+    function pct(e: React.PointerEvent) {
+        const r = imgRef.current!.getBoundingClientRect();
+        return { px: (e.clientX - r.left) / r.width * 100, py: (e.clientY - r.top) / r.height * 100 };
+    }
+
+    function startDrag(type: string, e: React.PointerEvent) {
+        e.preventDefault(); e.stopPropagation();
+        (e.currentTarget as Element).setPointerCapture(e.pointerId);
+        const { px, py } = pct(e);
+        dragRef.current = { type, sx: px, sy: py, sc: { ...crop } };
+    }
+
+    function onMove(e: React.PointerEvent) {
+        if (!dragRef.current) return;
+        const { type, sx, sy, sc } = dragRef.current;
+        const { px, py } = pct(e);
+        const dx = px - sx, dy = py - sy, MIN = 15;
+        setCrop(() => {
+            let { x, y, w, h } = sc;
+            if (type === 'move') {
+                x = clamp(sc.x + dx, 0, 100 - w); y = clamp(sc.y + dy, 0, 100 - h);
+            } else if (type === 'br') {
+                w = clamp(sc.w + dx, MIN, 100 - x); h = clamp(sc.h + dy, MIN, 100 - y);
+            } else if (type === 'tl') {
+                const nx = clamp(sc.x + dx, 0, sc.x + sc.w - MIN);
+                const ny = clamp(sc.y + dy, 0, sc.y + sc.h - MIN);
+                w = sc.x + sc.w - nx; h = sc.y + sc.h - ny; x = nx; y = ny;
+            } else if (type === 'tr') {
+                const ny = clamp(sc.y + dy, 0, sc.y + sc.h - MIN);
+                w = clamp(sc.w + dx, MIN, 100 - sc.x); h = sc.y + sc.h - ny; y = ny;
+            } else if (type === 'bl') {
+                const nx = clamp(sc.x + dx, 0, sc.x + sc.w - MIN);
+                w = sc.x + sc.w - nx; x = nx; h = clamp(sc.h + dy, MIN, 100 - sc.y);
+            }
+            return { x, y, w, h };
+        });
+    }
+
+    function apply(full: boolean) {
+        const img = imgRef.current!;
+        const { naturalWidth: nw, naturalHeight: nh } = img;
+        const [sx, sy, sw, sh] = full
+            ? [0, 0, nw, nh]
+            : [Math.round(crop.x / 100 * nw), Math.round(crop.y / 100 * nh),
+            Math.round(crop.w / 100 * nw), Math.round(crop.h / 100 * nh)];
+        const MAX = 1568;
+        const ratio = Math.min(1, MAX / Math.max(sw, sh));
+        const dw = Math.round(sw * ratio), dh = Math.round(sh * ratio);
+        const canvas = document.createElement('canvas');
+        canvas.width = dw; canvas.height = dh;
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+        canvas.toBlob(blob => { if (blob) onConfirm(blob); }, 'image/jpeg', 0.85);
+    }
+
+    const handles = [
+        { id: 'tl', style: { top: -8, left: -8, cursor: 'nwse-resize' } as React.CSSProperties },
+        { id: 'tr', style: { top: -8, right: -8, cursor: 'nesw-resize' } as React.CSSProperties },
+        { id: 'bl', style: { bottom: -8, left: -8, cursor: 'nesw-resize' } as React.CSSProperties },
+        { id: 'br', style: { bottom: -8, right: -8, cursor: 'nwse-resize' } as React.CSSProperties },
+    ];
+
+    return (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-black" style={{ touchAction: 'none' }}>
+            <div className="flex items-center justify-between px-4 py-3 bg-black/80">
+                <p className="text-white text-sm font-medium">📐 Arrastra el recuadro para recortar</p>
+                <button onClick={onCancel} className="p-2 text-white/70 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex-1 overflow-auto flex items-start justify-center"
+                onPointerMove={onMove} onPointerUp={() => { dragRef.current = null; }}>
+                <div className="relative" style={{ maxWidth: 640, width: '100%' }}>
+                    <img ref={imgRef} src={currentSrc} className="block w-full select-none" draggable={false} alt="Vista previa" />
+                    {isBgRemoving && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
+                            <div className="flex flex-col items-center gap-3">
+                                <Loader2 className="w-8 h-8 text-white animate-spin" />
+                                <span className="text-white font-medium text-sm">Eliminando fondo... (la 1ª vez demora ~10s)</span>
+                            </div>
+                        </div>
+                    )}
+                    <div className="absolute border-2 border-white touch-none"
+                        style={{
+                            left: `${crop.x}%`, top: `${crop.y}%`,
+                            width: `${crop.w}%`, height: `${crop.h}%`,
+                            boxShadow: '0 0 0 9999px rgba(0,0,0,0.55)', cursor: 'move',
+                        }}
+                        onPointerDown={e => startDrag('move', e)}>
+                        <div className="absolute inset-0 pointer-events-none">
+                            <div className="absolute top-1/3 left-0 right-0 h-px bg-white/30" />
+                            <div className="absolute top-2/3 left-0 right-0 h-px bg-white/30" />
+                            <div className="absolute left-1/3 top-0 bottom-0 w-px bg-white/30" />
+                            <div className="absolute left-2/3 top-0 bottom-0 w-px bg-white/30" />
+                        </div>
+                        {handles.map(h => (
+                            <div key={h.id}
+                                className="absolute w-7 h-7 bg-white rounded border-2 border-[#0500A3] touch-none"
+                                style={{ ...h.style, position: 'absolute' }}
+                                onPointerDown={e => startDrag(h.id, e)} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3 p-4 bg-black/80">
+                <button onClick={() => apply(true)} disabled={isBgRemoving}
+                    className="border-2 border-white/30 text-white font-semibold py-4 rounded-2xl active:scale-95 transition-all text-sm disabled:opacity-50">
+                    Foto completa
+                </button>
+                <button onClick={() => apply(false)} disabled={isBgRemoving}
+                    className="bg-[#0500A3] text-white font-semibold py-4 rounded-2xl active:scale-95 transition-all text-sm disabled:opacity-50">
+                    ✓ Confirmar recorte
+                </button>
+                <button onClick={removeBg} disabled={isBgRemoving || currentSrc !== imageSrc}
+                    className="col-span-2 border-2 border-purple-500/50 text-purple-200 bg-purple-900/40 font-semibold py-3 rounded-2xl active:scale-95 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                    <Sparkles className="w-4 h-4" />
+                    {currentSrc !== imageSrc ? 'Fondo eliminado' : '🪄 Magia: Eliminar Fondo'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => void, onPreview: (url: string) => void }) {
     const [descCorta, setDescCorta] = useState(item.descripcionCorta || '');
@@ -246,6 +415,7 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
 
     const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
     const [placaUploadPhase, setPlacaUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
+    const [cropImgSrc, setCropImgSrc] = useState<string | null>(null);
 
     const matchCount = item._count?.activosFijos || 0;
 
@@ -276,19 +446,56 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
         const file = pendingFile.file;
         const type = pendingFile.type;
         const currentRot = rotation;
-        closeRotateModal();
-
+        
         if (type === 'activo') {
-            await processActivoUpload(file, currentRot);
+            try {
+                // Generate rotated image blob for CropModal
+                const urlObj = URL.createObjectURL(file);
+                const rot = ((currentRot % 360) + 360) % 360;
+                
+                if (rot === 0) {
+                    closeRotateModal();
+                    setCropImgSrc(urlObj);
+                } else {
+                    const img = new window.Image();
+                    img.src = urlObj;
+                    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+                    URL.revokeObjectURL(urlObj);
+                    
+                    const canvas = document.createElement('canvas');
+                    const swapDims = rot === 90 || rot === 270;
+                    canvas.width = swapDims ? img.height : img.width;
+                    canvas.height = swapDims ? img.width : img.height;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) {
+                        ctx.translate(canvas.width / 2, canvas.height / 2);
+                        ctx.rotate((rot * Math.PI) / 180);
+                        const drawWidth = swapDims ? canvas.height : canvas.width;
+                        const drawHeight = swapDims ? canvas.width : canvas.height;
+                        ctx.drawImage(img, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+                    }
+                    canvas.toBlob(b => {
+                        if (b) {
+                            closeRotateModal();
+                            setCropImgSrc(URL.createObjectURL(b));
+                        }
+                    }, 'image/jpeg', 1.0);
+                }
+            } catch (e) {
+                alert('No se pudo procesar la imagen: ' + e);
+            }
         } else {
+            closeRotateModal();
             await processPlacaUpload(file, currentRot);
         }
     }
 
-    async function processActivoUpload(file: File, rot: number) {
+    async function handleCropConfirm(blob: Blob) {
+        if (cropImgSrc) URL.revokeObjectURL(cropImgSrc);
+        setCropImgSrc(null);
         try {
             setUploadPhase('uploading');
-            const url = await compressAndUpload(file, 'activo.jpg', rot);
+            const url = await uploadDirectly(blob, 'activo.jpg');
 
             setUploadPhase('analyzing');
             const aiRes = await fetch('/api/inventario/analyze-image', {
@@ -734,11 +941,22 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
                         <div className="flex gap-3 w-full mt-2">
                             <button onClick={closeRotateModal} className="flex-1 py-3.5 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-600 font-bold rounded-xl transition-all">Cancelar</button>
                             <button onClick={confirmUpload} className="flex-[1.5] py-3.5 bg-[#0500A3] hover:bg-blue-800 text-white font-bold rounded-xl shadow-md transition-all flex justify-center items-center gap-2">
-                                Subir <Sparkles className="w-4 h-4 text-blue-200" />
+                                {pendingFile?.type === 'activo' ? 'Ir a Recorte' : 'Subir'} <Sparkles className="w-4 h-4 text-blue-200" />
                             </button>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {cropImgSrc && (
+                <CropModal
+                    imageSrc={cropImgSrc}
+                    onConfirm={handleCropConfirm}
+                    onCancel={() => {
+                        if (cropImgSrc) URL.revokeObjectURL(cropImgSrc);
+                        setCropImgSrc(null);
+                    }}
+                />
             )}
         </div>
     );
