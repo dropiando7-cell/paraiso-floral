@@ -12,12 +12,14 @@ export default async function HistoricoPage() {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user?.email! },
-        select: { organizationId: true, role: true }
+        select: { organizationId: true, role: true, accessibleModules: true }
     });
     if (!dbUser) redirect('/unauthorized');
 
     const allowedRoles = ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'];
-    if (!allowedRoles.includes(dbUser.role)) {
+    const hasModuleAccess = dbUser.accessibleModules?.includes('/inventario/historico');
+
+    if (!allowedRoles.includes(dbUser.role) && !hasModuleAccess) {
         redirect('/unauthorized');
     }
 
