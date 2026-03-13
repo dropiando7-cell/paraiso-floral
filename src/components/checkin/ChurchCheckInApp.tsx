@@ -49,6 +49,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     const [isLoading, setIsLoading] = useState(!initialData);
     const [view, setView] = useState(VIEWS.HOME);
     const [searchQuery, setSearchQuery] = useState("");
+    const [printMode, setPrintMode] = useState<'DIRECT' | 'SERVER'>('SERVER');
 
     // Lazy rendering state
     const [visibleCount, setVisibleCount] = useState(5);
@@ -119,6 +120,8 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     useEffect(() => {
         // Prevent observer from firing immediately on mount when items haven't fully rendered
         const timer = setTimeout(() => setObserverReady(true), 1000);
+        const savedMode = localStorage.getItem('checkinPrintMode');
+        if (savedMode === 'DIRECT' || savedMode === 'SERVER') setPrintMode(savedMode);
         return () => clearTimeout(timer);
     }, []);
 
@@ -503,14 +506,34 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
 
     useEffect(() => {
         if (view === VIEWS.TICKET && currentTicket?.autoPrint) {
-            const timer = setTimeout(() => {
-                window.print();
-                setCurrentTicket((prev: any) => ({ ...prev, autoPrint: false }));
-            }, 500); // Wait 500ms for DOM to render
-
-            return () => clearTimeout(timer);
+            if (printMode === 'DIRECT') {
+                const timer = setTimeout(() => {
+                    window.print();
+                    setCurrentTicket((prev: any) => ({ ...prev, autoPrint: false }));
+                }, 500); // Wait 500ms for DOM to render
+                return () => clearTimeout(timer);
+            } else {
+                fetch('/api/checkin/encolar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ticketData: currentTicket })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast("Impresión enviada a la cola remota", "success");
+                    } else {
+                        showToast(`Error de impresión: ${data.error}`, "error");
+                    }
+                    setCurrentTicket((prev: any) => ({ ...prev, autoPrint: false }));
+                })
+                .catch(err => {
+                    showToast("Error conectando con el servidor de impresión", "error");
+                    setCurrentTicket((prev: any) => ({ ...prev, autoPrint: false }));
+                });
+            }
         }
-    }, [view, currentTicket]);
+    }, [view, currentTicket, printMode]);
 
     return (
         <div className="min-h-[calc(100vh-4rem)] bg-[#F0F4FF] flex flex-col items-center pb-24 font-sans text-[#1B2E6B]">
@@ -581,17 +604,34 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                             <div className="w-2 h-2 bg-[#F5A623] rounded-full animate-pulse"></div>
                             EN VIVO · {new Date().toLocaleDateString("es-HN", { weekday: "short", day: "numeric", month: "short" }).replace('.', '')}
                         </div>
-                        {/* Fullscreen Toggle */}
-                        <button
-                            onClick={() => setIsFullscreen(!isFullscreen)}
-                            className="ml-auto flex items-center gap-2 bg-slate-100/50 hover:bg-slate-200 text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-xl transition-colors shrink-0 print:hidden"
-                            title={isFullscreen ? "Salir de pantalla completa" : "Modo Kiosco (Pantalla completa)"}
-                        >
-                            {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-                            <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
-                                {isFullscreen ? "Salir Modo Kiosco" : "Modo Kiosco"}
-                            </span>
-                        </button>
+                        {/* Fullscreen & Print Mode Toggle */}
+                        <div className="ml-auto flex items-center gap-2 print:hidden shrink-0">
+                            <button
+                                onClick={() => {
+                                    const newMode = printMode === 'DIRECT' ? 'SERVER' : 'DIRECT';
+                                    setPrintMode(newMode);
+                                    localStorage.setItem('checkinPrintMode', newMode);
+                                    showToast(`Impresión: ${newMode === 'DIRECT' ? 'Directa (Navegador)' : 'Remota (Servidor)'}`, "info");
+                                }}
+                                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-colors ${printMode === 'SERVER' ? 'bg-[#3B6FE8] text-white hover:bg-[#2748B5]' : 'bg-slate-100/50 hover:bg-slate-200 text-slate-500 hover:text-slate-700'}`}
+                                title={printMode === 'DIRECT' ? "Usar Impresora Local" : "Usar Servidor Remoto"}
+                            >
+                                <Printer className="w-4 h-4" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
+                                    {printMode === 'DIRECT' ? "Modo Local" : "Modo Remoto"}
+                                </span>
+                            </button>
+                            <button
+                                onClick={() => setIsFullscreen(!isFullscreen)}
+                                className="flex items-center gap-2 bg-slate-100/50 hover:bg-slate-200 text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-xl transition-colors"
+                                title={isFullscreen ? "Salir de pantalla completa" : "Modo Kiosco (Pantalla completa)"}
+                            >
+                                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                                <span className="text-[10px] font-bold uppercase tracking-wider hidden sm:inline">
+                                    {isFullscreen ? "Salir Modo" : "Modo Kiosco"}
+                                </span>
+                            </button>
+                        </div>
                     </div>
 
                     {/* NEW STATS BAR (Demo 1 Style) */}

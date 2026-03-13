@@ -25,6 +25,7 @@ model Organization {
   checkIns              CheckIn[]
   classrooms            Classroom[]
   colaImpresion         ColaImpresion[]
+  colaImpresionCheckins ColaImpresionCheckin[]
   conciliations         Conciliation[]
   emailTemplates        EmailTemplate[]
   events                Event[]
@@ -441,4 +442,19 @@ enum TwoFactorType {
 enum EmailTemplateType {
   CLASSIC_WELCOME
   GOOGLE_WELCOME
+}
+
+model ColaImpresionCheckin {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @db.Uuid
+  datosEtiqueta  Json         
+  estado         String       @default("PENDIENTE") 
+  impresora      String       @default("TSC TE200")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([estado])
+  @@map("cola_impresion_checkin")
 }
