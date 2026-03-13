@@ -1682,6 +1682,86 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                             );
                         })()}
 
+                        {/* CLASSROOM DETAIL */}
+                        {view === VIEWS.CLASSROOM_DETAIL && selectedClassroom && (() => {
+                            const kidsInRoom = classroomKids(selectedClassroom.id);
+                            const [bgColor, textColor] = selectedClassroom.color.split(' ');
+                            const accentColor = bgColor.replace('bg-', 'bg-').replace('-100', '-500');
+                            return (
+                                <div className="animate-in slide-in-from-right-4 duration-300 pb-16">
+                                    <button onClick={() => setView(VIEWS.CLASSROOMS)} className="flex items-center gap-2 text-slate-500 hover:text-slate-800 text-sm font-bold mb-4">
+                                        <ArrowLeft className="w-4 h-4" /> Volver a Salones
+                                    </button>
+
+                                    {/* Classroom Header */}
+                                    <div className={`rounded-2xl p-5 mb-5 relative overflow-hidden border ${selectedClassroom.color.split(' ')[2]}`} style={{ background: 'white' }}>
+                                        <div className={`absolute top-0 left-0 w-1.5 h-full ${accentColor}`} />
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h2 className="text-xl font-black text-slate-900 leading-tight">{selectedClassroom.name}</h2>
+                                                <p className="text-sm text-slate-500 font-medium mt-0.5">{selectedClassroom.ageRange} · {selectedClassroom.teacher}</p>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className={`text-3xl font-black ${textColor.replace('-700', '-600')}`}>{kidsInRoom.length}</div>
+                                                <div className="text-[10px] font-bold text-slate-400">de {selectedClassroom.capacity} disp.</div>
+                                            </div>
+                                        </div>
+                                        <div className="w-full bg-slate-100 rounded-full h-2 mt-3">
+                                            <div className={`h-2 rounded-full transition-all duration-1000 ${accentColor}`} style={{ width: `${Math.min((kidsInRoom.length / selectedClassroom.capacity) * 100, 100)}%` }} />
+                                        </div>
+                                    </div>
+
+                                    {/* Kids list */}
+                                    {kidsInRoom.length === 0 ? (
+                                        <div className="text-center py-16 text-slate-400">
+                                            <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3 text-2xl">🏫</div>
+                                            <p className="font-bold text-slate-500">Ningún niño en este salón ahora</p>
+                                            <p className="text-sm mt-1">Los niños aparecen aquí cuando hacen check-in.</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 px-1">
+                                                {kidsInRoom.length} niño{kidsInRoom.length !== 1 ? 's' : ''} en este salón
+                                            </div>
+                                            <div className="flex flex-col bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm divide-y divide-slate-100">
+                                                {kidsInRoom.map(kid => (
+                                                    <div key={kid.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                                                        <div className="w-10 h-10 rounded-xl bg-[#F0EEFF] flex items-center justify-center text-xl shrink-0">
+                                                            {kid.photoEmoji || kid.photo || '🧒'}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="font-bold text-[#1B2E6B] text-sm leading-tight">{kid.name}</div>
+                                                            <div className="text-[11px] text-slate-400 font-medium">
+                                                                {kid.age}a · <span className="text-emerald-600 font-semibold">Ingresó {kid.checkInTime}</span> · {kid.parentName}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1 shrink-0">
+                                                            <button
+                                                                onClick={() => {
+                                                                    setCurrentTicket({ type: 'FAMILY', tickets: [kid], code: kid.code, qrValue: kid.qrValue, parentName: kid.parentName, checkInTime: kid.checkInTime, autoPrint: false });
+                                                                    setView(VIEWS.TICKET);
+                                                                }}
+                                                                className="w-8 h-8 flex items-center justify-center bg-slate-100 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-all"
+                                                                title="Reimprimir etiqueta QR"
+                                                            >
+                                                                <Printer className="w-4 h-4" />
+                                                            </button>
+                                                            <button onClick={() => {
+                                                                setKidsToCheckout([kid]);
+                                                                setSelectedKidsForCheckout(new Set([kid.id]));
+                                                            }} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">
+                                                                Salida
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            );
+                        })()}
+
                         {/* CLASSROOMS */}
                         {view === VIEWS.CLASSROOMS && (
                             <div className="animate-in fade-in duration-300">
