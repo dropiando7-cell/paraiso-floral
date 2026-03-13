@@ -75,7 +75,7 @@ export default function HistoricoEditorClient() {
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                         <input
                             type="text"
-                            placeholder="Buscar por nombre, modelo o serie..."
+                            placeholder="Buscar por nombre, marca, modelo, descripción..."
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
                             className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-[#0500A3]/20 focus:border-[#0500A3] transition-all"

@@ -33,12 +33,26 @@ export async function getHistoricoPaginated(query: string, page: number = 1, lim
     };
 
     if (query) {
-        whereClause.OR = [
-            { nombrePropiedad: { contains: query, mode: 'insensitive' } },
-            { marca: { contains: query, mode: 'insensitive' } },
-            { modelo: { contains: query, mode: 'insensitive' } },
-            { serie: { contains: query, mode: 'insensitive' } },
-        ];
+        // Dividir la búsqueda en palabras y limpiar espacios
+        const searchTerms = query.trim().split(/\s+/).filter(t => t.length > 0);
+
+        if (searchTerms.length > 0) {
+            // Requerimos que TODAS las palabras ingresadas coincidan con al menos ALGÚN campo
+            whereClause.AND = searchTerms.map(term => ({
+                OR: [
+                    { nombrePropiedad: { contains: term, mode: 'insensitive' } },
+                    { nombreOriginal: { contains: term, mode: 'insensitive' } },
+                    { marca: { contains: term, mode: 'insensitive' } },
+                    { modelo: { contains: term, mode: 'insensitive' } },
+                    { serie: { contains: term, mode: 'insensitive' } },
+                    { serieOriginal: { contains: term, mode: 'insensitive' } },
+                    { descripcionCorta: { contains: term, mode: 'insensitive' } },
+                    { descripcionDetallada: { contains: term, mode: 'insensitive' } },
+                    { observaciones: { contains: term, mode: 'insensitive' } },
+                    { cuentaContable: { contains: term, mode: 'insensitive' } },
+                ]
+            }));
+        }
     }
 
     const [items, total] = await Promise.all([
