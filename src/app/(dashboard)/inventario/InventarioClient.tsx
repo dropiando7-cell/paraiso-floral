@@ -703,10 +703,13 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                 if (data.cuentaAct && CUENTAS.includes(data.cuentaAct)) setSelectedCuenta(data.cuentaAct);
 
                 // Silent lookup in Historical records using smart keywords or fallback to short description and model
-                const rawKeywords = data.palabrasClaveBusqueda && data.palabrasClaveBusqueda.length > 0
-                    ? data.palabrasClaveBusqueda
-                    : [data.descripcionCorta, data.marca, data.modelo];
-                const searchQueries = rawKeywords.filter(Boolean).join(' ');
+                const rawKeywords = [
+                    ...(data.palabrasClaveBusqueda || []),
+                    data.descripcionCorta,
+                    data.marca,
+                    data.modelo
+                ];
+                const searchQueries = Array.from(new Set(rawKeywords.filter(Boolean))).join(' ');
                 if (searchQueries) {
                     try {
                         const searchRes = await fetch(`/api/inventario/historico/search?q=${encodeURIComponent(searchQueries)}`);

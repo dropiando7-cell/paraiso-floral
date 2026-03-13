@@ -59,7 +59,7 @@ export async function GET(request: Request) {
 
         let resultados = await prisma.inventarioHistorico.findMany({
             where: whereClause,
-            take: 100, // Límite más alto para la puntuación en memoria
+            take: 400, // Límite más alto para la puntuación en memoria para incluir registros antiguos
             orderBy: {
                 createdAt: 'desc'
             }
@@ -67,16 +67,31 @@ export async function GET(request: Request) {
 
         // Ordenamiento difuso en memoria (para que la IA y el Combobox reciban los mejores "matches")
         if (query && !serie) {
-            const terms = query.trim().toLowerCase().split(/\s+/).filter(t => t.length > 0);
+            // Filtrar "stop words" comunes en español que pueden sesgar el puntaje
+            const stopWords = new Set(['de', 'el', 'la', 'los', 'las', 'y', 'o', 'un', 'una', 'en', 'para', 'con', 'sin', 'por']);
+            const terms = query.trim().toLowerCase().split(/\s+/).filter(t => t.length > 0 && !stopWords.has(t));
 
             resultados.sort((a: any, b: any) => {
-                const textA = ((a.nombrePropiedad || '') + ' ' + (a.descripcionCorta || '') + ' ' + (a.marca || '') + ' ' + (a.modelo || '')).toLowerCase();
-                const textB = ((b.nombrePropiedad || '') + ' ' + (b.descripcionCorta || '') + ' ' + (b.marca || '') + ' ' + (b.modelo || '')).toLowerCase();
+                const textA = ((a.nombrePropiedad || '') + ' ' + (a.descripcionCorta || '')).toLowerCase();
+                const marcaA = (a.marca || '').toLowerCase();
+                const modeloA = (a.modelo || '').toLowerCase();
+                
+                const textB = ((b.nombrePropiedad || '') + ' ' + (b.descripcionCorta || '')).toLowerCase();
+                const marcaB = (b.marca || '').toLowerCase();
+                const modeloB = (b.modelo || '').toLowerCase();
 
                 let scoreA = 0; let scoreB = 0;
                 terms.forEach(t => {
-                    if (textA.includes(t)) scoreA++;
-                    if (textB.includes(t)) scoreB++;
+                    // Puntaje base por coincidir en texto general
+                    if (textA.includes(t)) scoreA += 1;
+                    if (textB.includes(t)) scoreB += 1;
+                    
+                    // Puntaje ALTO por coincidir exactamente en la marca o modelo (prioriza coincidencias tipo "NORD")
+                    if (marcaA.includes(t)) scoreA += 3;
+                    if (marcaB.includes(t)) scoreB += 3;
+                    
+                    if (modeloA.includes(t)) scoreA += 3;
+                    if (modeloB.includes(t)) scoreB += 3;
                 });
 
                 return scoreB - scoreA;
