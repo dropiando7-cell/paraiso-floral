@@ -14,6 +14,7 @@ export interface Kid {
     id: string;
     name: string;
     age: number;
+    gender?: string;
     classroom: string; // Classroom.id
     allergies: string;
     parentName: string;

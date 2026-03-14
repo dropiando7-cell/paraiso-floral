@@ -169,7 +169,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             const matchedKids = checkedInKids.filter(k => k.code.toUpperCase() === code.toUpperCase());
             if (matchedKids.length > 0) {
                 setKidsToCheckout(matchedKids);
-                setSelectedKidsForCheckout(new Set(matchedKids.map(k => k.id)));
+                setSelectedKidsForCheckout(new Set());
                 setView(VIEWS.HOME);
             } else {
                 showToast(`CÓDIGO NO ENCONTRADO (${code})`, "error");
@@ -402,9 +402,19 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
         }
 
         setCheckedInKids(prev => prev.filter(k => !selectedKidsForCheckout.has(k.id)));
-        setKidsToCheckout([]);
+        
+        // Remove checked-out kids from the current modal list
+        setKidsToCheckout(prev => {
+            const remaining = prev.filter(k => !selectedKidsForCheckout.has(k.id));
+            if (remaining.length === 0) {
+                // If everyone is checked out, clear the modal state
+                return [];
+            }
+            return remaining;
+        });
+        
         setSelectedKidsForCheckout(new Set());
-        showToast("👋 Niños seleccionados entregados a sus padres", "info");
+        showToast(`👋 ${selectedKidsForCheckout.size} niño(s) entregado(s)`, "info");
         setIsCheckingOut(false);
     };
 
@@ -1362,9 +1372,9 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                                         <Printer className="w-3.5 h-3.5" />
                                                                     </button>
                                                                     <button onClick={() => {
-                                                                        const siblings = checkedInKids.filter(k => k.parentName === kid.parentName);
+                                                                        const siblings = checkedInKids.filter(k => k.code === kid.code);
                                                                         setKidsToCheckout(siblings);
-                                                                        setSelectedKidsForCheckout(new Set(siblings.map(s => s.id)));
+                                                                        setSelectedKidsForCheckout(new Set());
                                                                     }} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">
                                                                         Salida
                                                                     </button>
@@ -1892,8 +1902,9 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                                 <Printer className="w-4 h-4" />
                                                             </button>
                                                             <button onClick={() => {
-                                                                setKidsToCheckout([kid]);
-                                                                setSelectedKidsForCheckout(new Set([kid.id]));
+                                                                const siblings = checkedInKids.filter(k => k.code === kid.code);
+                                                                setKidsToCheckout(siblings);
+                                                                setSelectedKidsForCheckout(new Set());
                                                             }} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">
                                                                 Salida
                                                             </button>
@@ -2050,10 +2061,23 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                             <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 text-4xl shadow-inner border border-white/20">
                                 {kidsToCheckout.length === 1 ? (kidsToCheckout[0].photoEmoji || kidsToCheckout[0].photo || "🧒") : "👨‍👩‍👧‍👦"}
                             </div>
-                            <h3 className="text-xl font-black leading-tight tracking-tight">Confirmar Salida</h3>
-                            <p className="text-sm font-medium text-red-100 mt-1 flex items-center justify-center gap-1">
-                                {kidsToCheckout.length === 1 ? `¿Entregar a ${kidsToCheckout[0].name}?` : `Hermanos encontrados (${kidsToCheckout.length})`}
-                            </p>
+                            <h3 className="text-xl font-black leading-tight tracking-tight mb-2">Confirmar Salida</h3>
+                            <div className="flex flex-col items-center justify-center gap-1 min-h-[44px]">
+                                {selectedKidsForCheckout.size > 0 ? (
+                                    <>
+                                        <span className="text-sm font-medium text-red-100">¿Entregar a:</span>
+                                        <div className="flex flex-wrap justify-center gap-x-2 gap-y-1">
+                                            {kidsToCheckout.filter(k => selectedKidsForCheckout.has(k.id)).map((k) => (
+                                                <span key={k.id} className="text-lg font-black bg-white/20 px-3 py-1 rounded-lg break-words text-center leading-tight shadow-sm border border-white/20">
+                                                    {k.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </>
+                                ) : (
+                                    <span className="text-sm font-medium text-red-100">Selecciona quién se retira</span>
+                                )}
+                            </div>
                         </div>
                         <div className="p-6">
                             <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-6 space-y-3">
@@ -2066,19 +2090,35 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     <span className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Elige a quién dar salida:</span>
                                     {kidsToCheckout.map(kid => {
                                         const isSelected = selectedKidsForCheckout.has(kid.id);
+                                        const classroomName = classrooms.find(c => c.id === kid.classroom)?.name || "N/A";
                                         return (
                                             <button key={kid.id} onClick={() => {
                                                 const newSet = new Set(selectedKidsForCheckout);
                                                 if (newSet.has(kid.id)) newSet.delete(kid.id);
                                                 else newSet.add(kid.id);
                                                 setSelectedKidsForCheckout(newSet);
-                                            }} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all border-b-4 active:border-b active:translate-y-[3px] text-left ${isSelected ? 'bg-red-50/50 border-red-200 shadow-sm' : 'bg-white border-slate-200 shadow-sm hover:bg-slate-50'}`}>
-                                                <div className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-slate-300'}`}>
-                                                    {isSelected && <CheckCircle2 className="w-4 h-4" />}
+                                            }} className={`flex items-center gap-3 p-3 border rounded-xl cursor-pointer transition-all border-b-4 active:border-b active:translate-y-[3px] text-left relative overflow-hidden ${isSelected ? 'bg-emerald-50/50 border-emerald-500 shadow-sm' : 'bg-red-50/30 border-red-200 shadow-sm hover:bg-red-50'}`}>
+                                                <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-emerald-500 border-emerald-500 text-white' : 'bg-white border-red-300 text-transparent'}`}>
+                                                    <CheckCircle2 className="w-4 h-4" />
                                                 </div>
                                                 <div className="flex-1 min-w-0 pointer-events-none">
-                                                    <div className="text-sm font-bold text-slate-800 truncate">{kid.name}</div>
-                                                    <div className="text-[10px] uppercase font-semibold text-slate-500">{classrooms.find(c => c.id === kid.classroom)?.name || "N/A"}</div>
+                                                    <div className="flex justify-between items-start mb-0.5">
+                                                        <div className="text-sm font-bold text-slate-800 leading-tight">{kid.name}</div>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-x-2 gap-y-1 mt-1">
+                                                        <div className="text-[10px] uppercase font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{kid.age}a</div>
+                                                        <div className="text-[10px] uppercase font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{(kid as any).gender || "N/E"}</div>
+                                                        <div className="text-[10px] uppercase font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">{classroomName}</div>
+                                                    </div>
+                                                    {kid.visitingChurch && kid.visitingChurch.trim() !== '' && kid.visitingChurch.toUpperCase() !== 'ELIM' && (
+                                                        <div className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded mt-1 inline-block">⛪ {kid.visitingChurch}</div>
+                                                    )}
+                                                </div>
+                                                <div className="shrink-0 flex flex-col items-center justify-center">
+                                                    <div className="text-[8px] uppercase font-bold text-slate-400 mb-0.5 tracking-wider">CÓDIGO</div>
+                                                    <div className="bg-slate-800 text-white font-mono font-black text-xs px-2 py-1 rounded tracking-widest shadow-inner">
+                                                        {(kid as any).code}
+                                                    </div>
                                                 </div>
                                             </button>
                                         );
