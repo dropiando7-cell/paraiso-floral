@@ -378,3 +378,38 @@ export async function generateMockKids(count: number = 50) {
     return { success: true, message: `${createdCount} niños generados.` };
 }
 
+
+// =======================
+// ELIMINACION
+// =======================
+export async function deleteKidAndCheckins(kidId: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Unauthorized" };
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { organizationId: true, role: true },
+    });
+    
+    if (!dbUser) return { error: "Organization not found" };
+    
+    if (dbUser.role !== "SUPER_ADMIN" && dbUser.role !== "CHECKIN_KIDS_ADMIN") {
+        return { error: "No tienes permisos para eliminar registros." };
+    }
+
+    try {
+        await prisma.checkIn.deleteMany({
+            where: { kidId, organizationId: dbUser.organizationId }
+        });
+        
+        await prisma.kid.delete({
+            where: { id: kidId, organizationId: dbUser.organizationId }
+        });
+        
+        revalidatePath("/checkin");
+        return { success: true, message: "Registro eliminado exitosamente." };
+    } catch (e: any) {
+        return { error: e.message || "Error al eliminar el registro." };
+    }
+}

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Printer, Plus, Users, UserPlus, FileText, CheckCircle2, ArrowLeft, Maximize, Minimize, CheckSquare, XCircle, Info, ScanLine, Camera, Edit2, Settings, Beaker, School, ShieldCheck, MessageSquare, Send, LayoutGrid, LayoutList } from "lucide-react";
-import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom, generateMockKids } from "@/app/(dashboard)/checkin/actions";
+import { Search, Printer, Plus, Users, UserPlus, FileText, CheckCircle2, ArrowLeft, Maximize, Minimize, CheckSquare, XCircle, Info, ScanLine, Camera, Edit2, Settings, Beaker, School, ShieldCheck, MessageSquare, Send, LayoutGrid, LayoutList, Trash2 } from "lucide-react";
+import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom, generateMockKids, deleteKidAndCheckins } from "@/app/(dashboard)/checkin/actions";
 import { useLayoutControls } from "@/components/layout/MobileDashboardWrapper";
 import ScannerComponent from './ScannerComponent';
 
@@ -133,6 +133,22 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     const [messageContext, setMessageContext] = useState(""); // Variable {{1}}
     const [sendingMessage, setSendingMessage] = useState(false);
     const [selectedKidForMessage, setSelectedKidForMessage] = useState<any>(null);
+
+    const handleDeleteKid = async (kidId: string) => {
+        if (!confirm("¿Estás seguro de que deseas eliminar a este niño y todos sus registros de check-in de forma permanente? Esta acción no se puede deshacer.")) return;
+        
+        setCheckingIn(true);
+        const result = await deleteKidAndCheckins(kidId);
+        
+        if (result.error) {
+            showToast(result.error, "error");
+        } else {
+            showToast("Registro eliminado con éxito", "success");
+            setAllKids(prev => prev.filter(k => k.id !== kidId));
+            setCheckedInKids(prev => prev.filter(k => k.id !== kidId));
+        }
+        setCheckingIn(false);
+    };
 
     useEffect(() => {
         // Prevent observer from firing immediately on mount when items haven't fully rendered
@@ -730,22 +746,22 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
                                     {[
                                         {
-                                            icon: "✅", title: "Check-In Especial", sub: "Buscar y registrar entrada", action: () => { setView(VIEWS.CHECKIN); setShowNewKidPanel(false); setActiveTab("checkin"); },
+                                            icon: "✅", title: "Nuevo Check-in", sub: "Registrar primera vez", action: () => { setView(VIEWS.CHECKIN); setShowNewKidPanel(true); setNewKidStep(1); },
                                             styleClass: "bg-[#2563EB] border-[#2563EB] text-white shadow-[0_8px_32px_rgba(37,99,235,0.13)]", iconBg: "bg-white/15", titleColor: "text-white text-[1rem]", subColor: "text-white/65", arrow: "text-white/50 group-hover:text-white"
                                         },
                                         {
-                                            icon: "👤", title: "Nuevo Visitante", sub: "Registrar primera vez", action: () => { setView(VIEWS.CHECKIN); setShowNewKidPanel(true); setNewKidStep(1); },
-                                            styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#F0EEFF]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
+                                            icon: <Search className="w-7 h-7" strokeWidth={2.5} />, title: "Buscar y registrar", sub: "Buscar y registrar entrada", action: () => { setView(VIEWS.CHECKIN); setShowNewKidPanel(false); setActiveTab("checkin"); },
+                                            styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#F0EEFF] text-[#3B6FE8]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                         },
                                         {
-                                            icon: "📸", title: "Escanear QR Gafete", sub: "Escanear para Check-out", action: () => setView(VIEWS.SCANNER),
-                                            styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#E6FFFE]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
+                                            icon: <ScanLine className="w-7 h-7" strokeWidth={2.5} />, title: "Escanear QR", sub: "Hacer Check-out", action: () => setView(VIEWS.SCANNER),
+                                            styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#E6FFFE] text-teal-600", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                         },
                                         {
-                                            icon: "💬", title: "Centro de Mensajes", sub: "Enviar mensaje a padres", action: () => setView(VIEWS.MESSAGES),
+                                            icon: <MessageSquare className="w-7 h-7 text-[#25D366]" fill="currentColor" strokeWidth={1} />, title: "Centro de Mensajes", sub: "Enviar mensajes a padres", action: () => setView(VIEWS.MESSAGES),
                                             styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#FFF5E6]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                         },
-                                    ].map(item => (
+                                    ].map((item, index) => (
                                         <button key={item.title} onClick={item.action}
                                             className={`w-full text-left border-2 p-6 md:p-8 rounded-[20px] transition-all hover:-translate-y-1 hover:border-[#3B6FE8] flex flex-col items-start gap-3 relative overflow-hidden group ${item.styleClass}`}>
                                             <div className={`w-[52px] h-[52px] rounded-2xl flex items-center justify-center text-2xl shrink-0 ${item.iconBg}`}>
@@ -1285,6 +1301,12 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                             </div>
                                                             {alreadyIn ? (
                                                                 <div className="flex items-center gap-1 shrink-0">
+                                                                    {["SUPER_ADMIN", "CHECKIN_KIDS_ADMIN"].includes(userRole) && (
+                                                                        <button onClick={() => handleDeleteKid(kid.id)} disabled={checkingIn} title="Eliminar Infante"
+                                                                            className="w-8 h-8 flex items-center justify-center bg-white text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl border border-slate-200 shadow-sm transition-all mr-1">
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
                                                                     {/* Reprint QR button */}
                                                                     <button
                                                                         onClick={() => {
@@ -1308,6 +1330,12 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                                 </div>
                                                             ) : (
                                                                 <div className="flex items-center gap-2 shrink-0">
+                                                                    {["SUPER_ADMIN", "CHECKIN_KIDS_ADMIN"].includes(userRole) && (
+                                                                        <button onClick={() => handleDeleteKid(kid.id)} disabled={checkingIn} title="Eliminar Infante"
+                                                                            className="w-8 h-8 flex items-center justify-center bg-white text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl border border-slate-200 shadow-sm transition-all">
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
                                                                     <button
                                                                         onClick={() => {
                                                                             const newSet = new Set(selectedKidsForCheckin);
@@ -1359,6 +1387,12 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                             </div>
                                                             {alreadyIn ? (
                                                                 <div className="flex items-center gap-1 shrink-0">
+                                                                    {["SUPER_ADMIN", "CHECKIN_KIDS_ADMIN"].includes(userRole) && (
+                                                                        <button onClick={() => handleDeleteKid(kid.id)} disabled={checkingIn} title="Eliminar Infante"
+                                                                            className="w-7 h-7 flex items-center justify-center bg-slate-100 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all mr-1">
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    )}
                                                                     <button
                                                                         onClick={() => {
                                                                             if (checkedInData) {
@@ -1381,6 +1415,12 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                                 </div>
                                                             ) : (
                                                                 <div className="flex items-center gap-1.5 shrink-0">
+                                                                    {["SUPER_ADMIN", "CHECKIN_KIDS_ADMIN"].includes(userRole) && (
+                                                                        <button onClick={() => handleDeleteKid(kid.id)} disabled={checkingIn} title="Eliminar Infante"
+                                                                            className="w-7 h-7 flex items-center justify-center bg-slate-100 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    )}
                                                                     <button
                                                                         onClick={() => {
                                                                             const newSet = new Set(selectedKidsForCheckin);
@@ -1925,9 +1965,11 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                     <h2 className="text-lg font-black text-slate-900 tracking-tight flex items-center gap-2">
                                         <School className="w-5 h-5 text-indigo-500" /> Monitoreo de Salones
                                     </h2>
-                                    <button onClick={() => { setClassroomForm({ id: "", name: "", ageRange: "", teacher: "", capacity: 20, color: "bg-brand-100 text-brand-700 border-brand-200" }); setView(VIEWS.MANAGE_CLASSROOM); }} className="w-10 h-10 flex items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm">
-                                        <Plus className="w-5 h-5" />
-                                    </button>
+                                    {["SUPER_ADMIN", "CHECKIN_KIDS_ADMIN"].includes(userRole) && (
+                                        <button onClick={() => { setClassroomForm({ id: "", name: "", ageRange: "", teacher: "", capacity: 20, color: "bg-brand-100 text-brand-700 border-brand-200" }); setView(VIEWS.MANAGE_CLASSROOM); }} className="w-10 h-10 flex items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors shadow-sm">
+                                            <Plus className="w-5 h-5" />
+                                        </button>
+                                    )}
                                 </div>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                                     {classrooms.map(cls => {
@@ -1949,9 +1991,11 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                             <div className={`text-2xl font-black ${textColor.replace('text-', 'text-').replace('-700', '-600')}`}>{kids.length}</div>
                                                             <div className="text-[10px] font-bold text-slate-400">de {cls.capacity} disp.</div>
                                                         </div>
-                                                        <button onClick={(e) => { e.stopPropagation(); setClassroomForm({ id: cls.id, name: cls.name, ageRange: cls.ageRange || "", teacher: cls.teacher || "", capacity: cls.capacity || 20, color: cls.color || "bg-indigo-100 text-indigo-700 border-indigo-200" }); setView(VIEWS.MANAGE_CLASSROOM); }} className="w-8 h-8 ml-2 flex items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-indigo-600 transition-colors">
-                                                            <Edit2 className="w-4 h-4" />
-                                                        </button>
+                                                        {["SUPER_ADMIN", "CHECKIN_KIDS_ADMIN"].includes(userRole) && (
+                                                            <button onClick={(e) => { e.stopPropagation(); setClassroomForm({ id: cls.id, name: cls.name, ageRange: cls.ageRange || "", teacher: cls.teacher || "", capacity: cls.capacity || 20, color: cls.color || "bg-indigo-100 text-indigo-700 border-indigo-200" }); setView(VIEWS.MANAGE_CLASSROOM); }} className="w-8 h-8 ml-2 flex items-center justify-center rounded-lg bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-indigo-600 transition-colors">
+                                                                <Edit2 className="w-4 h-4" />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
 
