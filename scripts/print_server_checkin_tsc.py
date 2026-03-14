@@ -151,12 +151,17 @@ def crear_imagen_nino(ticket, family_data):
     draw_footer(draw)
     return img
 
-def crear_imagen_padre(family_data):
+def crear_imagen_padre(family_data, is_second=False):
     img = Image.new("RGB", (ancho_etiqueta, alto_etiqueta), "white")
     draw = ImageDraw.Draw(img)
 
-    padre = family_data.get('parentName', '')
-    tel = family_data.get('parentPhone', '')
+    if is_second:
+        padre = family_data.get('parent2Name', '')
+        tel = family_data.get('parent2Phone', '')
+    else:
+        padre = family_data.get('parentName', '')
+        tel = family_data.get('parentPhone', '')
+        
     hora = family_data.get('checkInTime', '')
     codigo = family_data.get('code', '')
     ninos_count = len(family_data.get('tickets', []))
@@ -243,6 +248,11 @@ def procesar_impresion(datos_json):
     if is_family:
         img = crear_imagen_padre(datos_json)
         if not imprimir_imagen(img): return False
+        
+        # Imprimir Segundo Padre si existe
+        if datos_json.get('parent2Name'):
+            img2 = crear_imagen_padre(datos_json, is_second=True)
+            if not imprimir_imagen(img2): return False
 
     return True
 

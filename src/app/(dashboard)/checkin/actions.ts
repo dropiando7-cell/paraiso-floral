@@ -156,6 +156,25 @@ export async function doCheckIn(kidIds: string[], securityCode: string) {
             console.error("Twilio WhatsApp Error: ", result.error);
             notifError = result.error;
         }
+
+        // Send to second tutor if exists
+        if (representativeKid.parent2Phone) {
+            const result2 = await sendCheckInNotification({
+                parentName: representativeKid.parent2Name || representativeKid.parentName,
+                parentPhone: representativeKid.parent2Phone,
+                kidName: groupedNames,
+                kidAge: 0,
+                classroomName: kids.length > 1 ? "Varios" : (representativeKid.classroom?.name || "Elim"),
+                teacherName: "Maestro(a)",
+                securityCode: securityCode,
+                checkInTime: checkInTimeStr,
+                allergies: finalAllergies
+            });
+            if (!result2.success) {
+                console.error("Twilio WhatsApp Error for 2nd Tutor: ", result2.error);
+            }
+        }
+
     } catch (e: any) {
         console.error("Twilio WhatsApp Exception: ", e);
         notifError = e.message;
