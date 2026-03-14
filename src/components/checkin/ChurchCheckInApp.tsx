@@ -809,8 +809,9 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                                     <FileText className="w-5 h-5" />
                                                                 </button>
                                                                 <button onClick={() => {
-                                                                    setKidsToCheckout([kid]);
-                                                                    setSelectedKidsForCheckout(new Set([kid.id]));
+                                                                    const siblings = checkedInKids.filter(k => k.parentName === kid.parentName);
+                                                                    setKidsToCheckout(siblings);
+                                                                    setSelectedKidsForCheckout(new Set(siblings.map(s => s.id)));
                                                                 }} className="px-4 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition-colors">
                                                                     Salida
                                                                 </button>
@@ -1288,8 +1289,9 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                                         <Printer className="w-4 h-4" />
                                                                     </button>
                                                                     <button onClick={() => {
-                                                                        setKidsToCheckout([kid]);
-                                                                        setSelectedKidsForCheckout(new Set([kid.id]));
+                                                                        const siblings = checkedInKids.filter(k => k.parentName === kid.parentName);
+                                                                        setKidsToCheckout(siblings);
+                                                                        setSelectedKidsForCheckout(new Set(siblings.map(s => s.id)));
                                                                     }} className="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border border-red-100 border-b-2 active:border-b-0 active:translate-y-[2px]">
                                                                         Salida
                                                                     </button>
@@ -1360,8 +1362,9 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                                         <Printer className="w-3.5 h-3.5" />
                                                                     </button>
                                                                     <button onClick={() => {
-                                                                        setKidsToCheckout([kid]);
-                                                                        setSelectedKidsForCheckout(new Set([kid.id]));
+                                                                        const siblings = checkedInKids.filter(k => k.parentName === kid.parentName);
+                                                                        setKidsToCheckout(siblings);
+                                                                        setSelectedKidsForCheckout(new Set(siblings.map(s => s.id)));
                                                                     }} className="px-3 py-1.5 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-lg text-[10px] font-black uppercase tracking-wider transition-all">
                                                                         Salida
                                                                     </button>
