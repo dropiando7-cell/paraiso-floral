@@ -18,6 +18,9 @@ export interface Kid {
     allergies: string;
     parentName: string;
     parentPhone: string; // E.164: +50499991111
+    parent2Name?: string;
+    parent2Phone?: string;
+    visitingChurch?: string;
     photo?: string; // emoji
     createdAt?: string;
 }
@@ -40,6 +43,9 @@ export interface CheckInRequest {
     teacherName: string;
     parentName: string;
     parentPhone: string;
+    parent2Name?: string;
+    parent2Phone?: string;
+    visitingChurch?: string;
     allergies?: string;
     churchName?: string;
 }

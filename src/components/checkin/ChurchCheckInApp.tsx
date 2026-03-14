@@ -41,6 +41,22 @@ function generateTicketCode() {
     return code;
 }
 
+const CHURCH_LIST = [
+    "Elim Central Honduras", "Elim Potrerillos", "Elim Villanueva", "Elim Cofradía",
+    "Elim Colinas Santa Bárbara", "Elim, Lagunitas, Olancho", "Elim Davis",
+    "Elim Col. Pizzaty, La Ceiba Atl.", "Elim Yaruca, Atlantida", "Elim Ceiba",
+    "Elim San Francisco", "Elim Bo. Alvarado", "Manantial De Vida, Olancho",
+    "Elim El Negrito", "Elim Piedras Amarillas", "Elim Campo Blanco",
+    "Elim Col. Victoria", "Elim Tela", "Elim Yorito", "Elim Cañaveral Peña Blanca",
+    "Elim Mongual, Lempira", "Elim Valle Verde, La Lima", "Elim Col. Las Mercedes",
+    "Elim Santa Rosa", "Elim El Bajuco", "Elim Chaloma", "Elim Los Mesetas",
+    "Elim Roatan", "Elim Olanchito", "Elim Pimienta", "Elim Tegucigalpa",
+    "Iglesia Mahanaim Honduras", "Elim Concepción Norte", "Elim Col. La Unión",
+    "Elim San Manuel, Cortes", "Elim Col. Villa Esther", "Elim Coray Valle",
+    "Elim Catacamas", "Elim El Progreso", "Elim Jacaleapa", "Elim Agua Helada STB",
+    "Weas Palm Beach", "Elim La Masica, Atlántida", "IMCE - New Jersey", "Otras"
+];
+
 const VIEWS = { HOME: "home", CHECKIN: "checkin", TICKET: "ticket", CLASSROOMS: "classrooms", CLASSROOM_DETAIL: "classroom_detail", MANAGE_CLASSROOM: "manage_classroom", SCANNER: "scanner", MESSAGES: "messages" };
 
 export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
@@ -81,7 +97,8 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     const [directoryViewMode, setDirectoryViewMode] = useState<'grid' | 'list'>('grid');
 
     const defaultKid = { name: "", age: "", gender: "No Especificado", allergies: "", classroom: "" };
-    const [parentForm, setParentForm] = useState({ parentName: "", parentPhone: "" });
+    const [parentForm, setParentForm] = useState({ parentName: "", parentPhone: "", parent2Name: "", parent2Phone: "", visitingChurch: "Elim Central Honduras" });
+    const [showSecondTutor, setShowSecondTutor] = useState(false);
     const [kidsForm, setKidsForm] = useState<any[]>([{ ...defaultKid }]);
     const [checkingIn, setCheckingIn] = useState(false);
     const [notifStatus, setNotifStatus] = useState<any>(null);
@@ -407,7 +424,10 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                 photoEmoji: photo,
                 classroomId: kidForm.classroom,
                 parentName: parentForm.parentName,
-                parentPhone: parentForm.parentPhone
+                parentPhone: parentForm.parentPhone,
+                parent2Name: parentForm.parent2Name,
+                parent2Phone: parentForm.parent2Phone,
+                visitingChurch: parentForm.visitingChurch,
             };
 
             const result = await addKid(payload);
@@ -426,7 +446,8 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             return;
         }
 
-        setParentForm({ parentName: "", parentPhone: "" });
+        setParentForm({ parentName: "", parentPhone: "", parent2Name: "", parent2Phone: "", visitingChurch: "Elim Central Honduras" });
+        setShowSecondTutor(false);
         setKidsForm([{ name: "", age: "", gender: "No Especificado", allergies: "", classroom: classrooms[0]?.id || "" }]);
         setNewKidStep(1);
         setShowNewKidPanel(false);
@@ -971,8 +992,64 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                         <p className="text-[10px] text-slate-400 font-medium ml-1 mt-1 text-center">Se enviará el sticker digital por WhatsApp</p>
                                                     </div>
 
+                                                    {!showSecondTutor ? (
+                                                        <button 
+                                                            onClick={() => setShowSecondTutor(true)} 
+                                                            className="w-full py-2 border-2 border-dashed border-brand-300 rounded-xl text-brand-600 font-bold text-xs hover:bg-brand-50 transition-colors flex justify-center items-center gap-2 mt-2"
+                                                        >
+                                                            <UserPlus className="w-4 h-4" /> Agregar 2do Tutor
+                                                        </button>
+                                                    ) : (
+                                                        <div className="p-3 bg-brand-50/50 border border-brand-100 rounded-xl space-y-3 relative mb-2">
+                                                            <button 
+                                                                onClick={() => {
+                                                                    setShowSecondTutor(false);
+                                                                    setParentForm(p => ({...p, parent2Name: "", parent2Phone: ""}));
+                                                                }} 
+                                                                className="absolute top-2 right-2 text-slate-400 hover:text-red-500 transition-colors"
+                                                                title="Quitar 2do Tutor"
+                                                            >
+                                                                <XCircle className="w-5 h-5" />
+                                                            </button>
+                                                            <h4 className="text-xs font-bold text-brand-700 uppercase tracking-wider">Segundo Tutor</h4>
+                                                            
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Nombre Corto</label>
+                                                                <input className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium"
+                                                                    placeholder="ej. María González" value={parentForm.parent2Name} onChange={e => setParentForm(p => ({ ...p, parent2Name: e.target.value }))} />
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">WhatsApp</label>
+                                                                <div className="flex bg-white border border-slate-200 rounded-xl overflow-hidden focus-within:border-brand-500 focus-within:ring-1 focus-within:ring-brand-500 transition-all">
+                                                                    <div className="flex items-center justify-center pl-3 pr-2 bg-slate-50 border-r border-slate-200 text-slate-500 font-bold text-sm select-none">
+                                                                        +504
+                                                                    </div>
+                                                                    <input className="w-full bg-transparent px-3 py-2.5 text-sm outline-none font-medium"
+                                                                        placeholder="8888-0000" type="tel" value={parentForm.parent2Phone.replace(/^\+504\s*/, '')} onChange={e => setParentForm(p => ({ ...p, parent2Phone: `+504 ${e.target.value}` }))} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div>
+                                                        <label className="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 ml-1">Iglesia de procedencia</label>
+                                                        <input 
+                                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none transition-all font-medium"
+                                                            placeholder="Escribe para buscar..." 
+                                                            value={parentForm.visitingChurch} 
+                                                            onChange={e => setParentForm(p => ({ ...p, visitingChurch: e.target.value }))}
+                                                            list="church-list"
+                                                        />
+                                                        <datalist id="church-list">
+                                                            {CHURCH_LIST.map(church => (
+                                                                <option key={church} value={church} />
+                                                            ))}
+                                                        </datalist>
+                                                    </div>
+
                                                     <button onClick={() => { if (parentForm.parentName && parentForm.parentPhone) setNewKidStep(2); }} disabled={!parentForm.parentName || !parentForm.parentPhone}
-                                                        className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl shadow-md transition-all mt-2 flex justify-center items-center gap-2">
+                                                        className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-50 disabled:bg-slate-300 text-white font-bold py-3.5 rounded-xl shadow-md transition-all mt-4 flex justify-center items-center gap-2">
                                                         Siguiente <ArrowLeft className="w-4 h-4 rotate-180" />
                                                     </button>
                                                 </div>

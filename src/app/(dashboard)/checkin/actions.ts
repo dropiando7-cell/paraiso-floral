@@ -44,7 +44,7 @@ export async function getCheckinData() {
     return { classrooms, kids, activeCheckins, organizationId: dbUser.organizationId };
 }
 
-export async function addKid(data: { name: string, age: number, gender: string, classroomId: string, allergies: string, parentName: string, parentPhone: string, photoEmoji: string }) {
+export async function addKid(data: { name: string, age: number, gender: string, classroomId: string, allergies: string, parentName: string, parentPhone: string, parent2Name?: string, parent2Phone?: string, visitingChurch?: string, photoEmoji: string }) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { error: "Unauthorized" };
@@ -62,6 +62,11 @@ export async function addKid(data: { name: string, age: number, gender: string, 
         phone = `+504${phone.replace(/\D/g, '')}`;
     }
 
+    let phone2 = data.parent2Phone?.trim() || null;
+    if (phone2 && !phone2.startsWith('+')) {
+        phone2 = `+504${phone2.replace(/\D/g, '')}`;
+    }
+
     const newKid = await prisma.kid.create({
         data: {
             organizationId: dbUser.organizationId,
@@ -72,6 +77,9 @@ export async function addKid(data: { name: string, age: number, gender: string, 
             allergies: data.allergies || "Ninguna",
             parentName: data.parentName,
             parentPhone: phone,
+            parent2Name: data.parent2Name || null,
+            parent2Phone: phone2,
+            visitingChurch: data.visitingChurch || null,
             photoEmoji: data.photoEmoji,
         }
     });

@@ -173,6 +173,9 @@ model Kid {
   allergies      String       @default("Ninguna")
   parentName     String
   parentPhone    String
+  parent2Name    String?
+  parent2Phone   String?
+  visitingChurch String?
   photoEmoji     String       @default("🧒")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
