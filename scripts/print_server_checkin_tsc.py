@@ -3,7 +3,7 @@ import requests
 import win32print
 import win32ui
 import win32con
-from PIL import Image, ImageDraw, ImageFont, ImageWin
+from PIL import Image, ImageDraw, ImageFont, ImageWin, ImageOps
 import qrcode
 import io
 from datetime import datetime
@@ -13,12 +13,35 @@ API_COMPLETAR  = "https://sistemaselim.app/api/checkin/completar"
 IMPRESORA      = "TSC TE200"
 TIEMPO_ESPERA  = 3
 
-# Configuracion base para etiqueta 3x2 pulgadas
-ancho_etiqueta = 600
-alto_etiqueta = 400
+ancho_etiqueta = 609
+alto_etiqueta = 406
+
+LOGO_IMG_BLACK = None
+LOGO_IMG_WHITE = None
+
+def inicializar_logo():
+    global LOGO_IMG_BLACK, LOGO_IMG_WHITE
+    try:
+        url = "https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blanco-1.png"
+        res = requests.get(url, timeout=3)
+        img = Image.open(io.BytesIO(res.content)).convert("RGBA")
+        
+        LOGO_IMG_WHITE = img.resize((45, 45), Image.Resampling.LANCZOS)
+        
+        r, g, b, a = img.split()
+        rgb_img = Image.merge('RGB', (r,g,b))
+        rgb_img = ImageOps.invert(rgb_img)
+        
+        final_img = Image.new("RGBA", img.size)
+        data = []
+        for c, alpha in zip(rgb_img.getdata(), a.getdata()):
+            data.append((0, 0, 0, alpha))
+        final_img.putdata(data)
+        LOGO_IMG_BLACK = final_img.resize((45, 45), Image.Resampling.LANCZOS)
+    except Exception as e:
+        pass
 
 def get_font(size, bold=False):
-    # Intentar cargar fuente Arial, si no usar default
     try:
         font_name = "arialbd.ttf" if bold else "arial.ttf"
         return ImageFont.truetype(font_name, size)
@@ -32,6 +55,47 @@ def generar_qr(datos, size=150):
     img_qr = qr.make_image(fill_color="black", back_color="white").convert("RGB")
     return img_qr.resize((size, size))
 
+def wrap_text(text, font, max_width, draw):
+    words = text.split()
+    lines = []
+    current_line = ""
+    for word in words:
+        test_line = current_line + word + " "
+        bbox = draw.textbbox((0,0), test_line, font=font)
+        if bbox[2] <= max_width:
+            current_line = test_line
+        else:
+            if current_line:
+                lines.append(current_line.strip())
+            current_line = word + " "
+    if current_line:
+        lines.append(current_line.strip())
+    return "\n".join(lines)
+
+def draw_header(draw, img, is_padre=False):
+    text_color = "white" if is_padre else "black"
+    logo = LOGO_IMG_WHITE if is_padre else LOGO_IMG_BLACK
+    
+    # Logo
+    if logo:
+        img.paste(logo, (15, 10), logo)
+        draw.text((65, 23), "Elim Honduras", fill=text_color, font=get_font(24, True))
+    else:
+        draw.text((20, 20), "Elim Honduras", fill=text_color, font=get_font(26, True))
+
+    title = "ETIQUETA DE PADRES" if is_padre else "ETIQUETA DE NIÑOS"
+    draw.text((20, 65), title, fill=text_color, font=get_font(18, True))
+
+def draw_footer(draw, is_padre=False):
+    footer_text = "NO PIERDAS ESTE PASE · REQUERIDO A LA SALIDA"
+    font = get_font(14, True)
+    bbox = draw.textbbox((0,0), footer_text, font=font)
+    w = bbox[2] - bbox[0]
+    text_color = "white" if is_padre else "black"
+    line_color = "white" if is_padre else "gray"
+    draw.text(((ancho_etiqueta - w)/2, 375), footer_text, fill=text_color, font=font)
+    draw.line([(0, 365), (ancho_etiqueta, 365)], fill=line_color, width=1)
+
 def crear_imagen_nino(ticket, family_data):
     img = Image.new("RGB", (ancho_etiqueta, alto_etiqueta), "white")
     draw = ImageDraw.Draw(img)
@@ -40,48 +104,55 @@ def crear_imagen_nino(ticket, family_data):
     tel = family_data.get('parentPhone', '') or ticket.get('parentPhone', '')
     hora = family_data.get('checkInTime', '')
     codigo = family_data.get('code', ticket.get('code', ''))
+    
+    # Division Line
+    draw.line([(400, 15), (400, 350)], fill="black", width=2)
+    
+    draw_header(draw, img, False)
+    
+    # Nombre Nino (Wrapped and Huge)
+    nombre = ticket.get('name', '')
+    font_name = get_font(56, True)
+    if len(nombre) > 14: font_name = get_font(48, True)
+    if len(nombre) > 19: font_name = get_font(40, True)
+    wrapped_name = wrap_text(nombre, font_name, 370, draw)
+    draw.text((20, 95), wrapped_name, fill="black", font=font_name)
+    
+    # Determine Y offset based on name lines
+    lines = len(wrapped_name.split('\n'))
+    y_offset = 95 + (lines * font_name.size) + 20
 
-    # Titulo "Elim Honduras"
-    draw.text((20, 20), "ELIM HONDURAS", fill="black", font=get_font(24, True))
+    fecha_str = datetime.now().strftime("%d/%m/%Y")
+    draw.text((20, y_offset), f"{fecha_str} {hora}", fill="black", font=get_font(20, True))
     
-    # "INGRESO NIÑO(A)"
-    draw.text((20, 60), "INGRESO NIÑO(A)", fill="gray", font=get_font(18, True))
-    
-    # Nombre Nino
-    nombre_nino = ticket.get('name', '')
-    draw.text((20, 90), nombre_nino[:25], fill="black", font=get_font(42, True))
-    
-    # Fecha y Hora
-    fecha_str = datetime.now().strftime("%d/%m/%Y") + " " + hora
-    draw.text((20, 150), fecha_str, fill="black", font=get_font(20))
-    
-    # Celular
-    celular_limpio = tel.replace("+504", "").strip()
-    draw.text((20, 180), f"NO. CEL: {celular_limpio}", fill="black", font=get_font(24, True))
-    
-    # Nombre Padre
-    draw.text((20, 220), f"Padre: {padre[:30]}", fill="black", font=get_font(20, True))
-    
-    # Alergias
-    alergias = ticket.get('allergies', 'Ninguna')
-    if alergias and alergias.lower() != 'ninguna':
-        draw.rectangle([20, 260, 580, 310], fill="#eeeeee")
-        draw.text((30, 275), f"Alergias: {alergias[:40]}", fill="black", font=get_font(20, True))
+    cel_str = tel.replace("+504", "").strip() if tel else ""
+    draw.text((20, y_offset + 30), f"NO. CEL: {cel_str}", fill="black", font=get_font(26, True))
+    draw.text((20, y_offset + 65), f"Padre: {padre[:35]}", fill="black", font=get_font(20, True))
 
-    # Generar QR
-    img_qr = generar_qr(ticket.get('qrValue', ''), 140)
-    img.paste(img_qr, (420, 80))
-    
-    # Codigo Ticket arriba del QR
-    draw.text((450, 40), codigo, fill="black", font=get_font(28, True))
-    
-    # Pie de pagina
-    draw.text((90, 360), "NO PIERDAS ESTE PASE - REQUERIDO A LA SALIDA", fill="black", font=get_font(16, True))
+    alergias = ticket.get('allergies', '')
+    if alergias and alergias.lower() not in ['ninguna', '']:
+        text_alergia = f"⚠ Alergias: {alergias[:40]}"
+        al_font = get_font(18, True)
+        bbox = draw.textbbox((0,0), text_alergia, font=al_font)
+        draw.rectangle([20, y_offset + 95, 30+bbox[2], y_offset + 122], fill="#eeeeee", outline="#cccccc")
+        draw.text((25, y_offset + 98), text_alergia, fill="black", font=al_font)
 
+    # Right side: Code & QR
+    code_font = get_font(30, True)
+    c_bbox = draw.textbbox((0,0), codigo, font=code_font)
+    cw = c_bbox[2]
+    cx = 410 + (190 - cw) / 2
+    draw.rounded_rectangle([cx - 15, 30, cx + cw + 15, 75], radius=10, outline="black", width=3)
+    draw.text((cx, 37), codigo, fill="black", font=code_font)
+    
+    qr_img = generar_qr(ticket.get('qrValue', ''), 160)
+    img.paste(qr_img, (410 + (190-160)//2, 90))
+    
+    draw_footer(draw, False)
     return img
 
 def crear_imagen_padre(family_data):
-    img = Image.new("RGB", (ancho_etiqueta, alto_etiqueta), "white")
+    img = Image.new("RGB", (ancho_etiqueta, alto_etiqueta), "black")
     draw = ImageDraw.Draw(img)
 
     padre = family_data.get('parentName', '')
@@ -89,27 +160,42 @@ def crear_imagen_padre(family_data):
     hora = family_data.get('checkInTime', '')
     codigo = family_data.get('code', '')
     ninos_count = len(family_data.get('tickets', []))
+    
+    draw.line([(400, 15), (400, 350)], fill="white", width=2)
+    draw_header(draw, img, True)
+    
+    font_name = get_font(48, True)
+    wrapped_name = wrap_text(padre, font_name, 370, draw)
+    draw.text((20, 95), wrapped_name, fill="white", font=font_name)
+    
+    lines = len(wrapped_name.split('\n'))
+    y_offset = 95 + (lines * font_name.size) + 40
+    
+    fecha_str = datetime.now().strftime("%d/%m/%Y")
+    draw.text((20, y_offset), f"{fecha_str} {hora}", fill="white", font=get_font(20, True))
+    
+    cel_str = tel.replace("+504", "").strip() if tel else ""
+    draw.text((20, y_offset + 30), f"NO. CEL: {cel_str}", fill="white", font=get_font(26, True))
+    draw.text((20, y_offset + 70), f"Niños ingresados: {ninos_count}", fill="white", font=get_font(20, True))
 
-    draw.text((20, 20), "ELIM HONDURAS", fill="black", font=get_font(24, True))
-    draw.text((20, 60), "INGRESO PADRE/TUTOR", fill="gray", font=get_font(18, True))
-    
-    draw.text((20, 90), padre[:25], fill="black", font=get_font(36, True))
-    
-    fecha_str = datetime.now().strftime("%d/%m/%Y") + " " + hora
-    draw.text((20, 160), fecha_str, fill="black", font=get_font(20))
-    
-    celular_limpio = tel.replace("+504", "").strip() if tel else ""
-    draw.text((20, 190), f"NO. CEL: {celular_limpio}", fill="black", font=get_font(24, True))
-    
-    draw.text((20, 230), f"Niños ingresados: {ninos_count}", fill="black", font=get_font(20, True))
-    
-    # Bloque de "PASE PADRES" en la derecha
-    draw.rectangle([400, 100, 560, 260], outline="black", width=3)
-    draw.text((425, 150), "PASE\nPADRES", fill="gray", font=get_font(26, True), align="center")
-    draw.text((425, 50), codigo, fill="black", font=get_font(32, True))
+    # Right side: Code & QR Code
+    code_font = get_font(30, True)
+    c_bbox = draw.textbbox((0,0), codigo, font=code_font)
+    cw = c_bbox[2]
+    cx = 410 + (190 - cw) / 2
+    draw.rounded_rectangle([cx - 15, 30, cx + cw + 15, 75], radius=10, outline="white", width=3)
+    draw.text((cx, 37), codigo, fill="white", font=code_font)
 
-    draw.text((90, 360), "NO PIERDAS ESTE PASE - REQUERIDO A LA SALIDA", fill="black", font=get_font(16, True))
-
+    # QR Code
+    qr_val = family_data.get('qrValue', '')
+    if not qr_val and family_data.get('tickets'):
+        qr_val = family_data['tickets'][0].get('qrValue', '')
+    
+    if qr_val:
+        qr_img = generar_qr(qr_val, 160)
+        img.paste(qr_img, (410 + (190-160)//2, 90))
+    
+    draw_footer(draw, True)
     return img
 
 def imprimir_imagen(img_pil):
@@ -120,7 +206,8 @@ def imprimir_imagen(img_pil):
         ancho_printer = hDC.GetDeviceCaps(win32con.HORZRES)
         alto_printer  = hDC.GetDeviceCaps(win32con.VERTRES)
         
-        # Binarizacion rapida y escalado simple adaptativo a la impresora
+        # Rotar la imagen 180 grados puede ser necesario en las TSC termicas para top-to-bottom
+        # Si la web la imprimia bien rotada o no, PIL se encarga de estirarla
         img_scaled = img_pil.resize((ancho_printer, alto_printer), Image.LANCZOS).convert("1")
         
         hDC.StartDoc("Etiqueta Checkin")
@@ -156,8 +243,9 @@ def procesar_impresion(datos_json):
     return True
 
 def iniciar():
+    inicializar_logo() # Fetch the logo on startup
     print("=========================================")
-    print(" SERVIDOR CHECK-IN ELIM (Python PIL)")
+    print(" SERVIDOR CHECK-IN ELIM (Python PIL v2)")
     print(f" Impresora Configurada: {IMPRESORA}")
     print("=========================================\n")
     print("[*] Esperando trabajos... (Ctrl+C para salir)")
