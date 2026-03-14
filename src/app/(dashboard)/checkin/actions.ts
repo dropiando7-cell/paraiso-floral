@@ -413,3 +413,51 @@ export async function deleteKidAndCheckins(kidId: string) {
         return { error: e.message || "Error al eliminar el registro." };
     }
 }
+
+export async function deleteClassroom(classroomId: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { error: "Unauthorized" };
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { organizationId: true, role: true },
+    });
+    
+    if (!dbUser) return { error: "Organization not found" };
+    
+    if (dbUser.role !== "SUPER_ADMIN" && dbUser.role !== "CHECKIN_KIDS_ADMIN") {
+        return { error: "No tienes permisos para eliminar salones." };
+    }
+
+    try {
+        // Enforce cascading deletes or manual deletion if Prisma schema doesn't have onDelete: Cascade
+        // Checkins are related to kids and organization, kids to classroom. 
+        // We first get all kids in this classroom.
+        const kids = await prisma.kid.findMany({
+            where: { classroomId, organizationId: dbUser.organizationId },
+            select: { id: true }
+        });
+        
+        const kidIds = kids.map(k => k.id);
+        
+        if (kidIds.length > 0) {
+            await prisma.checkIn.deleteMany({
+                where: { kidId: { in: kidIds }, organizationId: dbUser.organizationId }
+            });
+            await prisma.kid.deleteMany({
+                where: { id: { in: kidIds }, organizationId: dbUser.organizationId }
+            });
+        }
+        
+        // Now delete classroom
+        await prisma.classroom.delete({
+            where: { id: classroomId, organizationId: dbUser.organizationId }
+        });
+        
+        revalidatePath("/checkin");
+        return { success: true, message: "Salón eliminado exitosamente." };
+    } catch (e: any) {
+        return { error: e.message || "Error al eliminar el salón." };
+    }
+}

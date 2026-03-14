@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Search, Printer, Plus, Users, UserPlus, FileText, CheckCircle2, ArrowLeft, Maximize, Minimize, CheckSquare, XCircle, Info, ScanLine, Camera, Edit2, Settings, Beaker, School, ShieldCheck, MessageSquare, Send, LayoutGrid, LayoutList, Trash2 } from "lucide-react";
-import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom, generateMockKids, deleteKidAndCheckins } from "@/app/(dashboard)/checkin/actions";
+import { getCheckinData, addKid, doCheckIn, doCheckOut, addClassroom, updateClassroom, generateMockKids, deleteKidAndCheckins, deleteClassroom } from "@/app/(dashboard)/checkin/actions";
 import { useLayoutControls } from "@/components/layout/MobileDashboardWrapper";
 import ScannerComponent from './ScannerComponent';
 
@@ -148,6 +148,24 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             setCheckedInKids(prev => prev.filter(k => k.id !== kidId));
         }
         setCheckingIn(false);
+    };
+
+    const handleDeleteClassroom = async (classroomId: string) => {
+        if (!confirm("¿Estás seguro de que deseas eliminar este salón? Esta acción eliminará TAMBIÉN a todos los niños asignados a este salón y sus registros de check-in. Esta acción no se puede deshacer.")) return;
+
+        setSavingClassroom(true);
+        const result = await deleteClassroom(classroomId);
+
+        if (result.error) {
+            showToast(result.error, "error");
+        } else {
+            showToast("Salón eliminado con éxito", "success");
+            setClassrooms(prev => prev.filter(c => c.id !== classroomId));
+            setAllKids(prev => prev.filter(k => k.classroomId !== classroomId && k.classroom !== classroomId));
+            setCheckedInKids(prev => prev.filter(k => k.classroomId !== classroomId && k.classroom !== classroomId));
+            setView(VIEWS.CLASSROOMS);
+        }
+        setSavingClassroom(false);
     };
 
     useEffect(() => {
@@ -2061,31 +2079,43 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                         </select>
                                     </div>
 
-                                    <button onClick={async () => {
-                                        if (!classroomForm.name) return;
-                                        setSavingClassroom(true);
-                                        let res: any;
-                                        if (classroomForm.id) {
-                                            res = await updateClassroom(classroomForm.id, classroomForm);
-                                        } else {
-                                            res = await addClassroom(classroomForm);
-                                        }
-                                        if (res?.error) showToast(res.error, "error");
-                                        else if (res?.classroom) {
-                                            showToast(classroomForm.id ? "¡Salón actualizado!" : "¡Salón creado!", "success");
+                                    <div className="flex gap-3 mt-4">
+                                        {classroomForm.id && ["SUPER_ADMIN", "CHECKIN_KIDS_ADMIN"].includes(userRole) && (
+                                            <button 
+                                                onClick={() => handleDeleteClassroom(classroomForm.id)} 
+                                                disabled={savingClassroom} 
+                                                className="px-4 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 disabled:opacity-50 font-bold py-3.5 rounded-xl transition-all flex items-center justify-center shrink-0"
+                                                title="Eliminar Salón"
+                                            >
+                                                <Trash2 className="w-5 h-5" />
+                                            </button>
+                                        )}
+                                        <button onClick={async () => {
+                                            if (!classroomForm.name) return;
+                                            setSavingClassroom(true);
+                                            let res: any;
                                             if (classroomForm.id) {
-                                                setClassrooms(prev => prev.map(c => c.id === classroomForm.id ? res.classroom : c));
+                                                res = await updateClassroom(classroomForm.id, classroomForm);
                                             } else {
-                                                setClassrooms(prev => [...prev, res.classroom]);
+                                                res = await addClassroom(classroomForm);
                                             }
-                                            setView(VIEWS.CLASSROOMS);
-                                        } else {
-                                            showToast("Error desconocido al guardar", "error");
-                                        }
-                                        setSavingClassroom(false);
-                                    }} disabled={savingClassroom} className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-md transition-all mt-4">
-                                        {savingClassroom ? "⏳ Guardando..." : "✅ Guardar Salón"}
-                                    </button>
+                                            if (res?.error) showToast(res.error, "error");
+                                            else if (res?.classroom) {
+                                                showToast(classroomForm.id ? "¡Salón actualizado!" : "¡Salón creado!", "success");
+                                                if (classroomForm.id) {
+                                                    setClassrooms(prev => prev.map(c => c.id === classroomForm.id ? res.classroom : c));
+                                                } else {
+                                                    setClassrooms(prev => [...prev, res.classroom]);
+                                                }
+                                                setView(VIEWS.CLASSROOMS);
+                                            } else {
+                                                showToast("Error desconocido al guardar", "error");
+                                            }
+                                            setSavingClassroom(false);
+                                        }} disabled={savingClassroom} className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl shadow-md transition-all">
+                                            {savingClassroom ? "⏳ Guardando..." : "✅ Guardar Salón"}
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         )}
