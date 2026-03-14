@@ -738,7 +738,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                         {[
                             { icon: "🏠", label: "Inicio", v: VIEWS.HOME },
                             { icon: "✅", label: "Check-in", v: VIEWS.CHECKIN },
-                            { icon: "💬", label: "Mensajes", v: VIEWS.MESSAGES },
+                            { icon: <img src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/icono-whatsapp.png" alt="WhatsApp" className="w-[22px] h-[22px] object-contain" />, label: "Mensajes", v: VIEWS.MESSAGES },
                             { icon: "🏛️", label: "Salones", v: VIEWS.CLASSROOMS },
                         ].map(item => {
                             const isActive = view === item.v || (view === VIEWS.TICKET && item.v === VIEWS.CHECKIN) || (view === VIEWS.CLASSROOM_DETAIL && item.v === VIEWS.CLASSROOMS);
@@ -776,7 +776,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                             styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#E6FFFE] text-teal-600", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                         },
                                         {
-                                            icon: <MessageSquare className="w-7 h-7 text-[#25D366]" fill="currentColor" strokeWidth={1} />, title: "Centro de Mensajes", sub: "Enviar mensajes a padres", action: () => setView(VIEWS.MESSAGES),
+                                            icon: <img src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/icono-whatsapp.png" alt="WhatsApp" className="w-8 h-8 object-contain" />, title: "Centro de Mensajes", sub: "Enviar mensajes a padres", action: () => setView(VIEWS.MESSAGES),
                                             styleClass: "bg-white border-[#D6E0FF] text-[#1B2E6B] shadow-[0_8px_32px_rgba(39,72,181,0.13)]", iconBg: "bg-[#FFF5E6]", titleColor: "text-[#1B2E6B] text-[1rem]", subColor: "text-[#7A8DB8]", arrow: "text-[#7A8DB8] group-hover:text-[#3B6FE8]"
                                         },
                                     ].map((item, index) => (
