@@ -537,6 +537,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             }
 
             setCheckingIn(false);
+            setSavingNewKid(false);
         } else {
             setSavingNewKid(false);
             showToast("✅ Registro familiar exitoso", "success");
