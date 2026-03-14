@@ -57,13 +57,17 @@ export async function addKid(data: { name: string, age: number, gender: string, 
 
     // Format phone number to start with +, standard E164 handling
     let phone = data.parentPhone.trim();
-    if (phone && !phone.startsWith('+')) {
+    if (phone === '+504') {
+        phone = '';
+    } else if (phone && !phone.startsWith('+')) {
         // Assume Honduras code +504 if none is specified, could extract to an org setting later
         phone = `+504${phone.replace(/\D/g, '')}`;
     }
 
     let phone2 = data.parent2Phone?.trim() || null;
-    if (phone2 && !phone2.startsWith('+')) {
+    if (phone2 === '+504' || phone2 === '') {
+        phone2 = null;
+    } else if (phone2 && !phone2.startsWith('+')) {
         phone2 = `+504${phone2.replace(/\D/g, '')}`;
     }
 
@@ -138,27 +142,29 @@ export async function doCheckIn(kidIds: string[], securityCode: string) {
         const allergiesList = kids.filter(k => k.allergies && k.allergies !== "Ninguna").map(k => `${k.name.split(' ')[0]}: ${k.allergies}`).join(" | ");
         const finalAllergies = allergiesList || "Ninguna";
 
-        const result = await sendCheckInNotification({
-            parentName: representativeKid.parentName,
-            parentPhone: representativeKid.parentPhone,
-            kidName: groupedNames, // We pass the concatenated names so Twilio prints them
-            kidAge: 0, // Not explicitly used in Twilio template for multiple
-            classroomName: kids.length > 1 ? "Varios" : (representativeKid.classroom?.name || "Elim"),
-            teacherName: "Maestro(a)",
-            securityCode: securityCode,
-            checkInTime: checkInTimeStr,
-            allergies: finalAllergies
-        });
+        if (representativeKid.parentPhone && representativeKid.parentPhone.length > 8) {
+            const result = await sendCheckInNotification({
+                parentName: representativeKid.parentName,
+                parentPhone: representativeKid.parentPhone,
+                kidName: groupedNames, // We pass the concatenated names so Twilio prints them
+                kidAge: 0, // Not explicitly used in Twilio template for multiple
+                classroomName: kids.length > 1 ? "Varios" : (representativeKid.classroom?.name || "Elim"),
+                teacherName: "Maestro(a)",
+                securityCode: securityCode,
+                checkInTime: checkInTimeStr,
+                allergies: finalAllergies
+            });
 
-        if (result.success) {
-            notifSent = true;
-        } else {
-            console.error("Twilio WhatsApp Error: ", result.error);
-            notifError = result.error;
+            if (result.success) {
+                notifSent = true;
+            } else {
+                console.error("Twilio WhatsApp Error: ", result.error);
+                notifError = result.error;
+            }
         }
 
         // Send to second tutor if exists
-        if (representativeKid.parent2Phone) {
+        if (representativeKid.parent2Phone && representativeKid.parent2Phone.length > 8) {
             const result2 = await sendCheckInNotification({
                 parentName: representativeKid.parent2Name || representativeKid.parentName,
                 parentPhone: representativeKid.parent2Phone,
@@ -232,16 +238,20 @@ export async function doCheckOut(kidId: string) {
         });
 
         // Send checkout notification
-        if (activeCheckIn.kid.parentPhone) {
-            const checkOutTimeStr = new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" });
-            await sendCheckOutNotification(
-                activeCheckIn.kid.parentName,
-                activeCheckIn.kid.parentPhone,
-                activeCheckIn.kid.name,
-                "Elim", // Placeholder classroom
-                checkOutTimeStr,
-                "Misión Cristiana Elim"
-            );
+        if (activeCheckIn.kid.parentPhone && activeCheckIn.kid.parentPhone.length > 8) {
+            try {
+                const checkOutTimeStr = new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" });
+                await sendCheckOutNotification(
+                    activeCheckIn.kid.parentName,
+                    activeCheckIn.kid.parentPhone,
+                    activeCheckIn.kid.name,
+                    "Elim", // Placeholder classroom
+                    checkOutTimeStr,
+                    "Misión Cristiana Elim"
+                );
+            } catch (e) {
+                console.error("Failed to send checkout Twilio notification:", e);
+            }
         }
 
         revalidatePath("/checkin");
@@ -303,6 +313,7 @@ export async function updateClassroom(id: string, data: { name: string, ageRange
     });
 
     revalidatePath("/checkin");
+    return { success: true, classroom: updated };
 }
 
 // =======================

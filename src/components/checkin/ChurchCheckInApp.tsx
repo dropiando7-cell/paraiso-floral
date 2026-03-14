@@ -76,6 +76,13 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
     // Default initialization from initialData
     const [classrooms, setClassrooms] = useState<any[]>(initialData?.classrooms || []);
     const [allKids, setAllKids] = useState<any[]>(initialData?.kids || []);
+    const allKidsRef = useRef<any[]>(initialData?.kids || []);
+    
+    // Update ref whenever allKids changes
+    useEffect(() => {
+        allKidsRef.current = allKids;
+    }, [allKids]);
+
     const [checkedInKids, setCheckedInKids] = useState<any[]>(() => {
         if (!initialData?.activeCheckins) return [];
         return initialData.activeCheckins.map((ci: any) => ({
@@ -259,26 +266,22 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'CheckIn' }, async (payload) => {
                 const newCheckin = payload.new;
 
-                // We need the kid data associated with this checkin
-                // Could fetch just the kid, or trust `allKids` has it
-                setAllKids(currentKids => {
-                    const kid = currentKids.find(k => k.id === newCheckin.kidId);
-                    if (kid) {
-                        setCheckedInKids(currentChecked => {
-                            if (currentChecked.some(c => c.id === kid.id)) return currentChecked;
+                // Access the latest kids via ref instead of nested state updaters
+                const kid = allKidsRef.current.find(k => k.id === newCheckin.kidId);
+                if (kid) {
+                    setCheckedInKids(currentChecked => {
+                        if (currentChecked.some(c => c.id === kid.id)) return currentChecked;
 
-                            const ticket = {
-                                ...kid,
-                                code: newCheckin.securityCode,
-                                checkInTime: new Date(newCheckin.createdAt).toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
-                                qrValue: `IGLESIA-CHECKIN:${kid.id}:${newCheckin.securityCode}:${new Date(newCheckin.createdAt).getTime()}`,
-                                notifStatus: newCheckin.notifProvider || "Ninguna"
-                            };
-                            return [...currentChecked, ticket];
-                        });
-                    }
-                    return currentKids;
-                });
+                        const ticket = {
+                            ...kid,
+                            code: newCheckin.securityCode,
+                            checkInTime: new Date(newCheckin.createdAt).toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
+                            qrValue: `IGLESIA-CHECKIN:${kid.id}:${newCheckin.securityCode}:${new Date(newCheckin.createdAt).getTime()}`,
+                            notifStatus: newCheckin.notifProvider || "Ninguna"
+                        };
+                        return [...currentChecked, ticket];
+                    });
+                }
             })
             .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'CheckIn' }, (payload) => {
                 const updatedCheckin = payload.new;
@@ -856,7 +859,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                                 <button onClick={() => {
                                                                     const siblings = checkedInKids.filter(k => k.parentName === kid.parentName);
                                                                     setKidsToCheckout(siblings);
-                                                                    setSelectedKidsForCheckout(new Set(siblings.map(s => s.id)));
+                                                                    setSelectedKidsForCheckout(new Set());
                                                                 }} className="px-4 py-2 rounded-xl bg-red-50 text-red-600 hover:bg-red-100 text-xs font-bold transition-colors">
                                                                     Salida
                                                                 </button>
@@ -1342,7 +1345,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                                                                     <button onClick={() => {
                                                                         const siblings = checkedInKids.filter(k => k.parentName === kid.parentName);
                                                                         setKidsToCheckout(siblings);
-                                                                        setSelectedKidsForCheckout(new Set(siblings.map(s => s.id)));
+                                                                        setSelectedKidsForCheckout(new Set());
                                                                     }} className="px-3 py-2 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all border border-red-100 border-b-2 active:border-b-0 active:translate-y-[2px]">
                                                                         Salida
                                                                     </button>
