@@ -353,13 +353,15 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                 checkInTime: new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
                 checkInDate: new Date().toLocaleDateString("es-HN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
                 qrValue: `IGLESIA-CHECKIN:FAMILY:${code}:${Date.now()}`,
-                notifStatus: result.notification?.sent ? "WhatsApp" : "Ninguna"
+                notifStatus: result.notification?.sent ? "WhatsApp" : "Ninguna",
+                parent2Name: kid?.parent2Name || undefined,
+                parent2Phone: kid?.parent2Phone || undefined
             };
         });
 
         // Current ticket should ideally show the "Family Code" or the first kid
         // We will store the array of tickets to print them all
-        setCurrentTicket({ type: "FAMILY", tickets: newTickets, code, qrValue: newTickets[0].qrValue, parentName: newTickets[0].parentName, checkInTime: newTickets[0].checkInTime, autoPrint: true });
+        setCurrentTicket({ type: "FAMILY", tickets: newTickets, code, qrValue: newTickets[0].qrValue, parentName: newTickets[0].parentName, parent2Name: newTickets[0].parent2Name, checkInTime: newTickets[0].checkInTime, autoPrint: true });
 
         setCheckedInKids(prev => {
             const filtered = prev.filter(k => !validKidIds.includes(k.id));
@@ -469,10 +471,12 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                 checkInTime: new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
                 checkInDate: new Date().toLocaleDateString("es-HN", { weekday: "long", year: "numeric", month: "long", day: "numeric" }),
                 qrValue: `IGLESIA-CHECKIN:FAMILY:${code}:${Date.now()}`,
-                notifStatus: checkInRes.notification?.sent ? "WhatsApp" : "Ninguna"
+                notifStatus: checkInRes.notification?.sent ? "WhatsApp" : "Ninguna",
+                parent2Name: parentForm.parent2Name || undefined,
+                parent2Phone: parentForm.parent2Phone || undefined
             }));
 
-            setCurrentTicket({ type: "FAMILY", tickets: ticketObjects, code, qrValue: ticketObjects[0].qrValue, parentName: parentForm.parentName, checkInTime: ticketObjects[0].checkInTime, autoPrint: true });
+            setCurrentTicket({ type: "FAMILY", tickets: ticketObjects, code, qrValue: ticketObjects[0].qrValue, parentName: parentForm.parentName, parent2Name: parentForm.parent2Name, checkInTime: ticketObjects[0].checkInTime, autoPrint: true });
 
             setCheckedInKids(prev => {
                 const filtered = prev.filter(k => !addedKidIds.includes(k.id));
@@ -503,6 +507,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
             qrValue: `IGLESIA-CHECKIN:FAMILY:${testCode}:${Date.now()}`,
             parentName: "Carlos García",
             parentPhone: "+504 9465-5361",
+            parent2Name: "María Gonzalez",
             checkInTime: new Date().toLocaleTimeString("es-HN", { hour: "2-digit", minute: "2-digit" }),
             tickets: [
                 {
@@ -512,6 +517,7 @@ export function ChurchCheckInApp({ initialData }: { initialData?: any }) {
                     code: testCode,
                     parentName: "Carlos García",
                     parentPhone: "+504 9465-5361",
+                    parent2Name: "María Gonzalez",
                     qrValue: `IGLESIA-CHECKIN:test1:${testCode}:${Date.now()}`,
                     allergies: "Maní, Gluten",
                 }
