@@ -151,16 +151,12 @@ def crear_imagen_nino(ticket, family_data):
     draw_footer(draw)
     return img
 
-def crear_imagen_padre(family_data, is_second=False):
+def crear_imagen_padre(family_data):
     img = Image.new("RGB", (ancho_etiqueta, alto_etiqueta), "white")
     draw = ImageDraw.Draw(img)
 
-    if is_second:
-        padre = family_data.get('parent2Name', '')
-        tel = family_data.get('parent2Phone', '')
-    else:
-        padre = family_data.get('parentName', '')
-        tel = family_data.get('parentPhone', '')
+    padre1 = family_data.get('parentName', '')
+    padre2 = family_data.get('parent2Name', '')
         
     hora = family_data.get('checkInTime', '')
     codigo = family_data.get('code', '')
@@ -170,18 +166,33 @@ def crear_imagen_padre(family_data, is_second=False):
     draw_header(draw, img, True)
     
     font_name = get_font(48, True)
-    wrapped_name = wrap_text(padre, font_name, 370, draw)
-    draw.text((20, 105), wrapped_name, fill="black", font=font_name)
+    wrapped_name = wrap_text(padre1, font_name, 370, draw)
     
-    lines = len(wrapped_name.split('\n'))
-    y_offset = 105 + (lines * font_name.size) + 40
+    lines_text = wrapped_name.split('\n')
+    max_w = 0
+    for line in lines_text:
+        bbox = draw.textbbox((0,0), line, font=font_name)
+        if bbox[2] > max_w:
+            max_w = bbox[2]
+            
+    bg_height = len(lines_text) * font_name.size + (len(lines_text) - 1) * 8 + 15
+    draw.rectangle([15, 100, 25 + max_w, 100 + bg_height], fill="black")
     
+    current_y = 105
+    for line in lines_text:
+        draw.text((20, current_y), line, fill="white", font=font_name)
+        current_y += font_name.size + 8
+        
+    y_offset = current_y + 15
+    
+    if padre2:
+        draw.text((20, y_offset), f"Tutor 2: {padre2[:35]}", fill="black", font=get_font(20, True))
+        y_offset += 30
+        
     fecha_str = datetime.now().strftime("%d/%m/%Y")
     draw.text((20, y_offset), f"{fecha_str} {hora}", fill="black", font=get_font(20, True))
     
-    cel_str = tel.replace("+504", "").strip() if tel else ""
-    draw.text((20, y_offset + 30), f"NO. CEL: {cel_str}", fill="black", font=get_font(26, True))
-    draw.text((20, y_offset + 70), f"Niños ingresados: {ninos_count}", fill="black", font=get_font(20, True))
+    draw.text((20, y_offset + 35), f"Niños ingresados: {ninos_count}", fill="black", font=get_font(26, True))
 
     # Right side: Code & QR Code
     code_font = get_font(30, True)
@@ -248,11 +259,6 @@ def procesar_impresion(datos_json):
     if is_family:
         img = crear_imagen_padre(datos_json)
         if not imprimir_imagen(img): return False
-        
-        # Imprimir Segundo Padre si existe
-        if datos_json.get('parent2Name'):
-            img2 = crear_imagen_padre(datos_json, is_second=True)
-            if not imprimir_imagen(img2): return False
 
     return True
 
