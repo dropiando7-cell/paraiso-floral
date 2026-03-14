@@ -16,17 +16,14 @@ TIEMPO_ESPERA  = 3
 ancho_etiqueta = 609
 alto_etiqueta = 406
 
-LOGO_IMG_BLACK = None
-LOGO_IMG_WHITE = None
+LOGO_IMG = None
 
 def inicializar_logo():
-    global LOGO_IMG_BLACK, LOGO_IMG_WHITE
+    global LOGO_IMG
     try:
         url = "https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blanco-1.png"
         res = requests.get(url, timeout=3)
         img = Image.open(io.BytesIO(res.content)).convert("RGBA")
-        
-        LOGO_IMG_WHITE = img.resize((45, 45), Image.Resampling.LANCZOS)
         
         r, g, b, a = img.split()
         rgb_img = Image.merge('RGB', (r,g,b))
@@ -37,7 +34,7 @@ def inicializar_logo():
         for c, alpha in zip(rgb_img.getdata(), a.getdata()):
             data.append((0, 0, 0, alpha))
         final_img.putdata(data)
-        LOGO_IMG_BLACK = final_img.resize((45, 45), Image.Resampling.LANCZOS)
+        LOGO_IMG = final_img.resize((45, 45), Image.Resampling.LANCZOS)
     except Exception as e:
         pass
 
@@ -73,28 +70,31 @@ def wrap_text(text, font, max_width, draw):
     return "\n".join(lines)
 
 def draw_header(draw, img, is_padre=False):
-    text_color = "white" if is_padre else "black"
-    logo = LOGO_IMG_WHITE if is_padre else LOGO_IMG_BLACK
-    
     # Logo
-    if logo:
-        img.paste(logo, (15, 10), logo)
-        draw.text((65, 23), "Elim Honduras", fill=text_color, font=get_font(24, True))
+    if LOGO_IMG:
+        img.paste(LOGO_IMG, (15, 10), LOGO_IMG)
+        draw.text((65, 23), "Elim Honduras", fill="black", font=get_font(24, True))
     else:
-        draw.text((20, 20), "Elim Honduras", fill=text_color, font=get_font(26, True))
+        draw.text((20, 20), "Elim Honduras", fill="black", font=get_font(26, True))
 
     title = "ETIQUETA DE PADRES" if is_padre else "ETIQUETA DE NIÑOS"
-    draw.text((20, 65), title, fill=text_color, font=get_font(18, True))
+    # Make parent title bigger or have a background to stand out
+    if is_padre:
+        t_font = get_font(22, True)
+        bbox = draw.textbbox((0,0), title, font=t_font)
+        draw.rectangle([15, 60, 25+bbox[2], 65+bbox[3]+10], fill="black")
+        draw.text((20, 65), title, fill="white", font=t_font)
+    else:
+        draw.text((20, 65), title, fill="black", font=get_font(18, True))
 
-def draw_footer(draw, is_padre=False):
+
+def draw_footer(draw):
     footer_text = "NO PIERDAS ESTE PASE · REQUERIDO A LA SALIDA"
     font = get_font(14, True)
     bbox = draw.textbbox((0,0), footer_text, font=font)
     w = bbox[2] - bbox[0]
-    text_color = "white" if is_padre else "black"
-    line_color = "white" if is_padre else "gray"
-    draw.text(((ancho_etiqueta - w)/2, 375), footer_text, fill=text_color, font=font)
-    draw.line([(0, 365), (ancho_etiqueta, 365)], fill=line_color, width=1)
+    draw.text(((ancho_etiqueta - w)/2, 375), footer_text, fill="black", font=font)
+    draw.line([(0, 365), (ancho_etiqueta, 365)], fill="gray", width=1)
 
 def crear_imagen_nino(ticket, family_data):
     img = Image.new("RGB", (ancho_etiqueta, alto_etiqueta), "white")
@@ -148,11 +148,11 @@ def crear_imagen_nino(ticket, family_data):
     qr_img = generar_qr(ticket.get('qrValue', ''), 160)
     img.paste(qr_img, (410 + (190-160)//2, 90))
     
-    draw_footer(draw, False)
+    draw_footer(draw)
     return img
 
 def crear_imagen_padre(family_data):
-    img = Image.new("RGB", (ancho_etiqueta, alto_etiqueta), "black")
+    img = Image.new("RGB", (ancho_etiqueta, alto_etiqueta), "white")
     draw = ImageDraw.Draw(img)
 
     padre = family_data.get('parentName', '')
@@ -161,30 +161,30 @@ def crear_imagen_padre(family_data):
     codigo = family_data.get('code', '')
     ninos_count = len(family_data.get('tickets', []))
     
-    draw.line([(400, 15), (400, 350)], fill="white", width=2)
+    draw.line([(400, 15), (400, 350)], fill="black", width=2)
     draw_header(draw, img, True)
     
     font_name = get_font(48, True)
     wrapped_name = wrap_text(padre, font_name, 370, draw)
-    draw.text((20, 95), wrapped_name, fill="white", font=font_name)
+    draw.text((20, 105), wrapped_name, fill="black", font=font_name)
     
     lines = len(wrapped_name.split('\n'))
-    y_offset = 95 + (lines * font_name.size) + 40
+    y_offset = 105 + (lines * font_name.size) + 40
     
     fecha_str = datetime.now().strftime("%d/%m/%Y")
-    draw.text((20, y_offset), f"{fecha_str} {hora}", fill="white", font=get_font(20, True))
+    draw.text((20, y_offset), f"{fecha_str} {hora}", fill="black", font=get_font(20, True))
     
     cel_str = tel.replace("+504", "").strip() if tel else ""
-    draw.text((20, y_offset + 30), f"NO. CEL: {cel_str}", fill="white", font=get_font(26, True))
-    draw.text((20, y_offset + 70), f"Niños ingresados: {ninos_count}", fill="white", font=get_font(20, True))
+    draw.text((20, y_offset + 30), f"NO. CEL: {cel_str}", fill="black", font=get_font(26, True))
+    draw.text((20, y_offset + 70), f"Niños ingresados: {ninos_count}", fill="black", font=get_font(20, True))
 
     # Right side: Code & QR Code
     code_font = get_font(30, True)
     c_bbox = draw.textbbox((0,0), codigo, font=code_font)
     cw = c_bbox[2]
     cx = 410 + (190 - cw) / 2
-    draw.rounded_rectangle([cx - 15, 30, cx + cw + 15, 75], radius=10, outline="white", width=3)
-    draw.text((cx, 37), codigo, fill="white", font=code_font)
+    draw.rounded_rectangle([cx - 15, 30, cx + cw + 15, 75], radius=10, outline="black", width=3)
+    draw.text((cx, 37), codigo, fill="black", font=code_font)
 
     # QR Code
     qr_val = family_data.get('qrValue', '')
@@ -195,7 +195,11 @@ def crear_imagen_padre(family_data):
         qr_img = generar_qr(qr_val, 160)
         img.paste(qr_img, (410 + (190-160)//2, 90))
     
-    draw_footer(draw, True)
+    draw_footer(draw)
+    
+    # Draw THICK black border around the entire label for parents to make it hyper-distinct
+    draw.rectangle([0, 0, ancho_etiqueta-1, alto_etiqueta-1], outline="black", width=12)
+    
     return img
 
 def imprimir_imagen(img_pil):
