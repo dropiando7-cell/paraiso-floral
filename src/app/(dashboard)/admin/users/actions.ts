@@ -33,8 +33,14 @@ export async function createUser(data: {
             where: { email: user.email },
         });
 
-        if (dbUser?.role !== 'SUPER_ADMIN') {
-            return { success: false, error: 'No autorizado. Se requiere rol SUPER_ADMIN.' };
+        if (dbUser?.role !== 'SUPER_ADMIN' && dbUser?.role !== 'CHECKIN_KIDS_ADMIN') {
+            return { success: false, error: 'No autorizado. Se requiere rol SUPER_ADMIN o CHECKIN_KIDS_ADMIN.' };
+        }
+
+        if (dbUser.role === 'CHECKIN_KIDS_ADMIN') {
+            if (data.role !== 'CHECKIN_KIDS' || data.customRoleName) {
+                return { success: false, error: 'No autorizado. Solo puedes crear usuarios con el rol CHECKIN_KIDS.' };
+            }
         }
 
         // Check if user already exists
@@ -158,12 +164,18 @@ export async function deleteUser(id: string) {
             where: { email: user.email },
         });
 
-        if (dbUser?.role !== 'SUPER_ADMIN') {
-            return { success: false, error: 'No autorizado. Se requiere rol SUPER_ADMIN.' };
+        if (dbUser?.role !== 'SUPER_ADMIN' && dbUser?.role !== 'CHECKIN_KIDS_ADMIN') {
+            return { success: false, error: 'No autorizado. Se requiere rol SUPER_ADMIN o CHECKIN_KIDS_ADMIN.' };
         }
 
         const targetUser = await prisma.user.findUnique({ where: { id } });
         if (!targetUser) return { success: false, error: 'Usuario no encontrado.' };
+
+        if (dbUser.role === 'CHECKIN_KIDS_ADMIN') {
+            if (targetUser.role !== 'CHECKIN_KIDS') {
+                return { success: false, error: 'No autorizado. Solo puedes eliminar usuarios con el rol CHECKIN_KIDS.' };
+            }
+        }
 
         // Prevent deleting oneself just in case
         if (targetUser.email === user.email) {
@@ -231,8 +243,19 @@ export async function editUser(
             where: { email: user.email },
         });
 
-        if (dbUser?.role !== 'SUPER_ADMIN') {
-            return { success: false, error: 'No autorizado. Se requiere rol SUPER_ADMIN.' };
+        if (dbUser?.role !== 'SUPER_ADMIN' && dbUser?.role !== 'CHECKIN_KIDS_ADMIN') {
+            return { success: false, error: 'No autorizado. Se requiere rol SUPER_ADMIN o CHECKIN_KIDS_ADMIN.' };
+        }
+
+        if (dbUser.role === 'CHECKIN_KIDS_ADMIN') {
+            if (data.role !== 'CHECKIN_KIDS' || data.customRoleName) {
+                return { success: false, error: 'No autorizado. Solo puedes asignar el rol CHECKIN_KIDS.' };
+            }
+
+            const targetUser = await prisma.user.findUnique({ where: { id } });
+            if (targetUser?.role !== 'CHECKIN_KIDS') {
+                return { success: false, error: 'No autorizado. Solo puedes editar usuarios que ya tienen el rol CHECKIN_KIDS.' };
+            }
         }
 
         // Update user in Prisma (Email is intentionally omitted from the update to avoid Supabase auth mismatch)
@@ -410,10 +433,18 @@ export async function sendManualWelcomeEmail(userId: string) {
         if (!user) return { success: false, error: 'No autenticado.' };
 
         const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
-        if (dbUser?.role !== 'SUPER_ADMIN') return { success: false, error: 'No autorizado.' };
+        if (dbUser?.role !== 'SUPER_ADMIN' && dbUser?.role !== 'CHECKIN_KIDS_ADMIN') {
+            return { success: false, error: 'No autorizado. Se requiere rol SUPER_ADMIN o CHECKIN_KIDS_ADMIN.' };
+        }
 
         const targetUser = await prisma.user.findUnique({ where: { id: userId } });
         if (!targetUser) return { success: false, error: 'Usuario no encontrado en la base de datos.' };
+
+        if (dbUser.role === 'CHECKIN_KIDS_ADMIN') {
+            if (targetUser.role !== 'CHECKIN_KIDS') {
+                return { success: false, error: 'No autorizado. Solo puedes reenviar correos a usuarios con el rol CHECKIN_KIDS.' };
+            }
+        }
 
         const adminAuthClient = createAdminClient();
 

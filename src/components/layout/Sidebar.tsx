@@ -114,7 +114,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         name: 'Usuarios y Roles',
         href: '/admin/users',
         icon: Users,
-        roles: ['SUPER_ADMIN'],
+        roles: ['SUPER_ADMIN', 'CHECKIN_KIDS_ADMIN'],
       }
     ]
   }
@@ -178,6 +178,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
             if (dbUser?.role === 'SUPER_ADMIN') return true;
             const allowed = dbUser?.accessibleModules || [];
             if (allowed.includes(item.href)) return true;
+            if (item.roles && item.roles.includes(dbUser?.role)) return true;
 
             // Also visibly enable the parent if any of its subItems are visible to the user
             if (item.subItems) {

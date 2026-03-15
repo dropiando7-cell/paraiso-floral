@@ -20,14 +20,23 @@ export default async function AdminUsersPage() {
         include: { organization: true }
     });
 
-    if (dbUser?.role !== 'SUPER_ADMIN') {
+    if (dbUser?.role !== 'SUPER_ADMIN' && dbUser?.role !== 'CHECKIN_KIDS_ADMIN') {
         redirect("/");
     }
 
-    const allUsers = await prisma.user.findMany({
-        include: { organization: true },
-        orderBy: { createdAt: 'desc' }
-    });
+    let allUsers;
+    if (dbUser.role === 'CHECKIN_KIDS_ADMIN') {
+        allUsers = await prisma.user.findMany({
+            where: { role: 'CHECKIN_KIDS' },
+            include: { organization: true },
+            orderBy: { createdAt: 'desc' }
+        });
+    } else {
+        allUsers = await prisma.user.findMany({
+            include: { organization: true },
+            orderBy: { createdAt: 'desc' }
+        });
+    }
 
     const organizations = await prisma.organization.findMany({
         orderBy: { name: 'asc' }
@@ -44,6 +53,7 @@ export default async function AdminUsersPage() {
                 organizations={organizations}
                 roleTemplates={roleTemplates}
                 currentUserId={dbUser.id}
+                currentUserRole={dbUser.role}
             />
         </div>
     );

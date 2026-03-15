@@ -13,9 +13,10 @@ interface UserManagementProps {
     organizations: Organization[];
     roleTemplates: RoleTemplate[];
     currentUserId: string;
+    currentUserRole: string;
 }
 
-export function UserManagement({ initialUsers, organizations, roleTemplates, currentUserId }: UserManagementProps) {
+export function UserManagement({ initialUsers, organizations, roleTemplates, currentUserId, currentUserRole }: UserManagementProps) {
     const router = useRouter();
     const [users, setUsers] = useState<UserWithOrg[]>(initialUsers);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -97,11 +98,16 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         const newRole = selectedValue as Role;
         setRole(newRole);
         setCustomRoleName(null);
-        // Auto-select modules based on role
+        // Auto-select modules based on role (or if restricted by admin)
+        if (currentUserRole === 'CHECKIN_KIDS_ADMIN') {
+            setAccessibleModules(['/checkin']);
+            return;
+        }
+
         if (newRole === 'SUPER_ADMIN') {
             setAccessibleModules(availableModules.map(m => m.id));
         } else if (newRole === 'CHECKIN_KIDS') {
-            setAccessibleModules(['/', '/checkin']);
+            setAccessibleModules(['/checkin']);
         } else if (newRole === 'MEDICAL_STAFF') {
             setAccessibleModules(['/', '/medico']);
         } else if (newRole === 'INVENTARIO_EDITOR') {
@@ -147,10 +153,17 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setFirstName('');
         setLastName('');
         setPassword('');
-        setRole('USER');
+
+        if (currentUserRole === 'CHECKIN_KIDS_ADMIN') {
+            setRole('CHECKIN_KIDS');
+            setAccessibleModules(['/checkin']);
+        } else {
+            setRole('USER');
+            setAccessibleModules(['/']);
+        }
+
         setCustomRoleName(null);
         setOrganizationId(organizations[0]?.id || '');
-        setAccessibleModules(['/']);
         setError(null);
         setIsModalOpen(true);
     };
@@ -312,13 +325,15 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                     </p>
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
-                    <button
-                        onClick={handleOpenCreateRole}
-                        className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-sm"
-                    >
-                        <Tag className="w-4 h-4" />
-                        <span className="hidden sm:inline">Crear Rol</span>
-                    </button>
+                    {currentUserRole === 'SUPER_ADMIN' && (
+                        <button
+                            onClick={handleOpenCreateRole}
+                            className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-sm"
+                        >
+                            <Tag className="w-4 h-4" />
+                            <span className="hidden sm:inline">Crear Rol</span>
+                        </button>
+                    )}
                     <button
                         onClick={handleOpenCreate}
                         className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-sm"
@@ -469,7 +484,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 </div>
             )}
 
-            {roleTemplates.length > 0 && (
+            {currentUserRole === 'SUPER_ADMIN' && roleTemplates.length > 0 && (
                 <div className="mt-8">
                     <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                         <h2 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
@@ -654,16 +669,23 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                     <select
                                         value={customRoleName || role}
                                         onChange={(e) => handleRoleChange(e.target.value)}
-                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm bg-white"
+                                        disabled={currentUserRole === 'CHECKIN_KIDS_ADMIN'}
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm bg-white disabled:bg-slate-50 disabled:text-slate-500 disabled:cursor-not-allowed"
                                     >
                                         <optgroup label="Roles Base">
-                                            {roles.map((r) => (
-                                                <option key={r} value={r}>
-                                                    {roleTextMapping[r] || r}
+                                            {currentUserRole === 'CHECKIN_KIDS_ADMIN' ? (
+                                                <option value="CHECKIN_KIDS">
+                                                    {roleTextMapping['CHECKIN_KIDS']}
                                                 </option>
-                                            ))}
+                                            ) : (
+                                                roles.map((r) => (
+                                                    <option key={r} value={r}>
+                                                        {roleTextMapping[r] || r}
+                                                    </option>
+                                                ))
+                                            )}
                                         </optgroup>
-                                        {roleTemplates.length > 0 && (
+                                        {currentUserRole === 'SUPER_ADMIN' && roleTemplates.length > 0 && (
                                             <optgroup label="Roles Personalizados">
                                                 {roleTemplates.map((t) => (
                                                     <option key={`tpl-${t.name}`} value={t.name}>
@@ -684,7 +706,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                             <label key={module.id} className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-white rounded-lg transition-colors">
                                                 <input
                                                     type="checkbox"
-                                                    disabled={role === 'SUPER_ADMIN' || !!customRoleName}
+                                                    disabled={role === 'SUPER_ADMIN' || !!customRoleName || currentUserRole === 'CHECKIN_KIDS_ADMIN'}
                                                     checked={role === 'SUPER_ADMIN' || accessibleModules.includes(module.id)}
                                                     onChange={() => toggleModule(module.id)}
                                                     className="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"

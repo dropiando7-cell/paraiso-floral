@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion } from './actions';
 import { removeBackground } from '@imgly/background-removal';
-import { AreaScannerModal } from './AreaScannerModal';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -898,8 +897,11 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         return `L. ${Number(v).toFixed(2)}`;
     };
 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
     function confirmSave() {
-        if (!pendingFormData) return;
+        if (!pendingFormData || isSubmitting) return;
+        setIsSubmitting(true);
         const fd = pendingFormData;
         startTransition(async () => {
             try {
@@ -908,11 +910,13 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                     setPendingFormData(null);
                     onSuccess();
                     onClose();
+                    setIsSubmitting(false);
                 } else {
                     const result = await createActivo(fd);
                     setPendingFormData(null);
                     onSuccess();
                     onClose();
+                    setIsSubmitting(false);
 
                     // Auto-print label for the newly created activo
                     if (result?.id && result?.idQr) {
@@ -938,6 +942,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             } catch (err: any) {
                 alert('Error al guardar: ' + err.message);
                 setPendingFormData(null);
+                setIsSubmitting(false);
             }
         });
     }
@@ -1042,16 +1047,16 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                     <button
                                         type="button"
                                         onClick={confirmSave}
-                                        disabled={isPending}
+                                        disabled={isPending || isSubmitting}
                                         className="flex items-center justify-center gap-2 text-base font-bold bg-green-600 text-white py-4 px-5 rounded-2xl hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
                                     >
-                                        {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                                        {isPending ? 'Guardando e imprimiendo...' : '✅ Confirmar, Registrar e Imprimir'}
+                                        {(isPending || isSubmitting) ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
+                                        {(isPending || isSubmitting) ? 'Guardando e imprimiendo...' : '✅ Confirmar, Registrar e Imprimir'}
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setPendingFormData(null)}
-                                        disabled={isPending}
+                                        disabled={isPending || isSubmitting}
                                         className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 border-2 border-slate-200 py-3.5 px-5 rounded-2xl hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-60"
                                     >
                                         ✏️ Volver a editar
@@ -1700,7 +1705,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
     // QR Area Control
     const [lockedArea, setLockedArea] = useState<string | null>(null);
-    const [scannerOpen, setScannerOpen] = useState(false);
+
     const [noAreaModalOpen, setNoAreaModalOpen] = useState(false);
     const [isClosingAct, startClosingAct] = useTransition();
 
@@ -1991,7 +1996,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 <div className="text-zinc-600 mt-1">Iglesia Misión Cristiana Elim Central - San Pedro Sula, Honduras</div>
                 <div className="mt-4 flex justify-between font-bold text-slate-800 text-sm">
                     <div>Filtro de Área: {filtroArea ? (AREAS.find(a => a.value === filtroArea)?.label || filtroArea) : 'TODAS LAS ÁREAS'}</div>
-                    <div>Fecha de Reporte: {new Date().toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
+                    <div suppressHydrationWarning>Fecha de Reporte: {new Date().toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
             </div>
 
@@ -2083,35 +2088,17 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                         </div>
                         <h2 className="text-xl font-bold text-slate-900 mb-2">Área no abierta</h2>
                         <p className="text-slate-600 mb-1 font-medium">Para registrar un activo, primero debes abrir un área.</p>
-                        <p className="text-sm text-slate-400 mb-6">Escanea el código QR del área con la llave de inventario para iniciar.</p>
+                        <p className="text-sm text-slate-400 mb-6">Escanea el código QR de la puerta del área con la cámara de tu teléfono para iniciar.</p>
                         <div className="flex flex-col gap-3">
                             <button
-                                onClick={() => { setNoAreaModalOpen(false); setScannerOpen(true); }}
-                                className="flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white rounded-2xl py-4 hover:bg-[#0600c2] active:scale-[0.98] transition-all"
-                            >
-                                <QrCode className="w-5 h-5" />
-                                Abrir Área con QR
-                            </button>
-                            <button
                                 onClick={() => setNoAreaModalOpen(false)}
-                                className="text-sm font-semibold text-slate-500 hover:text-slate-700 py-2 transition-colors"
+                                className="flex items-center justify-center gap-2 text-base font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 py-3.5 px-5 rounded-2xl transition-colors"
                             >
-                                Cancelar
+                                Cerrar
                             </button>
                         </div>
                     </div>
                 </div>
-            )}
-            {scannerOpen && (
-                <AreaScannerModal
-                    open={scannerOpen}
-                    onClose={() => setScannerOpen(false)}
-                    onSuccess={(area) => {
-                        setScannerOpen(false);
-                        setLockedArea(area);
-                        setModalOpen(true);
-                    }}
-                />
             )}
             {deleteActivo_ && (
                 <DeleteConfirm
