@@ -1705,6 +1705,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
     // QR Area Control
     const [lockedArea, setLockedArea] = useState<string | null>(null);
+    const [isCheckingArea, setIsCheckingArea] = useState(true);
 
     const [noAreaModalOpen, setNoAreaModalOpen] = useState(false);
     const [isClosingAct, startClosingAct] = useTransition();
@@ -1714,6 +1715,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
     useEffect(() => {
         async function initArea() {
+            setIsCheckingArea(true);
             setLoading(true);
             const areaQrParam = searchParams.get('areaQr');
 
@@ -1734,6 +1736,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                     setLockedArea(activeRes.areaCode);
                 }
             }
+            setIsCheckingArea(false);
             // Realizar la búsqueda general inicial
             refresh(1, search, filtroArea, filtroEstatus);
         }
@@ -1815,9 +1818,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
         }
     }
 
-    async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus) {
+    async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea) {
         setLoading(true);
-        const [data, st] = await Promise.all([getActivos(p, s, a, e), getActivoStats()]);
+        const [data, st] = await Promise.all([
+            getActivos(p, s, a, e), 
+            getActivoStats(currentLockedArea || undefined)
+        ]);
         setActivos(data.activos as Activo[]);
         setTotal(data.total); setTotalPages(data.totalPages); setStats(st);
         setLoading(false);
@@ -1886,8 +1892,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                             if (!lockedArea) setNoAreaModalOpen(true);
                             else { setEditActivo(null); setModalOpen(true); }
                         }}
-                            className="flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl hover:bg-[#0600c2] active:scale-95 transition-all shadow-md w-full sm:w-auto justify-center hide-on-print">
-                            <Plus className="w-5 h-5" /> Registrar Activo
+                            disabled={isCheckingArea}
+                            className={`flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl transition-all shadow-md w-full sm:w-auto justify-center hide-on-print ${isCheckingArea ? 'opacity-75 cursor-not-allowed' : 'hover:bg-[#0600c2] active:scale-95'}`}>
+                            {isCheckingArea ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                            {isCheckingArea ? 'Iniciando...' : 'Registrar Activo'}
                         </button>
                     </div>
                 </div>

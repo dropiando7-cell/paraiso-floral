@@ -145,8 +145,9 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '')
     return { activos: plainActivos, total, totalPages: Math.ceil(total / PER_PAGE) };
 }
 
-export async function getActivoStats() {
+export async function getActivoStats(area?: string) {
     const orgId = await getOrgId();
+    const { Prisma } = await import('@prisma/client');
 
     const statsRaw = await prisma.$queryRaw<
         Array<{
@@ -162,6 +163,7 @@ export async function getActivoStats() {
             SELECT COUNT(DISTINCT "area") as areas_count 
             FROM "activos_fijos" 
             WHERE "organizationId" = ${orgId}::uuid
+            ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
         )
         SELECT 
             COUNT(*) as total,
@@ -172,6 +174,7 @@ export async function getActivoStats() {
             (SELECT areas_count FROM org_areas)
         FROM "activos_fijos"
         WHERE "organizationId" = ${orgId}::uuid
+        ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
     `;
 
     const row = statsRaw[0];
