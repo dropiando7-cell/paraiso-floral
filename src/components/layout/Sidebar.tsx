@@ -128,9 +128,7 @@ const bottomItems = [
 
 export function Sidebar({ dbUser, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({
-    'Recursos y Patrimonio': true // Default open for now
-  });
+  const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({});
 
   const toggleMenu = (name: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -279,9 +277,16 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                           {visibleSubItems.map((subItem) => {
                             const isExactMatch = pathname === subItem.href;
                             const isNestedMatch = pathname.startsWith(subItem.href + '/');
-                            // Avoid `/inventario` showing active when user is in `/inventario/historico`
-                            const isSpecificNestedMatch = subItem.href === '/inventario' ? false : isNestedMatch;
-                            const isSubActive = isExactMatch || isSpecificNestedMatch;
+                            const isMatch = isExactMatch || isNestedMatch;
+                            
+                            // Prevent parent paths (like /inventario) from highlighting if there is a more specific child match (like /inventario/historico)
+                            const hasMoreSpecificMatch = visibleSubItems.some(other => 
+                                other.href !== subItem.href && 
+                                other.href.length > subItem.href.length && 
+                                (pathname === other.href || pathname.startsWith(other.href + '/'))
+                            );
+                            
+                            const isSubActive = isMatch && !hasMoreSpecificMatch;
                             return (
                               <Link
                                 key={subItem.name}
