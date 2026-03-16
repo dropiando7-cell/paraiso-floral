@@ -45,8 +45,8 @@ export default function SoportePage() {
                             <div>
                                 <h3 className="text-sm font-medium text-slate-900">Soporte Técnico</h3>
                                 <p className="text-sm text-slate-500">Para reportar errores del sistema</p>
-                                <a href="mailto:soporte@elimhonduras.org" className="text-sm font-medium text-brand-600 hover:text-brand-700 mt-1 inline-block">
-                                    soporte@elimhonduras.org
+                                <a href="mailto:soporte@bioelectronicahn.com" className="text-sm font-medium text-brand-600 hover:text-brand-700 mt-1 inline-block">
+                                    soporte@bioelectronicahn.com
                                 </a>
                             </div>
                         </div>
@@ -74,7 +74,7 @@ export default function SoportePage() {
                         Próximamente en esta sección
                     </h2>
                     <p className="text-sm text-slate-500 mb-6">
-                        Estamos preparando material exclusivo para facilitar tu trabajo diario en la iglesia.
+                        Estamos preparando material exclusivo para facilitar tu trabajo diario en la empresa.
                     </p>
 
                     <ul className="space-y-4 relative z-10">
