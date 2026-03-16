@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
-    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser
+    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw
 } from 'lucide-react';
 import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion } from './actions';
 import { removeBackground } from '@imgly/background-removal';
@@ -340,6 +340,7 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
     const dragRef = useRef<{ type: string; sx: number; sy: number; sc: typeof crop } | null>(null);
     const [isBgRemoving, setIsBgRemoving] = useState(false);
     const [currentSrc, setCurrentSrc] = useState(imageSrc);
+    const [rotation, setRotation] = useState(0);
 
     async function removeBg() {
         if (isBgRemoving) return;
@@ -398,16 +399,57 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
     function apply(full: boolean) {
         const img = imgRef.current!;
         const { naturalWidth: nw, naturalHeight: nh } = img;
-        const [sx, sy, sw, sh] = full
-            ? [0, 0, nw, nh]
-            : [Math.round(crop.x / 100 * nw), Math.round(crop.y / 100 * nh),
-            Math.round(crop.w / 100 * nw), Math.round(crop.h / 100 * nh)];
+        
+        const isRotated = rotation === 90 || rotation === 270;
+        
+        let sx, sy, sw, sh;
+        if (full) {
+            sx = 0; sy = 0; sw = nw; sh = nh;
+        } else {
+            // Apply crop percentages based on visual boundaries (which swap when rotated 90/270)
+            const visualW = isRotated ? nh : nw;
+            const visualH = isRotated ? nw : nh;
+            
+            const cropVisualX = crop.x / 100 * visualW;
+            const cropVisualY = crop.y / 100 * visualH;
+            const cropVisualW = crop.w / 100 * visualW;
+            const cropVisualH = crop.h / 100 * visualH;
+
+            if (rotation === 0) {
+                sx = cropVisualX; sy = cropVisualY; sw = cropVisualW; sh = cropVisualH;
+            } else if (rotation === 90) {
+                sx = cropVisualY; sy = nw - cropVisualX - cropVisualW; sw = cropVisualH; sh = cropVisualW;
+            } else if (rotation === 180) {
+                sx = nw - cropVisualX - cropVisualW; sy = nh - cropVisualY - cropVisualH; sw = cropVisualW; sh = cropVisualH;
+            } else { // 270
+                sx = nh - cropVisualY - cropVisualH; sy = cropVisualX; sw = cropVisualH; sh = cropVisualW;
+            }
+            sx = Math.round(sx); sy = Math.round(sy); sw = Math.round(sw); sh = Math.round(sh);
+        }
+
         const MAX = 1568;
-        const ratio = Math.min(1, MAX / Math.max(sw, sh));
-        const dw = Math.round(sw * ratio), dh = Math.round(sh * ratio);
+        const visualSw = isRotated ? sh : sw;
+        const visualSh = isRotated ? sw : sh;
+        
+        const ratio = Math.min(1, MAX / Math.max(visualSw, visualSh));
+        
+        const finalW = Math.round(visualSw * ratio);
+        const finalH = Math.round(visualSh * ratio);
+        
         const canvas = document.createElement('canvas');
-        canvas.width = dw; canvas.height = dh;
-        canvas.getContext('2d')!.drawImage(img, sx, sy, sw, sh, 0, 0, dw, dh);
+        canvas.width = finalW; canvas.height = finalH;
+        
+        const ctx = canvas.getContext('2d')!;
+        
+        ctx.translate(finalW/2, finalH/2);
+        ctx.rotate((rotation * Math.PI) / 180);
+        
+        if (isRotated) {
+            ctx.drawImage(img, sx, sy, sw, sh, -finalH/2, -finalW/2, finalH, finalW);
+        } else {
+            ctx.drawImage(img, sx, sy, sw, sh, -finalW/2, -finalH/2, finalW, finalH);
+        }
+        
         canvas.toBlob(blob => { if (blob) onConfirm(blob); }, 'image/jpeg', 0.85);
     }
 
@@ -427,7 +469,7 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
             <div className="flex-1 overflow-auto flex items-start justify-center"
                 onPointerMove={onMove} onPointerUp={() => { dragRef.current = null; }}>
                 <div className="relative" style={{ maxWidth: 640, width: '100%' }}>
-                    <img ref={imgRef} src={currentSrc} className="block w-full select-none" draggable={false} alt="Vista previa" />
+                    <img ref={imgRef} src={currentSrc} className="block w-full select-none transition-transform duration-300" style={{ transform: `rotate(${rotation}deg)` }} draggable={false} alt="Vista previa" />
                     {isBgRemoving && (
                         <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-10">
                             <div className="flex flex-col items-center gap-3">
@@ -458,17 +500,21 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
                     </div>
                 </div>
             </div>
-            <div className="grid grid-cols-2 gap-3 p-4 bg-black/80">
+            <div className="grid grid-cols-6 gap-2 p-4 bg-black/80">
                 <button onClick={() => apply(true)} disabled={isBgRemoving}
-                    className="border-2 border-white/30 text-white font-semibold py-4 rounded-2xl active:scale-95 transition-all text-sm disabled:opacity-50">
+                    className="col-span-2 border-2 border-white/30 text-white font-semibold py-4 rounded-xl active:scale-95 transition-all text-sm disabled:opacity-50">
                     Foto completa
                 </button>
+                <button onClick={() => setRotation(r => (r + 90) % 360)} disabled={isBgRemoving}
+                    className="col-span-1 border-2 border-white/30 text-white font-semibold py-4 rounded-xl active:scale-95 transition-all flex items-center justify-center disabled:opacity-50" title="Rotar Imagen 90º">
+                    <RotateCw className="w-5 h-5" />
+                </button>
                 <button onClick={() => apply(false)} disabled={isBgRemoving}
-                    className="bg-[#0500A3] text-white font-semibold py-4 rounded-2xl active:scale-95 transition-all text-sm disabled:opacity-50">
+                    className="col-span-3 bg-[#0500A3] text-white font-semibold py-4 rounded-xl active:scale-95 transition-all text-sm disabled:opacity-50">
                     ✓ Confirmar recorte
                 </button>
                 <button onClick={removeBg} disabled={isBgRemoving || currentSrc !== imageSrc}
-                    className="col-span-2 border-2 border-purple-500/50 text-purple-200 bg-purple-900/40 font-semibold py-3 rounded-2xl active:scale-95 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                    className="col-span-6 border-2 border-purple-500/50 text-purple-200 bg-purple-900/40 font-semibold py-3 rounded-xl active:scale-95 transition-all text-sm disabled:opacity-50 flex items-center justify-center gap-2 mt-2">
                     <Sparkles className="w-4 h-4" />
                     {currentSrc !== imageSrc ? 'Fondo eliminado' : '🪄 Magia: Eliminar Fondo'}
                 </button>
@@ -1820,8 +1866,9 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
     async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea) {
         setLoading(true);
+        const resolvedAreaFilter = a || (currentLockedArea || undefined);
         const [data, st] = await Promise.all([
-            getActivos(p, s, a, e), 
+            getActivos(p, s, resolvedAreaFilter, e), 
             getActivoStats(currentLockedArea || undefined)
         ]);
         setActivos(data.activos as Activo[]);
