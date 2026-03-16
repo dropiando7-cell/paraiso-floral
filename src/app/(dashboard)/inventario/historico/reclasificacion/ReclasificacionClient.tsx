@@ -90,6 +90,32 @@ export default function ReclasificacionClient() {
         });
     }
 
+    function calcularAntiguedad(fecha: string | Date | null) {
+        if (!fecha) return null;
+        const inicio = new Date(fecha);
+        if (isNaN(inicio.getTime())) return null;
+        
+        const fin = new Date();
+        let anios = fin.getFullYear() - inicio.getFullYear();
+        let meses = fin.getMonth() - inicio.getMonth();
+        let dias = fin.getDate() - inicio.getDate();
+
+        if (dias < 0) {
+            meses--;
+            const prevMonth = new Date(fin.getFullYear(), fin.getMonth(), 0);
+            dias += prevMonth.getDate();
+        }
+
+        if (meses < 0) {
+            anios--;
+            meses += 12;
+        }
+
+        if (anios < 0) return '0 años, 0 meses, 0 días';
+
+        return `${anios} años, ${meses} meses, ${dias} días`;
+    }
+
     return (
         <div className="flex flex-col h-full md:h-[calc(100vh-80px)] w-full bg-[#f8fafc] p-4 md:p-8 overflow-y-auto">
             
@@ -255,6 +281,11 @@ export default function ReclasificacionClient() {
                                                             <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-sm uppercase tracking-wide shrink-0">
                                                                 {item.fechaAdquisicion ? new Date(item.fechaAdquisicion).toLocaleDateString('es-HN') : 'Sin Fecha'}
                                                             </span>
+                                                            {item.fechaAdquisicion && (
+                                                                <span className="bg-indigo-50 text-indigo-600 border border-indigo-100 text-[10px] font-black px-2 py-0.5 rounded-sm uppercase tracking-wide shrink-0">
+                                                                    {calcularAntiguedad(item.fechaAdquisicion)}
+                                                                </span>
+                                                            )}
                                                             {(item.marca || item.descripcionCorta) && (
                                                                 <span className="text-[11px] text-slate-500 truncate max-w-[200px]">
                                                                     {[item.marca, item.descripcionCorta].filter(Boolean).join(' • ')}
@@ -297,6 +328,11 @@ export default function ReclasificacionClient() {
                                                     <span className="bg-slate-100 text-slate-500 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide">
                                                         {item.fechaAdquisicion ? new Date(item.fechaAdquisicion).toLocaleDateString('es-HN') : 'Sin Fecha'}
                                                     </span>
+                                                    {item.fechaAdquisicion && (
+                                                        <span className="bg-indigo-50 text-indigo-600 border border-indigo-100 text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide">
+                                                            {calcularAntiguedad(item.fechaAdquisicion)}
+                                                        </span>
+                                                    )}
                                                     {cantidad > 1 && (
                                                         <span className="bg-[#0500A3]/10 text-[#0500A3] text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wide">
                                                             {cantidad} uds.
@@ -378,6 +414,7 @@ export default function ReclasificacionClient() {
                                         <th className="px-6 py-4 text-center">Cant.</th>
                                         <th className="px-6 py-4">Cuenta</th>
                                         <th className="px-6 py-4">Depreciación (Mes / Acum)</th>
+                                        <th className="px-6 py-4">Antigüedad</th>
                                         <th className="px-6 py-4 text-right rounded-tr-xl">Costo L.</th>
                                     </tr>
                                 </thead>
@@ -405,6 +442,9 @@ export default function ReclasificacionClient() {
                                                         <span className="text-[10px] text-emerald-700 font-black uppercase">Acum: L.{calcDep.deprecAcum.toFixed(2)}</span>
                                                     </div>
                                                 ) : <span className="text-xs text-slate-400">-</span>}
+                                            </td>
+                                            <td className="px-6 py-4 text-slate-500 text-[11px] font-medium whitespace-nowrap">
+                                                {item.fechaAdquisicion ? calcularAntiguedad(item.fechaAdquisicion) : '-'}
                                             </td>
                                             <td className="px-6 py-4 font-black text-amber-600 text-right">
                                                 {Number(item.costoAdquisicion || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}

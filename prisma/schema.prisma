@@ -413,10 +413,12 @@ model InventarioHistorico {
   imagenUrl            String?
   nombreOriginal       String?
   serieOriginal        String?
+  clasificacion        String?      @default("ACTIVO") // ACTIVO o EQUIPO_MENOR
   activosFijos         ActivoFijo[]
 
   @@index([organizationId])
   @@index([serie])
+  @@index([organizationId, clasificacion])
   @@map("inventario_historico")
 }
 
