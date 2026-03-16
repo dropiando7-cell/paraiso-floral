@@ -53,7 +53,7 @@ export default function LoginPage() {
                         BioelectrónicaHN
                     </h1>
                     <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                        Tu centro de mando para una gestión inteligente. Accede a todas tus herramientas administrativas y simplifica tu flujo de trabajo desde un solo lugar.
+                        Centro de control para la gestión de equipos, servicios y procesos de bioelectrónica. Accede a herramientas administrativas y optimiza la operación técnica desde un solo lugar.
                     </p>
                 </div>
 
