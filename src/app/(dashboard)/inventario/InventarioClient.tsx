@@ -1764,12 +1764,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
             setIsCheckingArea(true);
             setLoading(true);
             const areaQrParam = searchParams.get('areaQr');
+            
+            let loadedArea = null;
 
             if (areaQrParam) {
                 // Si entró por enlace (escaneado de QR real de la pared)
                 const res = await validateAndOpenArea(areaQrParam);
                 if (res.success && res.areaCode) {
                     setLockedArea(res.areaCode);
+                    loadedArea = res.areaCode;
                 } else {
                     alert(res.error || 'Código de área inválido');
                 }
@@ -1780,11 +1783,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 const activeRes = await getActiveUserArea();
                 if (activeRes.success && activeRes.areaCode) {
                     setLockedArea(activeRes.areaCode);
+                    loadedArea = activeRes.areaCode;
                 }
             }
             setIsCheckingArea(false);
-            // Realizar la búsqueda general inicial
-            refresh(1, search, filtroArea, filtroEstatus);
+            // Realizar la búsqueda general inicial PÁSANDOLE EL ÁREA QUE CABE DE CARGAR
+            refresh(1, search, filtroArea, filtroEstatus, loadedArea);
         }
 
         if (!hasMounted.current) {
@@ -1879,12 +1883,16 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     useEffect(() => {
         // Debounce para búsquedas subsiguientes (excluimos el montaje inicial que se maneja arriba)
         if (!hasMounted.current) return;
-        const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus); }, 300);
+        const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus, lockedArea); }, 300);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search, filtroArea, filtroEstatus]);
 
-    function handlePageChange(p: number) { setPage(p); refresh(p); }
+    function handlePageChange(p: number) { 
+        setPage(p); 
+        // We explicitly pass `lockedArea` here to maintain the area context when paginating
+        refresh(p, search, filtroArea, filtroEstatus, lockedArea); 
+    }
     const PER_PAGE = 10;
 
     return (
