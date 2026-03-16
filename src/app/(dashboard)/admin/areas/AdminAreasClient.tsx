@@ -279,16 +279,16 @@ export default function AdminAreasClient({ initialAreas }: Props) {
                                             </h3>
                                             <div className="mt-4 space-y-4">
                                                 <div>
-                                                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nombre Interno (ej. PB-A1-OF.PASTOR) *</label>
+                                                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">Nombre Interno (ej. CLI-A1-CONSULTORIO1) *</label>
                                                     <input type="text" name="name" id="name" required defaultValue={selectedArea?.name} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
                                                     <p className="text-xs text-gray-500 mt-1">Este nombre se guardará en la base de datos de los activos.</p>
                                                 </div>
                                                 <div>
-                                                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">Descripción / Nombre Amigable (ej. Oficina del Pastor)</label>
+                                                    <label htmlFor="description" className="block text-sm font-medium text-gray-700">Descripción / Nombre Amigable (ej. Consultorio Médico Principal)</label>
                                                     <input type="text" name="description" id="description" defaultValue={selectedArea?.description || ''} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
                                                 </div>
                                                 <div>
-                                                    <label htmlFor="prefix" className="block text-sm font-medium text-gray-700">Prefijo de Activos (ej. ELIM-PB-A01-OF) *</label>
+                                                    <label htmlFor="prefix" className="block text-sm font-medium text-gray-700">Prefijo de Activos (ej. BIO-CLI-A01-CON) *</label>
                                                     <input type="text" name="prefix" id="prefix" required defaultValue={selectedArea?.prefix} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm" />
                                                 </div>
                                                 <div>
@@ -331,7 +331,7 @@ export default function AdminAreasClient({ initialAreas }: Props) {
                                     <img
                                         src={`/api/impresion/generar-etiqueta-area?idQr=${encodeURIComponent(printingArea.qrCode)}&areaName=${encodeURIComponent(printingArea.description || printingArea.name)}&areaPrefix=${encodeURIComponent(printingArea.prefix)}`}
                                         alt="Vista previa etiqueta"
-                                        style={{ width: '406px', height: '203px', objectFit: 'contain' }}
+                                        style={{ width: '406px', height: '203px', objectFit: 'contain' } as React.CSSProperties}
                                         className="max-w-full"
                                     />
                                 </div>
