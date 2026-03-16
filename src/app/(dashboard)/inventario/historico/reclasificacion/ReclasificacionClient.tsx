@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect, useTransition } from 'react';
-import { getActivosPorReclasificar, getResumenReclasificacion, setEquipoMenor, getReporteEquipoMenor } from './actions';
+import { getActivosPorReclasificar, getResumenReclasificacion, setEquipoMenor, getReporteEquipoMenor, revertirEquipoMenor } from './actions';
 import { calcDepreciacion } from '@/lib/depreciation';
-import { PackageOpen, ArrowDownToLine, Loader2, RefreshCcw, FileText, CheckCircle2, Filter, LayoutGrid, List } from 'lucide-react';
+import { PackageOpen, ArrowDownToLine, Loader2, RefreshCcw, FileText, CheckCircle2, Filter, LayoutGrid, List, Undo2 } from 'lucide-react';
 
 export default function ReclasificacionClient() {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -77,6 +77,36 @@ export default function ReclasificacionClient() {
         const data = await getReporteEquipoMenor(1, 100);
         setReporteItems(data.items);
         setIsReporteLoading(false);
+    }
+    
+    async function handleRevertirEquipoMenor(id: string) {
+        // Optimistic UI for Reports
+        setReporteItems(prev => prev.filter(item => item.id !== id));
+        
+        // Optimistic Resumen Update
+        const itemToRevert = reporteItems.find(i => i.id === id);
+        if(itemToRevert) {
+            setResumen(r => ({
+                equipoMenor: {
+                    cantidad: Math.max(0, r.equipoMenor.cantidad - 1),
+                    total: Math.max(0, r.equipoMenor.total - Number(itemToRevert.costoAdquisicion || 0))
+                },
+                pendientesDeRevisar: {
+                    cantidad: r.pendientesDeRevisar.cantidad + 1,
+                    total: r.pendientesDeRevisar.total + Number(itemToRevert.costoAdquisicion || 0)
+                }
+            }));
+             // Also add it back to the active tray so it appears if the filter matches
+             setItems(prev => {
+                if(prev.some(p => p.id === id)) return prev;
+                // Keep it sorted simple by putting it at the beginning
+                return [itemToRevert, ...prev];
+             });
+        }
+
+        startTransition(async () => {
+             await revertirEquipoMenor(id);
+        });
     }
     
     // Función auxiliar para obtener los calculos de depreciacion in-line
@@ -415,7 +445,8 @@ export default function ReclasificacionClient() {
                                         <th className="px-6 py-4">Cuenta</th>
                                         <th className="px-6 py-4">Depreciación (Mes / Acum)</th>
                                         <th className="px-6 py-4">Antigüedad</th>
-                                        <th className="px-6 py-4 text-right rounded-tr-xl">Costo L.</th>
+                                        <th className="px-6 py-4 text-right">Costo L.</th>
+                                        <th className="px-6 py-4 text-center rounded-tr-xl">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -448,6 +479,17 @@ export default function ReclasificacionClient() {
                                             </td>
                                             <td className="px-6 py-4 font-black text-amber-600 text-right">
                                                 {Number(item.costoAdquisicion || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                <button 
+                                                    onClick={() => handleRevertirEquipoMenor(item.id)}
+                                                    disabled={isPending}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+                                                    title="Reversar a Activo"
+                                                >
+                                                    <Undo2 className="w-3.5 h-3.5" />
+                                                    Reversar
+                                                </button>
                                             </td>
                                         </tr>
                                         )

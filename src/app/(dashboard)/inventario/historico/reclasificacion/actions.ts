@@ -69,6 +69,15 @@ export async function setEquipoMenor(id: string) {
     return { success: true };
 }
 
+export async function revertirEquipoMenor(id: string) {
+    const orgId = await getOrgId();
+    await prisma.inventarioHistorico.updateMany({
+        where: { id, organizationId: orgId },
+        data: { clasificacion: 'ACTIVO' }
+    });
+    return { success: true };
+}
+
 export async function getResumenReclasificacion(umbral = 2000, operador: 'lte' | 'gte' = 'lte') {
     const orgId = await getOrgId();
     
