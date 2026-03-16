@@ -10,7 +10,10 @@ import {
   Sparkles,
   CircleDollarSign,
   Box,
+  FileText,
   TrendingUp,
+  Receipt,
+  FileSignature,
   Settings,
   HelpCircle,
   Users,
@@ -63,6 +66,15 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
           { name: 'Control de Inventario', href: '/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Catálogo de Modelos', href: '/inventario/modelos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
           { name: 'Ubicaciones y Sucursales', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] }
+        ]
+      },
+      {
+        name: 'Ventas y Servicios',
+        href: '#',
+        icon: Receipt,
+        subItems: [
+          { name: 'Cotizaciones', href: '/cotizaciones', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Facturación', href: '/facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] }
         ]
       },
     ]
