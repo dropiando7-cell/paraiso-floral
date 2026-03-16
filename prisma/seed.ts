@@ -10,16 +10,16 @@ async function main() {
         where: { slug: 'central' }, // Unique identifier
         update: {},
         create: {
-            name: 'Misión Cristiana Elim Central',
+            name: 'Bioelectrónica Honduras',
             slug: 'central',
-            domain: 'elim.hn',
+            domain: 'bioelectronicahn.com',
         },
     })
 
     console.log(`✅ Organización creada o verificada: ${centralOrg.name}`)
 
-    // 2. Crear o buscar al usuario Isaac Paz como SUPER_ADMIN
-    const email = 'isaac.paz@elim.hn'
+    // 2. Crear o buscar al usuario principal como SUPER_ADMIN
+    const email = 'admin@bioelectronicahn.com'
 
     const isaac = await prisma.user.upsert({
         where: { email },
@@ -38,8 +38,8 @@ async function main() {
 
     console.log(`✅ Usuario asignado como SUPER_ADMIN (1): ${isaac.email}`)
 
-    // 3. Crear o buscar al usuario admin@elimhonduras.org como segundo SUPER_ADMIN
-    const adminEmail = 'admin@elimhonduras.org'
+    // 3. Crear o buscar al usuario alterno como segundo SUPER_ADMIN
+    const adminEmail = 'soporte@bioelectronicahn.com'
 
     const adminUser = await prisma.user.upsert({
         where: { email: adminEmail },
@@ -57,6 +57,26 @@ async function main() {
     })
 
     console.log(`✅ Usuario asignado como SUPER_ADMIN (2): ${adminUser.email}`)
+
+    // 4. Crear o buscar al usuario samuel@zysell.com como SUPER_ADMIN
+    const samuelEmail = 'samuel@zysell.com'
+
+    const samuelUser = await prisma.user.upsert({
+        where: { email: samuelEmail },
+        update: {
+            role: Role.SUPER_ADMIN,
+            organizationId: centralOrg.id,
+        },
+        create: {
+            email: samuelEmail,
+            role: Role.SUPER_ADMIN,
+            organizationId: centralOrg.id,
+            twoFactorType: TwoFactorType.NONE,
+            twoFactorEnabled: false
+        },
+    })
+
+    console.log(`✅ Usuario asignado como SUPER_ADMIN (3): ${samuelUser.email}`)
     console.log('Seeding finalizado con éxito.')
 }
 

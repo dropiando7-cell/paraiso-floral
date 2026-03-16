@@ -9,15 +9,10 @@ import {
   LayoutDashboard,
   Sparkles,
   CircleDollarSign,
-  Shield,
   Box,
-  FileText,
   TrendingUp,
-  Calendar,
   Settings,
   HelpCircle,
-  Baby,
-  Stethoscope,
   Users,
   Key,
   ChevronRight,
@@ -51,60 +46,24 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
   {
     category: 'CORE',
     items: [
-      { name: 'Portal Elim', href: '/', icon: LayoutDashboard },
-      { name: 'Conciliación Bancaria IA', href: '/conciliacion', icon: Sparkles },
-      { name: 'Ingresos Congregacionales', href: '/ingresos', icon: CircleDollarSign },
+      { name: 'Portal Bioelectrónica', href: '/', icon: LayoutDashboard },
+      { name: 'Inventario IA', href: '/inventario-ia', icon: Sparkles, badge: 'NUEVO', badgeColor: 'bg-green-500/20 text-green-300' },
+      { name: 'Rentas de Equipos', href: '/rentas', icon: Box },
+      { name: 'Gráficas e Informes', href: '/graficas', icon: TrendingUp },
     ]
   },
   {
-    category: 'LEGAL & ACTIVOS',
+    category: 'ACTIVOS Y CONTROL',
     items: [
-      { name: 'Gestor de Contraseñas', href: '/boveda', icon: Shield },
       {
-        name: 'Recursos y Patrimonio',
+        name: 'Inventario y Catálogos',
         href: '#',
         icon: Box,
         subItems: [
-          { name: 'Inventario de Activos', href: '/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-          { name: 'Editor Histórico', href: '/inventario/historico', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
-          { name: 'Reclasificación Historico', href: '/inventario/historico/reclasificacion', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
-          { name: 'Avance de Inventario', href: '/admin/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-          { name: 'Bodegas y Áreas', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] }
+          { name: 'Control de Inventario', href: '/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Catálogo de Modelos', href: '/inventario/modelos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
+          { name: 'Ubicaciones y Sucursales', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] }
         ]
-      },
-      { name: 'Actas de Junta', href: '/actas', icon: FileText, badge: 'OCR', badgeColor: 'bg-dark-800 text-brand-100' },
-    ]
-  },
-  {
-    category: 'ESTRATEGIA',
-    items: [
-      { name: 'Predicción Financiera 2026', href: '/prediccion', icon: TrendingUp },
-      {
-        name: 'Calendario Centralizado',
-        href: '/calendario',
-        icon: Calendar,
-        roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'EXECUTIVE_ASSISTANT']
-      },
-    ]
-  },
-  {
-    category: 'EVENTOS & SERVICIO',
-    items: [
-      {
-        name: 'Checkin Kids',
-        href: '/checkin',
-        icon: Baby,
-        badge: 'RETIRO',
-        badgeColor: 'bg-pink-500/20 text-pink-300',
-        roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'CHECKIN_KIDS'],
-      },
-      {
-        name: 'Asistencia Médica',
-        href: '/medico',
-        icon: Stethoscope,
-        badge: 'NUEVO',
-        badgeColor: 'bg-rose-500/20 text-rose-300',
-        roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'MEDICAL_STAFF'],
       },
     ]
   },
@@ -139,16 +98,16 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
   };
 
   return (
-    <aside className="w-[280px] bg-[#0500A3] border-r border-[#150ec4] flex flex-col h-full min-h-screen shrink-0 print:hidden">
+    <aside className="w-[280px] bg-brand-900 border-r border-brand-800 flex flex-col h-full min-h-screen shrink-0 print:hidden">
       {/* Brand / Org Switcher */}
-      <div className="h-[72px] flex items-center px-6 border-b border-[#150ec4] shrink-0">
+      <div className="h-[72px] flex items-center px-6 border-b border-brand-800 shrink-0">
         <div className="flex items-center gap-2 w-full pl-0.5">
-          <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center font-bold text-white shadow-lg shrink-0">
-            SE
+          <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center font-bold text-white shadow-lg shrink-0">
+            BE
           </div>
           <div className="flex flex-col flex-1 overflow-hidden ml-0.5">
-            <span style={{ fontFamily: 'Inter, "Inter Fallback", sans-serif', fontWeight: 600, fontSize: '22px', lineHeight: '32px', color: 'rgb(255, 255, 255)' }} className="truncate">
-              SistemasElim
+            <span className="truncate font-semibold text-[22px] leading-8 text-white">
+              Bioelectrónica
             </span>
           </div>
           {/* Close button — mobile only */}
@@ -163,7 +122,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
           )}
           {/* Mock Switcher Icon for Super Admin ONLY */}
           {dbUser?.role === 'SUPER_ADMIN' && (
-            <button className="text-white/60 hover:text-white transition-colors bg-[#1A14B8]/50 hover:bg-[#1A14B8] p-1.5 rounded-lg shrink-0">
+            <button className="text-white/60 hover:text-white transition-colors bg-brand-800/50 hover:bg-brand-800 p-1.5 rounded-lg shrink-0">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /></svg>
             </button>
           )}
@@ -233,7 +192,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                               'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm w-full',
                               isEffectivelyActive || isChildActive
                                 ? 'bg-white/10 text-white font-bold'
-                                : 'text-white/90 hover:text-white hover:bg-[#1A14B8]'
+                                : 'text-white/90 hover:text-white hover:bg-brand-800'
                             )
                           )}
                         >
@@ -251,13 +210,13 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                             clsx(
                               'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm',
                               isActive
-                                ? 'bg-white text-[#0500A3] font-bold shadow-md'
-                                : 'text-white/90 hover:text-white hover:bg-[#1A14B8]'
+                                ? 'bg-white text-brand-900 font-bold shadow-md'
+                                : 'text-white/90 hover:text-white hover:bg-brand-800'
                             )
                           )}
                         >
                           <div className="flex items-center gap-3">
-                            <Icon className={clsx('w-4 h-4', isActive ? 'text-[#0500A3]' : 'text-white/90 group-hover:text-white')} />
+                            <Icon className={clsx('w-4 h-4', isActive ? 'text-brand-900' : 'text-white/90 group-hover:text-white')} />
                             <span>{item.name}</span>
                           </div>
                           {item.badge && (
@@ -273,7 +232,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
 
                       {/* Render SubMenu */}
                       {hasSubMenu && isOpen && (
-                        <div className="flex flex-col gap-1 pl-4 mt-1 border-l-2 border-[#1A14B8] ml-4">
+                        <div className="flex flex-col gap-1 pl-4 mt-1 border-l-2 border-brand-800 ml-4">
                           {visibleSubItems.map((subItem) => {
                             const isExactMatch = pathname === subItem.href;
                             const isNestedMatch = pathname.startsWith(subItem.href + '/');
@@ -296,8 +255,8 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                                   clsx(
                                     'flex items-center px-3 py-2 rounded-xl transition-all duration-200 group text-sm relative',
                                     isSubActive
-                                      ? 'bg-white text-[#0500A3] font-bold shadow-sm'
-                                      : 'text-white/70 hover:text-white hover:bg-[#1A14B8]'
+                                      ? 'bg-white text-brand-900 font-bold shadow-sm'
+                                      : 'text-white/70 hover:text-white hover:bg-brand-800'
                                   )
                                 )}
                               >
@@ -317,7 +276,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
       </div>
 
       {/* Bottom Actions */}
-      <div className="p-4 border-t border-[#150ec4] flex flex-col gap-1 shrink-0">
+      <div className="p-4 border-t border-brand-800 flex flex-col gap-1 shrink-0">
         {bottomItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -325,7 +284,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
               key={item.name}
               href={item.href}
               onClick={onClose}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/90 hover:text-white hover:bg-[#1A14B8] transition-all duration-200 text-sm group"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-white/90 hover:text-white hover:bg-brand-800 transition-all duration-200 text-sm group"
             >
               <Icon className="w-4 h-4 text-white/90 group-hover:text-white" />
               <span>{item.name}</span>
@@ -342,7 +301,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
           background: transparent;
         }
         .custom-scrollbar::-webkit-scrollbar-thumb {
-          background-color: #1A14B8;
+          background-color: var(--color-brand-800);
           border-radius: 10px;
         }
       `}</style>

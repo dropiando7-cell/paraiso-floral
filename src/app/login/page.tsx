@@ -44,16 +44,16 @@ export default function LoginPage() {
             <div className="hidden lg:flex w-1/2 bg-[#0A192F] text-white p-12 flex-col justify-between relative overflow-hidden">
                 <div className="relative z-10">
                     <div className="flex items-center gap-3 font-semibold text-2xl tracking-tight mb-8">
-                        <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center font-bold text-white shadow-lg">SE</div>
-                        <span>SistemasElim</span>
+                        <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center font-bold text-white shadow-lg">BE</div>
+                        <span>BioelectrónicaHN</span>
                     </div>
 
 
 
                     <h1 className="text-4xl lg:text-5xl font-bold leading-tight max-w-lg mt-32">
-                        Portal de Gestión Elim
+                        Portal de Gestión Bioelectrónica
                     </h1>
-                    <p className="mt-8 text-blue-200 text-lg max-w-md leading-relaxed">
+                    <p className="mt-8 text-neutral-300 text-lg max-w-md leading-relaxed">
                         Tu centro de mando para una gestión inteligente. Accede a todas tus herramientas administrativas y simplifica tu flujo de trabajo desde un solo lugar.
                     </p>
                 </div>
@@ -63,7 +63,7 @@ export default function LoginPage() {
                 <div className="absolute top-1/4 -right-20 w-80 h-80 bg-cyan-500 rounded-full opacity-10 blur-3xl"></div>
 
                 <div className="relative z-10 mt-auto text-sm text-blue-300">
-                    &copy; {new Date().getFullYear()} Misión Cristiana Elim. Todos los derechos reservados.
+                    &copy; {new Date().getFullYear()} Bioelectrónica Honduras. Todos los derechos reservados.
                 </div>
             </div>
 
@@ -71,8 +71,8 @@ export default function LoginPage() {
             <div className="w-full justify-center lg:w-1/2 flex items-center p-8 sm:p-12 lg:p-24 bg-white">
                 <div className="w-full max-w-md">
                     <div className="lg:hidden flex items-center gap-3 font-semibold text-2xl tracking-tight mb-10 text-[#0A192F]">
-                        <div className="w-8 h-8 rounded-lg bg-[#0A192F] flex items-center justify-center font-bold text-white shadow-lg">El</div>
-                        <span>SistemasElim</span>
+                        <div className="w-8 h-8 rounded-lg bg-[#0A192F] flex items-center justify-center font-bold text-white shadow-lg">BE</div>
+                        <span>Bioelectrónica</span>
                     </div>
 
                     <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">Bienvenido de nuevo</h2>
@@ -117,7 +117,7 @@ export default function LoginPage() {
                                 name="email"
                                 type="email"
                                 required
-                                placeholder="ejemplo@elimhonduras.org"
+                                placeholder="usuario@bioelectronicahn.com"
                                 className="w-full px-4 py-3 rounded-[12px] border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#0A192F]/20 focus:border-[#0A192F] transition-colors"
                             />
                         </div>

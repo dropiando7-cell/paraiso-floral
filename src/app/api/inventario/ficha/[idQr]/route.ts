@@ -4,10 +4,10 @@ import { prisma } from '@/lib/prisma';
 // Public endpoint — no auth required, anyone scanning the QR can access it
 export async function GET(
     _req: NextRequest,
-    { params }: { params: Promise<{ idQr: string }> }
+    context: { params: Promise<{ idQr: string }> }
 ) {
     try {
-        const { idQr } = await params;
+        const { idQr } = await context.params;
 
         const activo = await prisma.activoFijo.findFirst({
             where: { idQr: decodeURIComponent(idQr) },
