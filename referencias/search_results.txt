@@ -1,0 +1,26 @@
+
+--- Searching MASIMO ---
+Found 492: "__export__.product_template_21_dc1c2383","Ext LNC Masimo","11.0","11.0","11.0","__export__.product_category_32_34659fcb","0.0","5000.0","LNC MP10","1","Almacenable","uom.product_uom_unit"
+Found 672: "__export__.product_template_16_6bc5e09c","LNC-04 Ext Masimo","6.0","6.0","6.0","__export__.product_category_11_74b95fca","0.0","5600.0","2523 M- LNCS","1","Almacenable","uom.product_uom_unit"
+Found 675: "__export__.product_template_11_8e7f500b","LNOP Neo-L","2.0","2.0","2.0","__export__.product_category_5_dfcef8d2","0.0","1600.0","MASIMO 1798","1","Almacenable","uom.product_uom_unit"
+Found 794: "__export__.product_template_33_6417f1cd","Monitor Multiparametros Radical-7","2.0","2.0","2.0","__export__.product_category_26_07f9dbcf","0.0","35000.0","9500-MASIMO","1","Almacenable","uom.product_uom_unit"
+Found 834: "__export__.product_template_48_b2bd825c","OXIMETRO DE PULSO HORIZONTAL DE CABECERA MASIMO RAD-87","2.0","2.0","2.0","__export__.product_category_32_34659fcb","0.0","16000.0","Rad87","1","Almacenable","uom.product_uom_unit"
+Found 891: "__export__.product_template_85_70fe7bea","Rad-97 MASIMOSET","1.0","1.0","1.0","__export__.product_category_26_07f9dbcf","0.0","45000.0","RAD-97","1","Almacenable","uom.product_uom_unit"
+Found 968: "__export__.product_template_13_acd96a72","Sensor Oximetria Masimo","21.0","21.0","21.0","__export__.product_category_5_dfcef8d2","0.0","2300.0","SET 2C034","1","Almacenable","uom.product_uom_unit"
+Found 977: "__export__.product_template_1242_bccf3da9","Sensor de oximetria SpO2 4050 RD MASIMO","0.0","0.0","0.0","product.product_category_1","0.0","3800.0","SP1016AD1","1","Almacenable","uom.product_uom_unit"
+
+--- Searching oximetr ---
+Found 393: "__export__.product_template_671_dc6c74b1","Cable de extensión para sensor de oximetría SpO2 Marca: Nellcor","0.0","0.0","0.0","product.product_category_all","0.0","1200.0","15053","1","Almacenable","uom.product_uom_unit"
+Found 493: "__export__.product_template_790_44e2d1df","Extension para sensor de oximetría marca: Nellcor de 10 pies","0.0","0.0","0.0","product.product_category_all","0.0","4875.0","DOC10","1","Almacenable","uom.product_uom_unit"
+Found 494: "__export__.product_template_739_25dafe91","Extesion de oximetria para datascope","0.0","0.0","0.0","product.product_category_all","0.0","1870.0","extesion de spo2 datascope passport xg","1","Almacenable","uom.product_uom_unit"
+Found 834: "__export__.product_template_48_b2bd825c","OXIMETRO DE PULSO HORIZONTAL DE CABECERA MASIMO RAD-87","2.0","2.0","2.0","__export__.product_category_32_34659fcb","0.0","16000.0","Rad87","1","Almacenable","uom.product_uom_unit"
+Found 849: "__export__.product_template_569_83e20c72","PULSIOXIMETRO DE MANO RAD-5V","0.0","0.0","0.0","product.product_category_all","0.0","18500.0","N174161","1","Almacenable","uom.product_uom_unit"
+Found 965: "__export__.product_template_1237_01339d07","Sensor De OXIMETRIA Spo2 Adulto","0.0","0.0","0.0","__export__.product_category_32_34659fcb","0.0","1.0","","1","Almacenable","uom.product_uom_unit"
+Found 968: "__export__.product_template_13_acd96a72","Sensor Oximetria Masimo","21.0","21.0","21.0","__export__.product_category_5_dfcef8d2","0.0","2300.0","SET 2C034","1","Almacenable","uom.product_uom_unit"
+Found 977: "__export__.product_template_1242_bccf3da9","Sensor de oximetria SpO2 4050 RD MASIMO","0.0","0.0","0.0","product.product_category_1","0.0","3800.0","SP1016AD1","1","Almacenable","uom.product_uom_unit"
+Found 978: "__export__.product_template_814_c86adf2e","Sensor de oximetria SpO2 adulto","0.0","0.0","0.0","__export__.product_category_32_34659fcb","0.0","2043.48","1147B13A","1","Almacenable","uom.product_uom_unit"
+Found 979: "__export__.product_template_1236_15f5702f","Sensor de oximetria SpO2 adulto TEVEIK","0.0","0.0","0.0","__export__.product_category_32_34659fcb","0.0","2850.0","1155C11A","1","Almacenable","uom.product_uom_unit"
+Found 980: "__export__.product_template_1241_096ff4a8","Sensor de oximetria SpO2 adulto compatible con Nellcor","0.0","0.0","0.0","product.product_category_1","0.0","1.0","1153C11A","1","Almacenable","uom.product_uom_unit"
+Found 981: "__export__.product_template_1240_2713b79d","Sensor de oximetria SpO2 para Philips","0.0","0.0","0.0","product.product_category_1","0.0","1.0","1164B13A","1","Almacenable","uom.product_uom_unit"
+Found 982: "__export__.product_template_791_4f541af5","Sensor de oximetría Marca: Nellcor","0.0","0.0","0.0","product.product_category_all","0.0","8625.0","DS100A","1","Almacenable","uom.product_uom_unit"
+Found 984: "__export__.product_template_171_6f73f8fa","Sensor de pulso / oximetría Marca : Nellcor","5.0","5.0","5.0","__export__.product_category_5_dfcef8d2","0.0","3200.0","OEM-S1541A","1","Almacenable","uom.product_uom_unit"

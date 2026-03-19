@@ -10,14 +10,18 @@ datasource db {
 }
 
 model Organization {
-  id                    String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name                  String
-  slug                  String                @unique
-  domain                String?               @unique
+  slug                  String                 @unique
+  domain                String?                @unique
   logoUrl               String?
-  status                OrganizationStatus    @default(ACTIVE)
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
+  direccion             String?
+  telefono              String?
+  correoContacto        String?
+  rtn                   String?
+  status                OrganizationStatus     @default(ACTIVE)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
   activosFijos          ActivoFijo[]
   areaInventoryStatuses AreaInventoryStatus[]
   areas                 Area[]
@@ -35,6 +39,9 @@ model Organization {
   roleTemplates         RoleTemplate[]
   tasks                 Task[]
   users                 User[]
+  productos             Producto[]
+  clientes              Cliente[]
+  facturas              Factura[]
 
   @@map("organizations")
 }
@@ -315,6 +322,8 @@ model ActivoFijo {
   fechaLevantamiento    DateTime?
   categoriaDepreciacion String?
   historicoId           String?              @db.Uuid
+  codigoBarras          String?
+  stock                 Int                  @default(1)
   vidaUtilOverride      Decimal?             @db.Decimal(5, 2)
   codigoGrupo           String?
   valResidual           Decimal?             @db.Decimal(12, 2)
@@ -326,6 +335,7 @@ model ActivoFijo {
   inventarioHistorico   InventarioHistorico? @relation(fields: [historicoId], references: [id])
   organization          Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   colaImpresion         ColaImpresion[]
+  detallesFactura       DetalleFactura[]
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -452,8 +462,8 @@ enum EmailTemplateType {
 model ColaImpresionCheckin {
   id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String       @db.Uuid
-  datosEtiqueta  Json         
-  estado         String       @default("PENDIENTE") 
+  datosEtiqueta  Json
+  estado         String       @default("PENDIENTE")
   impresora      String       @default("TSC TE200")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -462,4 +472,115 @@ model ColaImpresionCheckin {
   @@index([organizationId])
   @@index([estado])
   @@map("cola_impresion_checkin")
+}
+
+model Producto {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  sku            String   @unique // Codigo de barra genérico o SKU numérico
+  nombre         String
+  descripcion    String?
+  marca          String?
+  modelo         String?
+  precioVenta    Decimal  @db.Decimal(12, 2)
+  costoBase      Decimal? @db.Decimal(12, 2)
+  stockActual    Int      @default(0)
+  stockMinimo    Int      @default(5)
+  isvAplicable   Int      @default(15) // 0, 15, 18
+  estado         String   @default("ACTIVO") // ACTIVO, INACTIVO
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  detallesFactura DetalleFactura[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId])
+  @@map("productos")
+}
+
+model Cliente {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  nombre         String
+  rtn            String? // R.T.N. hondureño
+  telefono       String?
+  email          String?
+  direccion      String?
+  notas          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  facturas     Factura[]
+
+  @@index([organizationId])
+  @@index([nombre])
+  @@map("clientes")
+}
+
+model Factura {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String   @db.Uuid
+  numeroCAI      String? // Clave de Autorización de Impresión
+  correlativo    String // Ej. 000-001-01-003557
+  numeroInterno  Int      @default(autoincrement()) // Para ordenar fácilmente
+  fechaEmision   DateTime @default(now())
+
+  clienteId String  @db.Uuid
+  cliente   Cliente @relation(fields: [clienteId], references: [id])
+
+  // Totales de Factura
+  subTotal       Decimal @default(0) @db.Decimal(12, 2)
+  descuentos     Decimal @default(0) @db.Decimal(12, 2)
+  totalExento    Decimal @default(0) @db.Decimal(12, 2)
+  totalExonerado Decimal @default(0) @db.Decimal(12, 2)
+  totalGravado15 Decimal @default(0) @db.Decimal(12, 2)
+  isv15          Decimal @default(0) @db.Decimal(12, 2)
+  totalGravado18 Decimal @default(0) @db.Decimal(12, 2)
+  isv18          Decimal @default(0) @db.Decimal(12, 2)
+  total          Decimal @default(0) @db.Decimal(12, 2)
+
+  estado String @default("BORRADOR") // BORRADOR, EMITIDA, ANULADA, PAGADA
+
+  // Datos SAR 
+  rangoAutorizado          String?
+  fechaLimiteEmision       DateTime?
+  ordenCompraExenta        String?
+  constanciaRegistroExenta String?
+  registroSag              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  detalles     DetalleFactura[]
+
+  @@unique([organizationId, correlativo])
+  @@index([organizationId])
+  @@index([estado])
+  @@map("facturas")
+}
+
+model DetalleFactura {
+  id        String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facturaId String  @db.Uuid
+  factura   Factura @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  // El Puente Opcional
+  productoId String?   @db.Uuid
+  producto   Producto? @relation(fields: [productoId], references: [id])
+
+  activoId String?     @db.Uuid
+  activo   ActivoFijo? @relation(fields: [activoId], references: [id])
+
+  descripcion    String // Texto de "Mano de Obra" o nombre calcado del producto
+  cantidad       Int
+  precioUnitario Decimal @db.Decimal(12, 2)
+  porcentajeIsv  Int     @default(15) // 0, 15, 18
+  totalDescuento Decimal @default(0) @db.Decimal(12, 2)
+  totalLinea     Decimal @db.Decimal(12, 2)
+
+  @@index([facturaId])
+  @@map("detalles_factura")
 }

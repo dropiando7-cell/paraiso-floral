@@ -1,0 +1,1787 @@
+
+        
+        <!DOCTYPE html>
+        <html data-oe-company-name="BIOELECTRONICA S. DE R.L. DE C.V" data-website-id="1" lang="es-MX">
+            <head>
+                <meta charset="utf-8"/>
+                <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no"/>
+
+                <title>Tienda | BIOELECTRONICA</title>
+                <link type="image/x-icon" rel="shortcut icon" href="/web/image/website/1/favicon/"/>
+
+                <script type="text/javascript">
+                    var odoo = {
+                        csrf_token: "174f220d7eebbcbfdc10cf467f06242274428f4bo",
+                    };
+                </script>
+
+                
+            <meta name="generator" content="Odoo"/>
+
+            
+            
+            
+            
+            
+            
+                
+                
+                
+                    
+                        <meta property="og:title" content="Tienda | BIOELECTRONICA"/>
+                    
+                        <meta property="og:site_name" content="BIOELECTRONICA S. DE R.L. DE C.V"/>
+                    
+                        <meta property="og:type" content="website"/>
+                    
+                        <meta property="og:url" content="http://192.168.2.14:8069/shop"/>
+                    
+                        <meta property="og:image" content="http://192.168.2.14:8069/web/image/res.company/1/logo"/>
+                    
+                
+                
+                
+                    
+                        <meta name="twitter:title" content="Tienda | BIOELECTRONICA"/>
+                    
+                        <meta name="twitter:image" content="http://192.168.2.14:8069/web/image/res.company/1/logo"/>
+                    
+                        <meta name="twitter:card" content="summary_large_image"/>
+                    
+                
+            
+
+            
+            
+                
+                    <link rel="alternate" hreflang="es" href="http://192.168.2.14:8069/shop"/>
+                
+            
+
+            <script type="text/javascript">
+                odoo.session_info = {
+                    is_admin: false,
+                    is_system: false,
+                    is_frontend: true,
+                    translationURL: '/website/translations',
+                    is_website_user: true,
+                    user_id: 4
+                };
+                
+            </script>
+
+            <link type="text/css" rel="stylesheet" href="/web/content/1800-23490de/1/web.assets_common.0.css"/>
+            <link href="/negocio_web/static/src/plugins/owl-carousel/owl.carousel.scss" type="text/scss"/>
+            <link href="/negocio_web/static/src/plugins/owl-carousel/owl.theme.scss" type="text/scss"/>
+            <link href="/negocio_web/static/src/plugins/jquery.mCustomScrollbar.scss" type="text/scss"/>
+            <link href="/negocio_web/static/src/plugins/countdown/jquery.countdown.scss" type="text/scss"/>
+            <link type="text/css" rel="stylesheet" href="/web/content/1408-c06a908/1/web.assets_frontend.0.css"/>
+            <link type="text/css" rel="stylesheet" href="/web/content/1409-c06a908/1/web.assets_frontend.1.css"/>
+            <link type="text/css" rel="stylesheet" href="/web/content/1410-c06a908/1/web.assets_frontend.2.css"/>
+            
+            
+            
+
+            <script type="text/javascript" src="/web/content/1801-23490de/1/web.assets_common.js"></script>
+            <script type="text/javascript" src="/web/content/1411-c06a908/1/web.assets_frontend.js"></script>
+            
+            
+            
+        
+            </head>
+            <body>
+                
+            
+        
+            
+        
+        
+            
+                
+            
+        
+        
+    
+    
+
+            
+            
+        
+    
+            
+        <div id="wrapwrap" class="   ">
+                <header class=" o_affix_enabled">
+                    
+    <div class="header-topbar">
+      <div class="container">
+        <div class="row">
+          <div class="col align-items-center d-lg-flex justify-content-between hide-mobile">
+            <div class="header-setting">
+              
+              <div class="form-language hed-drop">
+                <h4>Language</h4>
+                
+              </div>
+            </div>
+            <ul class="headerl-social">
+              <li>
+                <a href="https://www.facebook.com/bioelectronica.sderldecv">
+                  <i class="fa fa-facebook fa-2x" data-original-title="" title="" aria-describedby="tooltip835097"></i>
+                </a>
+              </li>
+              <li>
+                <a href="https://twitter.com/?lang=es">
+                  <i class="fa fa-twitter fa-2x" data-original-title="" title="" aria-describedby="tooltip427455"></i>
+                </a>
+              </li>
+              
+              <li>
+                <a href="https://www.instagram.com/?hl=es-la">
+                  <i class="fa fa-instagram fa-2x" data-original-title="" title="" aria-describedby="tooltip672954"></i>
+                </a>
+              </li>
+              <li>
+                <a href="https://www.youtube.com/"></a>
+              </li>
+              
+            </ul>
+            <div class="text-right">
+              <ul class="top-contact list-inline mb-0 text-white">
+                <li class="list-inline-item">
+                  <i class="fa fa-map-marker" data-original-title="" title="" aria-describedby="tooltip102282" style="font-size: 14px;"></i>
+                  <font style="font-size: 14px;">&nbsp;Bo. Paz Barahona, 12 y 11 Ave&nbsp;. Calle 10, Casa No. 81-A, San Pedro Sula</font>
+                </li>
+                <li class="list-inline-item">
+                  <font style="font-size: 14px;">+504-2552-0491&nbsp;&nbsp;&nbsp;ventas@bioelectronicahn.com</font>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  <nav class="navbar navbar-expand-lg navbar-light bg-light header-main">
+                        <div class="container">
+                            <a href="/" class="navbar-brand logo">
+            <img src="/logo.png" style="max-height:250px" alt="Logo of BIOELECTRONICA S. DE R.L. DE C.V" title="BIOELECTRONICA S. DE R.L. DE C.V"/>
+        </a>
+    <button type="button" class="navbar-toggler" data-toggle="collapse" data-target="#top_menu_collapse">
+                                <span class="navbar-toggler-icon"></span>
+                            </button>
+                            <div class="collapse navbar-collapse" id="top_menu_collapse">
+                                <ul class="nav navbar-nav ml-auto text-right o_menu_loading" id="top_menu">
+                                    
+        
+            
+    
+    <li class="nav-item">
+        <a role="menuitem" href="/home-medical" class="nav-link ">
+            <span>INICIO</span>
+        </a>
+    </li>
+            
+        
+    
+
+        
+            
+    
+    <li class="nav-item">
+        <a role="menuitem" href="/shop" class="nav-link active">
+            <span>TIENDA</span>
+        </a>
+    </li>
+            
+        
+    
+
+        
+            
+    
+    <li class="nav-item">
+        <a role="menuitem" href="/contactus" class="nav-link ">
+            <span>CONTACTENOS</span>
+        </a>
+    </li>
+            
+        
+    
+
+        
+            
+    
+    <li class="nav-item">
+        <a role="menuitem" href="/service" class="nav-link ">
+            <span>SERVICIOS</span>
+        </a>
+    </li>
+            
+        
+    
+
+        
+    
+            
+            <li class="nav-item divider d-none"></li> <li id="my_cart" class="nav-item d-none">
+                <a href="/shop/cart" class="nav-link">
+                    <i class="fa fa-shopping-cart"></i>
+                    Mi Carrito <sup class="my_cart_quantity badge badge-primary" data-order-id=""></sup>
+                </a>
+            </li>
+            
+                
+                <li id="my_wish" class="nav-item" style="display:none;">
+                    <a href="/shop/wishlist" class="nav-link">
+                        <i class="fa fa-heart"></i>
+                        Lista de deseos <sup class="my_wish_quantity o_animate_blink badge badge-primary">0</sup>
+                    </a>
+                </li>
+            
+        
+        
+                                    
+                                
+            <li class="nav-item divider"></li>
+            <li class="nav-item">
+                <a class="nav-link" href="/web/login">
+                    <b>Registrarse</b>
+                </a>
+            </li>
+        </ul>
+                            </div>
+    <div class="col-5 d-lg-flex align-items-center justify-content-end hide-mobile">
+      <div class="header-icons d-lg-flex align-items-center mr-3">
+        <div class="header-search search_expand">
+          <i class="fa fa-search"></i>
+          <div class="as-search">
+            <form action="/shop" method="get">
+              <input type="text" name="search" placeholder="Search" class="form-control" value=""/>
+              <button class="btn btn-default oe_search_button">
+                <i class="fa fa-search"></i>
+              </button>
+            </form>
+            <a href="javascript:void(0);" id="search_close" class="search_close">
+              <i class="fa fa-close"></i>
+            </a>
+          </div>
+        </div>
+        <div class="login-header ml-0">
+          <ul class="list-inline mb-0">
+            <li class="list-inline-item">
+              <a href="/web/login"><i class="fa fa-key"></i> Login</a>
+            </li>
+            
+            
+          </ul>
+        </div>
+        
+        
+          
+          <div class="header-wishlist" id="my_wish" style="display:none;">
+            <a class="wishlist-icon" href="/shop/wishlist">
+              <i class="fa fa-heart"></i>
+              <sup class="my_wish_quantity o_animate_blink badge badge-primary">
+                0
+              </sup>
+            </a>
+          </div>
+          
+          <div class="header-cart" id="my_cart">
+            <a class="cart-icon" href="/shop/cart">
+              <i class="fa fa-shopping-cart"></i>
+              <sup class="my_cart_quantity label badge-primary">0</sup>
+            </a>
+          </div>
+        
+      </div>
+      <a href="/contactus" class="btn btn-primary btn-primary-quote hide-mobile">solicitar cotizacion</a>
+    </div>
+  
+                        </div>
+                    </nav>
+                </header>
+                <main>
+                    
+            
+            <div id="wrap" class="js_sale">
+                
+    
+    
+      <div class="oe_structure"></div>
+    
+  <div class="oe_structure" id="oe_structure_website_sale_products_1"></div>
+                <div class="container py-2 oe_website_sale">
+                    <div class="products_pager form-inline justify-content-center">
+                        
+        <form method="get" action="/shop" class="o_website_sale_search">
+            
+            
+    <div class="input-group">
+        <input type="text" name="search" class="search-query form-control oe_search_box" placeholder="Buscar…" value=""/>
+        <div class="input-group-append">
+            <button type="submit" class="btn btn-secondary oe_search_button" aria-label="Búsqueda" title="Búsqueda"><i class="fa fa-search"></i></button>
+        </div>
+    </div>
+
+        </form>
+    
+                        
+        
+        <div class="dropdown d-none ml-2">
+            
+            <a role="button" href="#" class="dropdown-toggle btn btn-secondary" data-toggle="dropdown">
+                Tarifa pública
+            </a>
+            <div class="dropdown-menu" role="menu">
+                
+                    <a role="menuitem" class="dropdown-item" href="/shop/change_pricelist/1">
+                        <span class="switcher_pricelist" data-pl_id="1">Tarifa pública</span>
+                    </a>
+                
+            </div>
+        </div>
+    
+                        
+        <ul class=" pagination m-0 ml-2">
+            <li class="page-item disabled">
+                <a class="page-link" href="">Anterior</a>
+            </li>
+            
+                <li class="page-item active"> <a class="page-link" href="/shop">1</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/2">2</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/3">3</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/4">4</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/5">5</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/6">6</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/7">7</a></li>
+            
+            <li class="page-item ">
+                <a class="page-link" href="/shop/page/2">Siguiente</a>
+            </li>
+        </ul>
+    
+            
+            
+            
+            
+            
+            
+            <div class="dropdown ml-2 dropdown_sorty_by">
+                <a role="button" href="#" class="dropdown-toggle btn btn-secondary" data-toggle="dropdown">
+                    
+                        <span>Ordenar por</span>
+                    
+                </a>
+                <div class="dropdown-menu" role="menu">
+                    
+                        <a role="menuitem" rel="noindex,nofollow" class="dropdown-item" href="/shop?order=list_price+desc">
+                            <span>Precio de catálogo: Mayor a Menor</span>
+                        </a>
+                    
+                        <a role="menuitem" rel="noindex,nofollow" class="dropdown-item" href="/shop?order=list_price+asc">
+                            <span>Precio de catálogo: Menor a Mayor</span>
+                        </a>
+                    
+                        <a role="menuitem" rel="noindex,nofollow" class="dropdown-item" href="/shop?order=name+asc">
+                            <span>Nombre: de la A a la Z</span>
+                        </a>
+                    
+                        <a role="menuitem" rel="noindex,nofollow" class="dropdown-item" href="/shop?order=name+desc">
+                            <span>Nombre: de la Z a la A</span>
+                        </a>
+                    
+                </div>
+            </div>
+        
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-lg-3 col-md-4 col-12" id="products_grid_before">
+             <h2>Product Category</h2>
+            <ul class="nav nav-pills flex-column mt16">
+                <li class="nav-item">
+                    <a href="/shop" class="nav-link active o_not_editable">Todos los productos</a>
+                </li>
+                
+                    
+        <li class="nav-item">
+            <a href="/shop/category/productos-2" class="nav-link">
+                <span>PRODUCTOS</span>
+            </a>
+            <ul class="nav nav-pills flex-column nav-hierarchy">
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/productos-accesorios-3" class="nav-link">
+                <span>ACCESORIOS</span>
+            </a>
+            <ul class="nav nav-pills flex-column nav-hierarchy">
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/productos-accesorios-reguladores-de-presion-4" class="nav-link">
+                <span>Reguladores de presión</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+            </ul>
+        </li>
+    
+                    
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/productos-cables-y-sensores-10" class="nav-link">
+                <span>CABLES Y SENSORES</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/productos-concentrador-de-oxigeno-o2-11" class="nav-link">
+                <span>CONCENTRADOR DE OXIGENO (O2)</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/productos-maquinas-de-anestesia-15" class="nav-link">
+                <span>MAQUINAS DE ANESTESIA</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/productos-monitores-12" class="nav-link">
+                <span>MONITORES</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/productos-piezas-9" class="nav-link">
+                <span>PIEZAS</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/productos-transductores-de-ultrasonido-13" class="nav-link">
+                <span>TRANSDUCTORES DE ULTRASONIDO</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/productos-ventiladores-mecanicos-14" class="nav-link">
+                <span>VENTILADORES MECANICOS</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+            </ul>
+        </li>
+    
+                
+                    
+        <li class="nav-item">
+            <a href="/shop/category/servicio-5" class="nav-link">
+                <span>SERVICIO</span>
+            </a>
+            <ul class="nav nav-pills flex-column nav-hierarchy">
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/servicio-alquiler-8" class="nav-link">
+                <span>ALQUILER</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/servicio-mantinimiento-7" class="nav-link">
+                <span>MANTINIMIENTO</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+                    
+                        
+        <li class="nav-item">
+            <a href="/shop/category/servicio-reparacion-equipo-medico-6" class="nav-link">
+                <span>REPARACION EQUIPO MEDICO</span>
+            </a>
+            
+        </li>
+    
+                    
+                
+            </ul>
+        </li>
+    
+                
+                    
+        <li class="nav-item">
+            <a href="/shop/category/produ-16" class="nav-link">
+                <span>PRODU</span>
+            </a>
+            
+        </li>
+    
+                
+            </ul>
+        </div>
+                        <div class="col-lg-9 col-md-8" id="products_grid">
+                            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/sp1016ad1-sensor-de-oximetria-spo2-4050-rd-masimo-1242">
+                        <span><img src="/web/image/product.template/1242/image/300x300?unique=dafbe09" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/sp1016ad1-sensor-de-oximetria-spo2-4050-rd-masimo-1242" content="Sensor de oximetria SpO2 4050 RD MASIMO">Sensor de oximetria SpO2 4050 RD MASIMO</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for Sensor de oximetria SpO2 4050 RD MASIMO">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">3,800.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">3,800.00</span></span>
+                            <span itemprop="price" style="display:none;">3800.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1242" data-product-product-id="1199"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1199"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/1153c11a-sensor-de-oximetria-spo2-adulto-compatible-con-nellcor-1241">
+                        <span><img src="/web/image/product.template/1241/image/300x300?unique=3d28f64" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/1153c11a-sensor-de-oximetria-spo2-adulto-compatible-con-nellcor-1241" content="Sensor de oximetria SpO2 adulto compatible con Nellcor">Sensor de oximetria SpO2 adulto compatible con Nellcor</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for Sensor de oximetria SpO2 adulto compatible con Nellcor">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1241" data-product-product-id="1198"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1198"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/1164b13a-sensor-de-oximetria-spo2-para-philips-1240">
+                        <span><img src="/web/image/product.template/1240/image/300x300?unique=51c22bb" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/1164b13a-sensor-de-oximetria-spo2-para-philips-1240" content="Sensor de oximetria SpO2 para Philips">Sensor de oximetria SpO2 para Philips</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for Sensor de oximetria SpO2 para Philips">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1240" data-product-product-id="1197"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1197"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/sensor-de-oximetria-spo2-adulto-1237">
+                        <span><img src="/web/image/product.template/1237/image/300x300?unique=679d9ea" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/sensor-de-oximetria-spo2-adulto-1237" content="Sensor De OXIMETRIA Spo2 Adulto">Sensor De OXIMETRIA Spo2 Adulto</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for Sensor De OXIMETRIA Spo2 Adulto">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1237" data-product-product-id="1196"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1196"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/1155c11a-sensor-de-oximetria-spo2-adulto-teveik-1236">
+                        <span><img src="/web/image/product.template/1236/image/300x300?unique=a723ae1" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/1155c11a-sensor-de-oximetria-spo2-adulto-teveik-1236" content="Sensor de oximetria SpO2 adulto TEVEIK">Sensor de oximetria SpO2 adulto TEVEIK</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for Sensor de oximetria SpO2 adulto TEVEIK">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">2,850.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">2,850.00</span></span>
+                            <span itemprop="price" style="display:none;">2850.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1236" data-product-product-id="1195"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1195"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/72033-14-cuchillas-de-repuesto-de-acero-inoxidable-1233">
+                        <span><img src="/web/image/product.template/1233/image/300x300?unique=b7bb76c" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/72033-14-cuchillas-de-repuesto-de-acero-inoxidable-1233" content="Cuchillas de repuesto de acero inoxidable">Cuchillas de repuesto de acero inoxidable</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for Cuchillas de repuesto de acero inoxidable">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1233" data-product-product-id="1193"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1193"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/296-1013-1-nd-lm339dr-1228">
+                        <span><img src="/web/image/product.template/1228/image/300x300?unique=8ed3a9e" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/296-1013-1-nd-lm339dr-1228" content="LM339DR">LM339DR</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for LM339DR">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1228" data-product-product-id="1188"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1188"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/856-bc336-bc336-1227">
+                        <span><img src="/web/image/product.template/1227/image/300x300?unique=e7f288b" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/856-bc336-bc336-1227" content="BC336">BC336</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for BC336">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1227" data-product-product-id="1187"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1187"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/667-nec2sd401a-nec2sd401a-1226">
+                        <span><img src="/web/image/product.template/1226/image/300x300?unique=de7b200" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/667-nec2sd401a-nec2sd401a-1226" content="NEC2SD401A">NEC2SD401A</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for NEC2SD401A">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1226" data-product-product-id="1186"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1186"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/478-mc1488p-mc1488p-1225">
+                        <span><img src="/web/image/product.template/1225/image/300x300?unique=cebd268" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/478-mc1488p-mc1488p-1225" content="MC1488P">MC1488P</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for MC1488P">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1225" data-product-product-id="1185"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1185"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/757-2n4400-2n4400-1224">
+                        <span><img src="/web/image/product.template/1224/image/300x300?unique=0dc17eb" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/757-2n4400-2n4400-1224" content="2N4400">2N4400</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for 2N4400">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1224" data-product-product-id="1184"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1184"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/329-2n08-2n08-1223">
+                        <span><img src="/web/image/product.template/1223/image/300x300?unique=f0ea98f" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/329-2n08-2n08-1223" content="2N08">2N08</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for 2N08">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1223" data-product-product-id="1183"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1183"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/880-1nke15-msc-1-5ke-1222">
+                        <span><img src="/web/image/product.template/1222/image/300x300?unique=bbd1804" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/880-1nke15-msc-1-5ke-1222" content="MSC 1.5KE">MSC 1.5KE</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for MSC 1.5KE">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1222" data-product-product-id="1182"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1182"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/880-1n4747a-1n4747a-1221">
+                        <span><img src="/web/image/product.template/1221/image/300x300?unique=8748812" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/880-1n4747a-1n4747a-1221" content="1N4747A">1N4747A</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for 1N4747A">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1221" data-product-product-id="1181"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1181"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/775-fr605-fr605-1220">
+                        <span><img src="/web/image/product.template/1220/image/300x300?unique=3f408b9" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/775-fr605-fr605-1220" content="FR605">FR605</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for FR605">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1220" data-product-product-id="1180"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1180"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/899-fr207-fr207-1219">
+                        <span><img src="/web/image/product.template/1219/image/300x300?unique=78d11dc" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/899-fr207-fr207-1219" content="FR207">FR207</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for FR207">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1219" data-product-product-id="1179"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1179"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/558-uf4007-uf4007-1218">
+                        <span><img src="/web/image/product.template/1218/image/300x300?unique=28d52d3" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/558-uf4007-uf4007-1218" content="UF4007">UF4007</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for UF4007">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1218" data-product-product-id="1178"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1178"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+                <div class="oe_product oe_list oe_product_cart" data-publish="on">
+                    
+        
+
+        
+
+        <form action="/shop/cart/update" method="post">
+            <input type="hidden" name="csrf_token" value="5a30ed62fc8557d092b433298cbc84b7880091d6o1773896080"/>
+            <div itemscope="itemscope" itemtype="http://schema.org/Product">
+                <div class="ribbon-wrapper">
+                    <a href="#" role="button" class="ribbon btn btn-danger">Venta</a>
+                </div>
+                <div class="oe_product_image">
+                    <a itemprop="url" href="/shop/product/667-fr9010-irfr9010-1217">
+                        <span><img src="/web/image/product.template/1217/image/300x300?unique=6721812" class="img img-fluid"/></span>
+                    </a>
+                </div>
+                
+                    
+                
+                <section>
+                    <h6>
+                        <a itemprop="name" href="/shop/product/667-fr9010-irfr9010-1217" content="IRFR9010">IRFR9010</a>
+                        
+                    </h6>
+                    
+				
+
+				
+					<a class="btn btn-primary btn-xs mt8 mb8" href="mailto:bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com?subject=Price for IRFR9010">
+						Contact For Price
+					</a>
+				
+			<div itemprop="offers" itemscope="itemscope" itemtype="http://schema.org/Offer" class="product_price" style="display:none">
+                        <b>
+                            <del data-oe-type="monetary" data-oe-expression="combination_info['list_price']" style="white-space: nowrap;" class="text-danger mr8 d-none">L <span class="oe_currency_value">1.00</span></del>
+                            
+                            <span data-oe-type="monetary" data-oe-expression="combination_info['price']">L <span class="oe_currency_value">1.00</span></span>
+                            <span itemprop="price" style="display:none;">1.0</span>
+                            <span itemprop="priceCurrency" style="display:none;">HNL</span>
+                        </b>
+                    
+            
+            
+            <button type="button" role="button" class="btn btn-secondary btn-sm o_add_wishlist" title="Añadir a lista de deseos" data-action="o_wishlist" data-product-template-id="1217" data-product-product-id="1177"><span class="fa fa-heart" role="img" aria-label="Añadir a la lista de deseos"></span></button>
+        
+            
+            <button type="button" role="button" class="d-none d-md-inline-block btn btn-secondary btn-sm o_add_compare" title="Comparar" aria-label="Comparar" data-action="o_comparelist" data-product-product-id="1177"><span class="fa fa-exchange"></span></button>
+        </div>
+                </section>
+            </div>
+        </form>
+    
+                </div>
+            
+        
+                        </div>
+                    </div>
+                    <div class="products_pager form-inline justify-content-center mt-3">
+                        
+        <ul class=" pagination m-0 ">
+            <li class="page-item disabled">
+                <a class="page-link" href="">Anterior</a>
+            </li>
+            
+                <li class="page-item active"> <a class="page-link" href="/shop">1</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/2">2</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/3">3</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/4">4</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/5">5</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/6">6</a></li>
+            
+                <li class="page-item "> <a class="page-link" href="/shop/page/7">7</a></li>
+            
+            <li class="page-item ">
+                <a class="page-link" href="/shop/page/2">Siguiente</a>
+            </li>
+        </ul>
+    
+                    </div>
+                </div>
+                <div class="oe_structure mb32" id="oe_structure_website_sale_products_2"></div>
+            </div>
+        
+                </main>
+                <footer class="bg-light o_footer">
+                    <div id="footer" style="display:none;" class="container hidden-print">
+                    <div class="row">
+                        <div class="col-md-4 col-lg-3">
+                            <h4>Our Products & Services</h4>
+                            <ul class="list-unstyled" id="products">
+                                <li>
+                                    <a href="/">Home</a>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4  col-lg-3" id="info">
+                            <h4>Connect with us</h4>
+                            <ul class="list-unstyled">
+                                <li>
+                                    <a href="/page/website.contactus">Contact us</a>
+                                </li>
+                            </ul>
+                            <ul class="list-unstyled">
+                                <li>
+                                    <i class="fa fa-phone"></i>
+                                    <span>(+504) 2552-0491</span>
+                                </li>
+                                <li>
+                                    <i class="fa fa-envelope"></i>
+                                    <span>bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com</span>
+                                </li>
+                            </ul>
+                            <h2>
+                                <a href="https://www.facebook.com/bioelectronica.sderldecv">
+                                    <i class="fa fa-facebook-square"></i>
+                                </a>
+                                <a href="https://twitter.com/?lang=es">
+                                    <i class="fa fa-twitter"></i>
+                                </a>
+                                
+                                <a href="https://www.youtube.com/">
+                                    <i class="fa fa-youtube-play"></i>
+                                </a>
+                                
+                                
+                            </h2>
+                        </div>
+                        <div class="col-md-4 col-lg-5 col-lg-offset-1">
+                            <h4>
+                                <span>BIOELECTRONICA S. DE R.L. DE C.V</span>
+                                <small>-
+                                    <a href="/page/website.aboutus">About us</a>
+                                </small>
+                            </h4>
+                            <div>
+                                <p>
+                                    We are a team of passionate people whose goal is to improve everyone's
+                                    life through disruptive products. We build great products to solve your
+                                    business problems.
+                                </p>
+                                <p>
+                                    Our products are designed for small to medium size companies willing to optimize
+                                    their performance.
+                                </p>
+                            </div>
+                            
+    
+
+                        </div>
+                    </div>
+                </div>
+    <div class="site-footer">
+      <div class="footer-top">
+        <div class="container">
+          <div class="row">
+            <div class="col-md-4">
+              <a class="logo" href="/">
+                <span role="img" aria-label="Logo of BIOELECTRONICA S. DE R.L. DE C.V" title="BIOELECTRONICA S. DE R.L. DE C.V"><img src="/web/image/res.company/1/logo?unique=5f327ee" class="img img-fluid"/></span>
+              </a>
+              <div class="about-text">
+                <div class="s_alert s_alert_md alert-delta w-100 clearfix">
+                  <i class="fa fa-2x fa-info-circle s_alert_icon"></i>
+                  <div class="s_alert_content">
+                    <p>NUESTROS EQUIPOS CUENTAN CON GARANTÍA POR ESCRITO, AL ABRIR O INTENTAR REPARAR UN EQUIPO CON GARANTÍA ESTE PIERDE LA GARANTÍA.&nbsp;</p>
+                  </div>
+                </div>
+                <p>
+                  <b>
+                    <font style="font-size: 24px;">Estamos ubicados en San Pedro Sula, Honduras</font>
+                  </b>
+                </p>
+                <p>
+                  <b>
+                    <font style="font-size: 24px;"> Realizamos envíos a todo el país.</font>
+                  </b>
+                </p>
+              </div>
+              <ul class="social-link ">
+                <li class="facebook">
+                  <a target="_blank" href="https://www.facebook.com/bioelectronica.sderldecv">
+                    <i class="fa fa-facebook" data-original-title="" title="" aria-describedby="tooltip480254"></i>
+                  </a>
+                </li>
+                <li class="twitter">
+                  <a target="_blank" href="https://twitter.com/?lang=es">
+                    <i class="fa fa-twitter"></i>
+                  </a>
+                </li>
+                <li class="googleplus">
+                  
+                </li>
+                <li class="linkedin">
+                  
+                </li>
+                <li class="youtube">
+                  <a target="_blank" href="https://www.youtube.com/"> &nbsp;<span class="fa fa-instagram" style="" data-original-title="" title="" aria-describedby="tooltip408555"></span> </a>
+                </li>
+              </ul>
+            </div>
+            <div class="col-md-2"></div>
+            <div class="col-md-3">
+              <h6 class="footer-title">Enlaces Útiles&nbsp;</h6>
+              <ul class="footer-ul footer-menu">
+                <li>&nbsp;<br/></li>
+                <li>
+                  <span style="font-family:&quot;Calibri&quot;,sans-serif; font-size:11.0pt; mso-ansi-language:
+ES; mso-bidi-language:AR-SA; mso-fareast-font-family:Calibri; mso-fareast-language:ES-HN; mso-fareast-theme-font:minor-latin;">&nbsp;<span lang="ES"><a href="mailto:ventas@bioelectronicahn.com"><font style="font-size: 18px;">ventas@bioelectronicahn.com</font></a></span></span>
+                  <font style="font-size: 18px;">&nbsp;</font>
+                </li>
+                <li>
+                  <br/>
+                </li>
+                <li>
+                  <font style="font-size: 18px;">gerencia@bioelectronicahn.com</font>
+                </li>
+                <li>
+                  <br/>
+                </li>
+              </ul>
+            </div>
+            <div class="col-md-3">
+              <h6 class="footer-title">Dirección&nbsp;</h6>
+              <ul class="footer-ul contact-info">
+                <li>
+                  <i class="fa fa-map-marker"></i>
+                  <span>Barrio Paz Barahona 10 CALLE 12 Y 11 Ave. Casa NO. 81-A</span>
+                  <span>San Pedro Sula</span>
+                  <span>Honduras</span>
+                </li>
+                <li>
+                  <i class="fa fa-phone"></i>
+                  <span>(+504) 2552-0491</span>
+                </li>
+                <li>
+                  <i class="fa fa-envelope-o"></i>
+                  <span>bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="site-info">
+        <div class="container">
+          <div class="row">
+            <div class="col">
+              <p class="copyright">Copyright @ 2020 All Rights Reserved.</p>
+            </div>
+            <div class="col text-md-right">
+              <img src="/comercio_web/static/src/img/payment.png" title="Comercio" alt="Comercio"/>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  
+            </footer>
+            </div>
+        
+    
+        
+            </body>
+        </html>
+    
+    
+    

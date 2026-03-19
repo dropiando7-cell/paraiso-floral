@@ -23,145 +23,76 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const idQr = searchParams.get('idQr') || 'ACTPB000000';
     const descripcion = searchParams.get('descripcion') || 'Sin descripción';
-    const area = searchParams.get('area') || '';
     const rawCuenta = searchParams.get('cuenta') || '';
     const cuenta = ACCOUNT_ABBR_MAP[rawCuenta] || rawCuenta;
-    const debug = searchParams.get('debug') === '1';
+    const codigoBarras = searchParams.get('codigoBarras') || '';
+    
+    // Si no hay codigo de barras explícito, utilizamos el id interno como codigo de barra 1D también.
+    const barcodeData = codigoBarras ? codigoBarras : idQr;
 
-    let finalIdQr = idQr;
-    let finalDescripcion = descripcion;
-    let finalArea = area;
-    let finalCuenta = cuenta;
-
-    if (debug) {
-        // En modo debug sobreescribimos con datos de prueba extendidos
-        finalIdQr = 'ELIM-PB-A09-EB-0001';
-        finalDescripcion = 'ESTA ES UNA DESCRIPCION LARGA DE PRUEBA';
-        finalArea = 'PA-A6-EB'; // Para forzar calculo y render de area
-        finalCuenta = 'MOB.TEMPLO';
-    }
-
-    // 2" x 1" a 203 DPI (50.8mm x 25.4mm)
-    // Ancho = 2" * 203 = 406px, Alto = 1" * 203 = 203px
+    // 2" x 1.3" a 203 DPI (50.8mm x 33mm)
+    // Ancho = 2" * 203 = 406px, Alto = 1.3" * 203 = 264px
     const W = 406;
-    const H = 203;
+    const H = 264;
 
-    // Producción: QR del activo (Apunta a la ficha técnica)
-    const qrData = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${finalIdQr}`);
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${qrData}&margin=0&color=000000&bgcolor=FFFFFF`;
+    // QR Codes
+    const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${qrText}&margin=0&color=000000&bgcolor=FFFFFF`;
 
-    const dateStr = new Date().toISOString().split('T')[0];
+    // 1D Barcode (Code128) API
+    // Usamos bwipjs-api o incrustar directamente. bcid=code128 es robusto.
+    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=12&scale=2&includetext=false`;
 
-    // Cálculos dinámicos de tamaño de fuente
-    // SOPORTE EXTENDIDO: Para IDs Grupo de 24 caracteres (ej ELIM-PB-A01-TMP-001-0001) reducimos la fuente a 18
-    const idFontSize = finalIdQr.length >= 22 ? 18 : finalIdQr.length > 18 ? 22 : finalIdQr.length > 14 ? 28 : finalIdQr.length > 10 ? 34 : 40;
-
-    const cuentaStr = finalCuenta.toUpperCase() || 'N/A';
-    const cuentaFontSize = cuentaStr.length > 24 ? 11 : cuentaStr.length > 18 ? 13 : 16;
-
-    const areaStr = finalArea.toUpperCase() || 'N/A';
-    const areaFontSize = areaStr.length > 24 ? 11 : areaStr.length > 18 ? 13 : 16;
-
-    const descStr = finalDescripcion.toUpperCase() || 'SIN DESCRIPCIÓN';
-    const descFontSize = descStr.length > 24 ? 11 : descStr.length > 18 ? 13 : 14;
+    const descStr = descripcion.toUpperCase() || 'SIN DESCRIPCIÓN';
+    const descFontSize = descStr.length > 25 ? 16 : 20;
 
     return new ImageResponse(
         (
             <div
                 style={{
                     display: 'flex',
-                    flexDirection: 'row',
+                    flexDirection: 'column',
                     width: W,
                     height: H,
-                    backgroundColor: '#000000', // Borde negro total entre columnas
+                    backgroundColor: '#FFFFFF',
                     fontFamily: 'sans-serif',
+                    padding: '8px',
+                    border: '2px solid #000' // Borde guía
                 }}
             >
-                {/* Columna Izquierda - Estilo Stacked Clean */}
-                <div style={{ display: 'flex', flexDirection: 'column', width: 270, flexShrink: 0, height: H, backgroundColor: '#FFFFFF' }}>
-
-                    {/* Header - Fondo Blanco (Logo completo) */}
-                    <div style={{ display: 'flex', flexDirection: 'row', height: 54, padding: '16px 4px 2px', alignItems: 'center', justifyContent: 'center' }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/elim-logo-blue-vineta.png"
-                            width={180}
-                            height={42}
-                            alt="Logo Elim"
-                            style={{ objectFit: 'contain', filter: 'grayscale(100%)' }}
-                        />
-                    </div>
-
-                    {/* ID Row - Fondo Blanco */}
-                    <div style={{ display: 'flex', flexDirection: 'column', backgroundColor: '#FFFFFF', color: '#000000', padding: '4px 8px', height: 52, justifyContent: 'center', overflow: 'hidden', borderBottom: '2.5px solid #000', width: '100%', boxSizing: 'border-box' }}>
-                        <span style={{ fontSize: 13, fontWeight: 900, color: '#333333', letterSpacing: 1, fontFamily: 'sans-serif' }}>ID DEL ACTIVO</span>
-                        {/* NOTA: weight en 900 es el maximo standard, podemos simular más stroke si fuera web, pero en ImageResponse 900 es lo más denso */}
-                        <span style={{ fontSize: idFontSize, fontWeight: 900, lineHeight: 1.1, marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#000000', width: '100%', fontFamily: 'sans-serif', letterSpacing: -0.5 }}>
-                            {finalIdQr}
-                        </span>
-                    </div>
-
-                    {/* Meta Rows (3 rows) - Fondo Blanco. 
-                        Aprovecharemos el espacio liberado por el Footer */}
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, backgroundColor: '#FFFFFF' }}>
-
-                        {/* Cuenta */}
-                        <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center', borderBottom: '2.5px solid #000' }}>
-                            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 11, fontWeight: 900, color: '#000', fontFamily: 'sans-serif' }}>CUENTA</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
-                                <span style={{ fontSize: cuentaFontSize + 1, fontWeight: 900, color: '#000', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'sans-serif', letterSpacing: -0.2 }}>
-                                    {cuentaStr}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Área */}
-                        <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center', borderBottom: '2.5px solid #000' }}>
-                            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 11, fontWeight: 900, color: '#000', fontFamily: 'sans-serif' }}>ÁREA</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
-                                <span style={{ fontSize: areaFontSize + 1, fontWeight: 900, color: '#000', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'sans-serif', letterSpacing: -0.2 }}>
-                                    {areaStr}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Descripción (Antes Tipo) */}
-                        <div style={{ display: 'flex', flexDirection: 'row', flex: 1, alignItems: 'center' }}>
-                            <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: 62, paddingLeft: 10, height: '100%' }}>
-                                <span style={{ fontSize: 11, fontWeight: 900, color: '#000', fontFamily: 'sans-serif' }}>DESC</span>
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '2px solid #000', height: '100%', marginRight: 10 }} />
-                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', overflow: 'hidden', paddingRight: '4px' }}>
-                                <span style={{ fontSize: descFontSize + 1, fontWeight: 900, color: '#000', lineHeight: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'sans-serif', letterSpacing: -0.2 }}>
-                                    {descStr}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-
-                {/* LÍNEA DIVISORIA */}
-                <div style={{ width: 4, flexShrink: 0, backgroundColor: '#000000', height: H }} />
-
-                {/* Columna Derecha - QR */}
-                <div style={{ display: 'flex', flexDirection: 'column', width: 132, flexShrink: 0, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', height: H }}>
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={qrUrl} width={118} height={118} alt="QR" style={{ backgroundColor: '#fff' }} />
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', alignItems: 'center', marginTop: '6px' }}>
-                        <span style={{ fontSize: 11, fontWeight: 900, color: '#000', fontFamily: 'sans-serif', letterSpacing: 0.5 }}>sistemaselim.app</span>
+                {/* Cabecera / Marca */}
+                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #000', paddingBottom: '4px', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: 18, fontWeight: 900, color: '#000', letterSpacing: -0.5 }}>BIOELECTRÓNICA HONDURAS</span>
+                        <span style={{ fontSize: 11, fontWeight: 600, color: '#444' }}>SKU interno: {idQr}</span>
                     </div>
                 </div>
 
+                {/* Producto */}
+                <div style={{ display: 'flex', flex: 1, overflow: 'hidden', paddingBottom: '6px' }}>
+                    <span style={{ fontSize: descFontSize, fontWeight: 800, color: '#000', lineHeight: 1.1 }}>
+                        {descStr}
+                    </span>
+                </div>
+
+                {/* Códigos Split */}
+                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120 }}>
+                    
+                    {/* Izquierda: Codigo barra 1D */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60%' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={barcodeUrl} style={{ width: '100%', height: 75, objectFit: 'contain' }} alt="Barcode" />
+                        <span style={{ fontSize: 18, fontWeight: 900, marginTop: '4px', letterSpacing: 1 }}>{barcodeData}</span>
+                    </div>
+
+                    {/* Derecha: QR Code para movil/tecnicos */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '35%' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={qrUrl} style={{ width: 90, height: 90, objectFit: 'contain' }} alt="QR" />
+                        <span style={{ fontSize: 10, fontWeight: 900, marginTop: '2px' }}>FICHA TÉCNICA</span>
+                    </div>
+                    
+                </div>
             </div>
         ),
         { width: W, height: H }

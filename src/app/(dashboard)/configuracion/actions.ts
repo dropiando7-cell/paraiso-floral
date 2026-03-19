@@ -4,6 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { EmailTemplateType, Role } from '@prisma/client';
+import { uploadToR2 } from '@/lib/storage/r2';
 
 export async function updatePreferences(data: { defaultModule: string | null; timezone: string | null; theme: string | null }) {
     try {
@@ -121,5 +122,100 @@ export async function saveEmailTemplate(data: {
     } catch (error) {
         console.error("Error saving email template:", error);
         return { success: false, error: 'Error del servidor al guardar la plantilla.' };
+    }
+}
+
+// --- PERFIL DE EMPRESA (WHITELABEL) ---
+export async function getCompanyProfile() {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !user.email) return null;
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            include: { organization: true }
+        });
+
+        if (!dbUser || dbUser.role !== 'SUPER_ADMIN') return null;
+
+        return {
+            name: dbUser.organization.name || '',
+            direccion: dbUser.organization.direccion || '',
+            telefono: dbUser.organization.telefono || '',
+            correoContacto: dbUser.organization.correoContacto || '',
+            rtn: dbUser.organization.rtn || '',
+            logoUrl: dbUser.organization.logoUrl || ''
+        };
+    } catch(e) {
+        console.error(e);
+        return null;
+    }
+}
+
+export async function saveCompanyProfile(data: any) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !user.email) return { success: false, error: 'No autorizado' };
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email }
+        });
+
+        if (!dbUser || dbUser.role !== 'SUPER_ADMIN') return { success: false, error: 'Sin permisos' };
+
+        await prisma.organization.update({
+            where: { id: dbUser.organizationId },
+            data: {
+                name: data.name,
+                direccion: data.direccion,
+                telefono: data.telefono,
+                correoContacto: data.correoContacto,
+                rtn: data.rtn
+            }
+        });
+
+        revalidatePath('/configuracion');
+        return { success: true };
+    } catch(e) {
+        console.error(e);
+        return { success: false, error: 'Error al actualizar perfil' };
+    }
+}
+
+export async function uploadCompanyLogo(formData: FormData) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !user.email) return { success: false, error: 'No autorizado' };
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email }
+        });
+
+        if (!dbUser || dbUser.role !== 'SUPER_ADMIN') return { success: false, error: 'Sin permisos' };
+
+        const file = formData.get('file') as File;
+        if (!file) return { success: false, error: 'No se envió archivo' };
+
+        const bytes = await file.arrayBuffer();
+        const buffer = Buffer.from(bytes);
+        
+        const extension = file.name.split('.').pop() || 'png';
+        const fileName = `logos/${dbUser.organizationId}-${Date.now()}.${extension}`;
+
+        const url = await uploadToR2(buffer, fileName, file.type);
+        
+        await prisma.organization.update({
+            where: { id: dbUser.organizationId },
+            data: { logoUrl: url }
+        });
+
+        revalidatePath('/configuracion');
+        return { success: true, url };
+    } catch(e) {
+        console.error("Upload error:", e);
+        return { success: false, error: 'Error al subir logo' };
     }
 }

@@ -189,6 +189,14 @@ export async function getActivoStats(area?: string) {
     };
 }
 
+export async function findActivoByBarcode(codigoBarras: string) {
+    const orgId = await getOrgId();
+    const activo = await prisma.activoFijo.findFirst({
+        where: { organizationId: orgId, codigoBarras },
+    });
+    return activo;
+}
+
 // ─── CREATE ──────────────────────────────────────────────────────────────────
 export async function createActivo(formData: FormData) {
     const orgId = await getOrgId();
@@ -197,8 +205,11 @@ export async function createActivo(formData: FormData) {
     const codigoGrupo = (formData.get('codigoGrupo') as string) || '001';
     const cantidadForm = formData.get('cantidad') as string;
     const cantidadRegistros = cantidadForm ? parseInt(cantidadForm, 10) : 1;
+    const codigoBarrasForm = formData.get('codigoBarras') as string;
+    const codigoBarras = codigoBarrasForm ? codigoBarrasForm.trim() : null;
 
-    const idQrs = await generateIdQr(orgId, area, codigoGrupo, cantidadRegistros);
+    // Para inventario comercial, siempre generaremos 1 solo registro interno (ID QR base)
+    const idQrs = await generateIdQr(orgId, area, codigoGrupo, 1);
 
     const costoStr = formData.get('costoAdq') as string;
     const fechaStr = formData.get('fechaAdq') as string;
@@ -257,14 +268,33 @@ export async function createActivo(formData: FormData) {
         deprecMensual: deprec?.deprecMensual ?? null,
         deprecAcum: deprec?.deprecAcum ?? null,
         valorLibros: deprec?.valorLibros ?? null,
+        // ── Retail fields ──
+        codigoBarras,
+        stock: cantidadRegistros
     };
 
-    const dataToInsert = idQrs.map(idQr => ({
-        ...baseData,
-        idQr
-    }));
+    // Si ya existe un producto con este código de barras, solo sumamos stock (Lógica de Restock)
+    if (codigoBarras) {
+        const existente = await findActivoByBarcode(codigoBarras);
+        if (existente) {
+            await prisma.activoFijo.update({
+                where: { id: existente.id },
+                data: {
+                    stock: existente.stock + cantidadRegistros,
+                }
+            });
+            revalidatePath('/inventario');
+            return { success: true, idQr: existente.idQr, id: existente.id, count: cantidadRegistros, restock: true };
+        }
+    }
 
-    await prisma.activoFijo.createMany({
+    // Nuevo producto comercial
+    const dataToInsert = {
+        ...baseData,
+        idQr: idQrs[0]
+    };
+
+    await prisma.activoFijo.create({
         data: dataToInsert
     });
 
@@ -276,7 +306,7 @@ export async function createActivo(formData: FormData) {
         select: { id: true, idQr: true }
     });
 
-    return { success: true, idQr: idQrs[0], id: firstCreated?.id ?? null, count: idQrs.length };
+    return { success: true, idQr: idQrs[0], id: firstCreated?.id ?? null, count: cantidadRegistros };
 }
 
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
@@ -340,6 +370,8 @@ export async function updateActivo(id: string, formData: FormData) {
             deprecMensual: deprec?.deprecMensual ?? null,
             deprecAcum: deprec?.deprecAcum ?? null,
             valorLibros: deprec?.valorLibros ?? null,
+            // ── Retail fields ──
+            codigoBarras: (formData.get('codigoBarras') as string) || null,
         },
     });
 

@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
+import { getActivos, getActivoStats } from './actions';
 import { InventarioClient } from './InventarioClient';
 
-
 export const metadata = {
-    title: 'Inventario de Activos | Sistemas Elim',
-    description: 'Gestión y control del patrimonio institucional de Misión Cristiana Elim Honduras',
+    title: 'Inventario de Activos | Bioelectrónica',
+    description: 'Gestión y control de inventario',
 };
 
 export default async function InventarioPage() {
@@ -29,15 +29,15 @@ export default async function InventarioPage() {
 
     const orgId = dbUser.organizationId;
 
-    // Remove heavy SSR blocking queries for assets and stats.
-    // The client component will fetch these asynchronously on mount to avoid freezing the UI navigation.
-    const initialData = { activos: [], total: 0, totalPages: 1 };
-    const initialStats = null;
-
-    const dbAreas = await prisma.area.findMany({
-        where: { organizationId: orgId },
-        orderBy: { name: 'asc' },
-    });
+    // Fetch initial data on the server for instant UI rendering!
+    const [initialData, initialStats, dbAreas] = await Promise.all([
+        getActivos(1, '', '', ''),
+        getActivoStats(),
+        prisma.area.findMany({
+            where: { organizationId: orgId },
+            orderBy: { name: 'asc' },
+        })
+    ]);
 
     return <InventarioClient initialData={initialData} initialStats={initialStats} dbAreas={dbAreas} userRole={dbUser.role} />;
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { updatePreferences, getEmailTemplates, saveEmailTemplate } from './actions';
+import { updatePreferences, getEmailTemplates, saveEmailTemplate, getCompanyProfile, saveCompanyProfile, uploadCompanyLogo } from './actions';
 import { getUserPreferencesData } from './data';
 import { Settings, Globe, LayoutDashboard, Palette, Check, Loader2, Mail, Save } from 'lucide-react';
 import { EmailTemplateType } from '@prisma/client';
@@ -31,7 +31,12 @@ export default function ConfiguracionPage() {
     const [saveSuccess, setSaveSuccess] = useState(false);
 
     // Tab Navigation State
-    const [activeTab, setActiveTab] = useState<'general' | 'emails'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'company' | 'emails'>('general');
+    
+    // Whitelabel Company Profile
+    const [companyProfile, setCompanyProfile] = useState({ name: '', direccion: '', telefono: '', correoContacto: '', rtn: '', logoUrl: '' });
+    const [isSavingCompany, setIsSavingCompany] = useState(false);
+    const [saveCompanySuccess, setSaveCompanySuccess] = useState(false);
 
     const [filteredModules, setFilteredModules] = useState(allAvailableModules);
     const [userRole, setUserRole] = useState<string | null>(null);
@@ -75,6 +80,10 @@ export default function ConfiguracionPage() {
                     setUserRole(dbData.role);
                     if (dbData.role === 'SUPER_ADMIN') {
                         setFilteredModules(allAvailableModules);
+
+                        // Fetch Company Profile
+                        const profile = await getCompanyProfile();
+                        if (profile) setCompanyProfile(profile);
 
                         // Fetch Email Templates if Super Admin
                         const templates = await getEmailTemplates();
@@ -202,6 +211,38 @@ export default function ConfiguracionPage() {
         }
     };
 
+    const handleSaveCompany = async () => {
+        setIsSavingCompany(true);
+        setSaveCompanySuccess(false);
+        const res = await saveCompanyProfile(companyProfile);
+        setIsSavingCompany(false);
+        if (res.success) {
+            setSaveCompanySuccess(true);
+            setTimeout(() => setSaveCompanySuccess(false), 3000);
+        } else {
+            alert(res.error || 'Error al guardar perfil de empresa');
+        }
+    };
+
+    const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        
+        setIsSavingCompany(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const res = await uploadCompanyLogo(formData);
+        setIsSavingCompany(false);
+        
+        if (res.success && res.url) {
+            setCompanyProfile(prev => ({ ...prev, logoUrl: res.url! }));
+            alert('Logo subido exitosamente.');
+        } else {
+            alert(res.error || 'Error al subir el logo');
+        }
+    };
+
     return (
         <div className="w-full max-w-4xl mx-auto space-y-6">
             <div>
@@ -222,12 +263,20 @@ export default function ConfiguracionPage() {
                         Preferencias Generales
                     </button>
                     {userRole === 'SUPER_ADMIN' && (
-                        <button
-                            onClick={() => setActiveTab('emails')}
-                            className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'emails' ? 'text-brand-600 bg-brand-50' : 'text-slate-600 hover:bg-slate-50'}`}
-                        >
-                            Plantillas de Correos (Admin)
-                        </button>
+                        <>
+                            <button
+                                onClick={() => setActiveTab('company')}
+                                className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'company' ? 'text-brand-600 bg-brand-50' : 'text-slate-600 hover:bg-slate-50'}`}
+                            >
+                                Perfil de Empresa (Whitelabel)
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('emails')}
+                                className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'emails' ? 'text-brand-600 bg-brand-50' : 'text-slate-600 hover:bg-slate-50'}`}
+                            >
+                                Plantillas de Correos (Admin)
+                            </button>
+                        </>
                     )}
                     {/* Placeholder for future sections like Notifications, Integrations */}
                     <button className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium text-slate-400 cursor-not-allowed rounded-xl transition-colors" disabled>
@@ -451,6 +500,75 @@ export default function ConfiguracionPage() {
                                     ) : (
                                         <><Save className="w-4 h-4" /> Guardar Plantilla</>
                                     )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'company' && userRole === 'SUPER_ADMIN' && (
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-2">
+                                <Globe className="w-5 h-5 text-brand-500" />
+                                <div>
+                                    <h3 className="text-base font-semibold leading-6 text-slate-900">Perfil de Empresa (Whitelabel)</h3>
+                                    <p className="text-xs text-slate-500">Estos datos aparecerán gráficamente en las cabeceras de facturas.</p>
+                                </div>
+                            </div>
+
+                            <div className="px-6 py-5 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Comercial</label>
+                                    <input type="text" value={companyProfile.name} onChange={e => setCompanyProfile({...companyProfile, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none" placeholder="Ej. Bioelectrónica Honduras" />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">R.T.N. de la Empresa</label>
+                                        <input type="text" value={companyProfile.rtn} onChange={e => setCompanyProfile({...companyProfile, rtn: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none" placeholder="08019003..." />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Teléfono Principal</label>
+                                        <input type="text" value={companyProfile.telefono} onChange={e => setCompanyProfile({...companyProfile, telefono: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none" placeholder="+504 9999-9999" />
+                                    </div>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Correo Electrónico</label>
+                                    <input type="email" value={companyProfile.correoContacto} onChange={e => setCompanyProfile({...companyProfile, correoContacto: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none" placeholder="contacto@empresa.com" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">Dirección Física</label>
+                                    <textarea rows={2} value={companyProfile.direccion} onChange={e => setCompanyProfile({...companyProfile, direccion: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none resize-none" placeholder="Dirección física para encabezados de factura..." />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">Logo de la Empresa</label>
+                                    <div className="flex items-center gap-4">
+                                        {companyProfile.logoUrl ? (
+                                            <div className="w-16 h-16 rounded-lg border border-slate-200 overflow-hidden bg-white flex items-center justify-center flex-shrink-0 shadow-sm">
+                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                <img src={companyProfile.logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+                                            </div>
+                                        ) : (
+                                            <div className="w-16 h-16 rounded-lg border border-slate-200 border-dashed bg-slate-50 flex items-center justify-center text-slate-400 flex-shrink-0">
+                                                <Globe className="w-6 h-6 opacity-30" />
+                                            </div>
+                                        )}
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                                <label className="cursor-pointer bg-white border border-slate-300 text-slate-700 px-3 py-1.5 rounded-md text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm inline-block">
+                                                    Subir Imagen (R2)
+                                                    <input type="file" accept="image/*" className="hidden" onChange={handleLogoUpload} disabled={isSavingCompany} />
+                                                </label>
+                                                {companyProfile.logoUrl && (
+                                                    <button onClick={() => setCompanyProfile({...companyProfile, logoUrl: ''})} className="text-sm text-red-500 hover:text-red-700 font-medium px-2 py-1.5 transition-colors">Quitar</button>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-slate-500 mt-1.5">PNG, JPG o SVG (Max 2MB recomendado para facturas).</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end">
+                                <button onClick={handleSaveCompany} disabled={isLoading || isSavingCompany} className="inline-flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm transition-all">
+                                    {isSavingCompany ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</> : saveCompanySuccess ? <><Check className="w-4 h-4" /> Guardado</> : <><Save className="w-4 h-4" /> Guardar Perfil</>}
                                 </button>
                             </div>
                         </div>

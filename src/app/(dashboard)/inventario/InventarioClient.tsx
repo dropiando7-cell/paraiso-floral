@@ -90,6 +90,8 @@ type Activo = {
     categoriaDepreciacion?: string | null;
     vidaUtilOverride?: any;
     codigoGrupo?: string | null;
+    codigoBarras?: string | null;
+    stock?: number;
 };
 
 const CATEGORIAS_DEPRECIACION = [
@@ -553,8 +555,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [marca, setMarca] = useState(editActivo?.marca || '');
     const [modelo, setModelo] = useState(editActivo?.modelo || '');
     const [codigoGrupo, setCodigoGrupo] = useState(editActivo?.codigoGrupo || '001');
-    const [isBatchMode, setIsBatchMode] = useState(false);
-    const [cantidad, setCantidad] = useState('1'); // Nivel de lote
+    const [codigoBarras, setCodigoBarras] = useState(editActivo?.codigoBarras || '');
+    const [cantidad, setCantidad] = useState(editActivo?.stock ? String(editActivo.stock) : '1');
     const [responsable, setResponsable] = useState(editActivo?.responsable || '');
     const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
     const [costoAdq, setCostoAdq] = useState<string>(editActivo?.costoAdq ? Number(editActivo.costoAdq).toString() : '');
@@ -599,9 +601,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         if (record.imagenPlacaUrl && !imagenPlacaUrl) setImagenPlacaUrl(record.imagenPlacaUrl);
         setAiMatchFailed(false);
 
-        // Batch auto-fill logic
         if (record.cantidad && record.cantidad > 1) {
-            setIsBatchMode(true);
             setCantidad(record.cantidad.toString());
         }
     }
@@ -650,8 +650,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setMarca(editActivo.marca || '');
             setModelo(editActivo.modelo || '');
             setCodigoGrupo(editActivo.codigoGrupo || '001');
-            setIsBatchMode(false); // Editable form never uses batch mode
-            setCantidad('1'); // En edición no permitimos lotes
+            setCodigoBarras(editActivo.codigoBarras || '');
+            setCantidad(editActivo.stock ? String(editActivo.stock) : '1');
             setResponsable(editActivo.responsable || '');
             setCategoriaDepreciacion(editActivo.categoriaDepreciacion || '');
             setVidaUtilOverride(editActivo.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
@@ -661,7 +661,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
             setPreviewQr(''); setAiResult(null); setUploadPhase('idle'); setPlacaUploadPhase('idle');
-            setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setCodigoGrupo('001'); setCantidad('1'); setIsBatchMode(false);
+            setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setCodigoGrupo('001'); setCodigoBarras(''); setCantidad('1');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
             setFechaAdq(''); setCostoAdq('');
@@ -889,59 +889,19 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         fd.set('imagenUrl', imagenUrl);
         fd.set('imagenPlacaUrl', imagenPlacaUrl);
         fd.set('area', selectedArea);
-        fd.set('cuentaAct', selectedCuenta);
+        fd.set('cuentaAct', 'INVENTARIO');
 
         // Use proper group code — generateIdQr handles auto-increment sequence
         let finalCodigoGrupo = codigoGrupo || '001';
 
         fd.set('codigoGrupo', finalCodigoGrupo);
-        if (!isEdit) fd.set('cantidad', isBatchMode ? cantidad : '1');
-        if (selectedHistorico) fd.set('historicoId', selectedHistorico.id);
-        fd.set('categoriaDepreciacion', categoriaDepreciacion);
-        if (vidaUtilOverride) fd.set('vidaUtilOverride', vidaUtilOverride);
+        if (codigoBarras) fd.set('codigoBarras', codigoBarras);
+        fd.set('cantidad', cantidad);
 
         // Show preview and fetch real next code in parallel
         setPendingFormData(fd);
         previewIdQr(selectedArea, finalCodigoGrupo).then(code => setPreviewCode(code)).catch(() => setPreviewCode('—'));
     }
-
-    // ─── Depreciation helper ───
-    function calcDepreciacionAcumulada(): string {
-        const costo = parseFloat(costoAdq || '0');
-        const vidaRaw = vidaUtilOverride || (selectedHistorico?.vidaUtil ? String(selectedHistorico.vidaUtil) : '');
-        const vidaAnios = parseFloat(vidaRaw || '0');
-        const fechaBase = fechaAdq || (selectedHistorico?.fechaAdquisicion ? getLocalDateString(selectedHistorico.fechaAdquisicion) : '');
-
-        if (!costo || !vidaAnios || !fechaBase) return '—';
-
-        // ─── Lógica 30/360 (Calendario Comercial) ───
-        const inicio = new Date(fechaBase);
-        const hoy = new Date();
-
-        // Helper interno dias comerciales 30/360
-        const y1 = inicio.getFullYear();
-        const m1 = inicio.getMonth() + 1;
-        const d1 = Math.min(inicio.getDate(), 30);
-        const y2 = hoy.getFullYear();
-        const m2 = hoy.getMonth() + 1;
-        const d2 = Math.min(hoy.getDate(), 30);
-        const diasComerciales = Math.max(0, (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1));
-
-        const valResidual = parseFloat((costo * 0.01).toFixed(2));
-        const baseDeprec = costo - valResidual;
-        const diasTotales = vidaAnios * 360;
-
-        // Factor diario redondeado a 4 decimales
-        const factorDiario = parseFloat((baseDeprec / diasTotales).toFixed(4));
-        const depreciado = Math.min(factorDiario * diasComerciales, baseDeprec);
-
-        return `L. ${depreciado.toFixed(2)}`;
-    }
-
-    const lps = (v: string | number | undefined | null) => {
-        if (!v && v !== 0) return '—';
-        return `L. ${Number(v).toFixed(2)}`;
-    };
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -972,13 +932,23 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 descripcion: fd.get('descripcionCorta') as string || '',
                                 area: fd.get('area') as string || '',
                                 cuenta: fd.get('cuentaAct') as string || '',
+                                codigoBarras: codigoBarras || '',
                             });
                             const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
-                            await fetch('/api/impresion/encolar', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ activoId: result.id, urlImagen }),
-                            });
+                            
+                            // Si el stock es N, encolamos N etiquetas iguales
+                            const qtyToPrint = Number(cantidad) || 1;
+                            const enqueuePromises = [];
+                            for (let i = 0; i < qtyToPrint; i++) {
+                                enqueuePromises.push(
+                                    fetch('/api/impresion/encolar', {
+                                        method: 'POST',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ activoId: result.id, urlImagen }),
+                                    })
+                                );
+                            }
+                            await Promise.all(enqueuePromises);
                         } catch {
                             // Print failure is non-fatal — asset was still saved
                             console.warn('Auto-print enqueue failed');
@@ -1078,14 +1048,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             </div>
                                         </div>
                                         <PreviewField label="Área" value={AREAS.find(a => a.value === selectedArea)?.label || selectedArea || '—'} />
-                                        <PreviewField label="Cuenta Contable" value={selectedCuenta || '—'} />
-                                        <PreviewField label="Costo Adq." value={lps(costoAdq)} />
-                                        <PreviewField label="Deprec. Acumulada" value={calcDepreciacionAcumulada()} />
-                                        <PreviewField label="Vida Útil" value={vidaUtilOverride ? `${vidaUtilOverride} años` : selectedHistorico?.vidaUtil ? `${selectedHistorico.vidaUtil} años` : '—'} />
-                                        <PreviewField label="Fecha Adq." value={fechaAdq || '—'} />
-                                        {isBatchMode && <PreviewField label="Cantidad (Lote)" value={cantidad} highlight />}
-                                        {responsable && <PreviewField label="Responsable" value={responsable} />}
-                                        {selectedHistorico && <PreviewField label="📋 Histórico" value={selectedHistorico.nombrePropiedad} highlight />}
+                                        <PreviewField label="Stock Inicial" value={cantidad} highlight />
                                     </div>
                                 </div>
 
@@ -1214,6 +1177,21 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 <div>
                                     <SectionTitle>📋 Identificación</SectionTitle>
                                     <div className="space-y-4">
+                                        <div className="grid grid-cols-1 gap-4">
+                                            {/* Código de Barras / SKU Comercial */}
+                                            <div>
+                                                <FieldLabel>Código de Barras / SKU (Opcional)</FieldLabel>
+                                                <input 
+                                                    type="text" 
+                                                    value={codigoBarras} 
+                                                    onChange={e => setCodigoBarras(e.target.value)} 
+                                                    placeholder="Escanea o escribe el código..." 
+                                                    className={`${inputCls} font-mono font-bold tracking-widest text-slate-800 border-indigo-200 focus:ring-indigo-500`} 
+                                                />
+                                                <p className="text-[10px] text-slate-500 mt-1">Si ya existe un producto con este código, al registrar se sumará al stock actual en lugar de duplicarse.</p>
+                                            </div>
+                                        </div>
+
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             {/* Área — Searchable / Locked */}
                                             <div>
@@ -1236,65 +1214,44 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                 )}
                                             </div>
 
-                                            {/* Código Grupo y Cantidad - Toggle para creación */}
-                                            {!isEdit && (
-                                                <div className="flex items-center gap-2 mb-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                                                    <div
-                                                        className={`w-10 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors ${isBatchMode ? 'bg-[#0500A3]' : 'bg-slate-300'}`}
-                                                        onClick={() => setIsBatchMode(!isBatchMode)}
-                                                    >
-                                                        <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${isBatchMode ? 'translate-x-4' : 'translate-x-0'}`} />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-bold text-sm text-slate-800">Registrar en Lote (Mismos Activos)</p>
-                                                        <p className="text-[10px] text-slate-500">Actívalo solo si registrarás muchas sillas, mesas o activos idénticos a la vez.</p>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Solo mostrar Grupo y Cantidad si estamos editando (readonly) o si encendieron Batch Mode */}
-                                            {(isEdit || isBatchMode) && (
-                                                <div className="flex gap-3 bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
-                                                    <div className="flex-[2]">
-                                                        <FieldLabel required={!isEdit}>Código Grupo</FieldLabel>
-                                                        {isEdit ? (
-                                                            <input
-                                                                type="text"
-                                                                disabled
-                                                                value={codigoGrupo}
-                                                                className={`${inputCls} font-mono bg-blue-50/10 font-bold tracking-widest text-[#0500A3] opacity-60 cursor-not-allowed border-transparent`}
-                                                            />
-                                                        ) : (
-                                                            <Combobox
-                                                                options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
-                                                                value={codigoGrupo}
-                                                                onChange={(val) => {
-                                                                    setCodigoGrupo(val);
-                                                                    const match = gruposDisponibles.find(g => g.codigoGrupo === val);
-                                                                    if (match && match.descripcionCorta && !descripcionCorta) setDescripcionCorta(match.descripcionCorta);
-                                                                }}
-                                                                placeholder="Ej: 001"
-                                                                allowCustom={true}
-                                                            />
-                                                        )}
-                                                        {!isEdit && <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight">Agrupa estos activos.</p>}
-                                                    </div>
-
-                                                    {!isEdit && (
-                                                        <div className="flex-1">
-                                                            <FieldLabel required>Cantidad</FieldLabel>
-                                                            <input
-                                                                type="number"
-                                                                min="1"
-                                                                value={cantidad}
-                                                                onChange={e => setCantidad(e.target.value)}
-                                                                className={`${inputCls} font-mono font-bold text-center border-blue-200 focus:ring-blue-500`}
-                                                            />
-                                                            <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight text-center">En Lote</p>
-                                                        </div>
+                                            <div className="flex gap-3 bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
+                                                <div className="flex-[2]">
+                                                    <FieldLabel required={!isEdit}>Código Grupo</FieldLabel>
+                                                    {isEdit ? (
+                                                        <input
+                                                            type="text"
+                                                            disabled
+                                                            value={codigoGrupo}
+                                                            className={`${inputCls} font-mono bg-blue-50/10 font-bold tracking-widest text-[#0500A3] opacity-60 cursor-not-allowed border-transparent`}
+                                                        />
+                                                    ) : (
+                                                        <Combobox
+                                                            options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
+                                                            value={codigoGrupo}
+                                                            onChange={(val) => {
+                                                                setCodigoGrupo(val);
+                                                                const match = gruposDisponibles.find(g => g.codigoGrupo === val);
+                                                                if (match && match.descripcionCorta && !descripcionCorta) setDescripcionCorta(match.descripcionCorta);
+                                                            }}
+                                                            placeholder="Ej: 001"
+                                                            allowCustom={true}
+                                                        />
                                                     )}
+                                                    {!isEdit && <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight">Agrupa estos activos.</p>}
                                                 </div>
-                                            )}
+
+                                                <div className="flex-1">
+                                                    <FieldLabel required>Cantidad</FieldLabel>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={cantidad}
+                                                        onChange={e => setCantidad(e.target.value)}
+                                                        className={`${inputCls} font-mono font-bold text-center border-blue-200 focus:ring-blue-500`}
+                                                    />
+                                                    <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight text-center">Stock Inicial</p>
+                                                </div>
+                                            </div>
                                         </div>
 
                                         {/* Descripción Corta — AI controlled */}
@@ -1382,213 +1339,6 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                 onChange={e => setDescripcionDetallada(e.target.value)}
                                                 placeholder="Marca, modelo, color, características adicionales..."
                                                 className={`${aiResult?.descripcionDetallada ? inputAiCls : inputCls} resize-none`} />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* ── SECCIÓN 3: CONCILIACIÓN HISTÓRICA & DEPRECIACIÓN ── */}
-                                <div>
-                                    <SectionTitle>📚 Contabilidad & Depreciación</SectionTitle>
-                                    <div className="space-y-5 bg-slate-50/50 p-4 rounded-xl border border-slate-200/60">
-
-                                        {/* Flujo B: Buscador Histórico CSV */}
-                                        <div ref={historicoRef} className="relative z-20">
-                                            <FieldLabel>
-                                                Conciliación Histórica (Archivo CSV 2026)
-                                                {aiMatchFailed && <span className="ml-2 text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-md inline-flex items-center gap-1">⚠️ Búsqueda manual requerida</span>}
-                                            </FieldLabel>
-                                            <div className="relative">
-                                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Buscar equipo antiguo por nombre, marca o modelo..."
-                                                    className={`${aiMatchFailed ? 'w-full px-5 py-3.5 rounded-xl border-2 focus:outline-none transition-all shadow-sm text-base pl-11 border-amber-300 bg-amber-50/50 focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500' : inputCls} pl-11`}
-                                                    value={searchHistoricoText}
-                                                    onChange={(e) => {
-                                                        setSearchHistoricoText(e.target.value);
-                                                        setShowHistoricoDropdown(true);
-                                                        if (aiMatchFailed) setAiMatchFailed(false); // Clear warning on manual interaction
-                                                        if (selectedHistorico) {
-                                                            setSelectedHistorico(null); // Borrar selección si edita el texto
-                                                        }
-                                                    }}
-                                                    onFocus={() => setShowHistoricoDropdown(true)}
-                                                />
-                                                {isSearchingHistorico && <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#0500A3] animate-spin" />}
-                                                {selectedHistorico && !isSearchingHistorico && <CheckCircle2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-green-500" />}
-                                            </div>
-
-                                            {/* Dropdown de Opciones Históricas */}
-                                            {showHistoricoDropdown && historicoOptions.length > 0 && (
-                                                <div className="absolute top-full mt-2 w-full bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden max-h-60 overflow-y-auto">
-                                                    {historicoOptions.map(opt => (
-                                                        <button
-                                                            key={opt.id}
-                                                            type="button"
-                                                            className="w-full text-left p-3 border-b border-slate-50 hover:bg-blue-50 transition-colors flex flex-col gap-1"
-                                                            onClick={() => {
-                                                                applyHistoricRecord(opt);
-                                                                setShowHistoricoDropdown(false);
-                                                            }}
-                                                        >
-                                                            <div className="text-sm font-semibold text-slate-800">{opt.nombrePropiedad}</div>
-                                                            <div className="text-xs text-slate-500 flex items-center justify-between">
-                                                                <span>L. {Number(opt.costoAdquisicion || 0).toFixed(2)} — Cuenta: {opt.cuentaContable || 'N/D'}</span>
-                                                                <span className="font-medium text-[#0500A3] bg-[#0500A3]/10 px-2 py-0.5 rounded-md">{opt.vidaUtil ? `${opt.vidaUtil} años` : 'Sin Vida útil'}</span>
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {selectedHistorico && (
-                                            <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 flex items-start gap-3">
-                                                <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0 mt-0.5" />
-                                                <div>
-                                                    <p className="text-sm font-bold text-green-800">Enlazado con Inventario Histórico CSV</p>
-                                                    <p className="text-xs text-green-700">El modelo matemático usará el costo base original y pre-calculará la vida útil heredada. <strong>Puedes editar los años de vida útil si es una Mejora de Edificio</strong> u otro caso excepcional.</p>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            {/* Dropdown Legal (Gob Hondureño) */}
-                                            <div>
-                                                <FieldLabel required={!selectedHistorico}>Categoría de Depreciación</FieldLabel>
-                                                <select
-                                                    className={selectCls}
-                                                    value={categoriaDepreciacion}
-                                                    onChange={e => {
-                                                        setCategoriaDepreciacion(e.target.value);
-                                                        const matchCat = CATEGORIAS_DEPRECIACION.find(c => c.value === e.target.value);
-                                                        if (matchCat) setVidaUtilOverride(matchCat.years.toString());
-                                                    }}
-                                                    required={!selectedHistorico} // Obligatorio solo si no es histórico
-                                                >
-                                                    <option value="" disabled>Seleccione categoría...</option>
-                                                    {CATEGORIAS_DEPRECIACION.map(cat => (
-                                                        <option value={cat.value} key={cat.value}>{cat.label}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-
-                                            {/* Editable Vida Util */}
-                                            <div>
-                                                <FieldLabel required>Años de Vida Útil {selectedHistorico && '(Editable)'}</FieldLabel>
-                                                <div className="relative">
-                                                    <input
-                                                        type="number"
-                                                        className={`${inputCls} font-mono`}
-                                                        value={vidaUtilOverride}
-                                                        onChange={e => setVidaUtilOverride(e.target.value)}
-                                                        required
-                                                    />
-                                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm italic pointer-events-none">Años</div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* ── SECCIÓN 4: CLASIFICACIÓN CONTABLE ADICIONAL ── */}
-                                <div>
-                                    <SectionTitle>📋 Estado Adicional</SectionTitle>
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                            {/* Cuenta — Searchable + AI */}
-                                            <div>
-                                                <FieldLabel required>
-                                                    Cuenta Contable
-                                                    {aiResult?.cuentaAct && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
-                                                </FieldLabel>
-                                                <Combobox
-                                                    options={CUENTAS.map(c => ({ value: c, label: c }))}
-                                                    value={selectedCuenta}
-                                                    onChange={setSelectedCuenta}
-                                                    placeholder="Seleccionar cuenta..."
-                                                    aiHighlight={!!aiResult?.cuentaAct}
-                                                />
-                                                <input type="hidden" name="cuentaAct" value={selectedCuenta} required />
-                                            </div>
-                                            <div>
-                                                <FieldLabel>Estatus Contable</FieldLabel>
-                                                <select name="estatusContable" defaultValue={editActivo?.estatusContable || 'VIGENTE'}
-                                                    className={selectCls}
-                                                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '40px' }}>
-                                                    {ESTATUS.map(e => <option key={e}>{e}</option>)}
-                                                </select>
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                            <div>
-                                                <FieldLabel>Fecha de Adquisición</FieldLabel>
-                                                <input type="date" name="fechaAdq"
-                                                    value={fechaAdq} onChange={e => setFechaAdq(e.target.value)}
-                                                    className={inputCls} />
-                                            </div>
-                                            <div>
-                                                <FieldLabel>Fecha de Levantamiento</FieldLabel>
-                                                <input type="date" name="fechaLevantamiento"
-                                                    defaultValue={editActivo?.fechaLevantamiento ? getLocalDateString(editActivo.fechaLevantamiento) : getLocalDateString()}
-                                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 focus:bg-white transition-all text-slate-700"
-                                                />
-                                            </div>
-                                            <div>
-                                                <FieldLabel>Costo de Adquisición (L.)</FieldLabel>
-                                                <input type="number" name="costoAdq" step="0.01" min="0"
-                                                    value={costoAdq} onChange={e => setCostoAdq(e.target.value)}
-                                                    placeholder="0.00" className={inputCls} />
-                                            </div>
-                                        </div>
-
-                                        <label className="flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 cursor-pointer hover:border-[#0500A3]/40 active:scale-[0.99] transition-all">
-                                            <input type="hidden" name="integrado" value="false" />
-                                            <input type="checkbox" name="integrado" value="true"
-                                                defaultChecked={editActivo?.integrado}
-                                                className="w-6 h-6 accent-[#0500A3] rounded" />
-                                            <div>
-                                                <div className="text-base font-semibold text-slate-800">Activo Integrado</div>
-                                                <div className="text-xs text-slate-500">El activo forma parte de un conjunto mayor</div>
-                                            </div>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                {/* ── SECCIÓN 4: ESTADO FÍSICO ── */}
-                                <div>
-                                    <SectionTitle>⚠️ Estado Físico / Incidencia</SectionTitle>
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                            {[
-                                                { name: 'estadoDano', label: 'Estado / Daño', opts: ESTADO_DANO, empty: 'Sin daño ✓', default: editActivo?.estadoDano },
-                                                { name: 'tipoIncidencia', label: 'Tipo de Incidencia', opts: TIPO_INCIDENCIA, empty: '— N/A —', default: editActivo?.tipoIncidencia },
-                                                { name: 'accionRecomendada', label: 'Acción Recomendada', opts: ACCION_RECOMENDADA, empty: '— N/A —', default: editActivo?.accionRecomendada },
-                                            ].map(f => (
-                                                <div key={f.name}>
-                                                    <FieldLabel>{f.label}</FieldLabel>
-                                                    <select name={f.name} defaultValue={f.default || ''}
-                                                        className={selectCls}
-                                                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center', backgroundSize: '20px', paddingRight: '40px' }}>
-                                                        <option value="">{f.empty}</option>
-                                                        {f.opts.map(o => <option key={o}>{o}</option>)}
-                                                    </select>
-                                                </div>
-                                            ))}
-                                        </div>
-                                        <div>
-                                            <FieldLabel>Responsable / Custodio</FieldLabel>
-                                            <input type="text" name="responsable"
-                                                value={responsable}
-                                                onChange={e => setResponsable(e.target.value)}
-                                                placeholder="Nombre del custodio del área" className={inputCls} />
-                                        </div>
-                                        <div>
-                                            <FieldLabel>Observaciones</FieldLabel>
-                                            <textarea name="observaciones" rows={3} defaultValue={editActivo?.observaciones || ''}
-                                                placeholder="Notas adicionales, reparaciones pendientes..."
-                                                className={`${inputCls} resize-none`} />
                                         </div>
                                     </div>
                                 </div>
@@ -1730,7 +1480,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [search, setSearch] = useState('');
     const [filtroArea, setFiltroArea] = useState('');
     const [filtroEstatus, setFiltroEstatus] = useState('');
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [editActivo, setEditActivo] = useState<Activo | null>(null);
     const [deleteActivo_, setDeleteActivo] = useState<Activo | null>(null);
@@ -1751,7 +1501,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
     // QR Area Control
     const [lockedArea, setLockedArea] = useState<string | null>(null);
-    const [isCheckingArea, setIsCheckingArea] = useState(true);
+    const [isCheckingArea, setIsCheckingArea] = useState(false);
 
     const [noAreaModalOpen, setNoAreaModalOpen] = useState(false);
     const [isClosingAct, startClosingAct] = useTransition();
@@ -1759,43 +1509,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     // Lógica para interceptar Deep Links y/o autocompletar área activa
     const [isClosingModalOpen, setIsClosingModalOpen] = useState(false);
 
-    useEffect(() => {
-        async function initArea() {
-            setIsCheckingArea(true);
-            setLoading(true);
-            const areaQrParam = searchParams.get('areaQr');
-            
-            let loadedArea = null;
-
-            if (areaQrParam) {
-                // Si entró por enlace (escaneado de QR real de la pared)
-                const res = await validateAndOpenArea(areaQrParam);
-                if (res.success && res.areaCode) {
-                    setLockedArea(res.areaCode);
-                    loadedArea = res.areaCode;
-                } else {
-                    alert(res.error || 'Código de área inválido');
-                }
-                // Limpiar la URL para no volver a ejecutar esto en caso de refresh manual
-                router.replace('/inventario');
-            } else {
-                // Intentar recuperar el área que dejó abierta el usuario
-                const activeRes = await getActiveUserArea();
-                if (activeRes.success && activeRes.areaCode) {
-                    setLockedArea(activeRes.areaCode);
-                    loadedArea = activeRes.areaCode;
-                }
-            }
-            setIsCheckingArea(false);
-            // Realizar la búsqueda general inicial PÁSANDOLE EL ÁREA QUE CABE DE CARGAR
-            refresh(1, search, filtroArea, filtroEstatus, loadedArea);
-        }
-
-        if (!hasMounted.current) {
-            hasMounted.current = true;
-            initArea();
-        }
-    }, [searchParams, router]);
+    // The initial fetch is now handled Serverside on `page.tsx` directly!
 
     async function handlePrintLabel(activo: Activo) {
         setPrintingId(activo.id);
@@ -1881,8 +1595,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     }
 
     useEffect(() => {
-        // Debounce para búsquedas subsiguientes (excluimos el montaje inicial que se maneja arriba)
-        if (!hasMounted.current) return;
+        if (!hasMounted.current) {
+             hasMounted.current = true;
+             return; // Skip initial render since it's SSR hydrated
+        }
         const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus, lockedArea); }, 300);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1944,8 +1660,13 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                             <Printer className="w-5 h-5" /> Imprimir Lote
                         </button>
                         <button onClick={() => {
-                            if (!lockedArea) setNoAreaModalOpen(true);
-                            else { setEditActivo(null); setModalOpen(true); }
+                            // CÓDIGO HISTÓRICO (Sistemas Elim - Validación de código QR en puertas):
+                            // if (!lockedArea) setNoAreaModalOpen(true);
+                            // else { setEditActivo(null); setModalOpen(true); }
+
+                            // NUEVO FLUJO BIOELECTRÓNICA (Apertura directa de inventario global):
+                            setEditActivo(null);
+                            setModalOpen(true);
                         }}
                             disabled={isCheckingArea}
                             className={`flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl transition-all shadow-md w-full sm:w-auto justify-center hide-on-print ${isCheckingArea ? 'opacity-75 cursor-not-allowed' : 'hover:bg-[#0600c2] active:scale-95'}`}>
