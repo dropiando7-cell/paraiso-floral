@@ -27,24 +27,26 @@ export async function GET(req: NextRequest) {
     const cuenta = ACCOUNT_ABBR_MAP[rawCuenta] || rawCuenta;
     const codigoBarras = searchParams.get('codigoBarras') || '';
     
+    const fechaAdqUrl = searchParams.get('fechaAdq') || '';
+    const modeloUrl = searchParams.get('modelo') || '';
+    const marcaUrl = searchParams.get('marca') || '';
+    
     // Si no hay codigo de barras explícito, utilizamos el id interno como codigo de barra 1D también.
     const barcodeData = codigoBarras ? codigoBarras : idQr;
 
-    // 2" x 1.3" a 203 DPI (50.8mm x 33mm)
-    // Ancho = 2" * 203 = 406px, Alto = 1.3" * 203 = 264px
+    // 2" x 1.3" a 203 DPI (50.8mm x 33mm) - NIIMBOT K3 standard
     const W = 406;
     const H = 264;
 
-    // QR Codes
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${qrText}&margin=0&color=000000&bgcolor=FFFFFF`;
 
-    // 1D Barcode (Code128) API
-    // Usamos bwipjs-api o incrustar directamente. bcid=code128 es robusto.
     const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=12&scale=2&includetext=false`;
 
-    const descStr = descripcion.toUpperCase() || 'SIN DESCRIPCIÓN';
-    const descFontSize = descStr.length > 25 ? 16 : 20;
+    const descStr = descripcion.substring(0, 60).toUpperCase();
+    const isLongName = descStr.length > 22;
+    const fechaAdqDisplay = fechaAdqUrl ? new Date(fechaAdqUrl).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    const modeloDisplay = modeloUrl || marcaUrl || 'N/A';
 
     return new ImageResponse(
         (
@@ -56,42 +58,41 @@ export async function GET(req: NextRequest) {
                     height: H,
                     backgroundColor: '#FFFFFF',
                     fontFamily: 'sans-serif',
-                    padding: '8px',
-                    border: '2px solid #000' // Borde guía
+                    padding: '12px',
+                    borderRadius: '8px', 
+                    border: '1px solid #eee' // Soft edge just for preview visualization
                 }}
             >
-                {/* Cabecera / Marca */}
-                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '2px solid #000', paddingBottom: '4px', marginBottom: '8px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span style={{ fontSize: 18, fontWeight: 900, color: '#000', letterSpacing: -0.5 }}>BIOELECTRÓNICA HONDURAS</span>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: '#444' }}>SKU interno: {idQr}</span>
+                {/* Top Row */}
+                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '4px' }}>
+                    <span style={{ fontSize: 16, fontWeight: 800, color: '#111', marginTop: '4px' }}>{idQr}</span>
+                    <div style={{ display: 'flex', width: 44, height: 44 }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={qrUrl} style={{ width: '100%', height: '100%' }} alt="QR" />
                     </div>
                 </div>
 
-                {/* Producto */}
-                <div style={{ display: 'flex', flex: 1, overflow: 'hidden', paddingBottom: '6px' }}>
-                    <span style={{ fontSize: descFontSize, fontWeight: 800, color: '#000', lineHeight: 1.1 }}>
+                {/* Item Name */}
+                <div style={{ display: 'flex', flexDirection: 'row', marginTop: '-12px', marginBottom: '6px', height: 50, overflow: 'hidden', alignItems: 'flex-start' }}>
+                    <span style={{ fontSize: isLongName ? 16 : 24, fontWeight: 900, color: '#000', lineHeight: 1.2 }}>
                         {descStr}
                     </span>
                 </div>
 
-                {/* Códigos Split */}
-                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', height: 120 }}>
-                    
-                    {/* Izquierda: Codigo barra 1D */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '60%' }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={barcodeUrl} style={{ width: '100%', height: 75, objectFit: 'contain' }} alt="Barcode" />
-                        <span style={{ fontSize: 18, fontWeight: 900, marginTop: '4px', letterSpacing: 1 }}>{barcodeData}</span>
-                    </div>
+                {/* Meta Data */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
+                    <span style={{ fontSize: 13, color: '#444', fontWeight: 500 }}>Received Date: {fechaAdqDisplay}</span>
+                    <span style={{ fontSize: 13, color: '#444', fontWeight: 500 }}>Model / Brand: {modeloDisplay}</span>
+                </div>
 
-                    {/* Derecha: QR Code para movil/tecnicos */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '35%' }}>
+                {/* Barcode section */}
+                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginTop: 'auto' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#444', marginRight: '8px', marginTop: '6px' }}>Lot No:</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={qrUrl} style={{ width: 90, height: 90, objectFit: 'contain' }} alt="QR" />
-                        <span style={{ fontSize: 10, fontWeight: 900, marginTop: '2px' }}>FICHA TÉCNICA</span>
+                        <img src={barcodeUrl} style={{ width: '100%', height: 45, objectFit: 'fill' }} alt="Barcode" />
+                        <span style={{ fontSize: 10, marginTop: '2px', letterSpacing: 1.5, fontWeight: 600, color: '#000' }}>{barcodeData}</span>
                     </div>
-                    
                 </div>
             </div>
         ),

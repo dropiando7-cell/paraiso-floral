@@ -44,6 +44,7 @@ model Organization {
   facturas              Factura[]
   ordenesTrabajo        OrdenTrabajo[]
   rentasEquipo          RentaEquipo[]
+  categorias            Categoria[]
 
   @@map("organizations")
 }
@@ -339,6 +340,12 @@ model ActivoFijo {
   colaImpresion         ColaImpresion[]
   detallesFactura       DetalleFactura[]
   rentasEquipo          RentaEquipo[]
+  compatibilidad        String[]             @default([])
+  categoriaId           String?              @db.Uuid
+  categoria             Categoria?           @relation(fields: [categoriaId], references: [id])
+  esConsumible          Boolean              @default(false)
+  fechaVencimiento      DateTime?
+  lote                  String?
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -346,6 +353,22 @@ model ActivoFijo {
   @@index([organizationId, estadoDano])
   @@index([organizationId, area])
   @@map("activos_fijos")
+}
+
+model Categoria {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @db.Uuid
+  nombre         String       
+  descripcion    String?
+  color          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  activos        ActivoFijo[]
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, nombre])
+  @@index([organizationId])
+  @@map("categorias")
 }
 
 model AreaInventoryStatus {

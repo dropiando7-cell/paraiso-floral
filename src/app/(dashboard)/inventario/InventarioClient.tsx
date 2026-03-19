@@ -8,8 +8,48 @@ import {
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw
 } from 'lucide-react';
-import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion } from './actions';
+import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, getCategorias, createCategoria } from './actions';
 import { removeBackground } from '@imgly/background-removal';
+
+// ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
+function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: () => void; isPrinting: boolean }) {
+    const searchParams = new URLSearchParams({
+        idQr: activo.idQr,
+        descripcion: activo.descripcionCorta || '',
+        area: activo.area || '',
+        cuenta: activo.cuentaAct || '',
+        codigoBarras: activo.codigoBarras || '',
+        modelo: activo.modelo || '',
+        marca: activo.marca || '',
+        fechaAdq: (activo as any).createdAt ? new Date((activo as any).createdAt).toISOString() : new Date().toISOString()
+    });
+    const url = `/api/impresion/generar-etiqueta?${searchParams.toString()}`;
+
+    return (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+            <div className="bg-white rounded-2xl shadow-2xl p-6 relative max-w-lg w-full">
+                <button onClick={onClose} className="absolute top-4 right-4 text-slate-400 hover:bg-slate-100 p-2 rounded-full transition-colors"><X className="w-5 h-5"/></button>
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="bg-blue-100 p-2.5 rounded-xl"><Printer className="w-5 h-5 text-[#0500A3]" /></div>
+                    <div>
+                        <h3 className="text-xl font-bold text-slate-800 leading-tight">Vista Previa de Etiqueta QR</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Asegúrate de que la impresora NIIMBOT K3 esté conectada y lista.</p>
+                    </div>
+                </div>
+                <div className="border-4 border-slate-100 rounded-xl p-4 bg-slate-50 flex justify-center mb-6 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={url} className="w-full max-w-[406px] h-auto object-contain bg-white shadow-sm" alt="Preview Etiqueta" />
+                </div>
+                <div className="flex gap-3">
+                    <button onClick={onClose} className="flex-1 font-semibold border-2 border-slate-200 text-slate-600 py-3 rounded-xl hover:bg-slate-50 active:scale-95 transition-all">Cancelar</button>
+                    <button onClick={() => { onPrint(); onClose(); }} disabled={isPrinting} className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#0500A3] text-white hover:bg-[#0600c2] font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
+                        {isPrinting ? <Loader2 className="w-5 h-5 animate-spin"/> : <Printer className="w-5 h-5" />} Enviar a Impresora
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -91,6 +131,12 @@ type Activo = {
     vidaUtilOverride?: any;
     codigoGrupo?: string | null;
     codigoBarras?: string | null;
+    compatibilidad?: string[];
+    categoriaId?: string | null;
+    categoria?: { id: string; nombre: string; color?: string | null } | null;
+    esConsumible?: boolean;
+    fechaVencimiento?: Date | string | null;
+    lote?: string | null;
     stock?: number;
 };
 
@@ -557,9 +603,24 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [codigoGrupo, setCodigoGrupo] = useState(editActivo?.codigoGrupo || '001');
     const [codigoBarras, setCodigoBarras] = useState(editActivo?.codigoBarras || '');
     const [cantidad, setCantidad] = useState(editActivo?.stock ? String(editActivo.stock) : '1');
-    const [responsable, setResponsable] = useState(editActivo?.responsable || '');
+    const [responsable, setResponsable] = useState(editActivo?.responsable || (lockedArea ? RESPONSABLES[lockedArea] : '') || '');
+    const [compatibilidad, setCompatibilidad] = useState<string[]>(isEdit && editActivo ? editActivo.compatibilidad || [] : []);
+    const [tagInput, setTagInput] = useState('');
     const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
     const [costoAdq, setCostoAdq] = useState<string>(editActivo?.costoAdq ? Number(editActivo.costoAdq).toString() : '');
+
+    // ─── Phase 14: Categories and Expirations ───
+    const [categoriaId, setCategoriaId] = useState(editActivo?.categoriaId || '');
+    const [categorias, setCategorias] = useState<{value: string, label: string}[]>([]);
+    const [catModalOpen, setCatModalOpen] = useState(false);
+    const [nuevaCategoriaText, setNuevaCategoriaText] = useState('');
+    const [esConsumible, setEsConsumible] = useState(editActivo?.esConsumible || false);
+    const [lote, setLote] = useState(editActivo?.lote || '');
+    const [fechaVencimiento, setFechaVencimiento] = useState(editActivo?.fechaVencimiento ? getLocalDateString(editActivo.fechaVencimiento) : '');
+
+    useEffect(() => {
+        getCategorias().then(data => setCategorias(data.map((c: any) => ({ value: c.id, label: c.nombre }))));
+    }, []);
 
     // ─── Historic Matcher States ───
     const [searchHistoricoText, setSearchHistoricoText] = useState('');
@@ -586,6 +647,13 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         if (matchCat) setCategoriaDepreciacion(matchCat);
         if (record.cuentaContable && CUENTAS.includes(record.cuentaContable)) {
             setSelectedCuenta(record.cuentaContable);
+            // Assuming 'a' refers to 'record' here based on context
+            setCompatibilidad([]);
+            setTagInput('');
+            setCategoriaId('');
+            setEsConsumible(false);
+            setLote('');
+            setFechaVencimiento('');
         }
         if (record.fechaAdquisicion) {
             setFechaAdq(getLocalDateString(record.fechaAdquisicion));
@@ -657,6 +725,10 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setVidaUtilOverride(editActivo.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
             setFechaAdq(editActivo.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
             setCostoAdq(editActivo.costoAdq ? Number(editActivo.costoAdq).toString() : '');
+            setCategoriaId(editActivo.categoriaId || '');
+            setEsConsumible(editActivo.esConsumible || false);
+            setLote(editActivo.lote || '');
+            setFechaVencimiento(editActivo.fechaVencimiento ? getLocalDateString(editActivo.fechaVencimiento) : '');
             // For now, not fetching full historic record on edit, just handling its absence.
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
@@ -664,7 +736,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setCodigoGrupo('001'); setCodigoBarras(''); setCantidad('1');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
-            setFechaAdq(''); setCostoAdq('');
+            setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setLote(''); setFechaVencimiento('');
         }
     }, [editActivo, open, lockedArea]);
 
@@ -897,6 +969,12 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         fd.set('codigoGrupo', finalCodigoGrupo);
         if (codigoBarras) fd.set('codigoBarras', codigoBarras);
         fd.set('cantidad', cantidad);
+        fd.set('compatibilidad', JSON.stringify(compatibilidad));
+
+        if (categoriaId) fd.set('categoriaId', categoriaId);
+        fd.set('esConsumible', String(esConsumible));
+        if (lote) fd.set('lote', lote);
+        if (fechaVencimiento) fd.set('fechaVencimiento', fechaVencimiento);
 
         // Show preview and fetch real next code in parallel
         setPendingFormData(fd);
@@ -1174,9 +1252,10 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 </div>
 
                                 {/* ── SECCIÓN 2: IDENTIFICACIÓN ── */}
-                                <div>
-                                    <SectionTitle>📋 Identificación</SectionTitle>
-                                    <div className="space-y-4">
+                                <div className="col-span-12 xl:col-span-8">
+                                    <div className="bg-white rounded-2xl border-2 border-[#0500A3]/10 p-5 lg:p-6 shadow-sm">
+                                        <SectionTitle>📋 Identificación</SectionTitle>
+                                        <div className="space-y-4">
                                         <div className="grid grid-cols-1 gap-4">
                                             {/* Código de Barras / SKU Comercial */}
                                             <div>
@@ -1254,12 +1333,25 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             </div>
                                         </div>
 
-                                        {/* Descripción Corta — AI controlled */}
+                                        {/* Nombre / Descripción Corta — AI controlled */}
+                                        <div className="mb-6 flex gap-2 items-end">
+                                            <div className="flex-1">
+                                                <FieldLabel>Clasificación General (Maestra)</FieldLabel>
+                                                <Combobox
+                                                    options={categorias}
+                                                    value={categoriaId}
+                                                    onChange={setCategoriaId}
+                                                    placeholder="Ej: Sensores Médicos, Herramientas..."
+                                                    allowClear
+                                                />
+                                            </div>
+                                            <button type="button" onClick={() => setCatModalOpen(true)} className="bg-slate-100 hover:bg-slate-200 text-[#0500A3] px-4 py-3.5 rounded-xl border border-slate-200 transition-colors shrink-0 font-bold flex items-center justify-center" title="Añadir Categoría Rápida">
+                                                <Plus className="w-5 h-5"/>
+                                            </button>
+                                        </div>
+
                                         <div>
-                                            <FieldLabel required>
-                                                Nombre / Descripción Corta
-                                                {aiResult?.descripcionCorta && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
-                                            </FieldLabel>
+                                            <FieldLabel required>Nombre / Descripción Corta <span className="opacity-50">(Para Tickets)</span></FieldLabel>
                                             <input type="text" name="descripcionCorta" required
                                                 value={descripcionCorta}
                                                 onChange={e => setDescripcionCorta(e.target.value)}
@@ -1328,11 +1420,41 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             </div>
                                         </div>
 
+                                        {/* Compatibilidad Tags */}
+                                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mt-2 mb-2">
+                                            <FieldLabel>Etiquetas de Compatibilidad / Marcas Funcionales</FieldLabel>
+                                            <div className="flex flex-wrap gap-2 mb-3">
+                                                {compatibilidad.map(tag => (
+                                                    <span key={tag} className="inline-flex items-center gap-1.5 bg-indigo-100 text-[#0500A3] px-3 py-1.5 rounded-full text-xs font-bold border border-indigo-200">
+                                                        {tag}
+                                                        <button type="button" onClick={() => setCompatibilidad(compatibilidad.filter(t => t !== tag))} className="hover:text-red-500 hover:bg-white rounded-full p-0.5 transition-colors"><X className="w-3 h-3" /></button>
+                                                    </span>
+                                                ))}
+                                                {compatibilidad.length === 0 && <span className="text-xs text-slate-400 italic py-1.5">Ninguna marca agregada...</span>}
+                                            </div>
+                                            <input 
+                                                type="text" 
+                                                value={tagInput}
+                                                onChange={e => setTagInput(e.target.value)}
+                                                onKeyDown={e => {
+                                                    if (e.key === 'Enter') {
+                                                        e.preventDefault();
+                                                        const v = tagInput.trim().toUpperCase();
+                                                        if (v && !compatibilidad.includes(v)) {
+                                                            setCompatibilidad([...compatibilidad, v]);
+                                                            setTagInput('');
+                                                        }
+                                                    }
+                                                }}
+                                                placeholder="Ej: MINDRAY, PHILIPS (Presiona Enter para añadir)" 
+                                                className={inputCls} 
+                                            />
+                                        </div>
+
                                         {/* Descripción Detallada — AI controlled */}
                                         <div>
                                             <FieldLabel>
                                                 Descripción Detallada
-                                                {aiResult?.descripcionDetallada && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
                                             </FieldLabel>
                                             <textarea name="descripcionDetallada" rows={3}
                                                 value={descripcionDetallada}
@@ -1342,6 +1464,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
                                 {/* ── FOOTER ── */}
                                 <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-slate-100">
@@ -1487,6 +1610,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [deleteActivo_, setDeleteActivo] = useState<Activo | null>(null);
     const [showFilters, setShowFilters] = useState(false);
     const [viewActivo, setViewActivo] = useState<Activo | null>(null);
+    const [previewActivo, setPreviewActivo] = useState<Activo | null>(null);
     const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
     const [printingId, setPrintingId] = useState<string | null>(null);
     const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -1503,7 +1627,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     // QR Area Control
     const [lockedArea, setLockedArea] = useState<string | null>(null);
     const [isCheckingArea, setIsCheckingArea] = useState(false);
-
+    const [isAutoCategorizing, setIsAutoCategorizing] = useState(false);
+    
     const [noAreaModalOpen, setNoAreaModalOpen] = useState(false);
     const [isClosingAct, startClosingAct] = useTransition();
 
@@ -1667,6 +1792,29 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                             className="flex items-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print">
                             <Printer className="w-5 h-5" /> Imprimir Lote
                         </button>
+                        
+                        {userRole === 'SUPER_ADMIN' && (
+                            <button onClick={async () => {
+                                if (confirm('¿Ejecutar la categorización automática con IA (Claude)? Esto procesará 50 productos sin categoría.')) {
+                                    setIsAutoCategorizing(true);
+                                    try {
+                                        const res = await fetch('/api/inventario/auto-categorize', { method: 'POST' });
+                                        const json = await res.json();
+                                        if (json.error) alert(json.error);
+                                        else {
+                                            alert(json.message);
+                                            refresh();
+                                        }
+                                    } catch (e: any) { alert('Error: ' + e.message); }
+                                    finally { setIsAutoCategorizing(false); }
+                                }
+                            }}
+                                disabled={isAutoCategorizing}
+                                className="flex items-center gap-2 text-base font-bold bg-gradient-to-br from-purple-100 to-purple-50 text-purple-700 border-2 border-purple-200 px-5 py-3 rounded-2xl hover:bg-purple-100 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print shadow-sm">
+                                {isAutoCategorizing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />} Auto-Categorizar
+                            </button>
+                        )}
+
                         <div className="flex flex-col sm:flex-row gap-3">
                             <button
                                 onClick={() => setModalOpen(true)}
@@ -1741,6 +1889,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 grupos={gruposDisponibles}
                 onSuccess={() => { refresh() }}
             />
+
+            {previewActivo && (
+                <PreviewEtiquetaModal
+                    activo={previewActivo}
+                    onClose={() => setPreviewActivo(null)}
+                    isPrinting={printingId === previewActivo.id && printStatus === 'sending'}
+                    onPrint={() => handlePrintLabel(previewActivo)}
+                />
+            )}
 
             <div className="hide-on-print"><StatsCards stats={stats} /></div>
 
@@ -1819,8 +1976,17 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                                 </td>
                                 <td className="px-3 py-3 max-w-[200px]">
                                     <div className="font-semibold text-slate-800 truncate">{a.descripcionCorta}</div>
+                                    {a.categoria && <div className="text-purple-600 font-bold text-[10px] bg-purple-50 px-1.5 py-0.5 mt-0.5 rounded w-fit border border-purple-100">{a.categoria.nombre}</div>}
                                     {a.modelo && <div className="text-slate-400 text-[10px] truncate">{a.modelo}</div>}
                                     {a.serie && <div className="text-slate-400 text-[10px] font-mono truncate">S/N: {a.serie}</div>}
+                                    {a.esConsumible && a.fechaVencimiento && (() => {
+                                        const fv = new Date(a.fechaVencimiento);
+                                        const diff = Math.ceil((fv.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
+                                        if (diff < 0) return <div className="mt-1 text-red-600 font-bold text-[10px] bg-red-50 border border-red-200 px-1.5 py-0.5 rounded w-fit !opacity-100">⚠️ VENCIDO</div>;
+                                        if (diff <= 30) return <div className="mt-1 text-red-500 font-bold text-[10px] bg-red-50 px-1.5 py-0.5 rounded w-fit">⚠️ Vence en {diff} días</div>;
+                                        if (diff <= 60) return <div className="mt-1 text-orange-600 font-bold text-[10px] bg-orange-50 px-1.5 py-0.5 rounded w-fit">⏳ {diff} días</div>;
+                                        return <div className="mt-1 text-emerald-600 font-medium text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded w-fit">Vence: {fv.toLocaleDateString('es-HN')}</div>;
+                                    })()}
                                 </td>
                                 <td className="px-3 py-3"><div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-400 shrink-0" /><span className="text-slate-600 font-mono text-[10px] whitespace-nowrap">{a.area}</span></div></td>
                                 <td className="px-3 py-3 max-w-[140px]"><div className="text-[10px] text-slate-600 truncate">{a.cuentaAct}</div></td>
@@ -2012,24 +2178,13 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                                     <ExternalLink className="w-4 h-4" />
                                     Ver Ficha Técnica Digital
                                 </a>
-                                {/* Botón imprimir etiqueta */}
+                                {/* Botón imprimir etiqueta VISTA PREVIA */}
                                 <button
-                                    onClick={() => handlePrintLabel(viewActivo!)}
-                                    disabled={printingId === viewActivo?.id}
-                                    className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold transition-all active:scale-95 shadow-md ${printStatus === 'sent' && printingId === viewActivo?.id
-                                        ? 'bg-green-500 text-white'
-                                        : printStatus === 'error' && printingId === viewActivo?.id
-                                            ? 'bg-red-500 text-white'
-                                            : 'bg-black text-white hover:bg-black/80'
-                                        } disabled:opacity-70`}
+                                    onClick={() => { setViewActivo(null); setPreviewActivo(viewActivo!); }}
+                                    className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold transition-all active:scale-95 shadow-md bg-black text-white hover:bg-black/80`}
                                 >
-                                    {printingId === viewActivo?.id && printStatus === 'sending' && <Loader2 className="w-4 h-4 animate-spin" />}
-                                    {printingId === viewActivo?.id && printStatus === 'sent' && <CheckCircle2 className="w-4 h-4" />}
-                                    {(printingId !== viewActivo?.id || printStatus === 'idle') && <Printer className="w-4 h-4" />}
-                                    {printingId === viewActivo?.id && printStatus === 'sending' ? 'Enviando a impresora...' :
-                                        printingId === viewActivo?.id && printStatus === 'sent' ? '✅ Enviado a impresora local' :
-                                            printingId === viewActivo?.id && printStatus === 'error' ? '❌ Error al enviar' :
-                                                '🖨️ Imprimir Etiqueta'}
+                                    <Printer className="w-4 h-4" />
+                                    🖨️ Imprimir Etiqueta
                                 </button>
                                 <div className="flex gap-3">
                                     <button onClick={() => { setViewActivo(null); setEditActivo(viewActivo); setModalOpen(true); }} className="flex-1 bg-[#0500A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#0600c2] transition-colors"><Pencil className="w-4 h-4" /> Editar</button>

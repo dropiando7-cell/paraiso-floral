@@ -100,6 +100,33 @@ export async function getGruposAutocompletado() {
     }
 }
 
+// ─── Categoria Management ───────────────────────────────────────────────────
+export async function getCategorias() {
+    try {
+        const orgId = await getOrgId();
+        return await prisma.categoria.findMany({
+            where: { organizationId: orgId },
+            orderBy: { nombre: 'asc' }
+        });
+    } catch (e) {
+        return [];
+    }
+}
+
+export async function createCategoria(nombre: string, color?: string) {
+    try {
+        const orgId = await getOrgId();
+        const cat = await prisma.categoria.create({
+            data: { organizationId: orgId, nombre: nombre.trim().toUpperCase(), color }
+        });
+        revalidatePath('/inventario');
+        return { success: true, categoria: cat };
+    } catch (e: any) {
+        if (e.code === 'P2002') return { error: 'La categoría ya existe en esta organización.' };
+        return { error: 'Error interno al crear la categoría.' };
+    }
+}
+
 // ─── READ: List with pagination, search, filters ─────────────────────────────
 export async function getActivos(page = 1, search = '', area = '', estatus = '') {
     const orgId = await getOrgId();
@@ -127,6 +154,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '')
             orderBy: { createdAt: 'desc' },
             skip,
             take: PER_PAGE,
+            include: { categoria: true },
         }),
         prisma.activoFijo.count({ where }),
     ]);
@@ -262,6 +290,10 @@ export async function createActivo(formData: FormData) {
         historicoId: historicoIdStr,
         categoriaDepreciacion: (formData.get('categoriaDepreciacion') as string) || null,
         vidaUtilOverride: vidaUtilNum,
+        categoriaId: (formData.get('categoriaId') as string) || null,
+        esConsumible: formData.get('esConsumible') === 'true',
+        lote: (formData.get('lote') as string) || null,
+        fechaVencimiento: formData.get('fechaVencimiento') ? new Date(formData.get('fechaVencimiento') as string) : null,
         // ── Depreciation fields ──
         valResidual: deprec?.valResidual ?? null,
         baseDeprec: deprec?.baseDeprec ?? null,
@@ -364,6 +396,10 @@ export async function updateActivo(id: string, formData: FormData) {
             historicoId: historicoIdStr,
             categoriaDepreciacion: (formData.get('categoriaDepreciacion') as string) || null,
             vidaUtilOverride: vidaUtilNum,
+            categoriaId: (formData.get('categoriaId') as string) || null,
+            esConsumible: formData.get('esConsumible') === 'true',
+            lote: (formData.get('lote') as string) || null,
+            fechaVencimiento: formData.get('fechaVencimiento') ? new Date(formData.get('fechaVencimiento') as string) : null,
             // ── Depreciation fields ──
             valResidual: deprec?.valResidual ?? null,
             baseDeprec: deprec?.baseDeprec ?? null,
