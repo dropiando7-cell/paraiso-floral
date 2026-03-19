@@ -81,7 +81,7 @@ async function run() {
     let successCount = 0;
     let failedCount = 0;
 
-    for (const record of records) {
+    for (const record of records as any[]) {
         try {
             const row: any = record;
             const externalId = row['ID externo'] || '';

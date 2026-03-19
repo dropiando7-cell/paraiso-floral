@@ -35,7 +35,7 @@ async function main() {
         let iter = 0;
         let upserted = 0;
 
-        for (const row of records) {
+        for (const row of records as any[]) {
             iter++;
 
             // Nombres de columna tal cual aparecen en el CSV original Exportado de Odoo
