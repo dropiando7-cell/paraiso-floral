@@ -80,7 +80,7 @@ export default function FichaTecnicaClient({ activo }: { activo: Activo }) {
     const hasDano = !!activo.estadoDano;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-[#04007a] to-slate-900 flex flex-col items-center justify-start py-8 px-4">
+        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-start py-8 px-4">
 
             {/* Lightbox */}
             {lightbox && images.length > 0 && (
@@ -116,11 +116,11 @@ export default function FichaTecnicaClient({ activo }: { activo: Activo }) {
             <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
 
                 {/* Header */}
-                <div className="relative bg-gradient-to-r from-[#0500A3] to-[#1a0bcf] px-6 py-8 text-white">
+                <div className="relative bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-8 text-white">
                     {/* Logo + Brand */}
                     <div className="flex items-center gap-2 mb-6 opacity-80">
                         <Building2 className="w-4 h-4" />
-                        <span className="text-xs font-bold uppercase tracking-widest">Iglesia Misión Cristiana Elim Honduras</span>
+                        <span className="text-xs font-bold uppercase tracking-widest">Bioelectrónica Honduras</span>
                     </div>
 
                     {/* ID QR */}
@@ -235,7 +235,7 @@ export default function FichaTecnicaClient({ activo }: { activo: Activo }) {
                             {activo.integrado && (
                                 <div className="flex flex-col gap-0.5">
                                     <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tipo</div>
-                                    <span className="inline-flex items-center gap-1 text-sm font-medium text-[#0500A3]">
+                                    <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-600">
                                         <Shield className="w-3.5 h-3.5" />
                                         Activo Integrado
                                     </span>
@@ -303,16 +303,16 @@ export default function FichaTecnicaClient({ activo }: { activo: Activo }) {
                     <div className="text-xs text-slate-400">
                         Registrado: {fecha(activo.createdAt)}
                     </div>
-                    <div className="flex items-center gap-1.5 text-sm font-semibold text-[#0500A3]">
+                    <div className="flex items-center gap-1.5 text-sm font-semibold text-blue-600">
                         <Building2 className="w-4 h-4" />
-                        sistemaselim.app
+                        bioelectronicahn.com
                     </div>
                 </div>
             </div>
 
             {/* Sub-brand */}
             <p className="mt-6 text-xs text-white/30 text-center">
-                Inventario de Activos Fijos · Iglesia Misión Cristiana Elim Honduras
+                Inventario Comercial · Bioelectrónica Honduras
             </p>
         </div>
     );

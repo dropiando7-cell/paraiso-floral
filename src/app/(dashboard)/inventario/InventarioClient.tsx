@@ -296,10 +296,10 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 // ─── Stats Cards ──────────────────────────────────────────────────────────────
 function StatsCards({ stats }: { stats: any }) {
     const cards = [
-        { label: 'Total de Activos', value: stats?.total ?? 0, sub: `${stats?.areasRegistradas ?? 0} de 31 áreas cubiertas`, icon: Package, color: 'text-[#0500A3]', bg: 'bg-blue-50' },
-        { label: 'Vigentes', value: stats?.vigente ?? 0, sub: 'Dentro de vida útil contable', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'Depreciados', value: (stats?.depreciado ?? 0) + (stats?.procesoBaja ?? 0), sub: `${stats?.procesoBaja ?? 0} en proceso de baja`, icon: TrendingDown, color: 'text-amber-600', bg: 'bg-amber-50' },
-        { label: 'Con Daño / Incidencia', value: stats?.conDano ?? 0, sub: 'Requieren atención', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+        { label: 'Total de Productos', value: stats?.total ?? 0, sub: `${stats?.areasRegistradas ?? 0} áreas localizadas`, icon: Package, color: 'text-[#0500A3]', bg: 'bg-blue-50' },
+        { label: 'En Inventario', value: stats?.vigente ?? 0, sub: 'Disponibles para venta/uso', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        { label: 'Obsoletos', value: (stats?.depreciado ?? 0) + (stats?.procesoBaja ?? 0), sub: `${stats?.procesoBaja ?? 0} en proceso de baja`, icon: TrendingDown, color: 'text-amber-600', bg: 'bg-amber-50' },
+        { label: 'Para Reparación', value: stats?.conDano ?? 0, sub: 'Requieren atención', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
     ];
     return (
         <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
@@ -988,7 +988,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 </div>
                                 <div>
                                     <h2 className="text-lg font-bold text-slate-900">
-                                        {isEdit ? 'Editar Activo' : 'Registrar Activo'}
+                                        {isEdit ? 'Editar Producto' : 'Registrar Producto'}
                                     </h2>
                                     {(previewQr || isEdit) && (
                                         <p className="text-xs font-mono text-[#0500A3] font-bold mt-0.5">
@@ -1196,22 +1196,22 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             {/* Área — Searchable / Locked */}
                                             <div>
                                                 <FieldLabel required>Área / Ubicación</FieldLabel>
-                                                {!isEdit ? (
-                                                    <div className="w-full flex items-center gap-2 text-base border-2 border-[#0500A3]/30 bg-blue-50/50 rounded-xl px-4 py-3.5 text-[#0500A3] font-semibold">
-                                                        <div className="bg-[#0500A3] w-2 h-2 rounded-full animate-pulse shrink-0" />
-                                                        <span className="truncate">{AREAS.find(a => a.value === lockedArea)?.label || lockedArea}</span>
-                                                        <input type="hidden" name="area" value={lockedArea || ''} />
-                                                    </div>
-                                                ) : (
-                                                    <Combobox
-                                                        options={AREAS}
-                                                        value={selectedArea}
-                                                        onChange={handleAreaChange}
-                                                        placeholder="Escribe o selecciona el área..."
-                                                        label="area"
-                                                        required
-                                                    />
-                                                )}
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    name="area"
+                                                    value={selectedArea}
+                                                    onChange={e => setSelectedArea(e.target.value.toUpperCase())}
+                                                    placeholder="Ej: A-1-1, SE-A-1, B-5-4"
+                                                    list="ubicaciones-sugeridas"
+                                                    className={`${inputCls} font-mono font-bold tracking-widest text-[#0500A3] uppercase`}
+                                                />
+                                                <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">Formato sugerido: <b>A-1-1</b>. Reutiliza el historial para agrupar.</p>
+                                                <datalist id="ubicaciones-sugeridas">
+                                                    {dbAreas.map((a: any) => (
+                                                        <option key={a.name} value={a.name} />
+                                                    ))}
+                                                </datalist>
                                             </div>
 
                                             <div className="flex gap-3 bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
@@ -1481,6 +1481,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [filtroArea, setFiltroArea] = useState('');
     const [filtroEstatus, setFiltroEstatus] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isRefetching, setIsRefetching] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [editActivo, setEditActivo] = useState<Activo | null>(null);
     const [deleteActivo_, setDeleteActivo] = useState<Activo | null>(null);
@@ -1583,15 +1584,21 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     }
 
     async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea) {
-        setLoading(true);
-        const resolvedAreaFilter = a || (currentLockedArea || undefined);
-        const [data, st] = await Promise.all([
-            getActivos(p, s, resolvedAreaFilter, e), 
-            getActivoStats(currentLockedArea || undefined)
-        ]);
-        setActivos(data.activos as Activo[]);
-        setTotal(data.total); setTotalPages(data.totalPages); setStats(st);
-        setLoading(false);
+        setIsRefetching(true);
+        setLoading(false); // Make sure blocking loader is off
+        try {
+            const resolvedAreaFilter = a || (currentLockedArea || undefined);
+            const [data, st] = await Promise.all([
+                getActivos(p, s, resolvedAreaFilter, e), 
+                getActivoStats(currentLockedArea || undefined)
+            ]);
+            setActivos(data.activos as Activo[]);
+            setTotal(data.total); setTotalPages(data.totalPages); setStats(st);
+        } catch (error) {
+            console.error('Error fetching inventory data on client: ', error);
+        } finally {
+            setIsRefetching(false);
+        }
     }
 
     useEffect(() => {
@@ -1604,10 +1611,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search, filtroArea, filtroEstatus]);
 
-    function handlePageChange(p: number) { 
-        setPage(p); 
+    function handlePageChange(p: number) {
+        setPage(p);
         // We explicitly pass `lockedArea` here to maintain the area context when paginating
-        refresh(p, search, filtroArea, filtroEstatus, lockedArea); 
+        refresh(p, search, filtroArea, filtroEstatus, lockedArea);
     }
     const PER_PAGE = 10;
 
@@ -1616,10 +1623,11 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between gap-3 mb-6 hide-on-print">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                        <Package className="w-6 h-6 text-[#0500A3]" /> Inventario de Activos
+                    <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-3">
+                        <Package className="w-8 h-8 text-[#0500A3]" />
+                        Inventario de Productos
                     </h1>
-                    <p className="text-sm text-slate-500 mt-0.5">Control patrimonial físico y contable · Iglesia Elim Central</p>
+                    <p className="text-sm text-slate-500 mt-0.5">Catálogo Comercial y Existencias · Bioelectrónica Honduras</p>
                 </div>
                 <div className="flex flex-col items-end gap-2 w-full sm:w-auto mt-4 sm:mt-0">
                     <div className="flex items-center gap-2">
@@ -1659,20 +1667,16 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                             className="flex items-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print">
                             <Printer className="w-5 h-5" /> Imprimir Lote
                         </button>
-                        <button onClick={() => {
-                            // CÓDIGO HISTÓRICO (Sistemas Elim - Validación de código QR en puertas):
-                            // if (!lockedArea) setNoAreaModalOpen(true);
-                            // else { setEditActivo(null); setModalOpen(true); }
-
-                            // NUEVO FLUJO BIOELECTRÓNICA (Apertura directa de inventario global):
-                            setEditActivo(null);
-                            setModalOpen(true);
-                        }}
-                            disabled={isCheckingArea}
-                            className={`flex items-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl transition-all shadow-md w-full sm:w-auto justify-center hide-on-print ${isCheckingArea ? 'opacity-75 cursor-not-allowed' : 'hover:bg-[#0600c2] active:scale-95'}`}>
-                            {isCheckingArea ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                            {isCheckingArea ? 'Iniciando...' : 'Registrar Activo'}
-                        </button>
+                        <div className="flex flex-col sm:flex-row gap-3">
+                            <button
+                                onClick={() => setModalOpen(true)}
+                                disabled={isCheckingArea}
+                                className="flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl transition-all shadow-md w-full sm:w-auto justify-center hide-on-print"
+                            >
+                                {isCheckingArea ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
+                                {isCheckingArea ? 'Iniciando...' : 'Registrar Producto'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1794,12 +1798,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                             ))}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
-                        {loading ? (
-                            <tr><td colSpan={9} className="text-center py-16 text-slate-400">
-                                <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" /><div className="text-sm">Cargando activos...</div>
-                            </td></tr>
-                        ) : activos.length === 0 ? (
+                    <tbody className={`divide-y divide-slate-50 transition-opacity duration-200 ${isRefetching ? 'opacity-40 pointer-events-none' : ''}`}>
+                        {activos.length === 0 && !isRefetching ? (
                             <tr><td colSpan={9} className="text-center py-16 text-slate-400">
                                 <Package className="w-10 h-10 mx-auto mb-3 opacity-20" />
                                 <div className="text-sm font-medium">No se encontraron activos</div>

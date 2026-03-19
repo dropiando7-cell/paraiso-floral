@@ -56,7 +56,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
     ]
   },
   {
-    category: 'ACTIVOS Y CONTROL',
+    category: 'INVENTARIO Y VENTAS',
     items: [
       {
         name: 'Inventario y Catálogos',
@@ -73,6 +73,8 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         href: '#',
         icon: Receipt,
         subItems: [
+          { name: 'Directorio de Contactos', href: '/contactos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Soporte y Reparaciones', href: '/soporte', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Cotizaciones', href: '/cotizaciones', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Facturación', href: '/facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] }
         ]

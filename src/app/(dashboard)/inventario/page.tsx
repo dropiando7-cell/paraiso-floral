@@ -5,8 +5,8 @@ import { getActivos, getActivoStats } from './actions';
 import { InventarioClient } from './InventarioClient';
 
 export const metadata = {
-    title: 'Inventario de Activos | Bioelectrónica',
-    description: 'Gestión y control de inventario',
+    title: 'Catálogo de Productos | Bioelectrónica',
+    description: 'Gestión y control de inventario y ventas',
 };
 
 export default async function InventarioPage() {

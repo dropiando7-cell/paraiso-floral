@@ -14,11 +14,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     return {
         title: activo
-            ? `${activo.descripcionCorta} | Ficha Técnica — Sistemas Elim`
-            : 'Activo no encontrado | Sistemas Elim',
+            ? `${activo.descripcionCorta} | Ficha Técnica — Bioelectrónica`
+            : 'Activo no encontrado | Bioelectrónica',
         description: activo
-            ? `Ficha técnica del activo ${activo.idQr} de Iglesia Misión Cristiana Elim Honduras`
-            : 'El activo solicitado no fue encontrado.',
+            ? `Ficha técnica de ${activo.descripcionCorta} - Bioelectrónica Honduras`
+            : 'El producto solicitado no fue encontrado.',
     };
 }
 

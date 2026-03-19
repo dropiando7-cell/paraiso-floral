@@ -42,6 +42,8 @@ model Organization {
   productos             Producto[]
   clientes              Cliente[]
   facturas              Factura[]
+  ordenesTrabajo        OrdenTrabajo[]
+  rentasEquipo          RentaEquipo[]
 
   @@map("organizations")
 }
@@ -336,6 +338,7 @@ model ActivoFijo {
   organization          Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   colaImpresion         ColaImpresion[]
   detallesFactura       DetalleFactura[]
+  rentasEquipo          RentaEquipo[]
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -513,6 +516,8 @@ model Cliente {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   facturas     Factura[]
+  ordenesTrabajo OrdenTrabajo[]
+  rentasEquipo   RentaEquipo[]
 
   @@index([organizationId])
   @@index([nombre])
@@ -583,4 +588,66 @@ model DetalleFactura {
 
   @@index([facturaId])
   @@map("detalles_factura")
+}
+
+model OrdenTrabajo {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String       @db.Uuid
+  clienteId         String       @db.Uuid
+  
+  equipoDano        String
+  marcaModelo       String?
+  accesorios        String?
+  
+  estado            String       @default("RECIBIDO")
+  
+  costoRevision     Decimal      @default(650) @db.Decimal(12, 2)
+  costoReparacion   Decimal?     @db.Decimal(12, 2)
+  aprobado          Boolean      @default(false)
+  
+  fechaRecibido     DateTime     @default(now())
+  fechaEvaluado     DateTime?
+  fechaAprobado     DateTime?
+  fechaListo        DateTime?
+  fechaEntregado    DateTime?
+  
+  codigoSeguridad   String
+  notificadoWhatsApp Boolean      @default(false)
+  
+  cliente           Cliente      @relation(fields: [clienteId], references: [id])
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([organizationId])
+  @@index([clienteId])
+  @@index([estado])
+  @@map("ordenes_trabajo")
+}
+
+model RentaEquipo {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String       @db.Uuid
+  clienteId         String       @db.Uuid
+  activoFijoId      String       @db.Uuid
+  
+  fechaInicio       DateTime     @default(now())
+  fechaFinEsperada  DateTime
+  fechaDevolucion   DateTime?
+  estado            String       @default("ACTIVA") // ACTIVA, DEVUELTO, VENCIDA
+  
+  costoRenta        Decimal      @db.Decimal(12, 2)
+  deposito          Decimal      @default(0) @db.Decimal(12, 2)
+  notas             String?
+  
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  cliente           Cliente      @relation(fields: [clienteId], references: [id])
+  activoFijo        ActivoFijo   @relation(fields: [activoFijoId], references: [id])
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@index([organizationId])
+  @@index([clienteId])
+  @@index([activoFijoId])
+  @@index([estado])
+  @@map("rentas_equipo")
 }

@@ -1,15 +1,14 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
-import { getRentas } from './actions';
-import RentasClient from './RentasClient';
+import NuevaRentaClient from './NuevaRentaClient';
+import { getClientesLista, getEquiposDisponibles } from '../actions2';
 
 export const metadata = {
-    title: 'Rentas de Equipos | Bioelectrónica',
-    description: 'Gestión de rentas de equipo médico',
+    title: 'Nueva Renta | Bioelectrónica',
 };
 
-export default async function RentasPage() {
+export default async function NuevaRentaPage() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -24,7 +23,10 @@ export default async function RentasPage() {
         redirect('/unauthorized');
     }
 
-    const initialRentas = await getRentas();
+    const [clientes, equipos] = await Promise.all([
+        getClientesLista(),
+        getEquiposDisponibles()
+    ]);
 
-    return <RentasClient initialRentas={initialRentas} />;
+    return <NuevaRentaClient clientes={clientes} equipos={equipos} />;
 }
