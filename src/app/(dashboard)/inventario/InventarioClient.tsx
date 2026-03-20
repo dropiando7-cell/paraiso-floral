@@ -8,11 +8,12 @@ import {
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw
 } from 'lucide-react';
-import { searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, getCategorias, createCategoria } from './actions';
+import { searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, encolarCopiasNiimbot, getCategorias, createCategoria } from './actions';
 import { removeBackground } from '@imgly/background-removal';
 
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
-function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: () => void; isPrinting: boolean }) {
+function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number) => void; isPrinting: boolean }) {
+    const [cantidad, setCantidad] = useState(1);
     const searchParams = new URLSearchParams({
         idQr: activo.idQr,
         descripcion: activo.descripcionCorta || '',
@@ -36,13 +37,24 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                         <p className="text-xs text-slate-500 mt-0.5">Asegúrate de que la impresora NIIMBOT K3 esté conectada y lista.</p>
                     </div>
                 </div>
+                <div className="mb-4 flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span className="text-sm font-semibold text-slate-700">Copias a Imprimir:</span>
+                    <input 
+                        type="number" 
+                        min="1" 
+                        max="100" 
+                        value={cantidad} 
+                        onChange={(e) => setCantidad(Number(e.target.value) || 1)}
+                        className="w-20 text-center font-bold font-mono py-1.5 px-2 rounded-lg border-slate-300 focus:ring-blue-500"
+                    />
+                </div>
                 <div className="border-4 border-slate-100 rounded-xl p-4 bg-slate-50 flex justify-center mb-6 overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={url} className="w-full max-w-[406px] h-auto object-contain bg-white shadow-sm" alt="Preview Etiqueta" />
                 </div>
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 font-semibold border-2 border-slate-200 text-slate-600 py-3 rounded-xl hover:bg-slate-50 active:scale-95 transition-all">Cancelar</button>
-                    <button onClick={() => { onPrint(); onClose(); }} disabled={isPrinting} className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#0500A3] text-white hover:bg-[#0600c2] font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
+                    <button onClick={() => { onPrint(cantidad); onClose(); }} disabled={isPrinting} className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#0500A3] text-white hover:bg-[#0600c2] font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
                         {isPrinting ? <Loader2 className="w-5 h-5 animate-spin"/> : <Printer className="w-5 h-5" />} Enviar a Impresora
                     </button>
                 </div>
@@ -1322,6 +1334,32 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <SectionTitle>📋 Identificación</SectionTitle>
                                         <div className="space-y-4">
                                         <div className="grid grid-cols-1 gap-4">
+                                            {/* Código Grupo */}
+                                            <div className="bg-blue-50/30 p-4 rounded-xl border border-blue-100/50">
+                                                <FieldLabel required={!isEdit}>Producto / Código Grupo</FieldLabel>
+                                                {isEdit ? (
+                                                    <input
+                                                        type="text"
+                                                        disabled
+                                                        value={codigoGrupo}
+                                                        className={`${inputCls} font-mono bg-blue-50/10 font-bold tracking-widest text-[#0500A3] opacity-60 cursor-not-allowed border-transparent`}
+                                                    />
+                                                ) : (
+                                                    <Combobox
+                                                        options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
+                                                        value={codigoGrupo}
+                                                        onChange={(val) => {
+                                                            setCodigoGrupo(val);
+                                                            const match = gruposDisponibles.find(g => g.codigoGrupo === val);
+                                                            if (match && match.descripcionCorta && !descripcionCorta) setDescripcionCorta(match.descripcionCorta);
+                                                        }}
+                                                        placeholder="Ej: 001"
+                                                        allowCustom={true}
+                                                    />
+                                                )}
+                                                {!isEdit && <p className="text-[10px] text-[#0500A3]/60 mt-1.5 leading-tight">Agrupa estos activos.</p>}
+                                            </div>
+
                                             {/* Código de Barras / SKU Comercial */}
                                             <div>
                                                 <div className="relative" ref={barcodeRef}>
@@ -1360,43 +1398,17 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                 </datalist>
                                             </div>
 
-                                            <div className="flex gap-3 bg-blue-50/30 p-3 rounded-xl border border-blue-100/50">
-                                                <div className="flex-[2]">
-                                                    <FieldLabel required={!isEdit}>Código Grupo</FieldLabel>
-                                                    {isEdit ? (
-                                                        <input
-                                                            type="text"
-                                                            disabled
-                                                            value={codigoGrupo}
-                                                            className={`${inputCls} font-mono bg-blue-50/10 font-bold tracking-widest text-[#0500A3] opacity-60 cursor-not-allowed border-transparent`}
-                                                        />
-                                                    ) : (
-                                                        <Combobox
-                                                            options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
-                                                            value={codigoGrupo}
-                                                            onChange={(val) => {
-                                                                setCodigoGrupo(val);
-                                                                const match = gruposDisponibles.find(g => g.codigoGrupo === val);
-                                                                if (match && match.descripcionCorta && !descripcionCorta) setDescripcionCorta(match.descripcionCorta);
-                                                            }}
-                                                            placeholder="Ej: 001"
-                                                            allowCustom={true}
-                                                        />
-                                                    )}
-                                                    {!isEdit && <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight">Agrupa estos activos.</p>}
-                                                </div>
-
-                                                <div className="flex-1">
-                                                    <FieldLabel required>Cantidad</FieldLabel>
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        value={cantidad}
-                                                        onChange={e => setCantidad(e.target.value)}
-                                                        className={`${inputCls} font-mono font-bold text-center border-blue-200 focus:ring-blue-500`}
-                                                    />
-                                                    <p className="text-[10px] text-[#0500A3]/60 mt-1 leading-tight text-center">Stock Inicial</p>
-                                                </div>
+                                            {/* Cantidad Input */}
+                                            <div>
+                                                <FieldLabel required>Cantidad</FieldLabel>
+                                                <input
+                                                    type="number"
+                                                    min="1"
+                                                    value={cantidad}
+                                                    onChange={e => setCantidad(e.target.value)}
+                                                    className={`${inputCls} font-mono font-bold text-center border-slate-200 focus:ring-blue-500`}
+                                                />
+                                                <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">Stock Inicial</p>
                                             </div>
                                         </div>
 
@@ -1704,28 +1716,14 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
     // The initial fetch is now handled Serverside on `page.tsx` directly!
 
-    async function handlePrintLabel(activo: Activo) {
+    async function handlePrintLabel(activo: Activo, cantidad: number = 1) {
         setPrintingId(activo.id);
         setPrintStatus('sending');
         try {
-            // Construir la URL de la etiqueta generada
-            const params = new URLSearchParams({
-                idQr: activo.idQr,
-                descripcion: activo.descripcionCorta,
-                area: activo.area,
-                cuenta: activo.cuentaAct,
-            });
+            const result = await encolarCopiasNiimbot(activo.id, cantidad);
 
-            const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
-
-            // Encolar en la base de datos para que la laptop lo reciba
-            const res = await fetch('/api/impresion/encolar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ activoId: activo.id, urlImagen }),
-            });
-
-            if (!res.ok) throw new Error('Error al encolar impresión');
+            if (!result.success) throw new Error(result.error || 'Error al encolar impresión');
+            
             setPrintStatus('sent');
             setTimeout(() => { setPrintStatus('idle'); setPrintingId(null); }, 3000);
         } catch {
@@ -1739,7 +1737,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [clearingQueue, setClearingQueue] = useState(false);
 
     async function handleClearQueue() {
-        if (!confirm('¿Estás seguro que deseas limpiar TODA la cola de impresión de la iglesia?')) return;
+        if (!confirm('¿Estás seguro que deseas limpiar TODA la cola de impresión de Bioelectrónica?')) return;
         setClearingQueue(true);
         try {
             await clearPrintQueue();
@@ -1962,7 +1960,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                     activo={previewActivo}
                     onClose={() => setPreviewActivo(null)}
                     isPrinting={printingId === previewActivo.id && printStatus === 'sending'}
-                    onPrint={() => handlePrintLabel(previewActivo)}
+                    onPrint={(cantidad) => handlePrintLabel(previewActivo, cantidad)}
                 />
             )}
 

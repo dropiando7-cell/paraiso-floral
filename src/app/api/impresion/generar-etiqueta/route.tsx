@@ -58,41 +58,36 @@ export async function GET(req: NextRequest) {
                     height: H,
                     backgroundColor: '#FFFFFF',
                     fontFamily: 'sans-serif',
-                    padding: '12px',
-                    borderRadius: '8px', 
-                    border: '1px solid #eee' // Soft edge just for preview visualization
+                    padding: '16px',
                 }}
             >
-                {/* Top Row */}
-                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingBottom: '4px' }}>
-                    <span style={{ fontSize: 16, fontWeight: 800, color: '#111', marginTop: '4px' }}>{idQr}</span>
-                    <div style={{ display: 'flex', width: 44, height: 44 }}>
+                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
+                    
+                    {/* LEFT COLUMN: Data */}
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '12px' }}>
+                        <span style={{ fontSize: 18, fontWeight: 900, color: '#000', marginBottom: '8px' }}>{idQr}</span>
+                        <span style={{ fontSize: isLongName ? 16 : 20, fontWeight: 900, color: '#000', lineHeight: 1.1, maxHeight: 60, overflow: 'hidden' }}>
+                            {descStr}
+                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px' }}>
+                            <span style={{ fontSize: 14, color: '#444', fontWeight: 600 }}>Date: {fechaAdqDisplay}</span>
+                            <span style={{ fontSize: 14, color: '#444', fontWeight: 600 }}>Model: {modeloDisplay}</span>
+                        </div>
+                    </div>
+
+                    {/* RIGHT COLUMN: QR Code */}
+                    <div style={{ display: 'flex', width: 90, height: 90, flexShrink: 0, border: '2px solid #fff' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={qrUrl} style={{ width: '100%', height: '100%' }} alt="QR" />
                     </div>
+
                 </div>
 
-                {/* Item Name */}
-                <div style={{ display: 'flex', flexDirection: 'row', marginTop: '-12px', marginBottom: '6px', height: 50, overflow: 'hidden', alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: isLongName ? 16 : 24, fontWeight: 900, color: '#000', lineHeight: 1.2 }}>
-                        {descStr}
-                    </span>
-                </div>
-
-                {/* Meta Data */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px' }}>
-                    <span style={{ fontSize: 13, color: '#444', fontWeight: 500 }}>Received Date: {fechaAdqDisplay}</span>
-                    <span style={{ fontSize: 13, color: '#444', fontWeight: 500 }}>Model / Brand: {modeloDisplay}</span>
-                </div>
-
-                {/* Barcode section */}
-                <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'flex-start', marginTop: 'auto' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#444', marginRight: '8px', marginTop: '6px' }}>Lot No:</span>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={barcodeUrl} style={{ width: '100%', height: 45, objectFit: 'fill' }} alt="Barcode" />
-                        <span style={{ fontSize: 10, marginTop: '2px', letterSpacing: 1.5, fontWeight: 600, color: '#000' }}>{barcodeData}</span>
-                    </div>
+                {/* BOTTOM ROW: Barcode */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', width: '100%' }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={barcodeUrl} style={{ width: '90%', height: 50, objectFit: 'fill' }} alt="Barcode" />
+                    <span style={{ fontSize: 12, marginTop: '4px', letterSpacing: 2, fontWeight: 700, color: '#000' }}>{barcodeData}</span>
                 </div>
             </div>
         ),

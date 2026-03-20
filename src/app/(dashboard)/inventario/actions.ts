@@ -717,3 +717,45 @@ export async function encolarLoteImpresion(codigoGrupo: string, desde: number, h
 
     return { success: true, count: countPayload.count };
 }
+
+export async function encolarCopiasNiimbot(activoId: string, cantidad: number) {
+    const orgId = await getOrgId();
+
+    const activo = await prisma.activoFijo.findUnique({
+        where: { id: activoId, organizationId: orgId },
+        select: {
+            id: true,
+            idQr: true,
+            descripcionCorta: true,
+            area: true,
+            cuentaAct: true
+        }
+    });
+
+    if (!activo) {
+        return { success: false, error: 'Activo no encontrado' };
+    }
+
+    const host = process.env.NEXT_PUBLIC_APP_URL || 'https://bioelectronicahn.vercel.app';
+    
+    const params = new URLSearchParams({
+        idQr: activo.idQr,
+        descripcion: activo.descripcionCorta,
+        area: activo.area,
+        cuenta: activo.cuentaAct,
+    });
+    const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+
+    const printJobs = Array.from({ length: cantidad }).map(() => ({
+        organizationId: orgId,
+        activoId: activo.id,
+        urlImagen,
+        estado: 'PENDIENTE'
+    }));
+
+    const countPayload = await prisma.colaImpresion.createMany({
+        data: printJobs
+    });
+
+    return { success: true, count: countPayload.count };
+}
