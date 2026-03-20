@@ -627,6 +627,30 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [barcodeOptions, setBarcodeOptions] = useState<any[]>([]);
     const [showBarcodeDropdown, setShowBarcodeDropdown] = useState(false);
     const barcodeRef = useRef<HTMLDivElement>(null);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+    const handleScanSuccess = async (decodedText: string) => {
+        setIsScannerOpen(false);
+        setCodigoBarras(decodedText);
+        
+        try {
+            const res = await fetch(`/api/inventario/buscar-por-udi?udi=${encodeURIComponent(decodedText)}`);
+            if (res.ok) {
+                const json = await res.json();
+                if (json.found && json.data) {
+                    if (json.data.descripcionCorta) setDescripcionCorta(json.data.descripcionCorta);
+                    if (json.data.descripcionDetallada) setDescripcionDetallada(json.data.descripcionDetallada);
+                    if (json.data.marca) setMarca(json.data.marca);
+                    if (json.data.modelo) setModelo(json.data.modelo);
+                    if (json.data.cuentaAct) setSelectedCuenta(json.data.cuentaAct);
+                    if (json.data.codigoGrupo) setCodigoGrupo(json.data.codigoGrupo);
+                    alert('¡Producto detectado en registro histórico! Formulario autocompletado.');
+                }
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
 
     useEffect(() => {
         if (!codigoBarras || codigoBarras.length < 2 || isEdit) {
@@ -1572,6 +1596,11 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                     </div>
                 </div >
             </div >
+            <BarcodeScannerModal 
+                onOpen={isScannerOpen} 
+                onClose={() => setIsScannerOpen(false)} 
+                onScanSuccess={handleScanSuccess} 
+            />
         </>
     );
 }
@@ -1698,33 +1727,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [editActivo, setEditActivo] = useState<Activo | null>(null);
     const [deleteActivo_, setDeleteActivo] = useState<Activo | null>(null);
     const [showFilters, setShowFilters] = useState(false);
-    const [isScannerOpen, setIsScannerOpen] = useState(false);
 
-    const handleScanSuccess = async (decodedText: string) => {
-        setIsScannerOpen(false);
-        setCodigoBarras(decodedText);
-        
-        try {
-            const res = await fetch(`/api/inventario/buscar-por-udi?udi=${encodeURIComponent(decodedText)}`);
-            if (res.ok) {
-                const json = await res.json();
-                if (json.found && json.data) {
-                    if (json.data.descripcionCorta) setDescripcionCorta(json.data.descripcionCorta);
-                    if (json.data.descripcionDetallada) setDescripcionDetallada(json.data.descripcionDetallada);
-                    if (json.data.marca) setMarca(json.data.marca);
-                    if (json.data.modelo) setModelo(json.data.modelo);
-                    if (json.data.cuentaAct) setCuentaAct(json.data.cuentaAct);
-                    if (json.data.codigoGrupo) setCodigoGrupo(json.data.codigoGrupo);
-                    if (json.data.categoriaId) setCategoriaId(json.data.categoriaId);
-                    if (json.data.esConsumible !== undefined) setEsConsumible(json.data.esConsumible);
-                    if (json.data.vidaUtilOverride) setVidaUtilOverride(json.data.vidaUtilOverride);
-                    alert('¡Producto detectado en registro histórico! Formulario autocompletado.');
-                }
-            }
-        } catch (error) {
-            console.error(error);
-        }
-    };
     const [viewActivo, setViewActivo] = useState<Activo | null>(null);
     const [previewActivo, setPreviewActivo] = useState<Activo | null>(null);
     const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
@@ -2277,11 +2280,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 </div>
             )}
 
-            <BarcodeScannerModal 
-                onOpen={isScannerOpen} 
-                onClose={() => setIsScannerOpen(false)} 
-                onScanSuccess={handleScanSuccess} 
-            />
+
         </div>
     );
 }
