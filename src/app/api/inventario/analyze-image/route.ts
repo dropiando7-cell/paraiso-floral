@@ -63,7 +63,7 @@ Devuelve este JSON:
         const mediaType = (imgResp.headers.get('content-type') || 'image/jpeg') as 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
 
         const response = await client.messages.create({
-            model: 'claude-sonnet-4-6',
+            model: 'claude-3-5-sonnet-latest',
             max_tokens: 600,
             messages: [
                 {
