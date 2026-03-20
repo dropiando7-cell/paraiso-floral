@@ -225,6 +225,50 @@ export async function findActivoByBarcode(codigoBarras: string) {
     return activo;
 }
 
+export async function getActivoDetailsByBarcode(codigoBarras: string) {
+    const orgId = await getOrgId();
+    return await prisma.activoFijo.findFirst({
+        where: { organizationId: orgId, codigoBarras },
+        select: {
+            descripcionCorta: true,
+            descripcionDetallada: true,
+            marca: true,
+            modelo: true,
+            cuentaAct: true,
+            categoriaId: true,
+            esConsumible: true,
+            imagenUrl: true // so they don't need to re-photo
+        },
+        orderBy: { createdAt: 'desc' }
+    });
+}
+
+export async function searchActivosForAutocomplete(query: string) {
+    const orgId = await getOrgId();
+    if (!query || query.length < 2) return [];
+    
+    // Search distinct barcodes matching barcode OR short description
+    const results = await prisma.activoFijo.findMany({
+        where: {
+            organizationId: orgId,
+            codigoBarras: { not: null },
+            OR: [
+                { codigoBarras: { contains: query, mode: 'insensitive' } },
+                { descripcionCorta: { contains: query, mode: 'insensitive' } }
+            ]
+        },
+        select: {
+            codigoBarras: true,
+            descripcionCorta: true,
+            imagenUrl: true
+        },
+        distinct: ['codigoBarras'],
+        take: 10,
+        orderBy: { createdAt: 'desc' }
+    });
+    return results;
+}
+
 // ─── CREATE ──────────────────────────────────────────────────────────────────
 export async function createActivo(formData: FormData) {
     const orgId = await getOrgId();
@@ -305,9 +349,11 @@ export async function createActivo(formData: FormData) {
         stock: cantidadRegistros
     };
 
-    // Si ya existe un producto con este código de barras, solo sumamos stock (Lógica de Restock)
+    // Si ya existe un producto con este código de barras EN ESTA MISMA ÁREA, solo sumamos stock (Reabastecimiento Local)
     if (codigoBarras) {
-        const existente = await findActivoByBarcode(codigoBarras);
+        const existente = await prisma.activoFijo.findFirst({
+            where: { organizationId: orgId, codigoBarras, area }
+        });
         if (existente) {
             await prisma.activoFijo.update({
                 where: { id: existente.id },

@@ -45,6 +45,7 @@ model Organization {
   ordenesTrabajo        OrdenTrabajo[]
   rentasEquipo          RentaEquipo[]
   categorias            Categoria[]
+  movimientosInventario MovimientoInventario[]
 
   @@map("organizations")
 }
@@ -70,6 +71,7 @@ model User {
   openedAreas          AreaInventoryStatus[] @relation("AreaOpenedBy")
   calendarIntegrations CalendarIntegration[]
   medicalRecords       MedicalRecord[]
+  movimientosInventario MovimientoInventario[]
   organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("users")
@@ -346,6 +348,8 @@ model ActivoFijo {
   esConsumible          Boolean              @default(false)
   fechaVencimiento      DateTime?
   lote                  String?
+  productoId            String?              @db.Uuid
+  producto              Producto?            @relation(fields: [productoId], references: [id])
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -519,10 +523,37 @@ model Producto {
 
   organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   detallesFactura DetalleFactura[]
+  activosFijos    ActivoFijo[]
+  movimientos     MovimientoInventario[]
 
   @@unique([organizationId, sku])
   @@index([organizationId])
   @@map("productos")
+}
+
+model MovimientoInventario {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @db.Uuid
+  productoId     String       @db.Uuid
+  
+  tipoMovimiento String       // ENTRADA, SALIDA, AJUSTE, INICIAL
+  cantidad       Int
+  motivo         String?
+  referencia     String?      // Ej. Factura #, Orden #
+  
+  usuarioId      String       @db.Uuid
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  producto       Producto     @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  usuario        User         @relation(fields: [usuarioId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([productoId])
+  @@index([tipoMovimiento])
+  @@map("movimientos_inventario")
 }
 
 model Cliente {

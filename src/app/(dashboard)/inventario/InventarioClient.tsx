@@ -8,7 +8,7 @@ import {
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw
 } from 'lucide-react';
-import { getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, getCategorias, createCategoria } from './actions';
+import { searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, getCategorias, createCategoria } from './actions';
 import { removeBackground } from '@imgly/background-removal';
 
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
@@ -609,6 +609,65 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
     const [costoAdq, setCostoAdq] = useState<string>(editActivo?.costoAdq ? Number(editActivo.costoAdq).toString() : '');
 
+
+    const [isSearchingBarcode, setIsSearchingBarcode] = useState(false);
+    const [barcodeOptions, setBarcodeOptions] = useState<any[]>([]);
+    const [showBarcodeDropdown, setShowBarcodeDropdown] = useState(false);
+    const barcodeRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!codigoBarras || codigoBarras.length < 2 || isEdit) {
+            setBarcodeOptions([]);
+            setShowBarcodeDropdown(false);
+            return;
+        }
+        const delay = setTimeout(async () => {
+            setIsSearchingBarcode(true);
+            try {
+                const res = await searchActivosForAutocomplete(codigoBarras);
+                setBarcodeOptions(res);
+                if (res.length > 0) setShowBarcodeDropdown(true);
+            } catch (e) { }
+            setIsSearchingBarcode(false);
+        }, 400);
+        return () => clearTimeout(delay);
+    }, [codigoBarras, isEdit]);
+
+    useEffect(() => {
+        function handler(e: MouseEvent) {
+            if (barcodeRef.current && !barcodeRef.current.contains(e.target as Node)) {
+                setShowBarcodeDropdown(false);
+            }
+        }
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    async function handleBarcodeSearch(overrideCode?: string) {
+        let codeToSearch = overrideCode || codigoBarras;
+        if (typeof codeToSearch !== 'string') codeToSearch = codigoBarras;
+        if (!codeToSearch.trim() || isEdit) return;
+        setIsSearchingBarcode(true);
+        setShowBarcodeDropdown(false);
+        try {
+            const data = await getActivoDetailsByBarcode(codeToSearch.trim());
+            if (data) {
+                if (overrideCode && typeof overrideCode === 'string') setCodigoBarras(overrideCode);
+                if (!descripcionCorta) setDescripcionCorta(data.descripcionCorta || '');
+                if (!descripcionDetallada) setDescripcionDetallada(data.descripcionDetallada || '');
+                if (!marca) setMarca(data.marca || '');
+                if (!modelo) setModelo(data.modelo || '');
+                if (!selectedCuenta) setSelectedCuenta(data.cuentaAct || '');
+                if (!categoriaId) setCategoriaId(data.categoriaId || '');
+                if (!imagenUrl) setImagenUrl(data.imagenUrl || '');
+                setEsConsumible(data.esConsumible || false);
+            } else if (!overrideCode) {
+                alert('No se encontraron detalles para este código.');
+            }
+        } catch (e) { console.error(e); } finally { setIsSearchingBarcode(false); }
+    }
+
+
     // ─── Phase 14: Categories and Expirations ───
     const [categoriaId, setCategoriaId] = useState(editActivo?.categoriaId || '');
     const [categorias, setCategorias] = useState<{value: string, label: string}[]>([]);
@@ -1047,6 +1106,12 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
     return (
         <>
+            {catModalOpen && (
+                <CategoriaQuickModal open={catModalOpen} onClose={() => setCatModalOpen(false)} onSuccess={(id, name) => {
+                    setCategorias(prev => [...prev, { value: id, label: name }]);
+                    setCategoriaId(id);
+                }} />
+            )}
             {cropOpen && (
                 <CropModal
                     imageSrc={cropImgSrc}
@@ -1259,6 +1324,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <div className="grid grid-cols-1 gap-4">
                                             {/* Código de Barras / SKU Comercial */}
                                             <div>
+                                                <div className="relative" ref={barcodeRef}>
                                                 <FieldLabel>Código de Barras / SKU (Opcional)</FieldLabel>
                                                 <input 
                                                     type="text" 
@@ -1267,7 +1333,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                     placeholder="Escanea o escribe el código..." 
                                                     className={`${inputCls} font-mono font-bold tracking-widest text-slate-800 border-indigo-200 focus:ring-indigo-500`} 
                                                 />
-                                                <p className="text-[10px] text-slate-500 mt-1">Si ya existe un producto con este código, al registrar se sumará al stock actual en lugar de duplicarse.</p>
+                                                <p className="text-[10px] text-slate-500 mt-1.5">Si ya existe en esta Área, sumará stock. Si es en otra, copiará los datos.</p>
+                                            </div>
                                             </div>
                                         </div>
 
@@ -2202,6 +2269,33 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+function CategoriaQuickModal({ open, onClose, onSuccess }: { open: boolean, onClose: () => void, onSuccess: (id: string, name: string) => void }) {
+    const [nombre, setNombre] = useState('');
+    const [isPending, startTransition] = useTransition();
+    if (!open) return null;
+    return (
+        <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+                <h3 className="text-lg font-bold text-slate-900 mb-4">Nueva Categoría (Maestra)</h3>
+                <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Sensores Médicos..." className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 font-medium text-slate-800 focus:border-[#0500A3] focus:ring-0 outline-none transition-colors mb-4" autoFocus />
+                <div className="flex gap-3">
+                    <button type="button" onClick={onClose} className="flex-1 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 py-3 rounded-xl transition-colors">Cancelar</button>
+                    <button type="button" onClick={() => startTransition(async () => {
+                        if (!nombre.trim()) return alert('El nombre es obligatorio');
+                        try {
+                            const res = await createCategoria(nombre);
+                            if (res.error) alert(res.error);
+                            else if (res.categoria) { onSuccess(res.categoria.id, res.categoria.nombre); onClose(); }
+                        } catch (e) { alert('Error interno'); }
+                    })} disabled={isPending || !nombre.trim()} className="flex-1 font-bold text-white bg-[#0500A3] hover:bg-[#0600c2] py-3 rounded-xl transition-colors flex justify-center items-center">
+                        {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Guardar'}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }
