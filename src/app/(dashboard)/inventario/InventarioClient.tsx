@@ -9,6 +9,7 @@ import {
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw
 } from 'lucide-react';
 import { searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, encolarCopiasNiimbot, getCategorias, createCategoria } from './actions';
+import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 import { removeBackground } from '@imgly/background-removal';
 
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
@@ -1363,15 +1364,24 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             {/* Código de Barras / SKU Comercial */}
                                             <div>
                                                 <div className="relative" ref={barcodeRef}>
-                                                <FieldLabel>Código de Barras / SKU (Opcional)</FieldLabel>
+                                                    <div className="flex items-center justify-between">
+                                                        <FieldLabel>Código de Barras / UDI GS1</FieldLabel>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setIsScannerOpen(true)}
+                                                            className="text-[#0500A3] bg-[#0500A3]/10 px-2 py-0.5 rounded-md flex items-center gap-1 text-xs font-semibold hover:bg-[#0500A3] hover:text-white transition-colors border border-[#0500A3]/20 mb-2"
+                                                        >
+                                                            <Camera className="w-3.5 h-3.5" /> Escanear
+                                                        </button>
+                                                    </div>
                                                 <input 
                                                     type="text" 
                                                     value={codigoBarras} 
                                                     onChange={e => setCodigoBarras(e.target.value)} 
                                                     placeholder="Escanea o escribe el código..." 
-                                                    className={`${inputCls} font-mono font-bold tracking-widest text-slate-800 border-indigo-200 focus:ring-indigo-500`} 
+                                                    className={`${inputCls} font-mono font-bold tracking-widest text-[#0500A3] border-indigo-200 focus:ring-[#0500A3]`} 
                                                 />
-                                                <p className="text-[10px] text-slate-500 mt-1.5">Si ya existe en esta Área, sumará stock. Si es en otra, copiará los datos.</p>
+                                                <p className="text-[10px] text-slate-500 mt-1.5">Escanea la caja o placa si tiene UDI / GTIN. Si es detectado, se autocompletará el equipo.</p>
                                             </div>
                                             </div>
                                         </div>
@@ -1688,6 +1698,33 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [editActivo, setEditActivo] = useState<Activo | null>(null);
     const [deleteActivo_, setDeleteActivo] = useState<Activo | null>(null);
     const [showFilters, setShowFilters] = useState(false);
+    const [isScannerOpen, setIsScannerOpen] = useState(false);
+
+    const handleScanSuccess = async (decodedText: string) => {
+        setIsScannerOpen(false);
+        setCodigoBarras(decodedText);
+        
+        try {
+            const res = await fetch(`/api/inventario/buscar-por-udi?udi=${encodeURIComponent(decodedText)}`);
+            if (res.ok) {
+                const json = await res.json();
+                if (json.found && json.data) {
+                    if (json.data.descripcionCorta) setDescripcionCorta(json.data.descripcionCorta);
+                    if (json.data.descripcionDetallada) setDescripcionDetallada(json.data.descripcionDetallada);
+                    if (json.data.marca) setMarca(json.data.marca);
+                    if (json.data.modelo) setModelo(json.data.modelo);
+                    if (json.data.cuentaAct) setCuentaAct(json.data.cuentaAct);
+                    if (json.data.codigoGrupo) setCodigoGrupo(json.data.codigoGrupo);
+                    if (json.data.categoriaId) setCategoriaId(json.data.categoriaId);
+                    if (json.data.esConsumible !== undefined) setEsConsumible(json.data.esConsumible);
+                    if (json.data.vidaUtilOverride) setVidaUtilOverride(json.data.vidaUtilOverride);
+                    alert('¡Producto detectado en registro histórico! Formulario autocompletado.');
+                }
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    };
     const [viewActivo, setViewActivo] = useState<Activo | null>(null);
     const [previewActivo, setPreviewActivo] = useState<Activo | null>(null);
     const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
@@ -1847,38 +1884,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                                 </button>
                             </>
                         )}
-                        <button onClick={() => {
-                            window.print();
-                        }}
-                            className="flex items-center justify-center gap-2 text-base font-bold bg-white text-slate-700 border-2 border-slate-200 px-5 py-3 rounded-2xl hover:bg-slate-50 active:scale-95 transition-all w-full sm:w-auto mt-2 sm:mt-0 hide-on-print">
-                            <Printer className="w-5 h-5 text-slate-500" /> Imprimir Reporte
-                        </button>
                         <button onClick={() => setLoteModalOpen(true)}
-                            className="flex items-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print">
+                            className="flex items-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print mt-2 sm:mt-0">
                             <Printer className="w-5 h-5" /> Imprimir Lote
                         </button>
-                        
-                        {userRole === 'SUPER_ADMIN' && (
-                            <button onClick={async () => {
-                                if (confirm('¿Ejecutar la categorización automática con IA (Claude)? Esto procesará 50 productos sin categoría.')) {
-                                    setIsAutoCategorizing(true);
-                                    try {
-                                        const res = await fetch('/api/inventario/auto-categorize', { method: 'POST' });
-                                        const json = await res.json();
-                                        if (json.error) alert(json.error);
-                                        else {
-                                            alert(json.message);
-                                            refresh();
-                                        }
-                                    } catch (e: any) { alert('Error: ' + e.message); }
-                                    finally { setIsAutoCategorizing(false); }
-                                }
-                            }}
-                                disabled={isAutoCategorizing}
-                                className="flex items-center gap-2 text-base font-bold bg-gradient-to-br from-purple-100 to-purple-50 text-purple-700 border-2 border-purple-200 px-5 py-3 rounded-2xl hover:bg-purple-100 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print shadow-sm">
-                                {isAutoCategorizing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />} Auto-Categorizar
-                            </button>
-                        )}
 
                         <div className="flex flex-col sm:flex-row gap-3">
                             <button
@@ -2267,6 +2276,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                     </div>
                 </div>
             )}
+
+            <BarcodeScannerModal 
+                onOpen={isScannerOpen} 
+                onClose={() => setIsScannerOpen(false)} 
+                onScanSuccess={handleScanSuccess} 
+            />
         </div>
     );
 }

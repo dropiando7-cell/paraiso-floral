@@ -16,10 +16,7 @@ export default async function HistoricoPage() {
     });
     if (!dbUser) redirect('/unauthorized');
 
-    const allowedRoles = ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'];
-    const hasModuleAccess = dbUser.accessibleModules?.includes('/inventario/historico');
-
-    if (!allowedRoles.includes(dbUser.role) && !hasModuleAccess) {
+    if (dbUser.role !== 'SUPER_ADMIN') {
         redirect('/unauthorized');
     }
 

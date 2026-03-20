@@ -26,35 +26,25 @@ async function getOrgId(): Promise<string> {
 
 // ─── Auto-generate ID QR ─────────────────────────────────────────────────────
 async function generateIdQr(organizationId: string, area: string, codigoGrupo: string = '001', cantidadRegistros: number = 1): Promise<string[]> {
-    // Buscar el area real en BD para obtener el prefijo base
-    const areaRecord = await prisma.area.findFirst({
-        where: { organizationId, name: area }
-    });
+    const prefijoBase = 'BIO';
 
-    const prefijoBase = areaRecord?.prefix || area;
-    const prefijoConGrupo = `${prefijoBase}-${codigoGrupo.padStart(3, '0')}`;
-
-    // Buscar el último activo de la ORGANIZACIÓN completa que pertenezca a este CODIGO DE GRUPO
-    // Para no depender del prefijo del área, buscamos cualquiera cuyo ID termine con -xxx donde xxx es el correlativo
-    // y cuyo codigoGrupo sea el que estamos buscando.
-    const lastActivo = await prisma.activoFijo.findFirst({
-        where: { organizationId, codigoGrupo },
-        orderBy: { createdAt: 'desc' }, // Asumimos que el último creado tiene el correlativo mayor para su grupo (O podríamos ordenar por idQr desc pero varía el prefijo)
-    });
-
-    // Validemos buscando todos los de ese grupo para sacar el maximo número si es mas seguro
-    const todosDeGrupo = await prisma.activoFijo.findMany({
-        where: { organizationId, codigoGrupo },
+    const todos = await prisma.activoFijo.findMany({
+        where: { 
+            organizationId,
+            idQr: { startsWith: `${prefijoBase}-` }
+        },
         select: { idQr: true }
     });
 
     let maxCorrelativo = 0;
-    for (const act of todosDeGrupo) {
+    for (const act of todos) {
         const parts = act.idQr.split('-');
-        const lastPart = parts[parts.length - 1];
-        if (!isNaN(Number(lastPart))) {
-            const num = Number(lastPart);
-            if (num > maxCorrelativo) maxCorrelativo = num;
+        if (parts.length >= 2) {
+            const lastPart = parts[parts.length - 1];
+            if (!isNaN(Number(lastPart))) {
+                const num = Number(lastPart);
+                if (num > maxCorrelativo) maxCorrelativo = num;
+            }
         }
     }
 
@@ -62,7 +52,7 @@ async function generateIdQr(organizationId: string, area: string, codigoGrupo: s
     const ids = [];
 
     for (let i = 0; i < cantidadRegistros; i++) {
-        ids.push(`${prefijoConGrupo}-${String(startNum + i).padStart(4, '0')}`);
+        ids.push(`${prefijoBase}-${String(startNum + i).padStart(6, '0')}`);
     }
 
     return ids;
