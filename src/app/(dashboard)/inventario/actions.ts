@@ -211,6 +211,33 @@ export async function findActivoByBarcode(codigoBarras: string) {
     const orgId = await getOrgId();
     const activo = await prisma.activoFijo.findFirst({
         where: { organizationId: orgId, codigoBarras },
+        orderBy: { createdAt: 'asc' }
+    });
+    return activo;
+}
+
+/**
+ * Devuelve info del producto existente con ese código de barras, para que el UI
+ * entre en modo Reabastecer sin crear un registro nuevo.
+ */
+export async function checkExistingByBarcode(codigoBarras: string) {
+    if (!codigoBarras?.trim()) return null;
+    const orgId = await getOrgId();
+    const activo = await prisma.activoFijo.findFirst({
+        where: { organizationId: orgId, codigoBarras: codigoBarras.trim() },
+        orderBy: { createdAt: 'asc' },
+        select: {
+            id: true,
+            idQr: true,
+            descripcionCorta: true,
+            descripcionDetallada: true,
+            marca: true,
+            modelo: true,
+            imagenUrl: true,
+            stock: true,
+            area: true,
+            codigoBarras: true,
+        }
     });
     return activo;
 }
@@ -339,10 +366,11 @@ export async function createActivo(formData: FormData) {
         stock: cantidadRegistros
     };
 
-    // Si ya existe un producto con este código de barras EN ESTA MISMA ÁREA, solo sumamos stock (Reabastecimiento Local)
+    // Si ya existe un producto con este código de barras en la organización, solo sumamos stock (Reabastecimiento)
     if (codigoBarras) {
         const existente = await prisma.activoFijo.findFirst({
-            where: { organizationId: orgId, codigoBarras, area }
+            where: { organizationId: orgId, codigoBarras },
+            orderBy: { createdAt: 'asc' } // el original, no una copia
         });
         if (existente) {
             await prisma.activoFijo.update({

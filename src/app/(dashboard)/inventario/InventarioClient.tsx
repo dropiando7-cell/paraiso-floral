@@ -8,8 +8,9 @@ import {
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw
 } from 'lucide-react';
-import { searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, encolarCopiasNiimbot, getCategorias, createCategoria } from './actions';
+import { searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, encolarCopiasNiimbot, getCategorias, createCategoria, checkExistingByBarcode } from './actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
+import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
 import { removeBackground } from '@imgly/background-removal';
 
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
@@ -628,11 +629,37 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [showBarcodeDropdown, setShowBarcodeDropdown] = useState(false);
     const barcodeRef = useRef<HTMLDivElement>(null);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
+    // Cuando un código ya existe en inventario, entra en modo Reabastecer
+    const [restockTarget, setRestockTarget] = useState<{
+        id: string; idQr: string; descripcionCorta: string; stock: number; imagenUrl: string | null; codigoBarras: string | null; area: string;
+    } | null>(null);
+    const [restockCantidad, setRestockCantidad] = useState('1');
+    const [isRestocking, setIsRestocking] = useState(false);
 
-    const handleScanSuccess = async (decodedText: string) => {
+    const handleScanSuccess = async (decodedText: string, gs1?: GS1Fields) => {
         setIsScannerOpen(false);
         setCodigoBarras(decodedText);
-        
+
+        // Autocompletar lote y vencimiento desde GS1 si el modal los tiene
+        if (gs1?.lote) setLote(gs1.lote);
+        if (gs1?.fechaVenc) {
+            const iso = gs1DateToISO(gs1.fechaVenc);
+            if (iso) setFechaVencimiento(iso);
+        }
+
+        // Verificar si ya existe en inventario → modo Reabastecer
+        try {
+            const existente = await checkExistingByBarcode(decodedText);
+            if (existente) {
+                setRestockTarget(existente);
+                setRestockCantidad('1');
+                return; // No rellenar el formulario completo
+            }
+        } catch (e) {
+            console.error('checkExistingByBarcode error:', e);
+        }
+
+        // No existe → intentar autocompletar desde histórico
         try {
             const res = await fetch(`/api/inventario/buscar-por-udi?udi=${encodeURIComponent(decodedText)}`);
             if (res.ok) {
@@ -1591,10 +1618,86 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                     </div>
                 </div >
             </div >
-            <BarcodeScannerModal 
-                onOpen={isScannerOpen} 
-                onClose={() => setIsScannerOpen(false)} 
-                onScanSuccess={handleScanSuccess} 
+            {/* ── Modal Reabastecer (cuando el código ya existe) ── */}
+            {restockTarget && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+                        <div className="px-5 py-4 bg-emerald-50 border-b border-emerald-200 flex items-center gap-3">
+                            <div className="bg-emerald-500 text-white rounded-full p-2">
+                                <CheckCircle2 className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="font-bold text-emerald-900 text-base">Producto ya registrado</p>
+                                <p className="text-xs text-emerald-700">Se agregará cantidad al registro existente</p>
+                            </div>
+                        </div>
+                        <div className="px-5 py-4 space-y-3">
+                            {restockTarget.imagenUrl && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={restockTarget.imagenUrl} alt="" className="w-16 h-16 object-cover rounded-xl border border-slate-200 mx-auto block" />
+                            )}
+                            <div className="text-center">
+                                <p className="font-bold text-slate-800 text-base">{restockTarget.descripcionCorta}</p>
+                                <p className="text-xs font-mono text-indigo-600 font-bold mt-0.5">{restockTarget.idQr}</p>
+                                <p className="text-sm text-slate-500 mt-1">Stock actual: <span className="font-bold text-slate-700">{restockTarget.stock}</span></p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1.5">Cantidad a agregar</label>
+                                <input
+                                    type="number" min="1"
+                                    value={restockCantidad}
+                                    onChange={e => setRestockCantidad(e.target.value)}
+                                    className="w-full px-4 py-3 text-center text-2xl font-bold rounded-xl border-2 border-slate-200 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 outline-none"
+                                />
+                            </div>
+                            <div className="flex gap-3 mt-2">
+                                <button
+                                    onClick={() => { setRestockTarget(null); setRestockCantidad('1'); }}
+                                    className="flex-1 py-3 rounded-xl border-2 border-slate-200 text-slate-600 font-semibold text-sm hover:bg-slate-50 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    disabled={isRestocking}
+                                    onClick={async () => {
+                                        setIsRestocking(true);
+                                        try {
+                                            const fd = new FormData();
+                                            fd.set('codigoBarras', restockTarget!.codigoBarras ?? '');
+                                            fd.set('cantidad', restockCantidad);
+                                            fd.set('area', restockTarget!.area);
+                                            fd.set('descripcionCorta', restockTarget!.descripcionCorta);
+                                            fd.set('cuentaAct', 'INVENTARIO');
+                                            fd.set('codigoGrupo', '001');
+                                            const result = await createActivo(fd);
+                                            if (result.success) {
+                                                const msg = `✅ +${restockCantidad} unidades agregadas a ${restockTarget!.idQr}`;
+                                                setRestockTarget(null);
+                                                setRestockCantidad('1');
+                                                onSuccess();
+                                                onClose();
+                                                alert(msg);
+                                            }
+                                        } catch (e: any) {
+                                            alert('Error: ' + e.message);
+                                        } finally {
+                                            setIsRestocking(false);
+                                        }
+                                    }}
+                                    className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {isRestocking ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                    {isRestocking ? 'Guardando...' : `Agregar ${restockCantidad}`}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <BarcodeScannerModal
+                onOpen={isScannerOpen}
+                onClose={() => setIsScannerOpen(false)}
+                onScanSuccess={handleScanSuccess}
             />
         </>
     );
