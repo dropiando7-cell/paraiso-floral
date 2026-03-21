@@ -868,22 +868,18 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         setCropImgSrc('');
         setUploadPhase('uploading');
         try {
+            const formData = new FormData();
+            formData.append('file', blob, 'activo.jpg');
+            formData.append('fileName', 'activo.jpg');
             const res = await fetch('/api/upload/inventario', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: 'activo.jpg', contentType: 'image/jpeg' }),
+                body: formData,
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || `Error ${res.status} al obtener URL de subida`);
+                throw new Error(errData.error || `Error ${res.status} al subir imagen`);
             }
-            const { uploadUrl, publicUrl } = await res.json();
-            const uploadRes = await fetch(uploadUrl, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'image/jpeg' },
-                body: blob,
-            });
-            if (!uploadRes.ok) throw new Error('Error al enviar imagen a R2');
+            const { publicUrl } = await res.json();
             setImagenUrl(publicUrl);
             setUploadPhase('done');
             // Auto-trigger AI analysis right after upload
@@ -984,19 +980,18 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
             const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.85));
 
+            const placaFormData = new FormData();
+            placaFormData.append('file', blob, 'placa.jpg');
+            placaFormData.append('fileName', 'placa.jpg');
             const res = await fetch('/api/upload/inventario', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: 'placa.jpg', contentType: 'image/jpeg' }),
+                body: placaFormData,
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || `Error ${res.status}: Falló URL de subida`);
+                throw new Error(errData.error || `Error ${res.status}: Falló subida de placa`);
             }
-            const { uploadUrl, publicUrl } = await res.json();
-
-            const uploadRes = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
-            if (!uploadRes.ok) throw new Error('Error al enviar imagen de placa a R2');
+            const { publicUrl } = await res.json();
 
             setImagenPlacaUrl(publicUrl);
             setPlacaUploadPhase('done');
