@@ -71,18 +71,23 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     };
 
     const availableModules = [
-        { id: '/', label: 'Portal Elim (Dashboard)' },
-        { id: '/conciliacion', label: 'Conciliación Bancaria IA' },
-        { id: '/ingresos', label: 'Ingresos Congregacionales' },
-        { id: '/boveda', label: 'Gestor de Contraseñas' },
-        { id: '/inventario', label: 'Inventario de Activos' },
-        { id: '/inventario/historico', label: 'Editor Histórico' },
-        { id: '/actas', label: 'Actas de Junta' },
-        { id: '/prediccion', label: 'Predicción Financiera' },
-        { id: '/calendario', label: 'Calendario Centralizado' },
-        { id: '/checkin', label: 'Checkin Kids' },
-        { id: '/medico', label: 'Asistencia Médica' },
+        { id: '/', label: 'Portal Bioelectrónica' },
+        { id: '/inventario-ia', label: 'Inventario IA' },
+        { id: '/rentas', label: 'Rentas de Equipos' },
+        { id: '/graficas', label: 'Gráficas e Informes' },
+        { id: '/inventario', label: 'Control de Inventario' },
+        { id: '/inventario/modelos', label: 'Catálogo de Modelos' },
+        { id: '/inventario/entradas', label: 'Entradas / Compras' },
+        { id: '/inventario/salidas', label: 'Salidas / Descargas' },
+        { id: '/inventario/kardex', label: 'Kardex de Movimientos' },
+        { id: '/admin/areas', label: 'Ubicaciones y Sucursales' },
+        { id: '/inventario/historico', label: 'Inventario Histórico (Odoo)' },
+        { id: '/contactos', label: 'Directorio de Contactos' },
+        { id: '/soporte', label: 'Soporte y Reparaciones' },
+        { id: '/cotizaciones', label: 'Cotizaciones' },
+        { id: '/facturas', label: 'Facturación' }
     ];
+
 
     const handleRoleChange = (selectedValue: string) => {
         // Check if it's a template
