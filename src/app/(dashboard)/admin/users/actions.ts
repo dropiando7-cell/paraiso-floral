@@ -86,8 +86,15 @@ export async function createUser(data: {
         try {
             // Provide a graceful fallback if the URL environment variable isn't set
             const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sistemaselim.app';
-            // Use the specific email domain the client requested
-            const senderEmail = 'Sistemas Elim <admin@mail.sistemaselim.app>';
+            
+            // Get Organization Details for Whitelabel
+            const organization = await prisma.organization.findUnique({
+                where: { id: data.organizationId }
+            });
+            const orgName = organization?.name || 'Sistemas Elim';
+            const logoUrl = organization?.logoUrl || undefined;
+
+            const senderEmail = `${orgName} <admin@mail.sistemaselim.app>`;
             const computedFirstName = data.firstName || data.email.split('@')[0];
 
             // 1. Fetch the corresponding custom template from the database
@@ -103,11 +110,11 @@ export async function createUser(data: {
 
             // 2. Set Fallback content if no active template exists or it's deactivated
             const activeTemplate = emailTemplate?.isActive ? emailTemplate : {
-                subject: data.password ? '¡Bienvenido a Sistemas Elim!' : '¡Acceso Concedido a Sistemas Elim!',
-                title: data.password ? '¡Bienvenido a Sistemas Elim!' : '¡Acceso Concedido!',
+                subject: data.password ? `¡Bienvenido a ${orgName}!` : `¡Acceso Concedido a ${orgName}!`,
+                title: data.password ? `¡Bienvenido a ${orgName}!` : '¡Acceso Concedido!',
                 body: data.password
                     ? 'Tu cuenta ha sido creada exitosamente. \nTus credenciales son: \nCorreo: {{email}} \nContraseña Temporal: {{password}}'
-                    : 'Nos complace informarte que tu cuenta de Google Workspace ({{email}}) ha sido autorizada para ingresar a Sistemas Elim. \n\nYa puedes ingresar a la plataforma utilizando el botón de "Continuar con Google". No necesitas contraseña.',
+                    : `Nos complace informarte que tu cuenta de Google Workspace ({{email}}) ha sido autorizada para ingresar a ${orgName}. \n\nYa puedes ingresar a la plataforma utilizando el botón de "Continuar con Google". No necesitas contraseña.`,
                 buttonText: data.password ? 'Iniciar Sesión Ahora' : 'Entrar con Google Workspace',
                 type: templateType
             };
@@ -125,6 +132,8 @@ export async function createUser(data: {
                 firstName: computedFirstName,
                 email: data.email,
                 password: data.password,
+                logoUrl: logoUrl,
+                orgName: orgName,
                 loginUrl: `${appUrl}/login`,
             }));
 
@@ -473,7 +482,15 @@ export async function sendManualWelcomeEmail(userId: string) {
         const computedFirstName = authTargetUser.user_metadata?.full_name?.split(' ')[0] || targetUser.email.split('@')[0];
 
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sistemaselim.app';
-        const senderEmail = 'Sistemas Elim <admin@mail.sistemaselim.app>';
+        
+        // Get Organization Details for Whitelabel
+        const organization = await prisma.organization.findUnique({
+            where: { id: targetUser.organizationId }
+        });
+        const orgName = organization?.name || 'Sistemas Elim';
+        const logoUrl = organization?.logoUrl || undefined;
+
+        const senderEmail = `${orgName} <admin@mail.sistemaselim.app>`;
 
         let newTempPassword = null;
         let templateType: EmailTemplateType = 'GOOGLE_WELCOME';
@@ -500,11 +517,11 @@ export async function sendManualWelcomeEmail(userId: string) {
 
         // Set Fallback content if no template is active
         const activeTemplate = emailTemplate?.isActive ? emailTemplate : {
-            subject: newTempPassword ? '¡Bienvenido a Sistemas Elim!' : '¡Acceso Concedido a Sistemas Elim!',
-            title: newTempPassword ? '¡Bienvenido a Sistemas Elim!' : '¡Acceso Concedido!',
+            subject: newTempPassword ? `¡Bienvenido a ${orgName}!` : `¡Acceso Concedido a ${orgName}!`,
+            title: newTempPassword ? `¡Bienvenido a ${orgName}!` : '¡Acceso Concedido!',
             body: newTempPassword
                 ? 'Tu cuenta ha sido creada exitosamente. \nTus credenciales son: \nCorreo: {{email}} \nContraseña Temporal: {{password}}'
-                : 'Nos complace informarte que tu cuenta de Google Workspace ({{email}}) ha sido autorizada para ingresar a Sistemas Elim. \n\nYa puedes ingresar a la plataforma utilizando el botón de "Continuar con Google". No necesitas contraseña.',
+                : `Nos complace informarte que tu cuenta de Google Workspace ({{email}}) ha sido autorizada para ingresar a ${orgName}. \n\nYa puedes ingresar a la plataforma utilizando el botón de "Continuar con Google". No necesitas contraseña.`,
             buttonText: newTempPassword ? 'Iniciar Sesión Ahora' : 'Entrar con Google Workspace',
             type: templateType
         };
@@ -523,6 +540,8 @@ export async function sendManualWelcomeEmail(userId: string) {
                 firstName: computedFirstName,
                 email: targetUser.email,
                 password: newTempPassword || undefined,
+                logoUrl: logoUrl,
+                orgName: orgName,
                 loginUrl: `${appUrl}/login`,
             }));
 

@@ -27,6 +27,8 @@ interface WelcomeEmailDynamicProps {
     firstName: string;
     email: string;
     password?: string;
+    logoUrl?: string | null;
+    orgName?: string;
 }
 
 export const WelcomeEmailDynamic = ({
@@ -39,6 +41,8 @@ export const WelcomeEmailDynamic = ({
     firstName,
     email,
     password,
+    logoUrl,
+    orgName,
 }: WelcomeEmailDynamicProps) => {
 
     // Reemplazar dinámicamente las variables en el texto
@@ -84,12 +88,18 @@ export const WelcomeEmailDynamic = ({
                     <Container className="border border-solid border-slate-200 rounded-lg my-[40px] mx-auto p-[20px] max-w-[465px] bg-white text-center shadow-sm">
 
                         <Section className="mt-[32px] mb-[24px]">
-                            <Img
-                                src="https://pub-e9f7db97630d40fe816c341284149436.r2.dev/images/logo-sistemas-elim-azul.png"
-                                width="150"
-                                alt="Sistemas Elim"
-                                className="my-0 mx-auto"
-                            />
+                            {logoUrl ? (
+                                <Img
+                                    src={logoUrl}
+                                    height="40"
+                                    alt={orgName || "Empresa"}
+                                    className="my-0 mx-auto object-contain"
+                                />
+                            ) : (
+                                <Text className="text-xl font-bold text-blue-600 text-center uppercase tracking-wider m-0">
+                                    {orgName || 'Sistemas Elim'}
+                                </Text>
+                            )}
                         </Section>
 
                         <Heading className="text-slate-900 text-[24px] font-bold text-center p-0 my-[24px] mx-0 font-sans tracking-tight">
@@ -128,7 +138,7 @@ export const WelcomeEmailDynamic = ({
 
                         <Hr className="border border-solid border-slate-200 my-[26px] mx-0 w-full" />
                         <Text className="text-slate-500 text-[12px] leading-[20px] text-center">
-                            Este es un mensaje automático generado por Sistemas Elim.<br />
+                            Este es un mensaje automático generado por {orgName || 'Sistemas Elim'}.<br />
                             Por favor no respondas a este correo.
                         </Text>
                     </Container>

@@ -20,6 +20,8 @@ interface WelcomeClassicEmailProps {
     email: string;
     temporaryPassword?: string;
     loginUrl: string;
+    logoUrl?: string | null;
+    orgName?: string;
 }
 
 export const WelcomeClassicEmail = ({
@@ -27,8 +29,10 @@ export const WelcomeClassicEmail = ({
     email,
     temporaryPassword,
     loginUrl,
+    logoUrl,
+    orgName,
 }: WelcomeClassicEmailProps) => {
-    const previewText = `¡Bienvenido a Sistemas Elim, ${firstName}!`;
+    const previewText = `¡Bienvenido a ${orgName || 'Sistemas Elim'}, ${firstName}!`;
 
     return (
         <Html>
@@ -38,16 +42,21 @@ export const WelcomeClassicEmail = ({
                 <Body className="bg-slate-50 my-auto mx-auto font-sans px-2">
                     <Container className="border border-solid border-slate-200 rounded-2xl my-[40px] mx-auto p-[32px] w-[465px] bg-white shadow-sm">
                         <Section className="mt-[20px] mb-[32px]">
-                            {/* TBD: Replace with actual logo URL once available online */}
-                            <Text className="text-xl font-bold text-blue-600 text-center uppercase tracking-wider m-0">
-                                Elim Honduras
-                            </Text>
-                            <Text className="text-sm font-medium text-slate-500 text-center m-0 mt-1">
-                                Enterprise Platform
-                            </Text>
+                            {logoUrl ? (
+                                <Img
+                                    src={logoUrl}
+                                    height="40"
+                                    alt={orgName || 'Empresa'}
+                                    className="my-0 mx-auto object-contain"
+                                />
+                            ) : (
+                                <Text className="text-xl font-bold text-blue-600 text-center uppercase tracking-wider m-0">
+                                    {orgName || 'Sistemas Elim'}
+                                </Text>
+                            )}
                         </Section>
                         <Heading className="text-black text-[24px] font-bold text-center p-0 my-[30px] mx-0 text-slate-800 tracking-tight">
-                            ¡Bienvenido a Sistemas Elim!
+                            ¡Bienvenido a {orgName || 'Sistemas Elim'}!
                         </Heading>
                         <Text className="text-slate-700 text-[15px] leading-[24px]">
                             Hola <strong>{firstName}</strong>,
