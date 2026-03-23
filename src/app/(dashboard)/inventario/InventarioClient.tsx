@@ -621,6 +621,9 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [codigoBarras, setCodigoBarras] = useState(editActivo?.codigoBarras || '');
     const [cantidad, setCantidad] = useState(editActivo?.stock ? String(editActivo.stock) : '1');
     const [responsable, setResponsable] = useState(editActivo?.responsable || (lockedArea ? RESPONSABLES[lockedArea] : '') || '');
+
+    // Pre-step Registration Type
+    const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso'>(editActivo ? 'reingreso' : 'seleccion');
     const [compatibilidad, setCompatibilidad] = useState<string[]>(isEdit && editActivo ? editActivo.compatibilidad || [] : []);
     const [tagInput, setTagInput] = useState('');
     const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
@@ -885,6 +888,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
             setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
+            setTipoRegistro('seleccion');
         }
     }, [editActivo, open, lockedArea]);
 
@@ -1211,6 +1215,11 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                         {/* ── Sticky Header ── */}
                         <div className="sticky top-0 z-10 bg-white flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100 sm:rounded-t-2xl">
                             <div className="flex items-center gap-3">
+                                {tipoRegistro !== 'seleccion' && !isEdit && (
+                                    <button type="button" onClick={() => setTipoRegistro('seleccion')} className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500 hover:text-slate-800" title="Volver a la selección">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                                    </button>
+                                )}
                                 <div className="bg-[#0500A3]/10 p-2.5 rounded-xl">
                                     <QrCode className="w-5 h-5 text-[#0500A3]" />
                                 </div>
@@ -1218,9 +1227,15 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                     <h2 className="text-lg font-bold text-slate-900">
                                         {isEdit ? 'Editar Producto' : 'Registrar Producto'}
                                     </h2>
-                                    {(previewQr || isEdit) && (
+                                    {(previewQr || isEdit) ? (
                                         <p className="text-xs font-mono text-[#0500A3] font-bold mt-0.5">
                                             ID QR: {isEdit ? editActivo?.idQr : previewQr}
+                                        </p>
+                                    ) : (
+                                        <p className="text-xs text-slate-500 mt-0.5">
+                                            {tipoRegistro === 'seleccion' ? 'Por favor elige un tipo de registro' : 
+                                             tipoRegistro === 'nuevo' ? 'Completar información de nueva alta' :
+                                             'Añadir existencias a un producto previo'}
                                         </p>
                                     )}
                                 </div>
@@ -1299,6 +1314,34 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         ✏️ Volver a editar
                                     </button>
                                 </div>
+                            </div>
+                        ) : tipoRegistro === 'seleccion' && !isEdit ? (
+                            <div className="p-6 md:p-8 space-y-5">
+                                <button type="button" onClick={() => setTipoRegistro('nuevo')}
+                                    className="w-full text-left p-6 border-2 border-slate-100 rounded-2xl hover:border-[#0500A3] hover:bg-[#0500A3]/5 transition-all group flex items-start gap-5">
+                                    <div className="w-14 h-14 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                                        <Plus className="w-7 h-7" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#0500A3]">Nuevo Producto</h3>
+                                        <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                                            Registrar un código o producto que no existe actualmente en la base de datos.
+                                        </p>
+                                    </div>
+                                </button>
+
+                                <button type="button" onClick={() => setTipoRegistro('reingreso')}
+                                    className="w-full text-left p-6 border-2 border-slate-100 rounded-2xl hover:border-[#0500A3] hover:bg-[#0500A3]/5 transition-all group flex items-start gap-5">
+                                    <div className="w-14 h-14 shrink-0 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                                        <Package className="w-7 h-7" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#0500A3]">Reingreso / Restock</h3>
+                                        <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                                            Seleccionar un producto existente para agregarle más existencias en una nueva ubicación de área.
+                                        </p>
+                                    </div>
+                                </button>
                             </div>
                         ) : (
                             <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
@@ -1417,6 +1460,15 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                         value={codigoGrupo}
                                                         className={`${inputCls} font-mono bg-blue-50/10 font-bold tracking-widest text-[#0500A3] opacity-60 cursor-not-allowed border-transparent`}
                                                     />
+                                                ) : tipoRegistro === 'nuevo' ? (
+                                                    <input
+                                                        type="text"
+                                                        required
+                                                        value={codigoGrupo}
+                                                        onChange={e => setCodigoGrupo(e.target.value)}
+                                                        className={`${inputCls} font-mono font-bold tracking-widest text-[#0500A3]`}
+                                                        placeholder="Crea un código. Ej: 080"
+                                                    />
                                                 ) : (
                                                     <Combobox
                                                         options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
@@ -1426,11 +1478,12 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                             const match = gruposDisponibles.find(g => g.codigoGrupo === val);
                                                             if (match && match.descripcionCorta && !descripcionCorta) setDescripcionCorta(match.descripcionCorta);
                                                         }}
-                                                        placeholder="Ej: 001"
-                                                        allowCustom={true}
+                                                        placeholder="Buscar por código o descripción..."
+                                                        allowCustom={false}
                                                     />
                                                 )}
-                                                {!isEdit && <p className="text-[10px] text-[#0500A3]/60 mt-1.5 leading-tight">Agrupa estos activos.</p>}
+                                                {!isEdit && tipoRegistro === 'nuevo' && <p className="text-[10px] text-[#0500A3]/60 mt-1.5 leading-tight">Agrupa estos activos inventando un código si pertenece a una familia.</p>}
+                                                {!isEdit && tipoRegistro === 'reingreso' && <p className="text-[10px] text-[#0500A3]/60 mt-1.5 leading-tight">Selecciona un producto obligatoriamente preexistente.</p>}
                                             </div>
 
                                             {/* Código de Barras / SKU Comercial */}
