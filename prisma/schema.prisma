@@ -347,6 +347,7 @@ model ActivoFijo {
   categoria             Categoria?           @relation(fields: [categoriaId], references: [id])
   esConsumible          Boolean              @default(false)
   fechaVencimiento      DateTime?
+  fechaFabricacion      DateTime?
   lote                  String?
   productoId            String?              @db.Uuid
   producto              Producto?            @relation(fields: [productoId], references: [id])

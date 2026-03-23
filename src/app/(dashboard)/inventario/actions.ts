@@ -117,6 +117,53 @@ export async function createCategoria(nombre: string, color?: string) {
     }
 }
 
+// ─── Fetch Activos by Group Code ─────────────────────────────────────────────
+export async function getActivosByGrupo(codigoGrupo: string) {
+    if (!codigoGrupo) return [];
+    try {
+        const orgId = await getOrgId();
+        const activos = await prisma.activoFijo.findMany({
+            where: { organizationId: orgId, codigoGrupo },
+            orderBy: { area: 'asc' },
+            select: {
+                id: true,
+                idQr: true,
+                descripcionCorta: true,
+                area: true,
+                codigoBarras: true,
+                stock: true,
+                estatusContable: true
+            }
+        });
+        return activos;
+    } catch (error) {
+        console.error("Error fetching activos by group code", error);
+        return [];
+    }
+}
+
+// ─── Quick Update Inline Activo ──────────────────────────────────────────────
+export async function updateActivoQuick(id: string, area: string, cantidadStr: string) {
+    try {
+        const cantidad = Number(cantidadStr);
+        if (isNaN(cantidad) || cantidad < 0) return { error: 'Cantidad inválida' };
+        
+        await prisma.activoFijo.update({
+            where: { id },
+            data: {
+                area,
+                stock: cantidad
+            }
+        });
+
+        revalidatePath('/inventario');
+        return { success: true };
+    } catch (e: any) {
+        console.error(e);
+        return { error: 'Error actualizando: ' + e.message };
+    }
+}
+
 // ─── READ: List with pagination, search, filters ─────────────────────────────
 export async function getActivos(page = 1, search = '', area = '', estatus = '') {
     const orgId = await getOrgId();
@@ -354,6 +401,7 @@ export async function createActivo(formData: FormData) {
         categoriaId: (formData.get('categoriaId') as string) || null,
         esConsumible: formData.get('esConsumible') === 'true',
         lote: (formData.get('lote') as string) || null,
+        fechaFabricacion: formData.get('fechaFabricacion') ? new Date(formData.get('fechaFabricacion') as string) : null,
         fechaVencimiento: formData.get('fechaVencimiento') ? new Date(formData.get('fechaVencimiento') as string) : null,
         // ── Depreciation fields ──
         valResidual: deprec?.valResidual ?? null,
@@ -463,6 +511,7 @@ export async function updateActivo(id: string, formData: FormData) {
             categoriaId: (formData.get('categoriaId') as string) || null,
             esConsumible: formData.get('esConsumible') === 'true',
             lote: (formData.get('lote') as string) || null,
+            fechaFabricacion: formData.get('fechaFabricacion') ? new Date(formData.get('fechaFabricacion') as string) : null,
             fechaVencimiento: formData.get('fechaVencimiento') ? new Date(formData.get('fechaVencimiento') as string) : null,
             // ── Depreciation fields ──
             valResidual: deprec?.valResidual ?? null,

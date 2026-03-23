@@ -8,7 +8,7 @@ import {
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw
 } from 'lucide-react';
-import { searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, encolarCopiasNiimbot, getCategorias, createCategoria, checkExistingByBarcode } from './actions';
+import { searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, encolarCopiasNiimbot, getCategorias, createCategoria, checkExistingByBarcode, getActivosByGrupo, updateActivoQuick } from './actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
 import { removeBackground } from '@imgly/background-removal';
@@ -150,6 +150,7 @@ type Activo = {
     categoria?: { id: string; nombre: string; color?: string | null } | null;
     esConsumible?: boolean;
     fechaVencimiento?: Date | string | null;
+    fechaFabricacion?: Date | string | null;
     lote?: string | null;
     stock?: number;
 };
@@ -208,7 +209,7 @@ function getLocalDateString(dateInput?: Date | string | null): string {
 
 // ─── Searchable Combobox ──────────────────────────────────────────────────────
 function Combobox({
-    options, value, onChange, placeholder, required, label, aiHighlight, allowClear, allowCustom
+    options, value, onChange, placeholder, required, label, aiHighlight, allowClear, allowCustom, disabled
 }: {
     options: { value: string; label: string }[];
     value: string;
@@ -219,6 +220,7 @@ function Combobox({
     aiHighlight?: boolean;
     allowClear?: boolean;
     allowCustom?: boolean;
+    disabled?: boolean;
 }) {
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
@@ -244,11 +246,12 @@ function Combobox({
     return (
         <div ref={ref} className="relative">
             {/* Trigger */}
-            <button type="button" onClick={() => setOpen(o => !o)}
+            <button type="button" onClick={() => !disabled && setOpen(o => !o)}
+                disabled={disabled}
                 className={`w-full flex items-center justify-between text-base border-2 rounded-xl px-4 py-3.5 text-left transition-all focus:outline-none
-                    ${aiHighlight ? 'border-purple-400 bg-purple-50' : 'border-slate-200 bg-white'}
+                    ${disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed border-transparent' : aiHighlight ? 'border-purple-400 bg-purple-50' : 'border-slate-200 bg-white'}
                     ${open ? 'ring-2 ring-[#0500A3]/30 border-[#0500A3]/50' : 'hover:border-slate-300'}`}>
-                <span className={`truncate ${selected || (allowCustom && value) ? 'text-slate-900' : 'text-slate-400'}`}>
+                <span className={`truncate ${selected || (allowCustom && value) ? (disabled ? 'text-slate-500' : 'text-slate-900') : 'text-slate-400'}`}>
                     {selected ? selected.label : (allowCustom && value ? value : (placeholder || 'Seleccionar...'))}
                 </span>
                 <div className="flex items-center gap-1 shrink-0 ml-2">
@@ -642,6 +645,10 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
         // Autocompletar lote y vencimiento desde GS1 si el modal los tiene
         if (gs1?.lote) setLote(gs1.lote);
+        if (gs1?.fechaProd) {
+            const iso = gs1DateToISO(gs1.fechaProd);
+            if (iso) setFechaFabricacion(iso);
+        }
         if (gs1?.fechaVenc) {
             const iso = gs1DateToISO(gs1.fechaVenc);
             if (iso) setFechaVencimiento(iso);
@@ -740,6 +747,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [esConsumible, setEsConsumible] = useState(editActivo?.esConsumible || false);
     const [lote, setLote] = useState(editActivo?.lote || '');
     const [fechaVencimiento, setFechaVencimiento] = useState(editActivo?.fechaVencimiento ? getLocalDateString(editActivo.fechaVencimiento) : '');
+    const [fechaFabricacion, setFechaFabricacion] = useState(editActivo?.fechaFabricacion ? getLocalDateString(editActivo.fechaFabricacion) : '');
 
     useEffect(() => {
         getCategorias().then(data => setCategorias(data.map((c: any) => ({ value: c.id, label: c.nombre }))));
@@ -804,6 +812,22 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         getGruposAutocompletado().then(res => setGruposDisponibles(res));
     }, []);
 
+    const isExistingGroup = !!gruposDisponibles.find(g => g.codigoGrupo === codigoGrupo && g.cantidad > 0);
+
+    const [activosGrupo, setActivosGrupo] = useState<any[]>([]);
+    useEffect(() => {
+        if (codigoGrupo && isExistingGroup) {
+            getActivosByGrupo(codigoGrupo).then(data => {
+                setActivosGrupo(data);
+                if (data.length > 0 && !codigoBarras && data[0].codigoBarras) {
+                    setCodigoBarras(data[0].codigoBarras);
+                }
+            });
+        } else {
+            setActivosGrupo([]);
+        }
+    }, [codigoGrupo, isExistingGroup, codigoBarras]);
+
     // Historic auto-search debounce
     useEffect(() => {
         if (!searchHistoricoText || searchHistoricoText.length < 3) {
@@ -852,6 +876,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setEsConsumible(editActivo.esConsumible || false);
             setLote(editActivo.lote || '');
             setFechaVencimiento(editActivo.fechaVencimiento ? getLocalDateString(editActivo.fechaVencimiento) : '');
+            setFechaFabricacion(editActivo.fechaFabricacion ? getLocalDateString(editActivo.fechaFabricacion) : '');
             // For now, not fetching full historic record on edit, just handling its absence.
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
@@ -859,7 +884,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setCodigoGrupo('001'); setCodigoBarras(''); setCantidad('1');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
-            setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setLote(''); setFechaVencimiento('');
+            setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
         }
     }, [editActivo, open, lockedArea]);
 
@@ -1093,6 +1118,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         fd.set('esConsumible', String(esConsumible));
         if (lote) fd.set('lote', lote);
         if (fechaVencimiento) fd.set('fechaVencimiento', fechaVencimiento);
+        if (fechaFabricacion) fd.set('fechaFabricacion', fechaFabricacion);
 
         // Show preview and fetch real next code in parallel
         setPendingFormData(fd);
@@ -1478,9 +1504,10 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                     onChange={setCategoriaId}
                                                     placeholder="Ej: Sensores Médicos, Herramientas..."
                                                     allowClear
+                                                    disabled={isExistingGroup}
                                                 />
                                             </div>
-                                            <button type="button" onClick={() => setCatModalOpen(true)} className="bg-slate-100 hover:bg-slate-200 text-[#0500A3] px-4 py-3.5 rounded-xl border border-slate-200 transition-colors shrink-0 font-bold flex items-center justify-center" title="Añadir Categoría Rápida">
+                                            <button type="button" onClick={() => setCatModalOpen(true)} disabled={isExistingGroup} className="bg-slate-100 hover:bg-slate-200 text-[#0500A3] px-4 py-3.5 rounded-xl border border-slate-200 transition-colors shrink-0 font-bold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" title="Añadir Categoría Rápida">
                                                 <Plus className="w-5 h-5"/>
                                             </button>
                                         </div>
@@ -1488,10 +1515,11 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <div>
                                             <FieldLabel required>Nombre / Descripción Corta <span className="opacity-50">(Para Tickets)</span></FieldLabel>
                                             <input type="text" name="descripcionCorta" required
+                                                disabled={isExistingGroup}
                                                 value={descripcionCorta}
                                                 onChange={e => setDescripcionCorta(e.target.value)}
                                                 placeholder="Ej: Silla Ejecutiva, Escritorio 4 Gavetas..."
-                                                className={aiResult?.descripcionCorta ? inputAiCls : inputCls} />
+                                                className={`${aiResult?.descripcionCorta ? inputAiCls : inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                         </div>
 
                                         {/* Serie + Modelo */}
@@ -1512,7 +1540,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                         <div className="shrink-0 relative">
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
                                                             <img src={imagenPlacaUrl} alt="Placa" className="w-[42px] h-[42px] object-cover rounded-xl border border-slate-200" />
-                                                            {placaUploadPhase === 'idle' || placaUploadPhase === 'done' ? (
+                                                            {(!isExistingGroup && (placaUploadPhase === 'idle' || placaUploadPhase === 'done')) ? (
                                                                 <button type="button" onClick={() => setImagenPlacaUrl('')}
                                                                     className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center shadow-lg hover:scale-110">
                                                                     <X className="w-3 h-3" />
@@ -1524,7 +1552,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                             )}
                                                         </div>
                                                     ) : (
-                                                        <button type="button" onClick={() => placaCameraRef.current?.click()} disabled={placaUploadPhase === 'uploading' || placaUploadPhase === 'analyzing'}
+                                                        <button type="button" onClick={() => placaCameraRef.current?.click()} disabled={isExistingGroup || placaUploadPhase === 'uploading' || placaUploadPhase === 'analyzing'}
                                                             className="shrink-0 w-[42px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl transition-colors disabled:opacity-50" title="Escanear placa con cámara">
                                                             {placaUploadPhase === 'uploading' ? <Loader2 className="w-4 h-4 animate-spin text-purple-500" /> : <Camera className="w-4 h-4" />}
                                                         </button>
@@ -1538,9 +1566,10 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                 </FieldLabel>
                                                 <input type="text" name="marca"
                                                     value={marca}
+                                                    disabled={isExistingGroup}
                                                     onChange={e => setMarca(e.target.value)}
                                                     placeholder="Ej: Yamaha, Sony..."
-                                                    className={aiResult?.marca ? inputAiCls : inputCls} />
+                                                    className={`${aiResult?.marca ? inputAiCls : inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                             </div>
                                             <div>
                                                 <FieldLabel>
@@ -1549,14 +1578,15 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                 </FieldLabel>
                                                 <input type="text" name="modelo"
                                                     value={modelo}
+                                                    disabled={isExistingGroup}
                                                     onChange={e => setModelo(e.target.value)}
                                                     placeholder="Ej: P-125..."
-                                                    className={aiResult?.modelo ? inputAiCls : inputCls} />
+                                                    className={`${aiResult?.modelo ? inputAiCls : inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                             </div>
                                         </div>
 
                                         {/* Compatibilidad Tags */}
-                                        <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 mt-2 mb-2">
+                                        <div className={`bg-slate-50 border border-slate-100 rounded-xl p-4 mt-2 mb-2 ${isExistingGroup ? 'opacity-60 pointer-events-none' : ''}`}>
                                             <FieldLabel>Etiquetas de Compatibilidad / Marcas Funcionales</FieldLabel>
                                             <div className="flex flex-wrap gap-2 mb-3">
                                                 {compatibilidad.map(tag => (
@@ -1585,6 +1615,22 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                 className={inputCls} 
                                             />
                                         </div>
+                                        
+                                        {/* Lote y Fechas */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                                            <div>
+                                                <FieldLabel>Lote</FieldLabel>
+                                                <input type="text" value={lote} onChange={e => setLote(e.target.value)} placeholder="Opcional" className={inputCls} disabled={isExistingGroup} />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Fecha Fabricación</FieldLabel>
+                                                <input type="date" value={fechaFabricacion} onChange={e => setFechaFabricacion(e.target.value)} className={inputCls} />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Fecha Vencimiento</FieldLabel>
+                                                <input type="date" value={fechaVencimiento} onChange={e => setFechaVencimiento(e.target.value)} className={inputCls} />
+                                            </div>
+                                        </div>
 
                                         {/* Descripción Detallada — AI controlled */}
                                         <div>
@@ -1593,10 +1639,82 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             </FieldLabel>
                                             <textarea name="descripcionDetallada" rows={3}
                                                 value={descripcionDetallada}
+                                                disabled={isExistingGroup}
                                                 onChange={e => setDescripcionDetallada(e.target.value)}
                                                 placeholder="Marca, modelo, color, características adicionales..."
-                                                className={`${aiResult?.descripcionDetallada ? inputAiCls : inputCls} resize-none`} />
+                                                className={`${aiResult?.descripcionDetallada ? inputAiCls : inputCls} resize-none ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                         </div>
+                                        
+                                        {/* Inline Excel-like table for existing assets in group */}
+                                        {isExistingGroup && activosGrupo.length > 0 && (
+                                            <div className="mt-8 border border-[#0500A3]/30 bg-[#0500A3]/[0.02] rounded-xl overflow-hidden shadow-sm">
+                                                <div className="bg-[#0500A3]/5 px-4 py-3 border-b border-[#0500A3]/10">
+                                                    <h4 className="text-sm font-bold text-[#0500A3] flex items-center gap-2">
+                                                        <Package className="w-5 h-5 text-[#0500A3]" />
+                                                        Registro de Ubicaciones Existentes ({activosGrupo.reduce((acc, a) => acc + (a.stock||0), 0)} unidades)
+                                                    </h4>
+                                                    <p className="text-xs text-slate-500 mt-1">Guarda cambios individualmente al modificar el área o stock.</p>
+                                                </div>
+                                                <div className="overflow-x-auto">
+                                                    <table className="w-full text-xs min-w-[500px]">
+                                                        <thead className="bg-white border-b border-slate-200 text-slate-500 text-[10px] uppercase">
+                                                            <tr>
+                                                                <th className="px-4 py-3 text-left font-bold w-24">ID QR</th>
+                                                                <th className="px-4 py-3 text-left font-bold">Ubicación / Área</th>
+                                                                <th className="px-4 py-3 text-center font-bold w-24">Stock Actual</th>
+                                                                <th className="px-4 py-3 text-center font-bold w-16">Acción</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100 bg-white">
+                                                            {activosGrupo.map(ag => (
+                                                                <tr key={ag.id} className="hover:bg-slate-50 transition-colors">
+                                                                    <td className="px-4 py-3 font-mono text-slate-500 font-medium">{ag.idQr}</td>
+                                                                    <td className="px-4 py-2">
+                                                                        <input 
+                                                                            type="text" 
+                                                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#0500A3]/30 outline-none uppercase font-mono font-bold text-[#0500A3] text-xs transition-colors"
+                                                                            defaultValue={ag.area}
+                                                                            onChange={(e) => { ag._draftArea = e.target.value.toUpperCase(); }}
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-4 py-2">
+                                                                        <input 
+                                                                            type="number" min="0"
+                                                                            className="w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-[#0500A3]/30 outline-none font-bold text-center text-xs transition-colors"
+                                                                            defaultValue={ag.stock}
+                                                                            onChange={(e) => { ag._draftStock = e.target.value; }}
+                                                                        />
+                                                                    </td>
+                                                                    <td className="px-4 py-2 text-center">
+                                                                        <button type="button" 
+                                                                            onClick={async (e) => {
+                                                                                e.preventDefault();
+                                                                                const btn = e.currentTarget;
+                                                                                btn.disabled = true;
+                                                                                btn.innerHTML = '...';
+                                                                                const area = ag._draftArea ?? ag.area;
+                                                                                const stock = ag._draftStock ?? String(ag.stock);
+                                                                                const res = await updateActivoQuick(ag.id, area, stock);
+                                                                                if (res.error) {
+                                                                                    alert(res.error);
+                                                                                    btn.innerHTML = '💾';
+                                                                                } else { 
+                                                                                    btn.innerHTML = '✅'; 
+                                                                                    setTimeout(() => btn.innerHTML = '💾', 2000); 
+                                                                                }
+                                                                                btn.disabled = false;
+                                                                            }}
+                                                                            className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-emerald-500 hover:text-white text-slate-600 rounded-lg transition-colors cursor-pointer disabled:opacity-50" title="Guardar cambios de esta ubicación">
+                                                                            💾
+                                                                        </button>
+                                                                    </td>
+                                                                </tr>
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
