@@ -617,7 +617,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [descripcionDetallada, setDescripcionDetallada] = useState(editActivo?.descripcionDetallada || '');
     const [marca, setMarca] = useState(editActivo?.marca || '');
     const [modelo, setModelo] = useState(editActivo?.modelo || '');
-    const [codigoGrupo, setCodigoGrupo] = useState(editActivo?.codigoGrupo || '001');
+    const [codigoGrupo, setCodigoGrupo] = useState(editActivo?.codigoGrupo || '');
     const [codigoBarras, setCodigoBarras] = useState(editActivo?.codigoBarras || '');
     const [cantidad, setCantidad] = useState(editActivo?.stock ? String(editActivo.stock) : '1');
     const [responsable, setResponsable] = useState(editActivo?.responsable || (lockedArea ? RESPONSABLES[lockedArea] : '') || '');
@@ -881,7 +881,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
             setPreviewQr(''); setAiResult(null); setUploadPhase('idle'); setPlacaUploadPhase('idle');
-            setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setCodigoGrupo('001'); setCodigoBarras(''); setCantidad('1');
+            setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setCodigoGrupo(''); setCodigoBarras(''); setCantidad('1');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
             setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
