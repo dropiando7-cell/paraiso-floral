@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, encolarCopiasNiimbot, getCategorias, createCategoria, checkExistingByBarcode, getActivosByGrupo, updateActivoQuick } from './actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
+import { RestockModal } from './RestockModal';
+import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
 import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
 import { removeBackground } from '@imgly/background-removal';
 
@@ -589,8 +591,8 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
 }
 
 // ─── Modal Form (iPad-first + AI vision) ─────────────────────────────────────
-function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [] }: {
-    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[];
+function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock }: {
+    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void;
 }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
@@ -634,6 +636,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [barcodeOptions, setBarcodeOptions] = useState<any[]>([]);
     const [showBarcodeDropdown, setShowBarcodeDropdown] = useState(false);
     const barcodeRef = useRef<HTMLDivElement>(null);
+    const printRef = useRef<boolean>(true);
     const [isScannerOpen, setIsScannerOpen] = useState(false);
     // Cuando un código ya existe en inventario, entra en modo Reabastecer
     const [restockTarget, setRestockTarget] = useState<{
@@ -1111,7 +1114,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         fd.set('cuentaAct', 'INVENTARIO');
 
         // Use proper group code — generateIdQr handles auto-increment sequence
-        let finalCodigoGrupo = codigoGrupo || '001';
+        const finalCodigoGrupo = codigoGrupo || '001';
 
         fd.set('codigoGrupo', finalCodigoGrupo);
         if (codigoBarras) fd.set('codigoBarras', codigoBarras);
@@ -1125,6 +1128,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         if (fechaFabricacion) fd.set('fechaFabricacion', fechaFabricacion);
 
         // Show preview and fetch real next code in parallel
+        fd.set('shouldPrint', printRef.current ? 'true' : 'false');
         setPendingFormData(fd);
         previewIdQr(selectedArea, finalCodigoGrupo).then(code => setPreviewCode(code)).catch(() => setPreviewCode('—'));
     }
@@ -1151,7 +1155,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                     setIsSubmitting(false);
 
                     // Auto-print label for the newly created activo
-                    if (result?.id && result?.idQr) {
+                    if (result?.id && result?.idQr && fd.get('shouldPrint') === 'true') {
                         try {
                             const params = new URLSearchParams({
                                 idQr: result.idQr,
@@ -1303,7 +1307,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         className="flex items-center justify-center gap-2 text-base font-bold bg-green-600 text-white py-4 px-5 rounded-2xl hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
                                     >
                                         {(isPending || isSubmitting) ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                                        {(isPending || isSubmitting) ? 'Guardando e imprimiendo...' : '✅ Confirmar, Registrar e Imprimir'}
+                                        {(isPending || isSubmitting) ? 'Guardando...' : (pendingFormData?.get('shouldPrint') === 'false' ? 'Confirmar Registro (Sin Etiqueta)' : '✅ Confirmar, Registrar e Imprimir')}
                                     </button>
                                     <button
                                         type="button"
@@ -1330,7 +1334,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                     </div>
                                 </button>
 
-                                <button type="button" onClick={() => setTipoRegistro('reingreso')}
+                                <button type="button" onClick={() => { if (onSelectRestock) onSelectRestock(); }}
                                     className="w-full text-left p-6 border-2 border-slate-100 rounded-2xl hover:border-[#0500A3] hover:bg-[#0500A3]/5 transition-all group flex items-start gap-5">
                                     <div className="w-14 h-14 shrink-0 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
                                         <Package className="w-7 h-7" />
@@ -1515,22 +1519,14 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             {/* Área — Searchable / Locked */}
                                             <div>
                                                 <FieldLabel required>Área / Ubicación</FieldLabel>
-                                                <input
-                                                    type="text"
-                                                    required
-                                                    name="area"
+                                                <AreaSplitInput
+                                                    id="area"
                                                     value={selectedArea}
-                                                    onChange={e => setSelectedArea(e.target.value.toUpperCase())}
-                                                    placeholder="Ej: A-1-1, SE-A-1, B-5-4"
-                                                    list="ubicaciones-sugeridas"
-                                                    className={`${inputCls} font-mono font-bold tracking-widest text-[#0500A3] uppercase`}
+                                                    onChange={val => setSelectedArea(val)}
+                                                    required
+                                                    dbAreas={dbAreas}
                                                 />
-                                                <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">Formato sugerido: <b>A-1-1</b>. Reutiliza el historial para agrupar.</p>
-                                                <datalist id="ubicaciones-sugeridas">
-                                                    {dbAreas.map((a: any) => (
-                                                        <option key={a.name} value={a.name} />
-                                                    ))}
-                                                </datalist>
+                                                <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">Usa tu teclado numérico o Alfanumérico, avanza con Espacio.</p>
                                             </div>
 
                                             {/* Cantidad Input */}
@@ -1778,11 +1774,32 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         className="flex-1 text-base font-medium border-2 border-slate-200 text-slate-600 py-4 rounded-2xl hover:bg-slate-50 active:scale-[0.98] transition-all">
                                         Cancelar
                                     </button>
-                                    <button type="submit" disabled={isPending || isLoading}
-                                        className="flex-1 flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white py-4 rounded-2xl hover:bg-[#0600c2] active:scale-[0.98] transition-all disabled:opacity-60 shadow-lg">
-                                        {isPending && <Loader2 className="w-5 h-5 animate-spin" />}
-                                        {isEdit ? '💾 Guardar Cambios' : '✅ Registrar Activo'}
-                                    </button>
+                                    {isEdit ? (
+                                        <button type="submit" disabled={isPending || isLoading}
+                                            className="flex-1 flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white py-4 rounded-2xl hover:bg-[#0600c2] active:scale-[0.98] transition-all disabled:opacity-60 shadow-lg">
+                                            {isPending && <Loader2 className="w-5 h-5 animate-spin" />}
+                                            💾 Guardar Cambios
+                                        </button>
+                                    ) : (
+                                        <>
+                                            <button 
+                                                type="submit" 
+                                                onClick={() => { printRef.current = false; }}
+                                                disabled={isPending || isLoading}
+                                                className="flex-1 flex items-center justify-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3] py-3.5 rounded-2xl hover:bg-slate-50 active:scale-[0.98] transition-all disabled:opacity-60 shadow-sm">
+                                                {isPending && !printRef.current && <Loader2 className="w-5 h-5 animate-spin" />}
+                                                Solo Registrar
+                                            </button>
+                                            <button 
+                                                type="submit" 
+                                                onClick={() => { printRef.current = true; }}
+                                                disabled={isPending || isLoading}
+                                                className="flex-1 flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white py-4 rounded-2xl hover:bg-[#0600c2] active:scale-[0.98] transition-all disabled:opacity-60 shadow-lg">
+                                                {isPending && printRef.current && <Loader2 className="w-5 h-5 animate-spin" />}
+                                                Registrar e Imprimir
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </form>
                         )}
@@ -1993,6 +2010,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [loading, setLoading] = useState(false);
     const [isRefetching, setIsRefetching] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
+    const [restockModalOpen, setRestockModalOpen] = useState(false);
     const [editActivo, setEditActivo] = useState<Activo | null>(null);
     const [deleteActivo_, setDeleteActivo] = useState<Activo | null>(null);
     const [showFilters, setShowFilters] = useState(false);
@@ -2367,6 +2385,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 </div>
             </div>
 
+            {restockModalOpen && (
+                <RestockModal
+                    open={restockModalOpen}
+                    onClose={() => setRestockModalOpen(false)}
+                    onSuccess={() => refresh(1)}
+                    dbAreas={dbAreas}
+                    gruposDisponibles={gruposDisponibles}
+                />
+            )}
             <ActivoModal
                 dbAreas={dbAreas}
                 open={modalOpen}
@@ -2374,6 +2401,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 editActivo={editActivo}
                 onSuccess={() => refresh(1)}
                 lockedArea={lockedArea}
+                onSelectRestock={() => { setModalOpen(false); setRestockModalOpen(true); }}
             />
             {/* No Area Open Modal */}
             {noAreaModalOpen && (

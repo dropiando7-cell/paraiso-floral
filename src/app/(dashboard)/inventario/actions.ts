@@ -254,6 +254,30 @@ export async function getActivoStats(area?: string) {
     };
 }
 
+// ─── Get Ubicaciones Activas ─────────────────────────────────────────────────
+export async function getUbicacionesActivasByProducto(identificador: string, tipo: 'codigoBarras' | 'codigoGrupo') {
+    const orgId = await getOrgId();
+    
+    const whereClause = tipo === 'codigoBarras' 
+        ? { organizationId: orgId, codigoBarras: identificador }
+        : { organizationId: orgId, codigoGrupo: identificador };
+
+    const agrupados = await prisma.activoFijo.groupBy({
+        by: ['area'],
+        where: whereClause,
+        _sum: {
+            stock: true
+        }
+    });
+
+    return agrupados
+        .filter(g => g._sum.stock && g._sum.stock > 0)
+        .map(g => ({
+            area: g.area,
+            stock: g._sum.stock || 0
+        }));
+}
+
 export async function findActivoByBarcode(codigoBarras: string) {
     const orgId = await getOrgId();
     const activo = await prisma.activoFijo.findFirst({
@@ -414,12 +438,17 @@ export async function createActivo(formData: FormData) {
         stock: cantidadRegistros
     };
 
-    // Si ya existe un producto con este código de barras en la organización, solo sumamos stock (Reabastecimiento)
-    if (codigoBarras) {
+    // Si ya existe un producto con este código de barras (o grupo) EN ESA MISMA ÁREA, solo sumamos stock (Reabastecimiento estricto)
+    if (codigoBarras || codigoGrupo) {
+        const whereClause: any = { organizationId: orgId, area };
+        if (codigoBarras) whereClause.codigoBarras = codigoBarras;
+        else if (codigoGrupo) whereClause.codigoGrupo = codigoGrupo;
+        
         const existente = await prisma.activoFijo.findFirst({
-            where: { organizationId: orgId, codigoBarras },
-            orderBy: { createdAt: 'asc' } // el original, no una copia
+            where: whereClause,
+            orderBy: { createdAt: 'asc' } // el original de esa área
         });
+        
         if (existente) {
             await prisma.activoFijo.update({
                 where: { id: existente.id },
