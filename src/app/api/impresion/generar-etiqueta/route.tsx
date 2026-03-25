@@ -41,11 +41,11 @@ export async function GET(req: NextRequest) {
     const H = 264;
 
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
-    // Aumentamos tamaño fuente a 400x400, margen 0, y ECC=L para asegurar que los bloques del QR sean muy grandes y legibles por la impresora térmica 200DPI
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${qrText}&margin=0&ecc=L&color=000000&bgcolor=FFFFFF`;
+    // Usamos el motor puro de bwipjs en lugar de qrserver para prevenir interpolación de grises
+    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=3&eclevel=L&includetext=false`;
 
-    // Escalamos la resolución física del código de barras 1D también
-    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=14&scale=4&includetext=false`;
+    // Escalamos a 3 (no a 4 para no saturar los bordes) y subimos altura
+    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=15&scale=3&includetext=false`;
 
     const descStr = descripcion.substring(0, 60).toUpperCase();
     const isLongName = descStr.length > 22;
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
                     height: H,
                     backgroundColor: '#FFFFFF',
                     fontFamily: 'sans-serif',
-                    padding: '16px',
+                    padding: '16px 16px 24px 16px', // Mas padding inferior para que el código de barras no se corte
                 }}
             >
                 <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
@@ -82,17 +82,19 @@ export async function GET(req: NextRequest) {
                     </div>
 
                     {/* RIGHT COLUMN: QR Code */}
-                    <div style={{ display: 'flex', width: 95, height: 95, flexShrink: 0, padding: '4px', backgroundColor: '#fff' }}>
+                    <div style={{ display: 'flex', width: 95, height: 95, flexShrink: 0, padding: '4px', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+                        {/* Al no forzar 100% de width Satori respeta el tamaño sin anti-aliasing */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={qrUrl} style={{ width: '100%', height: '100%', objectFit: 'contain', imageRendering: 'pixelated' }} alt="QR" />
+                        <img src={qrUrl} alt="QR" style={{ imageRendering: 'pixelated' }} />
                     </div>
 
                 </div>
 
                 {/* BOTTOM ROW: Barcode */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', width: '100%' }}>
+                    {/* Al no forzar bounds, Satori imprime tal cual sin difuminar */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={barcodeUrl} style={{ width: '90%', height: 50, objectFit: 'fill', imageRendering: 'pixelated' }} alt="Barcode" />
+                    <img src={barcodeUrl} alt="Barcode" style={{ imageRendering: 'pixelated' }} />
                     <span style={{ fontSize: 13, marginTop: '4px', letterSpacing: 3, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
                 </div>
             </div>
