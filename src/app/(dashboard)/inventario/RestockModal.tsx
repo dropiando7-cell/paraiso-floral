@@ -184,7 +184,18 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
     }
 
     function handleScanSuccess(val: string, gs1?: GS1Fields) {
-        setCodigoBarrasSearch(val);
+        let cleanText = val.trim();
+        if (cleanText.startsWith('http://') || cleanText.startsWith('https://')) {
+            try {
+                const url = new URL(cleanText);
+                const parts = url.pathname.split('/').filter(Boolean);
+                if (parts.length > 0) cleanText = parts[parts.length - 1];
+            } catch {
+                cleanText = cleanText.substring(cleanText.lastIndexOf('/') + 1);
+            }
+        }
+        
+        setCodigoBarrasSearch(cleanText);
         setIsScannerOpen(false);
         
         if (gs1?.fechaVenc) {

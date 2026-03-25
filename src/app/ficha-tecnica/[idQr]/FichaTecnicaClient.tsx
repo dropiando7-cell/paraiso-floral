@@ -67,7 +67,7 @@ function Field({ label, value, mono, icon: Icon }: {
     );
 }
 
-export default function FichaTecnicaClient({ activo }: { activo: Activo }) {
+export default function FichaTecnicaClient({ activo, distribucion }: { activo: Activo, distribucion?: { area: string, stock: number }[] }) {
     const images = [activo.imagenUrl, activo.imagenPlacaUrl].filter(Boolean) as string[];
     const [imgIdx, setImgIdx] = useState(0);
     const [lightbox, setLightbox] = useState(false);
@@ -285,6 +285,31 @@ export default function FichaTecnicaClient({ activo }: { activo: Activo }) {
                                         <div className="text-sm font-medium text-red-700">{activo.accionRecomendada}</div>
                                     </div>
                                 )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Distribucion de Inventario Físico */}
+                    {distribucion && distribucion.length > 0 && (
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
+                            <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                                <Package className="w-3.5 h-3.5" />
+                                Distribución de Inventario Físico
+                            </h2>
+                            <div className="flex flex-wrap gap-2">
+                                {distribucion.map((d, i) => (
+                                    <div key={i} className="flex items-center gap-2 bg-white border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-xl text-sm font-semibold shadow-sm">
+                                        <MapPin className="w-3 h-3 text-emerald-500" />
+                                        {d.area}
+                                        <span className="bg-emerald-100 text-emerald-700 rounded-md px-1.5 py-0.5 text-[10px] font-black">{d.stock} ud.</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-4 pt-3 border-t border-emerald-100/50 flex justify-between items-center text-xs font-bold text-emerald-800">
+                                <span className="uppercase tracking-widest">Total Unidades:</span>
+                                <span className="text-sm bg-emerald-500 text-white px-2 py-0.5 rounded-md shadow-sm">
+                                    {distribucion.reduce((acc, d) => acc + (d.stock || 0), 0)}
+                                </span>
                             </div>
                         </div>
                     )}

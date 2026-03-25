@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
     const H = 264;
 
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${qrText}&margin=0&color=000000&bgcolor=FFFFFF`;
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${qrText}&margin=2&color=000000&bgcolor=FFFFFF`;
 
     const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=12&scale=2&includetext=false`;
 

@@ -6,9 +6,16 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
-    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw
+    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag
 } from 'lucide-react';
-import { searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, encolarCopiasNiimbot, getCategorias, createCategoria, checkExistingByBarcode, getActivosByGrupo, updateActivoQuick } from './actions';
+import {
+    searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, 
+    createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, 
+    getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, 
+    encolarCopiasNiimbot, getCategorias, createCategoria, checkExistingByBarcode, 
+    getActivosByGrupo, updateActivoQuick, checkGrupoExists, getActivosByIdQr, 
+    searchActivosGlobal, getActivosPage, getUbicacionGroupsPage
+} from './actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 import { RestockModal } from './RestockModal';
 import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
@@ -646,8 +653,19 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [isRestocking, setIsRestocking] = useState(false);
 
     const handleScanSuccess = async (decodedText: string, gs1?: GS1Fields) => {
+        let cleanText = decodedText.trim();
+        if (cleanText.startsWith('http://') || cleanText.startsWith('https://')) {
+            try {
+                const url = new URL(cleanText);
+                const parts = url.pathname.split('/').filter(Boolean);
+                if (parts.length > 0) cleanText = parts[parts.length - 1];
+            } catch {
+                cleanText = cleanText.substring(cleanText.lastIndexOf('/') + 1);
+            }
+        }
+        
         setIsScannerOpen(false);
-        setCodigoBarras(decodedText);
+        setCodigoBarras(cleanText);
 
         // Autocompletar lote y vencimiento desde GS1 si el modal los tiene
         if (gs1?.lote) setLote(gs1.lote);
@@ -662,7 +680,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
         // Verificar si ya existe en inventario → modo Reabastecer
         try {
-            const existente = await checkExistingByBarcode(decodedText);
+            const existente = await checkExistingByBarcode(cleanText);
             if (existente) {
                 setRestockTarget(existente);
                 setRestockCantidad('1');
@@ -674,7 +692,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
         // No existe → intentar autocompletar desde histórico
         try {
-            const res = await fetch(`/api/inventario/buscar-por-udi?udi=${encodeURIComponent(decodedText)}`);
+            const res = await fetch(`/api/inventario/buscar-por-udi?udi=${encodeURIComponent(cleanText)}`);
             if (res.ok) {
                 const json = await res.json();
                 if (json.found && json.data) {
@@ -773,6 +791,56 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [aiMatchFailed, setAiMatchFailed] = useState(false);
     const [pendingFormData, setPendingFormData] = useState<FormData | null>(null);
     const [previewCode, setPreviewCode] = useState<string>('...');
+
+    // Auto Grupo State
+    const [autoGrupo, setAutoGrupo] = useState<string>('');
+    const [isGrupoLocked, setIsGrupoLocked] = useState<boolean>(true);
+    const [grupoError, setGrupoError] = useState<string>('');
+    const [isCheckingGrupo, setIsCheckingGrupo] = useState<boolean>(false);
+    
+    useEffect(() => {
+        if (tipoRegistro === 'nuevo' && !isEdit) {
+            previewIdQr(selectedArea, '').then(code => {
+                setAutoGrupo(code);
+                if (isGrupoLocked) {
+                    setCodigoGrupo(code);
+                    setGrupoError('');
+                }
+            }).catch(e => console.error(e));
+        }
+    }, [tipoRegistro, isEdit, selectedArea, isGrupoLocked]);
+
+    function handleUnlockGrupo() {
+        if (isGrupoLocked) {
+            const confirmed = window.confirm('¿Estás seguro de modificar el código correlativo? Normalmente el sistema lo administra automáticamente.');
+            if (confirmed) {
+                setIsGrupoLocked(false);
+            }
+        } else {
+            setIsGrupoLocked(true);
+            setCodigoGrupo(autoGrupo);
+            setGrupoError('');
+        }
+    }
+
+    async function validateGrupoManual() {
+        if (isGrupoLocked || !codigoGrupo || tipoRegistro !== 'nuevo' || isEdit) return;
+        if (codigoGrupo === autoGrupo) return;
+        
+        setIsCheckingGrupo(true);
+        try {
+            const exists = await checkGrupoExists(codigoGrupo);
+            if (exists) {
+                setGrupoError('Este código ya existe. Usa "Reingreso" o elige otro.');
+            } else {
+                setGrupoError('');
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setIsCheckingGrupo(false);
+        }
+    }
 
     function applyHistoricRecord(record: any) {
         setSelectedHistorico(record);
@@ -1107,6 +1175,11 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
     function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
+        
+        if (grupoError) {
+            alert('Corrige los errores en el formulario antes de continuar.');
+            return;
+        }
         const fd = new FormData(e.currentTarget);
         fd.set('imagenUrl', imagenUrl);
         fd.set('imagenPlacaUrl', imagenPlacaUrl);
@@ -1456,7 +1529,18 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <div className="grid grid-cols-1 gap-4">
                                             {/* Código Grupo */}
                                             <div className="bg-blue-50/30 p-4 rounded-xl border border-blue-100/50">
-                                                <FieldLabel required={!isEdit}>Producto / Código Grupo</FieldLabel>
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <FieldLabel required={!isEdit}>Producto / Código Grupo</FieldLabel>
+                                                    {!isEdit && tipoRegistro === 'nuevo' && (
+                                                        <button 
+                                                            type="button" 
+                                                            onClick={handleUnlockGrupo}
+                                                            className="text-[10px] font-bold text-[#0500A3] bg-[#0500A3]/10 px-2 py-1 rounded hover:bg-[#0500A3]/20 transition-colors flex items-center gap-1"
+                                                        >
+                                                            {isGrupoLocked ? <><Unlock className="w-3 h-3" /> Desbloquear</> : <><Lock className="w-3 h-3" /> Bloquear</>}
+                                                        </button>
+                                                    )}
+                                                </div>
                                                 {isEdit ? (
                                                     <input
                                                         type="text"
@@ -1465,14 +1549,26 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                         className={`${inputCls} font-mono bg-blue-50/10 font-bold tracking-widest text-[#0500A3] opacity-60 cursor-not-allowed border-transparent`}
                                                     />
                                                 ) : tipoRegistro === 'nuevo' ? (
-                                                    <input
-                                                        type="text"
-                                                        required
-                                                        value={codigoGrupo}
-                                                        onChange={e => setCodigoGrupo(e.target.value)}
-                                                        className={`${inputCls} font-mono font-bold tracking-widest text-[#0500A3]`}
-                                                        placeholder="Crea un código. Ej: 080"
-                                                    />
+                                                    <div className="relative">
+                                                        <input
+                                                            type="text"
+                                                            required
+                                                            readOnly={isGrupoLocked}
+                                                            value={codigoGrupo}
+                                                            onChange={e => {
+                                                                setCodigoGrupo(e.target.value.toUpperCase());
+                                                                setGrupoError('');
+                                                            }}
+                                                            onBlur={validateGrupoManual}
+                                                            className={`${inputCls} font-mono font-bold tracking-widest ${isGrupoLocked ? '!bg-purple-100 !text-purple-800 !border-purple-300 cursor-not-allowed focus:ring-0 focus:!border-purple-300 outline-none select-none shadow-inner opacity-90' : 'text-slate-900 focus:ring-[#0500A3] border-slate-300'} ${grupoError ? '!border-red-500 !ring-red-500 focus:ring-red-500' : ''}`}
+                                                            placeholder="Ej: 080"
+                                                        />
+                                                        {isCheckingGrupo && (
+                                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                                <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 ) : (
                                                     <Combobox
                                                         options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
@@ -1486,8 +1582,9 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                         allowCustom={false}
                                                     />
                                                 )}
-                                                {!isEdit && tipoRegistro === 'nuevo' && <p className="text-[10px] text-[#0500A3]/60 mt-1.5 leading-tight">Agrupa estos activos inventando un código si pertenece a una familia.</p>}
-                                                {!isEdit && tipoRegistro === 'reingreso' && <p className="text-[10px] text-[#0500A3]/60 mt-1.5 leading-tight">Selecciona un producto obligatoriamente preexistente.</p>}
+                                                {grupoError && <p className="text-[10px] text-red-500 font-bold mt-1.5 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {grupoError}</p>}
+                                                {!isEdit && tipoRegistro === 'nuevo' && !grupoError && <p className="text-[10px] text-[#0500A3]/60 mt-1.5 leading-tight">{isGrupoLocked ? 'Este será el código base de este producto y el de sus subsecuentes reingresos.' : 'Agrupa estos activos inventando un código si pertenece a una familia.'}</p>}
+                                                {!isEdit && tipoRegistro === 'reingreso' && !grupoError && <p className="text-[10px] text-[#0500A3]/60 mt-1.5 leading-tight">Selecciona un producto obligatoriamente preexistente.</p>}
                                             </div>
 
                                             {/* Código de Barras / SKU Comercial */}
@@ -1993,6 +2090,269 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
     );
 }
 
+// ─── PRODUCT SUMMARY MODAL ───────────────────────────────────────────────────
+function ProductSummaryModal({
+    initialIdQr,
+    onClose
+}: {
+    initialIdQr: string | null;
+    onClose: () => void;
+}) {
+    const [searchQuery, setSearchQuery] = useState(initialIdQr || '');
+    const [activos, setActivos] = useState<any[]>([]);
+    const [loading, setLoading] = useState(!!initialIdQr);
+    const [viewMode, setViewMode] = useState<'cards' | 'list' | 'badges'>('list');
+    const [hasSearched, setHasSearched] = useState(!!initialIdQr);
+    const [isScanning, setIsScanning] = useState(false);
+
+    async function handleSearch(evt?: React.FormEvent) {
+        if (evt) evt.preventDefault();
+        if (!searchQuery.trim()) return;
+        setLoading(true);
+        setHasSearched(true);
+        try {
+            const data = await searchActivosGlobal(searchQuery.trim());
+            setActivos(data || []);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    useEffect(() => {
+        // Prevent clearing if nothing has been typed and it's simply mounting
+        if (!searchQuery.trim() && !hasSearched) return;
+        
+        // If query is empty and we have already searched, clear instantly
+        if (!searchQuery.trim() && hasSearched) {
+            setActivos([]);
+            setHasSearched(false);
+            return;
+        }
+
+        const timeoutId = setTimeout(() => {
+            handleSearch();
+        }, 350);
+
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery]);
+
+    // Handle scan result directly bypassing standard form submit if needed
+    const onScanResult = async (code: string) => {
+        let cleanCode = code.trim();
+        if (cleanCode.startsWith('http://') || cleanCode.startsWith('https://')) {
+            try {
+                const url = new URL(cleanCode);
+                const parts = url.pathname.split('/').filter(Boolean);
+                if (parts.length > 0) cleanCode = parts[parts.length - 1];
+            } catch {
+                cleanCode = cleanCode.substring(cleanCode.lastIndexOf('/') + 1);
+            }
+        }
+        cleanCode = cleanCode.toUpperCase();
+        
+        setSearchQuery(cleanCode);
+        setIsScanning(false);
+        setLoading(true);
+        setHasSearched(true);
+        try {
+            const data = await searchActivosGlobal(cleanCode);
+            setActivos(data || []);
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const totalStock = activos.reduce((acc, a) => acc + (a.stock || 1), 0);
+    const totalAreas = new Set(activos.map(a => a.area)).size;
+
+    return (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
+            <div className="bg-white w-full sm:rounded-2xl shadow-2xl sm:max-w-2xl flex flex-col max-h-[90vh] sm:max-h-[85vh] rounded-t-2xl animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95">
+                
+                {/* Header */}
+                <div className="px-5 py-4 border-b border-slate-100 flex flex-col gap-4 sticky top-0 bg-white/95 backdrop-blur z-10 sm:rounded-t-2xl shadow-sm">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-blue-100 p-2.5 rounded-xl text-blue-700">
+                                <Search className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-900 leading-tight">Consulta de Producto</h2>
+                                <p className="text-xs font-semibold text-slate-500">Busca por código, nombre o modelo</p>
+                            </div>
+                        </div>
+                        <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors active:scale-95">
+                            <X className="w-5 h-5 text-slate-500" />
+                        </button>
+                    </div>
+
+                    <form onSubmit={handleSearch} className="relative flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <input
+                                autoFocus={!initialIdQr}
+                                type="text"
+                                placeholder="Ej: BEA-000001, CIRCUITO, MONITOR..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
+                                className="w-full pl-10 pr-12 py-3 text-sm font-mono tracking-widest text-[#0500A3] border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-slate-50 transition-all placeholder:text-slate-300 placeholder:font-sans placeholder:tracking-normal placeholder:font-normal"
+                            />
+                            <QrCode className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <button
+                                type="button"
+                                onClick={() => setIsScanning(true)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg transition-colors cursor-pointer"
+                                title="Escanear Código"
+                            >
+                                <Camera className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <button type="submit" disabled={loading || !searchQuery.trim()} className="bg-[#0500A3] hover:bg-[#0600c2] text-white px-5 py-3 rounded-xl font-bold transition-all disabled:opacity-50 flex items-center gap-2">
+                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buscar'}
+                        </button>
+                    </form>
+                </div>
+
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-5 bg-slate-50/50">
+                    {!hasSearched ? (
+                        <div className="text-center py-16 text-slate-400 flex flex-col items-center">
+                            <div className="w-16 h-16 bg-white shadow-sm rounded-full flex items-center justify-center mb-4 border border-slate-100">
+                                <QrCode className="w-8 h-8 text-slate-300" />
+                            </div>
+                            <p className="font-medium text-sm max-w-xs leading-relaxed">Escribe un nombre, modelo o escanea un código para ver su resumen de cantidades y distribución.</p>
+                        </div>
+                    ) : loading ? (
+                        <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                            <Loader2 className="w-8 h-8 animate-spin mb-4 text-[#0500A3]" />
+                            <p className="font-semibold">Buscando ubicaciones...</p>
+                        </div>
+                    ) : activos.length === 0 ? (
+                        <div className="text-center py-16 text-slate-400 flex flex-col items-center">
+                            <div className="w-16 h-16 bg-white shadow-sm rounded-full flex items-center justify-center mb-4 border border-amber-100">
+                                <AlertTriangle className="w-8 h-8 text-amber-400" />
+                            </div>
+                            <p className="font-medium text-sm text-slate-600">No se encontraron productos para <span className="font-bold font-mono text-slate-900 bg-white border px-1 py-0.5 rounded">{searchQuery}</span></p>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-white shadow-sm rounded-xl p-4 border border-slate-200 flex items-center gap-3">
+                                    <div className="bg-slate-50 border border-slate-100 p-2.5 rounded-lg text-slate-500"><Package className="w-5 h-5"/></div>
+                                    <div>
+                                        <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-0.5">Stock Total</div>
+                                        <div className="text-xl font-black text-slate-800 leading-none">{totalStock} <span className="text-xs font-semibold text-slate-400">unids.</span></div>
+                                    </div>
+                                </div>
+                                <div className="bg-white shadow-sm rounded-xl p-4 border border-slate-200 flex items-center gap-3">
+                                    <div className="bg-slate-50 border border-slate-100 p-2.5 rounded-lg text-slate-500"><MapPin className="w-5 h-5"/></div>
+                                    <div>
+                                        <div className="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-0.5">Distribución</div>
+                                        <div className="text-xl font-black text-slate-800 leading-none">{totalAreas} <span className="text-xs font-semibold text-slate-400">áreas</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr className="border-slate-200" />
+
+                            {/* View Toggle */}
+                            <div className="flex items-center justify-between">
+                                <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                                    <MapPin className="w-4 h-4 text-slate-400" /> Locaciones Actuales
+                                </h3>
+                                <div className="bg-white border border-slate-200 p-1 rounded-lg flex items-center shrink-0 shadow-sm">
+                                    <button onClick={() => setViewMode('cards')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'cards' ? 'bg-slate-100 text-[#0500A3]' : 'text-slate-400 hover:text-slate-600'}`} title="Cuadrícula">
+                                        <LayoutGrid className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-slate-100 text-[#0500A3]' : 'text-slate-400 hover:text-slate-600'}`} title="Lista">
+                                        <List className="w-4 h-4" />
+                                    </button>
+                                    <button onClick={() => setViewMode('badges')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'badges' ? 'bg-slate-100 text-[#0500A3]' : 'text-slate-400 hover:text-slate-600'}`} title="Etiquetas">
+                                        <Tag className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Views */}
+                            {viewMode === 'cards' && (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    {activos.map(a => (
+                                        <a href={`/ficha-tecnica/${a.idQr}`} target="_blank" rel="noopener noreferrer" key={a.id} className="border border-slate-200 rounded-xl p-4 bg-white shadow-sm flex flex-col gap-3 relative overflow-hidden group hover:border-[#0500A3]/30 hover:shadow-md transition-all block cursor-pointer">
+                                            <div className="flex justify-between items-start gap-3">
+                                                {a.imagenUrl ? (
+                                                    <div className="w-10 h-10 rounded-lg overflow-hidden shrink-0 border border-slate-100 bg-slate-50 relative group-hover:scale-105 transition-transform"><Image src={a.imagenUrl} fill alt="" className="object-cover" sizes="40px" /></div>
+                                                ) : null}
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-bold text-sm text-slate-800 leading-tight group-hover:text-[#0500A3] transition-colors">{a.descripcionCorta}</div>
+                                                    <div className="mt-1.5 flex items-center gap-2">
+                                                        <div className="font-mono text-[10px] font-bold text-[#0500A3] bg-blue-50 px-1.5 py-0.5 rounded shrink-0 ring-1 ring-[#0500A3]/10">{a.idQr}</div>
+                                                        {a.estatusContable && <EstatusBadge estatus={a.estatusContable} />}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between mt-auto pt-3 border-t border-slate-100">
+                                                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500">
+                                                    <MapPin className="w-3 h-3 text-slate-400 group-hover:text-[#0500A3] transition-colors" />
+                                                    {a.area}
+                                                </div>
+                                                <div className="font-extrabold text-sm bg-slate-100 text-slate-800 px-2 py-0.5 rounded-lg border border-slate-200 shadow-inner group-hover:bg-[#0500A3] group-hover:text-white transition-colors block"> x {a.stock ?? 1} </div>
+                                            </div>
+                                        </a>
+                                    ))}
+                                </div>
+                            )}
+
+                            {viewMode === 'list' && (
+                                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 shadow-sm">
+                                    {activos.map(a => (
+                                        <div key={a.id} className="flex items-center justify-between p-3 hover:bg-slate-50 transition-colors gap-3">
+                                            <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                <div className="bg-slate-100 text-slate-700 font-extrabold px-2 py-1.5 rounded-lg text-xs shrink-0 w-10 text-center border border-slate-200 shadow-inner">{a.stock ?? 1}</div>
+                                                <div className="min-w-0 pr-2">
+                                                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                                        <span className="font-bold text-xs text-slate-800">{a.area}</span>
+                                                    </div>
+                                                    <div className="text-xs text-slate-500 truncate">{a.descripcionCorta}</div>
+                                                </div>
+                                            </div>
+                                            <div className="shrink-0 flex flex-col items-end gap-1.5">
+                                                <span className="font-mono text-[9px] text-[#0500A3] font-bold bg-blue-50 px-1.5 py-0.5 rounded ring-1 ring-[#0500A3]/10">{a.idQr}</span>
+                                                <div className="scale-90 origin-right"><EstatusBadge estatus={a.estatusContable} /></div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {viewMode === 'badges' && (
+                                <div className="flex flex-wrap gap-2">
+                                    {activos.map(a => (
+                                        <div key={a.id} className="flex items-center bg-white border border-slate-200 hover:border-[#0500A3]/30 transition-all rounded-full pl-3 pr-1 py-1 shadow-sm">
+                                            <span className="text-xs font-bold text-slate-700 mr-2 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-slate-400" /> {a.area}</span>
+                                            <span className="text-[10px] font-black bg-[#0500A3] text-white px-2 py-0.5 rounded-full shadow-inner">{a.stock ?? 1} u.</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {isScanning && (
+                <BarcodeScannerModal
+                    onScan={onScanResult}
+                    onClose={() => setIsScanning(false)}
+                />
+            )}
+        </div>
+    );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export function InventarioClient({ initialData, initialStats, dbAreas = [], userRole }: { initialData?: any; initialStats?: any; dbAreas?: any[]; userRole?: string }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
@@ -2017,6 +2377,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
     const [viewActivo, setViewActivo] = useState<Activo | null>(null);
     const [previewActivo, setPreviewActivo] = useState<Activo | null>(null);
+    const [searchModalOpen, setSearchModalOpen] = useState(false);
+    const [searchModalQuery, setSearchModalQuery] = useState<string | null>(null);
     const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
     const [printingId, setPrintingId] = useState<string | null>(null);
     const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
@@ -2181,6 +2543,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
                         <div className="flex flex-col sm:flex-row gap-3">
                             <button
+                                onClick={() => setSearchModalOpen(true)}
+                                className="flex items-center justify-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto hide-on-print"
+                            >
+                                <Search className="w-5 h-5" /> Consultar
+                            </button>
+                            <button
                                 onClick={() => setModalOpen(true)}
                                 disabled={isCheckingArea}
                                 className="flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl transition-all shadow-md w-full sm:w-auto justify-center hide-on-print"
@@ -2328,7 +2696,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                             </td></tr>
                         ) : activos.map(a => (
                             <tr key={a.id} onClick={() => setViewActivo(a)} className="hover:bg-slate-50/60 transition-colors group cursor-pointer">
-                                <td className="px-3 py-3"><div className="font-mono text-[10px] text-[#0500A3] font-bold bg-blue-50 px-1.5 py-0.5 rounded w-fit whitespace-nowrap">{a.idQr}</div></td>
+                                <td className="px-3 py-3">
+                                    <div 
+                                        onClick={(e) => { e.stopPropagation(); setSearchModalQuery(a.idQr); setSearchModalOpen(true); }}
+                                        className="font-mono text-[10px] text-[#0500A3] font-bold bg-blue-50 hover:bg-[#0500A3] hover:text-white ring-1 ring-[#0500A3]/20 px-1.5 py-0.5 rounded w-fit whitespace-nowrap transition-all cursor-pointer shadow-sm"
+                                        title="Consultar ubicaciones y stock general del producto"
+                                    >
+                                        {a.idQr}
+                                    </div>
+                                </td>
                                 <td className="px-3 py-3 hide-on-print">
                                     {a.imagenUrl
                                         ? <Image src={a.imagenUrl} width={40} height={40} onClick={(e) => {
@@ -2579,6 +2955,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
             )}
 
 
+            {(searchModalOpen || searchModalQuery) && (
+                <ProductSummaryModal
+                    initialIdQr={searchModalQuery}
+                    onClose={() => { setSearchModalOpen(false); setSearchModalQuery(null); }}
+                />
+            )}
         </div>
     );
 }

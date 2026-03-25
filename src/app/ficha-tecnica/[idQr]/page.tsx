@@ -56,5 +56,11 @@ export default async function FichaTecnicaPage({ params }: Props) {
     // serialize dates
     const data = JSON.parse(JSON.stringify(activo));
 
-    return <FichaTecnicaClient activo={data} />;
+    const activosSimilares = await prisma.activoFijo.findMany({
+        where: { idQr: decodeURIComponent(idQr) },
+        select: { area: true, stock: true },
+    });
+    const distribucion = JSON.parse(JSON.stringify(activosSimilares));
+
+    return <FichaTecnicaClient activo={data} distribucion={distribucion} />;
 }

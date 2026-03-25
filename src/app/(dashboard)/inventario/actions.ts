@@ -144,6 +144,66 @@ export async function getActivosByGrupo(codigoGrupo: string) {
     }
 }
 
+// ─── Fetch Activos by ID QR ──────────────────────────────────────────────────
+export async function getActivosByIdQr(idQr: string) {
+    if (!idQr) return [];
+    try {
+        const orgId = await getOrgId();
+        const activos = await prisma.activoFijo.findMany({
+            where: { organizationId: orgId, idQr },
+            orderBy: { area: 'asc' },
+            select: {
+                id: true,
+                idQr: true,
+                descripcionCorta: true,
+                area: true,
+                codigoBarras: true,
+                stock: true,
+                estatusContable: true
+            }
+        });
+        return activos;
+    } catch (e) {
+        console.error(e);
+        return [];
+    }
+}
+
+// ─── Search Activos Globally ─────────────────────────────────────────────────
+export async function searchActivosGlobal(query: string) {
+    if (!query) return [];
+    try {
+        const orgId = await getOrgId();
+        const activos = await prisma.activoFijo.findMany({
+            where: {
+                organizationId: orgId,
+                OR: [
+                    { idQr: { contains: query, mode: 'insensitive' } },
+                    { codigoBarras: { contains: query, mode: 'insensitive' } },
+                    { descripcionCorta: { contains: query, mode: 'insensitive' } },
+                    { modelo: { contains: query, mode: 'insensitive' } },
+                ]
+            },
+            orderBy: [{ descripcionCorta: 'asc' }, { area: 'asc' }],
+            select: {
+                id: true,
+                idQr: true,
+                descripcionCorta: true,
+                area: true,
+                codigoBarras: true,
+                stock: true,
+                estatusContable: true,
+                imagenUrl: true
+            },
+            take: 100
+        });
+        return activos;
+    } catch (e) {
+        console.error(e);
+        return [];
+    }
+}
+
 // ─── Quick Update Inline Activo ──────────────────────────────────────────────
 export async function updateActivoQuick(id: string, area: string, cantidadStr: string) {
     try {
@@ -586,6 +646,15 @@ export async function previewIdQr(area: string, codigoGrupo: string = '001'): Pr
     const orgId = await getOrgId();
     const ids = await generateIdQr(orgId, area, codigoGrupo);
     return ids[0];
+}
+
+export async function checkGrupoExists(codigoGrupo: string): Promise<boolean> {
+    const orgId = await getOrgId();
+    const exists = await prisma.activoFijo.findFirst({
+        where: { organizationId: orgId, codigoGrupo },
+        select: { id: true }
+    });
+    return !!exists;
 }
 
 // ─── AREA ACTIVATION CONTROL ─────────────────────────────────────────────────
