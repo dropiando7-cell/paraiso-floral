@@ -67,71 +67,67 @@ export function BarcodeScannerModal({ onOpen, onClose, onScanSuccess }: BarcodeS
                                     <CheckCircle2 className="w-8 h-8" />
                                 </div>
                             </div>
-                            <p className="text-sm font-semibold text-zinc-800 mb-4 text-center">
-                                Código Identificado exitosamente. <br/>¿Qué deseas usar como identificador principal?
+                            <p className="text-sm font-semibold text-emerald-700 mb-6 text-center">
+                                ¡Código Inteligente Detectado!
                             </p>
 
-                            <div className="space-y-2">
+                            <div className="space-y-3 mb-6">
                                 {gs1Result.gtin && (
-                                    <GS1OptionButton
-                                        label="GTIN (Código Universal)"
-                                        value={gs1Result.gtin}
-                                        highlight
-                                        onSelect={handleConfirmGs1}
-                                    />
+                                    <div className="flex items-center justify-between bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-2.5">
+                                        <div>
+                                            <p className="text-xs font-semibold text-indigo-700">GTIN Universial</p>
+                                            <p className="text-sm font-bold text-indigo-950 font-mono">{gs1Result.gtin}</p>
+                                        </div>
+                                    </div>
                                 )}
                                 {gs1Result.ref && (
-                                    <GS1OptionButton
-                                        label="REF (Referencia del Fabricante)"
-                                        value={gs1Result.ref}
-                                        onSelect={handleConfirmGs1}
-                                    />
+                                    <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5">
+                                        <div>
+                                            <p className="text-xs font-semibold text-zinc-600">Referencia de Catálogo</p>
+                                            <p className="text-sm font-bold text-zinc-900 font-mono">{gs1Result.ref}</p>
+                                        </div>
+                                    </div>
                                 )}
                                 {gs1Result.serial && (
-                                    <GS1OptionButton
-                                        label="Serie"
-                                        value={gs1Result.serial}
-                                        onSelect={handleConfirmGs1}
-                                    />
+                                    <div className="flex items-center justify-between bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5">
+                                        <div>
+                                            <p className="text-xs font-semibold text-zinc-600">Número de Serie</p>
+                                            <p className="text-sm font-bold text-zinc-900 font-mono">{gs1Result.serial}</p>
+                                        </div>
+                                    </div>
                                 )}
                                 {gs1Result.lote && (
                                     <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
                                         <div>
-                                            <p className="text-xs font-medium text-amber-700">Lote/Batch</p>
-                                            <p className="text-sm font-bold text-amber-900 font-mono">{gs1Result.lote}</p>
+                                            <p className="text-xs font-semibold text-amber-700">Lote/Batch de Fabricación</p>
+                                            <p className="text-sm font-bold text-amber-950 font-mono">{gs1Result.lote}</p>
                                         </div>
-                                        <span className="text-xs text-amber-600 italic">Se autollenará</span>
                                     </div>
                                 )}
                                 {gs1Result.fechaVenc && (
                                     <div className="flex items-center justify-between bg-rose-50 border border-rose-200 rounded-xl px-4 py-2.5">
                                         <div>
-                                            <p className="text-xs font-medium text-rose-700">Vencimiento (YYMMDD)</p>
-                                            <p className="text-sm font-bold text-rose-900 font-mono">
+                                            <p className="text-xs font-semibold text-rose-700">Fecha de Vencimiento</p>
+                                            <p className="text-sm font-bold text-rose-950 font-mono">
                                                 {gs1DateToISO(gs1Result.fechaVenc) || gs1Result.fechaVenc}
                                             </p>
                                         </div>
-                                        <span className="text-xs text-rose-600 italic">Se autollenará</span>
                                     </div>
                                 )}
                             </div>
 
-                            {/* Opción: usar el string completo */}
-                            <div className="mt-4 pt-4 border-t border-zinc-100">
-                                <button
-                                    onClick={() => handleConfirmGs1(rawScanned)}
-                                    className="w-full text-left px-3 py-2.5 rounded-lg text-xs text-zinc-600 bg-zinc-50 hover:bg-zinc-100 font-mono truncate transition-colors border border-zinc-200"
-                                    title="Usar código completo de fabricante"
-                                >
-                                    <span className="text-zinc-400 font-sans block mb-1">Escaner Directo: </span>
-                                    {rawScanned}
-                                </button>
-                            </div>
+                            <button
+                                onClick={() => handleConfirmGs1(gs1Result.gtin || gs1Result.ref || gs1Result.serial || rawScanned)}
+                                className="w-full flex items-center justify-center gap-2 bg-[#0500A3] text-white font-bold text-base border-2 border-[#0500A3] py-4 rounded-xl hover:bg-[#040080] active:scale-95 transition-all shadow-md"
+                            >
+                                <CheckCircle2 className="w-5 h-5" />
+                                Pre-llenar Formulario
+                            </button>
 
                             <button onClick={handleRescan}
-                                className="mt-6 w-full flex items-center justify-center gap-2 text-sm font-semibold text-indigo-600 border border-indigo-200 py-3 rounded-xl hover:bg-indigo-50 transition-colors">
-                                <RefreshCw className="w-5 h-5" />
-                                Volver a escanear
+                                className="mt-4 w-full flex items-center justify-center gap-2 text-sm font-bold text-zinc-500 hover:text-zinc-700 transition-colors py-3">
+                                <RefreshCw className="w-4 h-4" />
+                                Volver a escanear otro código
                             </button>
                         </div>
                     ) : (
@@ -179,23 +175,4 @@ export function BarcodeScannerModal({ onOpen, onClose, onScanSuccess }: BarcodeS
     );
 }
 
-function GS1OptionButton({ label, value, highlight, onSelect }: {
-    label: string; value: string; highlight?: boolean; onSelect: (v: string) => void;
-}) {
-    return (
-        <button
-            onClick={() => onSelect(value)}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all active:scale-[0.98] text-left ${
-                highlight
-                    ? 'border-indigo-500 bg-indigo-50 hover:bg-indigo-100'
-                    : 'border-zinc-200 bg-white hover:bg-zinc-50 hover:border-zinc-300'
-            }`}
-        >
-            <div>
-                <p className={`text-xs font-medium mb-0.5 ${highlight ? 'text-indigo-600' : 'text-zinc-500'}`}>{label}</p>
-                <p className={`text-sm font-bold font-mono ${highlight ? 'text-indigo-900' : 'text-zinc-800'}`}>{value}</p>
-            </div>
-            <Package className={`w-5 h-5 shrink-0 ${highlight ? 'text-indigo-500' : 'text-zinc-300'}`} />
-        </button>
-    );
-}
+
