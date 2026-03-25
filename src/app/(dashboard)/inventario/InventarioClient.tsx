@@ -638,6 +638,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     // Pre-step Registration Type
     const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso'>(editActivo ? 'reingreso' : 'seleccion');
     const [compatibilidad, setCompatibilidad] = useState<string[]>(isEdit && editActivo ? editActivo.compatibilidad || [] : []);
+    const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const [tagInput, setTagInput] = useState('');
     const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
     const [costoAdq, setCostoAdq] = useState<string>(editActivo?.costoAdq ? Number(editActivo.costoAdq).toString() : '');
@@ -1476,9 +1477,14 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             {imagenUrl ? (
                                                 <div className="relative">
                                                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={imagenUrl} alt="Activo" className="w-32 h-32 object-cover rounded-2xl border-2 border-slate-200 shadow-md" />
+                                                    <img src={imagenUrl} alt="Activo" onClick={() => setLightboxImage(imagenUrl)} className="w-32 h-32 object-cover rounded-2xl border-2 border-slate-200 shadow-md cursor-pointer hover:opacity-90 transition-opacity" />
                                                     {!isLoading && (
-                                                        <button type="button" onClick={() => { setImagenUrl(''); setAiResult(null); }}
+                                                        <button type="button" onClick={() => { 
+                                                            if (window.confirm('¿Está seguro de eliminar esta foto principal del equipo?')) {
+                                                                setImagenUrl(''); 
+                                                                setAiResult(null); 
+                                                            }
+                                                        }}
                                                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center shadow-lg active:scale-95">
                                                             <X className="w-4 h-4" />
                                                         </button>
@@ -1691,9 +1697,13 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                     {imagenPlacaUrl ? (
                                                         <div className="shrink-0 relative">
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img src={imagenPlacaUrl} alt="Placa" className="w-[42px] h-[42px] object-cover rounded-xl border border-slate-200" />
+                                                            <img src={imagenPlacaUrl} alt="Placa" onClick={() => setLightboxImage(imagenPlacaUrl)} className="w-[42px] h-[42px] object-cover rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity" />
                                                             {(!isExistingGroup && (placaUploadPhase === 'idle' || placaUploadPhase === 'done')) ? (
-                                                                <button type="button" onClick={() => setImagenPlacaUrl('')}
+                                                                <button type="button" onClick={() => {
+                                                                    if (window.confirm('¿Eliminar la foto de la placa identificadora?')) {
+                                                                        setImagenPlacaUrl('');
+                                                                    }
+                                                                }}
                                                                     className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center shadow-lg hover:scale-110">
                                                                     <X className="w-3 h-3" />
                                                                 </button>
@@ -2018,6 +2028,30 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                     </div>
                 </div>
             )}
+
+            {/* Lightbox Modal overlay for images */}
+            {lightboxImage && (
+                <div 
+                    className="fixed inset-0 z-[70] bg-black/95 flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+                    onClick={() => setLightboxImage(null)}
+                >
+                    <button 
+                        className="absolute top-6 right-6 lg:top-10 lg:right-10 bg-white/10 text-white p-3 rounded-full hover:bg-white/25 transition-colors border border-white/20"
+                        onClick={() => setLightboxImage(null)}
+                        title="Cerrar vista"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img 
+                        src={lightboxImage} 
+                        alt="Vista Ampliada" 
+                        className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl ring-1 ring-white/10" 
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
+
             <BarcodeScannerModal
                 onOpen={isScannerOpen}
                 onClose={() => setIsScannerOpen(false)}
