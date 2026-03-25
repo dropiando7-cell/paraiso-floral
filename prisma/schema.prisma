@@ -309,6 +309,7 @@ model ActivoFijo {
   descripcionDetallada  String?
   serie                 String?
   modelo                String?
+  referencia            String?
   area                  String
   cuentaAct             String
   estatusContable       String               @default("VIGENTE")

@@ -30,6 +30,8 @@ export async function GET(req: NextRequest) {
     const fechaAdqUrl = searchParams.get('fechaAdq') || '';
     const modeloUrl = searchParams.get('modelo') || '';
     const marcaUrl = searchParams.get('marca') || '';
+    const fechaFabUrl = searchParams.get('fechaFab') || '';
+    const fechaVencUrl = searchParams.get('fechaVenc') || '';
     
     // Si no hay codigo de barras explícito, utilizamos el id interno como codigo de barra 1D también.
     const barcodeData = codigoBarras ? codigoBarras : idQr;
@@ -70,8 +72,10 @@ export async function GET(req: NextRequest) {
                             {descStr}
                         </span>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px' }}>
-                            <span style={{ fontSize: 14, color: '#444', fontWeight: 600 }}>Date: {fechaAdqDisplay}</span>
-                            <span style={{ fontSize: 14, color: '#444', fontWeight: 600 }}>Model: {modeloDisplay}</span>
+                            <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Adq: {fechaAdqDisplay}</span>
+                            <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Mod: {modeloDisplay}</span>
+                            {fechaFabUrl && <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Fab: {fechaFabUrl}</span>}
+                            {fechaVencUrl && <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Venc: {fechaVencUrl}</span>}
                         </div>
                     </div>
 

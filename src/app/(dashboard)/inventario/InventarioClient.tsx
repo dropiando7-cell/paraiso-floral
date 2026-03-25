@@ -35,6 +35,8 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
         marca: activo.marca || '',
         fechaAdq: (activo as any).createdAt ? new Date((activo as any).createdAt).toISOString() : new Date().toISOString()
     });
+    if ((activo as any).fechaFabricacion) searchParams.set('fechaFab', new Date((activo as any).fechaFabricacion).toISOString().split('T')[0]);
+    if ((activo as any).fechaVencimiento) searchParams.set('fechaVenc', new Date((activo as any).fechaVencimiento).toISOString().split('T')[0]);
     const url = `/api/impresion/generar-etiqueta?${searchParams.toString()}`;
 
     return (
@@ -141,6 +143,10 @@ type Activo = {
     integrado: boolean;
     costoAdq?: any;
     origenActivo?: string | null;
+    referencia?: string | null;
+    lote?: string | null;
+    fechaFabricacion?: Date | null;
+    fechaVencimiento?: Date | null;
     imagenUrl?: string | null;
     imagenPlacaUrl?: string | null;
     estadoDano?: string | null;
@@ -626,6 +632,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [descripcionDetallada, setDescripcionDetallada] = useState(editActivo?.descripcionDetallada || '');
     const [marca, setMarca] = useState(editActivo?.marca || '');
     const [modelo, setModelo] = useState(editActivo?.modelo || '');
+    const [referencia, setReferencia] = useState(editActivo?.referencia || '');
     const [codigoGrupo, setCodigoGrupo] = useState(editActivo?.codigoGrupo || '');
     const [codigoBarras, setCodigoBarras] = useState(editActivo?.codigoBarras || '');
     const [cantidad, setCantidad] = useState(editActivo?.stock ? String(editActivo.stock) : '1');
@@ -938,6 +945,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             setDescripcionDetallada(editActivo.descripcionDetallada || '');
             setMarca(editActivo.marca || '');
             setModelo(editActivo.modelo || '');
+            setReferencia(editActivo.referencia || '');
+            setLote(editActivo.lote || '');
             setCodigoGrupo(editActivo.codigoGrupo || '001');
             setCodigoBarras(editActivo.codigoBarras || '');
             setCantidad(editActivo.stock ? String(editActivo.stock) : '1');
@@ -955,7 +964,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
             setPreviewQr(''); setAiResult(null); setUploadPhase('idle'); setPlacaUploadPhase('idle');
-            setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setCodigoGrupo(''); setCodigoBarras(''); setCantidad('1');
+            setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setReferencia(''); setCodigoGrupo(''); setCodigoBarras(''); setCantidad('1');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
             setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
@@ -1729,6 +1738,24 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                     placeholder="Ej: P-125..."
                                                     className={`${aiResult?.modelo ? inputAiCls : inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                             </div>
+                                            <div>
+                                                <FieldLabel>Referencia Comercial</FieldLabel>
+                                                <input type="text" name="referencia"
+                                                    value={referencia}
+                                                    disabled={isExistingGroup}
+                                                    onChange={e => setReferencia(e.target.value)}
+                                                    placeholder="Ej: REF-10293..."
+                                                    className={`${inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Lote</FieldLabel>
+                                                <input type="text" name="lote"
+                                                    value={lote}
+                                                    disabled={isExistingGroup}
+                                                    onChange={e => setLote(e.target.value)}
+                                                    placeholder="Ej: LTA-2023..."
+                                                    className={`${inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
+                                            </div>
                                         </div>
 
                                         {/* Compatibilidad Tags */}
@@ -2020,8 +2047,7 @@ function DeleteConfirm({ activo, onClose, onSuccess }: { activo: Activo; onClose
 // ─── Imprimir Lote Modal ──────────────────────────────────────────────────────
 function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean; onClose: () => void; grupos: any[]; onSuccess: () => void }) {
     const [grupo, setGrupo] = useState('');
-    const [desde, setDesde] = useState('');
-    const [hasta, setHasta] = useState('');
+    const [cantidad, setCantidad] = useState('');
     const [isPending, startTransition] = useTransition();
 
     if (!open) return null;
@@ -2051,29 +2077,23 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
                             allowCustom={true}
                         />
                     </div>
-                    <div className="flex gap-4">
-                        <div className="flex-1">
-                            <FieldLabel required>Del (№ Correlativo)</FieldLabel>
-                            <input type="number" min="1" value={desde} onChange={e => setDesde(e.target.value)}
-                                className={inputCls} placeholder="Ej: 1" />
-                        </div>
-                        <div className="flex-1">
-                            <FieldLabel required>Al (№ Correlativo)</FieldLabel>
-                            <input type="number" min="1" value={hasta} onChange={e => setHasta(e.target.value)}
-                                className={inputCls} placeholder="Ej: 50" />
-                        </div>
+                    <div>
+                        <FieldLabel required>Cantidad a imprimir</FieldLabel>
+                        <input type="number" min="1" max={grupos.find(g => g.codigoGrupo === grupo)?.cantidad || undefined} value={cantidad} onChange={e => setCantidad(e.target.value)}
+                            className={inputCls} placeholder="Ej: 50" />
+                        <p className="text-[10px] text-slate-500 mt-1.5 ml-1 leading-tight">Se enviarán a imprimir automáticamente los {cantidad || 'N'} registros más recientes de este grupo.</p>
                     </div>
                 </div>
 
                 <button onClick={() => startTransition(async () => {
-                    if (!grupo || !desde || !hasta) return alert('Completa todos los campos');
-                    if (Number(desde) > Number(hasta)) return alert('Rango inválido');
+                    if (!grupo || !cantidad) return alert('Completa todos los campos');
+                    if (Number(cantidad) < 1) return alert('Cantidad inválida');
 
                     try {
-                        const res = await encolarLoteImpresion(grupo, Number(desde), Number(hasta));
+                        const res = await encolarLoteImpresion(grupo, Number(cantidad));
                         if (res.error) alert(res.error);
                         else {
-                            alert(`Se enviaron ${res.count} etiquetas a la cola de impresión exitosamente.`);
+                            alert(`Se enviaron ${cantidad} etiquetas a la cola de impresión exitosamente.`);
                             onSuccess();
                             onClose();
                         }
@@ -2081,7 +2101,7 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
                         alert('Error conectando con el servidor');
                     }
                 })}
-                    disabled={isPending || !grupo || !desde || !hasta}
+                    disabled={isPending || !grupo || !cantidad}
                     className="w-full flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white rounded-2xl py-4 hover:bg-[#0600c2] active:scale-[0.98] transition-all disabled:opacity-60">
                     {isPending && <Loader2 className="w-5 h-5 animate-spin" />} Enviar a Cola
                 </button>
@@ -2345,7 +2365,8 @@ function ProductSummaryModal({
 
             {isScanning && (
                 <BarcodeScannerModal
-                    onScan={onScanResult}
+                    onOpen={isScanning}
+                    onScanSuccess={onScanResult}
                     onClose={() => setIsScanning(false)}
                 />
             )}
@@ -2682,7 +2703,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 <table className="w-full text-xs min-w-[800px]">
                     <thead>
                         <tr className="border-b border-slate-100 bg-slate-50">
-                            {['ID QR', 'FOTO', 'DESCRIPCIÓN', 'ÁREA', 'STOCK', 'CUENTA', 'ESTATUS', 'ESTADO', 'RESPONSABLE', ''].map(h => (
+                            {['ID QR', 'FOTO', 'DESCRIPCIÓN', 'REF.', 'LOTE', 'ÁREA', 'STOCK', 'CUENTA', 'ESTATUS', 'ESTADO', 'RESPONSABLE', ''].map(h => (
                                 <th key={h} className={`text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 py-3 ${h === '' || h === 'FOTO' ? 'hide-on-print' : ''}`}>{h}</th>
                             ))}
                         </tr>
@@ -2727,6 +2748,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                                         if (diff <= 60) return <div className="mt-1 text-orange-600 font-bold text-[10px] bg-orange-50 px-1.5 py-0.5 rounded w-fit">⏳ {diff} días</div>;
                                         return <div className="mt-1 text-emerald-600 font-medium text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded w-fit">Vence: {fv.toLocaleDateString('es-HN')}</div>;
                                     })()}
+                                </td>
+                                <td className="px-3 py-3 max-w-[120px]">
+                                    {a.referencia ? <div className="text-[10px] text-slate-600 font-mono truncate">{a.referencia}</div> : <div className="text-[10px] text-slate-300">—</div>}
+                                </td>
+                                <td className="px-3 py-3 max-w-[100px]">
+                                    {a.lote ? <div className="text-[10px] text-slate-600 font-mono truncate">{a.lote}</div> : <div className="text-[10px] text-slate-300">—</div>}
                                 </td>
                                 <td className="px-3 py-3"><div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-400 shrink-0" /><span className="text-slate-600 font-mono text-[10px] whitespace-nowrap">{a.area}</span></div></td>
                                 <td className="px-3 py-3"><div className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-center w-fit">{a.stock ?? 1}</div></td>

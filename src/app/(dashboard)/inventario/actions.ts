@@ -193,7 +193,9 @@ export async function searchActivosGlobal(query: string) {
                 codigoBarras: true,
                 stock: true,
                 estatusContable: true,
-                imagenUrl: true
+                imagenUrl: true,
+                referencia: true,
+                lote: true
             },
             take: 100
         });
@@ -467,6 +469,7 @@ export async function createActivo(formData: FormData) {
         serie: (formData.get('serie') as string) || null,
         marca: (formData.get('marca') as string) || null,
         modelo: (formData.get('modelo') as string) || null,
+        referencia: (formData.get('referencia') as string) || null,
         cuentaAct: formData.get('cuentaAct') as string,
         estatusContable: (formData.get('estatusContable') as string) || 'VIGENTE',
         fechaAdq: fechaAdqDate,
@@ -581,6 +584,7 @@ export async function updateActivo(id: string, formData: FormData) {
             serie: (formData.get('serie') as string) || null,
             marca: (formData.get('marca') as string) || null,
             modelo: (formData.get('modelo') as string) || null,
+            referencia: (formData.get('referencia') as string) || null,
             area: formData.get('area') as string,
             cuentaAct: formData.get('cuentaAct') as string,
             estatusContable: formData.get('estatusContable') as string,
@@ -824,37 +828,32 @@ export async function getActiveUserArea() {
     }
 }
 
-export async function encolarLoteImpresion(codigoGrupo: string, desde: number, hasta: number) {
+export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number) {
     const orgId = await getOrgId();
 
-    // Buscar todos los activos con ese codigo de grupo para la organizacion de forma global
-    const activos = await prisma.activoFijo.findMany({
+    // Buscar los ultimos N activos con ese codigo de grupo para la organizacion de forma global
+    const activosEnRango = await prisma.activoFijo.findMany({
         where: {
             organizationId: orgId,
             codigoGrupo
         },
+        orderBy: {
+            createdAt: 'desc'
+        },
+        take: cantidad,
         select: {
             id: true,
             idQr: true,
             descripcionCorta: true,
             area: true,
-            cuentaAct: true
+            cuentaAct: true,
+            fechaFabricacion: true,
+            fechaVencimiento: true
         }
-    });
-
-    // Filtrar en memoria por el correlativo ya que extraer la ultima parte con split es complejo en prisma orm pura
-    const activosEnRango = activos.filter(act => {
-        const parts = act.idQr.split('-');
-        const correlativoStr = parts[parts.length - 1];
-        if (!isNaN(Number(correlativoStr))) {
-            const numero = Number(correlativoStr);
-            return numero >= desde && numero <= hasta;
-        }
-        return false;
     });
 
     if (activosEnRango.length === 0) {
-        return { success: false, error: 'No se encontraron activos en ese rango para el grupo seleccionado' };
+        return { success: false, error: 'No se encontraron activos para el grupo seleccionado' };
     }
 
     // Preparar el host desde env variable o localhost temporalmente. 
@@ -869,6 +868,8 @@ export async function encolarLoteImpresion(codigoGrupo: string, desde: number, h
             area: activo.area,
             cuenta: activo.cuentaAct,
         });
+        if (activo.fechaFabricacion) params.set('fechaFab', activo.fechaFabricacion.toISOString().split('T')[0]);
+        if (activo.fechaVencimiento) params.set('fechaVenc', activo.fechaVencimiento.toISOString().split('T')[0]);
         const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
         return {
             organizationId: orgId,
