@@ -14,7 +14,7 @@ import {
     getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, 
     encolarCopiasNiimbot, getCategorias, createCategoria, checkExistingByBarcode, 
     getActivosByGrupo, updateActivoQuick, checkGrupoExists, getActivosByIdQr, 
-    searchActivosGlobal, getActivosPage, getUbicacionGroupsPage
+    searchActivosGlobal
 } from './actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 import { RestockModal } from './RestockModal';
@@ -145,8 +145,8 @@ type Activo = {
     origenActivo?: string | null;
     referencia?: string | null;
     lote?: string | null;
-    fechaFabricacion?: Date | null;
-    fechaVencimiento?: Date | null;
+    fechaFabricacion?: Date | string | null;
+    fechaVencimiento?: Date | string | null;
     imagenUrl?: string | null;
     imagenPlacaUrl?: string | null;
     estadoDano?: string | null;
@@ -164,9 +164,6 @@ type Activo = {
     categoriaId?: string | null;
     categoria?: { id: string; nombre: string; color?: string | null } | null;
     esConsumible?: boolean;
-    fechaVencimiento?: Date | string | null;
-    fechaFabricacion?: Date | string | null;
-    lote?: string | null;
     stock?: number;
 };
 

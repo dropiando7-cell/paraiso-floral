@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Scanner } from '@yudiel/react-qr-scanner';
 import { QrCode, ArrowLeft, CheckCircle2, AlertTriangle, User, MonitorSmartphone } from 'lucide-react';
 import { getOrdenByQR, entregarOrden } from '../actions';
 
@@ -16,32 +16,7 @@ export default function EscanerClient() {
     const [loading, setLoading] = useState(false);
     const [entregado, setEntregado] = useState(false);
 
-    useEffect(() => {
-        if (scannedCode || entregado) return; // Si ya escaneó, no renderizar escáner nuevo
-
-        const scanner = new Html5QrcodeScanner(
-            "reader",
-            { fps: 10, qrbox: { width: 250, height: 250 }, rememberLastUsedCamera: true },
-            false
-        );
-
-        scanner.render(onScanSuccess, onScanFailure);
-
-        function onScanSuccess(decodedText: string) {
-            scanner.clear();
-            setScannedCode(decodedText);
-            verificarOrden(decodedText);
-        }
-
-        function onScanFailure(error: any) {
-            // Se ignora silenciosamente los errores por frame
-        }
-
-        return () => {
-            scanner.clear().catch(e => console.error("Error clearing scanner", e));
-        };
-    }, [scannedCode, entregado]);
-
+    // ZXing Scanner relies on component lifecycle, dropping archaic HTML5 useEffect
     const verificarOrden = async (codigo: string) => {
         setLoading(true);
         setError('');
@@ -122,7 +97,18 @@ export default function EscanerClient() {
                                     {error}
                                 </div>
                             )}
-                            <div id="reader" className="w-full text-slate-800 rounded-2xl overflow-hidden border-2 border-dashed border-slate-300 html5-scanner-custom"></div>
+                            <div className="w-full text-slate-800 rounded-2xl overflow-hidden border-2 border-dashed border-slate-300 relative bg-black aspect-square max-w-sm mx-auto">
+                                <Scanner 
+                                    onScan={(result) => {
+                                        if (result && result.length > 0) {
+                                            const decodedText = result[0].rawValue;
+                                            setScannedCode(decodedText);
+                                            verificarOrden(decodedText);
+                                        }
+                                    }}
+                                    formats={["qr_code", "code_128", "code_39", "ean_13"]}
+                                />
+                            </div>
                             <p className="text-center text-sm font-semibold text-slate-400 mt-4 uppercase tracking-widest">
                                 Espere al Lector de Cámara
                             </p>
