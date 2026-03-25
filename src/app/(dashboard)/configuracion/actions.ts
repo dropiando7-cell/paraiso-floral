@@ -145,7 +145,8 @@ export async function getCompanyProfile() {
             telefono: dbUser.organization.telefono || '',
             correoContacto: dbUser.organization.correoContacto || '',
             rtn: dbUser.organization.rtn || '',
-            logoUrl: dbUser.organization.logoUrl || ''
+            logoUrl: dbUser.organization.logoUrl || '',
+            qrPrefix: dbUser.organization.qrPrefix || 'BEA'
         };
     } catch(e) {
         console.error(e);
@@ -172,7 +173,8 @@ export async function saveCompanyProfile(data: any) {
                 direccion: data.direccion,
                 telefono: data.telefono,
                 correoContacto: data.correoContacto,
-                rtn: data.rtn
+                rtn: data.rtn,
+                qrPrefix: data.qrPrefix ? String(data.qrPrefix).toUpperCase().substring(0, 4) : 'BEA'
             }
         });
 

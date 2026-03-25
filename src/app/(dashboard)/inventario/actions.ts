@@ -26,7 +26,9 @@ async function getOrgId(): Promise<string> {
 
 // ─── Auto-generate ID QR ─────────────────────────────────────────────────────
 async function generateIdQr(organizationId: string, area: string, codigoGrupo: string = '001', cantidadRegistros: number = 1): Promise<string[]> {
-    const prefijoBase = 'BIO';
+    const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { qrPrefix: true } });
+    const prefijoBase = org?.qrPrefix || 'BEA';
+
 
     const todos = await prisma.activoFijo.findMany({
         where: { 
@@ -231,11 +233,11 @@ export async function getActivoStats(area?: string) {
             ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
         )
         SELECT 
-            COUNT(*) as total,
-            COUNT(*) FILTER (WHERE "estatusContable" = 'VIGENTE') as vigente,
-            COUNT(*) FILTER (WHERE "estatusContable" = 'DEPRECIADO') as depreciado,
-            COUNT(*) FILTER (WHERE "estatusContable" = 'PROCESO DE BAJA') as proceso_baja,
-            COUNT(*) FILTER (WHERE "estadoDano" IS NOT NULL) as con_dano,
+            COALESCE(SUM("stock"), 0) as total,
+            COALESCE(SUM("stock") FILTER (WHERE "estatusContable" = 'VIGENTE'), 0) as vigente,
+            COALESCE(SUM("stock") FILTER (WHERE "estatusContable" = 'DEPRECIADO'), 0) as depreciado,
+            COALESCE(SUM("stock") FILTER (WHERE "estatusContable" = 'PROCESO DE BAJA'), 0) as proceso_baja,
+            COALESCE(SUM("stock") FILTER (WHERE "estadoDano" IS NOT NULL), 0) as con_dano,
             (SELECT areas_count FROM org_areas)
         FROM "activos_fijos"
         WHERE "organizationId" = ${orgId}::uuid

@@ -2314,7 +2314,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 <table className="w-full text-xs min-w-[800px]">
                     <thead>
                         <tr className="border-b border-slate-100 bg-slate-50">
-                            {['ID QR', 'FOTO', 'DESCRIPCIÓN', 'ÁREA', 'CUENTA', 'ESTATUS', 'ESTADO', 'RESPONSABLE', ''].map(h => (
+                            {['ID QR', 'FOTO', 'DESCRIPCIÓN', 'ÁREA', 'STOCK', 'CUENTA', 'ESTATUS', 'ESTADO', 'RESPONSABLE', ''].map(h => (
                                 <th key={h} className={`text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 py-3 ${h === '' || h === 'FOTO' ? 'hide-on-print' : ''}`}>{h}</th>
                             ))}
                         </tr>
@@ -2353,6 +2353,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                                     })()}
                                 </td>
                                 <td className="px-3 py-3"><div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-400 shrink-0" /><span className="text-slate-600 font-mono text-[10px] whitespace-nowrap">{a.area}</span></div></td>
+                                <td className="px-3 py-3"><div className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-center w-fit">{a.stock ?? 1}</div></td>
                                 <td className="px-3 py-3 max-w-[140px]"><div className="text-[10px] text-slate-600 truncate">{a.cuentaAct}</div></td>
                                 <td className="px-3 py-3"><EstatusBadge estatus={a.estatusContable} /></td>
                                 <td className="px-3 py-3"><DanoBadge dano={a.estadoDano} /></td>

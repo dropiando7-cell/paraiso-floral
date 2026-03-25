@@ -22,6 +22,7 @@ model Organization {
   status                OrganizationStatus     @default(ACTIVE)
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
+  qrPrefix              String                 @default("BEA")
   activosFijos          ActivoFijo[]
   areaInventoryStatuses AreaInventoryStatus[]
   areas                 Area[]

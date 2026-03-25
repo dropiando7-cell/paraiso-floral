@@ -34,7 +34,7 @@ export default function ConfiguracionPage() {
     const [activeTab, setActiveTab] = useState<'general' | 'company' | 'emails'>('general');
     
     // Whitelabel Company Profile
-    const [companyProfile, setCompanyProfile] = useState({ name: '', direccion: '', telefono: '', correoContacto: '', rtn: '', logoUrl: '' });
+    const [companyProfile, setCompanyProfile] = useState({ name: '', direccion: '', telefono: '', correoContacto: '', rtn: '', logoUrl: '', qrPrefix: 'BEA' });
     const [isSavingCompany, setIsSavingCompany] = useState(false);
     const [saveCompanySuccess, setSaveCompanySuccess] = useState(false);
 
@@ -516,9 +516,16 @@ export default function ConfiguracionPage() {
                             </div>
 
                             <div className="px-6 py-5 space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Comercial</label>
-                                    <input type="text" value={companyProfile.name} onChange={e => setCompanyProfile({...companyProfile, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none" placeholder="Ej. Bioelectrónica Honduras" />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Comercial</label>
+                                        <input type="text" value={companyProfile.name} onChange={e => setCompanyProfile({...companyProfile, name: e.target.value})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none" placeholder="Ej. Bioelectrónica Honduras" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-1">Prefijo de Etiquetas QR</label>
+                                        <input type="text" maxLength={4} value={companyProfile.qrPrefix} onChange={e => setCompanyProfile({...companyProfile, qrPrefix: e.target.value.toUpperCase()})} className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none uppercase" placeholder="Ej: BEA, MED..." />
+                                        <p className="text-[10px] text-slate-500 mt-1">De 3 a 4 letras. Define el prefijo de tus activos (ej. {companyProfile.qrPrefix || 'BEA'}-0001).</p>
+                                    </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
