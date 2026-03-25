@@ -266,7 +266,7 @@ function Combobox({
                 className={`w-full flex items-center justify-between text-base border-2 rounded-xl px-4 py-3.5 text-left transition-all focus:outline-none
                     ${disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed border-transparent' : aiHighlight ? 'border-purple-400 bg-purple-50' : 'border-slate-200 bg-white'}
                     ${open ? 'ring-2 ring-[#0500A3]/30 border-[#0500A3]/50' : 'hover:border-slate-300'}`}>
-                <span className={`truncate ${selected || (allowCustom && value) ? (disabled ? 'text-slate-500' : 'text-slate-900') : 'text-slate-400'}`}>
+                <span className={`flex-1 min-w-0 truncate ${selected || (allowCustom && value) ? (disabled ? 'text-slate-500' : 'text-slate-900') : 'text-slate-400'}`}>
                     {selected ? selected.label : (allowCustom && value ? value : (placeholder || 'Seleccionar...'))}
                 </span>
                 <div className="flex items-center gap-1 shrink-0 ml-2">
@@ -1651,7 +1651,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
                                         {/* Nombre / Descripción Corta — AI controlled */}
                                         <div className="mb-6 flex gap-2 items-end">
-                                            <div className="flex-1">
+                                            <div className="flex-1 min-w-0">
                                                 <FieldLabel>Clasificación General (Maestra)</FieldLabel>
                                                 <Combobox
                                                     options={categorias}
@@ -1770,23 +1770,38 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                 ))}
                                                 {compatibilidad.length === 0 && <span className="text-xs text-slate-400 italic py-1.5">Ninguna marca agregada...</span>}
                                             </div>
-                                            <input 
-                                                type="text" 
-                                                value={tagInput}
-                                                onChange={e => setTagInput(e.target.value)}
-                                                onKeyDown={e => {
-                                                    if (e.key === 'Enter') {
-                                                        e.preventDefault();
+                                            <div className="flex gap-2">
+                                                <input 
+                                                    type="text" 
+                                                    value={tagInput}
+                                                    onChange={e => setTagInput(e.target.value)}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            const v = tagInput.trim().toUpperCase();
+                                                            if (v && !compatibilidad.includes(v)) {
+                                                                setCompatibilidad([...compatibilidad, v]);
+                                                                setTagInput('');
+                                                            }
+                                                        }
+                                                    }}
+                                                    placeholder="Ej: MINDRAY (Enter)" 
+                                                    className={inputCls} 
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
                                                         const v = tagInput.trim().toUpperCase();
                                                         if (v && !compatibilidad.includes(v)) {
                                                             setCompatibilidad([...compatibilidad, v]);
                                                             setTagInput('');
                                                         }
-                                                    }
-                                                }}
-                                                placeholder="Ej: MINDRAY, PHILIPS (Presiona Enter para añadir)" 
-                                                className={inputCls} 
-                                            />
+                                                    }}
+                                                    className="shrink-0 px-4 py-2 bg-[#0500A3] text-white font-bold rounded-xl shadow-sm hover:bg-[#040080] active:scale-95 transition-all text-sm flex items-center justify-center"
+                                                >
+                                                    Añadir
+                                                </button>
+                                            </div>
                                         </div>
                                         
                                         {/* Lote y Fechas */}
@@ -2494,6 +2509,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
             ]);
             setActivos(data.activos as Activo[]);
             setTotal(data.total); setTotalPages(data.totalPages); setStats(st);
+            router.refresh(); // Forces Next.js to re-fetch Server Components (like gruposDisponibles)
         } catch (error) {
             console.error('Error fetching inventory data on client: ', error);
         } finally {
