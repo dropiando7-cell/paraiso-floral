@@ -506,8 +506,8 @@ export async function createActivo(formData: FormData) {
         stock: cantidadRegistros
     };
 
-    // Si ya existe un producto con este código de barras (o grupo) EN ESA MISMA ÁREA y NO se proporciona una Serie única, solo sumamos stock
-    if (!baseData.serie && (codigoBarras || codigoGrupo)) {
+    // Si ya existe un producto con este código de barras (o grupo) EN ESA MISMA ÁREA y NO se proporciona una Serie única (ni vencimiento diferente), solo sumamos stock
+    if (!baseData.serie && !baseData.fechaVencimiento && (codigoBarras || codigoGrupo)) {
         const whereClause: any = { organizationId: orgId, area };
         if (codigoBarras) whereClause.codigoBarras = codigoBarras;
         else if (codigoGrupo) whereClause.codigoGrupo = codigoGrupo;
@@ -858,7 +858,10 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
             area: true,
             cuentaAct: true,
             fechaFabricacion: true,
-            fechaVencimiento: true
+            fechaVencimiento: true,
+            marca: true,
+            modelo: true,
+            codigoBarras: true
         }
     });
 
@@ -877,6 +880,9 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
             descripcion: activo.descripcionCorta,
             area: activo.area,
             cuenta: activo.cuentaAct,
+            marca: activo.marca || '',
+            modelo: activo.modelo || '',
+            codigoBarras: activo.codigoBarras || ''
         });
         if (activo.fechaFabricacion) params.set('fechaFab', activo.fechaFabricacion.toISOString().split('T')[0]);
         if (activo.fechaVencimiento) params.set('fechaVenc', activo.fechaVencimiento.toISOString().split('T')[0]);
@@ -906,7 +912,10 @@ export async function encolarCopiasNiimbot(activoId: string, cantidad: number) {
             idQr: true,
             descripcionCorta: true,
             area: true,
-            cuentaAct: true
+            cuentaAct: true,
+            marca: true,
+            modelo: true,
+            codigoBarras: true
         }
     });
 
@@ -921,6 +930,9 @@ export async function encolarCopiasNiimbot(activoId: string, cantidad: number) {
         descripcion: activo.descripcionCorta,
         area: activo.area,
         cuenta: activo.cuentaAct,
+        marca: activo.marca || '',
+        modelo: activo.modelo || '',
+        codigoBarras: activo.codigoBarras || ''
     });
     const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
 

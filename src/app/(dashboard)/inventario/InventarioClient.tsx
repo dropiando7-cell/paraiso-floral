@@ -1243,6 +1243,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 descripcion: fd.get('descripcionCorta') as string || '',
                                 area: fd.get('area') as string || '',
                                 cuenta: fd.get('cuentaAct') as string || '',
+                                marca: fd.get('marca') as string || '',
+                                modelo: fd.get('modelo') as string || '',
                                 codigoBarras: codigoBarras || '',
                             });
                             const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
@@ -2841,7 +2843,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 <RestockModal
                     open={restockModalOpen}
                     onClose={() => setRestockModalOpen(false)}
-                    onSuccess={() => refresh(1)}
+                    onSuccess={() => { 
+                        alert('Inventario actualizado exitosamente'); 
+                        refresh(1); 
+                    }}
                     dbAreas={dbAreas}
                     gruposDisponibles={gruposDisponibles}
                 />
