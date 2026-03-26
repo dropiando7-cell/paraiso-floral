@@ -42,10 +42,10 @@ export async function GET(req: NextRequest) {
 
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
     // Usamos el motor puro de bwipjs en lugar de qrserver para prevenir interpolación de grises
-    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=3&eclevel=L&includetext=false`;
+    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=L&includetext=false`;
 
-    // Escalamos a 2 (ancho perfecto) y usamos altura 4mm (aproximadamente 22 pixels nativos) para ser super delgado
-    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=4&scale=2&includetext=false`;
+    // Escalamos a 5 (alta resolución) y usamos altura 10mm (aproximadamente 55 pixels nativos) para ser súper nítido
+    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=10&scale=5&includetext=false`;
 
     const descStr = descripcion.substring(0, 60).toUpperCase();
     const isLongName = descStr.length > 22;
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
                     height: H,
                     backgroundColor: '#FFFFFF',
                     fontFamily: 'sans-serif',
-                    padding: '16px 16px 20px 16px', // Padding inferior ajustado para bajar el código de barras
+                    padding: '16px 16px 16px 16px', // Padding inferior ajustado
                 }}
             >
                 <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
@@ -85,17 +85,17 @@ export async function GET(req: NextRequest) {
                     <div style={{ display: 'flex', width: 95, height: 95, flexShrink: 0, padding: '4px', backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                         {/* Al no forzar 100% de width Satori respeta el tamaño sin anti-aliasing */}
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={qrUrl} alt="QR" style={{ imageRendering: 'pixelated' }} />
+                        <img src={qrUrl} alt="QR" width={87} height={87} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
                     </div>
 
                 </div>
 
                 {/* BOTTOM ROW: Barcode */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', marginBottom: '0px', width: '100%' }}>
-                    {/* Al no forzar bounds, Satori imprime tal cual sin difuminar */}
+                    {/* Al forzar width=360 (par) y la etiqueta width=406 (par), el centrado es X=23 px (preciso a 1 entero) lo cual evita desenfoque decimal */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={barcodeUrl} alt="Barcode" style={{ imageRendering: 'pixelated' }} />
-                    <span style={{ fontSize: 13, marginTop: '2px', letterSpacing: 4, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
+                    <img src={barcodeUrl} alt="Barcode" width={360} height={50} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
+                    <span style={{ fontSize: 13, marginTop: '4px', letterSpacing: 4, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
                 </div>
             </div>
         ),
