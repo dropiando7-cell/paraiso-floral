@@ -21,6 +21,7 @@ import { RestockModal } from './RestockModal';
 import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
 import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
 import { removeBackground } from '@imgly/background-removal';
+import { DateInput } from '@/components/ui/DateInput';
 
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
 function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number) => void; isPrinting: boolean }) {
@@ -1819,11 +1820,11 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             </div>
                                             <div>
                                                 <FieldLabel>Fecha Fabricación</FieldLabel>
-                                                <input type="date" value={fechaFabricacion} onChange={e => setFechaFabricacion(e.target.value)} className={inputCls} />
+                                                <DateInput value={fechaFabricacion} onChange={val => setFechaFabricacion(val)} className={inputCls} />
                                             </div>
                                             <div>
                                                 <FieldLabel>Fecha Vencimiento</FieldLabel>
-                                                <input type="date" value={fechaVencimiento} onChange={e => setFechaVencimiento(e.target.value)} className={inputCls} />
+                                                <DateInput value={fechaVencimiento} onChange={val => setFechaVencimiento(val)} className={inputCls} />
                                             </div>
                                         </div>
 

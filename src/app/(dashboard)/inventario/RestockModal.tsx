@@ -6,6 +6,7 @@ import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 import { checkExistingByBarcode, getActivosByGrupo, createActivo, encolarCopiasNiimbot, getUbicacionesActivasByProducto } from './actions';
 import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
 import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
+import { DateInput } from '@/components/ui/DateInput';
 
 function FieldLabel({ children, required }: { children: React.ReactNode; required?: boolean }) {
     return (
@@ -411,10 +412,9 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
                                             </div>
                                             <div className="col-span-1 sm:col-span-2">
                                                 <FieldLabel>Fecha de Vencimiento <span className="text-slate-400 font-normal ml-1">(Opcional)</span></FieldLabel>
-                                                <input
-                                                    type="date"
+                                                <DateInput
                                                     value={fechaVencimiento}
-                                                    onChange={e => setFechaVencimiento(e.target.value)}
+                                                    onChange={setFechaVencimiento}
                                                     className={`${inputCls} font-mono`}
                                                 />
                                             </div>
