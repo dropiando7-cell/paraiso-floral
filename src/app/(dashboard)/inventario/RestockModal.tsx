@@ -112,6 +112,7 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
     const [isSubmittingPrint, setIsSubmittingPrint] = useState(false);
     const [ubicacionesSugeridas, setUbicacionesSugeridas] = useState<{area:string; stock:number}[]>([]);
     const [fechaVencimiento, setFechaVencimiento] = useState('');
+    const [serie, setSerie] = useState('');
 
     // Auto-search by barcode
     useEffect(() => {
@@ -220,9 +221,18 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
                 fd.set('codigoBarras', selectedProduct.codigoBarras);
             } else if (selectedProduct.codigoGrupo) {
                 fd.set('codigoGrupo', selectedProduct.codigoGrupo);
-                fd.set('descripcionCorta', selectedProduct.descripcionCorta || 'Reingreso Grupo ' + selectedProduct.codigoGrupo);
-                fd.set('cuentaAct', 'INVENTARIO'); 
             }
+            
+            // Populate base properties for independent record cloning
+            if (serie) fd.set('serie', serie);
+            if (selectedProduct.descripcionCorta) fd.set('descripcionCorta', selectedProduct.descripcionCorta);
+            if (selectedProduct.descripcionDetallada) fd.set('descripcionDetallada', selectedProduct.descripcionDetallada);
+            if (selectedProduct.marca) fd.set('marca', selectedProduct.marca);
+            if (selectedProduct.modelo) fd.set('modelo', selectedProduct.modelo);
+            if (selectedProduct.imagenUrl) fd.set('imagenUrl', selectedProduct.imagenUrl);
+            if (selectedProduct.categoriaId) fd.set('categoriaId', selectedProduct.categoriaId);
+            if (selectedProduct.esConsumible !== undefined) fd.set('esConsumible', String(selectedProduct.esConsumible));
+            fd.set('cuentaAct', selectedProduct.cuentaAct || 'INVENTARIO');
 
             const result = await createActivo(fd);
             if (!result || !result.success) throw new Error('Falló la creación o reabastecimiento.');
@@ -415,6 +425,16 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
                                                 <DateInput
                                                     value={fechaVencimiento}
                                                     onChange={setFechaVencimiento}
+                                                    className={`${inputCls} font-mono`}
+                                                />
+                                            </div>
+                                            <div className="col-span-1 sm:col-span-2">
+                                                <FieldLabel>No. Serie <span className="text-slate-400 font-normal ml-1">(Opcional)</span></FieldLabel>
+                                                <input
+                                                    type="text"
+                                                    value={serie}
+                                                    onChange={e => setSerie(e.target.value)}
+                                                    placeholder="Al indicar una serie se creará un registro de equipo nuevo e independiente"
                                                     className={`${inputCls} font-mono`}
                                                 />
                                             </div>

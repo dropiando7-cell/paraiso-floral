@@ -1,12 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar } from 'lucide-react';
 
 export function DateInput({ 
     value, 
     onChange, 
-    placeholder = "AAAA-MM-DD",
+    placeholder = "DD-MM-AAAA",
     className = ""
 }: { 
     value: string; 
@@ -14,28 +14,50 @@ export function DateInput({
     placeholder?: string;
     className?: string;
 }) {
-    // Manejador que formatea automáticamente a medida que el usuario escribe (Añadiendo guiones)
-    const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        let val = e.target.value;
-        
-        // Solo permitir números y guiones
-        val = val.replace(/[^\d-]/g, '');
-        
-        // Auto-formato AAAA-MM-DD si está escribiendo números sin guiones
-        if (value.length < val.length) { // Solo si está agregando (no borrando)
-            if (val.length === 4 && !val.includes('-')) {
-                val = val + '-';
-            } else if (val.length === 7 && (val.match(/-/g) || []).length === 1) {
-                val = val + '-';
+    const [displayValue, setDisplayValue] = useState('');
+
+    useEffect(() => {
+        // Sync parent YYYY-MM-DD to local DD-MM-AAAA
+        if (!value) {
+            setDisplayValue('');
+        } else if (value.includes('-')) {
+            const parts = value.split('-');
+            // Si viene en formato ISO (YYYY-MM-DD) del calendario nativo o base de datos
+            if (parts.length === 3 && parts[0].length === 4) { 
+                setDisplayValue(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            } else {
+                setDisplayValue(value);
             }
+        } else {
+            setDisplayValue(value);
+        }
+    }, [value]);
+
+    const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        let val = e.target.value.replace(/[^\d-]/g, '');
+        
+        // Auto-formato DD-MM-AAAA si está escribiendo números sin guiones
+        if (displayValue.length < val.length) { // Solo si está agregando
+            if (val.length === 2 && !val.includes('-')) val += '-';
+            else if (val.length === 5 && (val.match(/-/g) || []).length === 1) val += '-';
         }
         
-        // Limitar la longitud a 10 caracteres (YYYY-MM-DD)
-        if (val.length > 10) {
-            val = val.slice(0, 10);
-        }
+        if (val.length > 10) val = val.slice(0, 10);
         
-        onChange(val);
+        setDisplayValue(val);
+        
+        // Emite al padre solo cuando está completo o vacío
+        if (val.length === 10) {
+            const parts = val.split('-');
+            if (parts.length === 3 && parts[2].length === 4) {
+                // emit YYYY-MM-DD para compatibilidad nativa e Inserción BD
+                onChange(`${parts[2]}-${parts[1]}-${parts[0]}`);
+            } else {
+                onChange(val); // Fallback
+            }
+        } else if (val === '') {
+            onChange('');
+        }
     };
 
     return (
@@ -43,7 +65,7 @@ export function DateInput({
             {/* Input de texto real (Permite teclear números en móviles) */}
             <input 
                 type="text" 
-                value={value} 
+                value={displayValue} 
                 onChange={handleTextChange} 
                 className={className} 
                 placeholder={placeholder}

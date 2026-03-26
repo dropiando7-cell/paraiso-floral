@@ -372,6 +372,9 @@ export async function checkExistingByBarcode(codigoBarras: string) {
             stock: true,
             area: true,
             codigoBarras: true,
+            cuentaAct: true,
+            categoriaId: true,
+            esConsumible: true,
         }
     });
     return activo;
@@ -503,8 +506,8 @@ export async function createActivo(formData: FormData) {
         stock: cantidadRegistros
     };
 
-    // Si ya existe un producto con este código de barras (o grupo) EN ESA MISMA ÁREA, solo sumamos stock (Reabastecimiento estricto)
-    if (codigoBarras || codigoGrupo) {
+    // Si ya existe un producto con este código de barras (o grupo) EN ESA MISMA ÁREA y NO se proporciona una Serie única, solo sumamos stock
+    if (!baseData.serie && (codigoBarras || codigoGrupo)) {
         const whereClause: any = { organizationId: orgId, area };
         if (codigoBarras) whereClause.codigoBarras = codigoBarras;
         else if (codigoGrupo) whereClause.codigoGrupo = codigoGrupo;
@@ -549,78 +552,85 @@ export async function createActivo(formData: FormData) {
 
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
 export async function updateActivo(id: string, formData: FormData) {
-    const orgId = await getOrgId();
+    try {
+        const orgId = await getOrgId();
 
-    const costoStr = formData.get('costoAdq') as string;
-    const fechaStr = formData.get('fechaAdq') as string;
-    const fechaLevStr = formData.get('fechaLevantamiento') as string;
-    const vidaUtilOverrideStr = formData.get('vidaUtilOverride') as string;
+        const costoStr = formData.get('costoAdq') as string;
+        const fechaStr = formData.get('fechaAdq') as string;
+        const fechaLevStr = formData.get('fechaLevantamiento') as string;
+        const vidaUtilOverrideStr = formData.get('vidaUtilOverride') as string;
 
-    const costoAdqNum = costoStr ? parseFloat(costoStr) : null;
-    const fechaAdqDate = fechaStr ? new Date(fechaStr) : null;
-    const vidaUtilNum = vidaUtilOverrideStr ? parseFloat(vidaUtilOverrideStr) : null;
-    const historicoIdStr = (formData.get('historicoId') as string) || null;
+        const costoAdqNum = costoStr ? parseFloat(costoStr) : null;
+        const fechaAdqDate = fechaStr ? new Date(fechaStr) : null;
+        const vidaUtilNum = vidaUtilOverrideStr ? parseFloat(vidaUtilOverrideStr) : null;
+        const historicoIdStr = (formData.get('historicoId') as string) || null;
 
-    // ── Resolve vida útil from histórico if not overridden ──
-    let resolvedVidaUtil = vidaUtilNum;
-    if (!resolvedVidaUtil && historicoIdStr) {
-        const hist = await prisma.inventarioHistorico.findUnique({
-            where: { id: historicoIdStr },
-            select: { vidaUtil: true }
+        // ── Resolve vida útil from histórico if not overridden ──
+        let resolvedVidaUtil = vidaUtilNum;
+        if (!resolvedVidaUtil && historicoIdStr) {
+            const hist = await prisma.inventarioHistorico.findUnique({
+                where: { id: historicoIdStr },
+                select: { vidaUtil: true }
+            });
+            if (hist?.vidaUtil) resolvedVidaUtil = Number(hist.vidaUtil);
+        }
+
+        // ── Recalculate depreciation on every edit ──
+        const deprec = (costoAdqNum && fechaAdqDate && resolvedVidaUtil)
+            ? calcDepreciacion({ costoAdq: costoAdqNum, fechaAdq: fechaAdqDate, vidaUtilAnios: resolvedVidaUtil })
+            : null;
+
+        const estatusContable = formData.get('estatusContable') as string;
+
+        await prisma.activoFijo.updateMany({
+            where: { id, organizationId: orgId },
+            data: {
+                descripcionCorta: formData.get('descripcionCorta') as string,
+                descripcionDetallada: (formData.get('descripcionDetallada') as string) || null,
+                serie: (formData.get('serie') as string) || null,
+                marca: (formData.get('marca') as string) || null,
+                modelo: (formData.get('modelo') as string) || null,
+                referencia: (formData.get('referencia') as string) || null,
+                area: formData.get('area') as string,
+                cuentaAct: formData.get('cuentaAct') as string,
+                ...(estatusContable && { estatusContable }),
+                fechaAdq: fechaAdqDate,
+                fechaLevantamiento: fechaLevStr ? new Date(fechaLevStr) : null,
+                integrado: formData.get('integrado') === 'true',
+                costoAdq: costoAdqNum,
+                origenActivo: (formData.get('origenActivo') as string) || null,
+                imagenUrl: (formData.get('imagenUrl') as string) || null,
+                imagenPlacaUrl: (formData.get('imagenPlacaUrl') as string) || null,
+                estadoDano: (formData.get('estadoDano') as string) || null,
+                tipoIncidencia: (formData.get('tipoIncidencia') as string) || null,
+                accionRecomendada: (formData.get('accionRecomendada') as string) || null,
+                responsable: (formData.get('responsable') as string) || null,
+                observaciones: (formData.get('observaciones') as string) || null,
+                historicoId: historicoIdStr,
+                categoriaDepreciacion: (formData.get('categoriaDepreciacion') as string) || null,
+                vidaUtilOverride: vidaUtilNum,
+                categoriaId: (formData.get('categoriaId') as string) || null,
+                esConsumible: formData.get('esConsumible') === 'true',
+                lote: (formData.get('lote') as string) || null,
+                fechaFabricacion: formData.get('fechaFabricacion') ? new Date(formData.get('fechaFabricacion') as string) : null,
+                fechaVencimiento: formData.get('fechaVencimiento') ? new Date(formData.get('fechaVencimiento') as string) : null,
+                // ── Depreciation fields ──
+                valResidual: deprec?.valResidual ?? null,
+                baseDeprec: deprec?.baseDeprec ?? null,
+                deprecMensual: deprec?.deprecMensual ?? null,
+                deprecAcum: deprec?.deprecAcum ?? null,
+                valorLibros: deprec?.valorLibros ?? null,
+                // ── Retail fields ──
+                codigoBarras: (formData.get('codigoBarras') as string) || null,
+            },
         });
-        if (hist?.vidaUtil) resolvedVidaUtil = Number(hist.vidaUtil);
+
+        revalidatePath('/inventario');
+        return { success: true };
+    } catch (e: any) {
+        console.error('Error in updateActivo:', e);
+        return { error: e.message || 'Error desconocido al actualizar' };
     }
-
-    // ── Recalculate depreciation on every edit ──
-    const deprec = (costoAdqNum && fechaAdqDate && resolvedVidaUtil)
-        ? calcDepreciacion({ costoAdq: costoAdqNum, fechaAdq: fechaAdqDate, vidaUtilAnios: resolvedVidaUtil })
-        : null;
-
-    await prisma.activoFijo.updateMany({
-        where: { id, organizationId: orgId },
-        data: {
-            descripcionCorta: formData.get('descripcionCorta') as string,
-            descripcionDetallada: (formData.get('descripcionDetallada') as string) || null,
-            serie: (formData.get('serie') as string) || null,
-            marca: (formData.get('marca') as string) || null,
-            modelo: (formData.get('modelo') as string) || null,
-            referencia: (formData.get('referencia') as string) || null,
-            area: formData.get('area') as string,
-            cuentaAct: formData.get('cuentaAct') as string,
-            estatusContable: formData.get('estatusContable') as string,
-            fechaAdq: fechaAdqDate,
-            fechaLevantamiento: fechaLevStr ? new Date(fechaLevStr) : null,
-            integrado: formData.get('integrado') === 'true',
-            costoAdq: costoAdqNum,
-            origenActivo: (formData.get('origenActivo') as string) || null,
-            imagenUrl: (formData.get('imagenUrl') as string) || null,
-            imagenPlacaUrl: (formData.get('imagenPlacaUrl') as string) || null,
-            estadoDano: (formData.get('estadoDano') as string) || null,
-            tipoIncidencia: (formData.get('tipoIncidencia') as string) || null,
-            accionRecomendada: (formData.get('accionRecomendada') as string) || null,
-            responsable: (formData.get('responsable') as string) || null,
-            observaciones: (formData.get('observaciones') as string) || null,
-            historicoId: historicoIdStr,
-            categoriaDepreciacion: (formData.get('categoriaDepreciacion') as string) || null,
-            vidaUtilOverride: vidaUtilNum,
-            categoriaId: (formData.get('categoriaId') as string) || null,
-            esConsumible: formData.get('esConsumible') === 'true',
-            lote: (formData.get('lote') as string) || null,
-            fechaFabricacion: formData.get('fechaFabricacion') ? new Date(formData.get('fechaFabricacion') as string) : null,
-            fechaVencimiento: formData.get('fechaVencimiento') ? new Date(formData.get('fechaVencimiento') as string) : null,
-            // ── Depreciation fields ──
-            valResidual: deprec?.valResidual ?? null,
-            baseDeprec: deprec?.baseDeprec ?? null,
-            deprecMensual: deprec?.deprecMensual ?? null,
-            deprecAcum: deprec?.deprecAcum ?? null,
-            valorLibros: deprec?.valorLibros ?? null,
-            // ── Retail fields ──
-            codigoBarras: (formData.get('codigoBarras') as string) || null,
-        },
-    });
-
-    revalidatePath('/inventario');
-    return { success: true };
 }
 
 // ─── DELETE ──────────────────────────────────────────────────────────────────
