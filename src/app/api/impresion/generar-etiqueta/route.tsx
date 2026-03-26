@@ -44,8 +44,8 @@ export async function GET(req: NextRequest) {
     // Usamos el motor puro de bwipjs en lugar de qrserver para prevenir interpolación de grises
     const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=3&eclevel=L&includetext=false`;
 
-    // Escalamos a 2 (ancho perfecto) y usamos altura 24 (48 pixels nativos) para no desbordar
-    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=24&scale=2&includetext=false`;
+    // Escalamos a 2 (ancho perfecto) y usamos altura 4mm (aproximadamente 22 pixels nativos) para ser super delgado
+    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=4&scale=2&includetext=false`;
 
     const descStr = descripcion.substring(0, 60).toUpperCase();
     const isLongName = descStr.length > 22;
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
                     height: H,
                     backgroundColor: '#FFFFFF',
                     fontFamily: 'sans-serif',
-                    padding: '16px 16px 32px 16px', // Mas padding inferior para que el código de barras no se corte
+                    padding: '16px 16px 20px 16px', // Padding inferior ajustado para bajar el código de barras
                 }}
             >
                 <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
@@ -91,11 +91,11 @@ export async function GET(req: NextRequest) {
                 </div>
 
                 {/* BOTTOM ROW: Barcode */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', marginBottom: '8px', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', marginBottom: '0px', width: '100%' }}>
                     {/* Al no forzar bounds, Satori imprime tal cual sin difuminar */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={barcodeUrl} alt="Barcode" style={{ imageRendering: 'pixelated' }} />
-                    <span style={{ fontSize: 13, marginTop: '4px', letterSpacing: 4, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
+                    <span style={{ fontSize: 13, marginTop: '2px', letterSpacing: 4, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
                 </div>
             </div>
         ),
