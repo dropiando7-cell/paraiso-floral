@@ -54,7 +54,8 @@ async function generateIdQr(organizationId: string, area: string, codigoGrupo: s
     const ids = [];
 
     for (let i = 0; i < cantidadRegistros; i++) {
-        ids.push(`${prefijoBase}-${String(startNum + i).padStart(6, '0')}`);
+        const numPart = String(startNum + i).padStart(6, '0');
+        ids.push(`${prefijoBase}-${codigoGrupo}-${numPart}`);
     }
 
     return ids;
@@ -134,7 +135,14 @@ export async function getActivosByGrupo(codigoGrupo: string) {
                 area: true,
                 codigoBarras: true,
                 stock: true,
-                estatusContable: true
+                estatusContable: true,
+                descripcionDetallada: true,
+                marca: true,
+                modelo: true,
+                cuentaAct: true,
+                categoriaId: true,
+                esConsumible: true,
+                imagenUrl: true,
             }
         });
         return activos;
@@ -434,9 +442,11 @@ export async function createActivo(formData: FormData) {
     const cantidadRegistros = cantidadForm ? parseInt(cantidadForm, 10) : 1;
     const codigoBarrasForm = formData.get('codigoBarras') as string;
     const codigoBarras = codigoBarrasForm ? codigoBarrasForm.trim() : null;
+    const esConsumible = formData.get('esConsumible') === 'true';
 
-    // Para inventario comercial, siempre generaremos 1 solo registro interno (ID QR base)
-    const idQrs = await generateIdQr(orgId, area, codigoGrupo, 1);
+    // Generar 1 idQr si es consumible (o será agrupado), o N idQrs si es Activo Fijo (serialización forzada)
+    const numIds = esConsumible ? 1 : cantidadRegistros;
+    const idQrs = await generateIdQr(orgId, area, codigoGrupo, numIds);
 
     const costoStr = formData.get('costoAdq') as string;
     const fechaStr = formData.get('fechaAdq') as string;
@@ -506,8 +516,24 @@ export async function createActivo(formData: FormData) {
         stock: cantidadRegistros
     };
 
-    // Si ya existe un producto con este código de barras (o grupo) EN ESA MISMA ÁREA y NO se proporciona una Serie única (ni vencimiento diferente), solo sumamos stock
-    if (!baseData.serie && !baseData.fechaVencimiento && (codigoBarras || codigoGrupo)) {
+    // ── Master-Data Integrity Constraint ──
+    if (codigoBarras) {
+        const master = await prisma.activoFijo.findFirst({
+            where: { organizationId: orgId, codigoBarras },
+            orderBy: { createdAt: 'asc' },
+            select: { categoriaId: true, marca: true, modelo: true, imagenUrl: true, descripcionCorta: true }
+        });
+        if (master) {
+            baseData.categoriaId = master.categoriaId;
+            baseData.marca = master.marca;
+            baseData.modelo = master.modelo;
+            baseData.imagenUrl = baseData.imagenUrl || master.imagenUrl;
+            baseData.descripcionCorta = master.descripcionCorta;
+        }
+    }
+
+    // Si es consumible y ya existe en el área (y NO se proporciona vencimiento distinto), solo sumamos stock (Agrupación)
+    if (esConsumible && !baseData.fechaVencimiento && !baseData.serie && (codigoBarras || codigoGrupo)) {
         const whereClause: any = { organizationId: orgId, area };
         if (codigoBarras) whereClause.codigoBarras = codigoBarras;
         else if (codigoGrupo) whereClause.codigoGrupo = codigoGrupo;
@@ -529,25 +555,36 @@ export async function createActivo(formData: FormData) {
         }
     }
 
-    // Nuevo producto comercial
-    const dataToInsert = {
-        ...baseData,
-        idQr: idQrs[0]
-    };
+    let firstCreatedId = null;
 
-    await prisma.activoFijo.create({
-        data: dataToInsert
-    });
+    if (esConsumible) {
+        // Nuevo consumible: 1 fila con stock = N
+        const dataToInsert = { ...baseData, idQr: idQrs[0] };
+        const created = await prisma.activoFijo.create({ data: dataToInsert });
+        firstCreatedId = created.id;
+    } else {
+        // Activo Fijo: Serialización forzada. N filas con stock = 1.
+        // Se preserva la serie de captura si la cantidad = 1. Si N > 1, la serie se deja nula para captura posterior.
+        const promises = [];
+        for (let i = 0; i < cantidadRegistros; i++) {
+            promises.push(
+                prisma.activoFijo.create({
+                    data: {
+                        ...baseData,
+                        idQr: idQrs[i],
+                        stock: 1,
+                        serie: cantidadRegistros === 1 ? baseData.serie : null
+                    }
+                })
+            );
+        }
+        const createdArray = await Promise.all(promises);
+        firstCreatedId = createdArray[0].id;
+    }
 
     revalidatePath('/inventario');
 
-    // Fetch the newly created record's UUID for the client (needed for print queue)
-    const firstCreated = await prisma.activoFijo.findFirst({
-        where: { organizationId: orgId, idQr: idQrs[0] },
-        select: { id: true, idQr: true }
-    });
-
-    return { success: true, idQr: idQrs[0], id: firstCreated?.id ?? null, count: cantidadRegistros };
+    return { success: true, idQr: idQrs[0], id: firstCreatedId, count: cantidadRegistros };
 }
 
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
