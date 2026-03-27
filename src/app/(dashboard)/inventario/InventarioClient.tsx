@@ -34,6 +34,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
         codigoBarras: activo.codigoBarras || '',
         modelo: activo.modelo || '',
         marca: activo.marca || '',
+        serie: activo.serie || '',
         fechaAdq: (activo as any).createdAt ? new Date((activo as any).createdAt).toISOString() : new Date().toISOString()
     });
     if ((activo as any).fechaFabricacion) searchParams.set('fechaFab', new Date((activo as any).fechaFabricacion).toISOString().split('T')[0]);
@@ -1252,6 +1253,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 marca: fd.get('marca') as string || '',
                                 modelo: fd.get('modelo') as string || '',
                                 codigoBarras: codigoBarras || '',
+                                serie: fd.get('serie') as string || '',
                             });
                             const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
                             

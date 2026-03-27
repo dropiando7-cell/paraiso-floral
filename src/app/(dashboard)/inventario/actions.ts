@@ -915,7 +915,8 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
             fechaVencimiento: true,
             marca: true,
             modelo: true,
-            codigoBarras: true
+            codigoBarras: true,
+            serie: true
         }
     });
 
@@ -936,7 +937,8 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
             cuenta: activo.cuentaAct,
             marca: activo.marca || '',
             modelo: activo.modelo || '',
-            codigoBarras: activo.codigoBarras || ''
+            codigoBarras: activo.codigoBarras || '',
+            serie: activo.serie || ''
         });
         if (activo.fechaFabricacion) params.set('fechaFab', activo.fechaFabricacion.toISOString().split('T')[0]);
         if (activo.fechaVencimiento) params.set('fechaVenc', activo.fechaVencimiento.toISOString().split('T')[0]);
@@ -969,7 +971,8 @@ export async function encolarCopiasNiimbot(activoId: string, cantidad: number) {
             cuentaAct: true,
             marca: true,
             modelo: true,
-            codigoBarras: true
+            codigoBarras: true,
+            serie: true
         }
     });
 
@@ -986,7 +989,8 @@ export async function encolarCopiasNiimbot(activoId: string, cantidad: number) {
         cuenta: activo.cuentaAct,
         marca: activo.marca || '',
         modelo: activo.modelo || '',
-        codigoBarras: activo.codigoBarras || ''
+        codigoBarras: activo.codigoBarras || '',
+        serie: activo.serie || ''
     });
     const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
 

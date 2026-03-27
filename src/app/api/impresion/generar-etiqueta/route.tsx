@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
     const marcaUrl = searchParams.get('marca') || '';
     const fechaFabUrl = searchParams.get('fechaFab') || '';
     const fechaVencUrl = searchParams.get('fechaVenc') || '';
+    const serieUrl = searchParams.get('serie') || '';
     
     // Si no hay codigo de barras explícito, utilizamos el id interno como codigo de barra 1D también.
     const barcodeData = codigoBarras ? codigoBarras : idQr;
@@ -76,6 +77,7 @@ export async function GET(req: NextRequest) {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px' }}>
                             <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Adq: {fechaAdqDisplay}</span>
                             <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Mod: {modeloDisplay}</span>
+                            {serieUrl && <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>SN: {serieUrl}</span>}
                             {fechaFabUrl && <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Fab: {fechaFabUrl}</span>}
                             {fechaVencUrl && <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Venc: {fechaVencUrl}</span>}
                         </div>
