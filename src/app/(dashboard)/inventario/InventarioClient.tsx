@@ -804,7 +804,18 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [grupoError, setGrupoError] = useState<string>('');
     const [isCheckingGrupo, setIsCheckingGrupo] = useState<boolean>(false);
     
-    // The legacy `previewIdQr` effect was removed here because it auto-locked empty groups causing BEA--00000X strings.
+    // Dynamic preview logic exclusively for UI feedback (no auto-locking)
+    useEffect(() => {
+        if (tipoRegistro === 'nuevo' && !isEdit) {
+            const timer = setTimeout(() => {
+                const groupToUse = codigoGrupo && codigoGrupo.trim() !== '' ? codigoGrupo.trim() : '001';
+                previewIdQr(selectedArea, groupToUse).then(code => {
+                    setPreviewCode(code);
+                }).catch(e => console.error(e));
+            }, 400);
+            return () => clearTimeout(timer);
+        }
+    }, [tipoRegistro, isEdit, selectedArea, codigoGrupo]);
 
     function handleUnlockGrupo() {
         if (isGrupoLocked) {
@@ -1525,6 +1536,16 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 <div className="col-span-12 xl:col-span-8">
                                     <div className="bg-white rounded-2xl border-2 border-[#0500A3]/10 p-5 lg:p-6 shadow-sm">
                                         <SectionTitle>📋 Identificación</SectionTitle>
+                                        
+                                        {!isEdit && tipoRegistro === 'nuevo' && previewCode && previewCode !== '...' && (
+                                            <div className="mb-6 bg-indigo-50/50 border-2 border-indigo-200 border-dashed p-4 rounded-xl flex flex-col items-center justify-center relative overflow-hidden">
+                                                <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl"></div>
+                                                <p className="text-[10px] text-indigo-500 font-bold tracking-widest uppercase mb-1 z-10">Generación Automática de Placa ARSA</p>
+                                                <div className="font-mono text-xl sm:text-2xl tracking-widest text-[#0500A3] font-black z-10 bg-white/50 px-4 py-1 rounded">
+                                                    {previewCode}
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="space-y-4">
                                         <div className="grid grid-cols-1 gap-4">
                                             {/* Código Grupo */}
