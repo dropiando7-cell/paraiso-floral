@@ -1641,14 +1641,14 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
                                             {/* Es Consumible Toggle */}
                                             <div>
-                                                <FieldLabel className="!mb-1">Clasificación de Ingreso</FieldLabel>
+                                                <FieldLabel>Clasificación de Ingreso</FieldLabel>
                                                 <button
                                                     type="button"
                                                     disabled={isExistingGroup}
                                                     onClick={() => setEsConsumible(!esConsumible)}
                                                     className={`w-full h-[42px] px-3 flex items-center justify-between rounded-xl border ${esConsumible ? 'bg-green-500 border-green-600 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'} font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
                                                 >
-                                                    <span className="text-sm">{esConsumible ? 'Insumo Médico (Agrupar)' : 'Equipo Biomédico (Serie)'}</span>
+                                                    <span className="text-sm">{esConsumible ? 'Consumibles' : 'Equipo Biomédico'}</span>
                                                     <div className={`w-10 h-6 bg-black/20 rounded-full p-1 transition-all flex border border-black/10 ${esConsumible ? 'justify-end' : 'justify-start'}`}>
                                                         <div className="w-4 h-4 bg-white rounded-full shadow-sm"></div>
                                                     </div>
