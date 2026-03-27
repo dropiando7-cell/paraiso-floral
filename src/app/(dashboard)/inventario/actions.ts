@@ -447,7 +447,7 @@ export async function searchActivosForAutocomplete(query: string) {
 }
 
 // ─── CREATE ──────────────────────────────────────────────────────────────────
-export async function createActivo(formData: FormData) {
+export async function createActivo(formData: FormData): Promise<{ success?: boolean, idQr?: string, id?: string | null, count?: number, error?: string, restock?: boolean }> {
     const { orgId, userId } = await getContextUser();
 
     const area = formData.get('area') as string;
@@ -604,7 +604,7 @@ export async function createActivo(formData: FormData) {
 }
 
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
-export async function updateActivo(id: string, formData: FormData) {
+export async function updateActivo(id: string, formData: FormData): Promise<{ success?: boolean, error?: string }> {
     try {
         const { orgId, userId } = await getContextUser();
 
