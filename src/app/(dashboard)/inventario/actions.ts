@@ -21,6 +21,20 @@ async function getOrgId(): Promise<string> {
     return dbUser.organizationId;
 }
 
+// ─── Helper: Get authenticated user context ──────────────────────────────────
+async function getContextUser(): Promise<{ orgId: string, userId: string }> {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) redirect('/login');
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { id: true, organizationId: true },
+    });
+    if (!dbUser) redirect('/unauthorized');
+    return { orgId: dbUser.organizationId, userId: dbUser.id };
+}
+
 // Se eliminaron las constantes estáticas PREFIX_MAP y QR_TO_AREA_MAP 
 // porque ahora se usa el modelo Area desde Prisma.
 
@@ -434,7 +448,7 @@ export async function searchActivosForAutocomplete(query: string) {
 
 // ─── CREATE ──────────────────────────────────────────────────────────────────
 export async function createActivo(formData: FormData) {
-    const orgId = await getOrgId();
+    const { orgId, userId } = await getContextUser();
 
     const area = formData.get('area') as string;
     const codigoGrupo = (formData.get('codigoGrupo') as string) || '001';
@@ -498,6 +512,8 @@ export async function createActivo(formData: FormData) {
         responsable: (formData.get('responsable') as string) || null,
         observaciones: (formData.get('observaciones') as string) || null,
         historicoId: historicoIdStr,
+        createdById: userId,
+        updatedById: userId,
         categoriaDepreciacion: (formData.get('categoriaDepreciacion') as string) || null,
         vidaUtilOverride: vidaUtilNum,
         categoriaId: (formData.get('categoriaId') as string) || null,
@@ -590,7 +606,7 @@ export async function createActivo(formData: FormData) {
 // ─── UPDATE ──────────────────────────────────────────────────────────────────
 export async function updateActivo(id: string, formData: FormData) {
     try {
-        const orgId = await getOrgId();
+        const { orgId, userId } = await getContextUser();
 
         const costoStr = formData.get('costoAdq') as string;
         const fechaStr = formData.get('fechaAdq') as string;
@@ -644,6 +660,7 @@ export async function updateActivo(id: string, formData: FormData) {
                 responsable: (formData.get('responsable') as string) || null,
                 observaciones: (formData.get('observaciones') as string) || null,
                 historicoId: historicoIdStr,
+                updatedById: userId,
                 categoriaDepreciacion: (formData.get('categoriaDepreciacion') as string) || null,
                 vidaUtilOverride: vidaUtilNum,
                 categoriaId: (formData.get('categoriaId') as string) || null,

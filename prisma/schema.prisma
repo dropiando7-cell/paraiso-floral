@@ -73,6 +73,8 @@ model User {
   calendarIntegrations  CalendarIntegration[]
   medicalRecords        MedicalRecord[]
   movimientosInventario MovimientoInventario[]
+  activosCreados        ActivoFijo[]           @relation("CreatedActivos")
+  activosActualizados   ActivoFijo[]           @relation("UpdatedActivos")
   organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("users")
@@ -346,6 +348,10 @@ model ActivoFijo {
   productoId            String?              @db.Uuid
   fechaFabricacion      DateTime?
   referencia            String?
+  createdById           String?              @db.Uuid
+  updatedById           String?              @db.Uuid
+  createdBy             User?                @relation("CreatedActivos", fields: [createdById], references: [id])
+  updatedBy             User?                @relation("UpdatedActivos", fields: [updatedById], references: [id])
   categoria             Categoria?           @relation(fields: [categoriaId], references: [id])
   inventarioHistorico   InventarioHistorico? @relation(fields: [historicoId], references: [id])
   organization          Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
