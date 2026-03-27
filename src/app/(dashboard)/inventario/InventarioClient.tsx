@@ -1549,7 +1549,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <div className="space-y-4">
                                         <div className="grid grid-cols-1 gap-4">
                                             {/* Código Grupo */}
-                                            <div className="bg-blue-50/30 p-4 rounded-xl border border-blue-100/50">
+                                            {(isEdit || tipoRegistro === 'reingreso') && (
+                                              <div className="bg-blue-50/30 p-4 rounded-xl border border-blue-100/50">
                                                 <div className="flex items-center justify-between mb-1">
                                                     <FieldLabel required={!isEdit && tipoRegistro === 'reingreso'}>
                                                         Producto / Código Grupo {!isEdit && tipoRegistro === 'nuevo' && <span className="font-normal text-slate-400 text-[10px] ml-1 uppercase opacity-70">(Opcional)</span>}
@@ -1607,7 +1608,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                 {grupoError && <p className="text-[10px] text-red-500 font-bold mt-1.5 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {grupoError}</p>}
                                                 {!isEdit && tipoRegistro === 'nuevo' && !grupoError && <p className="text-[10px] text-[#0500A3]/60 mt-1.5 leading-tight">{isGrupoLocked ? 'Este será el código base de este producto y el de sus subsecuentes reingresos.' : 'Agrupa estos activos inventando un código si pertenece a una familia.'}</p>}
                                                 {!isEdit && tipoRegistro === 'reingreso' && !grupoError && <p className="text-[10px] text-[#0500A3]/60 mt-1.5 leading-tight">Selecciona un producto obligatoriamente preexistente.</p>}
-                                            </div>
+                                              </div>
+                                            )}
 
                                             {/* Código de Barras / SKU Comercial */}
                                             <div>
