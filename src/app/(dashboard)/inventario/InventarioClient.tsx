@@ -888,7 +888,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         getGruposAutocompletado().then(res => setGruposDisponibles(res));
     }, []);
 
-    const isExistingGroup = !!gruposDisponibles.find(g => g.codigoGrupo === codigoGrupo && g.cantidad > 0);
+    const isExistingGroup = !isEdit && !!gruposDisponibles.find(g => g.codigoGrupo === codigoGrupo && g.cantidad > 0);
 
     const [activosGrupo, setActivosGrupo] = useState<any[]>([]);
     useEffect(() => {
@@ -1219,13 +1219,23 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         startTransition(async () => {
             try {
                 if (isEdit) {
-                    await updateActivo(editActivo!.id, fd);
+                    const result = await updateActivo(editActivo!.id, fd);
+                    if (result?.error) {
+                        alert(result.error);
+                        setIsSubmitting(false);
+                        return;
+                    }
                     setPendingFormData(null);
                     onSuccess();
                     onClose();
                     setIsSubmitting(false);
                 } else {
                     const result = await createActivo(fd);
+                    if (result?.error) {
+                        alert(result.error);
+                        setIsSubmitting(false);
+                        return;
+                    }
                     setPendingFormData(null);
                     onSuccess();
                     onClose();
