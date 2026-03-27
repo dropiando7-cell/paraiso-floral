@@ -1551,7 +1551,9 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             {/* Código Grupo */}
                                             <div className="bg-blue-50/30 p-4 rounded-xl border border-blue-100/50">
                                                 <div className="flex items-center justify-between mb-1">
-                                                    <FieldLabel required={!isEdit}>Producto / Código Grupo</FieldLabel>
+                                                    <FieldLabel required={!isEdit && tipoRegistro === 'reingreso'}>
+                                                        Producto / Código Grupo {!isEdit && tipoRegistro === 'nuevo' && <span className="font-normal text-slate-400 text-[10px] ml-1 uppercase opacity-70">(Opcional)</span>}
+                                                    </FieldLabel>
                                                     {!isEdit && tipoRegistro === 'nuevo' && (
                                                         <button 
                                                             type="button" 
@@ -1573,7 +1575,6 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                     <div className="relative">
                                                         <input
                                                             type="text"
-                                                            required
                                                             readOnly={isGrupoLocked}
                                                             value={codigoGrupo}
                                                             onChange={e => {
