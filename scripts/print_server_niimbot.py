@@ -58,6 +58,8 @@ def imprimir_etiqueta(url_imagen):
             codigo_barras = query_params.get('codigoBarras', [''])[0]
             if not codigo_barras:
                 codigo_barras = id_qr
+                
+            serie = query_params.get('serie', [''])[0]
 
             # Crear lienzo en blanco (modo RGB evita problemas de paleta negra en Windows)
             img_canvas = Image.new("RGB", (ancho_printer, alto_seguro), (255, 255, 255))
@@ -91,6 +93,9 @@ def imprimir_etiqueta(url_imagen):
                 
             draw.text((x_text, y_text + y_offset), f"Adq: {fecha_adq}", font=font_small, fill=(0,0,0))
             draw.text((x_text, y_text + y_offset + 22), f"Mod: {modelo_display}", font=font_small, fill=(0,0,0))
+            
+            if serie:
+                draw.text((x_text, y_text + y_offset + 44), f"SN: {serie}", font=font_small, fill=(0,0,0))
 
             # Obtener el QR mediante la API de bwipjs a la medida exacta
             qr_text = urllib.parse.quote(f"{HOST}/ficha-tecnica/{id_qr}")
