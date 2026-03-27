@@ -8,162 +8,196 @@ import io
 import os
 import urllib.parse
 
-# Configuración Base
-# Para probar local o desde otra red usa el URL correcto (ej. http://localhost:3000 o producción)
+# ─── Configuración Base ───────────────────────────────────────────────────────
 HOST = os.environ.get("SERVER_URL", "https://bioelectronicahn.vercel.app")
 
 API_PENDIENTES = f"{HOST}/api/impresion/niimbot/pendientes"
 API_COMPLETAR  = f"{HOST}/api/impresion/niimbot/completar"
 
-# Nombre EXACTO de la impresora configurada en 'Dispositivos e Impresoras' de Windows
-IMPRESORA = "NIIMBOT K3" 
-TIEMPO_ESPERA = 3 # Segundos a sondear la BD
+IMPRESORA     = "NIIMBOT K3"
+TIEMPO_ESPERA = 3
+
+# ─── Dimensiones — Etiqueta 50mm × 33mm @ 203 DPI ────────────────────────────
+#   REQUISITO PREVIO: El driver Windows debe tener configurado 50mm × 33mm.
+#   (Preferencias de impresión → Formulario en papel → Editar → Altura =  33.0mm)
+#
+#   50mm / 25.4 × 203 = ~399 px  (ancho)
+#   33mm / 25.4 × 203 = ~263 px  (alto físico)
+#   Alto seguro (93%)  = 245 px  ← techo duro para no quemar etiqueta extra
+ANCHO_FIJO  = 399
+ALTO_MAXIMO = 245   # ← NO subir este valor
+
+# ─── Parámetros de layout ─────────────────────────────────────────────────────
+QR_MARGEN     = 22   # px — margen del QR con borde derecho y superior
+QR_ESCALA     = 1.2 # factor de reducción del QR (1.0 = tamaño natural de bwipjs)
+CB_MARGEN_INF = 10   # px — espacio entre texto del CB y borde inferior
+# ─────────────────────────────────────────────────────────────────────────────
+
 
 def imprimir_etiqueta(url_imagen):
     try:
         print(f"\n[*] Recibiendo: {url_imagen}")
-        
-        parsed_url = urllib.parse.urlparse(url_imagen)
+
+        parsed_url   = urllib.parse.urlparse(url_imagen)
         query_params = urllib.parse.parse_qs(parsed_url.query)
 
-        # 1. Conectar al Driver de la NIIMBOT K3
+        # Conectar al driver
         hDC = win32ui.CreateDC()
         hDC.CreatePrinterDC(IMPRESORA)
 
-        # 2. Obtener RESOLUCIÓN REAL CONFIGURADA EN WINDOWS (Crucial)
-        ancho_printer = hDC.GetDeviceCaps(win32con.HORZRES)
-        alto_printer  = hDC.GetDeviceCaps(win32con.VERTRES)
-        
-        if ancho_printer <= 0 or alto_printer <= 0:
-            ancho_printer, alto_printer = 406, 264
+        # Log diagnóstico — solo informativo
+        ancho_driver = hDC.GetDeviceCaps(win32con.HORZRES)
+        alto_driver  = hDC.GetDeviceCaps(win32con.VERTRES)
+        print(f"[*] Driver reporta: {ancho_driver}×{alto_driver}px | Canvas fijo: {ANCHO_FIJO}×{ALTO_MAXIMO}px")
 
-        # Reducir margen en 8 px (aprox 1mm) para asegurar que NUNCA 
-        # se sobrepase la etiqueta física previniendo el salto a una 2da etiqueta negra.
-        alto_seguro = max(alto_printer - 8, 100)
-
-        print(f"[*] Margen Lógico Windows: Ancho {ancho_printer}px, Alto {alto_printer}px (Usando: {alto_seguro}px)")
-
-        # 3. Decidir si dibujamos nativamente o usamos modo legacy
         if 'idQr' in query_params:
-            print("[*] Generando etiqueta de forma NATIVA en Python para máxima nitidez...")
-            id_qr = query_params.get('idQr', [''])[0]
-            descripcion = query_params.get('descripcion', [''])[0].upper()[:60]
-            fecha_adq = query_params.get('fechaAdq', [''])[0]
+            print("[*] Generando etiqueta NATIVA...")
+
+            id_qr         = query_params.get('idQr',        [''])[0]
+            descripcion   = query_params.get('descripcion', [''])[0].upper()[:60]
+            fecha_adq     = query_params.get('fechaAdq',    [''])[0]
             if fecha_adq:
                 fecha_adq = fecha_adq.split('T')[0]
-            modelo = query_params.get('modelo', [''])[0]
-            marca = query_params.get('marca', [''])[0]
+            modelo        = query_params.get('modelo', [''])[0]
+            marca         = query_params.get('marca',  [''])[0]
             modelo_display = modelo if modelo else (marca if marca else "N/A")
-            
+
             codigo_barras = query_params.get('codigoBarras', [''])[0]
             if not codigo_barras:
                 codigo_barras = id_qr
                 
-            serie = query_params.get('serie', [''])[0]
+            serie = query_params.get('serie', [''])[0] # <-- SERIE INTERCEPTADA
 
-            # Crear lienzo en blanco (modo RGB evita problemas de paleta negra en Windows)
-            img_canvas = Image.new("RGB", (ancho_printer, alto_seguro), (255, 255, 255))
+            # Canvas blanco
+            img_canvas = Image.new("RGB", (ANCHO_FIJO, ALTO_MAXIMO), (255, 255, 255))
             draw = ImageDraw.Draw(img_canvas)
-            
-            # Intentar cargar fuente Arial, sino fallback a fuente por defecto
+
+            # Fuentes
             try:
-                font_id = ImageFont.truetype("arialbd.ttf", 24)
-                font_desc = ImageFont.truetype("arialbd.ttf", 20 if len(descripcion) <= 22 else 17)
-                font_small = ImageFont.truetype("arialbd.ttf", 16)
+                font_id      = ImageFont.truetype("arialbd.ttf", 24)
+                font_desc    = ImageFont.truetype("arialbd.ttf", 20 if len(descripcion) <= 22 else 17)
+                font_small   = ImageFont.truetype("arialbd.ttf", 16)
                 font_barcode = ImageFont.truetype("arialbd.ttf", 15)
             except IOError:
-                font_id = ImageFont.load_default()
-                font_desc = ImageFont.load_default()
-                font_small = ImageFont.load_default()
-                font_barcode = ImageFont.load_default()
+                font_id = font_desc = font_small = font_barcode = ImageFont.load_default()
 
-            # Dibujar textos (columna izquierda)
-            x_text = 16
-            y_text = 16
-            draw.text((x_text, y_text), id_qr, font=font_id, fill=(0,0,0))
-            
-            # Wrap de descripción
-            if len(descripcion) > 22:
-                draw.text((x_text, y_text + 32), descripcion[:22], font=font_desc, fill=(0,0,0))
-                draw.text((x_text, y_text + 54), descripcion[22:44], font=font_desc, fill=(0,0,0))
-                y_offset = 80
-            else:
-                draw.text((x_text, y_text + 32), descripcion, font=font_desc, fill=(0,0,0))
-                y_offset = 64
-                
-            draw.text((x_text, y_text + y_offset), f"Adq: {fecha_adq}", font=font_small, fill=(0,0,0))
-            draw.text((x_text, y_text + y_offset + 22), f"Mod: {modelo_display}", font=font_small, fill=(0,0,0))
-            
-            if serie:
-                draw.text((x_text, y_text + y_offset + 44), f"SN: {serie}", font=font_small, fill=(0,0,0))
-
-            # Obtener el QR mediante la API de bwipjs a la medida exacta
+            # ── QR (scale=1, tamaño natural sin resize forzado) ────────────
             qr_text = urllib.parse.quote(f"{HOST}/ficha-tecnica/{id_qr}")
-            qr_url = f"https://bwipjs-api.metafloor.com/?bcid=qrcode&text={qr_text}&scale=2&eclevel=L&includetext=false"
+            qr_url  = (
+                f"https://bwipjs-api.metafloor.com/?bcid=qrcode"
+                f"&text={qr_text}&scale=1&eclevel=L&includetext=false"
+            )
             try:
                 req_qr = requests.get(qr_url, timeout=5)
                 if req_qr.status_code == 200:
-                    qr_img = Image.open(io.BytesIO(req_qr.content)).convert("RGBA")
+                    qr_img   = Image.open(io.BytesIO(req_qr.content)).convert("RGBA")
                     fondo_qr = Image.new("RGBA", qr_img.size, (255, 255, 255, 255))
                     try:
                         fondo_qr.paste(qr_img, mask=qr_img.split()[3])
                     except Exception:
                         fondo_qr.paste(qr_img)
                     qr_rgb = fondo_qr.convert("RGB")
-                    
-                    # Hacer el QR un poco más pequeño cortando el borde en blanco ("quiet zone") extra
+
+                    # Recortar quiet-zone sobrante
                     diff = ImageChops.difference(qr_rgb, Image.new("RGB", qr_rgb.size, (255, 255, 255)))
                     bbox = diff.getbbox()
                     if bbox:
                         qr_rgb = qr_rgb.crop(bbox)
-                        
+
                     qr_w, qr_h = qr_rgb.size
-                    img_canvas.paste(qr_rgb, (ancho_printer - qr_w - 16, 16))
+
+                    # Reducir QR con factor de escala + límite de área útil
+                    area_util_h = ALTO_MAXIMO - QR_MARGEN * 2
+                    factor = QR_ESCALA
+                    if int(qr_h * factor) > area_util_h:
+                        factor = area_util_h / qr_h
+                    qr_rgb = qr_rgb.resize((max(1, int(qr_w * factor)), max(1, int(qr_h * factor))), Image.NEAREST)
+                    qr_w, qr_h = qr_rgb.size
+
+                    x_qr = ANCHO_FIJO - qr_w - QR_MARGEN
+                    y_qr = QR_MARGEN
+                    img_canvas.paste(qr_rgb, (x_qr, y_qr))
+                    print(f"[*] QR: {qr_w}×{qr_h}px en ({x_qr}, {y_qr})")
             except Exception as e:
                 print(f"[-] Error obteniendo QR: {e}")
 
-            # Obtener el código de barras 1D de bwipjs (más corto, height=6)
+            # ── Textos columna izquierda ───────────────────────────────────
+            x_text = 14
+            y_text = 12
+
+            draw.text((x_text, y_text), id_qr, font=font_id, fill=(0, 0, 0))
+
+            if len(descripcion) > 22:
+                draw.text((x_text, y_text + 30), descripcion[:22],   font=font_desc, fill=(0, 0, 0))
+                draw.text((x_text, y_text + 50), descripcion[22:44], font=font_desc, fill=(0, 0, 0))
+                y_offset = 74
+            else:
+                draw.text((x_text, y_text + 30), descripcion, font=font_desc, fill=(0, 0, 0))
+                y_offset = 56
+
+            draw.text((x_text, y_text + y_offset),      f"Adq: {fecha_adq}",     font=font_small, fill=(0, 0, 0))
+            draw.text((x_text, y_text + y_offset + 20), f"Mod: {modelo_display}", font=font_small, fill=(0, 0, 0))
+            
+            # <-- LÍNEA AGREGADA DE LA SERIE -->
+            if serie:
+                draw.text((x_text, y_text + y_offset + 40), f"SN: {serie}", font=font_small, fill=(0, 0, 0))
+
+            # ── Código de barras 1D (layout desde abajo hacia arriba) ──────
             bc_text = urllib.parse.quote(codigo_barras)
-            bc_url = f"https://bwipjs-api.metafloor.com/?bcid=code128&text={bc_text}&height=6&scale=2&includetext=false"
+            bc_url  = (
+                f"https://bwipjs-api.metafloor.com/?bcid=code128"
+                f"&text={bc_text}&height=6&scale=2&includetext=false"
+            )
             try:
                 req_bc = requests.get(bc_url, timeout=5)
                 if req_bc.status_code == 200:
-                    bc_img = Image.open(io.BytesIO(req_bc.content)).convert("RGBA")
+                    bc_img   = Image.open(io.BytesIO(req_bc.content)).convert("RGBA")
                     fondo_bc = Image.new("RGBA", bc_img.size, (255, 255, 255, 255))
                     try:
                         fondo_bc.paste(bc_img, mask=bc_img.split()[3])
                     except Exception:
                         fondo_bc.paste(bc_img)
                     bc_rgb = fondo_bc.convert("RGB")
-                    
+
                     bc_w, bc_h = bc_rgb.size
-                    # Si es muy ancho, escalar SÓLO a lo ancho con NEAREST
-                    if bc_w > ancho_printer - 32:
-                        bc_rgb = bc_rgb.resize((ancho_printer - 32, bc_h), Image.NEAREST)
-                        bc_w = ancho_printer - 32
-                    
-                    x_bc = (ancho_printer - bc_w) // 2
-                    y_bc = alto_seguro - bc_h - 22 # Margen inferior
-                    img_canvas.paste(bc_rgb, (x_bc, y_bc))
-                    
-                    # Centrar texto abajo del CB
+                    if bc_w > ANCHO_FIJO - 32:
+                        bc_rgb = bc_rgb.resize((ANCHO_FIJO - 32, bc_h), Image.NEAREST)
+                        bc_w, bc_h = bc_rgb.size
+
+                    # Medir texto del CB
                     try:
-                        bbox = font_barcode.getbbox(codigo_barras)
-                        text_w = bbox[2] - bbox[0]
+                        t_bbox = font_barcode.getbbox(codigo_barras)
+                        text_w = t_bbox[2] - t_bbox[0]
+                        text_h = t_bbox[3] - t_bbox[1]
                     except AttributeError:
                         text_w = len(codigo_barras) * 10
-                    x_t = (ancho_printer - text_w) // 2
-                    draw.text((x_t, y_bc + bc_h + 2), codigo_barras, font=font_barcode, fill=(0,0,0))
+                        text_h = 16
+
+                    gap_texto  = 3
+                    # Posiciones desde abajo
+                    y_texto_cb = ALTO_MAXIMO - CB_MARGEN_INF - text_h
+                    y_bc       = y_texto_cb - gap_texto - bc_h
+
+                    if y_bc < 0:
+                        y_bc = 2
+
+                    x_bc = (ANCHO_FIJO - bc_w) // 2
+                    img_canvas.paste(bc_rgb, (x_bc, y_bc))
+
+                    x_t = (ANCHO_FIJO - text_w) // 2
+                    draw.text((x_t, y_texto_cb), codigo_barras, font=font_barcode, fill=(0, 0, 0))
+
+                    print(f"[*] CB: y={y_bc}  texto: y={y_texto_cb}  fin={y_texto_cb + text_h}  max={ALTO_MAXIMO}")
             except Exception as e:
                 print(f"[-] Error obteniendo Código de Barras: {e}")
 
-            # Convertir a monocromático profundo (1 bit) EXACTAMENTE ANTES DE IMPRIMIR
-            img_gris = img_canvas.convert("L")
+            # Binarizar
+            img_gris  = img_canvas.convert("L")
             img_final = img_gris.point(lambda x: 0 if x < 200 else 255, "1")
-            nuevo_alto = alto_seguro
+            nuevo_alto = ALTO_MAXIMO
 
         else:
-            print("[*] Descargando imagen web completa (modo pre-renderizado)...")
+            print("[*] Modo legacy: imagen pre-renderizada...")
             respuesta = requests.get(url_imagen, timeout=15)
             respuesta.raise_for_status()
 
@@ -173,42 +207,41 @@ def imprimir_etiqueta(url_imagen):
             fondo.paste(img, mask=img.split()[3] if len(img.split()) == 4 else None)
             img = fondo.convert("RGB")
 
-            # MANTENER PROPORCIÓN pero usando NEAREST para no difuminar bordes
-            ratio = ancho_printer / float(img.width)
-            nuevo_alto = int(min(img.height * ratio, alto_seguro))
-            img_scaled = img.resize((ancho_printer, nuevo_alto), Image.NEAREST)
+            ratio      = ANCHO_FIJO / float(img.width)
+            nuevo_alto = int(min(img.height * ratio, ALTO_MAXIMO))
+            img_scaled = img.resize((ANCHO_FIJO, nuevo_alto), Image.NEAREST)
 
-            # Binarización
-            img_gris = img_scaled.convert("L")
+            img_gris  = img_scaled.convert("L")
             img_final = img_gris.point(lambda x: 0 if x < 200 else 255, "1")
 
-        # Iniciar Print Job
+        # ── Enviar al spooler ──────────────────────────────────────────────
         hDC.StartDoc("Etiqueta NIIMBOT Bioelectronica")
         hDC.StartPage()
 
-        # Dibujar imagen ocupando el ancho completo
         dib = ImageWin.Dib(img_final)
-        dib.draw(hDC.GetHandleOutput(), (0, 0, ancho_printer, nuevo_alto))
+        dib.draw(hDC.GetHandleOutput(), (0, 0, ANCHO_FIJO, nuevo_alto))
 
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
 
-        print("[+] Impresion NIIMBOT enviada exitosamente al spooler!")
+        print(f"[+] Enviado al spooler — {ANCHO_FIJO}×{nuevo_alto}px")
         return True
 
     except Exception as e:
         print(f"[-] Error al imprimir: {e}")
         return False
 
+
 def iniciar():
     print("=================================================")
-    print(" SERVIDOR DE IMPRESION NIIMBOT K3 - Bioelectrónica ")
-    print(f" Servidor URL: {HOST}")
-    print(f" Impresora:    {IMPRESORA}")
+    print(" SERVIDOR DE IMPRESION NIIMBOT K3 - Bioelectrónica")
+    print(f" Servidor URL : {HOST}")
+    print(f" Impresora    : {IMPRESORA}")
+    print(f" Canvas fijo  : {ANCHO_FIJO}×{ALTO_MAXIMO}px  (50mm×33mm @ 203 DPI, 93%)")
     print("=================================================\n")
     print("Sondeando trabajos pendientes en la nube...")
-    
+
     while True:
         try:
             res = requests.get(API_PENDIENTES, timeout=5)
@@ -216,23 +249,22 @@ def iniciar():
                 trabajos = res.json().get('trabajos', [])
                 for trabajo in trabajos:
                     print(f"\n[+] --> TRABAJO INTERCEPTADO: ID #{trabajo['id']}")
-                    
-                    # La base de datos Prisma usa camelCase: urlImagen
-                    url_img = trabajo.get('urlImagen') 
+                    url_img = trabajo.get('urlImagen')
                     if not url_img:
-                        print("[-] Error: Trabajo no contenía una URL de imagen válida.")
+                        print("[-] Error: Trabajo sin URL de imagen válida.")
                         continue
                         
                     if imprimir_etiqueta(url_img):
                         requests.post(API_COMPLETAR, json={"id": trabajo['id']})
-                        
+
         except requests.exceptions.RequestException:
             pass
         except Exception as e:
             print(f"[-] Error en el bucle principal: {e}")
             pass
-            
+
         time.sleep(TIEMPO_ESPERA)
+
 
 if __name__ == '__main__':
     iniciar()
