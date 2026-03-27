@@ -36,6 +36,9 @@ export default async function FichaTecnicaPage({ params }: Props) {
             area: true,
             cuentaAct: true,
             estatusContable: true,
+            codigoBarras: true,
+            codigoGrupo: true,
+            organizationId: true,
             estadoDano: true,
             tipoIncidencia: true,
             accionRecomendada: true,
@@ -56,9 +59,17 @@ export default async function FichaTecnicaPage({ params }: Props) {
     // serialize dates
     const data = JSON.parse(JSON.stringify(activo));
 
+    const identifierCondition = activo.codigoBarras
+        ? { codigoBarras: activo.codigoBarras }
+        : (activo.codigoGrupo ? { codigoGrupo: activo.codigoGrupo } : { idQr: activo.idQr });
+
     const activosSimilares = await prisma.activoFijo.findMany({
-        where: { idQr: decodeURIComponent(idQr) },
-        select: { area: true, stock: true },
+        where: { 
+            organizationId: activo.organizationId,
+            ...identifierCondition 
+        },
+        select: { idQr: true, serie: true, area: true, stock: true, estatusContable: true },
+        orderBy: { area: 'asc' }
     });
     const distribucion = JSON.parse(JSON.stringify(activosSimilares));
 

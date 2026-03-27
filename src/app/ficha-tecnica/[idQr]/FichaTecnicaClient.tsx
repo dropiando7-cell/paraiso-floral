@@ -67,7 +67,10 @@ function Field({ label, value, mono, icon: Icon }: {
     );
 }
 
-export default function FichaTecnicaClient({ activo, distribucion }: { activo: Activo, distribucion?: { area: string, stock: number }[] }) {
+export default function FichaTecnicaClient({ activo, distribucion }: { 
+    activo: Activo, 
+    distribucion?: { idQr: string, serie?: string | null, area: string, stock: number, estatusContable: string }[] 
+}) {
     const images = [activo.imagenUrl, activo.imagenPlacaUrl].filter(Boolean) as string[];
     const [imgIdx, setImgIdx] = useState(0);
     const [lightbox, setLightbox] = useState(false);
@@ -78,6 +81,13 @@ export default function FichaTecnicaClient({ activo, distribucion }: { activo: A
     };
 
     const hasDano = !!activo.estadoDano;
+
+    const groupedDistribucion = distribucion?.reduce((acc, curr) => {
+        if (!acc[curr.area]) acc[curr.area] = { stockTotal: 0, items: [] };
+        acc[curr.area].stockTotal += curr.stock || 1;
+        acc[curr.area].items.push(curr);
+        return acc;
+    }, {} as Record<string, { stockTotal: number, items: NonNullable<typeof distribucion>[0][] }>) || {};
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-start py-8 px-4">
@@ -294,20 +304,43 @@ export default function FichaTecnicaClient({ activo, distribucion }: { activo: A
                         <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
                             <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                                 <Package className="w-3.5 h-3.5" />
-                                Distribución de Inventario Físico
+                                Existencias Físicas ({distribucion.length > 1 ? 'Múltiples unidades' : 'Unidad única'})
                             </h2>
-                            <div className="flex flex-wrap gap-2">
-                                {distribucion.map((d, i) => (
-                                    <div key={i} className="flex items-center gap-2 bg-white border border-emerald-200 text-emerald-800 px-3 py-1.5 rounded-xl text-sm font-semibold shadow-sm">
-                                        <MapPin className="w-3 h-3 text-emerald-500" />
-                                        {d.area}
-                                        <span className="bg-emerald-100 text-emerald-700 rounded-md px-1.5 py-0.5 text-[10px] font-black">{d.stock} ud.</span>
+                            <div className="flex flex-col gap-3">
+                                {Object.entries(groupedDistribucion).map(([area, data]: [string, any], i) => (
+                                    <div key={i} className="bg-white border border-emerald-200 rounded-xl overflow-hidden shadow-sm">
+                                        <div className="flex items-center justify-between px-3 py-2 bg-emerald-100/30 border-b border-emerald-100/50">
+                                            <div className="flex items-center gap-2 text-emerald-800 text-sm font-bold">
+                                                <MapPin className="w-4 h-4 text-emerald-600" />
+                                                {area}
+                                            </div>
+                                            <span className="bg-emerald-100 text-emerald-800 rounded-md px-2 py-0.5 text-xs font-black">
+                                                {data.stockTotal} ud.
+                                            </span>
+                                        </div>
+                                        <div className="px-3 py-2 flex flex-col gap-1.5">
+                                            {data.items.map((item: any, idx: number) => (
+                                                <div key={idx} className={`flex items-center justify-between text-xs font-medium ${item.idQr === activo.idQr ? 'text-blue-600 bg-blue-50 px-2 py-1 -mx-2 rounded' : 'text-slate-600'}`}>
+                                                    <div className="flex items-center gap-2">
+                                                        <QrCode className="w-3 h-3 opacity-60" />
+                                                        <span>{item.idQr}</span>
+                                                        {item.idQr === activo.idQr && <span className="bg-blue-200 text-blue-800 text-[9px] uppercase px-1.5 py-0.5 rounded-sm font-bold">Actual</span>}
+                                                    </div>
+                                                    {item.serie && (
+                                                        <div className="flex items-center gap-1 font-mono text-slate-500">
+                                                            <Hash className="w-3 h-3" />
+                                                            {item.serie}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
                                 ))}
                             </div>
-                            <div className="mt-4 pt-3 border-t border-emerald-100/50 flex justify-between items-center text-xs font-bold text-emerald-800">
-                                <span className="uppercase tracking-widest">Total Unidades:</span>
-                                <span className="text-sm bg-emerald-500 text-white px-2 py-0.5 rounded-md shadow-sm">
+                            <div className="mt-4 pt-3 border-t border-emerald-200/50 flex justify-between items-center text-xs font-bold text-emerald-800">
+                                <span className="uppercase tracking-widest">Total Global en Institución:</span>
+                                <span className="text-sm bg-emerald-600 text-white px-2.5 py-0.5 rounded-md shadow-sm">
                                     {distribucion.reduce((acc, d) => acc + (d.stock || 0), 0)}
                                 </span>
                             </div>
