@@ -3,7 +3,7 @@
 import { useState, useRef, useTransition, useEffect } from 'react';
 import { X, Search, Camera, Package, Loader2, CheckCircle2, ChevronDown, Sparkles, Printer, MapPin, CalendarDays } from 'lucide-react';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
-import { checkExistingByBarcode, getActivosByGrupo, createActivo, encolarCopiasNiimbot, getUbicacionesActivasByProducto } from './actions';
+import { checkExistingByBarcode, getActivosByGrupo, createActivo, encolarCopiasNiimbot, getUbicacionesActivasByProducto, getActivosByDescripcionCorta } from './actions';
 import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
 import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
 import { DateInput } from '@/components/ui/DateInput';
@@ -129,7 +129,7 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
     // Auto-search by group code
     useEffect(() => {
         if (codigoGrupoSearch) {
-            buscarPorCodigoGrupo(codigoGrupoSearch);
+            buscarPorDescripcionCorta(codigoGrupoSearch);
         }
     }, [codigoGrupoSearch]);
 
@@ -156,23 +156,21 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
         }
     }
 
-    async function buscarPorCodigoGrupo(cg: string) {
+    async function buscarPorDescripcionCorta(desc: string) {
         setIsSearching(true);
         try {
-            const activos = await getActivosByGrupo(cg);
+            const activos = await getActivosByDescripcionCorta(desc);
             if (activos && activos.length > 0) {
                 // Tomar el primero as the representative model
                 // Note: The UI card needs imagenUrl, descripcionCorta, marca, modelo which checkExistingByBarcode returns.
-                // We'll construct a mock product from getActivosByGrupo or just use the first item data.
-                // Normally getActivosByGrupo returns limited fields. Let's make sure it's enough.
+                // We'll construct a mock product from getActivosByDescripcionCorta or just use the first item data.
                 setSelectedProduct({
                     ...activos[0],
-                    codigoGrupo: cg,
                     isFromGroup: true // flag knowing we don't have exactly one barcode matching
                 });
                 if (!area && activos[0].area) setArea(activos[0].area);
 
-                const ubs = await getUbicacionesActivasByProducto(cg, 'codigoGrupo');
+                const ubs = await getUbicacionesActivasByProducto(desc, 'descripcionCorta');
                 setUbicacionesSugeridas(ubs);
             } else {
                 setSelectedProduct(null);
@@ -315,7 +313,7 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
                             <div>
                                 <FieldLabel>Buscar por Nombre / Grupo Creado</FieldLabel>
                                 <Combobox
-                                    options={gruposDisponibles.map(g => ({ value: g.codigoGrupo, label: `${g.codigoGrupo} - ${g.descripcionCorta} (${g.cantidad})` }))}
+                                    options={gruposDisponibles.map(g => ({ value: g.descripcionCorta, label: `${g.codigoGrupo || '001'} - ${g.descripcionCorta} (${g.cantidad})` }))}
                                     value={codigoGrupoSearch}
                                     onChange={(v) => {
                                         setCodigoGrupoSearch(v);

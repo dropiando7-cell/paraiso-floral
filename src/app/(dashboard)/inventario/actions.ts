@@ -80,28 +80,27 @@ export async function getGruposAutocompletado() {
     try {
         const orgId = await getOrgId();
 
-        // Agrupar por codigoGrupo para obtener cantidad y descripcion sugerida
+        // Agrupar por descripcionCorta para obtener cantidad
         const agrupados = await prisma.activoFijo.groupBy({
-            by: ['codigoGrupo'],
-            where: { organizationId: orgId, codigoGrupo: { not: null } },
+            by: ['descripcionCorta'],
+            where: { organizationId: orgId },
             _count: { id: true }
         });
 
-        // Para evitar múltiples queries, optamos por mapear y luego enriquecer
         const resultados = await Promise.all(agrupados.map(async (g) => {
             const last = await prisma.activoFijo.findFirst({
-                where: { organizationId: orgId, codigoGrupo: g.codigoGrupo },
+                where: { organizationId: orgId, descripcionCorta: g.descripcionCorta },
                 orderBy: { createdAt: 'desc' },
-                select: { descripcionCorta: true }
+                select: { codigoGrupo: true }
             });
             return {
-                codigoGrupo: g.codigoGrupo!,
+                codigoGrupo: last?.codigoGrupo || '001',
                 cantidad: g._count.id,
-                descripcionCorta: last?.descripcionCorta || ''
+                descripcionCorta: g.descripcionCorta!
             };
         }));
 
-        return resultados.sort((a, b) => a.codigoGrupo.localeCompare(b.codigoGrupo));
+        return resultados.sort((a, b) => a.descripcionCorta.localeCompare(b.descripcionCorta));
     } catch (e) {
         return [];
     }
@@ -162,6 +161,39 @@ export async function getActivosByGrupo(codigoGrupo: string) {
         return activos;
     } catch (error) {
         console.error("Error fetching activos by group code", error);
+        return [];
+    }
+}
+
+// ─── Fetch Activos by Descripcion Corta ──────────────────────────────────────
+export async function getActivosByDescripcionCorta(descripcionCorta: string) {
+    if (!descripcionCorta) return [];
+    try {
+        const orgId = await getOrgId();
+        const activos = await prisma.activoFijo.findMany({
+            where: { organizationId: orgId, descripcionCorta },
+            orderBy: { area: 'asc' },
+            select: {
+                id: true,
+                idQr: true,
+                descripcionCorta: true,
+                area: true,
+                codigoBarras: true,
+                stock: true,
+                estatusContable: true,
+                descripcionDetallada: true,
+                marca: true,
+                modelo: true,
+                cuentaAct: true,
+                categoriaId: true,
+                esConsumible: true,
+                imagenUrl: true,
+                codigoGrupo: true,
+            }
+        });
+        return activos;
+    } catch (error) {
+        console.error("Error fetching activos by descripcion", error);
         return [];
     }
 }
@@ -341,12 +373,17 @@ export async function getActivoStats(area?: string) {
 }
 
 // ─── Get Ubicaciones Activas ─────────────────────────────────────────────────
-export async function getUbicacionesActivasByProducto(identificador: string, tipo: 'codigoBarras' | 'codigoGrupo') {
+export async function getUbicacionesActivasByProducto(identificador: string, tipo: 'codigoBarras' | 'codigoGrupo' | 'descripcionCorta') {
     const orgId = await getOrgId();
     
-    const whereClause = tipo === 'codigoBarras' 
-        ? { organizationId: orgId, codigoBarras: identificador }
-        : { organizationId: orgId, codigoGrupo: identificador };
+    const whereClause: any = { organizationId: orgId };
+    if (tipo === 'codigoBarras') {
+        whereClause.codigoBarras = identificador;
+    } else if (tipo === 'codigoGrupo') {
+        whereClause.codigoGrupo = identificador;
+    } else if (tipo === 'descripcionCorta') {
+        whereClause.descripcionCorta = identificador;
+    }
 
     const agrupados = await prisma.activoFijo.groupBy({
         by: ['area'],

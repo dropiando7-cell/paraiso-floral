@@ -61,7 +61,7 @@ export default async function FichaTecnicaPage({ params }: Props) {
 
     const identifierCondition = activo.codigoBarras
         ? { codigoBarras: activo.codigoBarras }
-        : (activo.codigoGrupo ? { codigoGrupo: activo.codigoGrupo } : { idQr: activo.idQr });
+        : { descripcionCorta: activo.descripcionCorta };
 
     const activosSimilares = await prisma.activoFijo.findMany({
         where: { 
