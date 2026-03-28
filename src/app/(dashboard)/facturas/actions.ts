@@ -5,7 +5,7 @@ import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 // Helper for Auth
-async function getOrganizationId() {
+export async function getOrganizationId() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("No autenticado");
@@ -25,7 +25,7 @@ export async function searchClientes(query: string = "") {
                 organizationId,
                 nombre: { contains: query, mode: 'insensitive' }
             },
-            take: 10,
+            take: 1000,
             orderBy: { nombre: 'asc' }
         });
     } catch (e) {
@@ -34,30 +34,67 @@ export async function searchClientes(query: string = "") {
     }
 }
 
-// --- PRODUCTOS (Inventario Estilo Supermercado) ---
+// --- PRODUCTOS Y ACTIVOS FIJOS (Catálogo Médico General) ---
 export async function searchProductos(query: string = "") {
     try {
         const organizationId = await getOrganizationId();
-        const productos = await prisma.producto.findMany({
-            where: { 
-                organizationId,
-                estado: 'ACTIVO',
-                OR: [
-                    { nombre: { contains: query, mode: 'insensitive' } },
-                    { sku: { contains: query, mode: 'insensitive' } }
-                ]
-            },
-            take: 10
-        });
         
-        // Convertir Decimal a String para que pase del Server Component al Client Component sin errores
-        return productos.map(p => ({
-            ...p,
-            precioVenta: p.precioVenta.toString(),
-            costoBase: p.costoBase?.toString() || null
+        const [productos, activos] = await Promise.all([
+            prisma.producto.findMany({
+                where: { 
+                    organizationId,
+                    estado: 'ACTIVO',
+                    OR: [
+                        { nombre: { contains: query, mode: 'insensitive' } },
+                        { sku: { contains: query, mode: 'insensitive' } }
+                    ]
+                },
+                take: 1000
+            }),
+            prisma.activoFijo.findMany({
+                where: {
+                    organizationId,
+                    estatusContable: 'VIGENTE',
+                    OR: [
+                        { descripcionCorta: { contains: query, mode: 'insensitive' } },
+                        { idQr: { contains: query, mode: 'insensitive' } },
+                        { marca: { contains: query, mode: 'insensitive' } }
+                    ]
+                },
+                include: { producto: true },
+                take: 1000
+            })
+        ]);
+        
+        const formatDecimal = (val: any) => val ? val.toString() : '0';
+
+        const unifiedProductos = productos.map(p => ({
+            id: p.id,
+            sku: p.sku,
+            nombre: p.nombre,
+            descripcion: p.descripcion,
+            precioVenta: formatDecimal(p.precioVenta),
+            costoBase: formatDecimal(p.costoBase),
+            marca: p.marca,
+            stockActual: p.stockActual,
+            type: 'producto'
         }));
+
+        const unifiedActivos = activos.map(a => ({
+            id: a.id,
+            sku: a.idQr,
+            nombre: a.descripcionCorta,
+            descripcion: a.descripcionDetallada || `Serie: ${a.serie || 'N/A'} - Modelo: ${a.modelo || 'N/A'}`,
+            precioVenta: formatDecimal(a.producto?.precioVenta || a.costoAdq || 0),
+            costoBase: formatDecimal(a.costoAdq || 0),
+            marca: a.marca || a.area || 'Activo Fijo',
+            stockActual: a.stock || 1,
+            type: 'activo'
+        }));
+
+        return [...unifiedProductos, ...unifiedActivos];
     } catch (e) {
-        console.error(e);
+        console.error("Error en searchProductos:", e);
         return [];
     }
 }
@@ -163,3 +200,177 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
         return { success: false, error: error.message || "Error desconocido al facturar" };
     }
 }
+
+// --- GUARDAR DOCUMENTO DINÁMICO (Cotización, Proforma, Borrador, Factura) ---
+export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
+    try {
+        const organizationId = await getOrganizationId();
+
+        let clienteId = data.clienteId;
+        if (!clienteId && data.clienteNombre) {
+            const nuevoCliente = await prisma.cliente.create({
+                data: {
+                    organizationId,
+                    nombre: data.clienteNombre,
+                    rtn: data.rtn || null,
+                    telefono: data.telefono || null,
+                    email: data.email || null,
+                    direccion: data.direccion || null
+                }
+            });
+            clienteId = nuevoCliente.id;
+        }
+
+        if (!clienteId) throw new Error("Se requiere un cliente válido.");
+
+        // Generar Correlativo según el Tipo de Documento
+        let correlativoFinal = data.correlativo || "";
+        
+        if (data.tipoDocumento === 'FACTURA') {
+            // Generar correlativo oficial si no viene
+            const ultimaFactura = await prisma.factura.findFirst({
+                where: { organizationId, tipoDocumento: 'FACTURA', estado: { not: 'BORRADOR'} },
+                orderBy: { numeroInterno: 'desc' }
+            });
+            const nextNumber = ultimaFactura ? ultimaFactura.numeroInterno + 1 : 1;
+            correlativoFinal = `000-001-01-${nextNumber.toString().padStart(8, '0')}`;
+        } else {
+            // Cotización o Proforma o Borrador
+            const prefix = data.tipoDocumento === 'COTIZACION' ? 'COT' : data.tipoDocumento === 'PROFORMA' ? 'PROF' : 'BOR';
+            const year = new Date().getFullYear();
+            // Buscar la ultima para este prefijo (basado en numero Interno igual, porque es autoincremental, el numero no choca si le ponemos el string correcto)
+            const ultimoDoc = await prisma.factura.findFirst({
+                where: { organizationId, tipoDocumento: data.tipoDocumento },
+                orderBy: { numeroInterno: 'desc' }
+            });
+            const nextNumber = ultimoDoc ? ultimoDoc.numeroInterno + 1 : 1;
+            correlativoFinal = `${prefix}-${year}-${nextNumber.toString().padStart(4, '0')}`;
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            const nuevoDoc = await tx.factura.create({
+                data: {
+                    organizationId,
+                    clienteId,
+                    correlativo: correlativoFinal,
+                    numeroCAI: data.numeroCAI || null,
+                    rangoAutorizado: data.rangoAutorizado || null,
+                    tipoDocumento: data.tipoDocumento, // 'COTIZACION', 'FACTURA', 'PROFORMA', 'BORRADOR'
+                    estado: data.tipoDocumento === 'FACTURA' ? 'EMITIDA' : 'EMITIDA',
+                    notas: data.notas || null,
+                    terminosPago: data.terminosPago || null,
+                    validezDias: Number(data.validezDias) || 30,
+                    
+                    subTotal: data.subTotal,
+                    descuentos: data.descuentos,
+                    totalExento: data.totalExento || 0,
+                    totalExonerado: data.totalExonerado || 0,
+                    totalGravado15: data.totalGravado15 || 0,
+                    isv15: data.isv15 || 0,
+                    totalGravado18: data.totalGravado18 || 0,
+                    isv18: data.isv18 || 0,
+                    total: data.total,
+                    
+                    detalles: {
+                        create: lineItems.map((item) => {
+                            const basePrice = item.qty * item.unitPrice;
+                            const discountAmt = basePrice * ((item.discount || 0) / 100);
+                            const lineTotal = basePrice - discountAmt;
+                            return {
+                                descripcion: item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : ''),
+                                cantidad: item.qty,
+                                precioUnitario: item.unitPrice,
+                                porcentajeIsv: item.tax === 'isv15' ? 15 : 0,
+                                totalDescuento: discountAmt,
+                                totalLinea: lineTotal,
+                                productoId: item.productoId || null,
+                                activoId: item.activoId || null
+                            };
+                        })
+                    }
+                }
+            });
+
+            // Si es FACTURA oficial, entonces descontar inventario
+            if (data.tipoDocumento === 'FACTURA') {
+                for (const item of lineItems) {
+                    if (item.productoId) {
+                        await tx.producto.update({
+                            where: { id: item.productoId },
+                            data: { stockActual: { decrement: item.qty } }
+                        });
+                    }
+                    if (item.activoId) {
+                        await tx.activoFijo.update({
+                            where: { id: item.activoId },
+                            data: { estatusContable: 'VENDIDO/ENTREGADO' }
+                        });
+                    }
+                }
+            }
+
+            return nuevoDoc;
+        });
+
+        revalidatePath('/facturas');
+        return { success: true, docId: result.id, correlativo: result.correlativo };
+
+    } catch (error: any) {
+        console.error("Error al guardar documento:", error);
+        return { success: false, error: error.message || "Error al guardar el documento" };
+    }
+}
+
+// --- BÚSQUEDA RÁPIDA DE ITEM POR CÓDIGO (Producto o Activo Fijo) ---
+export async function buscarItemPorCodigo(codigo: string) {
+    if (!codigo || codigo.trim() === '') return null;
+    try {
+        const organizationId = await getOrganizationId();
+        const codigoTrim = codigo.trim();
+        
+        // 1. Buscar en Productos (Stock Generico)
+        const producto = await prisma.producto.findFirst({
+            where: {
+                organizationId,
+                estado: 'ACTIVO',
+                sku: codigoTrim
+            }
+        });
+
+        if (producto) {
+            return {
+                id: producto.id,
+                type: 'producto',
+                name: producto.nombre,
+                description: producto.descripcion || '',
+                price: Number(producto.precioVenta) || 0
+            };
+        }
+
+        // 2. Buscar en Activos Fijos (Inventario Físico / Serializado)
+        const activo = await prisma.activoFijo.findFirst({
+            where: {
+                organizationId,
+                idQr: { equals: codigoTrim, mode: 'insensitive' },
+                estatusContable: 'VIGENTE'
+            },
+            include: { producto: true }
+        });
+
+        if (activo) {
+            return {
+                id: activo.id,
+                type: 'activo',
+                name: activo.descripcionCorta,
+                description: activo.descripcionDetallada || `Serie: ${activo.serie || 'N/A'} - Modelo: ${activo.modelo || 'N/A'}`,
+                price: activo.producto && activo.producto.precioVenta ? Number(activo.producto.precioVenta) : (Number(activo.costoAdq) || 0)
+            };
+        }
+
+        return null;
+    } catch(e) {
+        console.error("Error buscando item por codigo:", e);
+        return null;
+    }
+}
+

@@ -1,14 +1,26 @@
-export default function FacturasPage() {
-  return (
-    <div className="flex flex-col items-center justify-center p-24 text-center h-[80vh] animate-in fade-in zoom-in duration-500">
-      <h1 className="text-4xl font-bold text-slate-800 mb-4 tracking-tight">Módulo de Facturación</h1>
-      <p className="text-lg text-slate-500 max-w-lg mb-8">
-        Sistema centralizado para la emisión y gestión de facturas de servicios, rentas de equipo y pólizas de mantenimiento.
-      </p>
-      
-      <div className="bg-brand-50 border border-brand-100 rounded-xl p-6 text-brand-700 font-medium">
-        Sección en Construcción
-      </div>
-    </div>
-  );
+import DocumentBuilderClient from './DocumentBuilderClient';
+import { getOrganizationId } from './actions';
+import { prisma } from '@/lib/prisma';
+
+export default async function FacturasPage() {
+    let org = null;
+    try {
+        const orgId = await getOrganizationId();
+        org = await prisma.organization.findUnique({ 
+            where: { id: orgId },
+            select: { 
+                name: true, 
+                logoUrl: true, 
+                direccion: true, 
+                rtn: true, 
+                telefono: true, 
+                correoContacto: true,
+                qrPrefix: true
+            }
+        });
+    } catch (e) {
+        console.error("Error fetching organization:", e);
+    }
+
+    return <DocumentBuilderClient organization={org} />;
 }

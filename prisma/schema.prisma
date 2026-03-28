@@ -572,6 +572,10 @@ model Factura {
   isv18                    Decimal          @default(0) @db.Decimal(12, 2)
   total                    Decimal          @default(0) @db.Decimal(12, 2)
   estado                   String           @default("BORRADOR")
+  tipoDocumento            String           @default("FACTURA")
+  notas                    String?
+  terminosPago             String?
+  validezDias              Int?             @default(30)
   rangoAutorizado          String?
   fechaLimiteEmision       DateTime?
   ordenCompraExenta        String?
