@@ -209,7 +209,7 @@ function LineItemRow({
     <div className="group relative">
       <div className={`
         flex items-start gap-2 p-3 rounded-xl border transition-all duration-200
-        ${item.qty > 0 && item.unitPrice > 0
+        ${Number(item.qty) > 0 && Number(item.unitPrice) > 0
           ? 'border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/20 hover:shadow-sm'
           : 'border-dashed border-slate-200 bg-slate-50/50'}
         print:border-none print:p-0 print:bg-transparent print:my-1
@@ -238,7 +238,7 @@ function LineItemRow({
                     if (res) {
                       onChange(item.id, 'shortDesc', res.name);
                       if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
-                      if (item.unitPrice === 0) onChange(item.id, 'unitPrice', res.price);
+                      if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
                       if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
                       if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
                     }
