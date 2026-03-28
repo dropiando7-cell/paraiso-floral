@@ -671,10 +671,13 @@ export async function updateActivo(id: string, formData: FormData): Promise<{ su
             : null;
 
         const estatusContable = formData.get('estatusContable') as string;
+        const cantidadStr = formData.get('cantidad') as string;
+        const stockNum = cantidadStr ? parseInt(cantidadStr, 10) : undefined;
 
         await prisma.activoFijo.updateMany({
             where: { id, organizationId: orgId },
             data: {
+                ...(stockNum !== undefined && !isNaN(stockNum) && { stock: stockNum }),
                 descripcionCorta: formData.get('descripcionCorta') as string,
                 descripcionDetallada: (formData.get('descripcionDetallada') as string) || null,
                 serie: (formData.get('serie') as string) || null,
