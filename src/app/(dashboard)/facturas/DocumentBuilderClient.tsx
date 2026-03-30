@@ -53,6 +53,7 @@ interface Product {
 }
 
 import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo } from './actions';
+import { createContacto } from '../contactos/actions';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
@@ -353,6 +354,9 @@ export default function DocumentBuilderClient({ organization }: { organization?:
   const [productSearch, setProductSearch] = useState('');
   const [showClientModal, setShowClientModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [showNewClientModal, setShowNewClientModal] = useState(false);
+  const [newClientData, setNewClientData] = useState({ nombre: '', email: '', telefono: '', rtn: '', direccion: '' });
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [activeTab, setActiveTab] = useState<'clients' | 'products'>('clients');
   const [showPreview, setShowPreview] = useState(false);
 
@@ -412,6 +416,43 @@ export default function DocumentBuilderClient({ organization }: { organization?:
     c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
     c.rtn.includes(clientSearch)
   );
+
+  const handleCreateClient = async () => {
+    if (!newClientData.nombre.trim()) {
+      toast.error('El nombre es obligatorio');
+      return;
+    }
+    setIsCreatingClient(true);
+    try {
+      const created = await createContacto({
+        nombre: newClientData.nombre,
+        email: newClientData.email || undefined,
+        telefono: newClientData.telefono || undefined,
+        rtn: newClientData.rtn || undefined,
+        direccion: newClientData.direccion || undefined
+      });
+      const newClientObj: Client = {
+        id: created.id,
+        name: created.nombre,
+        rtn: created.rtn || '',
+        email: created.email || '',
+        phone: created.telefono || '',
+        address: created.direccion || '',
+        city: '',
+        category: 'Cliente'
+      };
+      setAllClients(prev => [...prev, newClientObj]);
+      setSelectedClient(newClientObj);
+      setShowNewClientModal(false);
+      setShowClientModal(false);
+      setNewClientData({ nombre: '', email: '', telefono: '', rtn: '', direccion: '' });
+      toast.success('Cliente registrado correctamente');
+    } catch (e: any) {
+      toast.error('Error al registrar cliente');
+    } finally {
+      setIsCreatingClient(false);
+    }
+  };
 
   const filteredProducts = allProducts.filter(p =>
     p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
@@ -817,9 +858,17 @@ export default function DocumentBuilderClient({ organization }: { organization?:
               <h3 className="font-bold text-slate-800 flex items-center gap-2">
                 <User size={18} className="text-blue-600" /> Seleccionar Cliente
               </h3>
-              <button onClick={() => setShowClientModal(false)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowNewClientModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  <Plus size={14} /> Nuevo
+                </button>
+                <button onClick={() => setShowClientModal(false)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
             </div>
             <div className="p-4 border-b border-slate-100 bg-white">
               <div className="relative">
@@ -903,6 +952,89 @@ export default function DocumentBuilderClient({ organization }: { organization?:
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {showNewClientModal && (
+        <div className="fixed inset-0 z-[65] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 print:hidden">
+            <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-slate-800">
+                        Nuevo Contacto
+                    </h2>
+                    <button onClick={() => setShowNewClientModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Nombre / Empresa <span className="text-red-500">*</span></label>
+                        <input
+                            type="text"
+                            placeholder="Ej: Juan Perez, Empresa S.A."
+                            className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                            value={newClientData.nombre}
+                            onChange={e => setNewClientData({ ...newClientData, nombre: e.target.value })}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Teléfono</label>
+                            <input
+                                type="tel"
+                                placeholder="+504 0000..."
+                                className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                                value={newClientData.telefono}
+                                onChange={e => setNewClientData({ ...newClientData, telefono: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">RTN / NIT</label>
+                            <input
+                                type="text"
+                                placeholder="No. Identidad o RTN"
+                                className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                                value={newClientData.rtn}
+                                onChange={e => setNewClientData({ ...newClientData, rtn: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Correo Electrónico</label>
+                        <input
+                            type="email"
+                            placeholder="contacto@empresa.com"
+                            className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                            value={newClientData.email}
+                            onChange={e => setNewClientData({ ...newClientData, email: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Dirección</label>
+                        <textarea
+                            placeholder="Dirección física..."
+                            className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800 min-h-[80px] resize-none"
+                            value={newClientData.direccion}
+                            onChange={e => setNewClientData({ ...newClientData, direccion: e.target.value })}
+                        />
+                    </div>
+                </div>
+                <div className="px-6 py-5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
+                    <button
+                        onClick={() => setShowNewClientModal(false)}
+                        className="px-5 py-2.5 rounded-xl font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        disabled={isCreatingClient}
+                        onClick={handleCreateClient}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all disabled:opacity-50"
+                    >
+                        {isCreatingClient ? 'Guardando...' : 'Guardar Contacto'}
+                    </button>
+                </div>
+            </div>
         </div>
       )}
     </div>
