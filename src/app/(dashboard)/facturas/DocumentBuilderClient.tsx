@@ -575,7 +575,7 @@ export default function DocumentBuilderClient({ organization }: { organization?:
     p.category.toLowerCase().includes(productSearch.toLowerCase())
   );
 
-  const handleLineChange = useCallback((id: string, field: keyof LineItem, val: unknown) => {
+  const handleLineChange = useCallback((id: string, field: any, val: any) => {
     setLineItems(prev => prev.map(item => item.id === id ? { ...item, [field]: val } : item));
   }, []);
 
