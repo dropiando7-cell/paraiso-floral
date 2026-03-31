@@ -56,6 +56,12 @@ import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPor
 import { createContacto } from '../contactos/actions';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import InvoiceCustomizerSidebar from '@/components/facturas/customizer/InvoiceCustomizerSidebar';
+import ModernTemplate from '@/components/facturas/templates/ModernTemplate';
+import ClassicTemplate from '@/components/facturas/templates/ClassicTemplate';
+import MinimalistTemplate from '@/components/facturas/templates/MinimalistTemplate';
+import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
+
 
 
 
@@ -196,18 +202,103 @@ function ProductSearchItem({ product, onAdd }: { product: Product; onAdd: (p: Pr
 }
 
 function LineItemRow({
-  item, index, onChange, onDelete, onToggleLongDesc
+  item, index, onChange, onDelete, onToggleLongDesc, allProducts
 }: {
   item: LineItem;
   index: number;
   onChange: (id: string, field: keyof LineItem, val: unknown) => void;
   onDelete: (id: string) => void;
   onToggleLongDesc: (id: string) => void;
+  allProducts: Product[];
 }) {
   const { base, tax, total } = calcLine(item);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [focusedField, setFocusedField] = useState<'code' | 'desc' | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowAutocomplete(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const query = focusedField === 'code' ? item.code : item.shortDesc;
+  const filteredProducts = query && query.trim().length >= 2 ? allProducts.filter(p => 
+    p.name.toLowerCase().includes(query.toLowerCase()) || 
+    p.code.toLowerCase().includes(query.toLowerCase()) ||
+    (p.type === 'activo' && p.description && p.description.toLowerCase().includes(query.toLowerCase()))
+  ).slice(0, 15) : [];
+
+  const handleSelectProduct = (product: Product) => {
+    onChange(item.id, 'code', product.code);
+    
+    let desc = product.name;
+    if (product.type === 'activo' && product.description) {
+      desc += ` - ${product.description}`;
+    }
+    onChange(item.id, 'shortDesc', desc);
+    
+    if (!item.longDesc) onChange(item.id, 'longDesc', product.description);
+    if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', product.price);
+    
+    if (product.type === 'producto') {
+       onChange(item.id, 'productoId', product.id);
+       onChange(item.id, 'activoId', undefined);
+    }
+    if (product.type === 'activo') {
+       onChange(item.id, 'activoId', product.id);
+       onChange(item.id, 'productoId', undefined);
+    }
+    
+    setShowAutocomplete(false);
+  };
+
+  const renderDropdown = () => {
+    if (!showAutocomplete || !focusedField || filteredProducts.length === 0) return null;
+    return (
+      <div className="absolute top-[calc(100%+4px)] left-0 w-[450px] z-[60] bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto print:hidden">
+        <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coincidencias en catálogo</span>
+          <span className="text-[10px] font-medium text-slate-400">{filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'}</span>
+        </div>
+        <div className="p-1">
+          {filteredProducts.map(p => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => handleSelectProduct(p)}
+              className="w-full text-left px-3 py-2 hover:bg-blue-50/70 rounded-lg group flex flex-col gap-1 transition-colors"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <p className="text-xs font-bold text-slate-800 group-hover:text-blue-700 leading-tight">
+                  {p.name}
+                </p>
+                <p className="text-xs font-black text-blue-600 shrink-0">{fmt(p.price)}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium group-hover:bg-blue-100 group-hover:text-blue-600">{p.code}</span>
+                {p.type === 'activo' ? (
+                  <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">Activo Fijo</span>
+                ) : (
+                  <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Stock: {p.stock}</span>
+                )}
+              </div>
+              {p.type === 'activo' && p.description && (
+                <p className="text-[10px] text-slate-500 mt-1 truncate">{p.description}</p>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   return (
-    <div className="group relative">
+    <div className="group relative" ref={containerRef}>
       <div className={`
         flex items-start gap-2 p-3 rounded-xl border transition-all duration-200
         ${Number(item.qty) > 0 && Number(item.unitPrice) > 0
@@ -224,50 +315,68 @@ function LineItemRow({
         </div>
 
         {/* Main fields */}
-        <div className="flex-1 grid grid-cols-12 gap-2 min-w-0">
+        <div className="flex-1 grid grid-cols-12 gap-2 min-w-0 relative">
           {/* Code */}
-          <div className="col-span-2">
+          <div className="col-span-2 relative">
             <input
               value={item.code}
-              onChange={e => onChange(item.id, 'code', e.target.value)}
+              onFocus={() => { setFocusedField('code'); setShowAutocomplete(true); }}
+              onChange={e => {
+                onChange(item.id, 'code', e.target.value);
+                setFocusedField('code');
+                setShowAutocomplete(true);
+              }}
               onBlur={async (e) => {
                 const val = e.target.value.trim();
-                // Only autocomplete if we don't have a description yet and the code is long enough
-                if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
-                  try {
-                    const res = await buscarItemPorCodigo(val);
-                    if (res) {
-                      onChange(item.id, 'shortDesc', res.name);
-                      if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
-                      if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
-                      if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
-                      if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
-                    }
-                  } catch(e) { console.error('Error in onBlur search:', e); }
-                }
+                setTimeout(async () => {
+                  if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
+                    try {
+                      const res = await buscarItemPorCodigo(val);
+                      if (res) {
+                        onChange(item.id, 'shortDesc', res.name);
+                        if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
+                        if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
+                        if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
+                        if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
+                      }
+                    } catch(e) { console.error('Error in onBlur search:', e); }
+                  }
+                }, 200);
               }}
               placeholder="Código"
               className="w-full text-xs font-mono border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800"
             />
+            {focusedField === 'code' && renderDropdown()}
           </div>
 
           {/* Description */}
-          <div className="col-span-4">
+          <div className="col-span-4 relative">
             <input
               value={item.shortDesc}
-              onChange={e => onChange(item.id, 'shortDesc', e.target.value)}
+              onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
+              onChange={e => {
+                onChange(item.id, 'shortDesc', e.target.value);
+                setFocusedField('desc');
+                setShowAutocomplete(true);
+              }}
               placeholder="Descripción del producto o servicio"
               className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:font-semibold print:border-transparent print:bg-transparent print:p-0 print:text-slate-800"
             />
             {item.showLongDesc && (
-              <textarea
-                value={item.longDesc}
-                onChange={e => onChange(item.id, 'longDesc', e.target.value)}
-                placeholder="Descripción técnica detallada, especificaciones, número de serie..."
-                rows={3}
-                className="mt-1.5 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none placeholder:text-slate-300 text-slate-600 print:border-transparent print:bg-transparent print:p-0 print:mt-0"
-              />
+              <>
+                <textarea
+                  value={item.longDesc}
+                  onChange={e => onChange(item.id, 'longDesc', e.target.value)}
+                  placeholder="Descripción técnica detallada, especificaciones, número de serie..."
+                  rows={3}
+                  className="mt-1.5 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none placeholder:text-slate-300 text-slate-600 print:hidden"
+                />
+                <div className="hidden print:block text-xs text-slate-600 whitespace-pre-wrap mt-0.5">
+                  {item.longDesc}
+                </div>
+              </>
             )}
+            {focusedField === 'desc' && renderDropdown()}
           </div>
 
           {/* Qty */}
@@ -359,6 +468,12 @@ export default function DocumentBuilderClient({ organization }: { organization?:
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [activeTab, setActiveTab] = useState<'clients' | 'products'>('clients');
   const [showPreview, setShowPreview] = useState(false);
+  const [showCustomizer, setShowCustomizer] = useState(false);
+  const [settings, setSettings] = useState<InvoiceSettings>(() => {
+    if (organization?.invoiceSettings) return { ...DEFAULT_INVOICE_SETTINGS, ...organization.invoiceSettings };
+    return DEFAULT_INVOICE_SETTINGS;
+  });
+
 
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
@@ -528,7 +643,8 @@ export default function DocumentBuilderClient({ organization }: { organization?:
         isv15: totalTax, // Ya calculado en la UI (puede ser con descuento o sin descuento dependiendo del código, el MOCK descontaba de la base?)
         totalGravado18: 0,
         isv18: 0,
-        total: grandTotal
+        total: grandTotal,
+        templateSettings: settings
       };
       
       const res = await guardarDocumentoBuilder(data, validItems);
@@ -561,27 +677,25 @@ export default function DocumentBuilderClient({ organization }: { organization?:
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans print:bg-white">
+    <div className="min-h-screen bg-slate-50 font-sans print:bg-white overflow-x-hidden">
       {/* Top Bar */}
-      <div className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm print:hidden">
+      <div className={`sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[320px]' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <p className="text-xs font-mono text-slate-400">{docNumber}</p>
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${docTypeStatusConfig[docType].badge}`}>
-                  {docTypeStatusConfig[docType].label}
-                </span>
-              </div>
-              <button onClick={() => setShowClientModal(true)} className="text-sm font-bold text-blue-600 hover:text-blue-700 mt-0.5 text-left transition-colors">
-                {selectedClient?.name || <span className="font-normal italic">Seleccionar cliente...</span>}
-              </button>
-            </div>
+          {/* Left section: Breadcrumb space */}
+          <div className="flex items-center gap-4 flex-1">
+            {/* Espacio para breadcrumb exterior */}
           </div>
 
           <DocTypeSelector value={docType} onChange={setDocType} />
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 justify-end">
+            <button
+              onClick={() => setShowCustomizer(!showCustomizer)}
+              className={`flex items-center gap-2 px-4 py-2 ${showCustomizer ? 'bg-blue-600 text-white shadow-md' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 text-blue-700'} rounded-xl text-sm font-semibold hover:shadow-md transition-all sm:flex`}
+            >
+              {showCustomizer ? <X size={15} /> : <Sparkles size={15} />}
+              {showCustomizer ? 'Ocultar Panel' : 'Personalizar Diseño'}
+            </button>
             <button
               onClick={() => window.print()}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm"
@@ -602,236 +716,55 @@ export default function DocumentBuilderClient({ organization }: { organization?:
 
       <div className="max-w-[1200px] mx-auto px-4 py-8 flex gap-5 print:p-0 print:max-w-none print:m-0">
 
+        
         {/* ─── MAIN DOCUMENT ───────────────────────────────────────────── */}
-        <div className="flex-1 min-w-0 space-y-4 print:space-y-0 print:m-0">
-
-          {/* Document Card */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden print:shadow-none print:border-none print:rounded-none">
-
-            {/* Document Header */}
-            <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-6 md:p-8">
-              <div className="flex items-start justify-between gap-6">
-                <div>
-                  <div className="flex items-center gap-3 mb-4">
-                    {organization?.logoUrl ? (
-                      <img src={organization.logoUrl} alt={organization.name || 'Logo'} className="h-12 w-auto object-contain" />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 shrink-0">
-                        <Stethoscope size={20} className="text-blue-300" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-white font-black text-lg leading-none print:text-slate-800">{organization?.name || 'Comercial'}</p>
-                      <p className="text-blue-300 text-xs font-medium print:text-slate-500">{organization?.qrPrefix || 'Facturación'}</p>
-                    </div>
-                  </div>
-                  <div className="space-y-1 mt-2">
-                    {organization?.direccion && <p className="text-slate-400 text-[11px] whitespace-pre-wrap max-w-[350px] leading-relaxed">{organization.direccion}</p>}
-                    <p className="text-slate-400 text-[11px]">
-                      {organization?.rtn && `RTN: ${organization.rtn}`}
-                      {organization?.rtn && organization?.telefono && ' · '}
-                      {organization?.telefono && `${organization.telefono}`}
-                    </p>
-                    {organization?.correoContacto && <p className="text-slate-400 text-[11px]">{organization.correoContacto}</p>}
-                    {!organization?.direccion && !organization?.rtn && !organization?.correoContacto && (
-                       <>
-                         <p className="text-slate-400 text-[11px]">Centro de Operaciones</p>
-                         <p className="text-slate-400 text-[11px]">Configura tu empresa en White Label</p>
-                       </>
-                    )}
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl mb-3 ${currentDocType.bg} border print:border-slate-300`}>
-                    <span className={currentDocType.color}>{currentDocType.icon}</span>
-                    <span className={`text-xs font-bold ${currentDocType.color}`}>{currentDocType.label.toUpperCase()}</span>
-                  </div>
-                  <p className="text-white font-black text-xl font-mono print:text-slate-800 whitespace-nowrap">{docNumber}</p>
-                  <div className="mt-3 space-y-1">
-                    <div className="flex items-center gap-2 justify-end">
-                       <span className="text-slate-400 text-[11px] print:text-slate-500">Fecha:</span>
-                       <span className="text-white text-[11px] font-semibold print:text-slate-800">{today}</span>
-                    </div>
-                    <div className="flex items-center gap-2 justify-end">
-                       <span className="text-slate-400 text-[11px] print:text-slate-500">Válido hasta:</span>
-                       <span className="text-blue-300 text-[11px] font-semibold print:text-slate-800">{futureDate(validityDays)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Client info strip */}
-              <div className="mt-6 bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-wrap md:flex-nowrap items-center gap-4 relative print:border-slate-200">
-                <div className="flex-1 min-w-[200px]">
-                  <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1 print:text-slate-500">Cliente</p>
-                  <button onClick={() => setShowClientModal(true)} className="text-white hover:text-blue-300 text-sm font-semibold flex items-center gap-2 transition-colors print:text-slate-800">
-                    {selectedClient?.name || 'Seleccionar cliente...'} <Search size={14} className="opacity-50 print:hidden" />
-                  </button>
-                </div>
-                <div>
-                  <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1 print:text-slate-500">RTN</p>
-                  <p className="text-white text-xs font-mono print:text-slate-800">{selectedClient?.rtn || '—'}</p>
-                </div>
-                <div className="w-32">
-                  <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1 print:text-slate-500">Términos de Pago</p>
-                  <select
-                    value={paymentTerms}
-                    onChange={e => setPaymentTerms(e.target.value)}
-                    className="bg-transparent text-blue-300 text-sm font-semibold border-none outline-none cursor-pointer w-full p-0 focus:ring-0 print:appearance-none print:text-slate-800"
-                  >
-                    <option value="Contado" className="bg-slate-800">Contado</option>
-                    <option value="15 días netos" className="bg-slate-800">15 días</option>
-                    <option value="30 días netos" className="bg-slate-800">30 días</option>
-                    <option value="60 días netos" className="bg-slate-800">60 días</option>
-                    <option value="90 días netos" className="bg-slate-800">90 días</option>
-                  </select>
-                </div>
-                <div className="w-24">
-                  <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1 print:text-slate-500">Vigencia</p>
-                  <div className="flex items-center gap-1">
-                    <input
-                      type="number"
-                      value={validityDays}
-                      onChange={e => setValidityDays(parseInt(e.target.value) || 30)}
-                      className="bg-transparent text-blue-300 text-sm font-semibold border-none outline-none w-8 p-0 focus:ring-0 print:text-slate-800"
-                    />
-                    <span className="text-blue-300 text-sm font-semibold print:text-slate-800">días</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Line Items Section */}
-            <div className="p-5">
-              {/* Column headers */}
-              <div className="flex items-center gap-2 mb-3 px-3">
-                <div className="w-5 shrink-0" />
-                <div className="flex-1 grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  <div className="col-span-2">Código</div>
-                  <div className="col-span-4">Descripción</div>
-                  <div className="col-span-1 text-center">Cant.</div>
-                  <div className="col-span-2">P. Unitario</div>
-                  <div className="col-span-1">Impuesto</div>
-                  <div className="col-span-2 text-right">Subtotal</div>
-                </div>
-                <div className="w-16 shrink-0" />
-              </div>
-
-              {/* Items */}
-              <div className="space-y-2">
-                {lineItems.map((item, index) => (
-                  <LineItemRow
-                    key={item.id}
-                    item={item}
-                    index={index}
-                    onChange={handleLineChange}
-                    onDelete={handleDeleteLine}
-                    onToggleLongDesc={handleToggleLongDesc}
-                  />
-                ))}
-              </div>
-
-              {/* Add Line Buttons */}
-              <div className="mt-4 flex flex-col sm:flex-row gap-3 print:hidden">
-                <button
-                  onClick={() => setShowProductModal(true)}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-xl text-sm font-bold transition-all shadow-sm"
-                >
-                  <Search size={16} />
-                  Buscar en Catálogo
-                </button>
-                <button
-                  onClick={() => setLineItems(prev => [...prev, emptyLine()])}
-                  className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 hover:border-blue-300 rounded-xl text-sm text-slate-400 hover:text-blue-500 hover:bg-slate-50 transition-all font-medium"
-                >
-                  <Plus size={16} />
-                  Renglón Manual
-                </button>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div className="px-5 pb-5">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Notas y Condiciones</p>
-              <textarea
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-                rows={3}
-                placeholder="Condiciones de entrega, garantía, soporte técnico incluido, instrucciones especiales..."
-                className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none placeholder:text-slate-300 text-slate-600 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800"
-              />
-            </div>
-
-            {/* Totals Section */}
-            <div className="border-t border-slate-100 bg-slate-50/70 p-6">
-              <div className="flex justify-end">
-                <div className="w-full max-w-xs space-y-3">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Resumen Financiero</p>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-500">Subtotal (sin ISV)</span>
-                    <span className="text-sm font-semibold text-slate-700">{fmt(subtotalBase)}</span>
-                  </div>
-
-                  {/* Global Discount */}
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-slate-500">Descuento Global</span>
-                      <div className="relative flex items-center">
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={globalDiscount}
-                          onChange={e => setGlobalDiscount(e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                          className="w-12 text-xs text-center border border-slate-200 rounded-lg px-1 py-1 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden"
-                        />
-                        <span className="hidden print:inline-block text-xs font-semibold text-slate-800">{globalDiscount}%</span>
-                        <Percent size={11} className="absolute right-1.5 text-slate-400 print:hidden" />
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-red-500">-{fmt(discountAmount)}</span>
-                  </div>
-
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-slate-500">ISV (15%)</span>
-                    <span className="text-sm font-semibold text-amber-600">{fmt(totalTax)}</span>
-                  </div>
-
-                  <div className="border-t border-slate-200 pt-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-base font-black text-slate-800">TOTAL A PAGAR</span>
-                      <div className="text-right">
-                        <span className="text-2xl font-black text-blue-600 tabular-nums">{fmt(grandTotal)}</span>
-                        <p className="text-[10px] text-slate-400 mt-0.5">Lempiras Hondureños</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* CTA */}
-                  <div className="pt-2 print:hidden">
-                    <button 
-                      onClick={handleSave}
-                      disabled={isSaving}
-                      className={`w-full flex items-center justify-center gap-2 py-3.5 text-white rounded-2xl font-bold text-sm shadow-lg transition-all ${isSaving ? 'bg-slate-400' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 hover:shadow-xl hover:shadow-blue-300 hover:-translate-y-0.5'}`}
-                    >
-                      {isSaving ? 'Guardando...' : docType === 'factura' ? (
-                        <><CheckCircle2 size={16} /> Emitir Factura Oficial</>
-                      ) : docType === 'proforma' ? (
-                        <><Receipt size={16} /> Generar Factura Pro Forma</>
-                      ) : (
-                        <><Send size={16} /> Guardar {currentDocType.label}</>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+        <div className={`flex-1 min-w-0 transition-all duration-300 ${showCustomizer ? 'pr-80 scale-[0.95] origin-top' : ''}`}>
+          
+          {settings.template === 'modern' && <ModernTemplate 
+            settings={settings} organization={organization} docNumber={docNumber} 
+            docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+            today={today} futureDate={futureDate} selectedClient={selectedClient} 
+            setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
+            setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
+            lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
+            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+            setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+            setNotes={setNotes} subtotalBase={subtotalBase} globalDiscount={globalDiscount} 
+            setGlobalDiscount={setGlobalDiscount} discountAmount={discountAmount} totalTax={totalTax} 
+            grandTotal={grandTotal} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+            LineItemRowComponent={LineItemRow} 
+          />}
+          {settings.template === 'classic' && <ClassicTemplate 
+             settings={settings} organization={organization} docNumber={docNumber} 
+             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+             today={today} futureDate={futureDate} selectedClient={selectedClient} 
+             setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
+             setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
+             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
+             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+             setNotes={setNotes} subtotalBase={subtotalBase} globalDiscount={globalDiscount} 
+             setGlobalDiscount={setGlobalDiscount} discountAmount={discountAmount} totalTax={totalTax} 
+             grandTotal={grandTotal} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+             LineItemRowComponent={LineItemRow} 
+          />}
+          {settings.template === 'minimalist' && <MinimalistTemplate 
+             settings={settings} organization={organization} docNumber={docNumber} 
+             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+             today={today} futureDate={futureDate} selectedClient={selectedClient} 
+             setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
+             setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
+             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
+             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+             setNotes={setNotes} subtotalBase={subtotalBase} globalDiscount={globalDiscount} 
+             setGlobalDiscount={setGlobalDiscount} discountAmount={discountAmount} totalTax={totalTax} 
+             grandTotal={grandTotal} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+             LineItemRowComponent={LineItemRow} 
+          />}
 
           {/* Bottom Action Bar */}
-          <div className="flex items-center gap-3 print:hidden">
+          <div className="flex items-center gap-3 print:hidden mt-6">
             <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
               <Copy size={14} /> Duplicar
             </button>
@@ -1036,6 +969,14 @@ export default function DocumentBuilderClient({ organization }: { organization?:
                 </div>
             </div>
         </div>
+      )}
+
+      {showCustomizer && (
+        <InvoiceCustomizerSidebar
+          settings={settings}
+          onChange={(key, val) => setSettings(p => ({ ...p, [key]: val }))}
+          onClose={() => setShowCustomizer(false)}
+        />
       )}
     </div>
   );

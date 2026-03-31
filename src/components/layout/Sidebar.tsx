@@ -68,6 +68,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
           { name: 'Entradas / Compras', href: '/inventario/entradas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Salidas / Descargas', href: '/inventario/salidas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Kardex de Movimientos', href: '/inventario/kardex', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Gestor de Precios', href: '/precios', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Ubicaciones y Sucursales', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Inventario (Odoo)', href: '/inventario/historico', roles: ['SUPER_ADMIN'] }
         ]

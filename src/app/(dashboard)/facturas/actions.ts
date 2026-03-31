@@ -270,6 +270,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     totalGravado18: data.totalGravado18 || 0,
                     isv18: data.isv18 || 0,
                     total: data.total,
+                    templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : null,
                     
                     detalles: {
                         create: lineItems.map((item) => {
@@ -307,6 +308,13 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                         });
                     }
                 }
+            }
+
+            if (data.templateSettings) {
+                await tx.organization.update({
+                    where: { id: organizationId },
+                    data: { invoiceSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : null }
+                });
             }
 
             return nuevoDoc;
@@ -371,6 +379,34 @@ export async function buscarItemPorCodigo(codigo: string) {
     } catch(e) {
         console.error("Error buscando item por codigo:", e);
         return null;
+    }
+}
+
+// --- HISTORIAL DE DOCUMENTOS ---
+export async function getHistorialDocumentos() {
+    try {
+        const organizationId = await getOrganizationId();
+        const docs = await prisma.factura.findMany({
+            where: { organizationId },
+            include: { cliente: { select: { nombre: true, rtn: true } } },
+            orderBy: { createdAt: 'desc' },
+            take: 200 // Limit for reasonable UI perf
+        });
+        
+        return docs.map(doc => ({
+            id: doc.id,
+            correlativo: doc.correlativo,
+            tipoDocumento: doc.tipoDocumento,
+            estado: doc.estado,
+            fechaEmision: doc.fechaEmision.toISOString(),
+            validezDias: doc.validezDias,
+            clienteNombre: doc.cliente?.nombre || 'Desconocido',
+            clienteRtn: doc.cliente?.rtn || '',
+            total: Number(doc.total)
+        }));
+    } catch (e) {
+        console.error("Error obteniendo historial:", e);
+        return [];
     }
 }
 

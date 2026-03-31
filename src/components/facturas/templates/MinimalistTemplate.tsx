@@ -1,0 +1,194 @@
+import React from 'react';
+import { Search, Plus, Percent, Stethoscope } from 'lucide-react';
+import { TemplateProps } from './TemplateProps';
+
+export default function MinimalistTemplate(props: TemplateProps) {
+  const {
+    settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
+    today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
+    validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine,
+    handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
+    notes, setNotes, subtotalBase, globalDiscount, setGlobalDiscount, discountAmount,
+    totalTax, grandTotal, handleSave, isSaving, fmt, LineItemRowComponent
+  } = props;
+
+  const fontClass = settings.fontFamily || 'font-sans';
+  const colorMap: Record<string, string> = {
+    'blue-600': 'text-blue-600 border-blue-600',
+    'emerald-600': 'text-emerald-600 border-emerald-600',
+    'violet-600': 'text-violet-600 border-violet-600',
+    'slate-800': 'text-slate-900 border-slate-900',
+    'rose-600': 'text-rose-600 border-rose-600',
+  };
+  const themeText = colorMap[settings.colorTheme]?.split(' ')[0] || 'text-slate-900';
+
+  const renderLogo = () => (
+    <div className={`mb-6 flex ${settings.logoPosition === 'center' ? 'justify-center' : settings.logoPosition === 'right' ? 'justify-end' : ''}`}>
+      {organization?.logoUrl ? (
+        <img src={organization.logoUrl} alt={organization.name || 'Logo'} className={`w-auto object-contain ${settings.logoSize === 'small' ? 'h-8' : settings.logoSize === 'large' ? 'h-20' : 'h-12'}`} />
+      ) : (
+        <div className={`flex items-center justify-center ${settings.logoSize === 'small' ? 'w-8 h-8' : settings.logoSize === 'large' ? 'w-20 h-20' : 'w-12 h-12'}`}>
+          <Stethoscope size={settings.logoSize === 'small' ? 24 : settings.logoSize === 'large' ? 48 : 32} className={themeText} />
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className={`flex-1 space-y-4 print:space-y-0 print:m-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
+      <div className="p-8 md:p-14 print:p-0">
+        
+        {/* Header Block Minimal */}
+        <div className={`flex flex-col md:flex-row justify-between items-start gap-8 mb-12`}>
+          <div className={`flex-1 ${settings.logoPosition === 'center' ? 'text-center' : settings.logoPosition === 'right' ? 'text-right' : 'text-left'}`}>
+             {settings.logoPosition !== 'right' && renderLogo()}
+             <h1 className={`text-xl font-light text-slate-800 ${settings.logoPosition === 'center' ? 'mx-auto' : ''}`}>{organization?.name || 'Comercial'}</h1>
+             <div className="text-[11px] text-slate-400 mt-2 space-y-1">
+                {organization?.direccion && <p>{organization.direccion}</p>}
+                <p>
+                  {organization?.rtn && `${organization.rtn}`}
+                  {organization?.rtn && organization?.telefono && ' · '}
+                  {organization?.telefono && `${organization.telefono}`}
+                </p>
+                {organization?.correoContacto && <p>{organization.correoContacto}</p>}
+             </div>
+             {settings.logoPosition === 'right' && renderLogo()}
+          </div>
+          
+          <div className="text-right">
+             <h2 className={`text-2xl font-light tracking-wide ${themeText}`}>{currentDocType.label}</h2>
+             <p className="font-semibold text-slate-500 mt-1">{docNumber}</p>
+             <div className="mt-6 text-[11px] text-slate-400 space-y-1.5">
+               <p>Emisión: <span className="font-medium text-slate-800">{today}</span></p>
+               <p>Vencimiento: <span className="font-medium text-slate-800">{futureDate(validityDays)}</span></p>
+             </div>
+          </div>
+        </div>
+
+        {/* Client Block Minimal */}
+        <div className="flex flex-col md:flex-row gap-8 mb-12">
+           <div className="flex-1">
+             <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Facturar A</p>
+             <button onClick={() => setShowClientModal(true)} className="text-left group w-full">
+               <p className={`font-semibold text-base ${selectedClient ? 'text-slate-800' : 'text-slate-300'} group-hover:${themeText} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
+               {selectedClient && <p className="text-xs text-slate-500 mt-1">{selectedClient.rtn || 'RTN No Disponible'}</p>}
+             </button>
+           </div>
+           
+           <div className="w-48 text-right">
+             <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Pago</p>
+             <select
+               value={paymentTerms}
+               onChange={e => setPaymentTerms(e.target.value)}
+               className="w-full text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium mb-1"
+             >
+               <option value="Contado">Contado</option>
+               <option value="15 días netos">15 días netos</option>
+               <option value="30 días netos">30 días netos</option>
+               <option value="60 días netos">60 días netos</option>
+               <option value="90 días netos">90 días netos</option>
+             </select>
+             <div className="flex items-center justify-end gap-2">
+               <span className="text-[10px] text-slate-400">Validez:</span>
+               <input
+                 type="number"
+                 value={validityDays}
+                 onChange={e => setValidityDays(parseInt(e.target.value) || 30)}
+                 className="w-8 border-none bg-transparent text-sm font-medium text-slate-800 p-0 text-right focus:ring-0 print:p-0"
+               />
+             </div>
+           </div>
+        </div>
+
+        {/* Items Table Minimal */}
+        <div className="mb-12">
+          <div className="flex items-center gap-2 mb-3 px-2 border-b border-slate-100 pb-2 print:px-0">
+            <div className="w-4 shrink-0 print:hidden" />
+            <div className={`flex-1 grid grid-cols-12 gap-2 text-[10px] uppercase font-semibold text-slate-400`}>
+              <div className="col-span-2">Código</div>
+              <div className="col-span-4">Descripción</div>
+              <div className="col-span-1 text-center print:text-left">Cant.</div>
+              <div className="col-span-2">Precio</div>
+              <div className="col-span-1">Imp</div>
+              <div className="col-span-2 text-right">Monto</div>
+            </div>
+            <div className="w-6 shrink-0 print:hidden" />
+          </div>
+
+          <div className="space-y-2">
+            {lineItems.map((item, index) => (
+              <LineItemRowComponent
+                key={item.id}
+                item={item}
+                index={index}
+                onChange={handleLineChange}
+                onDelete={handleDeleteLine}
+                onToggleLongDesc={handleToggleLongDesc}
+                allProducts={allProducts}
+              />
+            ))}
+          </div>
+          
+          <div className="mt-6 flex justify-center gap-4 print:hidden">
+            <button onClick={() => setShowProductModal(true)} className={`text-xs ${themeText} hover:opacity-70 flex gap-1 items-center font-medium`}><Search size={14} /> Catálogo</button>
+            <button onClick={() => setLineItems(prev => [...prev, emptyLine()])} className={`text-xs ${themeText} hover:opacity-70 flex gap-1 items-center font-medium`}><Plus size={14} /> Fila Manual</button>
+          </div>
+        </div>
+
+        {/* Footer Minimal */}
+        <div className="flex flex-col md:flex-row justify-between gap-12 pt-8">
+           <div className="flex-1">
+              <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Notas</p>
+              <textarea
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={3}
+                className="w-full text-xs border-none bg-slate-50 p-4 resize-none focus:ring-0 text-slate-600 rounded-2xl print:hidden"
+                placeholder="Condiciones de pago..."
+              />
+              <div className="hidden print:block text-[11px] text-slate-500 whitespace-pre-wrap">
+                {notes}
+              </div>
+           </div>
+
+           <div className="w-full md:w-64">
+              <div className="space-y-3 text-sm">
+                 <div className="flex justify-between text-slate-500">
+                   <span>Subtotal</span>
+                   <span>{fmt(subtotalBase)}</span>
+                 </div>
+                 <div className="flex justify-between items-center text-slate-500">
+                   <div className="flex items-center gap-1">
+                     <span>Descuento</span>
+                     <div className="relative print:hidden ml-1">
+                       <input type="number" value={globalDiscount} onChange={e => setGlobalDiscount(e.target.value)} className="w-10 text-xs text-center border-none bg-slate-50 rounded p-1 h-6" />
+                     </div>
+                     <span className="hidden print:inline text-xs">({globalDiscount}%)</span>
+                   </div>
+                   <span className="text-red-400">-{fmt(discountAmount)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-500 pb-3 border-b border-slate-100">
+                   <span>Impuesto</span>
+                   <span>{fmt(totalTax)}</span>
+                 </div>
+                 <div className="flex justify-between items-end pt-1">
+                   <span className="text-[11px] text-slate-400 uppercase tracking-widest mb-1">Total Due</span>
+                   <span className={`text-2xl font-light ${themeText}`}>{fmt(grandTotal)}</span>
+                 </div>
+              </div>
+
+              <div className="mt-8 print:hidden">
+                <button 
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className={`w-full py-4 text-white rounded-full text-sm font-medium transition-opacity ${isSaving ? 'bg-slate-300' : 'bg-slate-900 hover:opacity-90'}`}
+                >
+                  {isSaving ? '...' : 'Generar'}
+                </button>
+              </div>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+}

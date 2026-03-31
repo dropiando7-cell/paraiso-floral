@@ -23,6 +23,7 @@ model Organization {
   rtn                   String?
   telefono              String?
   qrPrefix              String                 @default("BEA")
+  invoiceSettings       Json?
   activosFijos          ActivoFijo[]
   areaInventoryStatuses AreaInventoryStatus[]
   areas                 Area[]
@@ -581,6 +582,7 @@ model Factura {
   ordenCompraExenta        String?
   constanciaRegistroExenta String?
   registroSag              String?
+  templateSettings         Json?
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
   detalles                 DetalleFactura[]
