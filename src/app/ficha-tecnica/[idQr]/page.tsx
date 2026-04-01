@@ -60,9 +60,7 @@ export default async function FichaTecnicaPage({ params }: Props) {
     const data = JSON.parse(JSON.stringify(activo));
 
     const identifierCondition = { 
-        descripcionCorta: activo.descripcionCorta,
-        modelo: activo.modelo,
-        ...(activo.codigoBarras ? { codigoBarras: activo.codigoBarras } : {})
+        descripcionCorta: activo.descripcionCorta
     };
 
     const activosSimilares = await prisma.activoFijo.findMany({
