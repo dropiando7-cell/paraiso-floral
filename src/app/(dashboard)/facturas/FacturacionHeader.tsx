@@ -1,3 +1,5 @@
+'use client';
+
 import React, { Suspense } from 'react';
 import { LayoutDashboard, PlusCircle, CheckCircle2, Receipt, FileText, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
