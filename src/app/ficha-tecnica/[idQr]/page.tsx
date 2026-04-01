@@ -59,12 +59,11 @@ export default async function FichaTecnicaPage({ params }: Props) {
     // serialize dates
     const data = JSON.parse(JSON.stringify(activo));
 
-    const identifierCondition = activo.codigoBarras
-        ? { codigoBarras: activo.codigoBarras }
-        : { 
-            descripcionCorta: activo.descripcionCorta,
-            modelo: activo.modelo,
-        };
+    const identifierCondition = { 
+        descripcionCorta: activo.descripcionCorta,
+        modelo: activo.modelo,
+        ...(activo.codigoBarras ? { codigoBarras: activo.codigoBarras } : {})
+    };
 
     const activosSimilares = await prisma.activoFijo.findMany({
         where: { 

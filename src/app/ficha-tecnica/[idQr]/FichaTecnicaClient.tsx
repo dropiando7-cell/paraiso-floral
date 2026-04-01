@@ -5,7 +5,7 @@ import {
     Package, MapPin, Tag, Calendar, Hash,
     User, CheckCircle2, AlertTriangle, TrendingDown,
     FileText, Layers, ChevronLeft, ChevronRight, X,
-    QrCode, Building2, Shield
+    QrCode, Building2, Shield, Barcode
 } from 'lucide-react';
 
 type Activo = {
@@ -13,6 +13,7 @@ type Activo = {
     descripcionCorta: string;
     descripcionDetallada?: string | null;
     serie?: string | null;
+    codigoBarras?: string | null;
     modelo?: string | null;
     area: string;
     cuentaAct: string;
@@ -224,6 +225,11 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                         <div className="grid grid-cols-2 gap-4">
                             <Field label="Modelo / Marca" value={activo.modelo} icon={Tag} />
                             <Field label="Número de Serie" value={activo.serie} mono icon={Hash} />
+                            {activo.codigoBarras && (
+                                <div className="col-span-2">
+                                    <Field label="Cód. Barras Fábrica" value={activo.codigoBarras} mono icon={Barcode} />
+                                </div>
+                            )}
                         </div>
                     </div>
 
