@@ -56,21 +56,22 @@ export default async function FichaTecnicaPage({ params }: Props) {
 
     if (!activo) notFound();
 
-    // serialize dates
     const data = JSON.parse(JSON.stringify(activo));
+    const exactName = activo.descripcionCorta.trim().toLowerCase();
 
-    const identifierCondition = { 
-        descripcionCorta: activo.descripcionCorta
-    };
-
-    const activosSimilares = await prisma.activoFijo.findMany({
+    const activosPotenciales = await prisma.activoFijo.findMany({
         where: { 
             organizationId: activo.organizationId,
-            ...identifierCondition 
+            descripcionCorta: { contains: activo.descripcionCorta.trim() }
         },
-        select: { idQr: true, serie: true, area: true, stock: true, estatusContable: true },
+        select: { idQr: true, serie: true, area: true, stock: true, estatusContable: true, descripcionCorta: true },
         orderBy: { area: 'asc' }
     });
+
+    const activosSimilares = activosPotenciales.filter(
+        a => a.descripcionCorta.trim().toLowerCase() === exactName
+    );
+
     const distribucion = JSON.parse(JSON.stringify(activosSimilares));
 
     return <FichaTecnicaClient activo={data} distribucion={distribucion} />;
