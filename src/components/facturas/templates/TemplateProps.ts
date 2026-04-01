@@ -40,10 +40,6 @@ export interface TemplateProps {
   handleSave: () => void;
   isSaving: boolean;
   viewMode?: boolean;
-  manualExento?: number | string;
-  setManualExento?: (v: number | string) => void;
-  manualExonerado?: number | string;
-  setManualExonerado?: (v: number | string) => void;
   fmt: (n: number) => string;
   LineItemRowComponent: React.FC<any>;
 }

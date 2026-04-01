@@ -214,23 +214,9 @@ export default function ModernTemplate(props: TemplateProps) {
               <div className="flex justify-between items-center group">
                 <div className="flex flex-col">
                     <span className="text-sm text-slate-500">Total exento L.</span>
-                    {!props.viewMode && (totals.exento - Number(props.manualExento || 0)) > 0 && (
-                        <span className="text-[10px] text-slate-400 print:hidden">Por renglones: {fmt(totals.exento - Number(props.manualExento || 0))}</span>
-                    )}
                 </div>
                 <div className="flex items-center gap-2">
-                    {!props.viewMode && (
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            className="w-24 text-right text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded px-2 py-0.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none print:hidden hide-arrows"
-                            value={props.manualExento || ''}
-                            onChange={(e) => props.setManualExento?.(e.target.value === '' ? '' : Number(e.target.value))}
-                            placeholder="0.00"
-                        />
-                    )}
-                    <span className={`text-sm font-semibold text-slate-700 ${!props.viewMode ? 'hidden print:block' : ''}`}>
+                    <span className="text-sm font-semibold text-slate-700">
                         {fmt(totals.exento)}
                     </span>
                 </div>
@@ -238,23 +224,9 @@ export default function ModernTemplate(props: TemplateProps) {
               <div className="flex justify-between items-center group">
                 <div className="flex flex-col">
                     <span className="text-sm text-slate-500">Total exonerado L.</span>
-                    {!props.viewMode && (totals.exonerado - Number(props.manualExonerado || 0)) > 0 && (
-                        <span className="text-[10px] text-slate-400 print:hidden">Por renglones: {fmt(totals.exonerado - Number(props.manualExonerado || 0))}</span>
-                    )}
                 </div>
                 <div className="flex items-center gap-2">
-                    {!props.viewMode && (
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            className="w-24 text-right text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded px-2 py-0.5 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 outline-none print:hidden hide-arrows"
-                            value={props.manualExonerado || ''}
-                            onChange={(e) => props.setManualExonerado?.(e.target.value === '' ? '' : Number(e.target.value))}
-                            placeholder="0.00"
-                        />
-                    )}
-                    <span className={`text-sm font-semibold text-slate-700 ${!props.viewMode ? 'hidden print:block' : ''}`}>
+                    <span className="text-sm font-semibold text-slate-700">
                         {fmt(totals.exonerado)}
                     </span>
                 </div>

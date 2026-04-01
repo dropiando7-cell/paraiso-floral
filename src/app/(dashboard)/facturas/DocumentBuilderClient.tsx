@@ -527,8 +527,6 @@ export default function DocumentBuilderClient({
   const [isSaving, setIsSaving] = useState(false);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [manualExento, setManualExento] = useState<number | string>(0);
-  const [manualExonerado, setManualExonerado] = useState<number | string>(0);
   const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, docId: string, correlativo: string, format: string} | null>(null);
 
   // Cargar initialData si existe
@@ -595,9 +593,7 @@ export default function DocumentBuilderClient({
         setLineItems(loadedItems);
       }
 
-      // Calculate the difference for manual exento/exonerado from the saved DB
-      setManualExento(Math.max(0, Number(initialData.totalExento) - lineBaseExento));
-      setManualExonerado(Math.max(0, Number(initialData.totalExonerado) - lineBaseExonerado));
+      // Since it's dynamic, we no longer compute difference for manual fallback
       if (viewMode) setShowPreview(true);
     }
   }, [initialData, viewMode]);
@@ -799,10 +795,10 @@ export default function DocumentBuilderClient({
   };
 
   const totals = {
-    get subtotal() { return lineItems.reduce((acc, item) => acc + calcLine(item).base, 0) + Number(manualExento || 0) + Number(manualExonerado || 0); },
+    get subtotal() { return lineItems.reduce((acc, item) => acc + calcLine(item).base, 0); },
     get descuentos() { return lineItems.reduce((acc, item) => acc + calcLine(item).dAmount, 0); },
-    get exento() { return lineItems.reduce((acc, item) => item.tax === 'exento' ? acc + calcLine(item).baseAfterDiscount : acc, 0) + Number(manualExento || 0); },
-    get exonerado() { return lineItems.reduce((acc, item) => item.tax === 'exonerado' ? acc + calcLine(item).baseAfterDiscount : acc, 0) + Number(manualExonerado || 0); },
+    get exento() { return lineItems.reduce((acc, item) => item.tax === 'exento' ? acc + calcLine(item).baseAfterDiscount : acc, 0); },
+    get exonerado() { return lineItems.reduce((acc, item) => item.tax === 'exonerado' ? acc + calcLine(item).baseAfterDiscount : acc, 0); },
     get gravado15() { return lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item).baseAfterDiscount : acc, 0); },
     get isv15() { return lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item).tax : acc, 0); },
     get gravado18() { return lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item).baseAfterDiscount : acc, 0); },
@@ -873,8 +869,7 @@ export default function DocumentBuilderClient({
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-            LineItemRowComponent={LineItemRow} viewMode={viewMode} manualExento={manualExento} setManualExento={setManualExento}
-            manualExonerado={manualExonerado} setManualExonerado={setManualExonerado}
+            LineItemRowComponent={LineItemRow} viewMode={viewMode}
           />}
           {settings.template === 'classic' && <ClassicTemplate 
              settings={settings} organization={organization} docNumber={docNumber} 
@@ -886,8 +881,7 @@ export default function DocumentBuilderClient({
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={viewMode} manualExento={manualExento} setManualExento={setManualExento}
-             manualExonerado={manualExonerado} setManualExonerado={setManualExonerado}
+             LineItemRowComponent={LineItemRow} viewMode={viewMode}
           />}
           {settings.template === 'minimalist' && <MinimalistTemplate 
              settings={settings} organization={organization} docNumber={docNumber} 
@@ -899,8 +893,7 @@ export default function DocumentBuilderClient({
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={viewMode} manualExento={manualExento} setManualExento={setManualExento}
-             manualExonerado={manualExonerado} setManualExonerado={setManualExonerado}
+             LineItemRowComponent={LineItemRow} viewMode={viewMode}
           />}
 
           {/* Bottom Action Bar */}
