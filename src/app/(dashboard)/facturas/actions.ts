@@ -414,7 +414,7 @@ export async function getHistorialDocumentos() {
 export async function getDocumentoById(id: string) {
     try {
         const organizationId = await getOrganizationId();
-        const doc = await prisma.factura.findUnique({
+        const doc = await prisma.factura.findFirst({
             where: { id, organizationId },
             include: {
                 cliente: true,

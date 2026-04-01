@@ -26,15 +26,15 @@ export default async function ViewDocumentPage({ params }: { params: { id: strin
             }
         });
 
-        if (!org) redirect('/dashboard');
-        
-        doc = await getDocumentoById(params.id);
-        if (!doc) redirect('/facturas');
-
+        if (org) {
+            doc = await getDocumentoById(params.id);
+        }
     } catch (e) {
         console.error("Error fetching data:", e);
-        redirect('/facturas');
     }
+
+    if (!org) redirect('/dashboard');
+    if (!doc) redirect('/facturas');
 
     return (
         <div className="bg-slate-50 min-h-screen">

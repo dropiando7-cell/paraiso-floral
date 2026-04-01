@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, Mail, Download, Pencil } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil } from 'lucide-react';
 import Link from 'next/link';
 
 export interface DocumentRecord {
@@ -127,8 +127,12 @@ export default function DocumentListTable({ data, type }: Props) {
                     <Link href={`/facturas/${doc.id}`} title="Editar Documento" className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors">
                       <Pencil size={16} />
                     </Link>
-                    <button title="Enviar por correo" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
-                      <Mail size={16} />
+                    <button 
+                      onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Aquí tienes tu documento: ${window.location.origin}/facturas/ver/${doc.id}`)}`, '_blank')} 
+                      title="Enviar por WhatsApp" 
+                      className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
+                    >
+                      <MessageCircle size={16} />
                     </button>
                     <button title="Duplicar" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Copy size={16} />

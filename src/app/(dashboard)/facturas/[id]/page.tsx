@@ -25,16 +25,16 @@ export default async function EditDocumentPage({ params }: { params: { id: strin
                 invoiceSettings: true
             }
         });
-
-        if (!org) redirect('/dashboard');
         
-        doc = await getDocumentoById(params.id);
-        if (!doc) redirect('/facturas');
-
+        if (org) {
+            doc = await getDocumentoById(params.id);
+        }
     } catch (e) {
         console.error("Error fetching data:", e);
-        redirect('/facturas');
     }
+
+    if (!org) redirect('/dashboard');
+    if (!doc) redirect('/facturas');
 
     return (
         <div className="p-6 max-w-[1400px] mx-auto w-full bg-slate-50 min-h-screen">
