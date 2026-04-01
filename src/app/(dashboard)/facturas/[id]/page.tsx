@@ -3,6 +3,8 @@ import DocumentBuilderClient from '../DocumentBuilderClient';
 import { getOrganizationId, getDocumentoById } from '../actions';
 import { redirect } from 'next/navigation';
 
+import FacturacionHeader from '../FacturacionHeader';
+
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -37,8 +39,11 @@ export default async function EditDocumentPage({ params }: { params: { id: strin
     if (!doc) redirect('/facturas');
 
     return (
-        <div className="p-6 max-w-[1400px] mx-auto w-full bg-slate-50 min-h-screen">
-            <DocumentBuilderClient organization={org} initialData={doc} editMode={true} />
+        <div className="bg-slate-50 min-h-screen flex flex-col">
+            <FacturacionHeader activeTab="editar" isSubPage={true} />
+            <div className="p-6 max-w-[1400px] mx-auto w-full">
+               <DocumentBuilderClient organization={org} initialData={doc} editMode={true} />
+            </div>
         </div>
     );
 }

@@ -12,7 +12,7 @@ import {
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
 
-type DocType = 'borrador' | 'cotizacion' | 'proforma' | 'factura';
+type DocType = 'cotizacion' | 'proforma' | 'factura';
 type TaxType = 'isv15' | 'isv18' | 'exento' | 'exonerado';
 
 interface LineItem {
@@ -67,7 +67,6 @@ import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 
 
 const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; color: string; bg: string; description: string }[] = [
-  { key: 'borrador', label: 'Borrador', icon: <ClipboardList size={14} />, color: 'text-slate-500', bg: 'bg-slate-100', description: 'Documento de trabajo interno' },
   { key: 'cotizacion', label: 'Cotización', icon: <FileText size={14} />, color: 'text-blue-600', bg: 'bg-blue-50', description: 'Propuesta comercial formal' },
   { key: 'proforma', label: 'Pro Forma', icon: <Receipt size={14} />, color: 'text-violet-600', bg: 'bg-violet-50', description: 'Factura preliminar de exportación' },
   { key: 'factura', label: 'Factura Oficial', icon: <CheckCircle2 size={14} />, color: 'text-emerald-600', bg: 'bg-emerald-50', description: 'Documento fiscal definitivo' },
@@ -757,10 +756,9 @@ export default function DocumentBuilderClient({
     setIsSaving(true);
     try {
       const data = {
-        // En modo edición podríamos mandar id para un update, pero por ahora asumimos nuevo
         id: editMode && initialData ? initialData.id : undefined,
         clienteId: selectedClient.id,
-        tipoDocumento: docType === 'borrador' ? 'BORRADOR' : docType === 'cotizacion' ? 'COTIZACION' : docType === 'proforma' ? 'PROFORMA' : 'FACTURA',
+        tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : docType === 'proforma' ? 'PROFORMA' : 'FACTURA',
         notas: notes,
         terminosPago: paymentTerms,
         validezDias: validityDays,
@@ -809,7 +807,6 @@ export default function DocumentBuilderClient({
   const currentDocType = DOC_TYPES.find(d => d.key === docType)!;
 
   const docTypeStatusConfig: Record<DocType, { badge: string; label: string }> = {
-    borrador: { badge: 'bg-slate-100 text-slate-500 border border-slate-200', label: 'BORRADOR' },
     cotizacion: { badge: 'bg-blue-50 text-blue-600 border border-blue-200', label: 'COTIZACIÓN' },
     proforma: { badge: 'bg-violet-50 text-violet-600 border border-violet-200', label: 'PRO FORMA' },
     factura: { badge: 'bg-emerald-50 text-emerald-600 border border-emerald-200', label: 'FACTURA OFICIAL' },

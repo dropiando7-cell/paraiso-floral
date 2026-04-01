@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import DocumentBuilderClient from './DocumentBuilderClient';
 import DocumentListTable, { DocumentRecord } from '@/components/facturas/DocumentListTable';
-import { PlusCircle, FileText, Receipt, LayoutDashboard } from 'lucide-react';
+import FacturacionHeader from './FacturacionHeader';
 
 interface Props {
   organization: any;
@@ -17,54 +17,7 @@ export default function FacturacionTabsClient({ organization, history }: Props) 
     <div className="flex flex-col min-h-screen bg-slate-50">
       
       {/* Global Module Header Tabs */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-[40]">
-        <div className="max-w-[1600px] mx-auto px-4 flex items-center justify-between overflow-x-auto">
-          
-          <div className="flex items-center gap-8 min-w-max">
-            <div className="py-4 flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
-                <LayoutDashboard size={16} className="text-white" />
-              </div>
-              <span className="font-bold text-slate-800 tracking-tight text-lg mr-4 drop-shadow-sm">Facturación</span>
-            </div>
-
-            <nav className="flex items-center gap-1 -mb-px">
-              <button 
-                onClick={() => setActiveTab('creador')}
-                className={`py-4 px-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-all ${activeTab === 'creador' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
-              >
-                <PlusCircle size={15} className={activeTab === 'creador' ? 'text-blue-600' : 'text-slate-400'} />
-                Crear Documento
-              </button>
-              
-              <button 
-                onClick={() => setActiveTab('facturas')}
-                className={`py-4 px-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-all ${activeTab === 'facturas' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
-              >
-                <CheckCircle2 size={15} className={activeTab === 'facturas' ? 'text-blue-600' : 'text-slate-400'} />
-                Registro de Facturas
-              </button>
-              
-              <button 
-                onClick={() => setActiveTab('proforma')}
-                className={`py-4 px-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-all ${activeTab === 'proforma' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
-              >
-                <Receipt size={15} className={activeTab === 'proforma' ? 'text-blue-600' : 'text-slate-400'} />
-                Facturas Pro Forma
-              </button>
-
-              <button 
-                onClick={() => setActiveTab('cotizaciones')}
-                className={`py-4 px-3 font-semibold text-sm flex items-center gap-2 border-b-2 transition-all ${activeTab === 'cotizaciones' ? 'border-blue-600 text-blue-700' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}
-              >
-                <FileText size={15} className={activeTab === 'cotizaciones' ? 'text-blue-600' : 'text-slate-400'} />
-                Cotizaciones Previas
-              </button>
-            </nav>
-          </div>
-
-        </div>
-      </div>
+      <FacturacionHeader activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* Tab Content */}
       <div className={`${activeTab === 'creador' ? '' : 'p-6 max-w-[1400px] mx-auto w-full'}`}>

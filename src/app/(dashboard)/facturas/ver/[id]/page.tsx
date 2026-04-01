@@ -3,6 +3,8 @@ import DocumentBuilderClient from '../../DocumentBuilderClient';
 import { getOrganizationId, getDocumentoById } from '../../actions';
 import { redirect } from 'next/navigation';
 
+import FacturacionHeader from '../../FacturacionHeader';
+
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
@@ -38,6 +40,7 @@ export default async function ViewDocumentPage({ params }: { params: { id: strin
 
     return (
         <div className="bg-slate-50 min-h-screen">
+            <FacturacionHeader activeTab="ver" isSubPage={true} />
             <DocumentBuilderClient organization={org} initialData={doc} viewMode={true} />
         </div>
     );
