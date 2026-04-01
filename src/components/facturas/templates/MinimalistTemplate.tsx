@@ -8,8 +8,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
     today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
     validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine,
     handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
-    notes, setNotes, subtotalBase, globalDiscount, setGlobalDiscount, discountAmount,
-    totalTax, grandTotal, handleSave, isSaving, fmt, LineItemRowComponent
+    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent
   } = props;
 
   const fontClass = settings.fontFamily || 'font-sans';
@@ -106,11 +105,12 @@ export default function MinimalistTemplate(props: TemplateProps) {
             <div className="w-4 shrink-0 print:hidden" />
             <div className={`flex-1 grid grid-cols-12 gap-2 text-[10px] uppercase font-semibold text-slate-400`}>
               <div className="col-span-2">Código</div>
-              <div className="col-span-4">Descripción</div>
+              <div className="col-span-3">Descripción</div>
               <div className="col-span-1 text-center print:text-left">Cant.</div>
               <div className="col-span-2">Precio</div>
+              <div className="col-span-2">Desc.</div>
               <div className="col-span-1">Imp</div>
-              <div className="col-span-2 text-right">Monto</div>
+              <div className="col-span-1 text-right">Monto</div>
             </div>
             <div className="w-6 shrink-0 print:hidden" />
           </div>
@@ -154,26 +154,40 @@ export default function MinimalistTemplate(props: TemplateProps) {
            <div className="w-full md:w-64">
               <div className="space-y-3 text-sm">
                  <div className="flex justify-between text-slate-500">
-                   <span>Subtotal</span>
-                   <span>{fmt(subtotalBase)}</span>
+                   <span>Subtotal L.</span>
+                   <span>{fmt(totals.subtotal)}</span>
                  </div>
-                 <div className="flex justify-between items-center text-slate-500">
-                   <div className="flex items-center gap-1">
-                     <span>Descuento</span>
-                     <div className="relative print:hidden ml-1">
-                       <input type="number" value={globalDiscount} onChange={e => setGlobalDiscount(e.target.value)} className="w-10 text-xs text-center border-none bg-slate-50 rounded p-1 h-6" />
-                     </div>
-                     <span className="hidden print:inline text-xs">({globalDiscount}%)</span>
-                   </div>
-                   <span className="text-red-400">-{fmt(discountAmount)}</span>
+                 <div className="flex justify-between text-slate-500">
+                   <span>Total descuentos y rebajas L.</span>
+                   <span className="text-red-400">-{fmt(totals.descuentos)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-500">
+                   <span>Total exento L.</span>
+                   <span>{fmt(totals.exento)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-500">
+                   <span>Total exonerado L.</span>
+                   <span>{fmt(totals.exonerado)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-500">
+                   <span>Total gravado 15% L.</span>
+                   <span>{fmt(totals.gravado15)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-500">
+                   <span>Total ISV 15% L.</span>
+                   <span>{fmt(totals.isv15)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-500">
+                   <span>Total gravado 18% L.</span>
+                   <span>{fmt(totals.gravado18)}</span>
                  </div>
                  <div className="flex justify-between text-slate-500 pb-3 border-b border-slate-100">
-                   <span>Impuesto</span>
-                   <span>{fmt(totalTax)}</span>
+                   <span>Total ISV 18% L.</span>
+                   <span>{fmt(totals.isv18)}</span>
                  </div>
                  <div className="flex justify-between items-end pt-1">
-                   <span className="text-[11px] text-slate-400 uppercase tracking-widest mb-1">Total Due</span>
-                   <span className={`text-2xl font-light ${themeText}`}>{fmt(grandTotal)}</span>
+                   <span className="text-[11px] text-slate-400 uppercase tracking-widest mb-1">Total L.</span>
+                   <span className={`text-2xl font-light ${themeText}`}>{fmt(totals.total)}</span>
                  </div>
               </div>
 

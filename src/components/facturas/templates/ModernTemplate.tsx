@@ -8,8 +8,7 @@ export default function ModernTemplate(props: TemplateProps) {
     today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
     validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine,
     handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
-    notes, setNotes, subtotalBase, globalDiscount, setGlobalDiscount, discountAmount,
-    totalTax, grandTotal, handleSave, isSaving, fmt, LineItemRowComponent
+    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent
   } = props;
 
   // Derive dynamic classes from settings
@@ -141,11 +140,12 @@ export default function ModernTemplate(props: TemplateProps) {
             <div className="w-4 shrink-0 print:hidden" />
             <div className="flex-1 grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               <div className="col-span-2">Código</div>
-              <div className="col-span-4">Descripción</div>
+              <div className="col-span-3">Descripción</div>
               <div className="col-span-1 text-center print:text-left">Cant.</div>
               <div className="col-span-2">P. Unitario</div>
+              <div className="col-span-2">Descuento</div>
               <div className="col-span-1">Impuesto</div>
-              <div className="col-span-2 text-right">Subtotal</div>
+              <div className="col-span-1 text-right">Subtotal</div>
             </div>
             <div className="w-6 shrink-0 print:hidden" />
           </div>
@@ -204,40 +204,43 @@ export default function ModernTemplate(props: TemplateProps) {
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Resumen Financiero</p>
 
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">Subtotal (sin ISV)</span>
-                <span className="text-sm font-semibold text-slate-700">{fmt(subtotalBase)}</span>
+                <span className="text-sm text-slate-500">Subtotal L.</span>
+                <span className="text-sm font-semibold text-slate-700">{fmt(totals.subtotal)}</span>
               </div>
-
-              {/* Global Discount */}
               <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-500">Descuento Global</span>
-                  <div className="relative flex items-center">
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={globalDiscount}
-                      onChange={e => setGlobalDiscount(e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                      className="w-12 text-xs text-center border border-slate-200 rounded-lg px-1 py-1 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden"
-                    />
-                    <span className="hidden print:inline-block text-xs font-semibold text-slate-800">{globalDiscount}%</span>
-                    <Percent size={11} className="absolute right-1.5 text-slate-400 print:hidden" />
-                  </div>
-                </div>
-                <span className="text-sm font-semibold text-red-500">-{fmt(discountAmount)}</span>
+                <span className="text-sm text-slate-500">Total descuentos y rebajas L.</span>
+                <span className="text-sm font-semibold text-red-500">-{fmt(totals.descuentos)}</span>
               </div>
-
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-500">ISV (15%)</span>
-                <span className="text-sm font-semibold text-amber-600">{fmt(totalTax)}</span>
+                <span className="text-sm text-slate-500">Total exento L.</span>
+                <span className="text-sm font-semibold text-slate-700">{fmt(totals.exento)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">Total exonerado L.</span>
+                <span className="text-sm font-semibold text-slate-700">{fmt(totals.exonerado)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">Total gravado 15% L.</span>
+                <span className="text-sm font-semibold text-slate-700">{fmt(totals.gravado15)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">Total ISV 15% L.</span>
+                <span className="text-sm font-semibold text-amber-600">{fmt(totals.isv15)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">Total gravado 18% L.</span>
+                <span className="text-sm font-semibold text-slate-700">{fmt(totals.gravado18)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-500">Total ISV 18% L.</span>
+                <span className="text-sm font-semibold text-amber-600">{fmt(totals.isv18)}</span>
               </div>
 
               <div className="border-t border-slate-200 pt-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-base font-black text-slate-800">TOTAL A PAGAR</span>
+                  <span className="text-base font-black text-slate-800">TOTAL L.</span>
                   <div className="text-right">
-                    <span className={`text-2xl font-black ${theme.accentText} tabular-nums`}>{fmt(grandTotal)}</span>
+                    <span className={`text-2xl font-black ${theme.accentText} tabular-nums`}>{fmt(totals.total)}</span>
                     <p className="text-[10px] text-slate-400 mt-0.5">Lempiras Hondureños</p>
                   </div>
                 </div>

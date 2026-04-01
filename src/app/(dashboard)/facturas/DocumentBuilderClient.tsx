@@ -13,7 +13,7 @@ import {
 // ─── TYPES ─────────────────────────────────────────────────────────────────
 
 type DocType = 'borrador' | 'cotizacion' | 'proforma' | 'factura';
-type TaxType = 'isv15' | 'exento';
+type TaxType = 'isv15' | 'isv18' | 'exento' | 'exonerado';
 
 interface LineItem {
   id: string;
@@ -25,6 +25,7 @@ interface LineItem {
   unitPrice: number | string;
   tax: TaxType;
   discount: number | string;
+  discountType: 'percentage' | 'amount';
   productoId?: string;
   activoId?: string;
 }
@@ -84,16 +85,29 @@ const futureDate = (days: number) => {
 
 const emptyLine = (): LineItem => ({
   id: uid(), code: '', shortDesc: '', longDesc: '', showLongDesc: false,
-  qty: 1, unitPrice: '', tax: 'isv15', discount: 0,
+  qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage',
 });
 
 const calcLine = (item: LineItem) => {
   const q = Number(item.qty) || 0;
   const p = Number(item.unitPrice) || 0;
-  const d = Number(item.discount) || 0;
-  const base = q * p * (1 - d / 100);
-  const tax = item.tax === 'isv15' ? base * 0.15 : 0;
-  return { base, tax, total: base + tax };
+  const dVal = Number(item.discount) || 0;
+  
+  let dAmount = 0;
+  if (item.discountType === 'amount') {
+    dAmount = dVal; 
+  } else {
+    dAmount = (q * p) * (dVal / 100);
+  }
+  
+  const base = q * p;
+  const baseAfterDiscount = base - dAmount;
+
+  let tax = 0;
+  if (item.tax === 'isv15') tax = baseAfterDiscount * 0.15;
+  if (item.tax === 'isv18') tax = baseAfterDiscount * 0.18;
+
+  return { base, dAmount, baseAfterDiscount, tax, total: baseAfterDiscount + tax };
 };
 
 // ─── SUB COMPONENTS ────────────────────────────────────────────────────────
@@ -350,7 +364,7 @@ function LineItemRow({
           </div>
 
           {/* Description */}
-          <div className="col-span-4 relative">
+          <div className="col-span-3 relative">
             <input
               value={item.shortDesc}
               onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
@@ -404,6 +418,30 @@ function LineItemRow({
             </div>
           </div>
 
+          {/* Discount */}
+          <div className="col-span-2">
+            <div className="relative flex items-center border border-slate-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all print:hidden">
+              <input
+                type="number"
+                value={item.discount}
+                onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                placeholder="Desc."
+                className="w-full text-xs px-2 py-1.5 bg-transparent border-none focus:ring-0"
+              />
+              <select
+                value={item.discountType}
+                onChange={e => onChange(item.id, 'discountType', e.target.value)}
+                className="text-xs font-semibold bg-slate-50 border-l border-slate-200 py-1.5 px-1 rounded-r-lg text-slate-600 focus:outline-none"
+              >
+                <option value="percentage">%</option>
+                <option value="amount">L</option>
+              </select>
+            </div>
+            <div className="hidden print:block text-center text-xs font-semibold text-slate-800 mt-1">
+               {Number(item.discount) > 0 ? (item.discountType === 'percentage' ? `${item.discount}%` : `L. ${item.discount}`) : '-'}
+            </div>
+          </div>
+
           {/* Tax */}
           <div className="col-span-1">
             <select
@@ -412,17 +450,18 @@ function LineItemRow({
               className="w-full text-[10px] font-semibold border border-slate-200 rounded-lg px-1.5 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer print:border-transparent print:bg-transparent print:p-0 print:appearance-none print:text-slate-800"
             >
               <option value="isv15">ISV 15%</option>
+              <option value="isv18">ISV 18%</option>
               <option value="exento">Exento</option>
+              <option value="exonerado">Exonerado</option>
             </select>
           </div>
 
           {/* Subtotal */}
-          <div className="col-span-2 flex items-center justify-end">
+          <div className="col-span-1 flex items-center justify-end">
             <div className="text-right">
               <p className="text-xs font-bold text-slate-800">{fmt(total)}</p>
-              {item.tax === 'isv15' && (
-                <p className="text-[10px] text-slate-400">+{fmt(tax)} ISV</p>
-              )}
+              {item.tax === 'isv15' && <p className="text-[10px] text-slate-400 hidden lg:block">ISV 15</p>}
+              {item.tax === 'isv18' && <p className="text-[10px] text-slate-400 hidden lg:block">ISV 18</p>}
             </div>
           </div>
         </div>
@@ -455,7 +494,6 @@ export default function DocumentBuilderClient({ organization }: { organization?:
   const [docNumber, setDocNumber] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([emptyLine()]);
-  const [globalDiscount, setGlobalDiscount] = useState<number | string>(0);
   const [paymentTerms, setPaymentTerms] = useState('30 días netos');
   const [validityDays, setValidityDays] = useState(30);
   const [notes, setNotes] = useState('');
@@ -600,6 +638,7 @@ export default function DocumentBuilderClient({ organization }: { organization?:
       unitPrice: product.price,
       tax: 'isv15',
       discount: 0,
+      discountType: 'percentage',
       productoId: product.type === 'producto' ? product.id : undefined,
       activoId: product.type === 'activo' ? product.id : undefined,
     };
@@ -621,29 +660,25 @@ export default function DocumentBuilderClient({ organization }: { organization?:
       return;
     }
 
+    const dGlobal = 0; // Keeping as 0 for backward compatibility if backend expects it. We use item discounts now.
+
     setIsSaving(true);
     try {
-      // Cálculo aproximado de gravado
-      const totalGravado15 = validItems.reduce((acc, item) => item.tax === 'isv15' ? acc + (Number(item.qty) * Number(item.unitPrice) * (1 - Number(item.discount) / 100)) : acc, 0);
-      const totalExento = validItems.reduce((acc, item) => item.tax === 'exento' ? acc + (Number(item.qty) * Number(item.unitPrice) * (1 - Number(item.discount) / 100)) : acc, 0);
-
-      const dGlobal = Number(globalDiscount) || 0;
-
       const data = {
         clienteId: selectedClient.id,
         tipoDocumento: docType === 'borrador' ? 'BORRADOR' : docType === 'cotizacion' ? 'COTIZACION' : docType === 'proforma' ? 'PROFORMA' : 'FACTURA',
         notas: notes,
         terminosPago: paymentTerms,
         validezDias: validityDays,
-        subTotal: subtotalBase,
-        descuentos: discountAmount,
-        totalExento: totalExento - (totalExento * (dGlobal / 100)),
-        totalExonerado: 0,
-        totalGravado15: totalGravado15 - (totalGravado15 * (dGlobal / 100)),
-        isv15: totalTax, // Ya calculado en la UI (puede ser con descuento o sin descuento dependiendo del código, el MOCK descontaba de la base?)
-        totalGravado18: 0,
-        isv18: 0,
-        total: grandTotal,
+        subTotal: totals.subtotal,
+        descuentos: totals.descuentos,
+        totalExento: totals.exento,
+        totalExonerado: totals.exonerado,
+        totalGravado15: totals.gravado15,
+        isv15: totals.isv15,
+        totalGravado18: totals.gravado18,
+        isv18: totals.isv18,
+        total: totals.total,
         templateSettings: settings
       };
       
@@ -661,11 +696,17 @@ export default function DocumentBuilderClient({ organization }: { organization?:
     }
   };
 
-  // Totals
-  const subtotalBase = lineItems.reduce((acc, item) => acc + calcLine(item).base, 0);
-  const totalTax = lineItems.reduce((acc, item) => acc + calcLine(item).tax, 0);
-  const discountAmount = subtotalBase * ((Number(globalDiscount) || 0) / 100);
-  const grandTotal = subtotalBase - discountAmount + totalTax;
+  const totals = {
+    subtotal: lineItems.reduce((acc, item) => acc + calcLine(item).base, 0),
+    descuentos: lineItems.reduce((acc, item) => acc + calcLine(item).dAmount, 0),
+    exento: lineItems.reduce((acc, item) => item.tax === 'exento' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
+    exonerado: lineItems.reduce((acc, item) => item.tax === 'exonerado' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
+    gravado15: lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
+    isv15: lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item).tax : acc, 0),
+    gravado18: lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
+    isv18: lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item).tax : acc, 0),
+    get total() { return this.subtotal - this.descuentos + this.isv15 + this.isv18; }
+  };
 
   const currentDocType = DOC_TYPES.find(d => d.key === docType)!;
 
@@ -729,9 +770,7 @@ export default function DocumentBuilderClient({ organization }: { organization?:
             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-            setNotes={setNotes} subtotalBase={subtotalBase} globalDiscount={globalDiscount} 
-            setGlobalDiscount={setGlobalDiscount} discountAmount={discountAmount} totalTax={totalTax} 
-            grandTotal={grandTotal} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+            setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
             LineItemRowComponent={LineItemRow} 
           />}
           {settings.template === 'classic' && <ClassicTemplate 
@@ -743,9 +782,7 @@ export default function DocumentBuilderClient({ organization }: { organization?:
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-             setNotes={setNotes} subtotalBase={subtotalBase} globalDiscount={globalDiscount} 
-             setGlobalDiscount={setGlobalDiscount} discountAmount={discountAmount} totalTax={totalTax} 
-             grandTotal={grandTotal} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} 
           />}
           {settings.template === 'minimalist' && <MinimalistTemplate 
@@ -757,9 +794,7 @@ export default function DocumentBuilderClient({ organization }: { organization?:
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
-             setNotes={setNotes} subtotalBase={subtotalBase} globalDiscount={globalDiscount} 
-             setGlobalDiscount={setGlobalDiscount} discountAmount={discountAmount} totalTax={totalTax} 
-             grandTotal={grandTotal} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} 
           />}
 
@@ -777,7 +812,7 @@ export default function DocumentBuilderClient({ organization }: { organization?:
             <div className="flex-1" />
             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-xl">
               <Sparkles size={13} className="text-emerald-500" />
-              <span className="text-xs font-semibold text-emerald-700">{lineItems.length} renglón{lineItems.length !== 1 ? 'es' : ''} · {fmt(grandTotal)} total</span>
+              <span className="text-xs font-semibold text-emerald-700">{lineItems.length} renglón{lineItems.length !== 1 ? 'es' : ''} · {fmt(totals.total)} total</span>
             </div>
           </div>
         </div>

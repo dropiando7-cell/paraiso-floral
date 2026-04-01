@@ -26,12 +26,17 @@ export interface TemplateProps {
   setShowProductModal: (v: boolean) => void;
   notes: string;
   setNotes: (v: string) => void;
-  subtotalBase: number;
-  globalDiscount: number | string;
-  setGlobalDiscount: (v: number | string) => void;
-  discountAmount: number;
-  totalTax: number;
-  grandTotal: number;
+  totals: {
+    subtotal: number;
+    descuentos: number;
+    exento: number;
+    exonerado: number;
+    gravado15: number;
+    isv15: number;
+    gravado18: number;
+    isv18: number;
+    total: number;
+  };
   handleSave: () => void;
   isSaving: boolean;
   fmt: (n: number) => string;

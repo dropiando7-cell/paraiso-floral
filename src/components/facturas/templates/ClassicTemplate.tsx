@@ -8,8 +8,7 @@ export default function ClassicTemplate(props: TemplateProps) {
     today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
     validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine,
     handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
-    notes, setNotes, subtotalBase, globalDiscount, setGlobalDiscount, discountAmount,
-    totalTax, grandTotal, handleSave, isSaving, fmt, LineItemRowComponent
+    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent
   } = props;
 
   const fontClass = settings.fontFamily || 'font-serif';
@@ -117,11 +116,12 @@ export default function ClassicTemplate(props: TemplateProps) {
             <div className="w-4 shrink-0 print:hidden" />
             <div className={`flex-1 grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-widest ${baseColor}`}>
               <div className="col-span-2">Código</div>
-              <div className="col-span-4">Descripción</div>
+              <div className="col-span-3">Descripción</div>
               <div className="col-span-1 text-center print:text-left">Cant.</div>
               <div className="col-span-2">Precio</div>
+              <div className="col-span-2">Desc.</div>
               <div className="col-span-1">Imp</div>
-              <div className="col-span-2 text-right">Monto</div>
+              <div className="col-span-1 text-right">Monto</div>
             </div>
             <div className="w-6 shrink-0 print:hidden" />
           </div>
@@ -167,27 +167,40 @@ export default function ClassicTemplate(props: TemplateProps) {
            <div className="w-full md:w-72">
               <div className="space-y-2 text-sm">
                  <div className="flex justify-between text-slate-600">
-                   <span>Subtotal:</span>
-                   <span className="font-mono">{fmt(subtotalBase)}</span>
+                   <span>Subtotal L.</span>
+                   <span className="font-mono">{fmt(totals.subtotal)}</span>
                  </div>
-                 <div className="flex justify-between items-center text-slate-600">
-                   <div className="flex items-center gap-2">
-                     <span>Descuento</span>
-                     <div className="relative print:hidden">
-                       <input type="number" value={globalDiscount} onChange={e => setGlobalDiscount(e.target.value)} className="w-10 text-xs text-center border p-0 h-6" />
-                       <Percent size={10} className="absolute right-0.5 top-1.5 opacity-50" />
-                     </div>
-                     <span className="hidden print:inline text-xs">({globalDiscount}%)</span>
-                   </div>
-                   <span className="font-mono text-red-600">-{fmt(discountAmount)}</span>
+                 <div className="flex justify-between text-slate-600">
+                   <span>Total descuentos y rebajas L.</span>
+                   <span className="font-mono text-red-600">-{fmt(totals.descuentos)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-600">
+                   <span>Total exento L.</span>
+                   <span className="font-mono">{fmt(totals.exento)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-600">
+                   <span>Total exonerado L.</span>
+                   <span className="font-mono">{fmt(totals.exonerado)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-600">
+                   <span>Total gravado 15% L.</span>
+                   <span className="font-mono">{fmt(totals.gravado15)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-600">
+                   <span>Total ISV 15% L.</span>
+                   <span className="font-mono">{fmt(totals.isv15)}</span>
+                 </div>
+                 <div className="flex justify-between text-slate-600">
+                   <span>Total gravado 18% L.</span>
+                   <span className="font-mono">{fmt(totals.gravado18)}</span>
                  </div>
                  <div className="flex justify-between text-slate-600 border-b border-slate-200 pb-2">
-                   <span>ISV (15%):</span>
-                   <span className="font-mono">{fmt(totalTax)}</span>
+                   <span>Total ISV 18% L.</span>
+                   <span className="font-mono">{fmt(totals.isv18)}</span>
                  </div>
                  <div className="flex justify-between items-end pt-2">
-                   <span className="font-bold uppercase tracking-widest text-slate-800">Total:</span>
-                   <span className={`text-xl font-bold font-mono ${baseColor}`}>{fmt(grandTotal)}</span>
+                   <span className="font-bold uppercase tracking-widest text-slate-800">TOTAL L.</span>
+                   <span className={`text-xl font-bold font-mono ${baseColor}`}>{fmt(totals.total)}</span>
                  </div>
               </div>
 
