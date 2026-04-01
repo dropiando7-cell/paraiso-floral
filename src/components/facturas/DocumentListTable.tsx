@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, Mail, Download } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, Mail, Download, Pencil } from 'lucide-react';
+import Link from 'next/link';
 
 export interface DocumentRecord {
   id: string;
@@ -17,7 +18,7 @@ export interface DocumentRecord {
 
 interface Props {
   data: DocumentRecord[];
-  type: 'FACTURA' | 'COTIZACION' | 'TODOS';
+  type: 'FACTURA' | 'COTIZACION' | 'PROFORMA' | 'TODOS';
 }
 
 const fmt = (n: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 }).format(n);
@@ -120,9 +121,12 @@ export default function DocumentListTable({ data, type }: Props) {
                 </td>
                 <td className="p-4 align-middle text-right">
                   <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button title="Ver Documento" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                    <Link href={`/facturas/ver/${doc.id}`} title="Ver Vista Previa" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Eye size={16} />
-                    </button>
+                    </Link>
+                    <Link href={`/facturas/${doc.id}`} title="Editar Documento" className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors">
+                      <Pencil size={16} />
+                    </Link>
                     <button title="Enviar por correo" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Mail size={16} />
                     </button>

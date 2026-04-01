@@ -489,7 +489,17 @@ function LineItemRow({
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────
 
-export default function DocumentBuilderClient({ organization }: { organization?: any }) {
+export default function DocumentBuilderClient({ 
+  organization, 
+  initialData, 
+  editMode = false, 
+  viewMode = false 
+}: { 
+  organization?: any;
+  initialData?: any;
+  editMode?: boolean;
+  viewMode?: boolean;
+}) {
   const [docType, setDocType] = useState<DocType>('cotizacion');
   const [docNumber, setDocNumber] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
@@ -517,20 +527,96 @@ export default function DocumentBuilderClient({ organization }: { organization?:
   const [isSaving, setIsSaving] = useState(false);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [manualExento, setManualExento] = useState<number | string>(0);
+  const [manualExonerado, setManualExonerado] = useState<number | string>(0);
+  const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, docId: string, correlativo: string, format: string} | null>(null);
 
-  // Carregar datos
+  // Cargar initialData si existe
   useEffect(() => {
-    const year = new Date().getFullYear();
-    const randomSuffix = String(Math.floor(Math.random() * 90000) + 10000);
-    
-    if (docType === 'cotizacion') {
-      setDocNumber(`COT-${year}-${randomSuffix}`);
-    } else if (docType === 'proforma') {
-      setDocNumber(`PROF-${year}-${randomSuffix}`);
-    } else if (docType === 'factura') {
-      setDocNumber(`000-001-01-000${randomSuffix}`);
-    } else {
-      setDocNumber(`BOR-${year}-${randomSuffix}`);
+    if (initialData) {
+      setDocType(initialData.tipoDocumento.toLowerCase() as DocType);
+      setDocNumber(initialData.correlativo);
+      setPaymentTerms(initialData.terminosPago || '30 días netos');
+      setValidityDays(initialData.validezDias || 30);
+      setNotes(initialData.notas || '');
+      // Extraemos totales manuales si la suma no cuaja, pero como no sabemos de donde vino, tomamos el valor guardado y restamos lo calculado por lineas.
+      let lineBaseExento = 0;
+      let lineBaseExonerado = 0;
+
+      if (initialData.cliente) {
+        setSelectedClient({
+          id: initialData.cliente.id,
+          name: initialData.cliente.nombre,
+          rtn: initialData.cliente.rtn || '',
+          email: initialData.cliente.email || '',
+          phone: initialData.cliente.telefono || '',
+          address: initialData.cliente.direccion || '',
+          city: '',
+          category: 'Cliente'
+        });
+      }
+
+      if (initialData.detalles && initialData.detalles.length > 0) {
+        const loadedItems = initialData.detalles.map((d: any) => {
+          let tax: TaxType = 'exento';
+          if (d.porcentajeIsv === 15) tax = 'isv15';
+          else if (d.porcentajeIsv === 18) tax = 'isv18'; // We don't have 18 in db schema explicitly, but assuming mapping
+          // For exonerado, we would have logic, but default to exento if 0
+          
+          let longDesc = '';
+          let shortDesc = d.descripcion;
+          if (d.descripcion.includes('\n')) {
+              const parts = d.descripcion.split('\n');
+              shortDesc = parts[0];
+              longDesc = parts.slice(1).join('\n');
+          }
+          
+          let discountType: 'percentage' | 'amount' = 'amount';
+          let discount = Number(d.totalDescuento);
+
+          // Sum base
+          if (tax === 'exento') lineBaseExento += (Number(d.cantidad) * Number(d.precioUnitario) - discount);
+
+          return {
+            id: d.id || uid(),
+            code: d.producto?.sku || d.activo?.idQr || '',
+            shortDesc,
+            longDesc,
+            showLongDesc: longDesc.length > 0,
+            qty: d.cantidad,
+            unitPrice: Number(d.precioUnitario),
+            tax,
+            discount,
+            discountType,
+            productoId: d.productoId || undefined,
+            activoId: d.activoId || undefined
+          };
+        });
+        setLineItems(loadedItems);
+      }
+
+      // Calculate the difference for manual exento/exonerado from the saved DB
+      setManualExento(Math.max(0, Number(initialData.totalExento) - lineBaseExento));
+      setManualExonerado(Math.max(0, Number(initialData.totalExonerado) - lineBaseExonerado));
+      if (viewMode) setShowPreview(true);
+    }
+  }, [initialData, viewMode]);
+
+  // Carregar catalogos iniciales y numeracion si es creacion
+  useEffect(() => {
+    if (!initialData) {
+      const year = new Date().getFullYear();
+      const randomSuffix = String(Math.floor(Math.random() * 90000) + 10000);
+      
+      if (docType === 'cotizacion') {
+        setDocNumber(`COT-${year}-${randomSuffix}`);
+      } else if (docType === 'proforma') {
+        setDocNumber(`PROF-${year}-${randomSuffix}`);
+      } else if (docType === 'factura') {
+        setDocNumber(`000-001-01-000${randomSuffix}`);
+      } else {
+        setDocNumber(`BOR-${year}-${randomSuffix}`);
+      }
     }
 
     const loadData = async () => {
@@ -654,17 +740,29 @@ export default function DocumentBuilderClient({ organization }: { organization?:
       toast.error('Debe seleccionar un cliente');
       return;
     }
-    const validItems = lineItems.filter(i => Number(i.qty) > 0 && String(i.shortDesc).trim() !== '' && Number(i.unitPrice) >= 0);
+
+    const documentComplete = lineItems.every((i, index) => {
+      // Ignore the trailing empty row if it's completely empty
+      if (index === lineItems.length - 1 && !i.shortDesc && !i.code && Number(i.unitPrice) === 0) return true;
+      return i.shortDesc.trim() !== '' && Number(i.qty) > 0;
+    });
+
+    if (!documentComplete) {
+      toast.error('Por favor complete la descripción y cantidad en todos los renglones.');
+      return;
+    }
+
+    const validItems = lineItems.filter(i => Number(i.qty) > 0 && String(i.shortDesc).trim() !== '');
     if (validItems.length === 0) {
       toast.error('Debe agregar al menos un ítem válido');
       return;
     }
 
-    const dGlobal = 0; // Keeping as 0 for backward compatibility if backend expects it. We use item discounts now.
-
     setIsSaving(true);
     try {
       const data = {
+        // En modo edición podríamos mandar id para un update, pero por ahora asumimos nuevo
+        id: editMode && initialData ? initialData.id : undefined,
         clienteId: selectedClient.id,
         tipoDocumento: docType === 'borrador' ? 'BORRADOR' : docType === 'cotizacion' ? 'COTIZACION' : docType === 'proforma' ? 'PROFORMA' : 'FACTURA',
         notas: notes,
@@ -684,8 +782,12 @@ export default function DocumentBuilderClient({ organization }: { organization?:
       
       const res = await guardarDocumentoBuilder(data, validItems);
       if (res.success) {
-        toast.success(`Documento guardado: ${res.correlativo}`);
-        setTimeout(() => router.push('/facturas'), 1000);
+        setShowSuccessModal({ 
+          show: true, 
+          docId: String(res.docId || (initialData?.id || '')), 
+          correlativo: res.correlativo || '',
+          format: docType 
+        });
       } else {
         toast.error(res.error || 'Error al guardar el documento');
       }
@@ -697,14 +799,14 @@ export default function DocumentBuilderClient({ organization }: { organization?:
   };
 
   const totals = {
-    subtotal: lineItems.reduce((acc, item) => acc + calcLine(item).base, 0),
-    descuentos: lineItems.reduce((acc, item) => acc + calcLine(item).dAmount, 0),
-    exento: lineItems.reduce((acc, item) => item.tax === 'exento' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
-    exonerado: lineItems.reduce((acc, item) => item.tax === 'exonerado' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
-    gravado15: lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
-    isv15: lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item).tax : acc, 0),
-    gravado18: lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
-    isv18: lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item).tax : acc, 0),
+    get subtotal() { return lineItems.reduce((acc, item) => acc + calcLine(item).base, 0) + Number(manualExento || 0) + Number(manualExonerado || 0); },
+    get descuentos() { return lineItems.reduce((acc, item) => acc + calcLine(item).dAmount, 0); },
+    get exento() { return lineItems.reduce((acc, item) => item.tax === 'exento' ? acc + calcLine(item).baseAfterDiscount : acc, 0) + Number(manualExento || 0); },
+    get exonerado() { return lineItems.reduce((acc, item) => item.tax === 'exonerado' ? acc + calcLine(item).baseAfterDiscount : acc, 0) + Number(manualExonerado || 0); },
+    get gravado15() { return lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item).baseAfterDiscount : acc, 0); },
+    get isv15() { return lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item).tax : acc, 0); },
+    get gravado18() { return lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item).baseAfterDiscount : acc, 0); },
+    get isv18() { return lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item).tax : acc, 0); },
     get total() { return this.subtotal - this.descuentos + this.isv15 + this.isv18; }
   };
 
@@ -771,7 +873,8 @@ export default function DocumentBuilderClient({ organization }: { organization?:
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-            LineItemRowComponent={LineItemRow} 
+            LineItemRowComponent={LineItemRow} viewMode={viewMode} manualExento={manualExento} setManualExento={setManualExento}
+            manualExonerado={manualExonerado} setManualExonerado={setManualExonerado}
           />}
           {settings.template === 'classic' && <ClassicTemplate 
              settings={settings} organization={organization} docNumber={docNumber} 
@@ -783,7 +886,8 @@ export default function DocumentBuilderClient({ organization }: { organization?:
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} 
+             LineItemRowComponent={LineItemRow} viewMode={viewMode} manualExento={manualExento} setManualExento={setManualExento}
+             manualExonerado={manualExonerado} setManualExonerado={setManualExonerado}
           />}
           {settings.template === 'minimalist' && <MinimalistTemplate 
              settings={settings} organization={organization} docNumber={docNumber} 
@@ -795,10 +899,12 @@ export default function DocumentBuilderClient({ organization }: { organization?:
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} 
+             LineItemRowComponent={LineItemRow} viewMode={viewMode} manualExento={manualExento} setManualExento={setManualExento}
+             manualExonerado={manualExonerado} setManualExonerado={setManualExonerado}
           />}
 
           {/* Bottom Action Bar */}
+          {!viewMode && (
           <div className="flex items-center gap-3 print:hidden mt-6">
             <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
               <Copy size={14} /> Duplicar
@@ -815,6 +921,7 @@ export default function DocumentBuilderClient({ organization }: { organization?:
               <span className="text-xs font-semibold text-emerald-700">{lineItems.length} renglón{lineItems.length !== 1 ? 'es' : ''} · {fmt(totals.total)} total</span>
             </div>
           </div>
+          )}
         </div>
       </div>
 
@@ -1012,6 +1119,44 @@ export default function DocumentBuilderClient({ organization }: { organization?:
           onChange={(key, val) => setSettings(p => ({ ...p, [key]: val }))}
           onClose={() => setShowCustomizer(false)}
         />
+      )}
+
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center flex flex-col items-center gap-4 animate-in zoom-in-95 data-[state=open]:zoom-in-90 relative overflow-hidden">
+            {/* Confetti / Decorator */}
+            <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+            
+            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center -mb-2 mt-2 ring-8 ring-emerald-50">
+              <CheckCircle2 size={40} className="text-emerald-500 stroke-[2.5]" />
+            </div>
+            
+            <div className="space-y-1 mt-2">
+              <h2 className="text-2xl font-black text-slate-800 tracking-tight">¡Guardado Exitoso!</h2>
+              <p className="text-slate-500 font-medium">{showSuccessModal.format === 'factura' ? 'Factura emitida' : 'Documento guardado'} correctamente.</p>
+            </div>
+            
+            <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 w-full mt-2">
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Correlativo</p>
+              <p className="font-mono text-lg font-bold text-slate-800">{showSuccessModal.correlativo}</p>
+            </div>
+
+            <div className="flex gap-3 w-full mt-4">
+              <button
+                onClick={() => router.push('/facturas')}
+                className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all"
+              >
+                Volver
+              </button>
+              <button
+                onClick={() => router.push(`/facturas/ver/${showSuccessModal.docId}`)}
+                className="flex-[1.5] py-3 px-4 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all"
+              >
+                Ver Documento
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

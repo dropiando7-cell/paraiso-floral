@@ -174,13 +174,49 @@ export default function ClassicTemplate(props: TemplateProps) {
                    <span>Total descuentos y rebajas L.</span>
                    <span className="font-mono text-red-600">-{fmt(totals.descuentos)}</span>
                  </div>
-                 <div className="flex justify-between text-slate-600">
-                   <span>Total exento L.</span>
-                   <span className="font-mono">{fmt(totals.exento)}</span>
+                 <div className="flex justify-between items-start text-slate-600">
+                    <div className="flex flex-col">
+                       <span>Total exento L.</span>
+                       {!props.viewMode && (totals.exento - Number(props.manualExento || 0)) > 0 && (
+                          <span className="text-[10px] text-slate-400 print:hidden">Por renglones: {fmt(totals.exento - Number(props.manualExento || 0))}</span>
+                       )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                       {!props.viewMode && (
+                          <input
+                             type="number"
+                             min="0"
+                             step="0.01"
+                             className="w-20 text-right text-sm font-mono bg-white border border-slate-300 px-1 py-0.5 focus:border-slate-800 outline-none print:hidden hide-arrows"
+                             value={props.manualExento || ''}
+                             onChange={(e) => props.setManualExento?.(e.target.value === '' ? '' : Number(e.target.value))}
+                             placeholder="0.00"
+                          />
+                       )}
+                       <span className={`font-mono ${!props.viewMode ? 'hidden print:block' : ''}`}>{fmt(totals.exento)}</span>
+                    </div>
                  </div>
-                 <div className="flex justify-between text-slate-600">
-                   <span>Total exonerado L.</span>
-                   <span className="font-mono">{fmt(totals.exonerado)}</span>
+                 <div className="flex justify-between items-start text-slate-600">
+                    <div className="flex flex-col">
+                       <span>Total exonerado L.</span>
+                       {!props.viewMode && (totals.exonerado - Number(props.manualExonerado || 0)) > 0 && (
+                          <span className="text-[10px] text-slate-400 print:hidden">Por renglones: {fmt(totals.exonerado - Number(props.manualExonerado || 0))}</span>
+                       )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                       {!props.viewMode && (
+                          <input
+                             type="number"
+                             min="0"
+                             step="0.01"
+                             className="w-20 text-right text-sm font-mono bg-white border border-slate-300 px-1 py-0.5 focus:border-slate-800 outline-none print:hidden hide-arrows"
+                             value={props.manualExonerado || ''}
+                             onChange={(e) => props.setManualExonerado?.(e.target.value === '' ? '' : Number(e.target.value))}
+                             placeholder="0.00"
+                          />
+                       )}
+                       <span className={`font-mono ${!props.viewMode ? 'hidden print:block' : ''}`}>{fmt(totals.exonerado)}</span>
+                    </div>
                  </div>
                  <div className="flex justify-between text-slate-600">
                    <span>Total gravado 15% L.</span>

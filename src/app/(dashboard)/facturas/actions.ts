@@ -410,3 +410,30 @@ export async function getHistorialDocumentos() {
     }
 }
 
+// --- OBTENER DOCUMENTO ESPECIFICO ---
+export async function getDocumentoById(id: string) {
+    try {
+        const organizationId = await getOrganizationId();
+        const doc = await prisma.factura.findUnique({
+            where: { id, organizationId },
+            include: {
+                cliente: true,
+                detalles: {
+                    include: {
+                        producto: true,
+                        activo: true
+                    }
+                }
+            }
+        });
+        if (!doc) return null;
+
+        // Serialize details for the UI. Wait, let's just return what is needed. Note that BigInt or Decimals might be an issue, so we convert them.
+        const safeDoc = JSON.parse(JSON.stringify(doc));
+        return safeDoc;
+    } catch (e) {
+        console.error("Error obteniendo documento:", e);
+        return null;
+    }
+}
+
