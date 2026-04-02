@@ -8,7 +8,8 @@ import FacturacionHeader from '../../FacturacionHeader';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function ViewDocumentPage({ params }: { params: { id: string } }) {
+export default async function ViewDocumentPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     let org = null;
     let doc = null;
     
@@ -29,7 +30,7 @@ export default async function ViewDocumentPage({ params }: { params: { id: strin
         });
 
         if (org) {
-            doc = await getDocumentoById(params.id);
+            doc = await getDocumentoById(id);
         }
     } catch (e) {
         console.error("Error fetching data:", e);
