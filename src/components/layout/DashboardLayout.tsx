@@ -9,7 +9,7 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, dbUser }: DashboardLayoutProps) {
     return (
         <MobileDashboardWrapper dbUser={dbUser}>
-            <InactivityGuard>
+            <InactivityGuard enabled={dbUser?.idleTimeoutEnabled ?? true}>
                 {children}
             </InactivityGuard>
         </MobileDashboardWrapper>

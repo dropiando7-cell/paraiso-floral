@@ -44,7 +44,8 @@ export default function ConfiguracionPage() {
     const [preferences, setPreferences] = useState({
         defaultModule: '/',
         timezone: 'America/Tegucigalpa',
-        theme: 'system'
+        theme: 'system',
+        idleTimeoutEnabled: true
     });
 
     // Email Templates State
@@ -73,7 +74,8 @@ export default function ConfiguracionPage() {
                     setPreferences({
                         defaultModule: data.defaultModule || '/',
                         timezone: data.timezone || 'America/Tegucigalpa',
-                        theme: data.theme || 'system'
+                        theme: data.theme || 'system',
+                        idleTimeoutEnabled: data.idleTimeoutEnabled ?? true
                     });
 
                     // Filter modules based on user access
@@ -198,7 +200,8 @@ export default function ConfiguracionPage() {
         const res = await updatePreferences({
             defaultModule: preferences.defaultModule === '/' ? null : preferences.defaultModule,
             timezone: preferences.timezone,
-            theme: preferences.theme
+            theme: preferences.theme,
+            idleTimeoutEnabled: preferences.idleTimeoutEnabled
         });
 
         setIsSaving(false);
@@ -322,6 +325,29 @@ export default function ConfiguracionPage() {
                                             ))}
                                         </select>
                                     )}
+                                </div>
+
+                                <hr className="border-slate-100" />
+
+                                {/* Modal de Inactividad */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-1 max-w-md">
+                                        <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                            </svg>
+                                            Cierre por Inactividad
+                                        </label>
+                                        <button
+                                            onClick={() => setPreferences({ ...preferences, idleTimeoutEnabled: !preferences.idleTimeoutEnabled })}
+                                            className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${preferences.idleTimeoutEnabled ? 'bg-brand-500' : 'bg-slate-300'}`}
+                                        >
+                                            <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${preferences.idleTimeoutEnabled ? 'translate-x-5' : 'translate-x-0'}`} />
+                                        </button>
+                                    </div>
+                                    <p className="text-sm text-slate-500 mb-3 max-w-md">
+                                        Activa la ventana azul que avisa y cierra tu sesión tras un tiempo por seguridad. Si la desactivas, la sesión permanecerá abierta.
+                                    </p>
                                 </div>
 
                                 <hr className="border-slate-100" />

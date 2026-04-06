@@ -12,6 +12,7 @@ export async function getUserPreferencesData(email: string) {
                 defaultModule: true,
                 timezone: true,
                 theme: true,
+                idleTimeoutEnabled: true,
                 role: true,
                 accessibleModules: true
             }

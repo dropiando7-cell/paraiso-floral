@@ -10,7 +10,7 @@ const COUNTDOWN_SECONDS = 30;      // segundos para hacer logout automático
 
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll'] as const;
 
-export function InactivityGuard({ children }: { children: React.ReactNode }) {
+export function InactivityGuard({ children, enabled = true }: { children: React.ReactNode, enabled?: boolean }) {
     const router = useRouter();
     const [showModal, setShowModal] = useState(false);
     const [countdown, setCountdown] = useState(COUNTDOWN_SECONDS);
@@ -49,10 +49,11 @@ export function InactivityGuard({ children }: { children: React.ReactNode }) {
 
     /* ── Reinicia el timer de inactividad ───────────────────────────────── */
     const resetInactivityTimer = useCallback(() => {
+        if (!enabled) return; // Si la opción está apagada, ignoramos
         if (modalShown.current) return; // si el modal está visible, no reiniciar
         clearTimeout(inactivityTimer.current!);
         inactivityTimer.current = setTimeout(showInactivityModal, INACTIVITY_TIMEOUT_MS);
-    }, [showInactivityModal]);
+    }, [showInactivityModal, enabled]);
 
     /* ── Sí, continuar ──────────────────────────────────────────────────── */
     const handleContinue = () => {
@@ -64,6 +65,12 @@ export function InactivityGuard({ children }: { children: React.ReactNode }) {
 
     /* ── Montar listeners de actividad ──────────────────────────────────── */
     useEffect(() => {
+        if (!enabled) {
+            clearTimeout(inactivityTimer.current!);
+            clearInterval(countdownTimer.current!);
+            return;
+        }
+
         // Inicia el timer la primera vez
         resetInactivityTimer();
 
@@ -76,7 +83,7 @@ export function InactivityGuard({ children }: { children: React.ReactNode }) {
             clearInterval(countdownTimer.current!);
             ACTIVITY_EVENTS.forEach(ev => window.removeEventListener(ev, handler));
         };
-    }, [resetInactivityTimer]);
+    }, [resetInactivityTimer, enabled]);
 
     /* ── Dígitos del countdown ──────────────────────────────────────────── */
     const tens = Math.floor(countdown / 10);

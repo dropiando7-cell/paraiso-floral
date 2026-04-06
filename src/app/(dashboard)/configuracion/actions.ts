@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { EmailTemplateType, Role } from '@prisma/client';
 import { uploadToR2 } from '@/lib/storage/r2';
 
-export async function updatePreferences(data: { defaultModule: string | null; timezone: string | null; theme: string | null }) {
+export async function updatePreferences(data: { defaultModule: string | null; timezone: string | null; theme: string | null; idleTimeoutEnabled?: boolean }) {
     try {
         const supabase = await createClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -20,7 +20,8 @@ export async function updatePreferences(data: { defaultModule: string | null; ti
             data: {
                 defaultModule: data.defaultModule,
                 timezone: data.timezone,
-                theme: data.theme || 'system'
+                theme: data.theme || 'system',
+                ...(data.idleTimeoutEnabled !== undefined && { idleTimeoutEnabled: data.idleTimeoutEnabled })
             }
         });
 
