@@ -56,11 +56,12 @@ interface Product {
 import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo } from './actions';
 import { createContacto } from '../contactos/actions';
 import toast from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import InvoiceCustomizerSidebar from '@/components/facturas/customizer/InvoiceCustomizerSidebar';
 import ModernTemplate from '@/components/facturas/templates/ModernTemplate';
 import ClassicTemplate from '@/components/facturas/templates/ClassicTemplate';
 import MinimalistTemplate from '@/components/facturas/templates/MinimalistTemplate';
+import LegacyTemplate from '@/components/facturas/templates/LegacyTemplate';
 import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 
 
@@ -74,6 +75,7 @@ const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; color: st
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 
+const normalizeText = (text: string) => text ? text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : '';
 const fmt = (n: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 }).format(n);
 const uid = () => Math.random().toString(36).slice(2, 9);
 const today = new Date().toISOString().split('T')[0];
@@ -239,11 +241,12 @@ function LineItemRow({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const query = focusedField === 'code' ? item.code : item.shortDesc;
-  const filteredProducts = query && query.trim().length >= 2 ? allProducts.filter(p => 
-    p.name.toLowerCase().includes(query.toLowerCase()) || 
-    p.code.toLowerCase().includes(query.toLowerCase()) ||
-    (p.type === 'activo' && p.description && p.description.toLowerCase().includes(query.toLowerCase()))
+  const query = focusedField === 'code' ? (item.code || '') : (item.shortDesc || '');
+  const nQuery = normalizeText(query);
+  const filteredProducts = query.trim().length >= 2 ? allProducts.filter(p => 
+    normalizeText(p.name).includes(nQuery) || 
+    normalizeText(p.code).includes(nQuery) ||
+    (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery))
   ).slice(0, 15) : [];
 
   const handleSelectProduct = (product: Product) => {
@@ -311,7 +314,7 @@ function LineItemRow({
   };
 
   return (
-    <div className="group relative" ref={containerRef}>
+    <div className="group relative" ref={containerRef} data-line-id={item.id}>
       <div className={`
         flex items-start gap-2 p-3 rounded-xl border transition-all duration-200
         ${Number(item.qty) > 0 && Number(item.unitPrice) > 0
@@ -502,7 +505,7 @@ export default function DocumentBuilderClient({
   const [docType, setDocType] = useState<DocType>('cotizacion');
   const [docNumber, setDocNumber] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [lineItems, setLineItems] = useState<LineItem[]>([emptyLine()]);
+  const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyLine(), id: 'default-line-hash' }]);
   const [paymentTerms, setPaymentTerms] = useState('30 días netos');
   const [validityDays, setValidityDays] = useState(30);
   const [notes, setNotes] = useState('');
@@ -510,6 +513,7 @@ export default function DocumentBuilderClient({
   const [productSearch, setProductSearch] = useState('');
   const [showClientModal, setShowClientModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientData, setNewClientData] = useState({ nombre: '', email: '', telefono: '', rtn: '', direccion: '' });
   const [isCreatingClient, setIsCreatingClient] = useState(false);
@@ -517,16 +521,51 @@ export default function DocumentBuilderClient({
   const [showPreview, setShowPreview] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [settings, setSettings] = useState<InvoiceSettings>(() => {
-    if (organization?.invoiceSettings) return { ...DEFAULT_INVOICE_SETTINGS, ...organization.invoiceSettings };
+    // We cannot access localStorage synchronously during SSR without causing hydration mismatch,
+    // so we initialize to default, and hydrate in useEffect.
+    if (typeof window !== 'undefined' && organization?.invoiceSettings) return { ...DEFAULT_INVOICE_SETTINGS, ...organization.invoiceSettings };
     return DEFAULT_INVOICE_SETTINGS;
   });
 
+  // Load preferences from localStorage 
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !viewMode) {
+      try {
+        const saved = localStorage.getItem('bea_invoice_template_settings');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setSettings(prev => ({ ...prev, ...parsed }));
+        }
+      } catch (e) {
+        console.error("Error al cargar settings visuales", e);
+      }
+    }
+  }, [viewMode]);
+
+  // Save preferences when they change
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !viewMode) {
+      localStorage.setItem('bea_invoice_template_settings', JSON.stringify(settings));
+    }
+  }, [settings, viewMode]);
+
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [isSaving, setIsSaving] = useState(false);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, docId: string, correlativo: string, format: string} | null>(null);
+
+  // Auto-print if requested via query param
+  useEffect(() => {
+    if (viewMode && searchParams.get('print') === 'true') {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 800); // slight delay to ensure fonts/layout are fully rendered
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode, searchParams]);
 
   // Cargar initialData si existe
   useEffect(() => {
@@ -646,9 +685,41 @@ export default function DocumentBuilderClient({
     loadData();
   }, [docType]);
 
+  // Global hotkey for adding new row
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        if (!viewMode && !showCustomizer && !showProductModal && !showClientModal && !showNewClientModal && !showSuccessModal) {
+           e.preventDefault();
+           setLineItems(prev => [...prev, emptyLine()]);
+        }
+      }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+         if (!viewMode && !showCustomizer && !showProductModal && !showClientModal && !showNewClientModal && !showSuccessModal) {
+            e.preventDefault();
+            setShowProductModal(true);
+         }
+      }
+    };
+    const handleFocusIn = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      const rowDiv = target.closest('[data-line-id]');
+      if (rowDiv) {
+        setActiveLineId(rowDiv.getAttribute('data-line-id'));
+      }
+    };
+    document.addEventListener('keydown', handleGlobalKeyDown);
+    document.addEventListener('focusin', handleFocusIn);
+    return () => {
+       document.removeEventListener('keydown', handleGlobalKeyDown);
+       document.removeEventListener('focusin', handleFocusIn);
+    };
+  }, [viewMode, showCustomizer, showProductModal, showClientModal, showNewClientModal, showSuccessModal]);
+
+  const nClientSearch = normalizeText(clientSearch);
   const filteredClients = allClients.filter(c =>
-    c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
-    c.rtn.includes(clientSearch)
+    normalizeText(c.name).includes(nClientSearch) ||
+    normalizeText(c.rtn).includes(nClientSearch)
   );
 
   const handleCreateClient = async () => {
@@ -688,10 +759,11 @@ export default function DocumentBuilderClient({
     }
   };
 
+  const nProductSearch = normalizeText(productSearch);
   const filteredProducts = allProducts.filter(p =>
-    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.code.toLowerCase().includes(productSearch.toLowerCase()) ||
-    p.category.toLowerCase().includes(productSearch.toLowerCase())
+    normalizeText(p.name).includes(nProductSearch) ||
+    normalizeText(p.code).includes(nProductSearch) ||
+    normalizeText(p.category).includes(nProductSearch)
   );
 
   const handleLineChange = useCallback((id: string, field: any, val: any) => {
@@ -724,11 +796,16 @@ export default function DocumentBuilderClient({
       activoId: product.type === 'activo' ? product.id : undefined,
     };
     setLineItems(prev => {
+      if (activeLineId) {
+        // Replace the currently selected row
+        return prev.map(l => l.id === activeLineId ? { ...newLine, id: l.id } : l);
+      }
+      // Otherwise, act as before: replace last empty row or append
       const hasEmpty = prev.some(l => !l.shortDesc && !l.unitPrice);
       return hasEmpty ? prev.map((l, i) => i === prev.length - 1 && !l.shortDesc ? newLine : l) : [...prev, newLine];
     });
     setShowProductModal(false);
-  }, []);
+  }, [activeLineId]);
 
   const handleSave = async () => {
     if (!selectedClient) {
@@ -881,6 +958,18 @@ export default function DocumentBuilderClient({
              LineItemRowComponent={LineItemRow} viewMode={viewMode}
           />}
           {settings.template === 'minimalist' && <MinimalistTemplate 
+             settings={settings} organization={organization} docNumber={docNumber} 
+             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+             today={today} futureDate={futureDate} selectedClient={selectedClient} 
+             setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
+             setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
+             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
+             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+             LineItemRowComponent={LineItemRow} viewMode={viewMode}
+          />}
+          {settings.template === 'legacy' && <LegacyTemplate 
              settings={settings} organization={organization} docNumber={docNumber} 
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 

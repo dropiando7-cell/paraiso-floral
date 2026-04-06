@@ -121,8 +121,8 @@ export default function DocumentListTable({ data, type }: Props) {
                 </td>
                 <td className="p-4 align-middle text-right">
                   <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Link href={`/facturas/ver/${doc.id}`} title="Ver Vista Previa" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
-                      <Eye size={16} />
+                    <Link href={`/facturas/ver/${doc.id}?print=true`} title="Imprimir Documento" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                      <Printer size={16} />
                     </Link>
                     <Link href={`/facturas/${doc.id}`} title="Editar Documento" className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors">
                       <Pencil size={16} />

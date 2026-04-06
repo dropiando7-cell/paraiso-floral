@@ -1,4 +1,4 @@
-export type TemplateLayout = 'modern' | 'classic' | 'minimalist';
+export type TemplateLayout = 'modern' | 'classic' | 'minimalist' | 'legacy';
 export type LogoPosition = 'left' | 'center' | 'right';
 export type LogoSize = 'small' | 'medium' | 'large';
 

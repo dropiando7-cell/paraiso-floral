@@ -12,6 +12,7 @@ const TEMPLATES: { id: TemplateLayout; name: string; desc: string }[] = [
   { id: 'modern', name: 'Modern Clean', desc: 'Diseño profesional y dinámico con bordes estilizados.' },
   { id: 'classic', name: 'Classic Formal', desc: 'Diseño corporativo tradicional, estructurado y serio.' },
   { id: 'minimalist', name: 'Minimal', desc: 'Minimalista con mucho espacio en blanco, tipografía limpia.' },
+  { id: 'legacy', name: 'Legacy (BEA)', desc: 'Formato antiguo Odoo.' },
 ];
 
 const COLORS = [
@@ -23,9 +24,11 @@ const COLORS = [
 ];
 
 const FONTS = [
-  { id: 'font-sans', name: 'Inter (Modern)', cssClass: 'font-sans' },
-  { id: 'font-serif', name: 'Merriweather (Classic)', cssClass: 'font-serif' },
-  { id: 'font-mono', name: 'Roboto Mono (Tech)', cssClass: 'font-mono' },
+  { id: 'font-sans', name: 'Inter / Arial (Modern)', cssClass: 'font-sans' },
+  { id: 'font-serif', name: 'Times / Georgia (Classic)', cssClass: 'font-serif' },
+  { id: 'font-mono', name: 'Courier / Roboto (Tech)', cssClass: 'font-mono' },
+  { id: 'font-system', name: 'Helvetica (Estandar)', cssClass: '[font-family:system-ui,_-apple-system,_BlinkMacSystemFont,_"Segoe_UI",_Roboto,_sans-serif]' },
+  { id: 'font-verdana', name: 'Verdana (Legible)', cssClass: '[font-family:Verdana,_sans-serif]' }
 ];
 
 export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }: Props) {
