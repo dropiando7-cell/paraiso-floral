@@ -73,7 +73,7 @@ function PrecioBadge({ sinPrecio, parcial }: { sinPrecio: boolean; parcial: bool
 interface ModalEditarProps {
   producto: ProductoPricing | null
   onClose: () => void
-  onGuardado: (id: string, costo: number, precio: number, newType?: 'PRODUCTO') => void
+  onGuardado: (id: string, costo: number, precio: number, newType?: 'PRODUCTO', newSku?: string, newStock?: number) => void
 }
 
 function ModalEditarPrecios({ producto, onClose, onGuardado }: ModalEditarProps) {
@@ -114,7 +114,7 @@ function ModalEditarPrecios({ producto, onClose, onGuardado }: ModalEditarProps)
 
       if (result.success) {
         toast.success(result.message)
-        onGuardado(producto.id, costoNum, precioNum, 'PRODUCTO') // Una vez guardado, ya tiene catálogo
+        onGuardado(producto.id, costoNum, precioNum, 'PRODUCTO', result.newSku, result.newStock) // Una vez guardado, ya tiene catálogo
         onClose()
       } else {
         toast.error(result.message)
@@ -467,9 +467,15 @@ function ModalNuevoProducto({ onClose, onCreado }: ModalNuevoProps) {
 
 function FilaProducto({ producto, onEditar }: { producto: ProductoPricing; onEditar: (p: ProductoPricing) => void }) {
   const esParcial = (producto.costoBase === null) !== (producto.precioVenta === null)
+  const [expandido, setExpandido] = useState(false)
+  const tieneSub = producto.subActivos && producto.subActivos.length > 0
 
   return (
-    <tr className="group hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0">
+    <>
+    <tr 
+      className={`group hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0 ${tieneSub ? 'cursor-pointer' : ''}`}
+      onClick={() => tieneSub && setExpandido(!expandido)}
+    >
       <td className="px-5 py-4">
         <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">
           {producto.codigo}
@@ -535,16 +541,54 @@ function FilaProducto({ producto, onEditar }: { producto: ProductoPricing; onEdi
         <PrecioBadge sinPrecio={producto.sinPrecio} parcial={esParcial} />
       </td>
 
-      <td className="px-5 py-4 text-right">
+      <td className="px-5 py-4 text-right flex items-center justify-end gap-3">
         <button
-          onClick={() => onEditar(producto)}
+          onClick={(e) => { e.stopPropagation(); onEditar(producto); }}
           className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-xs font-bold transition-all shadow-sm active:scale-95"
         >
           <Pencil size={13} />
           {producto.sinPrecio ? 'Fijar Precio' : 'Editar Precio'}
         </button>
+        {tieneSub ? (
+          <ChevronRight size={18} className={`text-slate-400 transition-transform ${expandido ? 'rotate-90' : ''}`} />
+        ) : (
+          <div className="w-[18px]"></div>
+        )}
       </td>
     </tr>
+    {expandido && tieneSub && (
+      <tr>
+         <td colSpan={8} className="p-0 border-b border-slate-100 bg-slate-50/50">
+           <div className="px-10 py-5">
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                 <table className="w-full text-left">
+                    <thead className="bg-slate-50">
+                       <tr>
+                         <th className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase">CÓDIGO (ID QR)</th>
+                         <th className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase">Serie</th>
+                         <th className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase">Ubicación</th>
+                         <th className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase text-center">Stock Físico</th>
+                       </tr>
+                    </thead>
+                    <tbody>
+                       {producto.subActivos!.map(sub => (
+                          <tr key={sub.idQr} className="border-t border-slate-100/50">
+                             <td className="px-4 py-2.5 text-xs font-mono text-slate-700 font-medium">{sub.idQr}</td>
+                             <td className="px-4 py-2.5 text-xs text-slate-600">{sub.serie || '—'}</td>
+                             <td className="px-4 py-2.5 text-xs text-slate-600 font-medium">
+                                <span className="inline-block px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px]">{sub.ubicacion}</span>
+                             </td>
+                             <td className="px-4 py-2.5 text-xs text-center font-semibold text-slate-700">{sub.stock} uds</td>
+                          </tr>
+                       ))}
+                    </tbody>
+                 </table>
+              </div>
+           </div>
+         </td>
+      </tr>
+    )}
+    </>
   )
 }
 
@@ -608,11 +652,11 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
   }, [busqueda])
 
   const handlePrecioActualizado = useCallback(
-    (id: string, costo: number, precio: number, newType?: 'PRODUCTO') => {
+    (id: string, costo: number, precio: number, newType?: 'PRODUCTO', newSku?: string, newStock?: number) => {
       setProductos((prev) =>
         prev.map((p) =>
           p.id === id
-            ? { ...p, costoBase: costo, precioVenta: precio, sinPrecio: false, tipo: newType || p.tipo }
+            ? { ...p, costoBase: costo, precioVenta: precio, sinPrecio: false, tipo: newType || p.tipo, codigo: newSku || p.codigo, stock: newStock ?? p.stock }
             : p
         ).sort((a, b) => {
            // Re-sort: put incomplete/no price items at top, then alphabetical

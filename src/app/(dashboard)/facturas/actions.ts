@@ -44,6 +44,7 @@ export async function searchProductos(query: string = "") {
                 where: { 
                     organizationId,
                     estado: 'ACTIVO',
+                    activosFijos: { none: {} },
                     OR: [
                         { nombre: { contains: query, mode: 'insensitive' } },
                         { sku: { contains: query, mode: 'insensitive' } }
@@ -341,7 +342,8 @@ export async function buscarItemPorCodigo(codigo: string) {
             where: {
                 organizationId,
                 estado: 'ACTIVO',
-                sku: codigoTrim
+                sku: codigoTrim,
+                activosFijos: { none: {} }
             }
         });
 

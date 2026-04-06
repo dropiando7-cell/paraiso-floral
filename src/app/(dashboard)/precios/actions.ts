@@ -26,6 +26,7 @@ export type ProductoPricing = {
   estado: string;
   sinPrecio: boolean;
   tipo: 'PRODUCTO' | 'GRUPO_ACTIVO_FIJO';
+  subActivos?: { idQr: string; serie: string | null; ubicacion: string; stock: number }[];
 };
 
 export type ActualizarPrecioInput = {
@@ -58,6 +59,12 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
                     { sku: { contains: query, mode: 'insensitive' } }
                 ]
             } : {})
+        },
+        include: {
+            activosFijos: {
+                where: { estatusContable: 'VIGENTE' },
+                select: { idQr: true, serie: true, area: true, stock: true }
+            }
         }
     });
 
@@ -82,6 +89,8 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
             referencia: true,
             costoAdq: true,
             stock: true,
+            area: true,
+            serie: true,
             categoria: { select: { nombre: true } }
         }
     });
@@ -91,42 +100,56 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
 
     for (const activo of activosSinProducto) {
         const desc = activo.descripcionCorta || 'Sin Descripción';
+        const subItem = { idQr: activo.idQr, serie: activo.serie, ubicacion: activo.area || 'Sin asignar', stock: activo.stock || 1 };
+
         if (!grupos.has(desc)) {
             grupos.set(desc, {
-                id: activo.id, // ID representativo (el primero que encuentra)
-                codigo: 'AGRUPADO-' + (activo.idQr.split('-').slice(0, 2).join('-')), // Ej: AGRUPADO-BEA-001
+                id: activo.id, // ID representativo
+                codigo: 'AGRUPADO-' + (activo.idQr.split('-').slice(0, 2).join('-')),
                 descripcion: desc,
                 referencia: activo.referencia,
                 categoria: activo.categoria?.nombre || 'Activo Fijo',
                 costoBase: activo.costoAdq ? Number(activo.costoAdq) : null,
-                precioVenta: null, // Porque no tienen producto asignado aún
+                precioVenta: null,
                 stock: activo.stock || 1,
                 estado: 'VIGENTE',
                 sinPrecio: true,
-                tipo: 'GRUPO_ACTIVO_FIJO'
+                tipo: 'GRUPO_ACTIVO_FIJO',
+                subActivos: [subItem]
             });
         } else {
-            // Ya existe este grupo, solo sumamos el stock
             const actual = grupos.get(desc)!;
             actual.stock += (activo.stock || 1);
+            actual.subActivos!.push(subItem);
         }
     }
 
     // Unificar resultados
     const resultado: ProductoPricing[] = [
-        ...productos.map(p => ({
-            id: p.id,
-            codigo: p.sku,
-            descripcion: p.nombre,
-            referencia: null,
-            categoria: null,
-            costoBase: p.costoBase ? Number(p.costoBase) : null,
-            precioVenta: p.precioVenta ? Number(p.precioVenta) : null,
-            stock: p.stockActual || 0,
-            estado: p.estado,
-            sinPrecio: !p.costoBase || !p.precioVenta,
-            tipo: 'PRODUCTO' as const
-        })),
+        ...productos.map(p => {
+             const sumHijos = p.activosFijos ? p.activosFijos.reduce((acc, curr) => acc + (curr.stock || 1), 0) : 0;
+             const finalStock = p.activosFijos && p.activosFijos.length > 0 ? sumHijos : (p.stockActual || 0);
+             
+             return {
+                 id: p.id,
+                 codigo: p.sku,
+                 descripcion: p.nombre,
+                 referencia: null,
+                 categoria: null,
+                 costoBase: p.costoBase ? Number(p.costoBase) : null,
+                 precioVenta: p.precioVenta ? Number(p.precioVenta) : null,
+                 stock: finalStock,
+                 estado: p.estado,
+                 sinPrecio: !p.costoBase || !p.precioVenta,
+                 tipo: 'PRODUCTO' as const,
+                 subActivos: p.activosFijos && p.activosFijos.length > 0 ? p.activosFijos.map(a => ({
+                     idQr: a.idQr,
+                     serie: a.serie,
+                     ubicacion: a.area || 'Sin asignar',
+                     stock: a.stock || 1
+                 })) : []
+             };
+        }),
         ...Array.from(grupos.values())
     ];
 
@@ -163,6 +186,17 @@ export async function updatePrecioGrupable(input: ActualizarPrecioInput) {
             // Buscar un SKU que no exista
             const newSku = 'CAT-' + String(Date.now()).slice(-6);
 
+            // Sumar el stock de los activos que se van a agrupar
+            const agg = await prisma.activoFijo.aggregate({
+                where: {
+                    organizationId: orgId,
+                    descripcionCorta: input.descripcion,
+                    productoId: null
+                },
+                _sum: { stock: true }
+            });
+            const stockTotal = agg._sum.stock || 0;
+
             const nuevoProd = await prisma.producto.create({
                 data: {
                     organizationId: orgId,
@@ -171,6 +205,7 @@ export async function updatePrecioGrupable(input: ActualizarPrecioInput) {
                     precioVenta: input.precioVenta,
                     costoBase: input.costoBase,
                     estado: 'ACTIVO',
+                    stockActual: stockTotal // Usar el stock consolidado
                 }
             });
 
@@ -185,9 +220,10 @@ export async function updatePrecioGrupable(input: ActualizarPrecioInput) {
                     productoId: nuevoProd.id
                 }
             });
+
+            return { success: true, message: 'Precios actualizados y vinculados correctamente.', newSku, newStock: stockTotal };
         }
 
-        revalidatePath('/precios');
         return { success: true, message: 'Precios actualizados y vinculados correctamente.' };
     } catch (e: any) {
         return { success: false, message: 'Error al actualizar el precio: ' + e.message };
@@ -217,7 +253,6 @@ export async function crearProducto(data: CrearProductoInput) {
             }
         });
 
-        revalidatePath('/precios');
         return { success: true, message: 'Producto base creado exitosamente.', producto: nuevo };
     } catch (e: any) {
         return { success: false, message: 'Error interno: ' + e.message };
