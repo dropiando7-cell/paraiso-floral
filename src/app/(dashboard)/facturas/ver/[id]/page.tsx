@@ -40,7 +40,7 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
     if (!doc) redirect('/facturas');
 
     return (
-        <div className="bg-slate-50 min-h-screen">
+        <div className="bg-slate-50 min-h-screen print:overflow-visible">
             <FacturacionHeader activeTab="ver" isSubPage={true} />
             <DocumentBuilderClient organization={org} initialData={doc} viewMode={true} />
         </div>

@@ -46,7 +46,7 @@ export default function ModernTemplate(props: TemplateProps) {
   return (
     <div className={`flex-1 min-w-0 space-y-4 print:space-y-0 print:m-0 ${fontClass}`}>
       {/* Document Card */}
-      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden print:shadow-none print:border-none print:rounded-none">
+      <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
 
         {/* Document Header */}
         <div className={`bg-gradient-to-br from-slate-900 ${theme.via} to-slate-900 p-6 md:p-8 print:bg-none print:bg-white`}>
@@ -198,7 +198,7 @@ export default function ModernTemplate(props: TemplateProps) {
         </div>
 
         {/* Totals Section */}
-        <div className="border-t border-slate-100 bg-slate-50/70 p-6">
+        <div className="border-t border-slate-100 bg-slate-50/70 p-6 print:break-inside-avoid">
           <div className="flex justify-end">
             <div className="w-full max-w-xs space-y-3">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Resumen Financiero</p>
@@ -251,9 +251,8 @@ export default function ModernTemplate(props: TemplateProps) {
               <div className="border-t border-slate-200 pt-3">
                 <div className="flex justify-between items-center">
                   <span className="text-base font-black text-slate-800">TOTAL L.</span>
-                  <div className="text-right">
-                    <span className={`text-2xl font-black ${theme.accentText} tabular-nums`}>{fmt(totals.total)}</span>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Lempiras Hondureños</p>
+                  <div className="text-right flex items-center h-full">
+                    <span className={`text-2xl font-black ${theme.accentText} tabular-nums leading-none`}>{fmt(totals.total)}</span>
                   </div>
                 </div>
               </div>

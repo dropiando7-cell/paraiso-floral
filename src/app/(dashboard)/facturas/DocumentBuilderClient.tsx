@@ -217,7 +217,7 @@ function ProductSearchItem({ product, onAdd }: { product: Product; onAdd: (p: Pr
 }
 
 function LineItemRow({
-  item, index, onChange, onDelete, onToggleLongDesc, allProducts
+  item, index, onChange, onDelete, onToggleLongDesc, allProducts, viewMode
 }: {
   item: LineItem;
   index: number;
@@ -225,6 +225,7 @@ function LineItemRow({
   onDelete: (id: string) => void;
   onToggleLongDesc: (id: string) => void;
   allProducts: Product[];
+  viewMode?: boolean;
 }) {
   const { base, tax, total } = calcLine(item);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
@@ -373,9 +374,11 @@ function LineItemRow({
       `}>
         {/* Drag handle + index */}
         <div className="flex flex-col items-center gap-1 pt-1 shrink-0 print:hidden">
+          {!viewMode && (
           <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
             <GripVertical size={14} className="text-slate-300" />
           </div>
+          )}
           <span className="text-[10px] font-bold text-slate-300 w-4 text-center">{index + 1}</span>
         </div>
 
@@ -385,14 +388,17 @@ function LineItemRow({
           <div className="col-span-2 relative">
             <input
               value={item.code}
-              onFocus={() => { setFocusedField('code'); setShowAutocomplete(true); }}
+              disabled={viewMode}
+              onFocus={() => { if(!viewMode) { setFocusedField('code'); setShowAutocomplete(true); } }}
               onChange={e => {
+                if(viewMode) return;
                 onChange(item.id, 'code', e.target.value);
                 setFocusedField('code');
                 setShowAutocomplete(true);
               }}
               onKeyDown={handleKeyDown}
               onBlur={async (e) => {
+                if(viewMode) return;
                 const val = e.target.value.trim();
                 setTimeout(async () => {
                   if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
@@ -410,46 +416,56 @@ function LineItemRow({
                 }, 200);
               }}
               placeholder="Código"
-              className="w-full text-xs font-mono border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800"
+              className="w-full text-xs font-mono border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
             />
-            {focusedField === 'code' && renderDropdown()}
+            {focusedField === 'code' && !viewMode && renderDropdown()}
           </div>
 
           {/* Description */}
           <div className="col-span-3 relative">
-            <textarea
-              ref={shortDescRef}
-              rows={1}
-              value={item.shortDesc}
-              onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
-              onChange={e => {
-                onChange(item.id, 'shortDesc', e.target.value);
-                setFocusedField('desc');
-                setShowAutocomplete(true);
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder="Descripción del producto o servicio"
-              className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 overflow-hidden resize-none print:hidden block"
-            />
+            {viewMode ? (
+              <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">{item.shortDesc}</div>
+            ) : (
+              <textarea
+                ref={shortDescRef}
+                rows={1}
+                value={item.shortDesc}
+                disabled={viewMode}
+                onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
+                onChange={e => {
+                  onChange(item.id, 'shortDesc', e.target.value);
+                  setFocusedField('desc');
+                  setShowAutocomplete(true);
+                }}
+                onKeyDown={handleKeyDown}
+                placeholder="Descripción del producto o servicio"
+                className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 overflow-hidden resize-none print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
+              />
+            )}
             <div className="hidden print:block text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">
               {item.shortDesc}
             </div>
             {item.showLongDesc && (
               <>
-                <textarea
-                  ref={longDescRef}
-                  value={item.longDesc}
-                  onChange={e => onChange(item.id, 'longDesc', e.target.value)}
-                  placeholder="Descripción técnica detallada, especificaciones, número de serie..."
-                  rows={3}
-                  className="mt-1.5 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all overflow-hidden resize-none placeholder:text-slate-300 text-slate-600 print:hidden"
-                />
+                {viewMode ? (
+                  <div className="text-xs text-slate-600 whitespace-pre-wrap mt-0.5 break-words">{item.longDesc}</div>
+                ) : (
+                  <textarea
+                    ref={longDescRef}
+                    value={item.longDesc}
+                    disabled={viewMode}
+                    onChange={e => onChange(item.id, 'longDesc', e.target.value)}
+                    placeholder="Descripción técnica detallada, especificaciones..."
+                    rows={3}
+                    className="mt-1.5 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all overflow-hidden resize-none placeholder:text-slate-300 text-slate-600 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-600"
+                  />
+                )}
                 <div className="hidden print:block text-xs text-slate-600 whitespace-pre-wrap mt-0.5 break-words">
                   {item.longDesc}
                 </div>
               </>
             )}
-            {focusedField === 'desc' && renderDropdown()}
+            {focusedField === 'desc' && !viewMode && renderDropdown()}
           </div>
 
           {/* Qty */}
@@ -457,9 +473,10 @@ function LineItemRow({
             <input
               type="number"
               min="1"
+              disabled={viewMode}
               value={item.qty}
               onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-              className="w-full text-xs text-center border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 print:text-left"
+              className="w-full text-xs text-center border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 print:text-center disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
             />
           </div>
 
@@ -470,32 +487,39 @@ function LineItemRow({
               <span className="hidden print:inline absolute left-0 top-1/2 -translate-y-1/2 text-slate-800 text-xs font-semibold">L</span>
               <input
                 type="number"
+                disabled={viewMode}
                 value={item.unitPrice}
                 onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                className="w-full text-xs pl-5 border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:border-transparent print:bg-transparent print:pl-3 print:py-0 print:text-slate-800"
+                className="w-full text-xs pl-5 border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:border-transparent print:bg-transparent print:pl-3 print:py-0 print:text-slate-800 disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
               />
             </div>
           </div>
 
           {/* Discount */}
           <div className="col-span-2">
-            <div className="relative flex items-center border border-slate-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all print:hidden">
-              <input
-                type="number"
-                value={item.discount}
-                onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                placeholder="Desc."
-                className="w-full text-xs px-2 py-1.5 bg-transparent border-none focus:ring-0"
-              />
-              <select
-                value={item.discountType}
-                onChange={e => onChange(item.id, 'discountType', e.target.value)}
-                className="text-xs font-semibold bg-slate-50 border-l border-slate-200 py-1.5 px-1 rounded-r-lg text-slate-600 focus:outline-none"
-              >
-                <option value="percentage">%</option>
-                <option value="amount">L</option>
-              </select>
-            </div>
+            {!viewMode ? (
+              <div className="relative flex items-center border border-slate-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all print:hidden">
+                <input
+                  type="number"
+                  value={item.discount}
+                  onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                  placeholder="Desc."
+                  className="w-full text-xs px-2 py-1.5 bg-transparent border-none focus:ring-0"
+                />
+                <select
+                  value={item.discountType}
+                  onChange={e => onChange(item.id, 'discountType', e.target.value)}
+                  className="text-xs font-semibold bg-slate-50 border-l border-slate-200 py-1.5 px-1 rounded-r-lg text-slate-600 focus:outline-none"
+                >
+                  <option value="percentage">%</option>
+                  <option value="amount">L</option>
+                </select>
+              </div>
+            ) : (
+               <div className="text-xs text-slate-800 font-semibold px-2 py-1.5 print:hidden">
+                  {Number(item.discount) > 0 ? (item.discountType === 'percentage' ? `${item.discount}%` : `L ${item.discount}`) : '-'}
+               </div>
+            )}
             <div className="hidden print:block text-center text-xs font-semibold text-slate-800 mt-1">
                {Number(item.discount) > 0 ? (item.discountType === 'percentage' ? `${item.discount}%` : `L. ${item.discount}`) : '-'}
             </div>
@@ -584,11 +608,14 @@ export default function DocumentBuilderClient({
     return DEFAULT_INVOICE_SETTINGS;
   });
 
+  const isAnulada = initialData?.estado === 'ANULADA';
+  const effectiveViewMode = viewMode || isAnulada;
+
   const [isLoaded, setIsLoaded] = useState(false);
 
   // Load preferences from localStorage 
   useEffect(() => {
-    if (typeof window !== 'undefined' && !viewMode) {
+    if (typeof window !== 'undefined' && !effectiveViewMode) {
       try {
         const saved = localStorage.getItem('bea_invoice_template_settings');
         if (saved) {
@@ -603,14 +630,14 @@ export default function DocumentBuilderClient({
     } else {
       setIsLoaded(true);
     }
-  }, [viewMode]);
+  }, [effectiveViewMode]);
 
   // Save preferences when they change
   useEffect(() => {
-    if (typeof window !== 'undefined' && !viewMode && isLoaded) {
+    if (typeof window !== 'undefined' && !effectiveViewMode && isLoaded) {
       localStorage.setItem('bea_invoice_template_settings', JSON.stringify(settings));
     }
-  }, [settings, viewMode, isLoaded]);
+  }, [settings, effectiveViewMode, isLoaded]);
 
 
   const router = useRouter();
@@ -622,19 +649,22 @@ export default function DocumentBuilderClient({
 
   // Auto-print if requested via query param
   useEffect(() => {
-    if (viewMode && searchParams.get('print') === 'true') {
+    if (effectiveViewMode && searchParams.get('print') === 'true') {
       const timer = setTimeout(() => {
         window.print();
       }, 800); // slight delay to ensure fonts/layout are fully rendered
       return () => clearTimeout(timer);
     }
-  }, [viewMode, searchParams]);
+  }, [effectiveViewMode, searchParams]);
 
   // Cargar initialData si existe
   useEffect(() => {
     if (initialData) {
       setDocType(initialData.tipoDocumento.toLowerCase() as DocType);
-      setDocNumber(initialData.correlativo);
+      
+      // Si estamos clonando (editMode false pero hay datos), no usar el correlativo viejo
+      setDocNumber(editMode ? initialData.correlativo : '');
+      
       setPaymentTerms(initialData.terminosPago || '30 días netos');
       setValidityDays(initialData.validezDias || 30);
       setNotes(initialData.notas || '');
@@ -871,6 +901,7 @@ export default function DocumentBuilderClient({
   }, [activeLineId]);
 
   const handleSave = async () => {
+    if (isAnulada) { toast.error('No se puede modificar un documento anulado'); return; }
     if (!selectedClient) {
       toast.error('Debe seleccionar un cliente');
       return;
@@ -953,7 +984,7 @@ export default function DocumentBuilderClient({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans print:bg-white overflow-x-hidden">
+    <div className="min-h-screen bg-slate-50 font-sans print:bg-white overflow-x-hidden print:overflow-visible">
       {/* Top Bar */}
       <div className={`sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[320px]' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
@@ -978,23 +1009,30 @@ export default function DocumentBuilderClient({
             >
               <Printer size={15} /> Imprimir / PDF
             </button>
-            <button 
-              onClick={handleSave}
-              disabled={isSaving}
-              className={`flex items-center gap-2 px-5 py-2 text-white rounded-xl text-sm font-bold shadow-md transition-all ${isSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'}`}
-            >
-              <Send size={15} />
-              {isSaving ? 'Guardando...' : (docType === 'factura' ? 'Emitir Factura' : 'Guardar Documento')}
-            </button>
+            {!isAnulada && (
+              <button 
+                onClick={handleSave}
+                disabled={isSaving}
+                className={`flex items-center gap-2 px-5 py-2 text-white rounded-xl text-sm font-bold shadow-md transition-all ${isSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'}`}
+              >
+                <Send size={15} />
+                {isSaving ? 'Guardando...' : (docType === 'factura' ? 'Emitir Factura' : 'Guardar Documento')}
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="max-w-[1200px] mx-auto px-4 py-8 flex gap-5 print:p-0 print:max-w-none print:m-0">
+      <div className="max-w-[1200px] mx-auto px-4 py-8 flex gap-5 print:p-0 print:max-w-none print:m-0 relative">
 
-        
         {/* ─── MAIN DOCUMENT ───────────────────────────────────────────── */}
-        <div className={`flex-1 min-w-0 transition-all duration-300 ${showCustomizer ? 'pr-80 print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''}`}>
+        <div className={`flex-1 min-w-0 transition-all duration-300 relative z-10 ${showCustomizer ? 'pr-80 print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''}`}>
+          
+          {isAnulada && (
+             <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden mix-blend-multiply opacity-30 print:opacity-20 px-8">
+                 <span className="text-[10rem] sm:text-[14rem] font-black text-red-500 uppercase tracking-widest -rotate-45 block whitespace-nowrap">ANULADA</span>
+             </div>
+          )}
           
           {settings.template === 'modern' && <ModernTemplate 
             settings={settings} organization={organization} docNumber={docNumber} 
@@ -1006,7 +1044,7 @@ export default function DocumentBuilderClient({
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-            LineItemRowComponent={LineItemRow} viewMode={viewMode}
+            LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
           />}
           {settings.template === 'classic' && <ClassicTemplate 
              settings={settings} organization={organization} docNumber={docNumber} 
@@ -1018,7 +1056,7 @@ export default function DocumentBuilderClient({
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={viewMode}
+             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
           />}
           {settings.template === 'minimalist' && <MinimalistTemplate 
              settings={settings} organization={organization} docNumber={docNumber} 
@@ -1027,10 +1065,10 @@ export default function DocumentBuilderClient({
              setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
-             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={viewMode}
+             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
           />}
           {settings.template === 'legacy' && <LegacyTemplate 
              settings={settings} organization={organization} docNumber={docNumber} 
@@ -1042,11 +1080,11 @@ export default function DocumentBuilderClient({
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={viewMode}
+             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
           />}
 
           {/* Bottom Action Bar */}
-          {!viewMode && (
+          {!effectiveViewMode && (
           <div className="flex items-center gap-3 print:hidden mt-6">
             <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
               <Copy size={14} /> Duplicar

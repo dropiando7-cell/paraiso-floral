@@ -136,7 +136,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
         </div>
 
         {/* Footer Minimal */}
-        <div className="flex flex-col md:flex-row justify-between gap-12 pt-8">
+        <div className="flex flex-col md:flex-row justify-between gap-12 pt-8 print:break-inside-avoid">
            <div className="flex-1">
               <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Notas</p>
               <textarea

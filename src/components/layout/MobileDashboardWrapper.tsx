@@ -78,7 +78,7 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
                     <div className="hide-on-print">
                         <Header dbUser={dbUser} onMenuClick={() => setSidebarOpen(o => !o)} />
                     </div>
-                    <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 print-expand">
+                    <main className="flex-1 overflow-y-auto print:overflow-visible p-4 md:p-6 lg:p-8 print-expand">
                         <div className="max-w-7xl mx-auto w-full print-expand">
                             {children}
                         </div>

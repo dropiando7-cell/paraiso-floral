@@ -8,8 +8,17 @@ import FacturacionHeader from '../FacturacionHeader';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function EditDocumentPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EditDocumentPage({ 
+    params,
+    searchParams
+}: { 
+    params: Promise<{ id: string }>,
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
     const { id } = await params;
+    const resolvedSearchParams = await searchParams;
+    const isClone = resolvedSearchParams?.clone === 'true';
+
     let org = null;
     let doc = null;
     
@@ -41,9 +50,9 @@ export default async function EditDocumentPage({ params }: { params: Promise<{ i
 
     return (
         <div className="bg-slate-50 min-h-screen flex flex-col">
-            <FacturacionHeader activeTab="editar" isSubPage={true} />
+            <FacturacionHeader activeTab={isClone ? "creador" : "editar"} isSubPage={true} />
             <div className="p-6 max-w-[1400px] mx-auto w-full">
-               <DocumentBuilderClient organization={org} initialData={doc} editMode={true} />
+               <DocumentBuilderClient organization={org} initialData={doc} editMode={!isClone} />
             </div>
         </div>
     );

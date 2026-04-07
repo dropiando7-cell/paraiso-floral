@@ -439,3 +439,63 @@ export async function getDocumentoById(id: string) {
     }
 }
 
+// --- ANULAR DOCUMENTO (Soft Delete + Restore Inventory) ---
+export async function anularDocumento(id: string) {
+    try {
+        const organizationId = await getOrganizationId();
+        
+        const sb = await createClient();
+        const { data: { user } } = await sb.auth.getUser();
+        if (!user) throw new Error("No autenticado");
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email }});
+        if (!dbUser) throw new Error("Usuario no encontrado");
+
+        const doc = await prisma.factura.findFirst({
+            where: { id, organizationId },
+            include: { detalles: true }
+        });
+
+        if (!doc) throw new Error("Documento no encontrado o no tiene permisos.");
+        if (doc.estado === 'ANULADA') throw new Error("El documento ya se encuentra anulado.");
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Marcar la factura como ANULADA y registrar rastreo
+            await tx.factura.update({
+                where: { id },
+                data: {
+                    estado: 'ANULADA',
+                    anuladaAt: new Date(),
+                    anuladaPorId: dbUser.id
+                }
+            });
+
+            // 2. Si era FACTURA oficial (y ya estaba EMITIDA), devolver al inventario
+            if (doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA') {
+                for (const item of doc.detalles) {
+                    if (item.productoId) {
+                        try {
+                           await tx.producto.update({
+                               where: { id: item.productoId },
+                               data: { stockActual: { increment: item.cantidad } }
+                           });
+                        } catch(e) {}
+                    }
+                    if (item.activoId) {
+                        try {
+                           await tx.activoFijo.update({
+                               where: { id: item.activoId },
+                               data: { estatusContable: 'VIGENTE' }
+                           });
+                        } catch(e) {}
+                    }
+                }
+            }
+        });
+
+        revalidatePath('/facturas');
+        return { success: true };
+    } catch (e: any) {
+        console.error("Error anulando documento:", e);
+        return { success: false, error: e.message || "Error al anular" };
+    }
+}

@@ -147,7 +147,7 @@ export default function ClassicTemplate(props: TemplateProps) {
         </div>
 
         {/* Footer */}
-        <div className="flex flex-col md:flex-row justify-between gap-8 pt-6 border-t border-slate-300">
+        <div className="flex flex-col md:flex-row justify-between gap-8 pt-6 border-t border-slate-300 print:break-inside-avoid">
            {/* Notes */}
            <div className="flex-1">
               <h3 className="text-xs font-bold uppercase tracking-widest mb-2 border-b border-slate-200 pb-1">Términos y Condiciones</h3>

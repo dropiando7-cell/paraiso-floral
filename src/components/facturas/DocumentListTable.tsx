@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X } from 'lucide-react';
 import Link from 'next/link';
+import { toast } from 'react-hot-toast';
+import { anularDocumento } from '@/app/(dashboard)/facturas/actions';
 
 export interface DocumentRecord {
   id: string;
@@ -25,9 +27,35 @@ const fmt = (n: number) => new Intl.NumberFormat('es-HN', { style: 'currency', c
 
 export default function DocumentListTable({ data, type }: Props) {
   const [search, setSearch] = useState('');
+  const [showAnuladas, setShowAnuladas] = useState(false);
+  const [isAnulando, setIsAnulando] = useState<string | null>(null);
+  const [docToAnul, setDocToAnul] = useState<DocumentRecord | null>(null);
+
+  const confirmAnular = async () => {
+    if (!docToAnul) return;
+    const id = docToAnul.id;
+    setDocToAnul(null);
+    setIsAnulando(id);
+    const toastId = toast.loading('Anulando documento e inventario...');
+    try {
+      const res = await anularDocumento(id);
+      if (res.success) {
+        toast.success('El documento ha sido anulado con éxito', { id: toastId });
+      } else {
+        toast.error(res.error || 'Error al anular el documento', { id: toastId });
+      }
+    } catch (e: any) {
+       toast.error(e.message || 'Error del servidor al anular', { id: toastId });
+    } finally {
+       setIsAnulando(null);
+    }
+  };
 
   const filteredData = useMemo(() => {
     return data.filter(doc => {
+      // Filter out anuladas if the toggle is off
+      if (!showAnuladas && doc.estado === 'ANULADA') return false;
+      
       // If type isn't TODOS, filter by type
       if (type !== 'TODOS' && doc.tipoDocumento !== type) return false;
       
@@ -36,7 +64,7 @@ export default function DocumentListTable({ data, type }: Props) {
              doc.clienteNombre.toLowerCase().includes(q) ||
              (doc.clienteRtn && doc.clienteRtn.toLowerCase().includes(q));
     });
-  }, [data, type, search]);
+  }, [data, type, search, showAnuladas]);
 
   const getStatusBadge = (estado: string) => {
     switch (estado) {
@@ -51,22 +79,33 @@ export default function DocumentListTable({ data, type }: Props) {
   return (
     <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full animate-in fade-in">
       {/* Header & Controls */}
-      <div className="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center gap-4 bg-slate-50/50">
+      <div className="p-5 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-50/50">
         <div>
           <h2 className="text-xl font-bold text-slate-800">
             {type === 'FACTURA' ? 'Historial de Facturas' : type === 'COTIZACION' ? 'Historial de Cotizaciones' : 'Documentos Recientes'}
           </h2>
           <p className="text-sm text-slate-500 mt-0.5 font-medium">Mostrando {filteredData.length} resultados encontrados.</p>
         </div>
-        <div className="relative w-full sm:w-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input
-            type="text"
-            placeholder="Buscar correlativo o cliente..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full sm:w-80 pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium placeholder:font-normal"
-          />
+        <div className="relative w-full lg:w-auto flex flex-col sm:flex-row items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-sm">
+            <input 
+              type="checkbox" 
+              checked={showAnuladas}
+              onChange={e => setShowAnuladas(e.target.checked)}
+              className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+            />
+            <span className="text-sm font-semibold text-slate-600 select-none">Mostrar Anuladas</span>
+          </label>
+          <div className="relative w-full sm:w-80">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar correlativo o cliente..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium placeholder:font-normal shadow-sm"
+            />
+          </div>
         </div>
       </div>
 
@@ -134,9 +173,19 @@ export default function DocumentListTable({ data, type }: Props) {
                     >
                       <MessageCircle size={16} />
                     </button>
-                    <button title="Duplicar" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                    {doc.estado !== 'ANULADA' && (
+                      <button 
+                        onClick={() => setDocToAnul(doc)} 
+                        disabled={isAnulando === doc.id}
+                        title="Anular Documento" 
+                        className={`p-2 rounded-lg transition-colors ${isAnulando === doc.id ? 'text-slate-300' : 'text-slate-400 hover:text-red-600 hover:bg-red-100'}`}
+                      >
+                        <Ban size={16} className={isAnulando === doc.id ? 'animate-pulse' : ''} />
+                      </button>
+                    )}
+                    <Link href={`/facturas/${doc.id}?clone=true`} title="Duplicar Documento" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Copy size={16} />
-                    </button>
+                    </Link>
                   </div>
                 </td>
               </tr>
@@ -144,6 +193,41 @@ export default function DocumentListTable({ data, type }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {docToAnul && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-8 border-red-50">
+                <AlertTriangle size={28} className="stroke-[2.5]" />
+              </div>
+              <h3 className="text-xl font-bold text-slate-800 mb-2">¿Anular esta {docToAnul.tipoDocumento.toLowerCase()}?</h3>
+              <p className="text-sm text-slate-500 font-medium px-2 leading-relaxed">
+                Estás a punto de anular el documento <strong className="text-slate-700">{docToAnul.correlativo}</strong> de <strong className="text-slate-700">{docToAnul.clienteNombre}</strong>.
+              </p>
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3 text-left">
+                <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                <p className="text-xs font-semibold text-amber-700">Esta acción restaurará el stock de inventario asignado a esta factura y dejará rastros de auditoría a tu nombre. No puede deshacerse.</p>
+              </div>
+            </div>
+            <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
+              <button 
+                onClick={() => setDocToAnul(null)}
+                className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:text-slate-800 transition-all shadow-sm"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmAnular}
+                className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-500 border border-red-500 rounded-xl hover:bg-red-600 transition-all shadow-sm shadow-red-200"
+              >
+                Sí, Anular
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

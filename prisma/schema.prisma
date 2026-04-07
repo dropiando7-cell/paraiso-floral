@@ -77,6 +77,8 @@ model User {
   movimientosInventario MovimientoInventario[]
   activosCreados        ActivoFijo[]           @relation("CreatedActivos")
   activosActualizados   ActivoFijo[]           @relation("UpdatedActivos")
+  facturasCreadas       Factura[]              @relation("CreatedFacturas")
+  facturasAnuladas      Factura[]              @relation("AnuladaFacturas")
   organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("users")
@@ -587,6 +589,11 @@ model Factura {
   templateSettings         Json?
   createdAt                DateTime         @default(now())
   updatedAt                DateTime         @updatedAt
+  creadoPorId              String?          @db.Uuid
+  creadoPor                User?            @relation("CreatedFacturas", fields: [creadoPorId], references: [id])
+  anuladaPorId             String?          @db.Uuid
+  anuladaPor               User?            @relation("AnuladaFacturas", fields: [anuladaPorId], references: [id])
+  anuladaAt                DateTime?
   detalles                 DetalleFactura[]
   cliente                  Cliente          @relation(fields: [clienteId], references: [id])
   organization             Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)

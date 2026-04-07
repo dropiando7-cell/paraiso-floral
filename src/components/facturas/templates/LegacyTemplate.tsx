@@ -142,7 +142,7 @@ export default function LegacyTemplate(props: TemplateProps) {
         </div>
 
         {/* Totals Section */}
-        <div className="flex flex-col md:flex-row justify-between mb-8 mt-12 gap-8 print:flex-row print:justify-between print:gap-8">
+        <div className="flex flex-col md:flex-row justify-between mb-8 mt-12 gap-8 print:flex-row print:justify-between print:gap-8 print:break-inside-avoid">
            {/* Notes section left */}
            <div className="flex-1 mt-auto">
               <div className="text-sm">
