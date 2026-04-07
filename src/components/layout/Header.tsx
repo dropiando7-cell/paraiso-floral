@@ -8,7 +8,7 @@ interface HeaderProps {
 
 export function Header({ dbUser, onMenuClick }: HeaderProps) {
     return (
-        <header className="h-[72px] bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 sticky top-0 z-30 w-full gap-3 print:hidden">
+        <header className="h-[72px] bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 sticky top-0 z-[60] w-full gap-3 print:hidden">
 
             {/* Hamburger — mobile only */}
             <button

@@ -588,8 +588,12 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
     // Si es consumible y ya existe en el área (y NO se proporciona vencimiento distinto), solo sumamos stock (Agrupación)
     if (esConsumible && !baseData.fechaVencimiento && !baseData.serie && (codigoBarras || codigoGrupo)) {
         const whereClause: any = { organizationId: orgId, area };
-        if (codigoBarras) whereClause.codigoBarras = codigoBarras;
-        else if (codigoGrupo) whereClause.codigoGrupo = codigoGrupo;
+        if (codigoBarras) {
+            whereClause.codigoBarras = codigoBarras;
+        } else if (codigoGrupo) {
+            whereClause.codigoGrupo = codigoGrupo;
+            whereClause.descripcionCorta = baseData.descripcionCorta; // PROTECCIÓN: Impide agrupar equipos distintos sin GS1
+        }
         
         const existente = await prisma.activoFijo.findFirst({
             where: whereClause,
@@ -609,35 +613,56 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
     }
 
     let firstCreatedId = null;
+    let finalIdQrs = [...idQrs];
+    let createdExitosamente = false;
+    let intentos = 0;
+    const maxIntentos = 3;
 
-    if (esConsumible) {
-        // Nuevo consumible: 1 fila con stock = N
-        const dataToInsert = { ...baseData, idQr: idQrs[0] };
-        const created = await prisma.activoFijo.create({ data: dataToInsert });
-        firstCreatedId = created.id;
-    } else {
-        // Activo Fijo: Serialización forzada. N filas con stock = 1.
-        // Se preserva la serie de captura si la cantidad = 1. Si N > 1, la serie se deja nula para captura posterior.
-        const promises = [];
-        for (let i = 0; i < cantidadRegistros; i++) {
-            promises.push(
-                prisma.activoFijo.create({
-                    data: {
-                        ...baseData,
-                        idQr: idQrs[i],
-                        stock: 1,
-                        serie: cantidadRegistros === 1 ? baseData.serie : null
+    while (!createdExitosamente && intentos < maxIntentos) {
+        try {
+            if (esConsumible) {
+                // Nuevo consumible: 1 fila con stock = N
+                const dataToInsert = { ...baseData, idQr: finalIdQrs[0] };
+                const created = await prisma.activoFijo.create({ data: dataToInsert });
+                firstCreatedId = created.id;
+            } else {
+                // Activo Fijo: Serialización forzada. N filas con stock = 1.
+                await prisma.$transaction(async (tx) => {
+                    const promises = [];
+                    for (let i = 0; i < cantidadRegistros; i++) {
+                        promises.push(
+                            tx.activoFijo.create({
+                                data: {
+                                    ...baseData,
+                                    idQr: finalIdQrs[i],
+                                    stock: 1,
+                                    serie: cantidadRegistros === 1 ? baseData.serie : null
+                                }
+                            })
+                        );
                     }
-                })
-            );
+                    const createdArray = await Promise.all(promises);
+                    firstCreatedId = createdArray[0].id;
+                });
+            }
+            createdExitosamente = true;
+        } catch (error: any) {
+            intentos++;
+            // P2002 es el error de Prisma de restricción única (Unique Constraint)
+            if (error?.code === 'P2002') {
+                if (intentos >= maxIntentos) throw new Error("Sistema saturado por múltiples registros globales. Envía de nuevo.");
+                // Recalcular IDs debido a colisión
+                const numIdsError = esConsumible ? 1 : cantidadRegistros;
+                finalIdQrs = await generateIdQr(orgId, area, codigoGrupo, numIdsError);
+            } else {
+                throw error;
+            }
         }
-        const createdArray = await Promise.all(promises);
-        firstCreatedId = createdArray[0].id;
     }
 
     revalidatePath('/inventario');
 
-    return { success: true, idQr: idQrs[0], id: firstCreatedId, count: cantidadRegistros };
+    return { success: true, idQr: finalIdQrs[0], id: firstCreatedId, count: cantidadRegistros };
 }
 
 // ─── UPDATE ──────────────────────────────────────────────────────────────────

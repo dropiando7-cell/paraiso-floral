@@ -502,6 +502,7 @@ model Producto {
   stockMinimo     Int                    @default(5)
   isvAplicable    Int                    @default(15)
   estado          String                 @default("ACTIVO")
+  esServicio      Boolean                @default(false)
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
   activosFijos    ActivoFijo[]

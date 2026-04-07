@@ -32,7 +32,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
     // Form State for User
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
-    const [authType, setAuthType] = useState<'GOOGLE' | 'CLASSIC'>('GOOGLE');
+    const [authType, setAuthType] = useState<'CLASSIC'>('CLASSIC');
     const [email, setEmail] = useState('');
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
@@ -153,7 +153,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
     const handleOpenCreate = () => {
         setEditingUserId(null);
-        setAuthType('GOOGLE');
+        setAuthType('CLASSIC');
         setEmail('');
         setFirstName('');
         setLastName('');
@@ -175,7 +175,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
     const handleOpenEdit = (user: UserWithOrg) => {
         setEditingUserId(user.id);
-        setAuthType('GOOGLE'); // Edit doesn't allow changing auth type or password easily here
+        setAuthType('CLASSIC'); // Edit doesn't allow changing auth type or password easily here
         setEmail(user.email);
         setPassword('');
         setRole(user.role);
@@ -572,36 +572,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                             )}
 
                             <div className="space-y-4">
-                                {!editingUserId && (
-                                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 flex gap-4">
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="authType"
-                                                value="GOOGLE"
-                                                checked={authType === 'GOOGLE'}
-                                                onChange={() => setAuthType('GOOGLE')}
-                                                className="text-blue-600 focus:ring-blue-500"
-                                            />
-                                            <span className="text-sm font-medium text-slate-700">Google Workspace</span>
-                                        </label>
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <input
-                                                type="radio"
-                                                name="authType"
-                                                value="CLASSIC"
-                                                checked={authType === 'CLASSIC'}
-                                                onChange={() => setAuthType('CLASSIC')}
-                                                className="text-blue-600 focus:ring-blue-500"
-                                            />
-                                            <span className="text-sm font-medium text-slate-700">Correo Clásico</span>
-                                        </label>
-                                    </div>
-                                )}
-
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                                        Correo Electrónico {authType === 'GOOGLE' && '(Válido de Google)'}
+                                        Correo Electrónico
                                     </label>
                                     <input
                                         type="email"
@@ -609,13 +582,12 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                         disabled={!!editingUserId}
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
-                                        placeholder={authType === 'GOOGLE' ? "ej. usuario@gmail.com o @elimhonduras.org" : "ej. usuario@hotmail.com"}
+                                        placeholder="ej. usuario@dominio.com"
                                         className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm disabled:bg-slate-50 disabled:text-slate-500"
                                     />
                                     <p className="text-xs text-slate-500 mt-1.5">
-                                        {editingUserId ? "El correo no se puede cambiar ya que está vinculado a una sesión." :
-                                            authType === 'GOOGLE' ? "El usuario usará Google Sign-In con este correo." :
-                                                "El usuario iniciará sesión con Correo y Contraseña."}
+                                        {editingUserId ? "El correo no se puede cambiar ya que está vinculado al usuario." :
+                                            "El usuario iniciará sesión con Correo y Contraseña."}
                                     </p>
                                 </div>
 
