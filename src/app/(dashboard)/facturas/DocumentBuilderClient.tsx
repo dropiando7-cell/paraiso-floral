@@ -229,7 +229,10 @@ function LineItemRow({
   const { base, tax, total } = calcLine(item);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [focusedField, setFocusedField] = useState<'code' | 'desc' | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const shortDescRef = useRef<HTMLTextAreaElement>(null);
+  const longDescRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -249,14 +252,27 @@ function LineItemRow({
     (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery))
   ).slice(0, 15) : [];
 
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [query]);
+
+  useEffect(() => {
+    if (shortDescRef.current) {
+      shortDescRef.current.style.height = 'auto';
+      shortDescRef.current.style.height = shortDescRef.current.scrollHeight + 'px';
+    }
+  }, [item.shortDesc]);
+
+  useEffect(() => {
+    if (longDescRef.current && item.showLongDesc) {
+      longDescRef.current.style.height = 'auto';
+      longDescRef.current.style.height = longDescRef.current.scrollHeight + 'px';
+    }
+  }, [item.longDesc, item.showLongDesc]);
+
   const handleSelectProduct = (product: Product) => {
     onChange(item.id, 'code', product.code);
-    
-    let desc = product.name;
-    if (product.type === 'activo' && product.description) {
-      desc += ` - ${product.description}`;
-    }
-    onChange(item.id, 'shortDesc', desc);
+    onChange(item.id, 'shortDesc', product.name);
     
     if (!item.longDesc) onChange(item.id, 'longDesc', product.description);
     if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', product.price);
@@ -273,6 +289,38 @@ function LineItemRow({
     setShowAutocomplete(false);
   };
 
+  const handleKeyDown = async (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    if (showAutocomplete && filteredProducts.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.min(prev + 1, filteredProducts.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex(prev => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSelectProduct(filteredProducts[selectedIndex]);
+      }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (focusedField === 'code') {
+        const val = item.code.trim();
+        if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
+          try {
+            const res = await buscarItemPorCodigo(val);
+            if (res) {
+              onChange(item.id, 'shortDesc', res.name);
+              if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
+              if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
+              if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
+              if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
+            }
+          } catch(e) { console.error('Error in code lookup:', e); }
+        }
+      }
+    }
+  };
+
   const renderDropdown = () => {
     if (!showAutocomplete || !focusedField || filteredProducts.length === 0) return null;
     return (
@@ -282,12 +330,13 @@ function LineItemRow({
           <span className="text-[10px] font-medium text-slate-400">{filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'}</span>
         </div>
         <div className="p-1">
-          {filteredProducts.map(p => (
+          {filteredProducts.map((p, idx) => (
             <button
               key={p.id}
               type="button"
+              onMouseEnter={() => setSelectedIndex(idx)}
               onClick={() => handleSelectProduct(p)}
-              className="w-full text-left px-3 py-2 hover:bg-blue-50/70 rounded-lg group flex flex-col gap-1 transition-colors"
+              className={`w-full text-left px-3 py-2 rounded-lg group flex flex-col gap-1 transition-colors ${idx === selectedIndex ? 'bg-blue-50' : 'hover:bg-blue-50/70'}`}
             >
               <div className="flex items-start justify-between gap-4">
                 <p className="text-xs font-bold text-slate-800 group-hover:text-blue-700 leading-tight">
@@ -296,7 +345,7 @@ function LineItemRow({
                 <p className="text-xs font-black text-blue-600 shrink-0">{fmt(p.price)}</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium group-hover:bg-blue-100 group-hover:text-blue-600">{p.code}</span>
+                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-medium ${idx === selectedIndex ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>{p.code}</span>
                 {p.type === 'activo' ? (
                   <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">Activo Fijo</span>
                 ) : (
@@ -342,6 +391,7 @@ function LineItemRow({
                 setFocusedField('code');
                 setShowAutocomplete(true);
               }}
+              onKeyDown={handleKeyDown}
               onBlur={async (e) => {
                 const val = e.target.value.trim();
                 setTimeout(async () => {
@@ -367,7 +417,9 @@ function LineItemRow({
 
           {/* Description */}
           <div className="col-span-3 relative">
-            <input
+            <textarea
+              ref={shortDescRef}
+              rows={1}
               value={item.shortDesc}
               onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
               onChange={e => {
@@ -375,19 +427,24 @@ function LineItemRow({
                 setFocusedField('desc');
                 setShowAutocomplete(true);
               }}
+              onKeyDown={handleKeyDown}
               placeholder="Descripción del producto o servicio"
-              className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:font-semibold print:border-transparent print:bg-transparent print:p-0 print:text-slate-800"
+              className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 overflow-hidden resize-none print:hidden block"
             />
+            <div className="hidden print:block text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">
+              {item.shortDesc}
+            </div>
             {item.showLongDesc && (
               <>
                 <textarea
+                  ref={longDescRef}
                   value={item.longDesc}
                   onChange={e => onChange(item.id, 'longDesc', e.target.value)}
                   placeholder="Descripción técnica detallada, especificaciones, número de serie..."
                   rows={3}
-                  className="mt-1.5 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none placeholder:text-slate-300 text-slate-600 print:hidden"
+                  className="mt-1.5 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all overflow-hidden resize-none placeholder:text-slate-300 text-slate-600 print:hidden"
                 />
-                <div className="hidden print:block text-xs text-slate-600 whitespace-pre-wrap mt-0.5">
+                <div className="hidden print:block text-xs text-slate-600 whitespace-pre-wrap mt-0.5 break-words">
                   {item.longDesc}
                 </div>
               </>
