@@ -584,6 +584,8 @@ export default function DocumentBuilderClient({
     return DEFAULT_INVOICE_SETTINGS;
   });
 
+  const [isLoaded, setIsLoaded] = useState(false);
+
   // Load preferences from localStorage 
   useEffect(() => {
     if (typeof window !== 'undefined' && !viewMode) {
@@ -595,16 +597,20 @@ export default function DocumentBuilderClient({
         }
       } catch (e) {
         console.error("Error al cargar settings visuales", e);
+      } finally {
+        setIsLoaded(true);
       }
+    } else {
+      setIsLoaded(true);
     }
   }, [viewMode]);
 
   // Save preferences when they change
   useEffect(() => {
-    if (typeof window !== 'undefined' && !viewMode) {
+    if (typeof window !== 'undefined' && !viewMode && isLoaded) {
       localStorage.setItem('bea_invoice_template_settings', JSON.stringify(settings));
     }
-  }, [settings, viewMode]);
+  }, [settings, viewMode, isLoaded]);
 
 
   const router = useRouter();
@@ -988,7 +994,7 @@ export default function DocumentBuilderClient({
 
         
         {/* ─── MAIN DOCUMENT ───────────────────────────────────────────── */}
-        <div className={`flex-1 min-w-0 transition-all duration-300 ${showCustomizer ? 'pr-80 scale-[0.95] origin-top' : ''}`}>
+        <div className={`flex-1 min-w-0 transition-all duration-300 ${showCustomizer ? 'pr-80 print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''}`}>
           
           {settings.template === 'modern' && <ModernTemplate 
             settings={settings} organization={organization} docNumber={docNumber} 
