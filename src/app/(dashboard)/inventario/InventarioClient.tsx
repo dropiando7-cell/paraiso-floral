@@ -78,6 +78,161 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
     );
 }
 
+// ─── SuperAdmin Label Preview Modal ──────────────────────────────────────────
+function SuperAdminLabelPreviewModal({ onClose, activo }: { onClose: () => void; activo: Activo | null }) {
+    const [scale, setScale] = useState<1 | 2 | 3>(2);
+    const [reloadKey, setReloadKey] = useState(0);
+
+    if (!activo) return null;
+
+    const searchParams = new URLSearchParams({
+        idQr: activo.idQr,
+        descripcion: activo.descripcionCorta || '',
+        area: activo.area || '',
+        cuenta: activo.cuentaAct || '',
+        codigoBarras: activo.codigoBarras || '',
+        modelo: activo.modelo || '',
+        marca: activo.marca || '',
+        serie: activo.serie || '',
+        fechaAdq: (activo as any).createdAt ? new Date((activo as any).createdAt).toISOString() : new Date().toISOString()
+    });
+    if ((activo as any).fechaFabricacion) searchParams.set('fechaFab', new Date((activo as any).fechaFabricacion).toISOString().split('T')[0]);
+    if ((activo as any).fechaVencimiento) searchParams.set('fechaVenc', new Date((activo as any).fechaVencimiento).toISOString().split('T')[0]);
+    const url = `/api/impresion/generar-etiqueta?${searchParams.toString()}&_r=${reloadKey}`;
+
+    // Dimensiones reales en px del canvas: 406 × 264
+    const W = 406;
+    const H = 264;
+
+    return (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
+            <div
+                className="bg-white rounded-2xl shadow-2xl relative flex flex-col overflow-hidden"
+                style={{ maxWidth: 620, width: '100%' }}
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-100">
+                    <div className="flex items-center gap-3">
+                        <div className="bg-purple-100 p-2.5 rounded-xl">
+                            <Eye className="w-5 h-5 text-purple-700" />
+                        </div>
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900 leading-tight">Vista Previa de Etiqueta</h3>
+                            <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
+                                <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-semibold">SUPER_ADMIN</span>
+                                &nbsp;· Canvas: 406×264px · Solo lectura
+                            </p>
+                        </div>
+                    </div>
+                    <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Activo info */}
+                <div className="mx-6 mt-4 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3">
+                    <div className="font-mono text-xs font-black text-[#0500A3] bg-blue-50 px-2 py-1 rounded-lg ring-1 ring-[#0500A3]/20 shrink-0">{activo.idQr}</div>
+                    <div className="min-w-0">
+                        <div className="font-semibold text-sm text-slate-800 truncate">{activo.descripcionCorta}</div>
+                        {activo.marca && <div className="text-xs text-slate-400">Marca: {activo.marca}</div>}
+                    </div>
+                    <button
+                        onClick={() => setReloadKey(k => k + 1)}
+                        title="Recargar imagen"
+                        className="ml-auto shrink-0 p-2 hover:bg-slate-200 rounded-lg transition-colors text-slate-500"
+                    >
+                        <RotateCw className="w-4 h-4" />
+                    </button>
+                </div>
+
+                {/* Preview Area */}
+                <div className="mx-6 mt-4 mb-2">
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Imagen generada por endpoint</span>
+                        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
+                            {([1, 2, 3] as const).map(s => (
+                                <button
+                                    key={s}
+                                    onClick={() => setScale(s)}
+                                    className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all ${
+                                        scale === s ? 'bg-white text-[#0500A3] shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                                >
+                                    {s}×
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Label stage with checkerboard background (like Photoshop) */}
+                    <div
+                        className="rounded-xl overflow-auto flex justify-center items-center border border-slate-200"
+                        style={{
+                            backgroundImage: `repeating-conic-gradient(#e2e8f0 0% 25%, #f8fafc 0% 50%)`,
+                            backgroundSize: '16px 16px',
+                            padding: 16,
+                            maxHeight: 420,
+                        }}
+                    >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            key={reloadKey}
+                            src={url}
+                            alt="Etiqueta generada"
+                            style={{
+                                width: W * scale,
+                                height: H * scale,
+                                imageRendering: scale > 1 ? 'pixelated' : 'auto',
+                                display: 'block',
+                                boxShadow: '0 4px 24px rgba(0,0,0,0.18)',
+                                border: '2px solid rgba(0,0,0,0.08)',
+                                borderRadius: 4,
+                                background: '#fff',
+                            }}
+                        />
+                    </div>
+
+                    {/* Ruler bar */}
+                    <div className="flex items-center justify-between mt-2 px-1">
+                        <span className="text-[10px] text-slate-400 font-mono">0</span>
+                        <div className="flex-1 mx-2 h-px bg-gradient-to-r from-slate-300 via-slate-200 to-slate-300 relative">
+                            <div className="absolute left-1/2 -translate-x-1/2 -top-2 text-[9px] text-slate-400 font-mono bg-white px-1">{Math.round(W * scale)}px</div>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-mono">{W * scale}px</span>
+                    </div>
+                </div>
+
+                {/* Metadata chips */}
+                <div className="mx-6 mb-5 mt-3 flex flex-wrap gap-2">
+                    <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">Canvas: {W}×{H}px</span>
+                    <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">203 DPI</span>
+                    <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">2"×1.3" (50.8×33mm)</span>
+                    <span className="text-[11px] bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-semibold">Tally Dascom DL-210</span>
+                </div>
+
+                {/* Footer */}
+                <div className="border-t border-slate-100 px-6 py-4 flex justify-end gap-3">
+                    <a
+                        href={url.replace(/&_r=\d+/, '')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl border-2 border-slate-200 text-slate-600 hover:bg-slate-50 transition-all"
+                    >
+                        <ExternalLink className="w-4 h-4" /> Abrir PNG directo
+                    </a>
+                    <button
+                        onClick={onClose}
+                        className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl transition-all active:scale-95"
+                    >
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 // Las áreas se cargan dinámicamente de la tabla "Area" mediante getAreas
@@ -2532,6 +2687,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     const [debugPrinting, setDebugPrinting] = useState(false);
     const [debugStatus, setDebugStatus] = useState<'idle' | 'sent' | 'error'>('idle');
     const [clearingQueue, setClearingQueue] = useState(false);
+    const [labelPreviewOpen, setLabelPreviewOpen] = useState(false);
 
     async function handleClearQueue() {
         if (!confirm('¿Estás seguro que deseas limpiar TODA la cola de impresión de Bioelectrónica?')) return;
@@ -2643,6 +2799,14 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                                     {debugPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
                                     {debugStatus === 'sent' ? '✅ Enviado' : debugStatus === 'error' ? '❌ Error' : 'Debug Impr.'}
                                 </button>
+                                <button
+                                    onClick={() => setLabelPreviewOpen(true)}
+                                    title="Ver vista previa visual de la etiqueta (solo superadmin)"
+                                    className="flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 hidden sm:flex bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100"
+                                >
+                                    <Eye className="w-4 h-4" />
+                                    Vista Etiqueta
+                                </button>
                             </>
                         )}
                         <button onClick={() => setLoteModalOpen(true)}
@@ -2722,6 +2886,13 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                         </div>
                     </div>
                 </div>
+            )}
+
+            {labelPreviewOpen && (
+                <SuperAdminLabelPreviewModal
+                    activo={activos[0] ?? null}
+                    onClose={() => setLabelPreviewOpen(false)}
+                />
             )}
 
             <ImprimirLoteModal

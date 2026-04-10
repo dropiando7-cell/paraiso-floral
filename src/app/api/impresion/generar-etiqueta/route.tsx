@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
                     height: H,
                     backgroundColor: '#FFFFFF',
                     fontFamily: 'sans-serif',
-                    padding: '16px 16px 16px 16px', // Padding inferior ajustado
+                    padding: '16px 16px 24px 16px', // Padding inferior aumentado para evitar etiqueta extra
                 }}
             >
                 <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%' }}>
@@ -71,10 +71,10 @@ export async function GET(req: NextRequest) {
                     {/* LEFT COLUMN: Data */}
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '12px' }}>
                         <span style={{ fontSize: 18, fontWeight: 900, color: '#000', marginBottom: '8px' }}>{idQr}</span>
-                        <span style={{ fontSize: isLongName ? 16 : 20, fontWeight: 900, color: '#000', lineHeight: 1.1, maxHeight: 60, overflow: 'hidden' }}>
+                        <span style={{ fontSize: isLongName ? 16 : 20, fontWeight: 900, color: '#000', lineHeight: 1.1, maxHeight: 60, overflow: 'hidden', wordBreak: 'keep-all', overflowWrap: 'normal' }}>
                             {descStr}
                         </span>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '12px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '12px' }}>
                             {marcaUrl ? (
                                 <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Marca: {marcaUrl}</span>
                             ) : (
@@ -84,6 +84,7 @@ export async function GET(req: NextRequest) {
                             {serieUrl && <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>SN: {serieUrl}</span>}
                             {fechaFabUrl && <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Fab: {fechaFabUrl}</span>}
                             {fechaVencUrl && <span style={{ fontSize: 13, color: '#444', fontWeight: 600 }}>Venc: {fechaVencUrl}</span>}
+                            <span style={{ fontSize: 14, color: '#000', fontWeight: 900 }}>BIOELECTRONICA</span>
                         </div>
                     </div>
 
@@ -97,10 +98,10 @@ export async function GET(req: NextRequest) {
                 </div>
 
                 {/* BOTTOM ROW: Barcode */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', marginBottom: '0px', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', marginBottom: '4px', width: '100%' }}>
                     {/* Al forzar width=360 (par) y la etiqueta width=406 (par), el centrado es X=23 px (preciso a 1 entero) lo cual evita desenfoque decimal */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={barcodeUrl} alt="Barcode" width={360} height={50} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
+                    <img src={barcodeUrl} alt="Barcode" width={360} height={45} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
                     <span style={{ fontSize: 13, marginTop: '4px', letterSpacing: 4, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
                 </div>
             </div>
