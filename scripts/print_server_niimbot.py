@@ -30,7 +30,7 @@ ALTO_MAXIMO = 245   # ← NO subir este valor
 # ─── Parámetros de layout ─────────────────────────────────────────────────────
 QR_MARGEN     = 22   # px — margen del QR con borde derecho y superior
 QR_ESCALA     = 1.2 # factor de reducción del QR (1.0 = tamaño natural de bwipjs)
-CB_MARGEN_INF = 10   # px — espacio entre texto del CB y borde inferior
+CB_MARGEN_INF = 18   # px — espacio entre texto del CB y borde inferior (aumentado para evitar corte)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -138,9 +138,17 @@ def imprimir_etiqueta(url_imagen):
             draw.text((x_text, y_text + y_offset),      f"Adq: {fecha_adq}",     font=font_small, fill=(0, 0, 0))
             draw.text((x_text, y_text + y_offset + 20), f"Mod: {modelo_display}", font=font_small, fill=(0, 0, 0))
             
-            # <-- LÍNEA AGREGADA DE LA SERIE -->
+            # Serie (SN)
             if serie:
                 draw.text((x_text, y_text + y_offset + 40), f"SN: {serie}", font=font_small, fill=(0, 0, 0))
+
+            # BIOELECTRONICA — siempre visible, debajo del último campo de texto
+            bio_y = y_text + y_offset + (60 if serie else 40)
+            try:
+                font_bio = ImageFont.truetype("arialbd.ttf", 15)
+            except IOError:
+                font_bio = font_barcode
+            draw.text((x_text, bio_y), "BIOELECTRONICA", font=font_bio, fill=(0, 0, 0))
 
             # ── Código de barras 1D (layout desde abajo hacia arriba) ──────
             bc_text = urllib.parse.quote(codigo_barras)
@@ -191,9 +199,9 @@ def imprimir_etiqueta(url_imagen):
             except Exception as e:
                 print(f"[-] Error obteniendo Código de Barras: {e}")
 
-            # Binarizar
+            # Binarizar — umbral 128: grises oscuros (#333, L≈80) → negro; blanco → blanco
             img_gris  = img_canvas.convert("L")
-            img_final = img_gris.point(lambda x: 0 if x < 200 else 255, "1")
+            img_final = img_gris.point(lambda x: 0 if x < 128 else 255, "1")
             nuevo_alto = ALTO_MAXIMO
 
         else:
@@ -212,7 +220,7 @@ def imprimir_etiqueta(url_imagen):
             img_scaled = img.resize((ANCHO_FIJO, nuevo_alto), Image.NEAREST)
 
             img_gris  = img_scaled.convert("L")
-            img_final = img_gris.point(lambda x: 0 if x < 200 else 255, "1")
+            img_final = img_gris.point(lambda x: 0 if x < 128 else 255, "1")
 
         # ── Enviar al spooler ──────────────────────────────────────────────
         hDC.StartDoc("Etiqueta NIIMBOT Bioelectronica")
@@ -235,10 +243,11 @@ def imprimir_etiqueta(url_imagen):
 
 def iniciar():
     print("=================================================")
-    print(" SERVIDOR DE IMPRESION NIIMBOT K3 - Bioelectrónica")
+    print(" SERVIDOR DE IMPRESION NIIMBOT K3 - Bioelectrónica  [V2]")
     print(f" Servidor URL : {HOST}")
     print(f" Impresora    : {IMPRESORA}")
     print(f" Canvas fijo  : {ANCHO_FIJO}×{ALTO_MAXIMO}px  (50mm×33mm @ 203 DPI, 93%)")
+    print(f" Binarización : umbral 128 | Margen barcode: {CB_MARGEN_INF}px")
     print("=================================================\n")
     print("Sondeando trabajos pendientes en la nube...")
 
