@@ -34,6 +34,29 @@ CB_MARGEN_INF = 18   # px — espacio entre texto del CB y borde inferior (aumen
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def wrap_descripcion(texto, max_chars=21):
+    """Divide el texto en hasta 2 líneas respetando límites de palabras.
+    Nunca corta una palabra a la mitad.
+    """
+    if len(texto) <= max_chars:
+        return [texto]
+
+    palabras = texto.split()
+    linea1 = ""
+    linea2 = ""
+
+    for palabra in palabras:
+        candidato = (linea1 + " " + palabra).strip() if linea1 else palabra
+        if len(candidato) <= max_chars:
+            linea1 = candidato
+        else:
+            # Linea 1 llena — resto va a linea 2
+            resto = (linea2 + " " + palabra).strip() if linea2 else palabra
+            linea2 = resto  # Puede superar max_chars si la palabra es muy larga
+
+    return [linea1, linea2] if linea2 else [linea1]
+
+
 def imprimir_etiqueta(url_imagen):
     try:
         print(f"\n[*] Recibiendo: {url_imagen}")
@@ -127,12 +150,14 @@ def imprimir_etiqueta(url_imagen):
 
             draw.text((x_text, y_text), id_qr, font=font_id, fill=(0, 0, 0))
 
-            if len(descripcion) > 22:
-                draw.text((x_text, y_text + 30), descripcion[:22],   font=font_desc, fill=(0, 0, 0))
-                draw.text((x_text, y_text + 50), descripcion[22:44].strip(), font=font_desc, fill=(0, 0, 0))
+            # Descripción con salto de linea por palabra (sin cortar palabras)
+            lineas_desc = wrap_descripcion(descripcion, max_chars=21)
+            if len(lineas_desc) >= 2:
+                draw.text((x_text, y_text + 30), lineas_desc[0], font=font_desc, fill=(0, 0, 0))
+                draw.text((x_text, y_text + 50), lineas_desc[1], font=font_desc, fill=(0, 0, 0))
                 y_offset = 74
             else:
-                draw.text((x_text, y_text + 30), descripcion, font=font_desc, fill=(0, 0, 0))
+                draw.text((x_text, y_text + 30), lineas_desc[0], font=font_desc, fill=(0, 0, 0))
                 y_offset = 56
 
             # Marca (más útil que fecha de adquisición que suele estar vacía)
