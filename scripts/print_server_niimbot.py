@@ -129,21 +129,26 @@ def imprimir_etiqueta(url_imagen):
 
             if len(descripcion) > 22:
                 draw.text((x_text, y_text + 30), descripcion[:22],   font=font_desc, fill=(0, 0, 0))
-                draw.text((x_text, y_text + 50), descripcion[22:44], font=font_desc, fill=(0, 0, 0))
+                draw.text((x_text, y_text + 50), descripcion[22:44].strip(), font=font_desc, fill=(0, 0, 0))
                 y_offset = 74
             else:
                 draw.text((x_text, y_text + 30), descripcion, font=font_desc, fill=(0, 0, 0))
                 y_offset = 56
 
-            draw.text((x_text, y_text + y_offset),      f"Adq: {fecha_adq}",     font=font_small, fill=(0, 0, 0))
-            draw.text((x_text, y_text + y_offset + 20), f"Mod: {modelo_display}", font=font_small, fill=(0, 0, 0))
+            # Marca (más útil que fecha de adquisición que suele estar vacía)
+            if marca:
+                draw.text((x_text, y_text + y_offset), f"Marca: {marca}", font=font_small, fill=(0, 0, 0))
+                y_marca = 20
+            else:
+                y_marca = 0
+            draw.text((x_text, y_text + y_offset + y_marca), f"Mod: {modelo_display}", font=font_small, fill=(0, 0, 0))
             
-            # Serie (SN)
+            # Serie (SN) — posición relativa a Mod, que ya considera y_marca
             if serie:
-                draw.text((x_text, y_text + y_offset + 40), f"SN: {serie}", font=font_small, fill=(0, 0, 0))
+                draw.text((x_text, y_text + y_offset + y_marca + 20), f"SN: {serie}", font=font_small, fill=(0, 0, 0))
 
-            # BIOELECTRONICA — siempre visible, debajo del último campo de texto
-            bio_y = y_text + y_offset + (60 if serie else 40)
+            # BIOELECTRONICA — siempre visible, debajo del último campo
+            bio_y = y_text + y_offset + y_marca + (40 if serie else 20)
             try:
                 font_bio = ImageFont.truetype("arialbd.ttf", 15)
             except IOError:
