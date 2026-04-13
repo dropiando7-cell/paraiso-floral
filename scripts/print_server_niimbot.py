@@ -34,27 +34,40 @@ CB_MARGEN_INF = 18   # px — espacio entre texto del CB y borde inferior (aumen
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def wrap_descripcion(texto, max_chars=21):
-    """Divide el texto en hasta 2 líneas respetando límites de palabras.
+def wrap_descripcion(texto, font, max_px=250):
+    """Divide el texto en hasta 2 líneas midiendo píxeles reales con PIL.
+    Solo hace salto de línea cuando la palabra REALMENTE no cabe en el ancho disponible.
     Nunca corta una palabra a la mitad.
     """
-    if len(texto) <= max_chars:
+    if not texto:
+        return [texto]
+
+    def medir(t):
+        try:
+            return font.getlength(t)          # Pillow >= 9.2
+        except AttributeError:
+            try:
+                return font.getsize(t)[0]     # Pillow antiguo
+            except Exception:
+                return len(t) * 10            # fallback emergencia
+
+    # Si todo cabe en una línea, no hay salto
+    if medir(texto) <= max_px:
         return [texto]
 
     palabras = texto.split()
     linea1 = ""
-    linea2 = ""
 
-    for palabra in palabras:
+    for i, palabra in enumerate(palabras):
         candidato = (linea1 + " " + palabra).strip() if linea1 else palabra
-        if len(candidato) <= max_chars:
+        if medir(candidato) <= max_px:
             linea1 = candidato
         else:
-            # Linea 1 llena — resto va a linea 2
-            resto = (linea2 + " " + palabra).strip() if linea2 else palabra
-            linea2 = resto  # Puede superar max_chars si la palabra es muy larga
+            # Palabra no cabe en línea 1 → el resto va a línea 2
+            linea2 = " ".join(palabras[i:])
+            return [linea1, linea2]
 
-    return [linea1, linea2] if linea2 else [linea1]
+    return [linea1]
 
 
 def imprimir_etiqueta(url_imagen):
@@ -151,7 +164,7 @@ def imprimir_etiqueta(url_imagen):
             draw.text((x_text, y_text), id_qr, font=font_id, fill=(0, 0, 0))
 
             # Descripción con salto de linea por palabra (sin cortar palabras)
-            lineas_desc = wrap_descripcion(descripcion, max_chars=21)
+            lineas_desc = wrap_descripcion(descripcion, font=font_desc, max_px=250)
             if len(lineas_desc) >= 2:
                 draw.text((x_text, y_text + 30), lineas_desc[0], font=font_desc, fill=(0, 0, 0))
                 draw.text((x_text, y_text + 50), lineas_desc[1], font=font_desc, fill=(0, 0, 0))
