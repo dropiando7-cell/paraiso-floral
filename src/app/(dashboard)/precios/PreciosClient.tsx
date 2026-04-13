@@ -189,7 +189,7 @@ function ModalEditarPrecios({ producto, onClose, onGuardado }: ModalEditarProps)
 
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">
-              Precio de Venta (L.)
+              Precio de Venta (L.) Sin ISV
             </label>
             <div className="relative">
               <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">L.</span>
