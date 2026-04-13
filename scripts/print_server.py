@@ -6,10 +6,14 @@ import win32con
 from PIL import Image, ImageWin
 import io
 
-API_PENDIENTES = "https://sistemaselim.app/api/impresion/pendientes"
-API_COMPLETAR  = "https://sistemaselim.app/api/impresion/completar"
+API_PENDIENTES = "https://bioelectronicahn.vercel.app/api/impresion/pendientes"
+API_COMPLETAR  = "https://bioelectronicahn.vercel.app/api/impresion/completar"
 IMPRESORA      = "Tally Dascom DL-210Z (Copy 1)"
 TIEMPO_ESPERA  = 3
+
+# Dimensiones exactas del canvas generado por el endpoint (2"x1.3" @ 203 DPI)
+LABEL_W = 406
+LABEL_H = 264
 
 def imprimir_etiqueta(url_imagen):
     try:
@@ -30,30 +34,29 @@ def imprimir_etiqueta(url_imagen):
         hDC = win32ui.CreateDC()
         hDC.CreatePrinterDC(IMPRESORA)
 
-        # 4. Obtener RESOLUCIÓN REAL CONFIGURADA EN WINDOWS (Crucial)
+        # 4. Log dimensiones reportadas por Windows (informativo)
         ancho_printer = hDC.GetDeviceCaps(win32con.HORZRES)
         alto_printer  = hDC.GetDeviceCaps(win32con.VERTRES)
-        
-        # SI LA IMPRESORA ESTÁ BIEN CONFIGURADA EN WINDOWS A 2x1", AQUI VEREMOS 406x203 (a 203dpi)
         print(f"[*] Margen Lógico Windows: Ancho {ancho_printer}px, Alto {alto_printer}px")
 
-        # 5. Escalar imagen al ancho reportado MANTENIENDO PROPORCIÓN (Lógica V4)
-        # Esto evita que Windows detecte violación de Y y salte 2 etiquetas.
-        ratio = ancho_printer / float(img.width)
-        nuevo_alto = int(img.height * ratio)
-        img_scaled = img.resize((ancho_printer, nuevo_alto), Image.LANCZOS)
+        # 5. Redimensionar a las dimensiones EXACTAS del canvas (406x264)
+        # NO escalar proporcionalmente — el canvas ya tiene las proporciones correctas.
+        # Si Windows reporta distinto, usamos las coords del canvas directamente.
+        img_scaled = img.resize((LABEL_W, LABEL_H), Image.LANCZOS)
 
-        # 6. Binarización profunda para papel térmico (Todo o nada)
+        # 6. Binarización profunda para papel térmico.
+        # Umbral 128: convierte grises oscuros (#333 = 51) en negro.
+        # Umbral anterior 200 convertía texto gris a BLANCO incorrectamente.
         img_gris = img_scaled.convert("L")
-        img_final = img_gris.point(lambda x: 0 if x < 200 else 255, "1")
+        img_final = img_gris.point(lambda x: 0 if x < 128 else 255, "1")
 
         # Iniciar Print Job
         hDC.StartDoc("Etiqueta Activo ELIM")
         hDC.StartPage()
 
-        # Dibujar imagen ocupando el ancho completo, permitiendo alto proporcional
+        # Dibujar imagen en coordenadas fijas del canvas — sin desborde
         dib = ImageWin.Dib(img_final)
-        dib.draw(hDC.GetHandleOutput(), (0, 0, ancho_printer, nuevo_alto))
+        dib.draw(hDC.GetHandleOutput(), (0, 0, LABEL_W, LABEL_H))
 
         hDC.EndPage()
         hDC.EndDoc()
@@ -68,8 +71,9 @@ def imprimir_etiqueta(url_imagen):
 
 def iniciar():
     print("=========================================")
-    print(" SERVIDOR DE IMPRESION ELIM - V6 (Escala Proporcional V4 Restored)")
+    print(" SERVIDOR DE IMPRESION ELIM - V7 (Canvas Fijo 406x264, Umbral 128)")
     print(f" Impresora: {IMPRESORA}")
+    print(f" Canvas: {LABEL_W}x{LABEL_H}px | Umbral binarización: 128")
     print("=========================================\n")
     while True:
         try:
