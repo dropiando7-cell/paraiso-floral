@@ -36,7 +36,8 @@ CB_MARGEN_INF = 18   # px — espacio entre texto del CB y borde inferior (aumen
 
 def wrap_descripcion(texto, font, max_px=250):
     """Divide el texto en hasta 2 líneas midiendo píxeles reales con PIL.
-    Solo hace salto de línea cuando la palabra REALMENTE no cabe en el ancho disponible.
+    - Línea 1: llena con palabras completas hasta max_px.
+    - Línea 2: el resto. Si es demasiado larga, trunca con '...' por palabras.
     Nunca corta una palabra a la mitad.
     """
     if not texto:
@@ -44,14 +45,14 @@ def wrap_descripcion(texto, font, max_px=250):
 
     def medir(t):
         try:
-            return font.getlength(t)          # Pillow >= 9.2
+            return font.getlength(t)
         except AttributeError:
             try:
-                return font.getsize(t)[0]     # Pillow antiguo
+                return font.getsize(t)[0]
             except Exception:
-                return len(t) * 10            # fallback emergencia
+                return len(t) * 10
 
-    # Si todo cabe en una línea, no hay salto
+    # Todo cabe en una línea
     if medir(texto) <= max_px:
         return [texto]
 
@@ -63,9 +64,26 @@ def wrap_descripcion(texto, font, max_px=250):
         if medir(candidato) <= max_px:
             linea1 = candidato
         else:
-            # Palabra no cabe en línea 1 → el resto va a línea 2
-            linea2 = " ".join(palabras[i:])
-            return [linea1, linea2]
+            # Resto va a línea 2
+            palabras_l2 = palabras[i:]
+            linea2 = " ".join(palabras_l2)
+
+            # Si línea 2 cabe, perfecto
+            if medir(linea2) <= max_px:
+                return [linea1, linea2]
+
+            # Si no cabe, truncar por palabras hasta que quede con "..."
+            while palabras_l2:
+                candidato_l2 = " ".join(palabras_l2) + "..."
+                if medir(candidato_l2) <= max_px:
+                    return [linea1, candidato_l2]
+                palabras_l2.pop()
+
+            # Caso extremo: una sola palabra muy larga — truncar por caracteres
+            linea2_raw = " ".join(palabras[i:])
+            while linea2_raw and medir(linea2_raw + "...") > max_px:
+                linea2_raw = linea2_raw[:-1]
+            return [linea1, linea2_raw + "..."]
 
     return [linea1]
 
