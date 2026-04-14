@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, AlignBottom } from 'lucide-react';
+import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom } from 'lucide-react';
 import { InvoiceSettings, TemplateLayout, LogoPosition, LogoSize } from '@/types/invoice';
 
 interface Props {
@@ -85,7 +85,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
           { id: 'colors',   icon: <Palette size={15} />,        label: 'Colores' },
           { id: 'font',     icon: <Type size={15} />,           label: 'Fuente' },
           { id: 'logo',     icon: <ImageIcon size={15} />,      label: 'Logo' },
-          { id: 'footer',   icon: <AlignBottom size={15} />,    label: 'Footer' },
+          { id: 'footer',   icon: <PanelBottom size={15} />,    label: 'Footer' },
         ] as const).map(tab => (
           <button
             key={tab.id}
