@@ -202,6 +202,96 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
     }
 }
 
+// --- ACTUALIZAR DOCUMENTO EXISTENTE (Cotización, Proforma, Factura) ---
+export async function actualizarDocumentoBuilder(id: string, data: any, lineItems: any[]) {
+    try {
+        const organizationId = await getOrganizationId();
+
+        // Verificar que el documento existe y pertenece a la organización
+        const docExistente = await prisma.factura.findFirst({
+            where: { id, organizationId }
+        });
+        if (!docExistente) throw new Error('Documento no encontrado o sin permisos.');
+        if (docExistente.estado === 'ANULADA') throw new Error('No se puede modificar un documento anulado.');
+
+        let clienteId = data.clienteId;
+        if (!clienteId && data.clienteNombre) {
+            const nuevoCliente = await prisma.cliente.create({
+                data: {
+                    organizationId,
+                    nombre: data.clienteNombre,
+                    rtn: data.rtn || null,
+                    telefono: data.telefono || null,
+                    email: data.email || null,
+                    direccion: data.direccion || null
+                }
+            });
+            clienteId = nuevoCliente.id;
+        }
+
+        if (!clienteId) throw new Error('Se requiere un cliente válido.');
+
+        const result = await prisma.$transaction(async (tx) => {
+            // Eliminar los detalles anteriores
+            await tx.detalleFactura.deleteMany({ where: { facturaId: id } });
+
+            // Actualizar la factura principal
+            const docActualizado = await tx.factura.update({
+                where: { id },
+                data: {
+                    clienteId,
+                    notas: data.notas || null,
+                    terminosPago: data.terminosPago || null,
+                    validezDias: Number(data.validezDias) || 30,
+                    subTotal: data.subTotal,
+                    descuentos: data.descuentos,
+                    totalExento: data.totalExento || 0,
+                    totalExonerado: data.totalExonerado || 0,
+                    totalGravado15: data.totalGravado15 || 0,
+                    isv15: data.isv15 || 0,
+                    totalGravado18: data.totalGravado18 || 0,
+                    isv18: data.isv18 || 0,
+                    total: data.total,
+                    templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : undefined,
+                    detalles: {
+                        create: lineItems.map((item) => {
+                            const basePrice = item.qty * item.unitPrice;
+                            const discountAmt = basePrice * ((item.discount || 0) / 100);
+                            const lineTotal = basePrice - discountAmt;
+                            return {
+                                descripcion: item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : ''),
+                                cantidad: item.qty,
+                                precioUnitario: item.unitPrice,
+                                porcentajeIsv: item.tax === 'isv15' ? 15 : 0,
+                                totalDescuento: discountAmt,
+                                totalLinea: lineTotal,
+                                productoId: item.productoId || null,
+                                activoId: item.activoId || null
+                            };
+                        })
+                    }
+                }
+            });
+
+            if (data.templateSettings) {
+                await tx.organization.update({
+                    where: { id: organizationId },
+                    data: { invoiceSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : null }
+                });
+            }
+
+            return docActualizado;
+        });
+
+        revalidatePath('/facturas');
+        return { success: true, docId: result.id, correlativo: result.correlativo };
+
+    } catch (error: any) {
+        console.error('Error al actualizar documento:', error);
+        return { success: false, error: error.message || 'Error al actualizar el documento' };
+    }
+}
+
 // --- GUARDAR DOCUMENTO DINÁMICO (Cotización, Proforma, Borrador, Factura) ---
 export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
     try {

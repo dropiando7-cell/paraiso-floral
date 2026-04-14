@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, Plus, CheckCircle2, Receipt, Send, Percent, Stethoscope } from 'lucide-react';
 import { TemplateProps } from './TemplateProps';
+import InvoiceFooter from './InvoiceFooter';
 
 export default function ClassicTemplate(props: TemplateProps) {
   const {
@@ -118,7 +119,7 @@ export default function ClassicTemplate(props: TemplateProps) {
               <div className="col-span-2">Código</div>
               <div className="col-span-3">Descripción</div>
               <div className="col-span-1 text-center print:text-left">Cant.</div>
-              <div className="col-span-2">Precio</div>
+              <div className="col-span-2 text-right">Precio</div>
               <div className="col-span-2">Desc.</div>
               <div className="col-span-1">Imp</div>
               <div className="col-span-1 text-right">Monto</div>
@@ -223,6 +224,10 @@ export default function ClassicTemplate(props: TemplateProps) {
               </div>
            </div>
         </div>
+
+        {/* Footer */}
+        <InvoiceFooter settings={settings} organization={organization} />
+
       </div>
     </div>
   );

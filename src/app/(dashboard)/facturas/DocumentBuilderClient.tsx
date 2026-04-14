@@ -53,7 +53,7 @@ interface Product {
   type: 'producto' | 'activo';
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder } from './actions';
 import { createContacto } from '../contactos/actions';
 import toast from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -468,84 +468,92 @@ function LineItemRow({
             {focusedField === 'desc' && !viewMode && renderDropdown()}
           </div>
 
-          {/* Qty */}
-          <div className="col-span-1">
-            <input
-              type="number"
-              min="1"
-              disabled={viewMode}
-              value={item.qty}
-              onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-              className="w-full text-xs text-center border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 print:text-center disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
-            />
-          </div>
-
-          {/* Unit Price */}
-          <div className="col-span-2">
-            <div className="relative">
-              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs print:hidden">L</span>
-              <span className="hidden print:inline absolute left-0 top-1/2 -translate-y-1/2 text-slate-800 text-xs font-semibold">L</span>
+          {/* Qty — centered horizontally and vertically */}
+          <div className="col-span-1 flex items-center justify-center">
+            {!viewMode ? (
               <input
                 type="number"
-                disabled={viewMode}
-                value={item.unitPrice}
-                onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                className="w-full text-xs pl-5 border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:border-transparent print:bg-transparent print:pl-3 print:py-0 print:text-slate-800 disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
+                min="1"
+                value={item.qty}
+                onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                className="w-full text-xs text-center border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden"
               />
-            </div>
+            ) : null}
+            <span className={`text-xs font-semibold text-slate-800 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+              {item.qty}
+            </span>
           </div>
 
-          {/* Discount */}
-          <div className="col-span-2">
+          {/* Unit Price — vertically centered, right-aligned */}
+          <div className="col-span-2 flex items-center justify-end">
             {!viewMode ? (
-              <div className="relative flex items-center border border-slate-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all print:hidden">
+              <div className="relative w-full print:hidden">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">L</span>
+                <input
+                  type="number"
+                  value={item.unitPrice}
+                  onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                  className="w-full text-xs text-right pl-5 pr-2 border border-slate-200 rounded-lg py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                />
+              </div>
+            ) : null}
+            <span className={`text-xs font-semibold text-slate-800 text-right font-mono ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+              {fmt(Number(item.unitPrice) || 0)}
+            </span>
+          </div>
+
+          {/* Discount — vertically centered, right-aligned */}
+          <div className="col-span-2 flex items-center justify-end">
+            {!viewMode ? (
+              <div className="relative flex items-center w-full border border-slate-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all print:hidden">
                 <input
                   type="number"
                   value={item.discount}
                   onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                  placeholder="Desc."
-                  className="w-full text-xs px-2 py-1.5 bg-transparent border-none focus:ring-0"
+                  placeholder="0"
+                  className="w-full text-xs text-right px-2 py-1.5 bg-transparent border-none focus:ring-0"
                 />
                 <select
                   value={item.discountType}
                   onChange={e => onChange(item.id, 'discountType', e.target.value)}
-                  className="text-xs font-semibold bg-slate-50 border-l border-slate-200 py-1.5 px-1 rounded-r-lg text-slate-600 focus:outline-none"
+                  className="text-xs font-semibold bg-slate-50 border-l border-slate-200 py-1.5 px-1 rounded-r-lg text-slate-600 focus:outline-none shrink-0"
                 >
                   <option value="percentage">%</option>
                   <option value="amount">L</option>
                 </select>
               </div>
-            ) : (
-               <div className="text-xs text-slate-800 font-semibold px-2 py-1.5 print:hidden">
-                  {Number(item.discount) > 0 ? (item.discountType === 'percentage' ? `${item.discount}%` : `L ${item.discount}`) : '-'}
-               </div>
-            )}
-            <div className="hidden print:block text-center text-xs font-semibold text-slate-800 mt-1">
-               {Number(item.discount) > 0 ? (item.discountType === 'percentage' ? `${item.discount}%` : `L. ${item.discount}`) : '-'}
-            </div>
+            ) : null}
+            <span className={`text-xs font-semibold text-slate-800 text-right ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+              {Number(item.discount) > 0
+                ? (item.discountType === 'percentage' ? `${item.discount}%` : fmt(Number(item.discount)))
+                : '-'}
+            </span>
           </div>
 
-          {/* Tax */}
-          <div className="col-span-1">
-            <select
-              value={item.tax}
-              onChange={e => onChange(item.id, 'tax', e.target.value as TaxType)}
-              className="w-full text-[10px] font-semibold border border-slate-200 rounded-lg px-1.5 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer print:border-transparent print:bg-transparent print:p-0 print:appearance-none print:text-slate-800"
-            >
-              <option value="isv15">ISV 15%</option>
-              <option value="isv18">ISV 18%</option>
-              <option value="exento">Exento</option>
-              <option value="exonerado">Exonerado</option>
-            </select>
+          {/* Tax — vertically centered, centered/right */}
+          <div className="col-span-1 flex items-center justify-center">
+            {!viewMode ? (
+              <select
+                value={item.tax}
+                onChange={e => onChange(item.id, 'tax', e.target.value as TaxType)}
+                className="w-full text-[10px] font-semibold border border-slate-200 rounded-lg px-1 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer print:hidden"
+              >
+                <option value="isv15">ISV 15%</option>
+                <option value="isv18">ISV 18%</option>
+                <option value="exento">Exento</option>
+                <option value="exonerado">Exonerado</option>
+              </select>
+            ) : null}
+            <span className={`text-[10px] font-semibold text-slate-700 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+              {item.tax === 'isv15' ? 'ISV 15%' : item.tax === 'isv18' ? 'ISV 18%' : item.tax === 'exento' ? 'Exento' : 'Exonerado'}
+            </span>
           </div>
 
-          {/* Subtotal */}
+          {/* Monto / Subtotal — vertically centered, right-aligned */}
           <div className="col-span-1 flex items-center justify-end">
-            <div className="text-right">
-              <p className="text-xs font-bold text-slate-800">{fmt(total)}</p>
-              {item.tax === 'isv15' && <p className="text-[10px] text-slate-400 hidden lg:block">ISV 15</p>}
-              {item.tax === 'isv18' && <p className="text-[10px] text-slate-400 hidden lg:block">ISV 18</p>}
-            </div>
+            <p className="text-xs font-bold text-slate-800 text-right font-mono">
+              {fmt(total)}
+            </p>
           </div>
         </div>
 
@@ -662,8 +670,9 @@ export default function DocumentBuilderClient({
     if (initialData) {
       setDocType(initialData.tipoDocumento.toLowerCase() as DocType);
       
-      // Si estamos clonando (editMode false pero hay datos), no usar el correlativo viejo
-      setDocNumber(editMode ? initialData.correlativo : '');
+      // Mostrar correlativo al editar o ver; solo borrar cuando sea un clon (nueva copia)
+      const isClone = !editMode && !viewMode;
+      setDocNumber(isClone ? '' : initialData.correlativo);
       
       setPaymentTerms(initialData.terminosPago || '30 días netos');
       setValidityDays(initialData.validezDias || 30);
@@ -729,8 +738,9 @@ export default function DocumentBuilderClient({
     }
   }, [initialData, viewMode]);
 
-  // Carregar catalogos iniciales y numeracion si es creacion
+    // Carregar catalogos iniciales y numeracion si es creacion
   useEffect(() => {
+    // Solo generar numéro automático si NO hay initialData (documento nuevo)
     if (!initialData) {
       const year = new Date().getFullYear();
       const randomSuffix = String(Math.floor(Math.random() * 90000) + 10000);
@@ -927,7 +937,6 @@ export default function DocumentBuilderClient({
     setIsSaving(true);
     try {
       const data = {
-        id: editMode && initialData ? initialData.id : undefined,
         clienteId: selectedClient.id,
         tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : docType === 'proforma' ? 'PROFORMA' : 'FACTURA',
         notas: notes,
@@ -945,7 +954,13 @@ export default function DocumentBuilderClient({
         templateSettings: settings
       };
       
-      const res = await guardarDocumentoBuilder(data, validItems);
+      let res;
+      // Si estamos en editMode y ya existe el documento, ACTUALIZAR en vez de crear
+      if (editMode && initialData?.id) {
+        res = await actualizarDocumentoBuilder(initialData.id, data, validItems);
+      } else {
+        res = await guardarDocumentoBuilder(data, validItems);
+      }
       if (res.success) {
         setShowSuccessModal({ 
           show: true, 

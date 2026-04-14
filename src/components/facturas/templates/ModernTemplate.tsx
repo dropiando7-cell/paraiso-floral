@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, Plus, CheckCircle2, Receipt, Send, Sparkles, Copy, Printer, Mail, Percent, Stethoscope } from 'lucide-react';
 import { TemplateProps } from './TemplateProps';
+import InvoiceFooter from './InvoiceFooter';
 
 export default function ModernTemplate(props: TemplateProps) {
   const {
@@ -142,7 +143,7 @@ export default function ModernTemplate(props: TemplateProps) {
               <div className="col-span-2">Código</div>
               <div className="col-span-3">Descripción</div>
               <div className="col-span-1 text-center print:text-left">Cant.</div>
-              <div className="col-span-2">P. Unitario</div>
+              <div className="col-span-2 text-right">P. Unitario</div>
               <div className="col-span-2">Descuento</div>
               <div className="col-span-1">Impuesto</div>
               <div className="col-span-1 text-right">Subtotal</div>
@@ -277,6 +278,9 @@ export default function ModernTemplate(props: TemplateProps) {
           </div>
         </div>
       </div>
+
+      {/* Footer */}
+      <InvoiceFooter settings={settings} organization={organization} />
 
     </div>
   );

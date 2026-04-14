@@ -8,6 +8,14 @@ export interface InvoiceSettings {
   fontFamily: string;
   logoPosition: LogoPosition;
   logoSize: LogoSize;
+  // Footer customization
+  footerTelefono: string;
+  footerCorreo: string;
+  footerWeb: string;
+  footerRtn: string;
+  footerDireccion: string;
+  footerNota: string;
+  footerMostrarPagina: boolean;
 }
 
 export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
@@ -15,5 +23,13 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   colorTheme: 'blue-600',
   fontFamily: 'font-sans',
   logoPosition: 'left',
-  logoSize: 'medium'
+  logoSize: 'medium',
+  // Footer — pre-filled with BEA data
+  footerTelefono: '+504 2552-0491',
+  footerCorreo: 'bioelectronicaa_a@yahoo.com, ventas@bioelectronicahn.com',
+  footerWeb: 'www.bioelectronicahn.com',
+  footerRtn: '05019006480563',
+  footerDireccion: '7 calle, 9 avenida NO, esquina opuesta a mercado Guamilito, San Pedro Sula, Cortés, Honduras.',
+  footerNota: '',
+  footerMostrarPagina: true,
 };

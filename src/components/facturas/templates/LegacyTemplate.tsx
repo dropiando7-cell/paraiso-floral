@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, Plus } from 'lucide-react';
 import { TemplateProps } from './TemplateProps';
+import InvoiceFooter from './InvoiceFooter';
 
 export default function LegacyTemplate(props: TemplateProps) {
   const {
@@ -211,16 +212,11 @@ export default function LegacyTemplate(props: TemplateProps) {
         <div className="flex-1" />
 
         {/* Footer */}
-        <div className={`border-t-2 ${theme.border} mt-16 pt-4 text-center print:fixed print:bottom-0 print:left-0 print:w-full print:bg-white print:border-t-2 print:border-black print:pb-0 print:px-12`}>
-           <div className="text-[11px] text-gray-700 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-              <span>{organization?.telefono ? `Tel.: ${organization.telefono}` : 'Tel.: (+504)'}</span>
-              <span>•</span>
-              <span>{organization?.correoContacto ? `Correo: ${organization.correoContacto}` : 'Correo: ventas@bioelectronicahn.com'}</span>
-              <span>•</span>
-              <span>{organization?.rtn ? `R.T.N.: ${organization.rtn}` : 'R.T.N.: 05019006480563'}</span>
-           </div>
-           <div className="text-[10px] text-gray-500 mt-2">Página: 1/1</div>
-        </div>
+        <InvoiceFooter
+          settings={settings}
+          organization={organization}
+          className="print:fixed print:bottom-0 print:left-0 print:w-full print:bg-white print:px-12 print:pb-1"
+        />
 
       </div>
     </div>
