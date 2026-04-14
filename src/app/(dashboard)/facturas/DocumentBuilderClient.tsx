@@ -502,8 +502,8 @@ function LineItemRow({
             </span>
           </div>
 
-          {/* Discount — vertically centered, right-aligned */}
-          <div className="col-span-2 flex items-center justify-end">
+          {/* Discount — vertically centered, right-aligned — col-span-1 (compact) */}
+          <div className="col-span-1 flex items-center justify-end">
             {!viewMode ? (
               <div className="relative flex items-center w-full border border-slate-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all print:hidden">
                 <input
@@ -511,12 +511,12 @@ function LineItemRow({
                   value={item.discount}
                   onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
                   placeholder="0"
-                  className="w-full text-xs text-right px-2 py-1.5 bg-transparent border-none focus:ring-0"
+                  className="w-full text-xs text-right px-1.5 py-1.5 bg-transparent border-none focus:ring-0 min-w-0"
                 />
                 <select
                   value={item.discountType}
                   onChange={e => onChange(item.id, 'discountType', e.target.value)}
-                  className="text-xs font-semibold bg-slate-50 border-l border-slate-200 py-1.5 px-1 rounded-r-lg text-slate-600 focus:outline-none shrink-0"
+                  className="text-[10px] font-semibold bg-slate-50 border-l border-slate-200 py-1.5 px-0.5 rounded-r-lg text-slate-600 focus:outline-none shrink-0"
                 >
                   <option value="percentage">%</option>
                   <option value="amount">L</option>
@@ -530,8 +530,8 @@ function LineItemRow({
             </span>
           </div>
 
-          {/* Tax — vertically centered, centered/right */}
-          <div className="col-span-1 flex items-center justify-center">
+          {/* Tax — vertically centered, centered — col-span-2 (needs room for ISV 15%) */}
+          <div className="col-span-2 flex items-center justify-center">
             {!viewMode ? (
               <select
                 value={item.tax}

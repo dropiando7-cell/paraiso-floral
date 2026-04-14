@@ -120,8 +120,8 @@ export default function ClassicTemplate(props: TemplateProps) {
               <div className="col-span-3">Descripción</div>
               <div className="col-span-1 text-center print:text-left">Cant.</div>
               <div className="col-span-2 text-right">Precio</div>
-              <div className="col-span-2">Desc.</div>
-              <div className="col-span-1">Imp</div>
+              <div className="col-span-1 text-right">Desc.</div>
+              <div className="col-span-2 text-center">Imp</div>
               <div className="col-span-1 text-right">Monto</div>
             </div>
             <div className="w-6 shrink-0 print:hidden" />

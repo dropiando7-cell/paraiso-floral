@@ -144,8 +144,8 @@ export default function ModernTemplate(props: TemplateProps) {
               <div className="col-span-3">Descripción</div>
               <div className="col-span-1 text-center print:text-left">Cant.</div>
               <div className="col-span-2 text-right">P. Unitario</div>
-              <div className="col-span-2">Descuento</div>
-              <div className="col-span-1">Impuesto</div>
+              <div className="col-span-1 text-right">Descuento</div>
+              <div className="col-span-2 text-center">Impuesto</div>
               <div className="col-span-1 text-right">Subtotal</div>
             </div>
             <div className="w-6 shrink-0 print:hidden" />
