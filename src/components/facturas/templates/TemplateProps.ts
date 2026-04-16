@@ -5,6 +5,7 @@ export interface TemplateProps {
   settings: InvoiceSettings;
   organization: any;
   docNumber: string;
+  nombreUsuario?: string;
   docType: string;
   currentDocType: { label: string; icon: React.ReactNode; color: string; bg: string; description: string };
   docTypeStatusConfig: Record<string, { badge: string; label: string }>;

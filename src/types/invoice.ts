@@ -16,6 +16,10 @@ export interface InvoiceSettings {
   footerDireccion: string;
   footerNota: string;
   footerMostrarPagina: boolean;
+  // Table display options
+  showProductImages: boolean;
+  productImagePosition?: 'firstColumn' | 'afterCode';
+  showTableBorders: boolean;
 }
 
 export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
@@ -32,4 +36,8 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   footerDireccion: '7 calle, 9 avenida NO, esquina opuesta a mercado Guamilito, San Pedro Sula, Cortés, Honduras.',
   footerNota: '',
   footerMostrarPagina: true,
+  // Table display options
+  showProductImages: true,
+  productImagePosition: 'afterCode',
+  showTableBorders: false,
 };

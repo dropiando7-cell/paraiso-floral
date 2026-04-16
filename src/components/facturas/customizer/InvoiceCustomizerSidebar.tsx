@@ -127,8 +127,73 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                 </button>
               ))}
             </div>
+            
+            <div className="pt-4 border-t border-slate-200 mt-6 space-y-3">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Opciones de Tabla</h3>
+              <div className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Imágenes de Producto</p>
+                    <p className="text-[10px] text-slate-400">Mostrar columna de imagen</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('showProductImages', !settings.showProductImages)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.showProductImages ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.showProductImages ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+                
+                {settings.showProductImages && (
+                  <div className="pt-2 border-t border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Ubicación de la Imagen</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => onChange('productImagePosition', 'firstColumn')}
+                        className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                          settings.productImagePosition === 'firstColumn' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100'
+                        }`}
+                      >
+                        Primera columna
+                      </button>
+                      <button
+                        onClick={() => onChange('productImagePosition', 'afterCode')}
+                        className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                          (!settings.productImagePosition || settings.productImagePosition === 'afterCode') ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100'
+                        }`}
+                      >
+                        Después del código
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
+                <div>
+                  <p className="text-xs font-bold text-slate-700">Bordes de Tabla</p>
+                  <p className="text-[10px] text-slate-400">Mostrar separadores de renglón</p>
+                </div>
+                <button
+                  onClick={() => onChange('showTableBorders', !settings.showTableBorders)}
+                  className={`w-10 h-5 rounded-full transition-all relative ${
+                    settings.showTableBorders ? 'bg-blue-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                    settings.showTableBorders ? 'left-5' : 'left-0.5'
+                  }`} />
+                </button>
+              </div>
+            </div>
+            
           </div>
         )}
+
 
         {/* ── COLORS ── */}
         {activeTab === 'colors' && (

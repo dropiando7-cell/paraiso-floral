@@ -27,7 +27,7 @@ export default function InvoiceFooter({ settings, organization, className = '' }
   if (!hasContent && !showPage) return null;
 
   return (
-    <div className={`border-t border-slate-300 pt-3 mt-6 print:mt-4 ${className}`}>
+    <div className={`border-t border-slate-300 pt-2 mt-6 print:mt-0 print:mb-0 print:pb-0 ${className}`}>
       {/* Main info row */}
       {hasContent && (
         <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] text-slate-600">
@@ -43,17 +43,17 @@ export default function InvoiceFooter({ settings, organization, className = '' }
 
       {/* Dirección */}
       {direccion && (
-        <p className="text-[10px] text-slate-500 text-center mt-1 leading-snug">{direccion}</p>
+        <p className="text-[10px] text-slate-500 text-center mt-1 leading-tight">{direccion}</p>
       )}
 
       {/* Nota adicional */}
       {nota && (
-        <p className="text-[10px] text-slate-500 text-center mt-1 italic leading-snug">{nota}</p>
+        <p className="text-[10px] text-slate-500 text-center mt-1 italic leading-tight">{nota}</p>
       )}
 
       {/* Número de página */}
       {showPage && (
-        <p className="text-[10px] text-slate-400 text-center mt-2">Página: 1/1</p>
+        <p className="text-[10px] text-slate-400 text-center mt-1">Página: 1/1</p>
       )}
     </div>
   );

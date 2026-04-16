@@ -163,6 +163,9 @@ export default function DocumentListTable({ data, type }: Props) {
                     <Link href={`/facturas/ver/${doc.id}?print=true`} title="Imprimir Documento" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Printer size={16} />
                     </Link>
+                    <Link href={`/facturas/ver/${doc.id}?download=true`} title="Descargar PDF" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors">
+                      <Download size={16} />
+                    </Link>
                     <Link href={`/facturas/${doc.id}`} title="Editar Documento" className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors">
                       <Pencil size={16} />
                     </Link>

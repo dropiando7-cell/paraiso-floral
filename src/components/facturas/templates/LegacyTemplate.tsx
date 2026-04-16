@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
@@ -10,7 +10,7 @@ export default function LegacyTemplate(props: TemplateProps) {
     validityDays, lineItems, handleLineChange, handleDeleteLine,
     handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
     notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent,
-    setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms
+    setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode
   } = props;
 
   const colorMap: Record<string, { bgDark: string, border: string, text: string }> = {
@@ -23,12 +23,13 @@ export default function LegacyTemplate(props: TemplateProps) {
   const theme = colorMap[settings.colorTheme] || colorMap['slate-800'];
   const fontClass = settings.fontFamily || 'font-sans';
   
-  // Format dates simply
-  const getCurrentTime = () => {
-     const now = new Date();
-     return now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  };
-  const currentDateStr = `${today.split('-').reverse().join('/')} ${getCurrentTime()}`;
+  // Use state for the date string to avoid SSR/client hydration mismatch
+  const [currentDateStr, setCurrentDateStr] = useState(today.split('-').reverse().join('/'));
+  useEffect(() => {
+    const now = new Date();
+    const time = now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setCurrentDateStr(`${today.split('-').reverse().join('/')} ${time}`);
+  }, [today]);
 
   return (
     <div className={`flex flex-col min-h-screen space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
@@ -86,7 +87,7 @@ export default function LegacyTemplate(props: TemplateProps) {
            
            <div className="flex flex-col px-4">
               <span className="font-bold">Comercial:</span>
-              <span className="text-gray-600 mt-1">Administrador (BEA)</span>
+              <span className="text-gray-600 mt-1">{props.nombreUsuario || 'Administrador (BEA)'}</span>
            </div>
            
            <div className="flex flex-col">
@@ -110,6 +111,7 @@ export default function LegacyTemplate(props: TemplateProps) {
         <div className={`mb-8 border-t ${theme.border}`}>
            <div className={`flex items-center gap-2 px-2 border-b-2 ${theme.border} pb-2 bg-gray-100 pt-2 print:px-0`}>
             <div className="w-4 shrink-0 print:hidden" />
+            {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
             <div className={`flex-1 grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-800`}>
               <div className="col-span-2">Código</div>
               <div className="col-span-3">Descripción</div>
@@ -132,6 +134,8 @@ export default function LegacyTemplate(props: TemplateProps) {
                 onDelete={handleDeleteLine}
                 onToggleLongDesc={handleToggleLongDesc}
                 allProducts={allProducts}
+                viewMode={viewMode}
+                settings={settings}
               />
             ))}
           </div>

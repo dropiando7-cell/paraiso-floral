@@ -9,7 +9,7 @@ export default function ClassicTemplate(props: TemplateProps) {
     today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
     validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine,
     handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
-    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent
+    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode
   } = props;
 
   const fontClass = settings.fontFamily || 'font-serif';
@@ -115,6 +115,7 @@ export default function ClassicTemplate(props: TemplateProps) {
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-2 px-2 border-b-2 border-slate-800 pb-2 print:px-0">
             <div className="w-4 shrink-0 print:hidden" />
+            {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
             <div className={`flex-1 grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-widest ${baseColor}`}>
               <div className="col-span-2">Código</div>
               <div className="col-span-3">Descripción</div>
@@ -137,6 +138,8 @@ export default function ClassicTemplate(props: TemplateProps) {
                 onDelete={handleDeleteLine}
                 onToggleLongDesc={handleToggleLongDesc}
                 allProducts={allProducts}
+                viewMode={viewMode}
+                settings={settings}
               />
             ))}
           </div>

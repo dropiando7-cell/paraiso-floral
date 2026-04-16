@@ -9,7 +9,7 @@ export default function ModernTemplate(props: TemplateProps) {
     today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
     validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine,
     handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
-    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent
+    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode, nombreUsuario
   } = props;
 
   // Derive dynamic classes from settings
@@ -139,6 +139,7 @@ export default function ModernTemplate(props: TemplateProps) {
           {/* Column headers */}
           <div className="flex items-center gap-2 mb-3 px-3 print:px-0 print:mb-2">
             <div className="w-4 shrink-0 print:hidden" />
+            {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
             <div className="flex-1 grid grid-cols-12 gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
               <div className="col-span-2">Código</div>
               <div className="col-span-3">Descripción</div>
@@ -162,6 +163,8 @@ export default function ModernTemplate(props: TemplateProps) {
                 onDelete={handleDeleteLine}
                 onToggleLongDesc={handleToggleLongDesc}
                 allProducts={allProducts}
+                viewMode={viewMode}
+                settings={settings}
               />
             ))}
           </div>

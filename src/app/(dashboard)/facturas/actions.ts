@@ -4,16 +4,30 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
 
-// Helper for Auth
-export async function getOrganizationId() {
+// Helper for Auth — returns full user object with nombre+apellido
+export async function getAuthenticatedUser() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("No autenticado");
 
-    const dbUser = await prisma.user.findUnique({ where: { email: user.email }});
+    const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
     if (!dbUser) throw new Error("Usuario no encontrado");
 
-    return dbUser.organizationId;
+    // Build full name from nombre+apellido; fallback to email prefix
+    const fullName = [dbUser.nombre, dbUser.apellido].filter(Boolean).join(' ') || user.email?.split('@')[0] || 'Usuario';
+
+    return { ...dbUser, fullName };
+}
+
+// Helper for Auth — organizationId only (backward compat)
+export async function getOrganizationId() {
+    const u = await getAuthenticatedUser();
+    return u.organizationId;
+}
+
+// Format correlativo as SO + 8-digit padded number
+function formatCorrelativo(numeroInterno: number): string {
+    return `SO${String(numeroInterno).padStart(8, '0')}`;
 }
 
 // --- CLIENTES ---
@@ -78,7 +92,8 @@ export async function searchProductos(query: string = "") {
             costoBase: formatDecimal(p.costoBase),
             marca: p.marca,
             stockActual: p.stockActual,
-            type: 'producto'
+            type: 'producto',
+            imageUrl: undefined
         }));
 
         const unifiedActivos = activos.map(a => ({
@@ -90,7 +105,8 @@ export async function searchProductos(query: string = "") {
             costoBase: formatDecimal(a.costoAdq || 0),
             marca: a.marca || a.area || 'Activo Fijo',
             stockActual: a.stock || 1,
-            type: 'activo'
+            type: 'activo',
+            imageUrl: a.imagenUrl || undefined
         }));
 
         return [...unifiedProductos, ...unifiedActivos];
@@ -252,6 +268,8 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     totalGravado18: data.totalGravado18 || 0,
                     isv18: data.isv18 || 0,
                     total: data.total,
+                    estado: 'EMITIDA', // Change state to EMITIDA officially
+                    tipoDocumento: data.tipoDocumento || docExistente.tipoDocumento,
                     templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : undefined,
                     detalles: {
                         create: lineItems.map((item) => {
@@ -273,6 +291,34 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                 }
             });
 
+            // Descontar inventario (sólo si no lo estaba ya)
+            const debeDescontarInventario = (data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'PROFORMA');
+            if (docExistente.estado === 'BORRADOR' && debeDescontarInventario) {
+                for (const item of lineItems) {
+                    if (item.productoId) {
+                        const prod = await tx.producto.findUnique({ where: { id: item.productoId } });
+                        const esServicio = prod?.esServicio === true || prod?.stockActual === 9999;
+                        if (!esServicio) {
+                            await tx.producto.update({
+                                where: { id: item.productoId },
+                                data: { stockActual: { decrement: Number(item.qty) } }
+                            });
+                        }
+                    }
+                    if (item.activoId) {
+                        await tx.activoFijo.update({
+                            where: { id: item.activoId },
+                            data: { estatusContable: 'VENDIDO/ENTREGADO' }
+                        });
+                    }
+                }
+                // Mark inventory deducted
+                await tx.factura.update({
+                    where: { id },
+                    data: { inventarioDescontado: true }
+                });
+            }
+
             if (data.templateSettings) {
                 await tx.organization.update({
                     where: { id: organizationId },
@@ -292,10 +338,13 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
     }
 }
 
-// --- GUARDAR DOCUMENTO DINÁMICO (Cotización, Proforma, Borrador, Factura) ---
+
+
+// --- GUARDAR DOCUMENTO DINÁMICO (Cotización, Proforma, Factura) ---
 export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
     try {
-        const organizationId = await getOrganizationId();
+        const authUser = await getAuthenticatedUser();
+        const { organizationId, id: creadoPorId, fullName: nombreUsuario } = authUser;
 
         let clienteId = data.clienteId;
         if (!clienteId && data.clienteNombre) {
@@ -314,44 +363,21 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
 
         if (!clienteId) throw new Error("Se requiere un cliente válido.");
 
-        // Generar Correlativo según el Tipo de Documento
-        let correlativoFinal = data.correlativo || "";
-        
-        if (data.tipoDocumento === 'FACTURA') {
-            // Generar correlativo oficial si no viene
-            const ultimaFactura = await prisma.factura.findFirst({
-                where: { organizationId, tipoDocumento: 'FACTURA', estado: { not: 'BORRADOR'} },
-                orderBy: { numeroInterno: 'desc' }
-            });
-            const nextNumber = ultimaFactura ? ultimaFactura.numeroInterno + 1 : 1;
-            correlativoFinal = `000-001-01-${nextNumber.toString().padStart(8, '0')}`;
-        } else {
-            // Cotización o Proforma o Borrador
-            const prefix = data.tipoDocumento === 'COTIZACION' ? 'COT' : data.tipoDocumento === 'PROFORMA' ? 'PROF' : 'BOR';
-            const year = new Date().getFullYear();
-            // Buscar la ultima para este prefijo (basado en numero Interno igual, porque es autoincremental, el numero no choca si le ponemos el string correcto)
-            const ultimoDoc = await prisma.factura.findFirst({
-                where: { organizationId, tipoDocumento: data.tipoDocumento },
-                orderBy: { numeroInterno: 'desc' }
-            });
-            const nextNumber = ultimoDoc ? ultimoDoc.numeroInterno + 1 : 1;
-            correlativoFinal = `${prefix}-${year}-${nextNumber.toString().padStart(4, '0')}`;
-        }
+        // Descuenta inventario: FACTURA y PROFORMA sí, COTIZACION no
+        const debeDescontarInventario = data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'PROFORMA';
 
         const result = await prisma.$transaction(async (tx) => {
+            // Crear el documento — el correlativo se genera DESPUÉS del create (usa numeroInterno auto)
             const nuevoDoc = await tx.factura.create({
                 data: {
                     organizationId,
                     clienteId,
-                    correlativo: correlativoFinal,
-                    numeroCAI: data.numeroCAI || null,
-                    rangoAutorizado: data.rangoAutorizado || null,
-                    tipoDocumento: data.tipoDocumento, // 'COTIZACION', 'FACTURA', 'PROFORMA', 'BORRADOR'
-                    estado: data.tipoDocumento === 'FACTURA' ? 'EMITIDA' : 'EMITIDA',
+                    correlativo: 'TEMP', // Temporal — se actualiza abajo con el numeroInterno real
+                    tipoDocumento: data.tipoDocumento,
+                    estado: 'EMITIDA',
                     notas: data.notas || null,
                     terminosPago: data.terminosPago || null,
                     validezDias: Number(data.validezDias) || 30,
-                    
                     subTotal: data.subTotal,
                     descuentos: data.descuentos,
                     totalExento: data.totalExento || 0,
@@ -362,17 +388,22 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     isv18: data.isv18 || 0,
                     total: data.total,
                     templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : null,
-                    
+                    creadoPorId,
+                    nombreUsuario,
+                    inventarioDescontado: debeDescontarInventario,
                     detalles: {
                         create: lineItems.map((item) => {
-                            const basePrice = item.qty * item.unitPrice;
-                            const discountAmt = basePrice * ((item.discount || 0) / 100);
+                            const basePrice = Number(item.qty) * Number(item.unitPrice);
+                            const discountAmt = item.discountType === 'amount'
+                                ? Number(item.discount) || 0
+                                : basePrice * ((Number(item.discount) || 0) / 100);
                             const lineTotal = basePrice - discountAmt;
                             return {
                                 descripcion: item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : ''),
-                                cantidad: item.qty,
-                                precioUnitario: item.unitPrice,
-                                porcentajeIsv: item.tax === 'isv15' ? 15 : 0,
+                                descripcionEnriquecida: item.richDesc || null,
+                                cantidad: Number(item.qty),
+                                precioUnitario: Number(item.unitPrice),
+                                porcentajeIsv: item.tax === 'isv15' ? 15 : item.tax === 'isv18' ? 18 : 0,
                                 totalDescuento: discountAmt,
                                 totalLinea: lineTotal,
                                 productoId: item.productoId || null,
@@ -383,14 +414,26 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                 }
             });
 
-            // Si es FACTURA oficial, entonces descontar inventario
-            if (data.tipoDocumento === 'FACTURA') {
+            // Ahora que tenemos numeroInterno, generar correlativo SO real y actualizar
+            const correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno);
+            const docFinal = await tx.factura.update({
+                where: { id: nuevoDoc.id },
+                data: { correlativo: correlativoFinal }
+            });
+
+            // Descontar inventario (FACTURA y PROFORMA, no servicios)
+            if (debeDescontarInventario) {
                 for (const item of lineItems) {
                     if (item.productoId) {
-                        await tx.producto.update({
-                            where: { id: item.productoId },
-                            data: { stockActual: { decrement: item.qty } }
-                        });
+                        // Verificar si es servicio (esServicio=true o stockActual=9999)
+                        const prod = await tx.producto.findUnique({ where: { id: item.productoId } });
+                        const esServicio = prod?.esServicio === true || prod?.stockActual === 9999;
+                        if (!esServicio) {
+                            await tx.producto.update({
+                                where: { id: item.productoId },
+                                data: { stockActual: { decrement: Number(item.qty) } }
+                            });
+                        }
                     }
                     if (item.activoId) {
                         await tx.activoFijo.update({
@@ -404,11 +447,11 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
             if (data.templateSettings) {
                 await tx.organization.update({
                     where: { id: organizationId },
-                    data: { invoiceSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : null }
+                    data: { invoiceSettings: JSON.parse(JSON.stringify(data.templateSettings)) }
                 });
             }
 
-            return nuevoDoc;
+            return docFinal;
         });
 
         revalidatePath('/facturas');
@@ -421,6 +464,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
 }
 
 // --- BÚSQUEDA RÁPIDA DE ITEM POR CÓDIGO (Producto o Activo Fijo) ---
+
 export async function buscarItemPorCodigo(codigo: string) {
     if (!codigo || codigo.trim() === '') return null;
     try {
@@ -443,7 +487,8 @@ export async function buscarItemPorCodigo(codigo: string) {
                 type: 'producto',
                 name: producto.nombre,
                 description: producto.descripcion || '',
-                price: Number(producto.precioVenta) || 0
+                price: Number(producto.precioVenta) || 0,
+                imageUrl: undefined
             };
         }
 
@@ -463,7 +508,8 @@ export async function buscarItemPorCodigo(codigo: string) {
                 type: 'activo',
                 name: activo.descripcionCorta,
                 description: activo.descripcionDetallada || `Serie: ${activo.serie || 'N/A'} - Modelo: ${activo.modelo || 'N/A'}`,
-                price: activo.producto && activo.producto.precioVenta ? Number(activo.producto.precioVenta) : (Number(activo.costoAdq) || 0)
+                price: activo.producto && activo.producto.precioVenta ? Number(activo.producto.precioVenta) : (Number(activo.costoAdq) || 0),
+                imageUrl: activo.imagenUrl || undefined
             };
         }
 
@@ -587,5 +633,122 @@ export async function anularDocumento(id: string) {
     } catch (e: any) {
         console.error("Error anulando documento:", e);
         return { success: false, error: e.message || "Error al anular" };
+    }
+}
+
+// --- CONVERTIR DOCUMENTO (Cotización → ProForma → Factura Oficial) ---
+export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FACTURA') {
+    try {
+        const authUser = await getAuthenticatedUser();
+        const { organizationId } = authUser;
+
+        const doc = await prisma.factura.findFirst({
+            where: { id, organizationId },
+            include: { detalles: true }
+        });
+
+        if (!doc) throw new Error('Documento no encontrado.');
+        if (doc.estado === 'ANULADA') throw new Error('No se puede convertir un documento anulado.');
+
+        // Validar flujo: COTIZACION→PROFORMA o PROFORMA→FACTURA (no saltar pasos, y no FACTURA→otro)
+        const flujoValido =
+            (doc.tipoDocumento === 'COTIZACION' && nuevoTipo === 'PROFORMA') ||
+            (doc.tipoDocumento === 'PROFORMA' && nuevoTipo === 'FACTURA') ||
+            (doc.tipoDocumento === 'COTIZACION' && nuevoTipo === 'FACTURA'); // directo también permitido
+        if (!flujoValido) throw new Error(`No se puede convertir ${doc.tipoDocumento} a ${nuevoTipo}.`);
+
+        // ¿Hay que descontar inventario ahora? Solo si no se descontó antes y el nuevo tipo lo requiere
+        const debeDescontar = !doc.inventarioDescontado && (nuevoTipo === 'PROFORMA' || nuevoTipo === 'FACTURA');
+
+        await prisma.$transaction(async (tx) => {
+            // Actualizar tipo, marcar tipoOriginal en la primera conversión
+            await tx.factura.update({
+                where: { id },
+                data: {
+                    tipoDocumento: nuevoTipo,
+                    tipoOriginal: doc.tipoOriginal || doc.tipoDocumento, // Solo primera vez
+                    convertidoAt: new Date(),
+                    inventarioDescontado: doc.inventarioDescontado || debeDescontar,
+                }
+            });
+
+            // Descontar inventario si aplica
+            if (debeDescontar) {
+                for (const detalle of doc.detalles) {
+                    if (detalle.productoId) {
+                        const prod = await tx.producto.findUnique({ where: { id: detalle.productoId } });
+                        const esServicio = prod?.esServicio === true || prod?.stockActual === 9999;
+                        if (!esServicio) {
+                            await tx.producto.update({
+                                where: { id: detalle.productoId },
+                                data: { stockActual: { decrement: detalle.cantidad } }
+                            });
+                        }
+                    }
+                    if (detalle.activoId) {
+                        await tx.activoFijo.update({
+                            where: { id: detalle.activoId },
+                            data: { estatusContable: 'VENDIDO/ENTREGADO' }
+                        });
+                    }
+                }
+            }
+        });
+
+        revalidatePath('/facturas');
+        return { success: true, nuevoTipo };
+    } catch (e: any) {
+        console.error("Error convirtiendo documento:", e);
+        return { success: false, error: e.message || "Error al convertir" };
+    }
+}
+
+
+// --- RESERVAR CORRELATIVO VACIO ---
+export async function reservarCorrelativoVacio(tipoDocumento: string) {
+    try {
+        const authUser = await getAuthenticatedUser();
+        const { organizationId, id: creadoPorId, fullName: nombreUsuario } = authUser;
+
+        let dummyClient = await prisma.cliente.findFirst({
+            where: { organizationId, nombre: 'Borrador Temporal' }
+        });
+        if (!dummyClient) {
+            dummyClient = await prisma.cliente.create({
+                data: {
+                    organizationId,
+                    nombre: 'Borrador Temporal',
+                    notas: 'Cliente genérico para reservar secuencias de facturas en progreso.'
+                }
+            });
+        }
+
+        const result = await prisma.$transaction(async (tx) => {
+            const nuevoDoc = await tx.factura.create({
+                data: {
+                    organizationId,
+                    clienteId: dummyClient.id,
+                    correlativo: 'TEMP', 
+                    tipoDocumento: tipoDocumento,
+                    estado: 'BORRADOR',
+                    creadoPorId,
+                    nombreUsuario
+                }
+            });
+
+            const correlativoFinal = `SO${String(nuevoDoc.numeroInterno).padStart(8, '0')}`;
+            const docFinal = await tx.factura.update({
+                where: { id: nuevoDoc.id },
+                data: { correlativo: correlativoFinal }
+            });
+
+            return docFinal;
+        });
+
+        // revalidatePath('/facturas'); // We might not want to revalidate if they didn't finish it
+        return { success: true, docId: result.id, correlativo: result.correlativo };
+    } catch (error: any) {
+        console.error("Error al reservar correlativo:", error);
+        return { success: false, error: 'Incapaz de reservar correlativo: ' + error.message };
     }
 }

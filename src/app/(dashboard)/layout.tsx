@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { ToasterProvider } from "./ToasterProvider";
 
 export default async function AuthenticatedLayout({
     children,
@@ -38,6 +39,7 @@ export default async function AuthenticatedLayout({
 
     return (
         <DashboardLayout dbUser={combinedUser}>
+            <ToasterProvider />
             {children}
         </DashboardLayout>
     );

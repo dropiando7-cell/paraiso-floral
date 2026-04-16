@@ -9,7 +9,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
     today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
     validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine,
     handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
-    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent
+    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode
   } = props;
 
   const fontClass = settings.fontFamily || 'font-sans';
@@ -104,6 +104,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
         <div className="mb-12">
           <div className="flex items-center gap-2 mb-3 px-2 border-b border-slate-100 pb-2 print:px-0">
             <div className="w-4 shrink-0 print:hidden" />
+            {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
             <div className={`flex-1 grid grid-cols-12 gap-2 text-[10px] uppercase font-semibold text-slate-400`}>
               <div className="col-span-2">Código</div>
               <div className="col-span-3">Descripción</div>
@@ -126,6 +127,8 @@ export default function MinimalistTemplate(props: TemplateProps) {
                 onDelete={handleDeleteLine}
                 onToggleLongDesc={handleToggleLongDesc}
                 allProducts={allProducts}
+                viewMode={viewMode}
+                settings={settings}
               />
             ))}
           </div>

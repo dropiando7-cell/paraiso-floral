@@ -56,6 +56,8 @@ model User {
   id                    String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email                 String                 @unique
   organizationId        String                 @db.Uuid
+  nombre                String?
+  apellido              String?
   role                  Role                   @default(USER)
   phoneNumber           String?
   twoFactorType         TwoFactorType          @default(NONE)
@@ -594,6 +596,10 @@ model Factura {
   anuladaPorId             String?          @db.Uuid
   anuladaPor               User?            @relation("AnuladaFacturas", fields: [anuladaPorId], references: [id])
   anuladaAt                DateTime?
+  nombreUsuario            String?
+  tipoOriginal             String?
+  convertidoAt             DateTime?
+  inventarioDescontado     Boolean          @default(false)
   detalles                 DetalleFactura[]
   cliente                  Cliente          @relation(fields: [clienteId], references: [id])
   organization             Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -613,8 +619,9 @@ model DetalleFactura {
   cantidad       Int
   precioUnitario Decimal     @db.Decimal(12, 2)
   porcentajeIsv  Int         @default(15)
-  totalDescuento Decimal     @default(0) @db.Decimal(12, 2)
-  totalLinea     Decimal     @db.Decimal(12, 2)
+  totalDescuento          Decimal     @default(0) @db.Decimal(12, 2)
+  totalLinea              Decimal     @db.Decimal(12, 2)
+  descripcionEnriquecida  String?
   activo         ActivoFijo? @relation(fields: [activoId], references: [id])
   factura        Factura     @relation(fields: [facturaId], references: [id], onDelete: Cascade)
   producto       Producto?   @relation(fields: [productoId], references: [id])
