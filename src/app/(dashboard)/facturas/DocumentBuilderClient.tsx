@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+// html2canvas and jspdf are imported dynamically inside handleDownloadPDF to avoid SSR issues
 import {
   Search, Plus, Trash2, ChevronDown, ChevronUp, GripVertical,
   User, Building2, FileText, Receipt, ClipboardList, Send,
@@ -20,6 +21,7 @@ interface LineItem {
   code: string;
   shortDesc: string;
   longDesc: string;
+  richDesc: string;
   showLongDesc: boolean;
   qty: number | string;
   unitPrice: number | string;
@@ -28,6 +30,7 @@ interface LineItem {
   discountType: 'percentage' | 'amount';
   productoId?: string;
   activoId?: string;
+  imageUrl?: string;
 }
 
 interface Client {
@@ -51,9 +54,10 @@ interface Product {
   stock: number;
   brand: string;
   type: 'producto' | 'activo';
+  imageUrl?: string;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio } from './actions';
 import { createContacto } from '../contactos/actions';
 import toast from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -63,6 +67,8 @@ import ClassicTemplate from '@/components/facturas/templates/ClassicTemplate';
 import MinimalistTemplate from '@/components/facturas/templates/MinimalistTemplate';
 import LegacyTemplate from '@/components/facturas/templates/LegacyTemplate';
 import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
+import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
+import { convertirDocumento } from './actions';
 
 
 
@@ -85,7 +91,7 @@ const futureDate = (days: number) => {
 };
 
 const emptyLine = (): LineItem => ({
-  id: uid(), code: '', shortDesc: '', longDesc: '', showLongDesc: false,
+  id: uid(), code: '', shortDesc: '', longDesc: '', richDesc: '', showLongDesc: false,
   qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage',
 });
 
@@ -217,7 +223,7 @@ function ProductSearchItem({ product, onAdd }: { product: Product; onAdd: (p: Pr
 }
 
 function LineItemRow({
-  item, index, onChange, onDelete, onToggleLongDesc, allProducts, viewMode
+  item, index, onChange, onDelete, onToggleLongDesc, allProducts, viewMode, settings
 }: {
   item: LineItem;
   index: number;
@@ -226,6 +232,7 @@ function LineItemRow({
   onToggleLongDesc: (id: string) => void;
   allProducts: Product[];
   viewMode?: boolean;
+  settings?: any;
 }) {
   const { base, tax, total } = calcLine(item);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
@@ -271,9 +278,22 @@ function LineItemRow({
     }
   }, [item.longDesc, item.showLongDesc]);
 
-  const handleSelectProduct = (product: Product) => {
+  const handleSelectProduct = async (product: Product) => {
     onChange(item.id, 'code', product.code);
     onChange(item.id, 'shortDesc', product.name);
+    
+    // Si la imagen ya viene en la data cacheada
+    if (product.imageUrl) {
+      onChange(item.id, 'imageUrl', product.imageUrl);
+    } else {
+      // Forzar recarga por si el caché no trajo la imagen (ej: recién subida)
+      try {
+        const res = await buscarItemPorCodigo(product.code);
+        if (res?.imageUrl) {
+          onChange(item.id, 'imageUrl', res.imageUrl);
+        }
+      } catch (e) {}
+    }
     
     if (!item.longDesc) onChange(item.id, 'longDesc', product.description);
     if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', product.price);
@@ -315,6 +335,7 @@ function LineItemRow({
               if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
               if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
               if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
+              if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
             }
           } catch(e) { console.error('Error in code lookup:', e); }
         }
@@ -366,21 +387,30 @@ function LineItemRow({
   return (
     <div className="group relative" ref={containerRef} data-line-id={item.id}>
       <div className={`
-        flex items-start gap-2 p-3 rounded-xl border transition-all duration-200
+        flex flex-col p-3 rounded-xl border transition-all duration-200
         ${Number(item.qty) > 0 && Number(item.unitPrice) > 0
           ? 'border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/20 hover:shadow-sm'
           : 'border-dashed border-slate-200 bg-slate-50/50'}
-        print:border-none print:p-0 print:bg-transparent print:my-1
+        ${settings?.showTableBorders ? 'print:border-b print:border-slate-300 print:rounded-none' : 'print:border-none'}
+        print:p-0 print:bg-transparent print:my-1
       `}>
+        <div className="flex items-start gap-2 w-full">
         {/* Drag handle + index */}
-        <div className="flex flex-col items-center gap-1 pt-1 shrink-0 print:hidden">
+        <div className="flex flex-col items-center justify-center h-[34px] shrink-0 print:hidden">
           {!viewMode && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab absolute -left-4 top-[10px]">
             <GripVertical size={14} className="text-slate-300" />
           </div>
           )}
           <span className="text-[10px] font-bold text-slate-300 w-4 text-center">{index + 1}</span>
         </div>
+
+        {/* First Column Image Position (if enabled) */}
+        {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && (
+          <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
+            {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
+          </div>
+        )}
 
         {/* Main fields */}
         <div className="flex-1 grid grid-cols-12 gap-2 min-w-0 relative">
@@ -410,25 +440,31 @@ function LineItemRow({
                         if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
                         if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
                         if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
+                        if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
                       }
                     } catch(e) { console.error('Error in onBlur search:', e); }
                   }
                 }, 200);
               }}
               placeholder="Código"
-              className="w-full text-xs font-mono border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
+              className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
             />
             {focusedField === 'code' && !viewMode && renderDropdown()}
           </div>
 
           {/* Description */}
-          <div className="col-span-3 relative">
+          <div className="col-span-3 relative flex gap-2 items-start">
+            {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && (
+              <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
+                {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
             {viewMode ? (
               <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">{item.shortDesc}</div>
             ) : (
-              <textarea
-                ref={shortDescRef}
-                rows={1}
+              <input
+                type="text"
                 value={item.shortDesc}
                 disabled={viewMode}
                 onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
@@ -439,32 +475,14 @@ function LineItemRow({
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="Descripción del producto o servicio"
-                className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 overflow-hidden resize-none print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
+                className="w-full h-[34px] text-xs border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
               />
             )}
             <div className="hidden print:block text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">
               {item.shortDesc}
             </div>
-            {item.showLongDesc && (
-              <>
-                {viewMode ? (
-                  <div className="text-xs text-slate-600 whitespace-pre-wrap mt-0.5 break-words">{item.longDesc}</div>
-                ) : (
-                  <textarea
-                    ref={longDescRef}
-                    value={item.longDesc}
-                    disabled={viewMode}
-                    onChange={e => onChange(item.id, 'longDesc', e.target.value)}
-                    placeholder="Descripción técnica detallada, especificaciones..."
-                    rows={3}
-                    className="mt-1.5 w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all overflow-hidden resize-none placeholder:text-slate-300 text-slate-600 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-600"
-                  />
-                )}
-                <div className="hidden print:block text-xs text-slate-600 whitespace-pre-wrap mt-0.5 break-words">
-                  {item.longDesc}
-                </div>
-              </>
-            )}
+
+            </div>
             {focusedField === 'desc' && !viewMode && renderDropdown()}
           </div>
 
@@ -476,7 +494,7 @@ function LineItemRow({
                 min="1"
                 value={item.qty}
                 onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                className="w-full text-xs text-center border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden"
+                className="w-full h-[34px] text-xs text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden"
               />
             ) : null}
             <span className={`text-xs font-semibold text-slate-800 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
@@ -493,7 +511,7 @@ function LineItemRow({
                   type="number"
                   value={item.unitPrice}
                   onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                  className="w-full text-xs text-right pl-5 pr-2 border border-slate-200 rounded-lg py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                  className="w-full h-[34px] text-xs text-right pl-5 pr-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
                 />
               </div>
             ) : null}
@@ -505,22 +523,20 @@ function LineItemRow({
           {/* Discount — vertically centered, right-aligned — col-span-1 (compact) */}
           <div className="col-span-1 flex items-center justify-end">
             {!viewMode ? (
-              <div className="relative flex items-center w-full border border-slate-200 rounded-lg bg-white focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-400 transition-all print:hidden">
+              <div className="relative w-full print:hidden">
                 <input
                   type="number"
                   value={item.discount}
                   onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
                   placeholder="0"
-                  className="w-full text-xs text-right px-1.5 py-1.5 bg-transparent border-none focus:ring-0 min-w-0"
+                  className="w-full h-[34px] text-xs text-right pr-6 pl-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
-                <select
-                  value={item.discountType}
-                  onChange={e => onChange(item.id, 'discountType', e.target.value)}
-                  className="text-[10px] font-semibold bg-slate-50 border-l border-slate-200 py-1.5 px-0.5 rounded-r-lg text-slate-600 focus:outline-none shrink-0"
-                >
-                  <option value="percentage">%</option>
-                  <option value="amount">L</option>
-                </select>
+                <button
+                  type="button"
+                  onClick={() => onChange(item.id, 'discountType', item.discountType === 'percentage' ? 'amount' : 'percentage')}
+                  title={item.discountType === 'percentage' ? 'Cambiar a monto (L)' : 'Cambiar a porcentaje (%)'}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer select-none w-4 text-center"
+                >{item.discountType === 'percentage' ? '%' : 'L'}</button>
               </div>
             ) : null}
             <span className={`text-xs font-semibold text-slate-800 text-right ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
@@ -536,7 +552,7 @@ function LineItemRow({
               <select
                 value={item.tax}
                 onChange={e => onChange(item.id, 'tax', e.target.value as TaxType)}
-                className="w-full text-[10px] font-semibold border border-slate-200 rounded-lg px-1 py-1.5 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer print:hidden"
+                className="w-auto h-[34px] text-[10px] font-semibold border border-slate-200 rounded-lg px-1 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer print:hidden"
               >
                 <option value="isv15">ISV 15%</option>
                 <option value="isv18">ISV 18%</option>
@@ -558,7 +574,7 @@ function LineItemRow({
         </div>
 
         {/* Actions */}
-        <div className="flex flex-col gap-1 shrink-0 pt-0.5 print:hidden">
+        <div className="flex flex-col gap-1 items-center justify-center shrink-0 h-[34px] print:hidden">
           <button
             onClick={() => onToggleLongDesc(item.id)}
             title="Descripción técnica"
@@ -573,6 +589,38 @@ function LineItemRow({
             <Trash2 size={12} />
           </button>
         </div>
+        </div>
+        
+        {/* ROW EXPANSION - RICH DESCRIPTION */}
+        {item.showLongDesc && (
+          <div className="w-full mt-2 pt-2 border-t border-slate-100 print:border-none print:mt-1 print:pt-0">
+            {viewMode ? (
+              item.richDesc ? (
+                <div
+                  className="text-xs text-slate-600 prose prose-sm max-w-none print:max-w-none"
+                  dangerouslySetInnerHTML={{ __html: item.richDesc }}
+                />
+              ) : (
+                <div className="text-xs text-slate-600 whitespace-pre-wrap break-words">{item.longDesc}</div>
+              )
+            ) : (
+              <div className="print:hidden">
+                <RichDescriptionEditor
+                  content={item.richDesc || item.longDesc || ''}
+                  onChange={html => {
+                    onChange(item.id, 'richDesc', html);
+                    // Keep plain-text longDesc synced as fallback
+                    const div = document.createElement('div');
+                    div.innerHTML = html;
+                    onChange(item.id, 'longDesc', div.textContent || '');
+                  }}
+                  placeholder="Descripción técnica detallada, especificaciones..."
+                />
+              </div>
+            )}
+            <div className={`hidden ${!viewMode ? 'print:block' : 'print:hidden'} text-xs text-slate-600 prose prose-sm max-w-none`} dangerouslySetInnerHTML={{ __html: item.richDesc || item.longDesc }} />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -609,10 +657,12 @@ export default function DocumentBuilderClient({
   const [activeTab, setActiveTab] = useState<'clients' | 'products'>('clients');
   const [showPreview, setShowPreview] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
+  const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+  const templateContainerRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<InvoiceSettings>(() => {
-    // We cannot access localStorage synchronously during SSR without causing hydration mismatch,
-    // so we initialize to default, and hydrate in useEffect.
-    if (typeof window !== 'undefined' && organization?.invoiceSettings) return { ...DEFAULT_INVOICE_SETTINGS, ...organization.invoiceSettings };
+    // Always merge organization settings (available on both server and client as a prop).
+    // localStorage preferences are loaded in useEffect to avoid hydration mismatch.
+    if (organization?.invoiceSettings) return { ...DEFAULT_INVOICE_SETTINGS, ...organization.invoiceSettings };
     return DEFAULT_INVOICE_SETTINGS;
   });
 
@@ -620,6 +670,70 @@ export default function DocumentBuilderClient({
   const effectiveViewMode = viewMode || isAnulada;
 
   const [isLoaded, setIsLoaded] = useState(false);
+
+  // --- PERSISTENCE (AUTO-SAVE) ---
+  const [reservedDocId, setReservedDocId] = useState<string | null>(initialData?.id || null);
+  const [isLocked, setIsLocked] = useState(false);
+  const [isReserving, setIsReserving] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const draftKey = 'bea_factura_draft_v2'; // Single unified draft
+
+  // 1. Hydrate from localStorage on mount (ONLY if it's a new document and not in viewMode)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (initialData || effectiveViewMode || editMode) {
+      setIsHydrated(true);
+      return; 
+    }
+
+    try {
+      const stored = window.localStorage.getItem(draftKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.reservedDocId) setReservedDocId(parsed.reservedDocId);
+        if (parsed.docType) setDocType(parsed.docType);
+        if (parsed.docNumber) setDocNumber(parsed.docNumber);
+        if (parsed.selectedClient) setSelectedClient(parsed.selectedClient);
+        if (parsed.lineItems && parsed.lineItems.length > 0) setLineItems(parsed.lineItems);
+        if (parsed.notes) setNotes(parsed.notes);
+        if (parsed.paymentTerms) setPaymentTerms(parsed.paymentTerms);
+        if (parsed.validityDays) setValidityDays(parsed.validityDays);
+        if (!parsed.reservedDocId) setIsLocked(true); // Must reserve first 
+      } else {
+        setIsLocked(true); // Locked if completely blank session
+      }
+    } catch (e) {
+      console.warn("Failed to parse draft", e);
+      setIsLocked(true);
+    }
+    setIsHydrated(true);
+  }, [initialData, effectiveViewMode, editMode]);
+
+  // 2. Auto-save to localStorage with debounce
+  useEffect(() => {
+    if (!isHydrated || initialData || effectiveViewMode || editMode) return;
+
+    const handler = setTimeout(() => {
+      try {
+        const draft = {
+          reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, validityDays
+        };
+        window.localStorage.setItem(draftKey, JSON.stringify(draft));
+        setLastSaved(new Date());
+      } catch (e) {}
+    }, 1500);
+
+    return () => clearTimeout(handler);
+  }, [isHydrated, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, validityDays, initialData, effectiveViewMode, editMode]);
+
+  const clearLocalDraft = () => {
+    try {
+      window.localStorage.removeItem(draftKey);
+      setLastSaved(null);
+    } catch (e) {}
+  };
+  // ------------------------------
 
   // Load preferences from localStorage 
   useEffect(() => {
@@ -651,6 +765,7 @@ export default function DocumentBuilderClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSaving, setIsSaving] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, docId: string, correlativo: string, format: string} | null>(null);
@@ -664,6 +779,89 @@ export default function DocumentBuilderClient({
       return () => clearTimeout(timer);
     }
   }, [effectiveViewMode, searchParams]);
+
+  // Auto-download PDF if requested via query param
+  useEffect(() => {
+    if (effectiveViewMode && searchParams.get('download') === 'true') {
+      const timer = setTimeout(() => {
+        handleDownloadPDF();
+      }, 1200); // extra delay for full render before capture
+      return () => clearTimeout(timer);
+    }
+  }, [effectiveViewMode, searchParams]);
+
+  // PDF Download handler
+  const handleDownloadPDF = async () => {
+    const container = templateContainerRef.current;
+    if (!container) {
+      toast.error('No se encontró el documento para exportar');
+      return;
+    }
+
+    setIsDownloadingPDF(true);
+    const toastId = toast.loading('Generando PDF...');
+
+    try {
+      // Dynamic imports to avoid SSR/hydration issues
+      const html2canvasModule = await import('html2canvas');
+      const jsPDFModule = await import('jspdf');
+      const html2canvas = html2canvasModule.default;
+      const jsPDF = jsPDFModule.default;
+
+      // In viewMode, the document already renders cleanly without edit controls.
+      // We only need to hide explicit UI action buttons/controls within the template.
+      const uiElements = container.querySelectorAll('button, select, [data-pdf-hide]');
+      const originalDisplays: string[] = [];
+      uiElements.forEach((el, i) => {
+        const htmlEl = el as HTMLElement;
+        originalDisplays[i] = htmlEl.style.display;
+        htmlEl.style.display = 'none';
+      });
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+
+      // Restore hidden elements
+      uiElements.forEach((el, i) => {
+        (el as HTMLElement).style.display = originalDisplays[i];
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position -= pageHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const typeLabel = docType === 'cotizacion' ? 'Cotizacion' : docType === 'proforma' ? 'ProForma' : 'Factura';
+      const fileName = `${typeLabel}-${docNumber || 'documento'}.pdf`;
+      pdf.save(fileName);
+
+      toast.success('PDF descargado correctamente', { id: toastId });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Error al generar el PDF', { id: toastId });
+    } finally {
+      setIsDownloadingPDF(false);
+    }
+  };
 
   // Cargar initialData si existe
   useEffect(() => {
@@ -720,14 +918,15 @@ export default function DocumentBuilderClient({
             code: d.producto?.sku || d.activo?.idQr || '',
             shortDesc,
             longDesc,
-            showLongDesc: longDesc.length > 0,
+            showLongDesc: false, // Prevents auto-expanding massive descriptions automatically on load
             qty: d.cantidad,
             unitPrice: Number(d.precioUnitario),
             tax,
             discount,
             discountType,
             productoId: d.productoId || undefined,
-            activoId: d.activoId || undefined
+            activoId: d.activoId || undefined,
+            imageUrl: d.activo?.imagenUrl || undefined
           };
         });
         setLineItems(loadedItems);
@@ -738,24 +937,8 @@ export default function DocumentBuilderClient({
     }
   }, [initialData, viewMode]);
 
-    // Carregar catalogos iniciales y numeracion si es creacion
+  // Cargar catalogos iniciales — el correlativo se asigna al interactuar con el UI
   useEffect(() => {
-    // Solo generar numéro automático si NO hay initialData (documento nuevo)
-    if (!initialData) {
-      const year = new Date().getFullYear();
-      const randomSuffix = String(Math.floor(Math.random() * 90000) + 10000);
-      
-      if (docType === 'cotizacion') {
-        setDocNumber(`COT-${year}-${randomSuffix}`);
-      } else if (docType === 'proforma') {
-        setDocNumber(`PROF-${year}-${randomSuffix}`);
-      } else if (docType === 'factura') {
-        setDocNumber(`000-001-01-000${randomSuffix}`);
-      } else {
-        setDocNumber(`BOR-${year}-${randomSuffix}`);
-      }
-    }
-
     const loadData = async () => {
       try {
         const cls = await searchClientes('');
@@ -779,7 +962,8 @@ export default function DocumentBuilderClient({
           category: p.marca || 'General',
           stock: p.stockActual || 0,
           brand: p.marca || '',
-          type: p.type || 'producto'
+          type: p.type || 'producto',
+          imageUrl: p.imagenUrl || null,
         })));
       } catch (e) {
         console.error("Error al cargar datos", e);
@@ -889,6 +1073,7 @@ export default function DocumentBuilderClient({
       code: product.code,
       shortDesc: product.name,
       longDesc: product.description,
+      richDesc: '',
       showLongDesc: false,
       qty: 1,
       unitPrice: product.price,
@@ -897,6 +1082,7 @@ export default function DocumentBuilderClient({
       discountType: 'percentage',
       productoId: product.type === 'producto' ? product.id : undefined,
       activoId: product.type === 'activo' ? product.id : undefined,
+      imageUrl: (product as any).imageUrl || undefined,
     };
     setLineItems(prev => {
       if (activeLineId) {
@@ -955,13 +1141,17 @@ export default function DocumentBuilderClient({
       };
       
       let res;
-      // Si estamos en editMode y ya existe el documento, ACTUALIZAR en vez de crear
-      if (editMode && initialData?.id) {
-        res = await actualizarDocumentoBuilder(initialData.id, data, validItems);
+      // Si tenemos un documento reservado localmente, O si estamos en editMode, SIEMPRE ACTUALIZAMOS
+      const targetId = reservedDocId || (editMode ? initialData?.id : null);
+      
+      if (targetId) {
+        res = await actualizarDocumentoBuilder(targetId, data, validItems);
       } else {
+        // Fallback for safety, though reservedDocId should always exist now before saving
         res = await guardarDocumentoBuilder(data, validItems);
       }
       if (res.success) {
+        clearLocalDraft();
         setShowSuccessModal({ 
           show: true, 
           docId: String(res.docId || (initialData?.id || '')), 
@@ -977,6 +1167,51 @@ export default function DocumentBuilderClient({
       setIsSaving(false);
     }
   };
+
+  const handleReservarCorrelativo = async () => {
+    setIsReserving(true);
+    try {
+      const res = await reservarCorrelativoVacio(docType.toUpperCase());
+      if (res.success && res.docId) {
+        setReservedDocId(res.docId);
+        setDocNumber(res.correlativo || '');
+        setIsLocked(false);
+        // Force an immediate local storage save
+        const draft = {
+          reservedDocId: res.docId, docType, docNumber: res.correlativo, selectedClient, lineItems, notes, paymentTerms, validityDays
+        };
+        window.localStorage.setItem(draftKey, JSON.stringify(draft));
+        setLastSaved(new Date());
+      } else {
+        toast.error(res.error || 'Error reservando correlativo');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Error al conectar con el servidor.');
+    } finally {
+      setIsReserving(false);
+    }
+  };
+
+  const handleConvert = async (nuevoTipo: 'PROFORMA' | 'FACTURA') => {
+    if (!initialData?.id) return;
+    const label = nuevoTipo === 'PROFORMA' ? 'Pro Forma' : 'Factura Oficial';
+    if (!confirm(`¿Convertir este documento a ${label}? Esta acción no se puede deshacer.`)) return;
+    setIsConverting(true);
+    try {
+      const res = await convertirDocumento(initialData.id, nuevoTipo);
+      if (res.success) {
+        toast.success(`Documento convertido a ${label} exitosamente`);
+        router.refresh();
+      } else {
+        toast.error(res.error || 'Error al convertir el documento');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Error al convertir');
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
 
   const totals = {
     get subtotal() { return lineItems.reduce((acc, item) => acc + calcLine(item).base, 0); },
@@ -1011,20 +1246,59 @@ export default function DocumentBuilderClient({
           <DocTypeSelector value={docType} onChange={setDocType} />
 
           <div className="flex items-center gap-2 flex-1 justify-end">
-            <button
-              onClick={() => setShowCustomizer(!showCustomizer)}
-              className={`flex items-center gap-2 px-4 py-2 ${showCustomizer ? 'bg-blue-600 text-white shadow-md' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 text-blue-700'} rounded-xl text-sm font-semibold hover:shadow-md transition-all sm:flex`}
-            >
-              {showCustomizer ? <X size={15} /> : <Sparkles size={15} />}
-              {showCustomizer ? 'Ocultar Panel' : 'Personalizar Diseño'}
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm"
-            >
-              <Printer size={15} /> Imprimir / PDF
-            </button>
-            {!isAnulada && (
+            {!isLocked ? (
+              <>
+                <button
+                  onClick={() => setShowCustomizer(!showCustomizer)}
+                  className={`flex items-center gap-2 px-4 py-2 ${showCustomizer ? 'bg-blue-600 text-white shadow-md' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 text-blue-700'} rounded-xl text-sm font-semibold hover:shadow-md transition-all sm:flex`}
+                >
+                  {showCustomizer ? <X size={15} /> : <Sparkles size={15} />}
+                  {showCustomizer ? 'Ocultar Panel' : 'Personalizar Diseño'}
+                </button>
+                {(effectiveViewMode || initialData?.id || reservedDocId) && (
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={isDownloadingPDF}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm ${isDownloadingPDF ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-700 hover:from-emerald-100 hover:to-teal-100 hover:shadow-md'}`}
+                >
+                  <Download size={15} className={isDownloadingPDF ? 'animate-bounce' : ''} /> {isDownloadingPDF ? 'Generando...' : 'Descargar PDF'}
+                </button>
+                )}
+                <button
+                  onClick={() => window.print()}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm"
+                >
+                  <Printer size={15} /> Imprimir
+                </button>
+              </>
+            ) : (
+              <span className="text-sm font-semibold text-slate-400 mr-4">Selecciona y crea tu documento para comenzar</span>
+            )}
+            {!isLocked && !isAnulada && effectiveViewMode && initialData?.id && (
+              <>
+                {initialData.tipoDocumento === 'COTIZACION' && (
+                  <button
+                    onClick={() => handleConvert('PROFORMA')}
+                    disabled={isConverting}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-violet-600 text-white rounded-xl text-sm font-semibold hover:from-violet-600 hover:to-violet-700 shadow-md shadow-violet-200 transition-all disabled:opacity-50"
+                  >
+                    <ArrowRight size={15} />
+                    {isConverting ? 'Convirtiendo...' : 'Convertir a Pro Forma'}
+                  </button>
+                )}
+                {initialData.tipoDocumento === 'PROFORMA' && (
+                  <button
+                    onClick={() => handleConvert('FACTURA')}
+                    disabled={isConverting}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-600 hover:to-emerald-700 shadow-md shadow-emerald-200 transition-all disabled:opacity-50"
+                  >
+                    <ArrowRight size={15} />
+                    {isConverting ? 'Convirtiendo...' : 'Convertir a Factura Oficial'}
+                  </button>
+                )}
+              </>
+            )}
+            {!isAnulada && !isLocked && (
               <button 
                 onClick={handleSave}
                 disabled={isSaving}
@@ -1034,14 +1308,16 @@ export default function DocumentBuilderClient({
                 {isSaving ? 'Guardando...' : (docType === 'factura' ? 'Emitir Factura' : 'Guardar Documento')}
               </button>
             )}
+
           </div>
         </div>
       </div>
 
       <div className="max-w-[1200px] mx-auto px-4 py-8 flex gap-5 print:p-0 print:max-w-none print:m-0 relative">
 
-        {/* ─── MAIN DOCUMENT ───────────────────────────────────────────── */}
-        <div className={`flex-1 min-w-0 transition-all duration-300 relative z-10 ${showCustomizer ? 'pr-80 print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''}`}>
+        <div className={`w-full relative transition-all duration-300 ${isLocked ? 'pointer-events-none' : ''}`}>
+          
+          <div className={`transition-all duration-500 relative flex-1 min-w-0 z-10 ${showCustomizer ? 'pr-80 print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''} ${isLocked ? 'blur-[6px] opacity-60 grayscale-[0.1]' : ''}`}>
           
           {isAnulada && (
              <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden mix-blend-multiply opacity-30 print:opacity-20 px-8">
@@ -1050,7 +1326,8 @@ export default function DocumentBuilderClient({
           )}
           
           {settings.template === 'modern' && <ModernTemplate 
-            settings={settings} organization={organization} docNumber={docNumber} 
+            settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+            nombreUsuario={initialData?.nombreUsuario}
             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
             today={today} futureDate={futureDate} selectedClient={selectedClient} 
             setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
@@ -1062,7 +1339,8 @@ export default function DocumentBuilderClient({
             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
           />}
           {settings.template === 'classic' && <ClassicTemplate 
-             settings={settings} organization={organization} docNumber={docNumber} 
+             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+             nombreUsuario={initialData?.nombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
@@ -1074,7 +1352,8 @@ export default function DocumentBuilderClient({
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
           />}
           {settings.template === 'minimalist' && <MinimalistTemplate 
-             settings={settings} organization={organization} docNumber={docNumber} 
+             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+             nombreUsuario={initialData?.nombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
@@ -1086,7 +1365,8 @@ export default function DocumentBuilderClient({
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
           />}
           {settings.template === 'legacy' && <LegacyTemplate 
-             settings={settings} organization={organization} docNumber={docNumber} 
+             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+             nombreUsuario={initialData?.nombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
@@ -1104,19 +1384,108 @@ export default function DocumentBuilderClient({
             <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
               <Copy size={14} /> Duplicar
             </button>
-            <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
+            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
               <Printer size={14} /> Imprimir
             </button>
+
             <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
               <Mail size={14} /> Enviar por Email
             </button>
             <div className="flex-1" />
+            {lastSaved && (
+              <div className="flex items-center gap-3 mr-2">
+                <span className="text-xs font-semibold text-slate-400 flex items-center gap-1 opacity-80">
+                  <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  Borrador guardado
+                </span>
+                <button
+                  onClick={() => {
+                    if (window.confirm('¿Descartar este borrador y comenzar un documento nuevo?')) {
+                      clearLocalDraft();
+                      window.location.reload();
+                    }
+                  }}
+                  title="Descartar borrador actual"
+                  className="text-[10px] uppercase tracking-wider font-bold text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100/80 px-2 py-1 rounded transition-colors"
+                >
+                  Descartar
+                </button>
+              </div>
+            )}
             <div className="flex items-center gap-2 px-4 py-2 bg-emerald-50 border border-emerald-200 rounded-xl">
               <Sparkles size={13} className="text-emerald-500" />
               <span className="text-xs font-semibold text-emerald-700">{lineItems.length} renglón{lineItems.length !== 1 ? 'es' : ''} · {fmt(totals.total)} total</span>
             </div>
           </div>
           )}
+          </div>
+          {/* ─── END MAIN DOCUMENT BLUR WRAPPER ──────────────────────────────────── */}
+
+          {isLocked && (
+            <div className="absolute inset-x-0 top-0 z-50 flex justify-center pointer-events-none mt-[-8px]">
+              <div className="bg-white/98 backdrop-blur-xl p-8 rounded-3xl shadow-2xl border border-white max-w-3xl w-full mx-4 animate-in zoom-in-95 duration-300 pointer-events-auto">
+                <div className="text-center mb-8">
+                  <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
+                    <FileText size={24} className="text-white" />
+                  </div>
+                  <h2 className="text-3xl font-bold text-slate-800 tracking-tight">Nuevo Documento</h2>
+                  <p className="text-slate-500 mt-2 text-sm">Selecciona el tipo de documento que deseas crear para generar el correlativo oficial.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                  {DOC_TYPES.map((dt) => {
+                    const isSelected = docType === dt.key;
+                    return (
+                      <button
+                        key={dt.key}
+                        onClick={() => setDocType(dt.key)}
+                        className={`
+                          relative text-left p-6 rounded-2xl border-2 transition-all duration-200 outline-none
+                          ${isSelected 
+                            ? `border-[currentColor] ${dt.bg} shadow-md ring-4 ring-slate-100 scale-[1.02] ${dt.color}` 
+                            : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm text-slate-400'
+                          }
+                        `}
+                      >
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${isSelected ? dt.bg : 'bg-slate-50 text-slate-400'} ${isSelected ? dt.color : ''}`}>
+                          {dt.icon}
+                        </div>
+                        <h3 className={`font-bold mb-1 ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>{dt.label}</h3>
+                        <p className={`text-[11px] leading-relaxed ${isSelected ? 'text-slate-700' : 'text-slate-400'}`}>{dt.description}</p>
+                        
+                        {isSelected && (
+                          <div className={`absolute top-4 right-4 w-6 h-6 rounded-full flex items-center justify-center ${dt.color.replace('text-', 'bg-')} shadow-sm`}>
+                            <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                              <path d="M1 4.5l3 3 6-7" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                            </svg>
+                          </div>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div className="flex justify-center border-t border-slate-100 pt-6">
+                  <button 
+                    onClick={handleReservarCorrelativo}
+                    disabled={isReserving || !isHydrated}
+                    className="flex items-center justify-center min-w-[300px] gap-3 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-2xl shadow-xl shadow-blue-500/30 text-lg font-bold transform hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    {isReserving ? (
+                      <svg className="animate-spin w-6 h-6" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                      </svg>
+                    ) : (
+                      <Plus size={22} className="stroke-[3]" />
+                    )}
+                    {isReserving ? `Reservando Correlativo...` : `Crear ${currentDocType.label}`}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
