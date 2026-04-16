@@ -206,7 +206,7 @@ export default function NuevoDocumentoSelector({
                 ].join(" ")}
                 style={
                   isSelected
-                    ? { ringColor: doc.color.border_selected, borderColor: doc.color.border_selected, boxShadow: `0 0 0 2px ${doc.color.border_selected}` }
+                    ? { borderColor: doc.color.border_selected, boxShadow: `0 0 0 2px ${doc.color.border_selected}` }
                     : {}
                 }
                 aria-pressed={isSelected}
