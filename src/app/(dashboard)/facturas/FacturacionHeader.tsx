@@ -1,7 +1,7 @@
 'use client';
 
 import React, { Suspense } from 'react';
-import { LayoutDashboard, PlusCircle, CheckCircle2, Receipt, FileText, ArrowLeft } from 'lucide-react';
+import { LayoutDashboard, PlusCircle, CheckCircle2, Receipt, FileText, ArrowLeft, Zap } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 
@@ -66,6 +66,13 @@ export default function FacturacionHeader(props: Props) {
             </div>
           )}
         </nav>
+
+        <div className="flex shrink-0 border-l border-slate-200 pl-4 ml-auto py-2">
+           <Link href="/facturas/pos" className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all group hover:-translate-y-0.5">
+             <Zap size={16} className="text-white fill-white/20 group-hover:fill-white/40 transition-colors" />
+             Caja Rápida POS
+           </Link>
+        </div>
       </div>
     </div>
   );

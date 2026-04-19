@@ -600,6 +600,12 @@ model Factura {
   tipoOriginal             String?
   convertidoAt             DateTime?
   inventarioDescontado     Boolean          @default(false)
+  documentoOrigenId        String?          @db.Uuid
+  referenciaOriginalId     String?          @db.Uuid
+  documentoOrigen          Factura?         @relation("HerenciaDocumentos", fields: [documentoOrigenId], references: [id])
+  documentosDerivados      Factura[]        @relation("HerenciaDocumentos")
+  referenciaOriginal       Factura?         @relation("ReferenciaDocumentos", fields: [referenciaOriginalId], references: [id])
+  referenciasDerivadas     Factura[]        @relation("ReferenciaDocumentos")
   detalles                 DetalleFactura[]
   cliente                  Cliente          @relation(fields: [clienteId], references: [id])
   organization             Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)

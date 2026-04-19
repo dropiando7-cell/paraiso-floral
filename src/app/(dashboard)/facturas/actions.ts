@@ -25,9 +25,12 @@ export async function getOrganizationId() {
     return u.organizationId;
 }
 
-// Format correlativo as SO + 8-digit padded number
-function formatCorrelativo(numeroInterno: number): string {
-    return `SO${String(numeroInterno).padStart(8, '0')}`;
+// Format correlativo as PREFIX-SO-8-digit padded number
+function formatCorrelativo(numeroInterno: number, tipoDocumento: string): string {
+    const prefix = tipoDocumento === 'COTIZACION' ? 'COT-SO' :
+                   tipoDocumento === 'PROFORMA' ? 'PRO-SO' :
+                   'FAC-SO';
+    return `${prefix}${String(numeroInterno).padStart(8, '0')}`;
 }
 
 // --- CLIENTES ---
@@ -145,8 +148,8 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
         });
         
         const nextNumber = ultimaFactura ? ultimaFactura.numeroInterno + 1 : 1;
-        // Generador visual (Ej: 000-001-01-003557)
-        const correlativoGenerado = `000-001-01-${nextNumber.toString().padStart(8, '0')}`;
+        // Generador visual
+        const correlativoGenerado = formatCorrelativo(nextNumber, tipoCorrelativo);
 
         // TRANSACTION: Asegura que si falla el descuento de inventario, NO se guarde la factura.
         const result = await prisma.$transaction(async (tx) => {
@@ -157,6 +160,7 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     organizationId,
                     clienteId,
                     correlativo: correlativoGenerado,
+                    tipoDocumento: tipoCorrelativo, // Explicitly save the document type
                     numeroCAI: facturaData.numeroCAI || '3E6532-...-4C',
                     rangoAutorizado: facturaData.rangoAutorizado || '000-001-01-000001 al ...',
                     fechaLimiteEmision: facturaData.fechaLimiteEmision ? new Date(facturaData.fechaLimiteEmision) : new Date(new Date().setFullYear(new Date().getFullYear() + 1)),
@@ -391,6 +395,8 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     creadoPorId,
                     nombreUsuario,
                     inventarioDescontado: debeDescontarInventario,
+                    documentoOrigenId: data.documentoOrigenId || null,
+                    referenciaOriginalId: data.referenciaOriginalId || null,
                     detalles: {
                         create: lineItems.map((item) => {
                             const basePrice = Number(item.qty) * Number(item.unitPrice);
@@ -415,7 +421,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
             });
 
             // Ahora que tenemos numeroInterno, generar correlativo SO real y actualizar
-            const correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno);
+            const correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno, data.tipoDocumento);
             const docFinal = await tx.factura.update({
                 where: { id: nuevoDoc.id },
                 data: { correlativo: correlativoFinal }
@@ -526,7 +532,10 @@ export async function getHistorialDocumentos() {
         const organizationId = await getOrganizationId();
         const docs = await prisma.factura.findMany({
             where: { organizationId },
-            include: { cliente: { select: { nombre: true, rtn: true } } },
+            include: { 
+                cliente: { select: { nombre: true, rtn: true } },
+                detalles: true 
+            },
             orderBy: { createdAt: 'desc' },
             take: 200 // Limit for reasonable UI perf
         });
@@ -540,7 +549,13 @@ export async function getHistorialDocumentos() {
             validezDias: doc.validezDias,
             clienteNombre: doc.cliente?.nombre || 'Desconocido',
             clienteRtn: doc.cliente?.rtn || '',
-            total: Number(doc.total)
+            total: Number(doc.total),
+            detalles: doc.detalles.map(d => ({
+               descripcion: d.descripcion,
+               cantidad: d.cantidad,
+               precioUnitario: Number(d.precioUnitario),
+               totalLinea: Number(d.totalLinea)
+            }))
         }));
     } catch (e) {
         console.error("Error obteniendo historial:", e);
@@ -605,8 +620,8 @@ export async function anularDocumento(id: string) {
                 }
             });
 
-            // 2. Si era FACTURA oficial (y ya estaba EMITIDA), devolver al inventario
-            if (doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA') {
+            // 2. Si el documento había descontado inventario (Facturas o Proformas), devolverlo
+            if (doc.inventarioDescontado) {
                 for (const item of doc.detalles) {
                     if (item.productoId) {
                         try {
@@ -661,15 +676,59 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
         const debeDescontar = !doc.inventarioDescontado && (nuevoTipo === 'PROFORMA' || nuevoTipo === 'FACTURA');
 
         await prisma.$transaction(async (tx) => {
-            // Actualizar tipo, marcar tipoOriginal en la primera conversión
+            // Marcar el documento original como CONVERTIDO
             await tx.factura.update({
                 where: { id },
                 data: {
-                    tipoDocumento: nuevoTipo,
-                    tipoOriginal: doc.tipoOriginal || doc.tipoDocumento, // Solo primera vez
+                    estado: 'CONVERTIDA',
                     convertidoAt: new Date(),
-                    inventarioDescontado: doc.inventarioDescontado || debeDescontar,
                 }
+            });
+
+            // Crear el nuevo documento heredando información
+            const nuevoDoc = await tx.factura.create({
+                data: {
+                    organizationId: doc.organizationId,
+                    clienteId: doc.clienteId,
+                    correlativo: 'TEMP',
+                    tipoDocumento: nuevoTipo,
+                    tipoOriginal: doc.tipoOriginal || doc.tipoDocumento, // Mantener origen histórico
+                    estado: 'EMITIDA',
+                    subTotal: doc.subTotal,
+                    descuentos: doc.descuentos,
+                    totalExento: doc.totalExento,
+                    totalExonerado: doc.totalExonerado,
+                    totalGravado15: doc.totalGravado15,
+                    isv15: doc.isv15,
+                    totalGravado18: doc.totalGravado18,
+                    isv18: doc.isv18,
+                    total: doc.total,
+                    templateSettings: doc.templateSettings || undefined,
+                    creadoPorId: doc.creadoPorId,
+                    nombreUsuario: doc.nombreUsuario,
+                    inventarioDescontado: doc.inventarioDescontado || debeDescontar,
+                    documentoOrigenId: doc.documentoOrigenId || doc.id,
+                    detalles: {
+                        create: doc.detalles.map((d) => ({
+                            descripcion: d.descripcion,
+                            descripcionEnriquecida: d.descripcionEnriquecida,
+                            cantidad: d.cantidad,
+                            precioUnitario: d.precioUnitario,
+                            porcentajeIsv: d.porcentajeIsv,
+                            totalDescuento: d.totalDescuento,
+                            totalLinea: d.totalLinea,
+                            productoId: d.productoId,
+                            activoId: d.activoId
+                        }))
+                    }
+                }
+            });
+
+            // Asignar el prefijo correcto al nuevo correlativo
+            const correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno, nuevoTipo);
+            await tx.factura.update({
+                where: { id: nuevoDoc.id },
+                data: { correlativo: correlativoFinal }
             });
 
             // Descontar inventario si aplica
@@ -736,7 +795,7 @@ export async function reservarCorrelativoVacio(tipoDocumento: string) {
                 }
             });
 
-            const correlativoFinal = `SO${String(nuevoDoc.numeroInterno).padStart(8, '0')}`;
+            const correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno, tipoDocumento);
             const docFinal = await tx.factura.update({
                 where: { id: nuevoDoc.id },
                 data: { correlativo: correlativoFinal }

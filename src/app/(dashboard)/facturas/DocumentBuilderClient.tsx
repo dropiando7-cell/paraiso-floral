@@ -658,6 +658,7 @@ export default function DocumentBuilderClient({
   const [showPreview, setShowPreview] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
   const templateContainerRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<InvoiceSettings>(() => {
     // Always merge organization settings (available on both server and client as a prop).
@@ -667,7 +668,15 @@ export default function DocumentBuilderClient({
   });
 
   const isAnulada = initialData?.estado === 'ANULADA';
-  const effectiveViewMode = viewMode || isAnulada;
+  const isConvertida = initialData?.estado === 'CONVERTIDA';
+  const effectiveViewMode = viewMode || isAnulada || isConvertida;
+
+  const estaVencida = typeof window !== 'undefined' ? (function() {
+    if (!initialData?.fechaEmision || initialData?.tipoDocumento !== 'COTIZACION') return false;
+    const fecha = new Date(initialData.fechaEmision);
+    const expiracion = new Date(fecha.setDate(fecha.getDate() + (initialData?.validezDias || 30)));
+    return expiracion < new Date();
+  })() : false;
 
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -1274,13 +1283,14 @@ export default function DocumentBuilderClient({
             ) : (
               <span className="text-sm font-semibold text-slate-400 mr-4">Selecciona y crea tu documento para comenzar</span>
             )}
-            {!isLocked && !isAnulada && effectiveViewMode && initialData?.id && (
+            {!isLocked && !isAnulada && !isConvertida && effectiveViewMode && initialData?.id && (
               <>
                 {initialData.tipoDocumento === 'COTIZACION' && (
                   <button
                     onClick={() => handleConvert('PROFORMA')}
-                    disabled={isConverting}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-violet-600 text-white rounded-xl text-sm font-semibold hover:from-violet-600 hover:to-violet-700 shadow-md shadow-violet-200 transition-all disabled:opacity-50"
+                    disabled={isConverting || estaVencida}
+                    title={estaVencida ? "Esta cotización ha vencido. Duplíquela para renovarla." : "Convertir a Pro Forma"}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-violet-600 text-white rounded-xl text-sm font-semibold hover:from-violet-600 hover:to-violet-700 shadow-md shadow-violet-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ArrowRight size={15} />
                     {isConverting ? 'Convirtiendo...' : 'Convertir a Pro Forma'}
@@ -1294,6 +1304,17 @@ export default function DocumentBuilderClient({
                   >
                     <ArrowRight size={15} />
                     {isConverting ? 'Convirtiendo...' : 'Convertir a Factura Oficial'}
+                  </button>
+                )}
+                {initialData.tipoDocumento === 'COTIZACION' && (
+                  <button
+                    onClick={() => handleConvert('FACTURA')}
+                    disabled={isConverting || estaVencida}
+                    title={estaVencida ? "Esta cotización ha vencido. Duplíquela para renovarla." : "Convertir directamente a Factura"}
+                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-600 hover:to-emerald-700 shadow-md shadow-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ArrowRight size={15} />
+                    {isConverting ? 'Convirtiendo...' : 'Facturar Directo'}
                   </button>
                 )}
               </>
@@ -1399,12 +1420,7 @@ export default function DocumentBuilderClient({
                   Borrador guardado
                 </span>
                 <button
-                  onClick={() => {
-                    if (window.confirm('¿Descartar este borrador y comenzar un documento nuevo?')) {
-                      clearLocalDraft();
-                      window.location.reload();
-                    }
-                  }}
+                  onClick={() => setShowDiscardModal(true)}
                   title="Descartar borrador actual"
                   className="text-[10px] uppercase tracking-wider font-bold text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100/80 px-2 py-1 rounded transition-colors"
                 >
@@ -1717,6 +1733,40 @@ export default function DocumentBuilderClient({
                 className="flex-[1.5] py-3 px-4 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all"
               >
                 Ver Documento
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDiscardModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[3000] flex items-center justify-center animate-in fade-in p-4 print:hidden">
+          <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col items-center">
+            <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-red-50/50">
+              <Trash2 size={32} className="stroke-[2.5]" />
+            </div>
+            
+            <h3 className="text-2xl font-black text-slate-900 text-center mb-2 tracking-tight">¿Descartar Borrador?</h3>
+            <p className="text-sm text-slate-500 text-center mb-8 font-medium px-2 leading-relaxed">
+              Perderás todo el progreso ingresado en este documento y limpiarás la memoria para un archivo nuevo.
+            </p>
+            
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => setShowDiscardModal(false)}
+                className="flex-1 py-4 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-colors"
+                title="Mantener borrador"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  clearLocalDraft();
+                  window.location.reload();
+                }}
+                className="flex-[1.5] py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 shadow-lg shadow-red-500/30 transition-all"
+              >
+                Sí, Descartar
               </button>
             </div>
           </div>
