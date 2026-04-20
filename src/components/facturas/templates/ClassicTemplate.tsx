@@ -37,8 +37,8 @@ export default function ClassicTemplate(props: TemplateProps) {
   );
 
   return (
-    <div className={`flex-1 print:flex-none print:block space-y-4 print:space-y-0 print:m-0 print:pb-8 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
-      <div className="p-8 md:p-12 print:p-0">
+    <div className={`flex flex-col min-h-[1056px] flex-1 print:flex-none print:block space-y-4 print:space-y-0 print:m-0 print:pb-8 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
+      <div className="flex flex-col flex-1 p-8 md:p-12 print:p-0">
         
         {/* Header Block */}
         <div className="flex flex-col print:flex-row sm:flex-row justify-between items-start border-b-2 border-slate-800 pb-6 mb-6 gap-6 print:gap-4">
@@ -228,6 +228,9 @@ export default function ClassicTemplate(props: TemplateProps) {
            </div>
            <div className="clear-both print:block"></div>
         </div>
+
+        {/* Spacer to push footer down in html2canvas */}
+        <div className="flex-1 print:hidden" />
 
         {/* Footer */}
         <InvoiceFooter settings={settings} organization={organization} className="print:fixed print:bottom-0 print:left-0 print:w-full print:bg-white print:px-12 print:pb-2" />

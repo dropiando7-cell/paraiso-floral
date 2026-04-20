@@ -32,8 +32,8 @@ export default function LegacyTemplate(props: TemplateProps) {
   }, [today]);
 
   return (
-    <div className={`flex flex-col min-h-screen print:min-h-0 space-y-4 print:space-y-0 print:m-0 print:pb-32 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
-      <div className="p-8 md:p-12 print:p-0 text-gray-900">
+    <div className={`flex flex-col min-h-[1056px] print:min-h-0 space-y-4 print:space-y-0 print:m-0 print:pb-32 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
+      <div className="flex flex-col flex-1 p-8 md:p-12 print:p-0 text-gray-900">
         
         {/* Header Block */}
         <div className={`flex ${settings.logoPosition === 'center' ? 'flex-col items-center gap-6 mt-4' : settings.logoPosition === 'right' ? 'flex-row-reverse' : 'justify-between items-start'} mb-8`}>
