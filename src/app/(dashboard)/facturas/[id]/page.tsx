@@ -38,7 +38,7 @@ export default async function EditDocumentPage({
             }
         });
         
-        if (org) {
+        if (org && id !== 'nuevo') {
             doc = await getDocumentoById(id);
         }
     } catch (e) {
@@ -46,7 +46,7 @@ export default async function EditDocumentPage({
     }
 
     if (!org) redirect('/dashboard');
-    if (!doc) redirect('/facturas');
+    if (!doc && id !== 'nuevo') redirect('/facturas');
 
     return (
         <div className="bg-slate-50 min-h-screen flex flex-col">

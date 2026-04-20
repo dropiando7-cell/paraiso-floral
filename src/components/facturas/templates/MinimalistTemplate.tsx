@@ -35,7 +35,6 @@ export default function MinimalistTemplate(props: TemplateProps) {
   );
 
   return (
-  return (
     <div className={`flex flex-col min-h-[1056px] flex-1 print:flex-none print:block space-y-4 print:space-y-0 print:m-0 print:pb-8 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
       <div className="flex flex-col flex-1 p-8 md:p-14 print:p-0">
         

@@ -813,9 +813,10 @@ export default function DocumentBuilderClient({
       return;
     }
 
-    const docId = initialData?.id || (window.location.pathname.split('/').pop());
+    // Solo podemos descargar el vectorial si el documento ya tiene ID oficial en BD
+    const docId = initialData?.id;
     if (!docId || docId === 'nuevo') {
-      toast.error('Guarda el documento antes de descargar su versión en máxima calidad');
+      toast.error('Debes GUARDAR EL DOCUMENTO antes de poder exportarlo en formato PDF.');
       return;
     }
 
