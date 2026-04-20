@@ -34,13 +34,16 @@ body {
 
 @media print {
   @page {
-    margin: 0;
+    margin: 0.8cm;
     size: auto;
   }
-  body {
+  html, body {
     background-color: white !important;
     margin: 0 !important;
-    padding: 1cm !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
   .hide-on-print {
     display: none !important;

@@ -461,7 +461,7 @@ function LineItemRow({
             )}
             <div className="flex-1 min-w-0">
             {viewMode ? (
-              <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">{item.shortDesc}</div>
+              <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words print:hidden">{item.shortDesc}</div>
             ) : (
               <input
                 type="text"
@@ -807,68 +807,107 @@ export default function DocumentBuilderClient({
       return;
     }
 
+    const docId = initialData?.id || (window.location.pathname.split('/').pop());
+    if (!docId || docId === 'nuevo') {
+      toast.error('Guarda el documento antes de descargar su versión en máxima calidad');
+      return;
+    }
+
     setIsDownloadingPDF(true);
-    const toastId = toast.loading('Generando PDF...');
+    const toastId = toast.loading('Generando PDF Vectorial (Máxima Calidad)...');
 
     try {
-      // Dynamic imports to avoid SSR/hydration issues
-      const html2canvasModule = await import('html2canvas');
-      const jsPDFModule = await import('jspdf');
-      const html2canvas = html2canvasModule.default;
-      const jsPDF = jsPDFModule.default;
-
-      // In viewMode, the document already renders cleanly without edit controls.
-      // We only need to hide explicit UI action buttons/controls within the template.
-      const uiElements = container.querySelectorAll('button, select, [data-pdf-hide]');
-      const originalDisplays: string[] = [];
-      uiElements.forEach((el, i) => {
-        const htmlEl = el as HTMLElement;
-        originalDisplays[i] = htmlEl.style.display;
-        htmlEl.style.display = 'none';
-      });
-
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-      });
-
-      // Restore hidden elements
-      uiElements.forEach((el, i) => {
-        (el as HTMLElement).style.display = originalDisplays[i];
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position -= pageHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
+      // Petición al API de Puppeteer (Nivel Odoo)
+      const res = await fetch(`/api/pdf/${docId}`);
+      if (!res.ok) throw new Error('API Error');
+      
+      const blob = await res.blob();
       const typeLabel = docType === 'cotizacion' ? 'Cotizacion' : docType === 'proforma' ? 'ProForma' : 'Factura';
       const fileName = `${typeLabel}-${docNumber || 'documento'}.pdf`;
-      pdf.save(fileName);
 
-      toast.success('PDF descargado correctamente', { id: toastId });
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      toast.error('Error al generar el PDF', { id: toastId });
-    } finally {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast.success('PDF Vectorial descargado exitosamente', { id: toastId });
       setIsDownloadingPDF(false);
+      return;
+    } catch (apiError) {
+      console.warn('API Vector Serverless failed/timeout. Falling back to html2canvas local render.', apiError);
+      toast.loading('Generación de respaldo activada...', { id: toastId });
+      
+      // FALLBACK LOCAL IMAGE-BASED PDF
+      const container = templateContainerRef.current;
+      if (!container) {
+        toast.error('Error crítico al generar respaldo', { id: toastId });
+        setIsDownloadingPDF(false);
+        return;
+      }
+      try {
+        const html2canvasModule = await import('html2canvas-pro');
+        const jsPDFModule = await import('jspdf');
+        const html2canvas = html2canvasModule.default;
+        const jsPDF = jsPDFModule.default;
+
+        const uiElements = container.querySelectorAll('button, select, [data-pdf-hide]');
+        const originalDisplays: string[] = [];
+        uiElements.forEach((el, i) => {
+          const htmlEl = el as HTMLElement;
+          originalDisplays[i] = htmlEl.style.display;
+          htmlEl.style.display = 'none';
+        });
+
+        const originalClasses = container.className;
+        container.className = originalClasses.replace('pr-80', '').replace('scale-[0.95]', '');
+        await new Promise(r => setTimeout(r, 100));
+
+        const canvas = await html2canvas(container, {
+          scale: 2,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+        });
+
+        container.className = originalClasses;
+        uiElements.forEach((el, i) => {
+          (el as HTMLElement).style.display = originalDisplays[i];
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const imgWidth = 210;
+        const pageHeight = 297;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+
+        while (heightLeft > 0) {
+          position -= pageHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+        }
+
+        const typeLabel = docType === 'cotizacion' ? 'Cotizacion' : docType === 'proforma' ? 'ProForma' : 'Factura';
+        const fileName = `${typeLabel}-${docNumber || 'documento'}(respaldo).pdf`;
+        pdf.save(fileName);
+        toast.success('PDF de Respaldo generado correctamente', { id: toastId });
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError);
+        toast.error('Mecanismos de PDF agotados. Imprime manualmente.', { id: toastId });
+      } finally {
+        setIsDownloadingPDF(false);
+      }
     }
   };
 
@@ -972,7 +1011,7 @@ export default function DocumentBuilderClient({
           stock: p.stockActual || 0,
           brand: p.marca || '',
           type: p.type || 'producto',
-          imageUrl: p.imagenUrl || null,
+          imageUrl: p.imageUrl || p.imagenUrl || null,
         })));
       } catch (e) {
         console.error("Error al cargar datos", e);
@@ -1077,10 +1116,11 @@ export default function DocumentBuilderClient({
   }, []);
 
   const addProduct = useCallback((product: Product) => {
+    const sanitizedShortDesc = product.name.replace(/\r?\n|\r/g, ' ').trim();
     const newLine: LineItem = {
       id: uid(),
       code: product.code,
-      shortDesc: product.name,
+      shortDesc: sanitizedShortDesc,
       longDesc: product.description,
       richDesc: '',
       showLongDesc: false,
@@ -1112,20 +1152,54 @@ export default function DocumentBuilderClient({
       return;
     }
 
-    const documentComplete = lineItems.every((i, index) => {
-      // Ignore the trailing empty row if it's completely empty
-      if (index === lineItems.length - 1 && !i.shortDesc && !i.code && Number(i.unitPrice) === 0) return true;
-      return i.shortDesc.trim() !== '' && Number(i.qty) > 0;
+    const validItems = lineItems.filter((i, index) => {
+      // Ignore the completely empty trailing row
+      if (index === lineItems.length - 1 && !i.shortDesc && !i.code && Number(i.unitPrice) === 0) return false;
+      return true;
     });
 
-    if (!documentComplete) {
+    // 1. Debe haber al menos un ítem en el documento
+    if (validItems.length === 0) {
+      toast.custom((t) => (
+        <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex flex-col p-5 border border-red-100`}>
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+               <AlertCircle className="w-5 h-5 text-red-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-slate-800">Documento Vacío</h3>
+              <p className="text-sm text-slate-500 mt-1 mb-4">No puedes emitir un documento sin agregar al menos un producto o servicio.</p>
+              <button onClick={() => toast.dismiss(t.id)} className="w-full py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800">Entendido</button>
+            </div>
+          </div>
+        </div>
+      ), { duration: 5000 });
+      return;
+    }
+
+    // 2. Todos los listados deben tener descripción y cantidad válida
+    const incompleteItem = validItems.find(i => i.shortDesc.trim() === '' || Number(i.qty) <= 0);
+    if (incompleteItem) {
       toast.error('Por favor complete la descripción y cantidad en todos los renglones.');
       return;
     }
 
-    const validItems = lineItems.filter(i => Number(i.qty) > 0 && String(i.shortDesc).trim() !== '');
-    if (validItems.length === 0) {
-      toast.error('Debe agregar al menos un ítem válido');
+    // 3. El total no puede ser 0.
+    if (totals.total <= 0) {
+      toast.custom((t) => (
+        <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex flex-col p-5 border border-amber-100`}>
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+               <AlertCircle className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-slate-800">Valor Inválido</h3>
+              <p className="text-sm text-slate-500 mt-1 mb-4">El documento tiene un Monto Total de L 0.00. Ingresa el precio de los ítems para continuar.</p>
+              <button onClick={() => toast.dismiss(t.id)} className="w-full py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800">Entendido</button>
+            </div>
+          </div>
+        </div>
+      ), { duration: 5000 });
       return;
     }
 
@@ -1201,24 +1275,48 @@ export default function DocumentBuilderClient({
     }
   };
 
-  const handleConvert = async (nuevoTipo: 'PROFORMA' | 'FACTURA') => {
+  const handleConvert = (nuevoTipo: 'PROFORMA' | 'FACTURA') => {
     if (!initialData?.id) return;
     const label = nuevoTipo === 'PROFORMA' ? 'Pro Forma' : 'Factura Oficial';
-    if (!confirm(`¿Convertir este documento a ${label}? Esta acción no se puede deshacer.`)) return;
-    setIsConverting(true);
-    try {
-      const res = await convertirDocumento(initialData.id, nuevoTipo);
-      if (res.success) {
-        toast.success(`Documento convertido a ${label} exitosamente`);
-        router.refresh();
-      } else {
-        toast.error(res.error || 'Error al convertir el documento');
-      }
-    } catch (e: any) {
-      toast.error(e.message || 'Error al convertir');
-    } finally {
-      setIsConverting(false);
-    }
+    
+    toast.custom((t) => (
+      <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex flex-col overflow-hidden border border-slate-100`}>
+        <div className="p-5 flex items-start gap-4">
+          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
+             <Sparkles className="w-5 h-5 text-emerald-600" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-base font-bold text-slate-800">Convertir a {label}</h3>
+            <p className="text-sm text-slate-500 mt-1">El documento actual subirá de categoría a <strong>{label}</strong>. Esta acción bloqueará la edición del documento original.</p>
+          </div>
+        </div>
+        <div className="bg-slate-50 border-t border-slate-100 p-4 flex gap-3">
+          <button onClick={() => toast.dismiss(t.id)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">Cancelar</button>
+          <button 
+            onClick={async () => {
+              toast.dismiss(t.id);
+              setIsConverting(true);
+              try {
+                const res = await convertirDocumento(initialData.id, nuevoTipo);
+                if (res.success) {
+                  toast.success(`Documento convertido a ${label} exitosamente`);
+                  router.push(`/facturas/ver/${res.nuevoId}`);
+                } else {
+                  toast.error(res.error || 'Error al convertir el documento');
+                }
+              } catch (e: any) {
+                toast.error(e.message || 'Error al convertir');
+              } finally {
+                setIsConverting(false);
+              }
+            }}
+            className="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
+          >
+            Confirmar
+          </button>
+        </div>
+      </div>
+    ), { duration: Infinity, id: 'convert-confirm' });
   };
 
 
@@ -1243,7 +1341,7 @@ export default function DocumentBuilderClient({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans print:bg-white overflow-x-hidden print:overflow-visible">
+    <div className="min-h-screen bg-slate-50 font-sans print:bg-white overflow-x-hidden print:overflow-visible print:min-h-0 print:block">
       {/* Top Bar */}
       <div className={`sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[320px]' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
@@ -1334,11 +1432,12 @@ export default function DocumentBuilderClient({
         </div>
       </div>
 
-      <div className="max-w-[1200px] mx-auto px-4 py-8 flex gap-5 print:p-0 print:max-w-none print:m-0 relative">
+      <div className="max-w-[1200px] mx-auto px-4 py-8 flex gap-5 print:p-0 print:max-w-none print:m-0 relative print:block">
 
-        <div className={`w-full relative transition-all duration-300 ${isLocked ? 'pointer-events-none' : ''}`}>
+        <div className={`w-full relative transition-all duration-300 print:block ${isLocked ? 'pointer-events-none' : ''}`}>
           
-          <div className={`transition-all duration-500 relative flex-1 min-w-0 z-10 ${showCustomizer ? 'pr-80 print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''} ${isLocked ? 'blur-[6px] opacity-60 grayscale-[0.1]' : ''}`}>
+          <div className={`transition-all duration-500 relative flex-1 min-w-0 z-10 print:block ${showCustomizer ? 'pr-80 print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''} ${isLocked ? 'blur-[6px] opacity-60 grayscale-[0.1]' : ''}`}>
+             <div ref={templateContainerRef} className="max-w-4xl mx-auto relative bg-white">
           
           {isAnulada && (
              <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden mix-blend-multiply opacity-30 print:opacity-20 px-8">
@@ -1398,6 +1497,8 @@ export default function DocumentBuilderClient({
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
           />}
+
+          </div>
 
           {/* Bottom Action Bar */}
           {!effectiveViewMode && (
@@ -1723,10 +1824,10 @@ export default function DocumentBuilderClient({
 
             <div className="flex gap-3 w-full mt-4">
               <button
-                onClick={() => router.push('/facturas')}
+                onClick={() => window.location.href = '/facturas'}
                 className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all"
               >
-                Volver
+                Hacer Nuevo
               </button>
               <button
                 onClick={() => router.push(`/facturas/ver/${showSuccessModal.docId}`)}

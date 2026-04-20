@@ -675,7 +675,7 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
         // ¿Hay que descontar inventario ahora? Solo si no se descontó antes y el nuevo tipo lo requiere
         const debeDescontar = !doc.inventarioDescontado && (nuevoTipo === 'PROFORMA' || nuevoTipo === 'FACTURA');
 
-        await prisma.$transaction(async (tx) => {
+        const nuevoId = await prisma.$transaction(async (tx) => {
             // Marcar el documento original como CONVERTIDO
             await tx.factura.update({
                 where: { id },
@@ -752,10 +752,11 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
                     }
                 }
             }
+            return nuevoDoc.id;
         });
 
         revalidatePath('/facturas');
-        return { success: true, nuevoTipo };
+        return { success: true, nuevoTipo, nuevoId };
     } catch (e: any) {
         console.error("Error convirtiendo documento:", e);
         return { success: false, error: e.message || "Error al convertir" };

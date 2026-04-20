@@ -45,7 +45,7 @@ export default function ModernTemplate(props: TemplateProps) {
   );
 
   return (
-    <div className={`flex-1 min-w-0 space-y-4 print:space-y-0 print:m-0 ${fontClass}`}>
+    <div className={`flex-1 print:flex-none print:block min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-8 ${fontClass}`}>
       {/* Document Card */}
       <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
 
@@ -283,7 +283,7 @@ export default function ModernTemplate(props: TemplateProps) {
       </div>
 
       {/* Footer */}
-      <InvoiceFooter settings={settings} organization={organization} />
+      <InvoiceFooter settings={settings} organization={organization} className="print:fixed print:bottom-0 print:left-0 print:w-full print:bg-white print:pb-2" />
 
     </div>
   );

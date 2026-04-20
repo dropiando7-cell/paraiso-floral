@@ -42,7 +42,7 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
     if (isFullscreen) {
         return (
             <LayoutContext.Provider value={{ isFullscreen, setIsFullscreen }}>
-                <div className="flex min-h-screen bg-[#F0F4FF] w-full">
+                <div className="flex min-h-screen print:min-h-0 print:block bg-[#F0F4FF] w-full">
                     <main className="flex-1 w-full relative">
                         {children}
                     </main>
@@ -53,7 +53,7 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
 
     return (
         <LayoutContext.Provider value={{ isFullscreen, setIsFullscreen }}>
-            <div className="flex min-h-screen bg-[#f8fafc]">
+            <div className="flex min-h-screen print:min-h-0 print:block bg-[#f8fafc]">
                 {/* Mobile overlay */}
                 {sidebarOpen && (
                     <div
@@ -74,12 +74,12 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
                 </div>
 
                 {/* Main content */}
-                <div className="flex-1 flex flex-col min-w-0 w-full print-expand">
+                <div className="flex-1 flex flex-col min-w-0 w-full print-expand print:block">
                     <div className="hide-on-print">
                         <Header dbUser={dbUser} onMenuClick={() => setSidebarOpen(o => !o)} />
                     </div>
-                    <main className="flex-1 overflow-y-auto print:overflow-visible p-4 md:p-6 lg:p-8 print-expand">
-                        <div className="max-w-7xl mx-auto w-full print-expand">
+                    <main className="flex-1 overflow-y-auto print:overflow-visible p-4 md:p-6 lg:p-8 print-expand print:block">
+                        <div className="max-w-7xl mx-auto w-full print-expand print:block">
                             {children}
                         </div>
                     </main>

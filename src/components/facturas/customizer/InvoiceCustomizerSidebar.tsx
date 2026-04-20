@@ -317,19 +317,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
               onChange={v => onChange('footerWeb', v)}
               placeholder="www.empresa.com"
             />
-            <FooterField
-              label="R.T.N."
-              value={settings.footerRtn || ''}
-              onChange={v => onChange('footerRtn', v)}
-              placeholder="0000-0000-000000"
-            />
-            <FooterField
-              label="Dirección"
-              value={settings.footerDireccion || ''}
-              onChange={v => onChange('footerDireccion', v)}
-              placeholder="Dirección de la empresa..."
-              multiline
-            />
+
             <FooterField
               label="Nota adicional (opcional)"
               value={settings.footerNota || ''}
@@ -366,10 +354,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                   {settings.footerCorreo && <span className="text-[9px] text-slate-600 truncate max-w-[140px]">{settings.footerCorreo}</span>}
                   {settings.footerWeb && <span className="text-[9px] text-slate-600">•</span>}
                   {settings.footerWeb && <span className="text-[9px] text-slate-600">{settings.footerWeb}</span>}
-                  {settings.footerRtn && <span className="text-[9px] text-slate-600">•</span>}
-                  {settings.footerRtn && <span className="text-[9px] text-slate-600">R.T.N.: {settings.footerRtn}</span>}
                 </div>
-                {settings.footerDireccion && <p className="text-[9px] text-slate-500">{settings.footerDireccion}</p>}
                 {settings.footerNota && <p className="text-[9px] text-slate-500 italic">{settings.footerNota}</p>}
                 {settings.footerMostrarPagina && <p className="text-[9px] text-slate-400">Página: 1/1</p>}
               </div>

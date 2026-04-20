@@ -35,11 +35,11 @@ export default function MinimalistTemplate(props: TemplateProps) {
   );
 
   return (
-    <div className={`flex-1 space-y-4 print:space-y-0 print:m-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
+    <div className={`flex-1 print:flex-none print:block space-y-4 print:space-y-0 print:m-0 print:pb-8 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
       <div className="p-8 md:p-14 print:p-0">
         
         {/* Header Block Minimal */}
-        <div className={`flex flex-col md:flex-row justify-between items-start gap-8 mb-12`}>
+        <div className={`flex flex-col print:flex-row sm:flex-row justify-between items-start gap-6 print:gap-4 mb-10 print:mb-6`}>
           <div className={`flex-1 ${settings.logoPosition === 'center' ? 'text-center' : settings.logoPosition === 'right' ? 'text-right' : 'text-left'}`}>
              {settings.logoPosition !== 'right' && renderLogo()}
              <h1 className={`text-xl font-light text-slate-800 ${settings.logoPosition === 'center' ? 'mx-auto' : ''}`}>{organization?.name || 'Comercial'}</h1>
@@ -55,7 +55,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
              {settings.logoPosition === 'right' && renderLogo()}
           </div>
           
-          <div className="text-right">
+          <div className="print:text-right sm:text-right">
              <h2 className={`text-2xl font-light tracking-wide ${themeText}`}>{currentDocType.label}</h2>
              <p className="font-semibold text-slate-500 mt-1">{docNumber}</p>
              <div className="mt-6 text-[11px] text-slate-400 space-y-1.5">
@@ -66,7 +66,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
         </div>
 
         {/* Client Block Minimal */}
-        <div className="flex flex-col md:flex-row gap-8 mb-12">
+        <div className="flex flex-col print:flex-row sm:flex-row justify-between gap-6 print:gap-4 mb-10 print:mb-6">
            <div className="flex-1">
              <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Facturar A</p>
              <button onClick={() => setShowClientModal(true)} className="text-left group w-full">
@@ -75,12 +75,12 @@ export default function MinimalistTemplate(props: TemplateProps) {
              </button>
            </div>
            
-           <div className="w-48 text-right">
+           <div className="w-full sm:w-48 print:w-48 sm:text-right print:text-right">
              <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Pago</p>
              <select
                value={paymentTerms}
                onChange={e => setPaymentTerms(e.target.value)}
-               className="w-full text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium mb-1"
+               className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium mb-1"
              >
                <option value="Contado">Contado</option>
                <option value="15 días netos">15 días netos</option>
@@ -88,7 +88,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
                <option value="60 días netos">60 días netos</option>
                <option value="90 días netos">90 días netos</option>
              </select>
-             <div className="flex items-center justify-end gap-2">
+             <div className="flex items-center justify-start sm:justify-end print:justify-end gap-2">
                <span className="text-[10px] text-slate-400">Validez:</span>
                <input
                  type="number"
@@ -101,7 +101,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
         </div>
 
         {/* Items Table Minimal */}
-        <div className="mb-12">
+        <div className="mb-12 print:mb-6">
           <div className="flex items-center gap-2 mb-3 px-2 border-b border-slate-100 pb-2 print:px-0">
             <div className="w-4 shrink-0 print:hidden" />
             {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
@@ -140,8 +140,8 @@ export default function MinimalistTemplate(props: TemplateProps) {
         </div>
 
         {/* Footer Minimal */}
-        <div className="flex flex-col md:flex-row justify-between gap-12 pt-8 print:break-inside-avoid">
-           <div className="flex-1">
+        <div className="pt-8 print:pt-4 print:block print:break-inside-avoid">
+           <div className="flex-1 print:float-left print:w-[50%]">
               <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Notas</p>
               <textarea
                 value={notes}
@@ -155,7 +155,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
               </div>
            </div>
 
-           <div className="w-full md:w-64">
+           <div className="w-full md:w-64 print:float-right print:w-[40%]">
               <div className="space-y-3 text-sm">
                  <div className="flex justify-between text-slate-500">
                    <span>Subtotal L.</span>
@@ -213,10 +213,11 @@ export default function MinimalistTemplate(props: TemplateProps) {
                 </button>
               </div>
            </div>
+           <div className="clear-both print:block"></div>
         </div>
 
         {/* Footer */}
-        <InvoiceFooter settings={settings} organization={organization} />
+        <InvoiceFooter settings={settings} organization={organization} className="print:fixed print:bottom-0 print:left-0 print:w-full print:bg-white print:px-12 print:pb-2" />
 
       </div>
     </div>
