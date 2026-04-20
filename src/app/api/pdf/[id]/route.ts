@@ -5,10 +5,10 @@ import chromium from '@sparticuz/chromium';
 // We need to set max duration since Vercel's default 10s might be too short for chromium booting
 export const maxDuration = 60;
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   let browser = null;
   try {
-    const id = params.id;
+    const { id } = await params;
     if (!id) {
       return new Response('Missing ID', { status: 400 });
     }
