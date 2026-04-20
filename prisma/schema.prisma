@@ -82,6 +82,9 @@ model User {
   facturasCreadas       Factura[]              @relation("CreatedFacturas")
   facturasAnuladas      Factura[]              @relation("AnuladaFacturas")
   organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ordenesRecepcionadas  OrdenTrabajo[]         @relation("RecepcionOrdenes")
+  ordenesReparadas      OrdenTrabajo[]         @relation("TecnicoOrdenes")
+  ordenesAprobadas      OrdenTrabajo[]         @relation("AprobacionOrdenes")
 
   @@map("users")
 }
@@ -641,7 +644,10 @@ model OrdenTrabajo {
   organizationId     String       @db.Uuid
   clienteId          String       @db.Uuid
   equipoDano         String
+  tipoAparato        String?      @default("MEDICO")
   marcaModelo        String?
+  serie              String?
+  descripcionFalla   String?
   accesorios         String?
   estado             String       @default("RECIBIDO")
   costoRevision      Decimal      @default(650) @db.Decimal(12, 2)
@@ -654,8 +660,17 @@ model OrdenTrabajo {
   fechaEntregado     DateTime?
   codigoSeguridad    String
   notificadoWhatsApp Boolean      @default(false)
+  fotosEstadoInicial String[]     @default([])
+  
+  usuarioRecepcionId String?      @db.Uuid
+  tecnicoReparacionId String?     @db.Uuid
+  usuarioAprobacionId String?     @db.Uuid
+
   cliente            Cliente      @relation(fields: [clienteId], references: [id])
   organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  usuarioRecepcion   User?        @relation("RecepcionOrdenes", fields: [usuarioRecepcionId], references: [id])
+  tecnicoReparacion  User?        @relation("TecnicoOrdenes", fields: [tecnicoReparacionId], references: [id])
+  usuarioAprobacion  User?        @relation("AprobacionOrdenes", fields: [usuarioAprobacionId], references: [id])
 
   @@index([organizationId])
   @@index([clienteId])

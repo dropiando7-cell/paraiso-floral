@@ -121,7 +121,7 @@ export default function SoporteClient({ initialData }: { initialData: Orden[] })
                                         </div>
                                     ) : (
                                         items.map(orden => (
-                                            <div key={orden.id} className={`bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative transition-opacity ${loadingId === orden.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                                            <div key={orden.id} onClick={() => router.push(`/soporte/${orden.id}`)} className={`bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative transition-all hover:shadow-md cursor-pointer hover:border-indigo-300 ${loadingId === orden.id ? 'opacity-50 pointer-events-none' : ''}`}>
                                                 <div className="flex items-center justify-between mb-2">
                                                     <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase">
                                                         #{orden.codigoSeguridad}
@@ -152,7 +152,7 @@ export default function SoporteClient({ initialData }: { initialData: Orden[] })
                                                 <div className="mt-4 pt-3 flex justify-end gap-2 border-t border-slate-100">
                                                     {col.id !== 'LISTO_ENTREGA' ? (
                                                         <button 
-                                                            onClick={() => handleAvanzar(orden.id, col.id)}
+                                                            onClick={(e) => { e.stopPropagation(); handleAvanzar(orden.id, col.id); }}
                                                             className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
                                                         >
                                                             Avanzar <MoveRight className="w-3 h-3" />
@@ -178,7 +178,7 @@ export default function SoporteClient({ initialData }: { initialData: Orden[] })
                 <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-200 p-6">
                         <h2 className="text-lg font-bold text-slate-800 mb-2">Cotizar Reparación</h2>
-                        <p className="text-sm text-slate-500 mb-4">Ingrese el costo base de la reparación. (Adicional a los L. 650 de revisión visual).</p>
+                        <p className="text-sm text-slate-500 mb-4">Ingrese el costo base de la reparación. (Adicional a los L. 450 de revisión visual).</p>
                         
                         <div className="mb-6">
                             <label className="block text-sm font-semibold text-slate-600 mb-1.5">Monto (Lempiras)</label>

@@ -19,7 +19,8 @@ import {
   Users,
   Key,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Wrench
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -50,6 +51,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
     category: 'CORE',
     items: [
       { name: 'Portal Bioelectrónica', href: '/', icon: LayoutDashboard },
+      { name: 'Mantenimiento y Reparaciones', href: '/soporte', icon: Wrench, roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
       { name: 'Inventario IA', href: '/inventario-ia', icon: Sparkles, badge: 'NUEVO', badgeColor: 'bg-green-500/20 text-green-700' },
       { name: 'Rentas de Equipos', href: '/rentas', icon: Box },
       { name: 'Gráficas e Informes', href: '/graficas', icon: TrendingUp },
@@ -79,7 +81,6 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         icon: Receipt,
         subItems: [
           { name: 'Directorio de Contactos', href: '/contactos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-          { name: 'Soporte y Reparaciones', href: '/soporte', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Cotizaciones', href: '/cotizaciones', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Facturación', href: '/facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] }
         ]

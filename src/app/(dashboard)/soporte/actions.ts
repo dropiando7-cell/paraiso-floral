@@ -36,31 +36,58 @@ export async function getOrdenByQR(codigoSeguridad: string) {
 }
 
 export async function createOrdenTrabajo(data: {
-    clienteId: string;
-    equipoDano: string;
-    marcaModelo?: string;
-    accesorios?: string;
+    cliente: string;
+    telefono?: string;
+    equipo: string;
+    modelo?: string;
+    serie?: string;
+    marca?: string;
+    descripcionFalla: string;
+    fotosEstadoInicial?: string[];
+    usuarioRecepcionId?: string;
 }) {
     const org = await prisma.organization.findFirst();
     if (!org) throw new Error('Organización no encontrada');
 
+    // Find or create cliente
+    let clienteRecord = await prisma.cliente.findFirst({
+        where: { nombre: data.cliente, organizationId: org.id }
+    });
+
+    if (!clienteRecord) {
+        clienteRecord = await prisma.cliente.create({
+            data: {
+                nombre: data.cliente,
+                telefono: data.telefono,
+                organizationId: org.id
+            }
+        });
+    }
+
     // Generar un código criptográfico corto para el QR 
     const codigoSeguridad = randomBytes(4).toString('hex').toUpperCase();
+
+    const marcaModelo = [data.marca, data.modelo].filter(Boolean).join(" ") || null;
 
     const orden = await prisma.ordenTrabajo.create({
         data: {
             organizationId: org.id,
-            clienteId: data.clienteId,
-            equipoDano: data.equipoDano,
-            marcaModelo: data.marcaModelo || null,
-            accesorios: data.accesorios || null,
+            clienteId: clienteRecord.id,
+            equipoDano: data.equipo === 'medico' ? 'Equipo Médico' : data.equipo === 'aire' ? 'Aire Acondicionado' : 'Otro',
+            tipoAparato: data.equipo.toUpperCase(),
+            marcaModelo,
+            serie: data.serie || null,
+            descripcionFalla: data.descripcionFalla,
             codigoSeguridad,
-            costoRevision: 650
+            fotosEstadoInicial: data.fotosEstadoInicial || [],
+            costoRevision: 450,
+            estado: 'RECIBIDO',
+            usuarioRecepcionId: data.usuarioRecepcionId || null
         },
         include: { cliente: true }
     });
 
-    // TODO: Disparar mensaje de WhatsApp aquí usando la lógica de Twilio
+    // TODO: Mensaje WhatsApp
     // await sendWhatsApp(orden.cliente.telefono, codigoSeguridad, ...);
 
     revalidatePath('/soporte');

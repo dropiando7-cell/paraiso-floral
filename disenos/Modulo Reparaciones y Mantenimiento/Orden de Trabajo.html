@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>Orden de Trabajo — Bioelectrónica Honduras</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-family: 'Inter', sans-serif; -webkit-text-size-adjust: 100%; }
+    body { background: #F4F6FB; min-height: 100vh; }
+    input, textarea, select { font-family: 'Inter', sans-serif; -webkit-appearance: none; }
+    button { font-family: 'Inter', sans-serif; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+    ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 4px; }
+
+    /* Signature canvas */
+    .sig-canvas { touch-action: none; display: block; }
+
+    /* Animated step transitions */
+    @keyframes slideIn  { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes slideOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(-30px); } }
+    .step-enter { animation: slideIn 0.25s ease forwards; }
+
+    /* Print */
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white; }
+      .print-card { box-shadow: none !important; border: 1px solid #ccc; }
+    }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback } = React;
+
+// ── Primitives ────────────────────────────────────────────────────────────────
+const PRIMARY = "#1928FD";
+const ACCENT  = "#FE0000";
+
+const Field = ({ label, required, children, hint }) => (
+  <div style={{ marginBottom: 18 }}>
+    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#374151", marginBottom: 7, letterSpacing: 0.3 }}>
+      {label}{required && <span style={{ color: ACCENT, marginLeft: 3 }}>*</span>}
+    </label>
+    {children}
+    {hint && <p style={{ marginTop: 5, fontSize: 11, color: "#9CA3AF" }}>{hint}</p>}
+  </div>
+);
+
+const Input = ({ value, onChange, placeholder, type = "text", inputMode, ...rest }) => (
+  <input
+    type={type} inputMode={inputMode} value={value} onChange={e => onChange(e.target.value)}
+    placeholder={placeholder} {...rest}
+    style={{
+      width: "100%", padding: "14px 16px", borderRadius: 12, border: "1.5px solid #E5E7EB",
+      fontSize: 16, color: "#111827", background: "#fff", outline: "none", transition: "border-color 0.15s",
+      WebkitAppearance: "none",
+    }}
+    onFocus={e => e.target.style.borderColor = PRIMARY}
+    onBlur={e => e.target.style.borderColor = "#E5E7EB"}
+  />
+);
+
+const Textarea = ({ value, onChange, placeholder, rows = 4 }) => (
+  <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows}
+    style={{
+      width: "100%", padding: "14px 16px", borderRadius: 12, border: "1.5px solid #E5E7EB",
+      fontSize: 16, color: "#111827", background: "#fff", resize: "vertical", outline: "none",
+      fontFamily: "Inter", lineHeight: 1.5, transition: "border-color 0.15s"
+    }}
+    onFocus={e => e.target.style.borderColor = PRIMARY}
+    onBlur={e => e.target.style.borderColor = "#E5E7EB"}
+  />
+);
+
+// Big toggle button group
+const ToggleGroup = ({ options, value, onChange, multi = false }) => (
+  <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+    {options.map(opt => {
+      const active = multi ? (value || []).includes(opt.value) : value === opt.value;
+      return (
+        <button key={opt.value} onClick={() => {
+          if (multi) {
+            const cur = value || [];
+            onChange(active ? cur.filter(v => v !== opt.value) : [...cur, opt.value]);
+          } else { onChange(active ? "" : opt.value); }
+        }} style={{
+          flex: "1 1 auto", minWidth: 100, padding: "14px 12px", borderRadius: 12,
+          border: `2px solid ${active ? PRIMARY : "#E5E7EB"}`,
+          background: active ? "#EEF2FF" : "#fff",
+          color: active ? PRIMARY : "#6B7280", fontWeight: active ? 700 : 500,
+          fontSize: 14, transition: "all 0.15s", display: "flex",
+          flexDirection: "column", alignItems: "center", gap: 5,
+          WebkitTapHighlightColor: "transparent"
+        }}>
+          {opt.icon && <span style={{ fontSize: 22 }}>{opt.icon}</span>}
+          <span>{opt.label}</span>
+        </button>
+      );
+    })}
+  </div>
+);
+
+// Yes/No toggle
+const YesNo = ({ value, onChange }) => (
+  <div style={{ display: "flex", gap: 12 }}>
+    {[["si","✅ Sí"],["no","❌ No"]].map(([v, l]) => (
+      <button key={v} onClick={() => onChange(v)} style={{
+        flex: 1, padding: "15px 0", borderRadius: 12, fontSize: 16, fontWeight: 700,
+        border: `2px solid ${value === v ? (v === "si" ? "#16A34A" : ACCENT) : "#E5E7EB"}`,
+        background: value === v ? (v === "si" ? "#F0FDF4" : "#FFF1F1") : "#fff",
+        color: value === v ? (v === "si" ? "#16A34A" : ACCENT) : "#6B7280",
+        transition: "all 0.15s"
+      }}>{l}</button>
+    ))}
+  </div>
+);
+
+// ── Signature Pad ─────────────────────────────────────────────────────────────
+const SignaturePad = ({ label, onSign }) => {
+  const canvasRef = useRef();
+  const drawing = useRef(false);
+  const lastPos = useRef(null);
+  const [hasSig, setHasSig] = useState(false);
+
+  const getPos = (e, canvas) => {
+    const rect = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return { x: src.clientX - rect.left, y: src.clientY - rect.top };
+  };
+
+  const start = (e) => {
+    e.preventDefault();
+    drawing.current = true;
+    const pos = getPos(e, canvasRef.current);
+    lastPos.current = pos;
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.beginPath(); ctx.arc(pos.x, pos.y, 1, 0, Math.PI*2); ctx.fill();
+  };
+
+  const move = (e) => {
+    e.preventDefault();
+    if (!drawing.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d");
+    const pos = getPos(e, canvas);
+    ctx.beginPath();
+    ctx.moveTo(lastPos.current.x, lastPos.current.y);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.strokeStyle = "#0B1221"; ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    ctx.stroke();
+    lastPos.current = pos;
+    setHasSig(true);
+    onSign && onSign(canvas.toDataURL());
+  };
+
+  const end = (e) => { e.preventDefault(); drawing.current = false; };
+
+  const clear = () => {
+    const canvas = canvasRef.current;
+    canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    setHasSig(false); onSign && onSign(null);
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const resize = () => {
+      const w = canvas.parentElement.clientWidth;
+      canvas.width = w; canvas.height = 120;
+    };
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, []);
+
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
+        <label style={{ fontSize: 12, fontWeight: 700, color: "#374151", letterSpacing: 0.3 }}>{label}</label>
+        {hasSig && <button onClick={clear} style={{ fontSize: 11, color: ACCENT, background: "none", border: "none", fontWeight: 600 }}>✕ Borrar</button>}
+      </div>
+      <div style={{ border: `2px solid ${hasSig ? PRIMARY : "#E5E7EB"}`, borderRadius: 12, background: "#fff", overflow: "hidden", position: "relative" }}>
+        <canvas ref={canvasRef} className="sig-canvas"
+          onMouseDown={start} onMouseMove={move} onMouseUp={end} onMouseLeave={end}
+          onTouchStart={start} onTouchMove={move} onTouchEnd={end}
+          style={{ display: "block", cursor: "crosshair" }}/>
+        {!hasSig && (
+          <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none" }}>
+            <span style={{ fontSize: 13, color: "#9CA3AF" }}>✍ Firmar aquí</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ── Progress Bar ──────────────────────────────────────────────────────────────
+const StepBar = ({ current, total, labels }) => (
+  <div style={{ padding: "0 20px 20px" }}>
+    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+      {labels.map((l, i) => (
+        <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", flex: 1, position: "relative" }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 12, fontWeight: 700, zIndex: 1,
+            background: i < current ? PRIMARY : i === current ? PRIMARY : "#E5E7EB",
+            color: i <= current ? "#fff" : "#9CA3AF",
+            border: i === current ? `3px solid #EEF2FF` : "none",
+            boxShadow: i === current ? `0 0 0 3px ${PRIMARY}33` : "none",
+            transition: "all 0.2s"
+          }}>
+            {i < current ? "✓" : i + 1}
+          </div>
+          <span style={{ fontSize: 10, marginTop: 4, color: i <= current ? PRIMARY : "#9CA3AF", fontWeight: i === current ? 700 : 400, textAlign: "center", lineHeight: 1.2 }}>
+            {l}
+          </span>
+          {i < total - 1 && (
+            <div style={{
+              position: "absolute", top: 14, left: "50%", width: "100%", height: 2,
+              background: i < current ? PRIMARY : "#E5E7EB", zIndex: 0, transition: "background 0.3s"
+            }}/>
+          )}
+        </div>
+      ))}
+    </div>
+  </div>
+);
+
+// ── Step Components ───────────────────────────────────────────────────────────
+const StepCliente = ({ form, set }) => (
+  <div className="step-enter">
+    <div style={{ background: "#EEF2FF", borderRadius: 12, padding: "12px 16px", marginBottom: 20, display: "flex", gap: 10, alignItems: "center" }}>
+      <span style={{ fontSize: 20 }}>👤</span>
+      <span style={{ fontSize: 13.5, color: PRIMARY, fontWeight: 600 }}>Datos del cliente que trae el equipo</span>
+    </div>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 18 }}>
+      <Field label="Fecha de Ingreso" required>
+        <Input type="date" value={form.fecha} onChange={v => set("fecha", v)}/>
+      </Field>
+      <Field label="N° de Orden">
+        <Input value={form.numero} onChange={v => set("numero", v)} placeholder="000551" inputMode="numeric"/>
+      </Field>
+    </div>
+    <Field label="Nombre del Cliente / Empresa" required>
+      <Input value={form.cliente} onChange={v => set("cliente", v)} placeholder="Ej: Clínica Bendaña S.A." inputMode="text" autoCapitalize="words"/>
+    </Field>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <Field label="Teléfono / WhatsApp" required>
+        <Input value={form.telefono} onChange={v => set("telefono", v)} placeholder="+504 9999-0000" type="tel" inputMode="tel"/>
+      </Field>
+      <Field label="Fax (opcional)">
+        <Input value={form.fax} onChange={v => set("fax", v)} placeholder="2234-5678" type="tel" inputMode="tel"/>
+      </Field>
+    </div>
+    <Field label="Dirección">
+      <Input value={form.direccion} onChange={v => set("direccion", v)} placeholder="Colonia, ciudad..." autoCapitalize="sentences"/>
+    </Field>
+  </div>
+);
+
+const StepEquipo = ({ form, set }) => (
+  <div className="step-enter">
+    <Field label="Tipo de Aparato" required>
+      <ToggleGroup value={form.tipoAparato} onChange={v => set("tipoAparato", v)} options={[
+        { value: "medico",  label: "Equipo Médico",          icon: "🏥" },
+        { value: "aire",    label: "Aire Acondicionado",     icon: "❄️" },
+        { value: "otro",    label: "Otro Equipo",            icon: "🔧" },
+      ]}/>
+    </Field>
+    <Field label="Descripción del Equipo" required>
+      <Input value={form.descripcion} onChange={v => set("descripcion", v)} placeholder="Ej: Monitor de signos vitales, portátil"/>
+    </Field>
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10 }}>
+      <Field label="Marca">
+        <Input value={form.marca} onChange={v => set("marca", v)} placeholder="GE, Philips…"/>
+      </Field>
+      <Field label="Modelo">
+        <Input value={form.modelo} onChange={v => set("modelo", v)} placeholder="Dash 4000"/>
+      </Field>
+      <Field label="N° de Serie">
+        <Input value={form.serie} onChange={v => set("serie", v)} placeholder="MF-20938" inputMode="text"/>
+      </Field>
+    </div>
+    <Field label="Apariencia / Estado Físico">
+      <ToggleGroup value={form.apariencia} onChange={v => set("apariencia", v)} options={[
+        { value: "bueno",     label: "Bueno",    icon: "✅" },
+        { value: "regular",   label: "Regular",  icon: "🟡" },
+        { value: "deteriorado",label: "Deteriorado", icon: "⚠️" },
+        { value: "danado",    label: "Dañado",   icon: "❌" },
+      ]}/>
+    </Field>
+    <Field label="Accesorios Incluidos">
+      <Textarea value={form.accesorios} onChange={v => set("accesorios", v)}
+        placeholder="Cable de alimentación, adaptador, maletín…" rows={2}/>
+    </Field>
+  </div>
+);
+
+const StepServicio = ({ form, set }) => (
+  <div className="step-enter">
+    <Field label="Tipo de Trabajo" required>
+      <ToggleGroup value={form.tipoTrabajo} onChange={v => set("tipoTrabajo", v)} options={[
+        { value: "normal",    label: "Normal",     icon: "🔧" },
+        { value: "garantia",  label: "Garantía",   icon: "🛡️" },
+        { value: "reclamo",   label: "Reclamo",    icon: "📋" },
+      ]}/>
+    </Field>
+    <Field label="Motivo de la Visita" required>
+      <ToggleGroup value={form.motivoVisita} onChange={v => set("motivoVisita", v)} options={[
+        { value: "reparacion",    label: "Reparación",    icon: "🔩" },
+        { value: "mantenimiento", label: "Mantenimiento", icon: "🛠️" },
+        { value: "presupuesto",   label: "Presupuesto",   icon: "💰" },
+      ]}/>
+    </Field>
+    <Field label="Detalle del Problema" required hint="Describe con detalle lo que falla para que el técnico pueda prepararse">
+      <Textarea value={form.detalle} onChange={v => set("detalle", v)}
+        placeholder="El equipo no enciende al presionar el botón de encendido. Hace un clic y apaga…" rows={4}/>
+    </Field>
+    <Field label="Observaciones Adicionales">
+      <Textarea value={form.observaciones} onChange={v => set("observaciones", v)}
+        placeholder="Notas sobre garantía previa, historial, urgencia…" rows={3}/>
+    </Field>
+    <Field label="¿Deja Depósito?" required>
+      <YesNo value={form.deposito} onChange={v => set("deposito", v)}/>
+    </Field>
+    {form.deposito === "si" && (
+      <Field label="Monto del Depósito (L.)">
+        <Input value={form.montoDeposito} onChange={v => set("montoDeposito", v)} placeholder="500.00" type="number" inputMode="decimal"/>
+      </Field>
+    )}
+  </div>
+);
+
+const StepFirma = ({ form, set, onComplete }) => {
+  const [done, setDone] = useState(false);
+  const handleComplete = () => { setDone(true); onComplete && onComplete(); };
+
+  return (
+    <div className="step-enter">
+      {/* Summary card */}
+      <div style={{ background: "#F4F6FB", borderRadius: 14, padding: "16px 18px", marginBottom: 22 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", letterSpacing: 0.6, marginBottom: 12 }}>RESUMEN DE LA ORDEN</div>
+        {[
+          ["N° Orden", form.numero || "—"],
+          ["Cliente", form.cliente || "—"],
+          ["Teléfono", form.telefono || "—"],
+          ["Equipo", form.descripcion || "—"],
+          ["Marca / Modelo", [form.marca, form.modelo].filter(Boolean).join(" / ") || "—"],
+          ["Serie", form.serie || "—"],
+          ["Tipo de Trabajo", form.tipoTrabajo || "—"],
+          ["Motivo", form.motivoVisita || "—"],
+          ["Depósito", form.deposito === "si" ? `Sí — L ${form.montoDeposito || "—"}` : form.deposito === "no" ? "No" : "—"],
+        ].map(([k, v]) => (
+          <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: "1px solid #E5E7EB", alignItems: "flex-start" }}>
+            <span style={{ fontSize: 12, color: "#6B7280", fontWeight: 600 }}>{k}</span>
+            <span style={{ fontSize: 12.5, color: "#111827", fontWeight: 500, textAlign: "right", maxWidth: "60%" }}>{v}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Condiciones */}
+      <div style={{ background: "#FFF7ED", borderRadius: 12, padding: "12px 14px", marginBottom: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#C2410C", marginBottom: 8 }}>CONDICIONES DE REPARACIÓN</div>
+        {[
+          "El cliente autoriza la reparación y se obliga a su pago una vez firmada esta Orden.",
+          "El equipo se entregará únicamente con presentación de esta contraseña; caso contrario deberá pagar un recargo de Lps. 25.00.",
+          "No asumimos responsabilidad por daños o pérdidas totales o parciales por causa de fuerza mayor.",
+          "Si el equipo no ha sido retirado 30 días después de su reparación se venderá para cubrir los gastos incurridos.",
+          "GARANTÍA DE MANO DE OBRA: 90 días después de retirado el equipo. Repuestos según periodo de garantía.",
+          "Se cobrarán Lps. 450.00 por elaborar presupuestos de reparación.",
+        ].map((c, i) => (
+          <p key={i} style={{ fontSize: 11, color: "#92400E", marginBottom: 5, paddingLeft: 14, position: "relative" }}>
+            <span style={{ position: "absolute", left: 0 }}>{i+1}.</span>{c}
+          </p>
+        ))}
+      </div>
+
+      <SignaturePad label="FIRMA DEL CLIENTE — Acepto las condiciones" onSign={v => set("firmaCliente", v)}/>
+      <SignaturePad label="RECIBIDO POR (técnico / recepcionista)" onSign={v => set("firmaRecibido", v)}/>
+
+      {!done ? (
+        <button onClick={handleComplete} style={{
+          width: "100%", padding: "17px 0", background: PRIMARY, color: "#fff",
+          border: "none", borderRadius: 14, fontSize: 16, fontWeight: 800,
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+          boxShadow: `0 4px 16px ${PRIMARY}44`
+        }}>
+          ✅ Crear Orden de Trabajo
+        </button>
+      ) : (
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: 60, height: 60, background: "#DCFCE7", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 26 }}>✓</div>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: "#16A34A", marginBottom: 6 }}>¡Orden Creada!</h3>
+          <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 20 }}>Orden N° {form.numero || "Auto"} registrada exitosamente.</p>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => window.print()} style={{
+              flex: 1, padding: "13px 0", background: "#F4F6FB", border: "1.5px solid #E5E7EB",
+              borderRadius: 12, fontSize: 14, fontWeight: 700, color: "#374151"
+            }}>🖨️ Imprimir</button>
+            <button onClick={() => { setDone(false); set("reset", true); }} style={{
+              flex: 1, padding: "13px 0", background: PRIMARY, border: "none",
+              borderRadius: 12, fontSize: 14, fontWeight: 700, color: "#fff"
+            }}>+ Nueva Orden</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+const EMPTY = {
+  fecha: new Date().toISOString().split("T")[0],
+  numero: String(Math.floor(Math.random() * 900) + 100).padStart(6, "0"),
+  cliente: "", telefono: "", fax: "", direccion: "",
+  tipoAparato: "", descripcion: "", marca: "", modelo: "", serie: "",
+  apariencia: "", accesorios: "", tipoTrabajo: "", motivoVisita: "",
+  detalle: "", observaciones: "", deposito: "", montoDeposito: "",
+  firmaCliente: null, firmaRecibido: null,
+};
+
+const STEPS = ["Cliente", "Equipo", "Servicio", "Firma"];
+
+const App = () => {
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState(EMPTY);
+  const [dir, setDir] = useState(1);
+  const contentRef = useRef();
+
+  const set = (k, v) => {
+    if (k === "reset") { setForm({ ...EMPTY, numero: String(Date.now()).slice(-6) }); setStep(0); return; }
+    setForm(p => ({ ...p, [k]: v }));
+  };
+
+  const canNext = () => {
+    if (step === 0) return form.cliente && form.telefono && form.fecha;
+    if (step === 1) return form.tipoAparato && form.descripcion;
+    if (step === 2) return form.tipoTrabajo && form.motivoVisita && form.detalle && form.deposito;
+    return true;
+  };
+
+  const go = (n) => {
+    setDir(n > step ? 1 : -1);
+    setStep(n);
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#F4F6FB", display: "flex", flexDirection: "column" }}>
+
+      {/* ── Header ── */}
+      <div className="no-print" style={{ background: "#fff", borderBottom: "1px solid #E8EAED", position: "sticky", top: 0, zIndex: 50 }}>
+        <div style={{ maxWidth: 720, margin: "0 auto", padding: "12px 20px", display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{ width: 34, height: 34, background: PRIMARY, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <span style={{ color: "#fff", fontWeight: 800, fontSize: 12 }}>BE</span>
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#0B1221", lineHeight: 1 }}>Bioelectrónica Honduras</div>
+            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 1 }}>Orden de Trabajo Interno</div>
+          </div>
+          <div style={{ marginLeft: "auto", background: "#EEF2FF", padding: "4px 10px", borderRadius: 20, fontSize: 12, fontWeight: 700, color: PRIMARY }}>
+            N° {form.numero}
+          </div>
+        </div>
+
+        {/* Step bar */}
+        <div style={{ maxWidth: 720, margin: "0 auto", paddingTop: 12 }}>
+          <StepBar current={step} total={STEPS.length} labels={STEPS}/>
+        </div>
+      </div>
+
+      {/* ── Content ── */}
+      <div ref={contentRef} style={{ flex: 1, overflowY: "auto" }}>
+        <div style={{ maxWidth: 720, margin: "0 auto", padding: "20px 20px 120px" }}>
+
+          {/* Step title */}
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#0B1221", marginBottom: 3 }}>
+              {["👤 Datos del Cliente","🏥 Datos del Equipo","🛠️ Tipo de Servicio","✍️ Firmas y Confirmación"][step]}
+            </h2>
+            <p style={{ fontSize: 13, color: "#6B7280" }}>
+              {["Ingresa la información del cliente","Especifica el equipo a reparar","Define el tipo de trabajo a realizar","Revisa el resumen y firma para confirmar"][step]}
+            </p>
+          </div>
+
+          {/* Step content */}
+          <div style={{ background: "#fff", borderRadius: 20, padding: "22px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)" }}>
+            {step === 0 && <StepCliente form={form} set={set}/>}
+            {step === 1 && <StepEquipo  form={form} set={set}/>}
+            {step === 2 && <StepServicio form={form} set={set}/>}
+            {step === 3 && <StepFirma    form={form} set={set} onComplete={() => {}}/>}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Bottom Nav ── */}
+      {step < 3 && (
+        <div className="no-print" style={{
+          position: "fixed", bottom: 0, left: 0, right: 0, padding: "12px 20px 20px",
+          background: "linear-gradient(to top, #F4F6FB 80%, transparent)",
+          display: "flex", gap: 10
+        }}>
+          <div style={{ maxWidth: 720, margin: "0 auto", display: "flex", gap: 10, width: "100%" }}>
+            {step > 0 && (
+              <button onClick={() => go(step - 1)} style={{
+                width: 52, height: 52, borderRadius: 14, border: "1.5px solid #E5E7EB",
+                background: "#fff", fontSize: 20, display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0, color: "#374151"
+              }}>←</button>
+            )}
+            <button onClick={() => go(step + 1)} disabled={!canNext()} style={{
+              flex: 1, height: 52, borderRadius: 14, border: "none",
+              background: canNext() ? PRIMARY : "#E5E7EB",
+              color: canNext() ? "#fff" : "#9CA3AF",
+              fontSize: 16, fontWeight: 700, transition: "background 0.2s",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              boxShadow: canNext() ? `0 4px 14px ${PRIMARY}44` : "none"
+            }}>
+              {canNext() ? `Siguiente: ${STEPS[step + 1]} →` : "Completa los campos requeridos"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
