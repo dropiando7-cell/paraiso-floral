@@ -40,7 +40,7 @@ export default function LegacyTemplate(props: TemplateProps) {
           {/* Logo */}
           <div className={`${settings.logoPosition === 'center' ? '' : 'flex-1'} ${settings.logoPosition === 'right' ? 'flex justify-end' : ''}`}>
              {organization?.logoUrl ? (
-                <img src={organization.logoUrl} alt="Logo" className={`${settings.logoSize === 'small' ? 'h-16' : settings.logoSize === 'large' ? 'h-36' : 'h-28'} w-auto object-contain`} />
+                <img crossOrigin="anonymous" src={organization.logoUrl} alt="Logo" className={`${settings.logoSize === 'small' ? 'h-16' : settings.logoSize === 'large' ? 'h-36' : 'h-28'} w-auto object-contain`} />
              ) : (
                 <div className={`border border-gray-300 flex items-center justify-center text-gray-400 bg-gray-50 text-xs text-center font-bold ${settings.logoSize === 'small' ? 'w-16 h-16' : settings.logoSize === 'large' ? 'w-36 h-36' : 'w-28 h-28'}`}>Sin<br/>Logo</div>
              )}

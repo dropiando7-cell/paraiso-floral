@@ -408,7 +408,7 @@ function LineItemRow({
         {/* First Column Image Position (if enabled) */}
         {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && (
           <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
-            {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
+            {item.imageUrl ? <img crossOrigin="anonymous" src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
           </div>
         )}
 
@@ -784,6 +784,9 @@ export default function DocumentBuilderClient({
     if (effectiveViewMode && searchParams.get('print') === 'true') {
       const timer = setTimeout(() => {
         window.print();
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('print');
+        window.history.replaceState({}, '', newUrl);
       }, 800); // slight delay to ensure fonts/layout are fully rendered
       return () => clearTimeout(timer);
     }
@@ -794,6 +797,9 @@ export default function DocumentBuilderClient({
     if (effectiveViewMode && searchParams.get('download') === 'true') {
       const timer = setTimeout(() => {
         handleDownloadPDF();
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.delete('download');
+        window.history.replaceState({}, '', newUrl);
       }, 1200); // extra delay for full render before capture
       return () => clearTimeout(timer);
     }
@@ -819,7 +825,11 @@ export default function DocumentBuilderClient({
     try {
       // Petición al API de Puppeteer (Nivel Odoo)
       const res = await fetch(`/api/pdf/${docId}`);
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error('Puppeteer Server API Error:', errBody);
+        throw new Error(errBody.error || 'API Error');
+      }
       
       const blob = await res.blob();
       const typeLabel = docType === 'cotizacion' ? 'Cotizacion' : docType === 'proforma' ? 'ProForma' : 'Factura';
@@ -864,7 +874,31 @@ export default function DocumentBuilderClient({
 
         const originalClasses = container.className;
         container.className = originalClasses.replace('pr-80', '').replace('scale-[0.95]', '');
-        await new Promise(r => setTimeout(r, 100));
+
+        // PREPROCESS: Convert images to base64 to avoid html2canvas Tainted Canvas / CORS silent drops
+        const imagesToConvert = Array.from(container.querySelectorAll('img'));
+        const originalSrcs: string[] = [];
+        
+        await Promise.all(imagesToConvert.map(async (img) => {
+          originalSrcs.push(img.src);
+          if (img.src.startsWith('data:')) return;
+          try {
+            const fetchRes = await fetch(img.src);
+            if (fetchRes.ok) {
+              const blob = await fetchRes.blob();
+              const base64data = await new Promise((resolve) => {
+                 const reader = new FileReader();
+                 reader.onloadend = () => resolve(reader.result);
+                 reader.readAsDataURL(blob);
+              });
+              img.src = base64data as string;
+            }
+          } catch(e) {
+            console.warn('Could not base64 fetch image:', img.src, e);
+          }
+        }));
+
+        await new Promise(r => setTimeout(r, 200));
 
         const canvas = await html2canvas(container, {
           scale: 2,
@@ -872,6 +906,11 @@ export default function DocumentBuilderClient({
           allowTaint: true,
           backgroundColor: '#ffffff',
           logging: false,
+        });
+
+        // RESTORE
+        imagesToConvert.forEach((img, i) => {
+          img.src = originalSrcs[i];
         });
 
         container.className = originalClasses;

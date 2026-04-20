@@ -31,7 +31,7 @@ export default function ModernTemplate(props: TemplateProps) {
   const renderLogoSection = () => (
     <div className={`flex items-center gap-3 mb-4 ${settings.logoPosition === 'center' ? 'justify-center flex-col' : settings.logoPosition === 'right' ? 'flex-row-reverse justify-end' : ''}`}>
       {organization?.logoUrl ? (
-        <img src={organization.logoUrl} alt={organization.name || 'Logo'} className={`w-auto object-contain ${settings.logoSize === 'small' ? 'h-8' : settings.logoSize === 'large' ? 'h-20' : 'h-12'}`} />
+        <img crossOrigin="anonymous" src={organization.logoUrl} alt={organization.name || 'Logo'} className={`w-auto object-contain ${settings.logoSize === 'small' ? 'h-8' : settings.logoSize === 'large' ? 'h-20' : 'h-12'}`} />
       ) : (
         <div className={`rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 shrink-0 ${settings.logoSize === 'small' ? 'w-8 h-8' : settings.logoSize === 'large' ? 'w-16 h-16' : 'w-10 h-10'}`}>
           <Stethoscope size={settings.logoSize === 'small' ? 16 : settings.logoSize === 'large' ? 32 : 20} className={theme.headerText} />
