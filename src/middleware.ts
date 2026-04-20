@@ -20,7 +20,8 @@ export async function middleware(request: NextRequest) {
         url.pathname.startsWith('/api/checkin/pass') ||
         url.pathname.startsWith('/api/checkin/pendientes') ||
         url.pathname.startsWith('/api/checkin/completar') ||
-        url.pathname.startsWith('/api/impresion')
+        url.pathname.startsWith('/api/impresion') ||
+        url.pathname.startsWith('/print')
 
     if (!user && !isPublicRoute) {
         url.pathname = '/login'

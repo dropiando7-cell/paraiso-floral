@@ -42,10 +42,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     const page = await browser.newPage();
     
-    // We wait for networkidle0 to ensure all internal Next.js chunks, fonts, and images are loaded
-    await page.goto(printUrl, {
-      waitUntil: 'networkidle0',
-      timeout: 30000,
+    // We wait for networkidle2 to ensure Next.js chunks finish, but catch timeouts
+    try {
+      await page.goto(printUrl, {
+        waitUntil: 'networkidle2',
+        timeout: 25000,
+      });
+    } catch (e: any) {
+      console.warn('Puppeteer goto timeout or error, trying to render anyway:', e.message);
+    }
+
+    // Force wait for all images in the document to be fully loaded
+    await page.evaluate(async () => {
+      const images = Array.from(document.querySelectorAll('img'));
+      await Promise.all(images.map(img => {
+        if (img.complete) return;
+        return new Promise((resolve) => {
+          img.addEventListener('load', resolve);
+          img.addEventListener('error', resolve); // resolve on error to avoid hangs
+        });
+      }));
     });
 
     // Emulate screen media to apply the exact Tailwind layout intended for screen/print exactly
