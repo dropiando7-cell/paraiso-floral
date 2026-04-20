@@ -66,7 +66,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     await browser.close();
     browser = null;
 
-    return new Response(pdfBuffer, {
+    return new Response(pdfBuffer as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
