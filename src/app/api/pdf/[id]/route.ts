@@ -64,8 +64,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }));
     });
 
-    // Emulate screen media to apply the exact Tailwind layout intended for screen/print exactly
-    await page.emulateMediaType('screen');
+    // Emulate print media to apply Tailwind's print:hidden and print:block classes correctly (hides UI buttons)
+    await page.emulateMediaType('print');
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
