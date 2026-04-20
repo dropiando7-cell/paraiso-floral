@@ -27,7 +27,7 @@ export default function ClassicTemplate(props: TemplateProps) {
   const renderLogo = () => (
     <div className={`mb-4 flex ${settings.logoPosition === 'center' ? 'justify-center' : settings.logoPosition === 'right' ? 'justify-end' : ''}`}>
       {organization?.logoUrl ? (
-        <img crossOrigin="anonymous" src={organization.logoUrl} alt={organization.name || 'Logo'} className={`w-auto object-contain ${settings.logoSize === 'small' ? 'h-10' : settings.logoSize === 'large' ? 'h-24' : 'h-16'}`} />
+        <img  src={organization.logoUrl} alt={organization.name || 'Logo'} className={`w-auto object-contain ${settings.logoSize === 'small' ? 'h-10' : settings.logoSize === 'large' ? 'h-24' : 'h-16'}`} />
       ) : (
         <div className={`border-2 ${baseColor} border-current flex items-center justify-center ${settings.logoSize === 'small' ? 'w-10 h-10' : settings.logoSize === 'large' ? 'w-20 h-20' : 'w-16 h-16'}`}>
           <Stethoscope size={settings.logoSize === 'small' ? 20 : settings.logoSize === 'large' ? 40 : 28} className={baseColor} />

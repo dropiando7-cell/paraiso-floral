@@ -408,7 +408,7 @@ function LineItemRow({
         {/* First Column Image Position (if enabled) */}
         {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && (
           <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
-            {item.imageUrl ? <img crossOrigin="anonymous" src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
+            {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
           </div>
         )}
 
@@ -883,7 +883,8 @@ export default function DocumentBuilderClient({
           originalSrcs.push(img.src);
           if (img.src.startsWith('data:')) return;
           try {
-            const fetchRes = await fetch(img.src);
+            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(img.src)}`;
+            const fetchRes = await fetch(proxyUrl);
             if (fetchRes.ok) {
               const blob = await fetchRes.blob();
               const base64data = await new Promise((resolve) => {
@@ -894,7 +895,7 @@ export default function DocumentBuilderClient({
               img.src = base64data as string;
             }
           } catch(e) {
-            console.warn('Could not base64 fetch image:', img.src, e);
+            console.warn('Could not base64 fetch image through proxy:', img.src, e);
           }
         }));
 

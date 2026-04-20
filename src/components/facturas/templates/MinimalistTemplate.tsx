@@ -25,7 +25,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
   const renderLogo = () => (
     <div className={`mb-6 flex ${settings.logoPosition === 'center' ? 'justify-center' : settings.logoPosition === 'right' ? 'justify-end' : ''}`}>
       {organization?.logoUrl ? (
-        <img crossOrigin="anonymous" src={organization.logoUrl} alt={organization.name || 'Logo'} className={`w-auto object-contain ${settings.logoSize === 'small' ? 'h-8' : settings.logoSize === 'large' ? 'h-20' : 'h-12'}`} />
+        <img  src={organization.logoUrl} alt={organization.name || 'Logo'} className={`w-auto object-contain ${settings.logoSize === 'small' ? 'h-8' : settings.logoSize === 'large' ? 'h-20' : 'h-12'}`} />
       ) : (
         <div className={`flex items-center justify-center ${settings.logoSize === 'small' ? 'w-8 h-8' : settings.logoSize === 'large' ? 'w-20 h-20' : 'w-12 h-12'}`}>
           <Stethoscope size={settings.logoSize === 'small' ? 24 : settings.logoSize === 'large' ? 48 : 32} className={themeText} />
