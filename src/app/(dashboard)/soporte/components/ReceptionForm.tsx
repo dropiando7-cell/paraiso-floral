@@ -5,9 +5,10 @@ import { UploadCloud, Check, X, Wrench, Snowflake, Tags } from 'lucide-react';
 
 type ReceptionFormProps = {
   onSave: (data: any) => Promise<void>;
+  clientes?: any[];
 };
 
-export default function ReceptionForm({ onSave }: ReceptionFormProps) {
+export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormProps) {
   const [form, setForm] = useState({
     cliente: "", telefono: "", equipo: "medico", modelo: "", serie: "",
     marca: "", descripcionFalla: "", prioridad: "normal", tecnico: ""
@@ -17,7 +18,18 @@ export default function ReceptionForm({ onSave }: ReceptionFormProps) {
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const handleChange = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
+  const handleChange = (k: string, v: string) => {
+    if (k === 'cliente') {
+      // Check if matched to autofill phone
+      const matched = clientes.find(c => c.nombre.toLowerCase() === v.toLowerCase());
+      if (matched && matched.telefono) {
+        // autofill phone if current is empty or if it matches an existing one
+        setForm(p => ({ ...p, cliente: v, telefono: matched.telefono }));
+        return;
+      }
+    }
+    setForm(p => ({ ...p, [k]: v }));
+  };
 
   const handleFiles = (files: FileList | null) => {
     if (!files) return;
@@ -89,9 +101,15 @@ export default function ReceptionForm({ onSave }: ReceptionFormProps) {
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Cliente / Empresa *</label>
           <input 
+             list="lista-clientes"
              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white"
              value={form.cliente} onChange={e => handleChange("cliente", e.target.value)} placeholder="Ej. Hospital Centro"
           />
+          <datalist id="lista-clientes">
+            {clientes.map(c => (
+              <option key={c.id} value={c.nombre} />
+            ))}
+          </datalist>
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Teléfono / WhatsApp</label>

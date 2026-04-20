@@ -71,7 +71,7 @@ export default function NuevoSoporteClient({ userId }: { userId: string, cliente
             >
                 <ArrowLeft className="w-4 h-4" /> Volver al Taller
             </button>
-            <ReceptionForm onSave={handleSave} />
+            <ReceptionForm onSave={handleSave} clientes={clientes} />
         </div>
     );
 }
