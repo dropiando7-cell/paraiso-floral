@@ -35,7 +35,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     browser = await puppeteer.launch({
       args: isLocal ? [] : chromium.args,
-      defaultViewport: chromium.defaultViewport,
+      defaultViewport: { width: 1920, height: 1080 },
       executablePath,
       headless: isLocal ? true : chromium.headless,
     });
