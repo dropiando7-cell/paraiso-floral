@@ -21,7 +21,7 @@ export default async function PurePrintPage({ params }: { params: Promise<{ id: 
         if (org) {
             doc = await prisma.factura.findUnique({
                 where: { id },
-                include: { detalles: true, client: true }
+                include: { detalles: true, cliente: true }
             });
         }
     } catch (e) {
