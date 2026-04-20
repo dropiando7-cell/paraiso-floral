@@ -7,7 +7,7 @@ import { CheckCircle2, ArrowLeft, Send } from 'lucide-react';
 import { createOrdenTrabajo } from '../actions';
 import ReceptionForm from '../components/ReceptionForm';
 
-export default function NuevoSoporteClient({ userId }: { userId: string, clientes?: any[] }) {
+export default function NuevoSoporteClient({ userId, clientes = [] }: { userId: string, clientes?: any[] }) {
     const router = useRouter();
     const [result, setResult] = useState<any>(null);
 

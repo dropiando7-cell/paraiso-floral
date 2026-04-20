@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'crypto';
+import { sendTwilioWhatsApp } from '@/lib/checkin-notifications';
 
 export async function getOrdenesActivas() {
     const org = await prisma.organization.findFirst();
@@ -87,8 +88,20 @@ export async function createOrdenTrabajo(data: {
         include: { cliente: true }
     });
 
-    // TODO: Mensaje WhatsApp
-    // await sendWhatsApp(orden.cliente.telefono, codigoSeguridad, ...);
+    if (clienteRecord.telefono) {
+        const cleanPhone = clienteRecord.telefono.replace(/[\s\-\(\)]/g, '');
+        const phoneWithCountryCode = cleanPhone.startsWith('+') ? cleanPhone : `+504${cleanPhone}`;
+        
+        // The SID template approved: HX07e7f5ab7f2b8dcd805357ba6704e838
+        const sid = 'HX07e7f5ab7f2b8dcd805357ba6704e838';
+        try {
+            await sendTwilioWhatsApp(phoneWithCountryCode, sid, {
+                "1": clienteRecord.nombre
+            });
+        } catch (e) {
+            console.error("Twilio Error:", e);
+        }
+    }
 
     revalidatePath('/soporte');
     return orden;

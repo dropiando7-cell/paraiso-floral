@@ -75,7 +75,7 @@ function buildCheckOutMessage(
 //   TWILIO_AUTH_TOKEN
 //   TWILIO_WHATSAPP_FROM  (número sandbox: whatsapp:+14155238886)
 // ─────────────────────────────────────────────────────────────────────────────
-async function sendTwilioWhatsApp(
+export async function sendTwilioWhatsApp(
     to: string,
     contentSid: string,
     contentVariables: Record<string, string>
