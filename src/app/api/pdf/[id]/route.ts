@@ -34,10 +34,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       : await chromium.executablePath();
 
     browser = await puppeteer.launch({
-      args: isLocal ? [] : chromium.args,
+      args: isLocal ? [] : (chromium as any).args,
       defaultViewport: { width: 1920, height: 1080 },
       executablePath,
-      headless: isLocal ? true : chromium.headless,
+      headless: isLocal ? true : (chromium as any).headless,
     });
 
     const page = await browser.newPage();
