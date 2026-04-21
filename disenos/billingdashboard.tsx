@@ -1,9 +1,9 @@
 import React from 'react';
 import { 
   LayoutDashboard, 
-  ReceiptLong, 
-  HistoryEdu, 
-  BarChart3, 
+  Receipt, 
+  History, 
+  BarChart, 
   CalendarDays, 
   Settings,
   Bell,
@@ -95,16 +95,16 @@ const Sidebar = () => (
         <h4 className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Main Features</h4>
         <div className="space-y-1">
           <NavItem icon={LayoutDashboard} label="Dashboard" />
-          <NavItem icon={BarChart3} label="Analytics" />
-          <NavItem icon={HistoryEdu} label="Activity Log" />
+          <NavItem icon={BarChart} label="Analytics" />
+          <NavItem icon={History} label="Activity Log" />
         </div>
       </div>
 
       <div>
         <h4 className="px-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Legal Dept</h4>
         <div className="space-y-1">
-          <NavItem icon={HistoryEdu} label="Escrituración" />
-          <NavItem icon={ReceiptLong} label="Cobros" active />
+          <NavItem icon={History} label="Escrituración" />
+          <NavItem icon={Receipt} label="Cobros" active />
           <NavItem icon={CalendarDays} label="Calendar" />
         </div>
       </div>
