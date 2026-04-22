@@ -109,6 +109,7 @@ export async function searchProductos(query: string = "") {
             marca: a.marca || a.area || 'Activo Fijo',
             stockActual: a.stock || 1,
             type: 'activo',
+            fechaVencimiento: a.fechaVencimiento ? a.fechaVencimiento.toISOString() : undefined,
             imageUrl: a.imagenUrl || undefined
         }));
 
@@ -515,6 +516,7 @@ export async function buscarItemPorCodigo(codigo: string) {
                 name: activo.descripcionCorta,
                 description: activo.descripcionDetallada || `Serie: ${activo.serie || 'N/A'} - Modelo: ${activo.modelo || 'N/A'}`,
                 price: activo.producto && activo.producto.precioVenta ? Number(activo.producto.precioVenta) : (Number(activo.costoAdq) || 0),
+                fechaVencimiento: activo.fechaVencimiento ? activo.fechaVencimiento.toISOString() : undefined,
                 imageUrl: activo.imagenUrl || undefined
             };
         }

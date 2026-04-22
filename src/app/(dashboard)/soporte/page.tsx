@@ -8,5 +8,12 @@ export const metadata = {
 
 export default async function SoportePage() {
     const ordenes = await getOrdenesActivas();
-    return <SoporteClient initialData={ordenes} />;
+    
+    const safeOrdenes = ordenes.map((orden: any) => ({
+        ...orden,
+        costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
+        costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
+    }));
+
+    return <SoporteClient initialData={safeOrdenes} />;
 }

@@ -3,7 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'crypto';
-import { sendTwilioWhatsApp } from '@/lib/checkin-notifications';
+import { sendSoporteRecepcion, sendSoporteEquipoListo } from '@/lib/checkin-notifications';
 
 export async function getOrdenesActivas() {
     const org = await prisma.organization.findFirst();
@@ -81,7 +81,7 @@ export async function createOrdenTrabajo(data: {
             descripcionFalla: data.descripcionFalla,
             codigoSeguridad,
             fotosEstadoInicial: data.fotosEstadoInicial || [],
-            costoRevision: 450,
+            costoRevision: 650,
             estado: 'RECIBIDO',
             usuarioRecepcionId: data.usuarioRecepcionId || null
         },
@@ -89,17 +89,17 @@ export async function createOrdenTrabajo(data: {
     });
 
     if (clienteRecord.telefono) {
-        const cleanPhone = clienteRecord.telefono.replace(/[\s\-\(\)]/g, '');
-        const phoneWithCountryCode = cleanPhone.startsWith('+') ? cleanPhone : `+504${cleanPhone}`;
-        
-        // The SID template approved: HX07e7f5ab7f2b8dcd805357ba6704e838
-        const sid = 'HX07e7f5ab7f2b8dcd805357ba6704e838';
+        const phoneWithCountryCode = clienteRecord.telefono.startsWith('+') ? clienteRecord.telefono : `+504${clienteRecord.telefono}`;
         try {
-            await sendTwilioWhatsApp(phoneWithCountryCode, sid, {
-                "1": clienteRecord.nombre
-            });
+            await sendSoporteRecepcion(
+                clienteRecord.nombre,
+                phoneWithCountryCode,
+                orden.codigoSeguridad,
+                orden.equipoDano,
+                null // mediaUrl
+            );
         } catch (e) {
-            console.error("Twilio Error:", e);
+            console.error("Twilio Recepcion Error:", e);
         }
     }
 
@@ -145,4 +145,34 @@ export async function entregarOrden(id: string) {
     });
     revalidatePath('/soporte');
     return updated;
+}
+
+export async function finalizarReparacion(id: string) {
+    const orden = await prisma.ordenTrabajo.update({
+        where: { id },
+        data: {
+            estado: 'LISTO_ENTREGA',
+            fechaListo: new Date()
+        },
+        include: { cliente: true }
+    });
+
+    if (orden.cliente?.telefono) {
+        const phoneWithCountryCode = orden.cliente.telefono.startsWith('+') ? orden.cliente.telefono : `+504${orden.cliente.telefono}`;
+        try {
+            await sendSoporteEquipoListo(
+                orden.cliente.nombre,
+                phoneWithCountryCode,
+                orden.codigoSeguridad,
+                orden.equipoDano,
+                null
+            );
+        } catch (e) {
+            console.error("Twilio Listo Error:", e);
+        }
+    }
+
+    revalidatePath('/soporte');
+    revalidatePath(`/soporte/${id}`);
+    return orden;
 }

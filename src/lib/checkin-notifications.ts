@@ -219,3 +219,61 @@ export async function sendEventualityWhatsApp(
         "2": message
     });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SOPORTE Y REPARACIONES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function sendSoporteRecepcion(
+    clienteNombre: string,
+    clienteTelefono: string,
+    ordenCodigo: string,
+    equipoDescripcion: string,
+    mediaUrl: string | null = null
+): Promise<NotificationResult> {
+    if (!clienteTelefono) return { success: false, provider: "twilio_whatsapp", error: "Sin teléfono" };
+    const cleanPhone = clienteTelefono.replace(/[\s\-()]/g, "");
+    
+    // SID: recepcion_del_equipo
+    const sid = "HXbcb3979eddda4b77766b46c8ea51e849";
+
+    // OJO: Asumimos que la plantilla tiene variables {{1}} y {{2}}. 
+    // Ajustar según configuración real en Meta/Twilio.
+    const variables: Record<string, string> = {
+        "1": clienteNombre,
+        "2": ordenCodigo
+    };
+
+    if (mediaUrl) {
+        variables["3"] = mediaUrl; // Si requiere URL de medio en otra variable
+    }
+
+    return sendTwilioWhatsApp(cleanPhone, sid, variables);
+}
+
+export async function sendSoporteEquipoListo(
+    clienteNombre: string,
+    clienteTelefono: string,
+    ordenCodigo: string,
+    equipoDescripcion: string,
+    mediaUrl: string | null = null
+): Promise<NotificationResult> {
+    if (!clienteTelefono) return { success: false, provider: "twilio_whatsapp", error: "Sin teléfono" };
+    const cleanPhone = clienteTelefono.replace(/[\s\-()]/g, "");
+    
+    // SID: equipo_listo_retiro
+    const sid = "HXfdb98386354dbed017dd06788784e060";
+
+    const variables: Record<string, string> = {
+        "1": clienteNombre,
+        "2": equipoDescripcion,
+        "3": ordenCodigo
+    };
+
+    if (mediaUrl) {
+         variables["4"] = mediaUrl;
+    }
+
+    return sendTwilioWhatsApp(cleanPhone, sid, variables);
+}
+

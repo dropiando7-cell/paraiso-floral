@@ -55,6 +55,7 @@ interface Product {
   brand: string;
   type: 'producto' | 'activo';
   imageUrl?: string;
+  fechaVencimiento?: string | Date | null;
 }
 
 import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio } from './actions';
@@ -1007,7 +1008,7 @@ export default function DocumentBuilderClient({
             code: d.producto?.sku || d.activo?.idQr || '',
             shortDesc,
             longDesc,
-            showLongDesc: false, // Prevents auto-expanding massive descriptions automatically on load
+            showLongDesc: !!longDesc.trim(), // Expandir automáticamente en base a si tiene descripción larga
             qty: d.cantidad,
             unitPrice: Number(d.precioUnitario),
             tax,
@@ -1158,13 +1159,20 @@ export default function DocumentBuilderClient({
 
   const addProduct = useCallback((product: Product) => {
     const sanitizedShortDesc = product.name.replace(/\r?\n|\r/g, ' ').trim();
+    let productLongDesc = product.description || '';
+    
+    // Check if product is expired
+    if (product.fechaVencimiento && new Date(product.fechaVencimiento) < new Date()) {
+        productLongDesc = productLongDesc ? `${productLongDesc}\n[PRODUCTO VENCIDO]` : "[PRODUCTO VENCIDO]";
+    }
+
     const newLine: LineItem = {
       id: uid(),
       code: product.code,
       shortDesc: sanitizedShortDesc,
-      longDesc: product.description,
+      longDesc: productLongDesc,
       richDesc: '',
-      showLongDesc: false,
+      showLongDesc: !!productLongDesc.trim(),
       qty: 1,
       unitPrice: product.price,
       tax: 'isv15',
@@ -1846,6 +1854,13 @@ export default function DocumentBuilderClient({
       {showSuccessModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in transition-all">
           <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center flex flex-col items-center gap-4 animate-in zoom-in-95 data-[state=open]:zoom-in-90 relative overflow-hidden">
+            {/* Boton X para cerrar */}
+            <button 
+              onClick={() => setShowSuccessModal(null)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors z-10"
+            >
+              <X size={20} />
+            </button>
             {/* Confetti / Decorator */}
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
             
@@ -1865,7 +1880,10 @@ export default function DocumentBuilderClient({
 
             <div className="flex gap-3 w-full mt-4">
               <button
-                onClick={() => window.location.href = '/facturas'}
+                onClick={() => {
+                  setShowSuccessModal(null);
+                  router.push('/facturas');
+                }}
                 className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all"
               >
                 Hacer Nuevo
