@@ -594,8 +594,8 @@ function LineItemRow({
               </span>
             </div>
 
-            {/* Tax — vertically centered, centered — col-span-2 (needs room for ISV 15%) */}
-            <div className={`col-span-2 min-w-0 flex items-center justify-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            {/* Tax — vertically centered, centered — col-span-1 */}
+            <div className={`col-span-1 min-w-0 flex items-center justify-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
               {!viewMode ? (
                 <select
                   value={item.tax}
@@ -614,7 +614,7 @@ function LineItemRow({
             </div>
 
             {/* Monto / Subtotal — vertically centered, right-aligned */}
-            <div className="col-span-1 min-w-0 flex items-center justify-end py-2 print:py-1">
+            <div className="col-span-2 min-w-0 flex items-center justify-end py-2 print:py-1">
               <p className="text-xs font-bold text-slate-800 text-right font-mono">
                 {fmt(total)}
               </p>
