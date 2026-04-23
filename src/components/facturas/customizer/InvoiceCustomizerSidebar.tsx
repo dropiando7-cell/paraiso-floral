@@ -344,6 +344,43 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                 </button>
               ))}
             </div>
+
+            <div className="pt-4 border-t border-slate-200 mt-6 space-y-3">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Resumen de Totales</h3>
+              
+              <div className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Fondo del TOTAL</p>
+                    <p className="text-[10px] text-slate-400">Color de fondo</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={settings.totalBgColor || '#0f172a'} 
+                      onChange={e => onChange('totalBgColor', e.target.value)}
+                      className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Texto del TOTAL</p>
+                    <p className="text-[10px] text-slate-400">Color de fuente</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={settings.totalTextColor || '#ffffff'} 
+                      onChange={e => onChange('totalTextColor', e.target.value)}
+                      className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 

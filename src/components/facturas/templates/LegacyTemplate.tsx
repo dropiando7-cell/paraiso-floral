@@ -221,12 +221,19 @@ export default function LegacyTemplate(props: TemplateProps) {
  <span className="text-gray-600 font-medium">Total ISV 15%</span>
  <span className="font-mono">{fmt(totals.isv15)}</span>
  </div>
- {/* Total row with primary background */}
- <div className={`flex justify-between items-center ${theme.bgDark} text-white px-3 py-1.5 mt-1 rounded-sm shadow-sm print:border-t-2 print:border-b-2 print:border-solid print:py-1 print:px-0`}>
- <span className="font-bold print:font-black text-sm print:text-base">TOTAL</span>
- <span className="font-bold print:font-black font-mono text-base print:text-lg">{fmt(totals.total)}</span>
- </div>
- </div>
+ 
+ <div 
+    className="flex justify-between items-center px-3 py-1.5 mt-1 rounded-sm shadow-sm print:border-t-2 print:border-b-2 print:border-solid print:py-1 print:px-0"
+    style={{
+      backgroundColor: settings.totalBgColor || '#0f172a',
+      color: settings.totalTextColor || '#ffffff',
+      borderColor: settings.totalBgColor || '#0f172a'
+    }}
+  >
+  <span className="font-bold print:font-black text-sm print:text-base">TOTAL</span>
+  <span className="font-bold print:font-black font-mono text-base print:text-lg">{fmt(totals.total)}</span>
+  </div>
+  </div>
  </div>
  </div>
 
