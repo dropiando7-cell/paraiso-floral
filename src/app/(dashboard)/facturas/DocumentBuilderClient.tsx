@@ -660,9 +660,9 @@ function LineItemRow({
         
         {/* ROW EXPANSION - RICH DESCRIPTION OR SECTION CONTROLS */}
         {item.showLongDesc && (
-          <div className="w-full mt-2 pt-2 border-t border-slate-100 print:hidden">
+          <div className="w-full mt-2 pt-2 border-t border-slate-100">
             {item.isSection ? (
-               <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm ml-8 w-fit">
+               <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm ml-8 w-fit print:hidden">
                   <span className="font-bold uppercase tracking-wider text-slate-400 text-[10px]">Diseño</span>
                   <div className="flex items-center gap-1">
                     <button onClick={() => onChange(item.id, 'sectionStyle', { ...item.sectionStyle, align: 'left' })} className={`p-1.5 rounded hover:bg-slate-200 ${item.sectionStyle?.align === 'left' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg></button>
