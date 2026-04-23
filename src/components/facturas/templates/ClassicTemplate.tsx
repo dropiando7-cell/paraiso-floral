@@ -7,8 +7,8 @@ export default function ClassicTemplate(props: TemplateProps) {
   const {
     settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
     today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
-    validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine,
-    handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
+    validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
+    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
     notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode
   } = props;
 
@@ -157,6 +157,7 @@ export default function ClassicTemplate(props: TemplateProps) {
                 index={index}
                 onChange={handleLineChange}
                 onDelete={handleDeleteLine}
+                onDuplicate={handleDuplicateLine}
                 onToggleLongDesc={handleToggleLongDesc}
                 allProducts={allProducts}
                 viewMode={viewMode}
@@ -168,6 +169,7 @@ export default function ClassicTemplate(props: TemplateProps) {
           <div className="mt-4 flex gap-3 print:hidden">
             <button onClick={() => setShowProductModal(true)} className="px-4 py-2 bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider hover:bg-slate-200 flex gap-2 items-center"><Search size={14} /> Catálogo</button>
             <button onClick={() => setLineItems(prev => [...prev, emptyLine()])} className="px-4 py-2 border border-slate-300 text-slate-600 text-xs font-bold uppercase tracking-wider hover:bg-slate-50 flex gap-2 items-center"><Plus size={14} /> Fila</button>
+            <button onClick={() => setLineItems(prev => [...prev, emptySectionLine()])} className="px-4 py-2 border border-slate-300 text-slate-600 text-xs font-bold uppercase tracking-wider hover:bg-slate-50 flex gap-2 items-center"><Plus size={14} /> Sección</button>
           </div>
           </div>
         </div>

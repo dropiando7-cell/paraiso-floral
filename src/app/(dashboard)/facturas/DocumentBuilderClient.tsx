@@ -8,7 +8,7 @@ import {
   Package, Stethoscope, Zap, CheckCircle2, Clock, AlertCircle,
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
-  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star
+  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette
 } from 'lucide-react';
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
@@ -31,6 +31,13 @@ interface LineItem {
   productoId?: string;
   activoId?: string;
   imageUrl?: string;
+  isSection?: boolean;
+  sectionStyle?: {
+    bg: string;
+    color: string;
+    bold: boolean;
+    align: 'left' | 'center' | 'right';
+  };
 }
 
 interface Client {
@@ -94,6 +101,13 @@ const futureDate = (days: number) => {
 const emptyLine = (): LineItem => ({
   id: uid(), code: '', shortDesc: '', longDesc: '', richDesc: '', showLongDesc: false,
   qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage',
+});
+
+const emptySectionLine = (): LineItem => ({
+  id: uid(), code: '', shortDesc: '', longDesc: '', richDesc: '', showLongDesc: false,
+  qty: 0, unitPrice: '', tax: 'exento', discount: 0, discountType: 'percentage',
+  isSection: true,
+  sectionStyle: { bg: '#f1f5f9', color: '#1e293b', bold: true, align: 'left' }
 });
 
 const calcLine = (item: LineItem) => {
@@ -224,12 +238,13 @@ function ProductSearchItem({ product, onAdd }: { product: Product; onAdd: (p: Pr
 }
 
 function LineItemRow({
-  item, index, onChange, onDelete, onToggleLongDesc, allProducts, viewMode, settings
+  item, index, onChange, onDelete, onDuplicate, onToggleLongDesc, allProducts, viewMode, settings
 }: {
   item: LineItem;
   index: number;
   onChange: (id: string, field: keyof LineItem, val: unknown) => void;
   onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
   onToggleLongDesc: (id: string) => void;
   allProducts: Product[];
   viewMode?: boolean;
@@ -415,178 +430,225 @@ function LineItemRow({
           </div>
         )}
 
-        {/* Main fields */}
-        <div className="flex-1 grid grid-cols-12 gap-2 min-w-0 relative">
-          {/* Code */}
-          <div className={`col-span-2 relative flex items-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
-            <input
-              value={item.code}
-              disabled={viewMode}
-              onFocus={() => { if(!viewMode) { setFocusedField('code'); setShowAutocomplete(true); } }}
-              onChange={e => {
-                if(viewMode) return;
-                onChange(item.id, 'code', e.target.value);
-                setFocusedField('code');
-                setShowAutocomplete(true);
-              }}
-              onKeyDown={handleKeyDown}
-              onBlur={async (e) => {
-                if(viewMode) return;
-                const val = e.target.value.trim();
-                setTimeout(async () => {
-                  if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
-                    try {
-                      const res = await buscarItemPorCodigo(val);
-                      if (res) {
-                        onChange(item.id, 'shortDesc', res.name);
-                        if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
-                        if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
-                        if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
-                        if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
-                        if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
-                      }
-                    } catch(e) { console.error('Error in onBlur search:', e); }
-                  }
-                }, 200);
-              }}
-              placeholder="Código"
-              className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
-            />
-            {focusedField === 'code' && !viewMode && renderDropdown()}
+        {item.isSection ? (
+          <div className="flex-1 flex flex-col relative print:my-1">
+             <div 
+               className="w-full h-full flex items-center px-4 rounded-md transition-all border border-transparent print:border-none focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20"
+               style={{
+                 backgroundColor: viewMode ? 'transparent' : (item.sectionStyle?.bg || '#f1f5f9'),
+                 WebkitPrintColorAdjust: 'exact',
+                 printColorAdjust: 'exact',
+                 minHeight: '34px'
+               }}
+             >
+               <input
+                 value={item.shortDesc}
+                 disabled={viewMode}
+                 onChange={e => onChange(item.id, 'shortDesc', e.target.value)}
+                 placeholder="TITULO DE SECCIÓN (Ej: 2 AÑOS DE GARANTÍA)"
+                 className="w-full bg-transparent border-none outline-none focus:ring-0 px-2 py-1 placeholder:text-slate-400"
+                 style={{
+                   color: item.sectionStyle?.color || '#1e293b',
+                   fontWeight: item.sectionStyle?.bold ? 'bold' : 'normal',
+                   textAlign: item.sectionStyle?.align || 'left',
+                   textTransform: 'uppercase',
+                   fontSize: '11px',
+                   letterSpacing: '0.05em'
+                 }}
+               />
+             </div>
           </div>
-
-          {/* Description */}
-          <div className={`col-span-3 relative flex gap-2 items-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
-            {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && (
-              <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
-                {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-            {viewMode ? (
-              <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words print:hidden">{item.shortDesc}</div>
-            ) : (
+        ) : (
+          <div className="flex-1 grid grid-cols-12 gap-2 min-w-0 relative">
+            {/* Code */}
+            <div className={`col-span-2 relative flex items-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
               <input
-                type="text"
-                value={item.shortDesc}
+                value={item.code}
                 disabled={viewMode}
-                onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
+                onFocus={() => { if(!viewMode) { setFocusedField('code'); setShowAutocomplete(true); } }}
                 onChange={e => {
-                  onChange(item.id, 'shortDesc', e.target.value);
-                  setFocusedField('desc');
+                  if(viewMode) return;
+                  onChange(item.id, 'code', e.target.value);
+                  setFocusedField('code');
                   setShowAutocomplete(true);
                 }}
                 onKeyDown={handleKeyDown}
-                placeholder="Descripción del producto o servicio"
-                className="w-full h-[34px] text-xs border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
+                onBlur={async (e) => {
+                  if(viewMode) return;
+                  const val = e.target.value.trim();
+                  setTimeout(async () => {
+                    if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
+                      try {
+                        const res = await buscarItemPorCodigo(val);
+                        if (res) {
+                          onChange(item.id, 'shortDesc', res.name);
+                          if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
+                          if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
+                          if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
+                          if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
+                          if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
+                        }
+                      } catch(e) { console.error('Error in onBlur search:', e); }
+                    }
+                  }, 200);
+                }}
+                placeholder="Código"
+                className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
               />
-            )}
-            <div className="hidden print:block text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">
-              {item.shortDesc}
+              {focusedField === 'code' && !viewMode && renderDropdown()}
             </div>
 
+            {/* Description */}
+            <div className={`col-span-3 relative flex gap-2 items-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+              {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && (
+                <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
+                  {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+              {viewMode ? (
+                <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words print:hidden">{item.shortDesc}</div>
+              ) : (
+                <input
+                  type="text"
+                  value={item.shortDesc}
+                  disabled={viewMode}
+                  onFocus={() => { setFocusedField('desc'); setShowAutocomplete(true); }}
+                  onChange={e => {
+                    onChange(item.id, 'shortDesc', e.target.value);
+                    setFocusedField('desc');
+                    setShowAutocomplete(true);
+                  }}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Descripción del producto o servicio"
+                  className="w-full h-[34px] text-xs border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
+                />
+              )}
+              <div className="hidden print:block text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">
+                {item.shortDesc}
+              </div>
+
+              </div>
+              {focusedField === 'desc' && !viewMode && renderDropdown()}
             </div>
-            {focusedField === 'desc' && !viewMode && renderDropdown()}
-          </div>
 
-          {/* Qty — centered horizontally and vertically */}
-          <div className={`col-span-1 flex items-center justify-center ${settings?.showTableVerticalBorders ? 'px-1' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
-            {!viewMode ? (
-              <input
-                type="number"
-                min="1"
-                value={item.qty}
-                onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                className="w-full h-[34px] text-xs text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden"
-              />
-            ) : null}
-            <span className={`text-xs font-semibold text-slate-800 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
-              {item.qty}
-            </span>
-          </div>
-
-          {/* Unit Price — vertically centered, right-aligned */}
-          <div className={`col-span-2 flex items-center justify-end ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
-            {!viewMode ? (
-              <div className="relative w-full print:hidden">
-                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">L</span>
+            {/* Qty — centered horizontally and vertically */}
+            <div className={`col-span-1 flex items-center justify-center ${settings?.showTableVerticalBorders ? 'px-1' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+              {!viewMode ? (
                 <input
                   type="number"
-                  value={item.unitPrice}
-                  onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                  className="w-full h-[34px] text-xs text-right pl-5 pr-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                  min="1"
+                  value={item.qty}
+                  onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                  className="w-full h-[34px] text-xs text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden"
                 />
-              </div>
-            ) : null}
-            <span className={`text-xs font-semibold text-slate-800 text-right font-mono ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
-              {fmt(Number(item.unitPrice) || 0)}
-            </span>
-          </div>
+              ) : null}
+              <span className={`text-xs font-semibold text-slate-800 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+                {item.qty}
+              </span>
+            </div>
 
-          {/* Discount — vertically centered, right-aligned — col-span-1 (compact) */}
-          <div className={`col-span-1 flex items-center justify-end ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
-            {!viewMode ? (
-              <div className="relative w-full print:hidden">
-                <input
-                  type="number"
-                  value={item.discount}
-                  onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                  placeholder="0"
-                  className="w-full h-[34px] text-xs text-right pr-6 pl-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => onChange(item.id, 'discountType', item.discountType === 'percentage' ? 'amount' : 'percentage')}
-                  title={item.discountType === 'percentage' ? 'Cambiar a monto (L)' : 'Cambiar a porcentaje (%)'}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer select-none w-4 text-center"
-                >{item.discountType === 'percentage' ? '%' : 'L'}</button>
-              </div>
-            ) : null}
-            <span className={`text-xs font-semibold text-slate-800 text-right ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
-              {Number(item.discount) > 0
-                ? (item.discountType === 'percentage' ? `${item.discount}%` : fmt(Number(item.discount)))
-                : '-'}
-            </span>
-          </div>
+            {/* Unit Price — vertically centered, right-aligned */}
+            <div className={`col-span-2 flex items-center justify-end ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+              {!viewMode ? (
+                <div className="relative w-full print:hidden">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">L</span>
+                  <input
+                    type="number"
+                    value={item.unitPrice}
+                    onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                    className="w-full h-[34px] text-xs text-right pl-5 pr-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all"
+                  />
+                </div>
+              ) : null}
+              <span className={`text-xs font-semibold text-slate-800 text-right font-mono ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+                {fmt(Number(item.unitPrice) || 0)}
+              </span>
+            </div>
 
-          {/* Tax — vertically centered, centered — col-span-2 (needs room for ISV 15%) */}
-          <div className={`col-span-2 flex items-center justify-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
-            {!viewMode ? (
-              <select
-                value={item.tax}
-                onChange={e => onChange(item.id, 'tax', e.target.value as TaxType)}
-                className="w-auto h-[34px] text-[10px] font-semibold border border-slate-200 rounded-lg px-1 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer print:hidden"
-              >
-                <option value="isv15">ISV 15%</option>
-                <option value="isv18">ISV 18%</option>
-                <option value="exento">Exento</option>
-                <option value="exonerado">Exonerado</option>
-              </select>
-            ) : null}
-            <span className={`text-[10px] font-semibold text-slate-700 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
-              {item.tax === 'isv15' ? 'ISV 15%' : item.tax === 'isv18' ? 'ISV 18%' : item.tax === 'exento' ? 'Exento' : 'Exonerado'}
-            </span>
-          </div>
+            {/* Discount — vertically centered, right-aligned — col-span-1 (compact) */}
+            <div className={`col-span-1 flex items-center justify-end ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+              {!viewMode ? (
+                <div className="relative w-full print:hidden">
+                  <input
+                    type="number"
+                    value={item.discount}
+                    onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
+                    placeholder="0"
+                    className="w-full h-[34px] text-xs text-right pr-6 pl-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onChange(item.id, 'discountType', item.discountType === 'percentage' ? 'amount' : 'percentage')}
+                    title={item.discountType === 'percentage' ? 'Cambiar a monto (L)' : 'Cambiar a porcentaje (%)'}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer select-none w-4 text-center"
+                  >{item.discountType === 'percentage' ? '%' : 'L'}</button>
+                </div>
+              ) : null}
+              <span className={`text-xs font-semibold text-slate-800 text-right ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+                {Number(item.discount) > 0
+                  ? (item.discountType === 'percentage' ? `${item.discount}%` : fmt(Number(item.discount)))
+                  : '-'}
+              </span>
+            </div>
 
-          {/* Monto / Subtotal — vertically centered, right-aligned */}
-          <div className="col-span-1 flex items-center justify-end">
-            <p className="text-xs font-bold text-slate-800 text-right font-mono">
-              {fmt(total)}
-            </p>
+            {/* Tax — vertically centered, centered — col-span-2 (needs room for ISV 15%) */}
+            <div className={`col-span-2 flex items-center justify-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+              {!viewMode ? (
+                <select
+                  value={item.tax}
+                  onChange={e => onChange(item.id, 'tax', e.target.value as TaxType)}
+                  className="w-auto h-[34px] text-[10px] font-semibold border border-slate-200 rounded-lg px-1 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer print:hidden"
+                >
+                  <option value="isv15">ISV 15%</option>
+                  <option value="isv18">ISV 18%</option>
+                  <option value="exento">Exento</option>
+                  <option value="exonerado">Exonerado</option>
+                </select>
+              ) : null}
+              <span className={`text-[10px] font-semibold text-slate-700 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+                {item.tax === 'isv15' ? 'ISV 15%' : item.tax === 'isv18' ? 'ISV 18%' : item.tax === 'exento' ? 'Exento' : 'Exonerado'}
+              </span>
+            </div>
+
+            {/* Monto / Subtotal — vertically centered, right-aligned */}
+            <div className="col-span-1 flex items-center justify-end">
+              <p className="text-xs font-bold text-slate-800 text-right font-mono">
+                {fmt(total)}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Actions */}
-        <div className="flex flex-col gap-1 items-center justify-center shrink-0 h-[34px] print:hidden">
+        <div className="flex flex-row gap-1 items-center justify-center w-[72px] shrink-0 print:hidden">
+          {item.isSection ? (
+            <button
+              onClick={() => onToggleLongDesc(item.id)}
+              title="Personalizar diseño"
+              className={`p-1.5 rounded-lg transition-all ${item.showLongDesc ? 'bg-indigo-100 text-indigo-600' : 'opacity-0 group-hover:opacity-100 text-slate-300 hover:text-indigo-400 hover:bg-indigo-50'}`}
+            >
+              <Palette size={12} />
+            </button>
+          ) : (
+            <button
+              onClick={() => onToggleLongDesc(item.id)}
+              title="Descripción técnica"
+              className={`p-1.5 rounded-lg transition-all ${item.showLongDesc ? 'bg-blue-100 text-blue-600' : 'opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-400 hover:bg-blue-50'}`}
+            >
+              <Info size={12} />
+            </button>
+          )}
           <button
-            onClick={() => onToggleLongDesc(item.id)}
-            title="Descripción técnica"
-            className={`p-1.5 rounded-lg transition-all ${item.showLongDesc ? 'bg-blue-100 text-blue-600' : 'opacity-0 group-hover:opacity-100 text-slate-300 hover:text-blue-400 hover:bg-blue-50'}`}
+            onClick={() => onDuplicate(item.id)}
+            title="Duplicar fila"
+            className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all text-slate-300 hover:text-emerald-500 hover:bg-emerald-50"
           >
-            <Info size={12} />
+            <Copy size={12} />
           </button>
           <button
             onClick={() => onDelete(item.id)}
+            title="Eliminar fila"
             className="p-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-all text-slate-300 hover:text-red-400 hover:bg-red-50"
           >
             <Trash2 size={12} />
@@ -594,10 +656,31 @@ function LineItemRow({
         </div>
         </div>
         
-        {/* ROW EXPANSION - RICH DESCRIPTION */}
+        {/* ROW EXPANSION - RICH DESCRIPTION OR SECTION CONTROLS */}
         {item.showLongDesc && (
-          <div className="w-full mt-2 pt-2 border-t border-slate-100 print:border-none print:mt-1 print:pt-0">
-            {viewMode ? (
+          <div className="w-full mt-2 pt-2 border-t border-slate-100 print:hidden">
+            {item.isSection ? (
+               <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm ml-8 w-fit">
+                  <span className="font-bold uppercase tracking-wider text-slate-400 text-[10px]">Diseño</span>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => onChange(item.id, 'sectionStyle', { ...item.sectionStyle, align: 'left' })} className={`p-1.5 rounded hover:bg-slate-200 ${item.sectionStyle?.align === 'left' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg></button>
+                    <button onClick={() => onChange(item.id, 'sectionStyle', { ...item.sectionStyle, align: 'center' })} className={`p-1.5 rounded hover:bg-slate-200 ${item.sectionStyle?.align === 'center' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="3" y1="12" y2="12"/><line x1="21" x2="3" y1="18" y2="18"/></svg></button>
+                    <button onClick={() => onChange(item.id, 'sectionStyle', { ...item.sectionStyle, align: 'right' })} className={`p-1.5 rounded hover:bg-slate-200 ${item.sectionStyle?.align === 'right' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="21" x2="9" y1="6" y2="6"/><line x1="21" x2="3" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg></button>
+                  </div>
+                  <div className="w-[1px] h-5 bg-slate-300" />
+                  <button onClick={() => onChange(item.id, 'sectionStyle', { ...item.sectionStyle, bold: !item.sectionStyle?.bold })} className={`p-1.5 px-3 rounded hover:bg-slate-200 font-serif font-bold ${item.sectionStyle?.bold ? 'bg-white shadow-sm text-blue-600' : 'text-slate-500'}`}>B</button>
+                  <div className="w-[1px] h-5 bg-slate-300" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Fondo</span>
+                    <input type="color" value={item.sectionStyle?.bg || '#f1f5f9'} onChange={e => onChange(item.id, 'sectionStyle', { ...item.sectionStyle, bg: e.target.value })} className="w-6 h-6 rounded cursor-pointer border-0 p-0 shadow-sm" title="Color de Fondo" />
+                  </div>
+                  <div className="w-[1px] h-5 bg-slate-300" />
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Texto</span>
+                    <input type="color" value={item.sectionStyle?.color || '#1e293b'} onChange={e => onChange(item.id, 'sectionStyle', { ...item.sectionStyle, color: e.target.value })} className="w-6 h-6 rounded cursor-pointer border-0 p-0 shadow-sm" title="Color de Texto" />
+                  </div>
+               </div>
+            ) : viewMode ? (
               item.richDesc ? (
                 <div
                   className="text-xs text-slate-600 prose prose-sm max-w-none print:max-w-none"
@@ -1159,6 +1242,16 @@ export default function DocumentBuilderClient({
     ));
   }, []);
 
+  const handleDuplicateLine = useCallback((id: string) => {
+    setLineItems(prev => {
+      const index = prev.findIndex(item => item.id === id);
+      if (index === -1) return prev;
+      const newItems = [...prev];
+      newItems.splice(index + 1, 0, { ...prev[index], id: uid() });
+      return newItems;
+    });
+  }, []);
+
   const addProduct = useCallback((product: Product) => {
     const sanitizedShortDesc = product.name.replace(/\r?\n|\r/g, ' ').trim();
     let productLongDesc = product.description || '';
@@ -1504,7 +1597,7 @@ export default function DocumentBuilderClient({
             setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
             setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
-            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
@@ -1517,7 +1610,7 @@ export default function DocumentBuilderClient({
              setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
-             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
@@ -1530,7 +1623,7 @@ export default function DocumentBuilderClient({
              setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
-            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
@@ -1543,7 +1636,7 @@ export default function DocumentBuilderClient({
              setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
-             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} 
+             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}

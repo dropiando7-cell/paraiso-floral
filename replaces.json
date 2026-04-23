@@ -1,0 +1,973 @@
+[
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Corregir el botón de PDF, actualizando captura de ID y URL de impresión.\"",
+      "Instruction": "\"Fix onEmitirFactura prop signature, fix setLastFacturaId assignment, and change PDF button to window.open.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":46,\"ReplacementContent\":\"  onEmitirFactura: (payload: POSFacturaPayload) => Promise<{ success: boolean; correlativo?: string; facturaId?: string; error?: string }>;\",\"StartLine\":44,\"TargetContent\":\"  onEmitirFactura: (payl\n<truncated 1160 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturacion\\\\POSFacturacion.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add X button to success modal and make it relative.\"",
+      "Instruction": "\"Add a close (X) button to the top right of the success modal and remove the duplicate flex flex-col class.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":686,\"ReplacementContent\":\"           <div className=\\\"bg-white rounded-3xl p-10 max-w-lg w-full flex flex-col items-center text-center shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-10 zoom-in-95 relativ\n<truncated 1071 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturacion\\\\POSFacturacion.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix freezing issue by using noopener,noreferrer in window.open.\"",
+      "Instruction": "\"Update window.open to include 'noopener,noreferrer' to prevent the print dialog in the new tab from blocking the main POS tab.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":722,\"ReplacementContent\":\"                <button \\n                  onClick={() => window.open(`/facturas/ver/${lastFacturaId}?print=true`, '_blank', 'noopener,noreferrer')}\\n                  className=\\\"flex-1 py-5 bg-\n<truncated 627 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturacion\\\\POSFacturacion.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Optimize 'Volver' button in FacturacionHeader to use router.back for instant navigation.\"",
+      "Instruction": "\"Replace the Link for 'Volver' with a button that uses router.back() when document.referrer matches the host, falling back to router.push.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":6,\"ReplacementContent\":\"import Link from 'next/link';\\nimport { useSearchParams, useRouter } from 'next/navigation';\",\"StartLine\":5,\"TargetContent\":\"import Link from 'next/link';\\nimport { useSearchParams } from 'next/navi\n<truncated 1152 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\FacturacionHeader.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix FacturacionTabsClient to respect the tab query parameter on mount and when it changes.\"",
+      "Instruction": "\"Add useEffect to sync activeTab state with the 'tab' search param.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":3,\"ReplacementContent\":\"import React, { useState, useEffect } from 'react';\\nimport { useSearchParams } from 'next/navigation';\",\"StartLine\":3,\"TargetContent\":\"import React, { useState } from 'react';\"},{\"AllowMultiple\":fa\n<truncated 671 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\FacturacionTabsClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Optimize ESC key to use router.back() for instant navigation.\"",
+      "Instruction": "\"Update ESC key handler to check document.referrer and use router.back() instead of always pushing to /facturas.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":265,\"ReplacementContent\":\"        } else if (!modoKiosko) {\\n           if (typeof window !== 'undefined' && document.referrer.includes(window.location.host)) {\\n             router.back();\\n           } else {\\n          \n<truncated 173 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturacion\\\\POSFacturacion.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add prefetch to Caja Rápida POS link to speed up load time.\"",
+      "Instruction": "\"Add prefetch={true} to the 'Caja Rápida POS' Link component.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":83,\"ReplacementContent\":\"           <Link href=\\\"/facturas/pos\\\" prefetch={true} className=\\\"flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white px-5 py-2\n<truncated 436 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\FacturacionHeader.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Always show long description if it exists, fixing the issue where it was hidden in print previews.\"",
+      "Instruction": "\"Update showLongDesc initialization to be true if there is a long description or rich description.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":1010,\"ReplacementContent\":\"            longDesc,\\n            showLongDesc: !!d.descripcionEnriquecida || longDesc.trim().length > 0, // Auto-expand if content exists so it shows in canvas and print preview\",\"StartLine\":10\n<truncated 148 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add close (X) button to the success modal\"",
+      "Instruction": "\"Add an absolute positioned X button to the top right of the showSuccessModal container.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":1850,\"ReplacementContent\":\"            {/* Confetti / Decorator */}\\n            <div className=\\\"absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-emerald-400 to-emerald-600\\\"></div>\\n\\n            <button \\n        \n<truncated 464 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix bug where clicking \\\"Ver Documento\\\" doesn't close the modal if already on the document page\"",
+      "Instruction": "\"Update the \\\"Ver Documento\\\" button onClick handler to check if the user is already on the document page. If so, just close the modal and refresh. Otherwise, route push.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":1886,\"ReplacementContent\":\"              <button\\n                onClick={() => {\\n                  if (window.location.pathname.includes(`/facturas/ver/${showSuccessModal.docId}`)) {\\n                    setShowSuccessM\n<truncated 788 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update actions to save section markers correctly\"",
+      "Instruction": "\"Update the description field when saving to prepend `__SECTION__` if `item.isSection` is true in `guardarDocumentoBuilder` and `actualizarDocumentoBuilder`.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":410,\"ReplacementContent\":\"                            let finalDesc = item.shortDesc + (item.longDesc ? `\\\\n${item.longDesc}` : '');\\n                            if (item.isSection) finalDesc = `__SECTION__${finalDesc}`;\\n\n<truncated 1293 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\actions.ts\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add emptySectionLine to TemplateProps\"",
+      "Instruction": "\"Add emptySectionLine to TemplateProps.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":26,\"ReplacementContent\":\"  emptyLine: () => any;\\n  emptySectionLine: () => any;\\n  setLineItems: React.Dispatch<React.SetStateAction<any[]>>;\",\"StartLine\":25,\"TargetContent\":\"  emptyLine: () => any;\\n  setLineItems: React\n<truncated 42 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\TemplateProps.ts\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update DocumentBuilderClient.tsx for sections\"",
+      "Instruction": "\"1. Update LineItem interface with isSection.\\n2. Add emptySectionLine function.\\n3. Handle __SECTION__ prefix in initialData.\\n4. Pass emptySectionLine to templates.\\n5. Update LineItemRow to render sections differently.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":60,\"ReplacementContent\":\"  activoId?: string;\\n  imageUrl?: string;\\n  isSection?: boolean;\\n}\",\"StartLine\":58,\"TargetContent\":\"  activoId?: string;\\n  imageUrl?: string;\\n}\"},{\"AllowMultiple\":false,\"EndLine\":141,\"Replacem\n<truncated 5682 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add Add Section button to ModernTemplate\"",
+      "Instruction": "\"Add an \\\"Añadir Título / Sección\\\" button to the add line buttons array in ModernTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":2,\"ReplacementContent\":\"import { Search, Plus, CheckCircle2, Receipt, Send, Sparkles, Copy, Printer, Mail, Percent, Stethoscope, Type } from 'lucide-react';\",\"StartLine\":2,\"TargetContent\":\"import { Search, Plus, CheckCircl\n<truncated 1489 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add Section button to ClassicTemplate\"",
+      "Instruction": "\"Add Type import and Título button to ClassicTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":2,\"ReplacementContent\":\"import { Search, Plus, CheckCircle2, Receipt, Send, Package, Type } from 'lucide-react';\",\"StartLine\":2,\"TargetContent\":\"import { Search, Plus, CheckCircle2, Receipt, Send, Package } from 'lucide-re\n<truncated 1181 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add Section button to LegacyTemplate\"",
+      "Instruction": "\"Add Type import and Título button to LegacyTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":2,\"ReplacementContent\":\"import { Search, Plus, CheckCircle2, Receipt, Send, Type } from 'lucide-react';\",\"StartLine\":2,\"TargetContent\":\"import { Search, Plus, CheckCircle2, Receipt, Send } from 'lucide-react';\"},{\"AllowMul\n<truncated 1079 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add Section button to MinimalistTemplate\"",
+      "Instruction": "\"Add Type import and Título button to MinimalistTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":2,\"ReplacementContent\":\"import { Search, Plus, CheckCircle2, Receipt, Send, Printer, Copy, Type } from 'lucide-react';\",\"StartLine\":2,\"TargetContent\":\"import { Search, Plus, CheckCircle2, Receipt, Send, Printer, Copy } fro\n<truncated 1038 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix React ReferenceError by using Fragment shorthand\"",
+      "Instruction": "\"Change `<React.Fragment>` to `<>` and `</React.Fragment>` to `</>` in DocumentBuilderClient.tsx.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":430,\"ReplacementContent\":\"          ) : (\\n            <>\\n              {/* Code */}\\n              <div className=\\\"col-span-2 relative\\\">\",\"StartLine\":427,\"TargetContent\":\"          ) : (\\n            <React.Fragment>\\n\n<truncated 353 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Hide add buttons and save button in view mode\"",
+      "Instruction": "\"Wrap the Add Line Buttons and CTA sections with `{!viewMode && (...)}` in ModernTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":173,\"ReplacementContent\":\"          {/* Add Line Buttons */}\\n          {!viewMode && (\\n          <div className=\\\"mt-4 flex flex-col sm:flex-row gap-3 print:hidden\\\">\",\"StartLine\":172,\"TargetContent\":\"          {/* Add L\n<truncated 939 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Hide add buttons and save button in view mode in ClassicTemplate\"",
+      "Instruction": "\"Wrap the Add Line Buttons and CTA sections with `{!viewMode && (...)}` in ClassicTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":142,\"ReplacementContent\":\"          {/* Botones añadir línea */}\\n          {!viewMode && (\\n          <div className=\\\"mt-4 flex gap-3 print:hidden\\\">\",\"StartLine\":141,\"TargetContent\":\"          {/* Botones añadir lín\n<truncated 847 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Hide buttons in view mode in ClassicTemplate\"",
+      "Instruction": "\"Wrap the Add Line Buttons and Guardar button with `{!viewMode && (...)}` in ClassicTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":151,\"ReplacementContent\":\"          {!viewMode && (\\n          <div className=\\\"mt-4 flex gap-3 print:hidden\\\">\\n            <button onClick={() => setShowProductModal(true)} className=\\\"px-4 py-2 bg-slate-100 text-slate-7\n<truncated 2715 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Hide buttons in view mode in LegacyTemplate\"",
+      "Instruction": "\"Wrap the Add Line Buttons and Guardar button with `{!viewMode && (...)}` in LegacyTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":147,\"ReplacementContent\":\"          {!viewMode && (\\n          <div className=\\\"mt-4 flex gap-3 print:hidden\\\">\\n            <button onClick={() => setShowProductModal(true)} className=\\\"px-4 py-2 bg-gray-100 text-gray-700\n<truncated 2527 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Hide buttons in view mode in MinimalistTemplate\"",
+      "Instruction": "\"Wrap the Add Line Buttons and Guardar button with `{!viewMode && (...)}` in MinimalistTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":141,\"ReplacementContent\":\"          {!viewMode && (\\n          <div className=\\\"mt-6 flex justify-center gap-4 print:hidden\\\">\\n            <button onClick={() => setShowProductModal(true)} className={`text-xs ${themeText}\n<truncated 2351 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add lucide icons and section style logic\"",
+      "Instruction": "\"Import styling icons and add section styles state to LineItemRow\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":12,\"ReplacementContent\":\"  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star,\\n  Palette, AlignLeft, AlignCenter, AlignRight, Bold\\n} from 'lucide-react';\",\"StartLine\":11,\"TargetContent\":\"  Tag, Info, Copy, Printer, Mail\n<truncated 885 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Apply section styles to the section rendering\"",
+      "Instruction": "\"Replace the section div and input to use `sectionStyle` for background, color, bold, and align\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":452,\"ReplacementContent\":\"          {item.isSection ? (\\n            <div \\n              className=\\\"col-span-12 flex items-center justify-center relative rounded-lg h-[34px] print:h-auto print:py-1\\\"\\n              style\n<truncated 2316 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add Palette button and Section Settings panel\"",
+      "Instruction": "\"Add Palette button in Actions and the settings panel below the row\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":645,\"ReplacementContent\":\"          {!item.isSection && (\\n            <button\\n              onClick={() => onToggleLongDesc(item.id)}\\n              title=\\\"Descripción técnica\\\"\\n              className={`p-1.5 rounde\n<truncated 6112 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add drag and drop props to TemplateProps\"",
+      "Instruction": "\"Add handleReorder, draggedIndex, and setDraggedIndex to TemplateProps\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":43,\"ReplacementContent\":\"  handleSave: () => void;\\n  isSaving: boolean;\\n  viewMode?: boolean;\\n  fmt: (n: number) => string;\\n  handleReorder: (fromIndex: number, toIndex: number) => void;\\n  draggedIndex: number | null;\n<truncated 194 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\TemplateProps.ts\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Pass DND props in ModernTemplate\"",
+      "Instruction": "\"Pass handleReorder, draggedIndex, setDraggedIndex down to LineItemRowComponent\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":13,\"ReplacementContent\":\"    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,\\n    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode,\\n    \n<truncated 805 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Pass DND props in ClassicTemplate\"",
+      "Instruction": "\"Pass handleReorder, draggedIndex, setDraggedIndex down to LineItemRowComponent\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":13,\"ReplacementContent\":\"    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,\\n    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode,\\n    \n<truncated 805 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Pass DND props in MinimalistTemplate\"",
+      "Instruction": "\"Pass handleReorder, draggedIndex, setDraggedIndex down to LineItemRowComponent\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":13,\"ReplacementContent\":\"    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,\\n    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode,\\n    \n<truncated 805 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Pass DND props in LegacyTemplate\"",
+      "Instruction": "\"Pass handleReorder, draggedIndex, setDraggedIndex down to LineItemRowComponent\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":14,\"ReplacementContent\":\"    notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent,\\n    setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode,\\n    handleReorder, draggedIn\n<truncated 757 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add drag and drop handlers and section padding\"",
+      "Instruction": "\"Add draggable and onDrag events to the root div of LineItemRow, and add padding to the section container\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":416,\"ReplacementContent\":\"  return (\\n    <div \\n      className=\\\"group relative\\\" \\n      ref={containerRef} \\n      data-line-id={item.id}\\n      draggable={!viewMode}\\n      onDragStart={(e) => {\\n        if (viewMode)\n<truncated 2740 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add state and handleReorder function to DocumentBuilderClient\"",
+      "Instruction": "\"Add draggedIndex state and handleReorder function inside DocumentBuilderClient\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":835,\"ReplacementContent\":\"  const [showDiscardModal, setShowDiscardModal] = useState(false);\\n  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);\\n\\n  const handleReorder = useCallback((fromIndex: numb\n<truncated 447 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Pass DND props to templates in DocumentBuilderClient\"",
+      "Instruction": "\"Pass handleReorder, draggedIndex, and setDraggedIndex down to all templates\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":1694,\"ReplacementContent\":\"          {settings.template === 'modern' && <ModernTemplate \\n            settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} \\n            nombreUsuario={initia\n<truncated 9786 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Force section background color to print\"",
+      "Instruction": "\"Add WebkitPrintColorAdjust and printColorAdjust to the section div style\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":469,\"ReplacementContent\":\"            <div \\n              className=\\\"col-span-12 flex items-center justify-center relative rounded-lg h-[34px] print:h-auto print:py-1 px-4\\\"\\n              style={{ \\n                back\n<truncated 417 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add DND props to LineItemRow signature\"",
+      "Instruction": "\"Add handleReorder, draggedIndex, and setDraggedIndex to the signature of LineItemRow\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":243,\"ReplacementContent\":\"function LineItemRow({\\n  item, index, onChange, onDelete, onToggleLongDesc, allProducts, viewMode, settings,\\n  handleReorder, draggedIndex, setDraggedIndex\\n}: {\\n  item: LineItem;\\n  index: num\n<truncated 792 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add table settings to InvoiceSettings\"",
+      "Instruction": "\"Add showTableVerticalBorders, tableRoundedBorders, and tableHeaderBg to InvoiceSettings and DEFAULT_INVOICE_SETTINGS\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":21,\"ReplacementContent\":\"  showProductImages: boolean;\\n  productImagePosition?: 'firstColumn' | 'afterCode';\\n  showTableBorders: boolean;\\n  showTableVerticalBorders?: boolean;\\n  tableRoundedBorders?: boolean;\\n  tableH\n<truncated 556 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\types\\\\invoice.ts\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Check off step 1\"",
+      "Instruction": "\"Mark step 1 as complete\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":1,\"ReplacementContent\":\"- [x] 1. Actualizar `types/invoice.ts` con nuevas propiedades\",\"StartLine\":1,\"TargetContent\":\"- [ ] 1. Actualizar `types/invoice.ts` con nuevas propiedades\"}]",
+      "TargetFile": "\"C:\\\\Users\\\\Bryan\\\\.gemini\\\\antigravity\\\\brain\\\\112eadbf-edc1-4ea4-9ba9-2c5619088b15/task.md\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add new controls to InvoiceCustomizerSidebar\"",
+      "Instruction": "\"Replace the 'Bordes de Tabla' section with a combined block for horizontal/vertical borders, rounded borders, and header background color.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":191,\"ReplacementContent\":\"              <div className=\\\"flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3\\\">\\n                <div className=\\\"flex items-center justify-between\\\">\\n                  \n<truncated 4529 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\customizer\\\\InvoiceCustomizerSidebar.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Check off step 2\"",
+      "Instruction": "\"Mark step 2 as complete\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":2,\"ReplacementContent\":\"- [x] 2. Actualizar Sidebar de Customización con nuevos controles\",\"StartLine\":2,\"TargetContent\":\"- [ ] 2. Actualizar Sidebar de Customización con nuevos controles\"}]",
+      "TargetFile": "\"C:\\\\Users\\\\Bryan\\\\.gemini\\\\antigravity\\\\brain\\\\112eadbf-edc1-4ea4-9ba9-2c5619088b15/task.md\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add handleDuplicateLine to TemplateProps\"",
+      "Instruction": "\"Add handleDuplicateLine to the TemplateProps interface\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":23,\"ReplacementContent\":\"  handleDeleteLine: (id: string) => void;\\n  handleDuplicateLine: (id: string) => void;\\n  handleToggleLongDesc: (id: string) => void;\",\"StartLine\":22,\"TargetContent\":\"  handleDeleteLine: (id: stri\n<truncated 62 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\TemplateProps.ts\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add onDuplicate to LineItemRow\"",
+      "Instruction": "\"Add onDuplicate to LineItemRow signature and add the Copy icon next to the Delete icon\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":239,\"ReplacementContent\":\"  onChange: (id: string, field: keyof LineItem, val: unknown) => void;\\n  onDelete: (id: string) => void;\\n  onDuplicate?: (id: string) => void;\\n  onToggleLongDesc: (id: string) => void;\",\"StartL\n<truncated 1352 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Remove syntax error\"",
+      "Instruction": "\"Remove the stray )} from LineItemRow\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":689,\"ReplacementContent\":\"          {onDuplicate && !viewMode && (\",\"StartLine\":687,\"TargetContent\":\"          )}\\n          )}\\n          {onDuplicate && !viewMode && (\"}]",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add handleDuplicateLine to DocumentBuilderClient\"",
+      "Instruction": "\"Add handleDuplicateLine below handleDeleteLine\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":1364,\"ReplacementContent\":\"  const handleDeleteLine = useCallback((id: string) => {\\n    setLineItems(prev => prev.filter(item => item.id !== id));\\n  }, []);\\n\\n  const handleDuplicateLine = useCallback((id: string) => {\\\n<truncated 504 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Pass handleDuplicateLine to templates\"",
+      "Instruction": "\"Add handleDuplicateLine to the props passed to ModernTemplate, ClassicTemplate, MinimalistTemplate, and LegacyTemplate\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":1727,\"ReplacementContent\":\"            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} \\n            emptySectionLine={emptySectionLine} setLineItems={setLineItems} setShowProduc\n<truncated 4596 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Check off step 3 and 4\"",
+      "Instruction": "\"Mark step 3 and 4 as complete\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":4,\"ReplacementContent\":\"- [x] 3. Actualizar `DocumentBuilderClient.tsx` (lógica y UI de filas)\\n- [x] 4. Modificar `TemplateProps.ts` para soportar la nueva función\",\"StartLine\":3,\"TargetContent\":\"- [ ] 3. Actualizar `Do\n<truncated 122 bytes>",
+      "TargetFile": "\"C:\\\\Users\\\\Bryan\\\\.gemini\\\\antigravity\\\\brain\\\\112eadbf-edc1-4ea4-9ba9-2c5619088b15/task.md\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Apply table settings to ModernTemplate\"",
+      "Instruction": "\"Apply tableHeaderBg, tableRoundedBorders, showTableVerticalBorders to table header, and add onDuplicate to LineItemRowComponent\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":154,\"ReplacementContent\":\"          {/* Column headers */}\\n          <div \\n            className={`flex items-center gap-2 mb-3 px-4 py-2 ${settings?.tableRoundedBorders ? 'rounded-xl' : 'rounded-none'} print:px-4 print:\n<truncated 3487 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Apply table settings to ClassicTemplate\"",
+      "Instruction": "\"Apply tableHeaderBg, tableRoundedBorders, showTableVerticalBorders to table header, and add onDuplicate to LineItemRowComponent\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":130,\"ReplacementContent\":\"          <div \\n            className={`flex items-center gap-2 mb-2 px-4 py-2 border-b-2 border-slate-800 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : 'rounded-none'} print:px-4 print:py-1\n<truncated 3449 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Apply table settings to MinimalistTemplate\"",
+      "Instruction": "\"Apply tableHeaderBg, tableRoundedBorders, showTableVerticalBorders to table header, and add onDuplicate to LineItemRowComponent\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":119,\"ReplacementContent\":\"          <div \\n            className={`flex items-center gap-2 mb-3 px-4 py-2 border-b border-slate-100 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : 'rounded-none'} print:px-4 print:py-1`}\n<truncated 3425 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Apply table settings to LegacyTemplate\"",
+      "Instruction": "\"Apply tableHeaderBg, tableRoundedBorders, showTableVerticalBorders to table header, and add onDuplicate to LineItemRowComponent\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":126,\"ReplacementContent\":\"           <div \\n            className={`flex items-center gap-2 px-4 py-2 border-b-2 ${theme.border} ${settings?.tableRoundedBorders ? 'rounded-t-xl' : 'rounded-none'} print:px-4 print:py-1`}\\n \n<truncated 3456 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Apply padding to LineItemRow\"",
+      "Instruction": "\"Add horizontal padding to print styles and apply vertical border styles to columns\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":449,\"ReplacementContent\":\"      <div className={`\\n        flex flex-col p-3 rounded-xl border transition-all duration-200\\n        ${Number(item.qty) > 0 && Number(item.unitPrice) > 0\\n          ? 'border-slate-100 bg-whi\n<truncated 3692 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Check off step 5\"",
+      "Instruction": "\"Mark step 5 as complete\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":5,\"ReplacementContent\":\"- [x] 5. Modificar los templates para usar los nuevos paddings y configs\",\"StartLine\":5,\"TargetContent\":\"- [ ] 5. Modificar los templates para usar los nuevos paddings y configs\"}]",
+      "TargetFile": "\"C:\\\\Users\\\\Bryan\\\\.gemini\\\\antigravity\\\\brain\\\\112eadbf-edc1-4ea4-9ba9-2c5619088b15/task.md\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Fix syntax error by adding missing closing brace\"",
+      "EndLine": "688",
+      "Instruction": "\"Add the missing )} before the {onDuplicate condition\"",
+      "ReplacementContent": "\"            >\\n              <Palette size={12} />\\n            </button>\\n          )}\\n          {onDuplicate && !viewMode && (\"",
+      "StartLine": "684",
+      "TargetContent": "\"            >\\n              <Palette size={12} />\\n            </button>\\n          {onDuplicate && !viewMode && (\"",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add handleDuplicateLine to props destructuring in LegacyTemplate\"",
+      "Instruction": "\"Add handleDuplicateLine to the destructured props in LegacyTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":14,\"ReplacementContent\":\"    setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode,\\n    handleReorder, draggedIndex, setDraggedIndex, handleDuplicateLine\\n  } = props;\",\"StartLine\":13,\"Target\n<truncated 165 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add handleDuplicateLine to ModernTemplate props\"",
+      "Instruction": "\"Add handleDuplicateLine to the destructured props in ModernTemplate.tsx\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":14,\"ReplacementContent\":\"    setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode,\\n    handleReorder, draggedIndex, setDraggedIndex, handleDuplicateLine\\n  } = props;\",\"StartLine\":13,\"Target\n<truncated 165 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add handleDuplicateLine to ModernTemplate props\"",
+      "Instruction": "\"Add handleDuplicateLine to destructured props\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":14,\"ReplacementContent\":\"    handleReorder, draggedIndex, setDraggedIndex, handleDuplicateLine\\n  } = props;\",\"StartLine\":13,\"TargetContent\":\"    handleReorder, draggedIndex, setDraggedIndex\\n  } = props;\"}]",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add handleDuplicateLine to ClassicTemplate props\"",
+      "Instruction": "\"Add handleDuplicateLine to destructured props\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":14,\"ReplacementContent\":\"    handleReorder, draggedIndex, setDraggedIndex, handleDuplicateLine\\n  } = props;\",\"StartLine\":13,\"TargetContent\":\"    handleReorder, draggedIndex, setDraggedIndex\\n  } = props;\"}]",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add handleDuplicateLine to MinimalistTemplate props\"",
+      "Instruction": "\"Add handleDuplicateLine to destructured props\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":14,\"ReplacementContent\":\"    handleReorder, draggedIndex, setDraggedIndex, handleDuplicateLine\\n  } = props;\",\"StartLine\":13,\"TargetContent\":\"    handleReorder, draggedIndex, setDraggedIndex\\n  } = props;\"}]",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "replace_file_content",
+    "args": {
+      "AllowMultiple": "false",
+      "Description": "\"Add onDuplicate to LineItemRow destructured props\"",
+      "EndLine": "234",
+      "Instruction": "\"Add onDuplicate to the destructured props for LineItemRow\"",
+      "ReplacementContent": "\"function LineItemRow({\\n  item, index, onChange, onDelete, onDuplicate, onToggleLongDesc, allProducts, viewMode, settings,\\n  handleReorder, draggedIndex, setDraggedIndex\"",
+      "StartLine": "232",
+      "TargetContent": "\"function LineItemRow({\\n  item, index, onChange, onDelete, onToggleLongDesc, allProducts, viewMode, settings,\\n  handleReorder, draggedIndex, setDraggedIndex\"",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add tableBorderThickness and tableBorderColor to InvoiceSettings\"",
+      "Instruction": "\"Add tableBorderThickness and tableBorderColor to InvoiceSettings and DEFAULT_INVOICE_SETTINGS\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":23,\"ReplacementContent\":\"  showTableVerticalBorders?: boolean;\\n  tableRoundedBorders?: boolean;\\n  tableHeaderBg?: string;\\n  tableBorderThickness?: string;\\n  tableBorderColor?: string;\\n}\",\"StartLine\":19,\"TargetContent\"\n<truncated 459 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\types\\\\invoice.ts\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add border color and thickness controls to Customizer\"",
+      "Instruction": "\"Add border color and thickness controls to Customizer\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":241,\"ReplacementContent\":\"                <div className=\\\"flex items-center justify-between pt-2 border-t border-slate-100\\\">\\n                  <div>\\n                    <p className=\\\"text-xs font-bold text-slate-700\\\"\n<truncated 3535 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\customizer\\\\InvoiceCustomizerSidebar.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Apply inline border styles to LineItemRow\"",
+      "Instruction": "\"Apply tableBorderColor and tableBorderThickness using style prop in LineItemRow, and remove tailwind border colors on print\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":451,\"ReplacementContent\":\"      <div \\n        className={`\\n          flex flex-col p-3 border transition-all duration-200\\n          ${settings?.tableRoundedBorders ? 'rounded-xl print:rounded-xl' : 'rounded-none print:r\n<truncated 5778 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update ModernTemplate to support border color, thickness and outer rounded borders\"",
+      "Instruction": "\"Wrap the table area in a div with dynamic border color/thickness and rounded corners if enabled, and update the header to match the styles.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":143,\"ReplacementContent\":\"          {/* Column headers */}\\n          <div \\n            className={`flex items-center gap-2 px-4 py-2 print:px-4 print:py-1`}\\n            style={{ \\n              backgroundColor: settings\n<truncated 4297 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update ClassicTemplate to support border styles\"",
+      "Instruction": "\"Wrap the table area in a div with dynamic border color/thickness and rounded corners if enabled, and update the header to match the styles.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":120,\"ReplacementContent\":\"          <div \\n            className={`flex items-center gap-2 px-4 py-2 print:px-4 print:py-1`}\\n            style={{ \\n              backgroundColor: settings?.tableHeaderBg || 'transparent',\\\n<truncated 4181 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update MinimalistTemplate to support border styles\"",
+      "Instruction": "\"Wrap the table area in a div with dynamic border color/thickness and rounded corners if enabled, and update the header to match the styles.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":110,\"ReplacementContent\":\"          <div \\n            className={`flex items-center gap-2 px-4 py-2 print:px-4 print:py-1`}\\n            style={{ \\n              backgroundColor: settings?.tableHeaderBg || 'transparent',\\\n<truncated 4219 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update LegacyTemplate to support border styles\"",
+      "Instruction": "\"Wrap the table area in a div with dynamic border color/thickness and rounded corners if enabled, and update the header to match the styles.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":117,\"ReplacementContent\":\"          <div \\n            className={`flex items-center gap-2 px-4 py-2 print:px-4 print:py-1`}\\n            style={{ \\n              backgroundColor: settings?.tableHeaderBg || '#f3f4f6',\\n   \n<truncated 4220 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add showTableOuterBorders to InvoiceSettings\"",
+      "Instruction": "\"Add showTableOuterBorders boolean to InvoiceSettings interface and default to true\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":26,\"ReplacementContent\":\"  showTableOuterBorders?: boolean;\\n}\",\"StartLine\":25,\"TargetContent\":\"  tableBorderColor?: string;\\n}\"},{\"AllowMultiple\":false,\"EndLine\":50,\"ReplacementContent\":\"  tableBorderColor: '#e2e8f0',\\n  \n<truncated 103 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\types\\\\invoice.ts\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix tableBorderColor in InvoiceSettings\"",
+      "Instruction": "\"Add tableBorderColor back to InvoiceSettings interface\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":26,\"ReplacementContent\":\"  tableBorderColor?: string;\\n  showTableOuterBorders?: boolean;\\n}\",\"StartLine\":25,\"TargetContent\":\"  showTableOuterBorders?: boolean;\\n}\"}]",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\types\\\\invoice.ts\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add Borde Exterior toggle control\"",
+      "Instruction": "\"Add Borde Exterior toggle control above Bordes Redondeados\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":210,\"ReplacementContent\":\"                </div>\\n\\n                <div className=\\\"flex items-center justify-between pt-2 border-t border-slate-100\\\">\\n                  <div>\\n                    <p className=\\\"text-xs \n<truncated 924 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\customizer\\\\InvoiceCustomizerSidebar.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update templates to use showTableOuterBorders\"",
+      "Instruction": "\"Update borderWidth logic to use showTableOuterBorders in templates\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":143,\"ReplacementContent\":\"            style={{\\n              borderWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',\\n              borderColor: settings?.tableBorderCo\n<truncated 281 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update templates to use showTableOuterBorders\"",
+      "Instruction": "\"Update borderWidth logic to use showTableOuterBorders in templates\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":121,\"ReplacementContent\":\"            style={{\\n              borderWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',\\n              borderColor: settings?.tableBorderCo\n<truncated 281 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update templates to use showTableOuterBorders\"",
+      "Instruction": "\"Update borderWidth logic to use showTableOuterBorders in templates\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":110,\"ReplacementContent\":\"            style={{\\n              borderWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',\\n              borderColor: settings?.tableBorderCo\n<truncated 281 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update LegacyTemplate to use showTableOuterBorders\"",
+      "Instruction": "\"Update borderWidth logic to use showTableOuterBorders in templates\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":117,\"ReplacementContent\":\"            style={{\\n              borderWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',\\n              borderColor: settings?.tableBorderCo\n<truncated 281 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix border styles and connect vertical lines in LineItemRow\"",
+      "Instruction": "\"Remove padding from container and add it to grid items so borders touch. Change borderStyle to solid.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":456,\"ReplacementContent\":\"      <div \\n        className={`\\n          flex flex-col border transition-all duration-200\\n          ${settings?.tableRoundedBorders ? 'rounded-xl print:rounded-xl' : 'rounded-none print:round\n<truncated 9236 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix border thickness options\"",
+      "Instruction": "\"Change border thickness options from 1,2,3 to 1, 1.5, 2\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":265,\"ReplacementContent\":\"                    {[\\n                      { id: '1px', label: 'Fino' },\\n                      { id: '1.5px', label: 'Normal' },\\n                      { id: '2px', label: 'Grueso' },\\n       \n<truncated 286 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\customizer\\\\InvoiceCustomizerSidebar.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix ModernTemplate headers vertical border stretching\"",
+      "Instruction": "\"Move padding from header container into header columns, and set items-stretch on the container\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":149,\"ReplacementContent\":\"          {/* Column headers */}\\n          <div \\n            className={`flex items-stretch gap-2 px-4 print:px-4`}\\n            style={{ \\n              backgroundColor: settings?.tableHeaderBg\n<truncated 5419 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix ClassicTemplate headers vertical border stretching\"",
+      "Instruction": "\"Move padding from header container into header columns, and set items-stretch on the container\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":130,\"ReplacementContent\":\"          <div \\n            className={`flex items-stretch gap-2 px-4 print:px-4`}\\n            style={{ \\n              backgroundColor: settings?.tableHeaderBg || 'transparent',\\n              \n<truncated 5339 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix MinimalistTemplate headers vertical border stretching\"",
+      "Instruction": "\"Move padding from header container into header columns, and set items-stretch on the container\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":119,\"ReplacementContent\":\"          <div \\n            className={`flex items-stretch gap-2 px-4 print:px-4`}\\n            style={{ \\n              backgroundColor: settings?.tableHeaderBg || 'transparent',\\n              \n<truncated 5339 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix LegacyTemplate headers vertical border stretching\"",
+      "Instruction": "\"Move padding from header container into header columns, and set items-stretch on the container\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":126,\"ReplacementContent\":\"          <div \\n            className={`flex items-stretch gap-2 px-4 print:px-4`}\\n            style={{ \\n              backgroundColor: settings?.tableHeaderBg || '#f3f4f6',\\n              bord\n<truncated 5331 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix row borders and make section rows full width\"",
+      "Instruction": "\"Remove full border from rows, make sections full width by applying styles to wrapper\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":454,\"ReplacementContent\":\"      <div \\n        className={`\\n          flex flex-col transition-all duration-200\\n          ${settings?.tableRoundedBorders ? 'rounded-none print:rounded-none' : ''}\\n          ${item.isSect\n<truncated 2049 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix print background for sections\"",
+      "Instruction": "\"Remove print:bg-transparent from the wrapper when it is a section row so the section header color shows in print\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":448,\"ReplacementContent\":\"          ${item.isSection ? '' : (Number(item.qty) > 0 && Number(item.unitPrice) > 0\\n            ? 'bg-white hover:bg-blue-50/20 hover:shadow-sm'\\n            : 'bg-slate-50/50')}\\n          pri\n<truncated 337 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix LineItemRow horizontal padding and drag handle width\"",
+      "Instruction": "\"Add px-4 to the inner row wrapper, change drag handle to w-4 and relative\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":465,\"ReplacementContent\":\"        <div className=\\\"flex items-start gap-2 w-full px-4 print:px-4\\\">\\n        {/* Drag handle + index */}\\n        <div className=\\\"flex flex-col items-center justify-center h-full min-h-[40p\n<truncated 290 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix image spacer width in ModernTemplate\"",
+      "Instruction": "\"Change w-10 to w-[34px] to perfectly align with LineItemRow's image width\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":156,\"ReplacementContent\":\"            {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className=\\\"w-[34px] shrink-0\\\" />}\",\"StartLine\":156,\"TargetContent\":\"            {settings?.sh\n<truncated 110 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix image spacer width in ClassicTemplate\"",
+      "Instruction": "\"Change w-10 to w-[34px] to perfectly align with LineItemRow's image width\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":132,\"ReplacementContent\":\"            {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className=\\\"w-[34px] shrink-0\\\" />}\",\"StartLine\":132,\"TargetContent\":\"            {settings?.sh\n<truncated 110 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix image spacer width in MinimalistTemplate\"",
+      "Instruction": "\"Change w-10 to w-[34px] to perfectly align with LineItemRow's image width\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":121,\"ReplacementContent\":\"            {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className=\\\"w-[34px] shrink-0\\\" />}\",\"StartLine\":121,\"TargetContent\":\"            {settings?.sh\n<truncated 110 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix image spacer width in LegacyTemplate\"",
+      "Instruction": "\"Change w-10 to w-[34px] to perfectly align with LineItemRow's image width\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":128,\"ReplacementContent\":\"            {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className=\\\"w-[34px] shrink-0\\\" />}\",\"StartLine\":128,\"TargetContent\":\"            {settings?.sh\n<truncated 110 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Move section background to inner row\"",
+      "Instruction": "\"Move the background color style from the outer LineItemRow wrapper to the inner flex container so the editor toolbar is not colored\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":462,\"ReplacementContent\":\"          borderBottomWidth: settings?.showTableBorders ? (settings.tableBorderThickness || '1px') : '0px',\\n          borderColor: settings?.tableBorderColor || '#e2e8f0',\\n          borderStyle:\n<truncated 1532 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Change Actions container to horizontal and update width\"",
+      "Instruction": "\"Change flex-col to flex-row, reduce padding, and set explicit width to w-[72px] for row actions.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":759,\"ReplacementContent\":\"        {/* Actions */}\\n        <div className=\\\"flex flex-row gap-0.5 items-center justify-end shrink-0 w-[72px] print:hidden self-center\\\">\\n          {!item.isSection && (\\n            <button\n<truncated 3557 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update ModernTemplate right spacer\"",
+      "Instruction": "\"Update the header right spacer from w-6 to w-[72px] to maintain column alignment\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":168,\"ReplacementContent\":\"            <div className=\\\"w-[72px] shrink-0 print:hidden\\\" />\",\"StartLine\":168,\"TargetContent\":\"            <div className=\\\"w-6 shrink-0 print:hidden\\\" />\"}]",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update ClassicTemplate right spacer\"",
+      "Instruction": "\"Update the header right spacer from w-6 to w-[72px] to maintain column alignment\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":142,\"ReplacementContent\":\"            <div className=\\\"w-[72px] shrink-0 print:hidden\\\" />\",\"StartLine\":142,\"TargetContent\":\"            <div className=\\\"w-6 shrink-0 print:hidden\\\" />\"}]",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update MinimalistTemplate right spacer\"",
+      "Instruction": "\"Update the header right spacer from w-6 to w-[72px] to maintain column alignment\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":131,\"ReplacementContent\":\"              <div className=\\\"w-[72px] shrink-0 print:hidden\\\" />\",\"StartLine\":131,\"TargetContent\":\"              <div className=\\\"w-6 shrink-0 print:hidden\\\" />\"}]",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Update LegacyTemplate right spacer\"",
+      "Instruction": "\"Update the header right spacer from w-6 to w-[72px] to maintain column alignment\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":138,\"ReplacementContent\":\"            <div className=\\\"w-[72px] shrink-0 print:hidden\\\" />\",\"StartLine\":138,\"TargetContent\":\"            <div className=\\\"w-6 shrink-0 print:hidden\\\" />\"}]",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Show line between row and long description in print mode\"",
+      "Instruction": "\"Change the long description container to show a dashed border that respects the customizer border settings in both edit and print mode\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":763,\"ReplacementContent\":\"        {/* ROW EXPANSION - RICH DESCRIPTION */}\\n        {!item.isSection && item.showLongDesc && (\\n          <div \\n            className=\\\"w-full mt-2 pt-2 print:mt-2 print:pt-2 border-t px-4 \n<truncated 499 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add descriptionBorderDashed to InvoiceSettings\"",
+      "Instruction": "\"Add descriptionBorderDashed boolean to InvoiceSettings and DEFAULT_INVOICE_SETTINGS\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":27,\"ReplacementContent\":\"  tableBorderColor?: string;\\n  showTableOuterBorders?: boolean;\\n  descriptionBorderDashed?: boolean;\\n}\",\"StartLine\":25,\"TargetContent\":\"  tableBorderColor?: string;\\n  showTableOuterBorders?: bo\n<truncated 337 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\types\\\\invoice.ts\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Add toggle for descriptionBorderDashed\"",
+      "Instruction": "\"Add a toggle switch in the Customizer Sidebar for the user to choose if the description line is dashed or solid\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":192,\"ReplacementContent\":\"                    }`} />\\n                  </button>\\n                </div>\\n                \\n                <div className=\\\"flex items-center justify-between pt-2 border-t border-slate-100\n<truncated 1064 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\customizer\\\\InvoiceCustomizerSidebar.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Remove gap between vertical lines and description line, and add dashed toggle support\"",
+      "Instruction": "\"Remove margin top so the description line touches the vertical columns above it, and implement the descriptionBorderDashed logic\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":770,\"ReplacementContent\":\"          <div \\n            className=\\\"w-full pt-2 print:pt-2 border-t px-4 print:px-4\\\"\\n            style={{\\n               borderColor: settings?.tableBorderColor || '#e2e8f0',\\n            \n<truncated 599 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix background bleeding on rounded top corners of the table\"",
+      "Instruction": "\"Add rounded-t-xl to the table header wrapper when tableRoundedBorders is true to prevent background bleeding in print mode\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":126,\"ReplacementContent\":\"          <div \\n            className={`flex items-stretch gap-2 px-4 print:px-4 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : ''}`}\\n            style={{ \",\"StartLine\":124,\"TargetContent\":\"\n<truncated 109 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix background bleeding on rounded top corners of the table\"",
+      "Instruction": "\"Add rounded-t-xl to the table header wrapper when tableRoundedBorders is true to prevent background bleeding in print mode\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":150,\"ReplacementContent\":\"          <div \\n            className={`flex items-stretch gap-2 px-4 print:px-4 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : ''}`}\\n            style={{ \",\"StartLine\":148,\"TargetContent\":\"\n<truncated 109 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix background bleeding on rounded top corners of the table\"",
+      "Instruction": "\"Add rounded-t-xl to the table header wrapper when tableRoundedBorders is true to prevent background bleeding in print mode\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":115,\"ReplacementContent\":\"          <div \\n            className={`flex items-stretch gap-2 px-4 print:px-4 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : ''}`}\\n            style={{ \",\"StartLine\":113,\"TargetContent\":\"\n<truncated 109 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix background bleeding on rounded top corners of the table\"",
+      "Instruction": "\"Add rounded-t-xl to the table header wrapper when tableRoundedBorders is true to prevent background bleeding in print mode\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":122,\"ReplacementContent\":\"          <div \\n            className={`flex items-stretch gap-2 px-4 print:px-4 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : ''}`}\\n            style={{ \",\"StartLine\":120,\"TargetContent\":\"\n<truncated 109 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix background bleeding on rounded top corners of the table\"",
+      "Instruction": "\"Add rounded-t-xl to the table header wrapper when tableRoundedBorders is true to prevent background bleeding in print mode\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":116,\"ReplacementContent\":\"            <div \\n              className={`flex items-stretch gap-2 px-4 print:px-4 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : ''}`}\\n              style={{ \",\"StartLine\":113,\"TargetCont\n<truncated 121 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Separate outer border from content to fix PDF renderer square corner bug\"",
+      "Instruction": "\"Separate the outer border into an absolute positioned div and remove the border from the flex container to ensure the PDF engine renders the rounded border perfectly.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":123,\"ReplacementContent\":\"        <div className=\\\"mb-8 relative\\\">\\n          {/* Border Layer (fixes PDF rounding bug) */}\\n          <div \\n            className={`absolute inset-0 pointer-events-none z-20 ${settings?.t\n<truncated 976 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ClassicTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Separate outer border from content to fix PDF renderer square corner bug\"",
+      "Instruction": "\"Separate the outer border into an absolute positioned div and remove the border from the flex container to ensure the PDF engine renders the rounded border perfectly.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":146,\"ReplacementContent\":\"        {/* Items Table Modern */}\\n        <div className=\\\"mb-12 print:mb-6 relative\\\">\\n          {/* Border Layer */}\\n          <div \\n            className={`absolute inset-0 pointer-events-\n<truncated 1035 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\ModernTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Separate outer border from content to fix PDF renderer square corner bug\"",
+      "Instruction": "\"Separate the outer border into an absolute positioned div and remove the border from the flex container to ensure the PDF engine renders the rounded border perfectly.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":112,\"ReplacementContent\":\"        {/* Items Table Minimal */}\\n        <div className=\\\"mb-12 print:mb-6 relative\\\">\\n          {/* Border Layer */}\\n          <div \\n            className={`absolute inset-0 pointer-events\n<truncated 1037 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\MinimalistTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Separate outer border from content to fix PDF renderer square corner bug\"",
+      "Instruction": "\"Separate the outer border into an absolute positioned div and remove the border from the flex container to ensure the PDF engine renders the rounded border perfectly.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":119,\"ReplacementContent\":\"        {/* Items Table */}\\n        <div className=\\\"mb-8 relative\\\">\\n          {/* Border Layer */}\\n          <div \\n            className={`absolute inset-0 pointer-events-none z-20 ${setting\n<truncated 997 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix bottom corners in PDF engine by applying rounded-b-xl to last row\"",
+      "Instruction": "\"Apply last:rounded-b-xl and last:overflow-hidden to the LineItemRow wrapper so that the last row respects the curved border of the table.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":445,\"ReplacementContent\":\"        className={`\\n          flex flex-col transition-all duration-200\\n          ${settings?.tableRoundedBorders ? 'rounded-none print:rounded-none last:rounded-b-xl print:last:rounded-b-xl la\n<truncated 248 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\app\\\\(dashboard)\\\\facturas\\\\DocumentBuilderClient.tsx\""
+    }
+  },
+  {
+    "name": "multi_replace_file_content",
+    "args": {
+      "Description": "\"Fix the straight line sticking out on LegacyTemplate when rounded borders is active\"",
+      "Instruction": "\"Remove border-t from the outer wrapper if tableRoundedBorders is active, since it conflicts with the rounded border of the inner table wrapper.\"",
+      "ReplacementChunks": "[{\"AllowMultiple\":false,\"EndLine\":111,\"ReplacementContent\":\"        {/* Items Table */}\\n        <div className={`mb-8 ${!settings?.tableRoundedBorders ? `border-t ${theme.border}` : ''}`}>\",\"StartLine\":110,\"TargetContent\":\"        {/* Items Table */}\\n   \n<truncated 57 bytes>",
+      "TargetFile": "\"d:\\\\bioelectronica-app\\\\bioelectronica-app\\\\src\\\\components\\\\facturas\\\\templates\\\\LegacyTemplate.tsx\""
+    }
+  }
+]

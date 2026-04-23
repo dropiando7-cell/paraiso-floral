@@ -7,8 +7,8 @@ export default function MinimalistTemplate(props: TemplateProps) {
   const {
     settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
     today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
-    validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine,
-    handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
+    validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
+    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
     notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode
   } = props;
 
@@ -125,6 +125,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
                 index={index}
                 onChange={handleLineChange}
                 onDelete={handleDeleteLine}
+                onDuplicate={handleDuplicateLine}
                 onToggleLongDesc={handleToggleLongDesc}
                 allProducts={allProducts}
                 viewMode={viewMode}
@@ -133,9 +134,10 @@ export default function MinimalistTemplate(props: TemplateProps) {
             ))}
           </div>
           
-          <div className="mt-6 flex justify-center gap-4 print:hidden">
-            <button onClick={() => setShowProductModal(true)} className={`text-xs ${themeText} hover:opacity-70 flex gap-1 items-center font-medium`}><Search size={14} /> Catálogo</button>
-            <button onClick={() => setLineItems(prev => [...prev, emptyLine()])} className={`text-xs ${themeText} hover:opacity-70 flex gap-1 items-center font-medium`}><Plus size={14} /> Fila Manual</button>
+          <div className="mt-4 flex gap-3 print:hidden">
+            <button onClick={() => setShowProductModal(true)} className="px-4 py-2 bg-slate-50 text-slate-600 text-xs font-medium hover:bg-slate-100 rounded flex gap-2 items-center"><Search size={14} /> Catálogo</button>
+            <button onClick={() => setLineItems(prev => [...prev, emptyLine()])} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 rounded flex gap-2 items-center"><Plus size={14} /> Fila</button>
+            <button onClick={() => setLineItems(prev => [...prev, emptySectionLine()])} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 rounded flex gap-2 items-center"><Plus size={14} /> Sección</button>
           </div>
         </div>
 

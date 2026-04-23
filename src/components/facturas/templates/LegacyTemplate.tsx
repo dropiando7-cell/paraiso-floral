@@ -7,8 +7,8 @@ export default function LegacyTemplate(props: TemplateProps) {
   const {
     settings, organization, docNumber, docType, currentDocType,
     today, futureDate, selectedClient, paymentTerms,
-    validityDays, lineItems, handleLineChange, handleDeleteLine,
-    handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
+    validityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
+    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
     notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent,
     setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode
   } = props;
@@ -152,6 +152,7 @@ export default function LegacyTemplate(props: TemplateProps) {
                 index={index}
                 onChange={handleLineChange}
                 onDelete={handleDeleteLine}
+                onDuplicate={handleDuplicateLine}
                 onToggleLongDesc={handleToggleLongDesc}
                 allProducts={allProducts}
                 viewMode={viewMode}
@@ -163,6 +164,7 @@ export default function LegacyTemplate(props: TemplateProps) {
           <div className="mt-4 flex gap-3 print:hidden">
             <button onClick={() => setShowProductModal(true)} className="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 flex gap-2 items-center"><Search size={14} /> Catálogo</button>
             <button onClick={() => setLineItems(prev => [...prev, emptyLine()])} className="px-4 py-2 border border-gray-300 text-gray-600 text-xs font-bold hover:bg-gray-50 flex gap-2 items-center"><Plus size={14} /> Fila</button>
+            <button onClick={() => setLineItems(prev => [...prev, emptySectionLine()])} className="px-4 py-2 border border-gray-300 text-gray-600 text-xs font-bold hover:bg-gray-50 flex gap-2 items-center"><Plus size={14} /> Sección</button>
           </div>
           </div>
         </div>

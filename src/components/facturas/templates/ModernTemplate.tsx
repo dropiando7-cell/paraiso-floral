@@ -7,8 +7,8 @@ export default function ModernTemplate(props: TemplateProps) {
   const {
     settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
     today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
-    validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine,
-    handleToggleLongDesc, allProducts, emptyLine, setLineItems, setShowProductModal,
+    validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
+    handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
     notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode, nombreUsuario
   } = props;
 
@@ -161,6 +161,7 @@ export default function ModernTemplate(props: TemplateProps) {
                 index={index}
                 onChange={handleLineChange}
                 onDelete={handleDeleteLine}
+                onDuplicate={handleDuplicateLine}
                 onToggleLongDesc={handleToggleLongDesc}
                 allProducts={allProducts}
                 viewMode={viewMode}
@@ -179,9 +180,15 @@ export default function ModernTemplate(props: TemplateProps) {
             </button>
             <button
               onClick={() => setLineItems(prev => [...prev, emptyLine()])}
-              className="flex-1 flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-200 hover:border-slate-300 rounded-xl text-sm text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-all font-medium"
+              className={`flex-1 flex items-center justify-center gap-2 py-3 bg-slate-50 hover:bg-slate-100 ${theme.accentText} rounded-xl text-sm font-bold transition-all shadow-sm`}
             >
-              <Plus size={16} /> Renglón Manual
+              <Plus size={16} /> Fila Manual
+            </button>
+            <button
+              onClick={() => setLineItems(prev => [...prev, emptySectionLine()])}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 bg-slate-50 hover:bg-slate-100 ${theme.accentText} rounded-xl text-sm font-bold transition-all shadow-sm`}
+            >
+              <Plus size={16} /> Sección
             </button>
           </div>
         </div>
