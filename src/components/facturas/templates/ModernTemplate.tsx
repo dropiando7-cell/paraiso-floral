@@ -45,7 +45,7 @@ export default function ModernTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1  print:flex min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass}`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1 print:flex min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass}`}>
  {/* Document Card */}
  <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
 
@@ -140,14 +140,14 @@ export default function ModernTemplate(props: TemplateProps) {
  <div className="flex items-center gap-2 mb-3 px-3 print:px-0 print:mb-2">
  <div className="w-4 shrink-0 print:hidden" />
  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
- <div className="flex-1 grid grid-cols-[20fr_30fr_9fr_20fr_9fr_12fr_20fr] gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
- <div className="">Código</div>
- <div className="">Descripción</div>
+ <div className="flex-1 grid grid-cols-[20fr_30fr_9fr_20fr_9fr_12fr_20fr] gap-2 text-[10px] font-bold text-slate-400 uppercase">
+ <div className="text-center">Código</div>
+ <div className="text-center">Descripción</div>
  <div className="text-center print:text-left">Cant.</div>
- <div className="text-right">P. Unitario</div>
- <div className="text-right">Descuento</div>
+ <div className="text-center">P. Unitario</div>
+ <div className="text-center">Descuento</div>
  <div className="text-center">Impuesto</div>
- <div className="text-right">Subtotal</div>
+ <div className="text-center">Subtotal</div>
  </div>
  <div className="w-6 shrink-0 print:hidden" />
  </div>
@@ -195,7 +195,7 @@ export default function ModernTemplate(props: TemplateProps) {
 
  {/* Notes */}
  <div className="px-5 pb-5">
- <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Notas y Condiciones</p>
+ <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Notas y Condiciones</p>
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}
@@ -212,7 +212,7 @@ export default function ModernTemplate(props: TemplateProps) {
  <div className="border-t border-slate-100 bg-slate-50/70 p-6 print:break-inside-avoid">
  <div className="flex justify-end">
  <div className="w-full max-w-xs space-y-3">
- <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Resumen Financiero</p>
+ <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">Resumen Financiero</p>
 
  <div className="flex justify-between items-center">
  <span className="text-sm text-slate-500">Subtotal L.</span>

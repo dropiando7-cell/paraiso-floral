@@ -37,14 +37,14 @@ export default function ClassicTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1  print:flex space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1 print:flex space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
  <div className="flex flex-col flex-1 p-8 md:p-12 print:p-0">
  
  {/* Header Block */}
  <div className="flex flex-col print:flex-row sm:flex-row justify-between items-start border-b-2 border-slate-800 pb-6 mb-6 gap-6 print:gap-4">
  <div className={`flex-1 ${settings.logoPosition === 'center' ? 'text-center' : settings.logoPosition === 'right' ? 'text-right' : 'text-left'}`}>
  {settings.logoPosition !== 'right' && renderLogo()}
- <h1 className={`text-2xl font-bold uppercase tracking-widest text-slate-900 ${settings.logoPosition === 'center' ? 'mx-auto' : ''}`}>{organization?.name || 'Comercial'}</h1>
+ <h1 className={`text-2xl font-bold uppercase text-slate-900 ${settings.logoPosition === 'center' ? 'mx-auto' : ''}`}>{organization?.name || 'Comercial'}</h1>
  <p className="text-sm text-slate-600 font-semibold">{organization?.qrPrefix || 'Facturación'}</p>
  <div className="text-xs text-slate-500 mt-2 space-y-0.5">
  {organization?.direccion && <p>{organization.direccion}</p>}
@@ -59,7 +59,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  </div>
  
  <div className="text-right border-l-2 border-slate-200 pl-6 ml-6">
- <h2 className={`text-3xl font-light uppercase tracking-widest ${baseColor}`}>{currentDocType.label}</h2>
+ <h2 className={`text-3xl font-light uppercase ${baseColor}`}>{currentDocType.label}</h2>
  <p className="font-bold text-lg text-slate-800 mt-1">{docNumber}</p>
  
  <div className="mt-4 text-sm text-slate-600 space-y-1">
@@ -78,14 +78,14 @@ export default function ClassicTemplate(props: TemplateProps) {
  {/* Client Block */}
  <div className="grid grid-cols-2 gap-8 mb-8">
  <div>
- <h3 className="text-xs font-bold uppercase tracking-widest border-b border-slate-300 pb-1 mb-2">Facturado A:</h3>
+ <h3 className="text-xs font-bold uppercase border-b border-slate-300 pb-1 mb-2">Facturado A:</h3>
  <button onClick={() => setShowClientModal(true)} className="text-left group w-full">
  <p className={`font-bold text-lg ${selectedClient ? 'text-slate-800' : 'text-slate-400 italic'} group-hover:${baseColor} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
  <p className="text-sm text-slate-600 mt-1 font-mono">RTN: {selectedClient?.rtn || '—'}</p>
  </button>
  </div>
  <div>
- <h3 className="text-xs font-bold uppercase tracking-widest border-b border-slate-300 pb-1 mb-2">Condiciones de Pago:</h3>
+ <h3 className="text-xs font-bold uppercase border-b border-slate-300 pb-1 mb-2">Condiciones de Pago:</h3>
  <div className="space-y-2 mt-2">
  <select
  value={paymentTerms}
@@ -137,14 +137,14 @@ export default function ClassicTemplate(props: TemplateProps) {
  >
  <div className="w-4 shrink-0 print:hidden" />
  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-[34px] shrink-0" />}
- <div className={`flex-1 grid grid-cols-[20fr_30fr_9fr_20fr_9fr_12fr_20fr] gap-2 text-[10px] font-bold uppercase tracking-widest ${baseColor}`}>
- <div className={`flex items-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Código</div>
- <div className={`flex items-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Descripción</div>
- <div className={`flex items-center justify-center text-center print:text-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'px-1' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Cant.</div>
- <div className={`flex items-center justify-end text-right py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Precio</div>
- <div className={`flex items-center justify-end text-right py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Desc.</div>
- <div className={`flex items-center justify-center text-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Imp.</div>
- <div className="flex items-center justify-end text-right py-2 print:py-1">Monto</div>
+ <div className={`flex-1 grid grid-cols-[20fr_30fr_9fr_20fr_9fr_12fr_20fr] gap-2 text-[10px] font-bold uppercase ${baseColor}`}>
+ <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Código</div>
+ <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Descripción</div>
+ <div className={`flex items-center justify-center text-center print:text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Cant.</div>
+ <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Precio</div>
+ <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Desc.</div>
+ <div className={`flex items-center justify-center text-center py-2 print:py-1 `} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Imp.</div>
+ <div className="flex items-center justify-center text-center py-2 print:py-1">Monto</div>
  </div>
  <div className="w-[24px] shrink-0 print:hidden" />
  </div>
@@ -178,7 +178,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  <div className="pt-6 border-t border-slate-300 print:flex print:break-inside-avoid">
  {/* Notes */}
  <div className="flex-1 print:float-left print:w-[50%]">
- <h3 className="text-xs font-bold uppercase tracking-widest mb-2 border-b border-slate-200 pb-1">Términos y Condiciones</h3>
+ <h3 className="text-xs font-bold uppercase mb-2 border-b border-slate-200 pb-1">Términos y Condiciones</h3>
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}
@@ -235,7 +235,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  <span className="font-mono">{fmt(totals.isv18)}</span>
  </div>
  <div className="flex justify-between items-end pt-2">
- <span className="font-bold uppercase tracking-widest text-slate-800">TOTAL L.</span>
+ <span className="font-bold uppercase text-slate-800">TOTAL L.</span>
  <span className={`text-xl font-bold font-mono ${baseColor}`}>{fmt(totals.total)}</span>
  </div>
  </div>
@@ -244,7 +244,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  <button 
  onClick={handleSave}
  disabled={isSaving}
- className={`w-full py-3 text-white font-bold tracking-widest uppercase text-xs transition-colors ${isSaving ? 'bg-slate-400' : 'bg-slate-900 hover:bg-slate-800'}`}
+ className={`w-full py-3 text-white font-bold uppercase text-xs transition-colors ${isSaving ? 'bg-slate-400' : 'bg-slate-900 hover:bg-slate-800'}`}
  >
  {isSaving ? 'Guardando...' : `Guardar ${currentDocType.label}`}
  </button>

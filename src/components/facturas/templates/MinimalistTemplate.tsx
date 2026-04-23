@@ -35,7 +35,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1  print:flex space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1 print:flex space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
  <div className="flex flex-col flex-1 p-8 md:p-14 print:p-0">
  
  {/* Header Block Minimal */}
@@ -68,7 +68,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  {/* Client Block Minimal */}
  <div className="flex flex-col print:flex-row sm:flex-row justify-between gap-6 print:gap-4 mb-10 print:mb-6">
  <div className="flex-1">
- <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Facturar A</p>
+ <p className="text-[10px] text-slate-400 uppercase mb-1">Facturar A</p>
  <button onClick={() => setShowClientModal(true)} className="text-left group w-full">
  <p className={`font-semibold text-base ${selectedClient ? 'text-slate-800' : 'text-slate-300'} group-hover:${themeText} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
  {selectedClient && <p className="text-xs text-slate-500 mt-1">{selectedClient.rtn || 'RTN No Disponible'}</p>}
@@ -76,7 +76,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  </div>
  
  <div className="w-full sm:w-48 print:w-48 sm:text-right print:text-right">
- <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Pago</p>
+ <p className="text-[10px] text-slate-400 uppercase mb-1">Pago</p>
  <select
  value={paymentTerms}
  onChange={e => setPaymentTerms(e.target.value)}
@@ -106,13 +106,13 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <div className="w-4 shrink-0 print:hidden" />
  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
  <div className={`flex-1 grid grid-cols-[20fr_30fr_9fr_20fr_9fr_12fr_20fr] gap-2 text-[10px] uppercase font-semibold text-slate-400`}>
- <div className="">Código</div>
- <div className="">Descripción</div>
+ <div className="text-center">Código</div>
+ <div className="text-center">Descripción</div>
  <div className="text-center print:text-left">Cant.</div>
- <div className="text-right">Precio</div>
- <div className="text-right">Desc.</div>
+ <div className="text-center">Precio</div>
+ <div className="text-center">Desc.</div>
  <div className="text-center">Imp</div>
- <div className="text-right">Monto</div>
+ <div className="text-center">Monto</div>
  </div>
  <div className="w-6 shrink-0 print:hidden" />
  </div>
@@ -144,7 +144,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  {/* Footer Minimal */}
  <div className="pt-8 print:pt-4 print:flex print:break-inside-avoid">
  <div className="flex-1 print:float-left print:w-[50%]">
- <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Notas</p>
+ <p className="text-[10px] text-slate-400 uppercase mb-2">Notas</p>
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}
@@ -200,7 +200,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <span>{fmt(totals.isv18)}</span>
  </div>
  <div className="flex justify-between items-end pt-1">
- <span className="text-[11px] text-slate-400 uppercase tracking-widest mb-1">Total L.</span>
+ <span className="text-[11px] text-slate-400 uppercase mb-1">Total L.</span>
  <span className={`text-2xl font-light ${themeText}`}>{fmt(totals.total)}</span>
  </div>
  </div>
