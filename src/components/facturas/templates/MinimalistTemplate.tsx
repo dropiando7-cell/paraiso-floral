@@ -105,14 +105,14 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <div className="flex items-center gap-2 mb-3 px-2 border-b border-slate-100 pb-2 print:px-0">
  <div className="w-4 shrink-0 print:hidden" />
  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
- <div className={`flex-1 grid grid-cols-12 gap-2 text-[10px] uppercase font-semibold text-slate-400`}>
- <div className="col-span-2">Código</div>
- <div className="col-span-3">Descripción</div>
- <div className="col-span-1 text-center print:text-left">Cant.</div>
- <div className="col-span-2 text-right">Precio</div>
- <div className="col-span-1 text-right">Desc.</div>
- <div className="col-span-2 text-center">Imp</div>
- <div className="col-span-1 text-right">Monto</div>
+ <div className={`flex-1 grid grid-cols-[20fr_30fr_9fr_20fr_9fr_12fr_20fr] gap-2 text-[10px] uppercase font-semibold text-slate-400`}>
+ <div className="">Código</div>
+ <div className="">Descripción</div>
+ <div className="text-center print:text-left">Cant.</div>
+ <div className="text-right">Precio</div>
+ <div className="text-right">Desc.</div>
+ <div className="text-center">Imp</div>
+ <div className="text-right">Monto</div>
  </div>
  <div className="w-6 shrink-0 print:hidden" />
  </div>
