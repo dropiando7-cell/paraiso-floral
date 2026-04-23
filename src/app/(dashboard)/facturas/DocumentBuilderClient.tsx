@@ -412,9 +412,9 @@ function LineItemRow({
         borderColor: settings?.tableBorderColor || '#e2e8f0',
         borderStyle: settings?.descriptionBorderDashed !== false ? 'dashed' : 'solid'
       }}>
-        <div className={`flex items-start gap-2 w-full px-4 print:px-4 py-2 print:py-1 ${Number(item.qty) > 0 && Number(item.unitPrice) > 0 ? 'bg-white hover:bg-blue-50/20' : 'bg-slate-50/50'}`}>
+        <div className={`flex items-start gap-2 w-full px-4 print:px-4 ${Number(item.qty) > 0 && Number(item.unitPrice) > 0 ? 'bg-white hover:bg-blue-50/20' : 'bg-slate-50/50'}`}>
         {/* Drag handle + index */}
-        <div className="flex flex-col items-center justify-center h-[34px] shrink-0 print:hidden">
+        <div className="flex flex-col items-center justify-center h-[34px] shrink-0 print:hidden py-2 print:py-1">
           {!viewMode && (
           <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab absolute -left-4 top-[10px]">
             <GripVertical size={14} className="text-slate-300" />
@@ -424,18 +424,20 @@ function LineItemRow({
         </div>
 
         {/* First Column Image Position (if enabled) */}
-        {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && (
-          <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
-            {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
+        {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && !item.isSection && (
+          <div className="py-2 print:py-1 shrink-0">
+            <div className="w-[34px] h-[34px] bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
+              {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
+            </div>
           </div>
         )}
 
         {item.isSection ? (
-          <div className="flex-1 flex flex-col relative print:my-1">
+          <div className="flex-1 flex flex-col relative print:my-1 py-2 print:py-1">
              <div 
                className="w-full h-full flex items-center px-4 rounded-md transition-all border border-transparent print:border-none focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20"
                style={{
-                 backgroundColor: viewMode ? 'transparent' : (item.sectionStyle?.bg || '#f1f5f9'),
+                 backgroundColor: item.sectionStyle?.bg || '#f1f5f9',
                  WebkitPrintColorAdjust: 'exact',
                  printColorAdjust: 'exact',
                  minHeight: '34px'
@@ -461,7 +463,7 @@ function LineItemRow({
         ) : (
           <div className="flex-1 grid grid-cols-12 gap-2 min-w-0 relative">
             {/* Code */}
-            <div className={`col-span-2 relative flex items-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`col-span-2 min-w-0 relative flex items-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
               <input
                 value={item.code}
                 disabled={viewMode}
@@ -499,7 +501,7 @@ function LineItemRow({
             </div>
 
             {/* Description */}
-            <div className={`col-span-3 relative flex gap-2 items-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`col-span-3 min-w-0 relative flex gap-2 items-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
               {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && (
                 <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
                   {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
@@ -533,7 +535,7 @@ function LineItemRow({
             </div>
 
             {/* Qty — centered horizontally and vertically */}
-            <div className={`col-span-1 flex items-center justify-center ${settings?.showTableVerticalBorders ? 'px-1' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`col-span-1 min-w-0 flex items-center justify-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'px-1' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
               {!viewMode ? (
                 <input
                   type="number"
@@ -549,7 +551,7 @@ function LineItemRow({
             </div>
 
             {/* Unit Price — vertically centered, right-aligned */}
-            <div className={`col-span-2 flex items-center justify-end ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`col-span-2 min-w-0 flex items-center justify-end py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
               {!viewMode ? (
                 <div className="relative w-full print:hidden">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">L</span>
@@ -567,7 +569,7 @@ function LineItemRow({
             </div>
 
             {/* Discount — vertically centered, right-aligned — col-span-1 (compact) */}
-            <div className={`col-span-1 flex items-center justify-end ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`col-span-1 min-w-0 flex items-center justify-end py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
               {!viewMode ? (
                 <div className="relative w-full print:hidden">
                   <input
@@ -593,7 +595,7 @@ function LineItemRow({
             </div>
 
             {/* Tax — vertically centered, centered — col-span-2 (needs room for ISV 15%) */}
-            <div className={`col-span-2 flex items-center justify-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`col-span-2 min-w-0 flex items-center justify-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
               {!viewMode ? (
                 <select
                   value={item.tax}
@@ -612,7 +614,7 @@ function LineItemRow({
             </div>
 
             {/* Monto / Subtotal — vertically centered, right-aligned */}
-            <div className="col-span-1 flex items-center justify-end">
+            <div className="col-span-1 min-w-0 flex items-center justify-end py-2 print:py-1">
               <p className="text-xs font-bold text-slate-800 text-right font-mono">
                 {fmt(total)}
               </p>
@@ -621,7 +623,7 @@ function LineItemRow({
         )}
 
         {/* Actions */}
-        <div className="flex flex-row gap-1 items-center justify-center w-[72px] shrink-0 print:hidden">
+        <div className="flex flex-col gap-0.5 items-center justify-center w-[24px] shrink-0 print:hidden py-2 print:py-1">
           {item.isSection ? (
             <button
               onClick={() => onToggleLongDesc(item.id)}
@@ -1596,7 +1598,7 @@ export default function DocumentBuilderClient({
             today={today} futureDate={futureDate} selectedClient={selectedClient} 
             setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
             setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
-            lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
+            lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
@@ -1609,7 +1611,7 @@ export default function DocumentBuilderClient({
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
-             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
+             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
@@ -1622,7 +1624,7 @@ export default function DocumentBuilderClient({
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
-             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
+             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
@@ -1635,7 +1637,7 @@ export default function DocumentBuilderClient({
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
-             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} 
+             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 

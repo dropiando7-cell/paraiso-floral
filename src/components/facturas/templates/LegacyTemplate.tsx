@@ -141,7 +141,7 @@ export default function LegacyTemplate(props: TemplateProps) {
               <div className={`col-span-2 flex items-center justify-center text-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Imp.</div>
               <div className="col-span-1 flex items-center justify-end text-right py-2 print:py-1">Monto</div>
             </div>
-            <div className="w-[72px] shrink-0 print:hidden" />
+            <div className="w-[24px] shrink-0 print:hidden" />
           </div>
 
           <div className="flex flex-col">
