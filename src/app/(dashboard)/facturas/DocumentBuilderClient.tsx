@@ -1073,11 +1073,11 @@ export default function DocumentBuilderClient({
         });
 
         const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 210;
-        const pageHeight = 297;
+        const imgWidth = 215.9;
+        const pageHeight = 279.4;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdf = new jsPDF('p', 'mm', 'letter');
         let heightLeft = imgHeight;
         let position = 0;
 
@@ -1647,7 +1647,7 @@ export default function DocumentBuilderClient({
         <div className={`w-full relative transition-all duration-300 print:block ${isLocked ? 'pointer-events-none' : ''}`}>
           
           <div className={`transition-all duration-500 relative flex-1 min-w-0 z-10 print:block ${showCustomizer ? 'pr-80 print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''} ${isLocked ? 'blur-[6px] opacity-60 grayscale-[0.1]' : ''}`}>
-             <div ref={templateContainerRef} className="max-w-4xl mx-auto relative bg-white">
+             <div ref={templateContainerRef} className="max-w-[816px] mx-auto relative bg-white">
           
           {isAnulada && (
              <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden mix-blend-multiply opacity-30 print:opacity-20 px-8">

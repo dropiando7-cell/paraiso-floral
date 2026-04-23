@@ -176,55 +176,55 @@ export default function LegacyTemplate(props: TemplateProps) {
  </div>
 
  {/* Totals Section */}
- <div className="flex flex-col md:flex-row justify-between mb-8 mt-12 gap-8 print:flex-row print:justify-between print:gap-8 print:break-inside-avoid">
+ <div className="flex flex-col md:flex-row justify-between mb-4 mt-6 gap-8 print:flex-row print:justify-between print:gap-8 print:break-inside-avoid">
  {/* Notes section left */}
  <div className="flex-1 mt-auto">
  <div className="text-sm">
- <p className="font-bold mb-1">Nota / Plazo de pago:</p>
+ <p className="font-bold mb-1 text-xs">Nota / Plazo de pago:</p>
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}
  rows={3}
- className="w-full text-xs border border-gray-300 p-2 resize-none focus:outline-none print:hidden"
+ className="w-full text-[11px] border border-gray-300 p-2 resize-none focus:outline-none print:hidden"
  placeholder="Pago inmediato..."
  />
- <div className="hidden print:flex text-xs whitespace-pre-wrap">{notes || paymentTerms}</div>
+ <div className="hidden print:flex text-[11px] whitespace-pre-wrap">{notes || paymentTerms}</div>
  </div>
  </div>
 
  {/* Totals table right */}
- <div className="w-full md:w-80 print:w-80 border-t border-gray-300 pt-4 print:shrink-0">
- <div className="flex flex-col gap-1 text-sm">
- <div className="flex justify-between items-center py-1">
+ <div className="w-full md:w-80 print:w-72 border-t border-gray-300 pt-2 print:shrink-0">
+ <div className="flex flex-col gap-0.5 text-[11px]">
+ <div className="flex justify-between items-center">
  <span className="text-gray-600 font-medium">Sub-Total</span>
  <span className="font-mono">{fmt(totals.subtotal)}</span>
  </div>
  {totals.descuentos > 0 && (
- <div className="flex justify-between items-center py-1">
+ <div className="flex justify-between items-center">
  <span className="text-gray-600 font-medium">Total Descuento</span>
  <span className="font-mono text-red-600">-{fmt(totals.descuentos)}</span>
  </div>
  )}
- <div className="flex justify-between items-center py-1">
+ <div className="flex justify-between items-center">
  <span className="text-gray-600 font-medium">Total Exento</span>
  <span className="font-mono">{fmt(totals.exento)}</span>
  </div>
- <div className="flex justify-between items-center py-1">
+ <div className="flex justify-between items-center">
  <span className="text-gray-600 font-medium">Total Exonerado</span>
  <span className="font-mono">{fmt(totals.exonerado)}</span>
  </div>
- <div className="flex justify-between items-center py-1">
+ <div className="flex justify-between items-center">
  <span className="text-gray-600 font-medium">Total Gravado 15%</span>
  <span className="font-mono">{fmt(totals.gravado15)}</span>
  </div>
- <div className="flex justify-between items-center py-1 border-b border-gray-300 pb-2">
+ <div className="flex justify-between items-center border-b border-gray-300 pb-1">
  <span className="text-gray-600 font-medium">Total ISV 15%</span>
  <span className="font-mono">{fmt(totals.isv15)}</span>
  </div>
  {/* Total row with primary background */}
- <div className={`flex justify-between items-center ${theme.bgDark} text-white px-4 py-3 mt-2 rounded-sm shadow-sm print:border-t-2 print:border-b-2 print:border-solid print:py-2 print:px-0`}>
- <span className="font-bold print:font-black text-base print:text-lg">TOTAL</span>
- <span className="font-bold print:font-black font-mono text-lg print:text-xl ">{fmt(totals.total)}</span>
+ <div className={`flex justify-between items-center ${theme.bgDark} text-white px-3 py-1.5 mt-1 rounded-sm shadow-sm print:border-t-2 print:border-b-2 print:border-solid print:py-1 print:px-0`}>
+ <span className="font-bold print:font-black text-sm print:text-base">TOTAL</span>
+ <span className="font-bold print:font-black font-mono text-base print:text-lg">{fmt(totals.total)}</span>
  </div>
  </div>
  </div>
