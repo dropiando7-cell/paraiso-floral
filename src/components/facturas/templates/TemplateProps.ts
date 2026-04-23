@@ -20,9 +20,11 @@ export interface TemplateProps {
   lineItems: any[];
   handleLineChange: (id: string, field: string, val: any) => void;
   handleDeleteLine: (id: string) => void;
+  handleDuplicateLine: (id: string) => void;
   handleToggleLongDesc: (id: string) => void;
   allProducts: any[];
   emptyLine: () => any;
+  emptySectionLine: () => any;
   setLineItems: React.Dispatch<React.SetStateAction<any[]>>;
   setShowProductModal: (v: boolean) => void;
   notes: string;
@@ -42,5 +44,8 @@ export interface TemplateProps {
   isSaving: boolean;
   viewMode?: boolean;
   fmt: (n: number) => string;
+  handleReorder: (fromIndex: number, toIndex: number) => void;
+  draggedIndex: number | null;
+  setDraggedIndex: (val: number | null) => void;
   LineItemRowComponent: React.FC<any>;
 }

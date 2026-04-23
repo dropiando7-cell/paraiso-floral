@@ -388,14 +388,16 @@ function LineItemRow({
   return (
     <div className="group relative" ref={containerRef} data-line-id={item.id}>
       <div className={`
-        flex flex-col p-3 rounded-xl border transition-all duration-200
-        ${Number(item.qty) > 0 && Number(item.unitPrice) > 0
-          ? 'border-slate-100 bg-white hover:border-blue-200 hover:bg-blue-50/20 hover:shadow-sm'
-          : 'border-dashed border-slate-200 bg-slate-50/50'}
-        ${settings?.showTableBorders ? 'print:border-b print:border-slate-300 print:rounded-none' : 'print:border-none'}
-        print:p-0 print:bg-transparent print:my-1
-      `}>
-        <div className="flex items-start gap-2 w-full">
+        flex flex-col transition-all duration-200 w-full
+        ${settings?.tableRoundedBorders ? 'rounded-none print:rounded-none' : ''}
+        print:p-0 print:bg-transparent print:my-0
+      `}
+      style={{
+        borderBottomWidth: settings?.showTableBorders ? (settings.tableBorderThickness || '1px') : '0px',
+        borderColor: settings?.tableBorderColor || '#e2e8f0',
+        borderStyle: settings?.descriptionBorderDashed !== false ? 'dashed' : 'solid'
+      }}>
+        <div className={`flex items-start gap-2 w-full px-4 print:px-4 py-2 print:py-1 ${Number(item.qty) > 0 && Number(item.unitPrice) > 0 ? 'bg-white hover:bg-blue-50/20' : 'bg-slate-50/50'}`}>
         {/* Drag handle + index */}
         <div className="flex flex-col items-center justify-center h-[34px] shrink-0 print:hidden">
           {!viewMode && (
@@ -416,7 +418,7 @@ function LineItemRow({
         {/* Main fields */}
         <div className="flex-1 grid grid-cols-12 gap-2 min-w-0 relative">
           {/* Code */}
-          <div className="col-span-2 relative">
+          <div className={`col-span-2 relative flex items-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
             <input
               value={item.code}
               disabled={viewMode}
@@ -454,7 +456,7 @@ function LineItemRow({
           </div>
 
           {/* Description */}
-          <div className="col-span-3 relative flex gap-2 items-start">
+          <div className={`col-span-3 relative flex gap-2 items-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
             {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && (
               <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
                 {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
@@ -488,7 +490,7 @@ function LineItemRow({
           </div>
 
           {/* Qty — centered horizontally and vertically */}
-          <div className="col-span-1 flex items-center justify-center">
+          <div className={`col-span-1 flex items-center justify-center ${settings?.showTableVerticalBorders ? 'px-1' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
             {!viewMode ? (
               <input
                 type="number"
@@ -504,7 +506,7 @@ function LineItemRow({
           </div>
 
           {/* Unit Price — vertically centered, right-aligned */}
-          <div className="col-span-2 flex items-center justify-end">
+          <div className={`col-span-2 flex items-center justify-end ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
             {!viewMode ? (
               <div className="relative w-full print:hidden">
                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">L</span>
@@ -522,7 +524,7 @@ function LineItemRow({
           </div>
 
           {/* Discount — vertically centered, right-aligned — col-span-1 (compact) */}
-          <div className="col-span-1 flex items-center justify-end">
+          <div className={`col-span-1 flex items-center justify-end ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
             {!viewMode ? (
               <div className="relative w-full print:hidden">
                 <input
@@ -548,7 +550,7 @@ function LineItemRow({
           </div>
 
           {/* Tax — vertically centered, centered — col-span-2 (needs room for ISV 15%) */}
-          <div className="col-span-2 flex items-center justify-center">
+          <div className={`col-span-2 flex items-center justify-center ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
             {!viewMode ? (
               <select
                 value={item.tax}

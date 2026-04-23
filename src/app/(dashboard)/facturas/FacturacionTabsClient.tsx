@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import DocumentBuilderClient from './DocumentBuilderClient';
 import DocumentListTable, { DocumentRecord } from '@/components/facturas/DocumentListTable';
 import FacturacionHeader from './FacturacionHeader';
@@ -11,7 +12,16 @@ interface Props {
 }
 
 export default function FacturacionTabsClient({ organization, history }: Props) {
-  const [activeTab, setActiveTab] = useState<'creador' | 'facturas' | 'cotizaciones' | 'proforma'>('creador');
+  const searchParams = useSearchParams();
+  const initialTab = (searchParams.get('tab') as 'creador' | 'facturas' | 'cotizaciones' | 'proforma') || 'creador';
+  const [activeTab, setActiveTab] = useState<'creador' | 'facturas' | 'cotizaciones' | 'proforma'>(initialTab);
+
+  useEffect(() => {
+    const tab = searchParams.get('tab');
+    if (tab && ['creador', 'facturas', 'cotizaciones', 'proforma'].includes(tab)) {
+      setActiveTab(tab as any);
+    }
+  }, [searchParams]);
 
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">

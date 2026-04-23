@@ -108,23 +108,43 @@ export default function LegacyTemplate(props: TemplateProps) {
         </div>
 
         {/* Items Table */}
-        <div className={`mb-8 border-t ${theme.border}`}>
-           <div className={`flex items-center gap-2 px-2 border-b-2 ${theme.border} pb-2 bg-gray-100 pt-2 print:px-0`}>
+        <div className="mb-8 relative">
+          {/* Border Layer */}
+          <div 
+            className={`absolute inset-0 pointer-events-none z-20 ${settings?.tableRoundedBorders ? 'rounded-xl' : ''}`}
+            style={{
+              borderWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',
+              borderColor: settings?.tableBorderColor || '#1e293b',
+              borderStyle: 'solid'
+            }}
+          />
+          {/* Content Layer */}
+          <div 
+            className={`flex flex-col relative z-10 bg-transparent ${settings?.tableRoundedBorders ? 'rounded-xl overflow-hidden' : ''}`}
+          >
+           <div 
+             className={`flex items-stretch gap-2 px-4 print:px-4 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : ''}`}
+             style={{ 
+               backgroundColor: settings?.tableHeaderBg || '#f3f4f6', // gray-100 default for legacy
+               borderBottomWidth: settings?.showTableBorders ? (settings.tableBorderThickness || '1px') : '0px',
+               borderColor: settings?.tableBorderColor || '#1e293b'
+             }}
+           >
             <div className="w-4 shrink-0 print:hidden" />
-            {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
+            {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-[34px] shrink-0" />}
             <div className={`flex-1 grid grid-cols-12 gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-800`}>
-              <div className="col-span-2">Código</div>
-              <div className="col-span-3">Descripción</div>
-              <div className="col-span-1 text-center print:text-left">Cant.</div>
-              <div className="col-span-2 text-right">Precio</div>
-              <div className="col-span-1 text-right">Desc.</div>
-              <div className="col-span-2 text-center">Imp.</div>
-              <div className="col-span-1 text-right">Monto</div>
+              <div className={`col-span-2 flex items-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Código</div>
+              <div className={`col-span-3 flex items-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Descripción</div>
+              <div className={`col-span-1 flex items-center justify-center text-center print:text-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'px-1' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Cant.</div>
+              <div className={`col-span-2 flex items-center justify-end text-right py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Precio</div>
+              <div className={`col-span-1 flex items-center justify-end text-right py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Desc.</div>
+              <div className={`col-span-2 flex items-center justify-center text-center py-2 print:py-1 ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#1e293b' } : {}}>Imp.</div>
+              <div className="col-span-1 flex items-center justify-end text-right py-2 print:py-1">Monto</div>
             </div>
-            <div className="w-6 shrink-0 print:hidden" />
+            <div className="w-[72px] shrink-0 print:hidden" />
           </div>
 
-          <div className="space-y-1">
+          <div className="flex flex-col">
             {lineItems.map((item, index) => (
               <LineItemRowComponent
                 key={item.id}
@@ -143,6 +163,7 @@ export default function LegacyTemplate(props: TemplateProps) {
           <div className="mt-4 flex gap-3 print:hidden">
             <button onClick={() => setShowProductModal(true)} className="px-4 py-2 bg-gray-100 text-gray-700 text-xs font-bold hover:bg-gray-200 flex gap-2 items-center"><Search size={14} /> Catálogo</button>
             <button onClick={() => setLineItems(prev => [...prev, emptyLine()])} className="px-4 py-2 border border-gray-300 text-gray-600 text-xs font-bold hover:bg-gray-50 flex gap-2 items-center"><Plus size={14} /> Fila</button>
+          </div>
           </div>
         </div>
 

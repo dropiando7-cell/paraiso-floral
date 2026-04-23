@@ -281,9 +281,12 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                             const basePrice = item.qty * item.unitPrice;
                             const discountAmt = basePrice * ((item.discount || 0) / 100);
                             const lineTotal = basePrice - discountAmt;
+                            let finalDesc = item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : '');
+                            if (item.isSection) finalDesc = `__SECTION__${finalDesc}`;
                             return {
-                                descripcion: item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : ''),
-                                cantidad: item.qty,
+                                descripcion: finalDesc,
+                                descripcionEnriquecida: item.richDesc || null,
+                                cantidad: Number(item.qty) || 0,
                                 precioUnitario: item.unitPrice,
                                 porcentajeIsv: item.tax === 'isv15' ? 15 : 0,
                                 totalDescuento: discountAmt,
@@ -405,10 +408,12 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                                 ? Number(item.discount) || 0
                                 : basePrice * ((Number(item.discount) || 0) / 100);
                             const lineTotal = basePrice - discountAmt;
+                            let finalDesc = item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : '');
+                            if (item.isSection) finalDesc = `__SECTION__${finalDesc}`;
                             return {
-                                descripcion: item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : ''),
+                                descripcion: finalDesc,
                                 descripcionEnriquecida: item.richDesc || null,
-                                cantidad: Number(item.qty),
+                                cantidad: Number(item.qty) || 0,
                                 precioUnitario: Number(item.unitPrice),
                                 porcentajeIsv: item.tax === 'isv15' ? 15 : item.tax === 'isv18' ? 18 : 0,
                                 totalDescuento: discountAmt,

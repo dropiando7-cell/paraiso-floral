@@ -18,6 +18,13 @@ export interface InvoiceSettings {
   showProductImages: boolean;
   productImagePosition?: 'firstColumn' | 'afterCode';
   showTableBorders: boolean;
+  showTableVerticalBorders?: boolean;
+  tableRoundedBorders?: boolean;
+  tableHeaderBg?: string;
+  tableBorderThickness?: string;
+  tableBorderColor?: string;
+  showTableOuterBorders?: boolean;
+  descriptionBorderDashed?: boolean;
 }
 
 export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
@@ -36,4 +43,11 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   showProductImages: true,
   productImagePosition: 'afterCode',
   showTableBorders: false,
+  showTableVerticalBorders: false,
+  tableRoundedBorders: true,
+  tableHeaderBg: '#f8fafc',
+  tableBorderThickness: '1px',
+  tableBorderColor: '#e2e8f0',
+  showTableOuterBorders: true,
+  descriptionBorderDashed: true,
 };

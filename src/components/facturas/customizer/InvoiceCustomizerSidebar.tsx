@@ -173,21 +173,147 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                 )}
               </div>
               
-              <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
-                <div>
-                  <p className="text-xs font-bold text-slate-700">Bordes de Tabla</p>
-                  <p className="text-[10px] text-slate-400">Mostrar separadores de renglón</p>
+              <div className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Líneas Horizontales</p>
+                    <p className="text-[10px] text-slate-400">Separadores de renglón</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('showTableBorders', !settings.showTableBorders)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.showTableBorders ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.showTableBorders ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
                 </div>
-                <button
-                  onClick={() => onChange('showTableBorders', !settings.showTableBorders)}
-                  className={`w-10 h-5 rounded-full transition-all relative ${
-                    settings.showTableBorders ? 'bg-blue-600' : 'bg-slate-300'
-                  }`}
-                >
-                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
-                    settings.showTableBorders ? 'left-5' : 'left-0.5'
-                  }`} />
-                </button>
+                
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Línea Punteada</p>
+                    <p className="text-[10px] text-slate-400">En descripciones detalladas</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('descriptionBorderDashed', settings.descriptionBorderDashed === undefined ? false : !settings.descriptionBorderDashed)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      (settings.descriptionBorderDashed !== false) ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      (settings.descriptionBorderDashed !== false) ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Líneas Verticales</p>
+                    <p className="text-[10px] text-slate-400">Separadores de columna</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('showTableVerticalBorders', !settings.showTableVerticalBorders)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.showTableVerticalBorders ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.showTableVerticalBorders ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Borde Exterior</p>
+                    <p className="text-[10px] text-slate-400">Cuadro alrededor de la tabla</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('showTableOuterBorders', settings.showTableOuterBorders === undefined ? false : !settings.showTableOuterBorders)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      (settings.showTableOuterBorders !== false) ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      (settings.showTableOuterBorders !== false) ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Bordes Redondeados</p>
+                    <p className="text-[10px] text-slate-400">Esquinas suaves en la tabla</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('tableRoundedBorders', !settings.tableRoundedBorders)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.tableRoundedBorders ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.tableRoundedBorders ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Fondo de Encabezado</p>
+                    <p className="text-[10px] text-slate-400">Color de la cabecera</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={settings.tableHeaderBg || '#f8fafc'} 
+                      onChange={e => onChange('tableHeaderBg', e.target.value)}
+                      className="w-6 h-6 p-0 border border-slate-200 rounded cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Color de Borde</p>
+                    <p className="text-[10px] text-slate-400">Color de líneas</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={settings.tableBorderColor || '#e2e8f0'} 
+                      onChange={e => onChange('tableBorderColor', e.target.value)}
+                      className="w-6 h-6 p-0 border border-slate-200 rounded cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col pt-2 border-t border-slate-100 gap-1.5">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Grosor de Borde</p>
+                    <p className="text-[10px] text-slate-400">Grosor de las líneas</p>
+                  </div>
+                  <div className="flex bg-slate-100 p-1 rounded-lg">
+                    {[
+                      { id: '1px', label: 'Fino' },
+                      { id: '1.5px', label: 'Normal' },
+                      { id: '2px', label: 'Grueso' },
+                    ].map(opt => (
+                      <button
+                        key={opt.id}
+                        onClick={() => onChange('tableBorderThickness', opt.id)}
+                        className={`flex-1 text-[10px] font-bold py-1 px-2 rounded-md transition-all ${
+                          (settings.tableBorderThickness || '1px') === opt.id
+                            ? 'bg-white text-slate-800 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             </div>
             

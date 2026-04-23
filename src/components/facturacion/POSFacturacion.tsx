@@ -42,7 +42,7 @@ export interface POSFacturaPayload {
 interface Props {
   productos: POSProduct[];
   categorias: string[];
-  onEmitirFactura: (payload: POSFacturaPayload) => Promise<{ success: boolean; correlativo?: string; factura?: { id: string }; error?: string }>;
+  onEmitirFactura: (payload: POSFacturaPayload) => Promise<{ success: boolean; correlativo?: string; facturaId?: string; error?: string }>;
   cajeroNombre: string;
   modoKiosko?: boolean;
 }
@@ -222,7 +222,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     
     if (res.success && res.correlativo) {
       setLastTicket(res.correlativo);
-      setLastFacturaId(res.factura?.id || null);
+      setLastFacturaId(res.facturaId || null);
       setShowCheckout(false);
       setShowSuccess(true);
       // Cart text is not cleared yet to allow ticket to calculate correctly
@@ -260,7 +260,11 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
            setCashTendered('');
            setLastTicket(null);
         } else if (!modoKiosko) {
-           router.push('/facturas');
+           if (typeof window !== 'undefined' && document.referrer.includes(window.location.host)) {
+             router.back();
+           } else {
+             router.push('/facturas');
+           }
         }
       } else if (e.key === 'Enter' && document.activeElement === searchInputRef.current) {
         if (filteredProducts.length > 0) {
@@ -682,7 +686,19 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       {/* SUCCESS MODAL WITH PRINT OPTIONS */}
       {showSuccess && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[3000] flex items-center justify-center print:hidden animate-in fade-in p-4">
-           <div className="bg-white rounded-3xl p-10 max-w-lg w-full flex flex-col items-center text-center shadow-2xl border border-gray-100 flex flex-col animate-in slide-in-from-bottom-10 zoom-in-95">
+           <div className="bg-white rounded-3xl p-10 max-w-lg w-full flex flex-col items-center text-center shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-10 zoom-in-95 relative">
+              <button 
+                  onClick={() => {
+                     setShowSuccess(false);
+                     setCart([]);
+                     setCashTendered('');
+                     setLastTicket(null);
+                  }}
+                  className="absolute top-6 right-6 text-gray-400 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors"
+                  title="Cerrar y nueva venta"
+              >
+                  <X size={20} />
+              </button>
               <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-emerald-50">
                 <CheckCircle2 size={48} className="text-emerald-500" />
               </div>
@@ -705,7 +721,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                   Formato Ticket
                 </button>
                 <button 
-                  onClick={() => router.push(`/facturas?tab=ver&id=${lastFacturaId}`)}
+                  onClick={() => window.open(`/facturas/ver/${lastFacturaId}?print=true`, '_blank', 'noopener,noreferrer')}
                   className="flex-1 py-5 bg-indigo-50 border-2 border-indigo-100 text-indigo-700 font-bold rounded-2xl hover:bg-indigo-100 hover:border-indigo-200 transition-all flex flex-col justify-center items-center gap-2 group"
                 >
                   <FileText size={28} className="text-indigo-400 group-hover:text-indigo-600 transition-colors" /> 
