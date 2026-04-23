@@ -255,6 +255,8 @@ function LineItemRow({
   const [focusedField, setFocusedField] = useState<'code' | 'desc' | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [isDraggable, setIsDraggable] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const shortDescRef = useRef<HTMLTextAreaElement>(null);
   const longDescRef = useRef<HTMLTextAreaElement>(null);
 
@@ -401,7 +403,38 @@ function LineItemRow({
   };
 
   return (
-    <div className="group relative" ref={containerRef} data-line-id={item.id}>
+    <div 
+      className={`group relative ${isDragOver ? 'border-t-[3px] border-blue-500' : ''}`} 
+      ref={containerRef} 
+      data-line-id={item.id}
+      draggable={isDraggable && !viewMode}
+      onDragStart={(e) => {
+        if (viewMode) return;
+        e.dataTransfer.setData('text/plain', item.id);
+        e.dataTransfer.effectAllowed = 'move';
+        setTimeout(() => {
+          if (containerRef.current) containerRef.current.style.opacity = '0.4';
+        }, 0);
+      }}
+      onDragEnd={() => {
+        if (containerRef.current) containerRef.current.style.opacity = '1';
+        setIsDraggable(false);
+      }}
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setIsDragOver(true);
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        const dragId = e.dataTransfer.getData('text/plain');
+        if (dragId && dragId !== item.id) {
+          window.dispatchEvent(new CustomEvent('reorder-lines', { detail: { dragId, dropId: item.id } }));
+        }
+      }}
+    >
       <div className={`
         flex flex-col transition-all duration-200 w-full
         ${settings?.tableRoundedBorders ? 'rounded-none print:rounded-none' : ''}
@@ -421,13 +454,17 @@ function LineItemRow({
           } : undefined}
         >
         {/* Drag handle + index */}
-        <div className="flex flex-col items-center justify-center h-[34px] shrink-0 print:hidden py-2 print:py-1">
+        <div 
+          className="relative flex flex-col items-center justify-center w-4 h-[34px] shrink-0 print:hidden py-2 print:py-1"
+          onMouseEnter={() => setIsDraggable(true)}
+          onMouseLeave={() => setIsDraggable(false)}
+        >
           {!viewMode && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab absolute -left-4 top-[10px]">
-            <GripVertical size={14} className="text-slate-300" />
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab absolute inset-0 flex items-center justify-center z-10">
+            <GripVertical size={14} className="text-slate-400 hover:text-slate-600" />
           </div>
           )}
-          <span className="text-[10px] font-bold text-slate-300 w-4 text-center">{index + 1}</span>
+          <span className={`text-[10px] font-bold text-slate-300 w-4 text-center ${!viewMode ? 'group-hover:opacity-0 transition-opacity' : ''}`}>{index + 1}</span>
         </div>
 
         {/* First Column Image Position (if enabled) */}
@@ -839,6 +876,24 @@ export default function DocumentBuilderClient({
       setLastSaved(null);
     } catch (e) {}
   };
+
+  // --- Drag and Drop Reordering ---
+  useEffect(() => {
+    const handleReorder = (e: any) => {
+      const { dragId, dropId } = e.detail;
+      setLineItems(prev => {
+        const dragIndex = prev.findIndex(i => i.id === dragId);
+        const dropIndex = prev.findIndex(i => i.id === dropId);
+        if (dragIndex < 0 || dropIndex < 0) return prev;
+        const result = [...prev];
+        const [removed] = result.splice(dragIndex, 1);
+        result.splice(dropIndex, 0, removed);
+        return result;
+      });
+    };
+    window.addEventListener('reorder-lines', handleReorder);
+    return () => window.removeEventListener('reorder-lines', handleReorder);
+  }, []);
   // ------------------------------
 
   // Load preferences from localStorage 
