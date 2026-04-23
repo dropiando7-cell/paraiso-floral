@@ -663,7 +663,7 @@ function LineItemRow({
         {/* ROW EXPANSION - RICH DESCRIPTION OR SECTION CONTROLS */}
         {item.showLongDesc && (
           <div 
-            className={`w-full mt-2 pt-3 ${settings?.descriptionBorderDashed ? 'border-t-[1.5px] border-dashed' : 'border-t border-solid'}`}
+            className={`w-full pt-2 ${settings?.descriptionBorderDashed ? 'border-t-[1.5px] border-dashed' : 'border-t border-solid'}`}
             style={{ borderColor: settings?.tableBorderColor || '#cbd5e1' }}
           >
             {item.isSection ? (
