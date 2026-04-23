@@ -662,7 +662,10 @@ function LineItemRow({
         
         {/* ROW EXPANSION - RICH DESCRIPTION OR SECTION CONTROLS */}
         {item.showLongDesc && (
-          <div className="w-full mt-2 pt-2 border-t border-slate-100">
+          <div 
+            className={`w-full mt-2 pt-3 ${settings?.descriptionBorderDashed ? 'border-t-[1.5px] border-dashed' : 'border-t border-solid'}`}
+            style={{ borderColor: settings?.tableBorderColor || '#cbd5e1' }}
+          >
             {item.isSection ? (
                <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs font-medium text-slate-600 shadow-sm ml-8 w-fit print:hidden">
                   <span className="font-bold uppercase tracking-wider text-slate-400 text-[10px]">Diseño</span>
