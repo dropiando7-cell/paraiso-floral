@@ -37,7 +37,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1 print:flex-none print:block space-y-4 print:space-y-0 print:m-0 print:pb-4 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1  print:flex space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
  <div className="flex flex-col flex-1 p-8 md:p-12 print:p-0">
  
  {/* Header Block */}
@@ -175,7 +175,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  </div>
 
  {/* Footer */}
- <div className="pt-6 border-t border-slate-300 print:block print:break-inside-avoid">
+ <div className="pt-6 border-t border-slate-300 print:flex print:break-inside-avoid">
  {/* Notes */}
  <div className="flex-1 print:float-left print:w-[50%]">
  <h3 className="text-xs font-bold uppercase tracking-widest mb-2 border-b border-slate-200 pb-1">Términos y Condiciones</h3>
@@ -186,7 +186,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  className="w-full text-xs border border-slate-200 bg-slate-50 p-3 resize-none focus:border-slate-400 focus:ring-0 print:hidden"
  placeholder="Ingresar condiciones..."
  />
- <div className="hidden print:block text-xs text-slate-700 whitespace-pre-wrap mt-1">
+ <div className="hidden print:flex text-xs text-slate-700 whitespace-pre-wrap mt-1">
  {notes}
  </div>
  </div>
@@ -250,14 +250,14 @@ export default function ClassicTemplate(props: TemplateProps) {
  </button>
  </div>
  </div>
- <div className="clear-both print:block"></div>
+ <div className="clear-both print:flex"></div>
  </div>
 
  {/* Spacer to push footer down in html2canvas */}
  <div className="flex-1 print:hidden" />
 
  {/* Footer */}
- <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:px-12 print:pb-2" />
+ <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:px-12 print:pb-0" />
 
  </div>
  </div>

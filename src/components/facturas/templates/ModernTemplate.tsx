@@ -45,7 +45,7 @@ export default function ModernTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1 print:flex-none print:block min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-4 ${fontClass}`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1  print:flex min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass}`}>
  {/* Document Card */}
  <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
 
@@ -203,7 +203,7 @@ export default function ModernTemplate(props: TemplateProps) {
  placeholder="Condiciones de entrega, garantía, soporte técnico incluido, instrucciones especiales..."
  className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none placeholder:text-slate-300 text-slate-600 print:hidden"
  />
- <div className="hidden print:block text-sm text-slate-800 whitespace-pre-wrap">
+ <div className="hidden print:flex text-sm text-slate-800 whitespace-pre-wrap">
  {notes || " "}
  </div>
  </div>
@@ -293,7 +293,7 @@ export default function ModernTemplate(props: TemplateProps) {
  <div className="flex-1 print:hidden" />
 
  {/* Footer */}
- <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:pb-2" />
+ <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:pb-0" />
 
  </div>
  );

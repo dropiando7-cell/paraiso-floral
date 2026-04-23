@@ -35,7 +35,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1 print:flex-none print:block space-y-4 print:space-y-0 print:m-0 print:pb-4 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1  print:flex space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
  <div className="flex flex-col flex-1 p-8 md:p-14 print:p-0">
  
  {/* Header Block Minimal */}
@@ -142,7 +142,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  </div>
 
  {/* Footer Minimal */}
- <div className="pt-8 print:pt-4 print:block print:break-inside-avoid">
+ <div className="pt-8 print:pt-4 print:flex print:break-inside-avoid">
  <div className="flex-1 print:float-left print:w-[50%]">
  <p className="text-[10px] text-slate-400 uppercase tracking-widest mb-2">Notas</p>
  <textarea
@@ -152,7 +152,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  className="w-full text-xs border-none bg-slate-50 p-4 resize-none focus:ring-0 text-slate-600 rounded-2xl print:hidden"
  placeholder="Condiciones de pago..."
  />
- <div className="hidden print:block text-[11px] text-slate-500 whitespace-pre-wrap">
+ <div className="hidden print:flex text-[11px] text-slate-500 whitespace-pre-wrap">
  {notes}
  </div>
  </div>
@@ -215,14 +215,14 @@ export default function MinimalistTemplate(props: TemplateProps) {
  </button>
  </div>
  </div>
- <div className="clear-both print:block"></div>
+ <div className="clear-both print:flex"></div>
  </div>
 
  {/* Spacer to push footer down in html2canvas */}
  <div className="flex-1 print:hidden" />
 
  {/* Footer */}
- <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:px-12 print:pb-2" />
+ <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:px-12 print:pb-0" />
 
  </div>
  </div>

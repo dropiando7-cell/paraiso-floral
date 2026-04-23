@@ -32,7 +32,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  }, [today]);
 
  return (
- <div className={`flex flex-col min-h-[1056px] print:min-h-0 space-y-4 print:space-y-0 print:m-0 print:pb-4 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
+ <div className={`flex flex-col min-h-[1056px] print:min-h-[26.2cm] space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
  <div className="flex flex-col flex-1 p-8 md:p-12 print:p-0 text-gray-900">
  
  {/* Header Block */}
@@ -103,7 +103,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  <option value="60 días netos">60 días netos</option>
  <option value="90 días netos">90 días netos</option>
  </select>
- <span className="hidden print:block text-gray-600 mt-1">{paymentTerms}</span>
+ <span className="hidden print:flex text-gray-600 mt-1">{paymentTerms}</span>
  </div>
  </div>
 
@@ -182,7 +182,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  className="w-full text-xs border border-gray-300 p-2 resize-none focus:outline-none print:hidden"
  placeholder="Pago inmediato..."
  />
- <div className="hidden print:block text-xs whitespace-pre-wrap">{notes || paymentTerms}</div>
+ <div className="hidden print:flex text-xs whitespace-pre-wrap">{notes || paymentTerms}</div>
  </div>
  </div>
 
@@ -242,7 +242,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  <InvoiceFooter
  settings={settings}
  organization={organization}
- className="print:mt-auto print:px-12 print:pb-1"
+ className="print:mt-auto print:mb-0 print:px-12 print:pb-0"
  />
 
  </div>

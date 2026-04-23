@@ -25,7 +25,7 @@ export default function InvoiceFooter({ settings, organization, className = '' }
  if (!hasContent && !showPage) return null;
 
  return (
- <div className={`border-t border-slate-300 pt-2 mt-6 print:mt-2 print:mb-0 print:pb-4 print:break-inside-avoid ${className}`}>
+ <div className={`border-t border-slate-300 pt-2 mt-6 print:mt-2 print:mb-0 print:pb-0 print:break-inside-avoid ${className}`}>
  {/* Main info row */}
  {hasContent && (
  <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] text-slate-600">
