@@ -63,39 +63,32 @@ export default function LegacyTemplate(props: TemplateProps) {
  </div>
 
  <div className={`mt-6 cursor-pointer ${settings.logoPosition === 'right' ? 'text-left w-full' : settings.logoPosition === 'center' ? 'text-center' : 'text-right'}`} onClick={() => setShowClientModal(true)}>
- {selectedClient ? (
- <>
- <p className={`font-bold text-base ${theme.text}`}>{selectedClient.name}</p>
- <p className="text-gray-700">{selectedClient.address || selectedClient.city}</p>
- {selectedClient.rtn && <p className="text-gray-700 mt-1">RTN: {selectedClient.rtn}</p>}
- </>
- ) : (
- <p className="font-bold text-rose-600 italic print:hidden">Clic para seleccionar cliente</p>
- )}
  </div>
  </div>
  </div>
 
- {/* Metadata Grid */}
- <div className="grid grid-cols-3 gap-4 mb-6 text-sm">
+ {/* Metadata Grid (Compressed into 4 columns) */}
+ <div className="grid grid-cols-4 gap-3 mb-4 text-xs">
  <div className="flex flex-col">
- <span className={`font-bold text-base ${theme.text} leading-tight`}>
- {currentDocType.label} # <span className="whitespace-nowrap">{docNumber}</span>
+ <span className={`font-bold text-sm ${theme.text} leading-tight uppercase`}>
+ {currentDocType.label}
+ <br/>
+ <span className="text-slate-800">{docNumber}</span>
  </span>
- <span className="text-gray-600 mt-2">Fecha de {docType}: {currentDateStr}</span>
+ <span className="text-gray-600 mt-1">Fecha: {currentDateStr}</span>
  </div>
  
- <div className="flex flex-col px-4">
- <span className="font-bold">Comercial:</span>
+ <div className="flex flex-col border-l border-slate-200 pl-3">
+ <span className="font-bold uppercase text-slate-800">Comercial:</span>
  <span className="text-gray-600 mt-1">{props.nombreUsuario || 'Administrador (BEA)'}</span>
  </div>
  
- <div className="flex flex-col">
- <span className="font-bold">Términos de pago:</span>
+ <div className="flex flex-col border-l border-slate-200 pl-3">
+ <span className="font-bold uppercase text-slate-800">Términos de pago:</span>
  <select
  value={paymentTerms}
  onChange={e => setPaymentTerms(e.target.value)}
- className="text-gray-600 mt-1 bg-transparent border-b border-gray-200 outline-none print:hidden p-0 cursor-pointer"
+ className="text-gray-600 mt-1 bg-transparent border-b border-gray-200 outline-none print:hidden p-0 cursor-pointer text-xs"
  >
  <option value="Pago inmediato">Pago inmediato</option>
  <option value="15 días netos">15 días netos</option>
@@ -104,6 +97,19 @@ export default function LegacyTemplate(props: TemplateProps) {
  <option value="90 días netos">90 días netos</option>
  </select>
  <span className="hidden print:flex text-gray-600 mt-1">{paymentTerms}</span>
+ </div>
+
+ <div className="flex flex-col border-l border-slate-200 pl-3 cursor-pointer" onClick={() => setShowClientModal(true)}>
+ <span className="font-bold uppercase text-slate-800 mb-1">Cliente:</span>
+ {selectedClient ? (
+ <div className="text-[10px] leading-tight text-slate-700">
+ <span className={`font-bold text-xs ${theme.text} block mb-0.5`}>{selectedClient.name}</span>
+ <span className="block line-clamp-2">{selectedClient.address || selectedClient.city}</span>
+ {selectedClient.rtn && <span className="block mt-0.5 font-mono">RTN: {selectedClient.rtn}</span>}
+ </div>
+ ) : (
+ <span className="font-bold text-rose-600 italic print:hidden mt-1">Seleccionar...</span>
+ )}
  </div>
  </div>
 
