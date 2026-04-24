@@ -287,10 +287,10 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                                 descripcion: finalDesc,
                                 descripcionEnriquecida: item.richDesc || null,
                                 cantidad: Number(item.qty) || 0,
-                                precioUnitario: item.unitPrice,
-                                porcentajeIsv: item.tax === 'isv15' ? 15 : 0,
-                                totalDescuento: discountAmt,
-                                totalLinea: lineTotal,
+                                precioUnitario: Number(item.unitPrice) || 0,
+                                porcentajeIsv: item.tax === 'isv15' ? 15 : item.tax === 'isv18' ? 18 : 0,
+                                totalDescuento: discountAmt || 0,
+                                totalLinea: lineTotal || 0,
                                 productoId: item.productoId || null,
                                 activoId: item.activoId || null
                             };
@@ -414,10 +414,10 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                                 descripcion: finalDesc,
                                 descripcionEnriquecida: item.richDesc || null,
                                 cantidad: Number(item.qty) || 0,
-                                precioUnitario: Number(item.unitPrice),
+                                precioUnitario: Number(item.unitPrice) || 0,
                                 porcentajeIsv: item.tax === 'isv15' ? 15 : item.tax === 'isv18' ? 18 : 0,
-                                totalDescuento: discountAmt,
-                                totalLinea: lineTotal,
+                                totalDescuento: discountAmt || 0,
+                                totalLinea: lineTotal || 0,
                                 productoId: item.productoId || null,
                                 activoId: item.activoId || null
                             };

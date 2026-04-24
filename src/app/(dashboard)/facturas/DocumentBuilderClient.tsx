@@ -1140,10 +1140,17 @@ export default function DocumentBuilderClient({
           else if (d.porcentajeIsv === 18) tax = 'isv18'; // We don't have 18 in db schema explicitly, but assuming mapping
           // For exonerado, we would have logic, but default to exento if 0
           
+          let isSection = false;
+          let rawDesc = d.descripcion || '';
+          if (rawDesc.startsWith('__SECTION__')) {
+              isSection = true;
+              rawDesc = rawDesc.substring(11);
+          }
+
           let longDesc = '';
-          let shortDesc = d.descripcion;
-          if (d.descripcion.includes('\n')) {
-              const parts = d.descripcion.split('\n');
+          let shortDesc = rawDesc;
+          if (rawDesc.includes('\n')) {
+              const parts = rawDesc.split('\n');
               shortDesc = parts[0];
               longDesc = parts.slice(1).join('\n');
           }
@@ -1159,7 +1166,9 @@ export default function DocumentBuilderClient({
             code: d.producto?.sku || d.activo?.idQr || '',
             shortDesc,
             longDesc,
-            showLongDesc: !!longDesc.trim(), // Expandir automáticamente en base a si tiene descripción larga
+            richDesc: d.descripcionEnriquecida || '',
+            isSection,
+            showLongDesc: isSection ? false : !!longDesc.trim(), // Expandir automáticamente en base a si tiene descripción larga
             qty: d.cantidad,
             unitPrice: Number(d.precioUnitario),
             tax,
