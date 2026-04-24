@@ -1387,10 +1387,19 @@ export default function DocumentBuilderClient({
       return;
     }
 
-    // 2. Todos los listados deben tener descripción y cantidad válida
-    const incompleteItem = validItems.find(i => i.shortDesc.trim() === '' || Number(i.qty) <= 0);
+    // 2. Todos los listados deben tener descripción y cantidad válida (excepto secciones)
+    const incompleteItem = validItems.find(i => {
+      if (i.isSection) {
+        // A section must have either a shortDesc (title) or a richDesc (content)
+        const hasTitle = i.shortDesc && i.shortDesc.trim() !== '';
+        const hasRichText = i.richDesc && i.richDesc.replace(/<[^>]+>/g, '').trim() !== '';
+        return !hasTitle && !hasRichText;
+      }
+      return i.shortDesc.trim() === '' || Number(i.qty) <= 0;
+    });
+    
     if (incompleteItem) {
-      toast.error('Por favor complete la descripción y cantidad en todos los renglones.');
+      toast.error('Por favor complete la descripción y cantidad en todos los renglones (las secciones deben tener texto).');
       return;
     }
 

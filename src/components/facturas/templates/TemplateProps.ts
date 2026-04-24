@@ -44,8 +44,5 @@ export interface TemplateProps {
   isSaving: boolean;
   viewMode?: boolean;
   fmt: (n: number) => string;
-  handleReorder: (fromIndex: number, toIndex: number) => void;
-  draggedIndex: number | null;
-  setDraggedIndex: (val: number | null) => void;
   LineItemRowComponent: React.FC<any>;
 }
