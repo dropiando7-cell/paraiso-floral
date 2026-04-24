@@ -194,7 +194,7 @@ export default function ModernTemplate(props: TemplateProps) {
  </div>
 
  {/* Notes */}
- <div className="px-5 pb-5">
+ <div className="px-5 pb-5 print:pb-1">
  <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Notas y Condiciones</p>
  <textarea
  value={notes}
@@ -209,7 +209,7 @@ export default function ModernTemplate(props: TemplateProps) {
  </div>
 
  {/* Totals Section */}
- <div className="border-t border-slate-100 bg-slate-50/70 p-6 rounded-b-3xl print:break-inside-avoid">
+ <div className="border-t border-slate-100 bg-slate-50/70 p-6 print:p-2 rounded-b-3xl print:break-inside-avoid">
  <div className="flex justify-end">
  <div className="w-full max-w-xs space-y-3">
  <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">Resumen Financiero</p>

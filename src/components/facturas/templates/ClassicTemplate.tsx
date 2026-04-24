@@ -175,7 +175,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  </div>
 
  {/* Footer */}
- <div className="pt-6 border-t border-slate-300 print:flex print:break-inside-avoid">
+ <div className="pt-6 print:pt-1 border-t border-slate-300 print:flex print:break-inside-avoid">
  {/* Notes */}
  <div className="flex-1 print:float-left print:w-[50%]">
  <h3 className="text-xs font-bold uppercase mb-2 border-b border-slate-200 pb-1">Términos y Condiciones</h3>

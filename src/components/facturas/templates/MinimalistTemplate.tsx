@@ -142,7 +142,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  </div>
 
  {/* Footer Minimal */}
- <div className="pt-8 print:pt-4 print:flex print:break-inside-avoid">
+ <div className="pt-8 print:pt-1 print:flex print:break-inside-avoid">
  <div className="flex-1 print:float-left print:w-[50%]">
  <p className="text-[10px] text-slate-400 uppercase mb-2">Notas</p>
  <textarea
