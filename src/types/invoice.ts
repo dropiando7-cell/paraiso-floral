@@ -25,6 +25,7 @@ export interface InvoiceSettings {
   tableBorderColor?: string;
   showTableOuterBorders?: boolean;
   descriptionBorderDashed?: boolean;
+  tableRowPadding?: number;
   // Total colors
   totalBgColor?: string;
   totalTextColor?: string;
@@ -53,6 +54,7 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   tableBorderColor: '#e2e8f0',
   showTableOuterBorders: true,
   descriptionBorderDashed: true,
+  tableRowPadding: 2,
   totalBgColor: '#0f172a',
   totalTextColor: '#ffffff',
 };

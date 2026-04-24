@@ -45,12 +45,12 @@ export default function ModernTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1 print:flex min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass}`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1 print:flex min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass}`}>
  {/* Document Card */}
- <div className="bg-white rounded-3xl border border-slate-100 shadow-xl overflow-hidden print:shadow-none print:border-none print:rounded-none print:overflow-visible">
+ <div className="bg-white rounded-3xl border border-slate-100 shadow-xl print:shadow-none print:border-none print:rounded-none print:overflow-visible">
 
  {/* Document Header */}
- <div className={`bg-gradient-to-br from-slate-900 ${theme.via} to-slate-900 p-6 md:p-8 `}>
+ <div className={`bg-gradient-to-br from-slate-900 ${theme.via} to-slate-900 p-6 md:p-8 rounded-t-3xl`}>
  <div className="flex items-start justify-between gap-6 ">
  {/* Logo/Org Side */}
  <div className={`flex-1 ${settings.logoPosition === 'center' ? 'flex flex-col items-center justify-center w-full' : ''}`}>
@@ -209,7 +209,7 @@ export default function ModernTemplate(props: TemplateProps) {
  </div>
 
  {/* Totals Section */}
- <div className="border-t border-slate-100 bg-slate-50/70 p-6 print:break-inside-avoid">
+ <div className="border-t border-slate-100 bg-slate-50/70 p-6 rounded-b-3xl print:break-inside-avoid">
  <div className="flex justify-end">
  <div className="w-full max-w-xs space-y-3">
  <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">Resumen Financiero</p>
@@ -293,7 +293,7 @@ export default function ModernTemplate(props: TemplateProps) {
  <div className="flex-1 print:hidden" />
 
  {/* Footer */}
- <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:pb-0" />
+ <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0" />
 
  </div>
  );

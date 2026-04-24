@@ -35,7 +35,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1 print:flex space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1 print:flex space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
  <div className="flex flex-col flex-1 p-8 md:p-14 print:p-0">
  
  {/* Header Block Minimal */}
@@ -101,7 +101,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  </div>
 
  {/* Items Table Minimal */}
- <div className="mb-12 print:mb-6">
+ <div className="mb-12 relative z-50 print:mb-6">
  <div className="flex items-center gap-2 mb-3 px-2 border-b border-slate-100 pb-2 print:px-0">
  <div className="w-4 shrink-0 print:hidden" />
  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
@@ -222,7 +222,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <div className="flex-1 print:hidden" />
 
  {/* Footer */}
- <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:px-12 print:pb-0" />
+ <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:px-12" />
 
  </div>
  </div>

@@ -314,6 +314,25 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                     ))}
                   </div>
                 </div>
+
+                <div className="flex flex-col pt-2 border-t border-slate-100 gap-1.5">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Espaciado de Renglón</p>
+                    <p className="text-[10px] text-slate-400">Altura de las celdas para agregar más o menos ítems</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input 
+                      type="range" 
+                      min="0" max="4" step="1"
+                      value={settings.tableRowPadding ?? 2}
+                      onChange={e => onChange('tableRowPadding', Number(e.target.value))}
+                      className="flex-1 accent-blue-600"
+                    />
+                    <span className="text-[10px] font-bold text-slate-500 w-12 text-right">
+                      {settings.tableRowPadding === 0 ? 'Mínimo' : settings.tableRowPadding === 1 ? 'Compacto' : (settings.tableRowPadding === undefined || settings.tableRowPadding === 2) ? 'Normal' : settings.tableRowPadding === 3 ? 'Amplio' : 'Máximo'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
             

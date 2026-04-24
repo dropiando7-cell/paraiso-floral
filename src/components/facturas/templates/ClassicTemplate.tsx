@@ -37,7 +37,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1 print:flex space-y-4 print:space-y-0 print:m-0 print:pb-0 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1 print:flex space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`}>
  <div className="flex flex-col flex-1 p-8 md:p-12 print:p-0">
  
  {/* Header Block */}
@@ -112,7 +112,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  </div>
 
  {/* Items Table */}
- <div className="mb-8 relative">
+ <div className="mb-8 relative z-50">
  {/* Border Layer (fixes PDF rounding bug) */}
  <div 
  className={`absolute inset-0 pointer-events-none z-20 ${settings?.tableRoundedBorders ? 'rounded-xl' : ''}`}
@@ -125,7 +125,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  
  {/* Content Layer */}
  <div 
- className={`flex flex-col relative z-10 bg-transparent ${settings?.tableRoundedBorders ? 'rounded-xl overflow-hidden' : ''}`}
+ className={`flex flex-col relative z-10 bg-transparent ${settings?.tableRoundedBorders ? 'rounded-xl' : ''}`}
  >
  <div 
  className={`flex items-stretch gap-2 px-4 print:px-4 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : ''}`}
@@ -257,7 +257,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  <div className="flex-1 print:hidden" />
 
  {/* Footer */}
- <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:px-12 print:pb-0" />
+ <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:px-12" />
 
  </div>
  </div>
