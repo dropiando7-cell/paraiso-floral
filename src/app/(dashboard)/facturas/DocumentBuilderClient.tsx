@@ -539,7 +539,7 @@ function LineItemRow({
                   }, 200);
                 }}
                 placeholder="Código"
-                className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
+                className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
               />
               {focusedField === 'code' && !viewMode && renderDropdown()}
             </div>
@@ -657,9 +657,9 @@ function LineItemRow({
               </span>
             </div>
 
-            {/* Monto / Subtotal — vertically centered, right-aligned */}
-            <div className={`min-w-0 flex items-center justify-end ${padClass}`}>
-              <p className="text-xs font-bold text-slate-800 text-right font-mono">
+            {/* Monto / Subtotal — vertically centered, centered */}
+            <div className={`min-w-0 flex items-center justify-center ${padClass}`}>
+              <p className="text-xs font-bold text-slate-800 text-center font-mono">
                 {fmt(total)}
               </p>
             </div>
