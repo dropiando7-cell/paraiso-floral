@@ -1171,7 +1171,7 @@ export default function DocumentBuilderClient({
             longDesc,
             richDesc: d.descripcionEnriquecida || '',
             isSection,
-            showLongDesc: isSection ? false : !!longDesc.trim(), // Expandir automáticamente en base a si tiene descripción larga
+            showLongDesc: false, // Por defecto cerrado para que no salgan en el PDF a menos que se fuerce
             qty: d.cantidad,
             unitPrice: Number(d.precioUnitario),
             tax,
@@ -1345,7 +1345,7 @@ export default function DocumentBuilderClient({
       shortDesc: sanitizedShortDesc,
       longDesc: productLongDesc,
       richDesc: '',
-      showLongDesc: !!productLongDesc.trim(),
+      showLongDesc: false,
       qty: 1,
       unitPrice: product.price,
       tax: 'isv15',
