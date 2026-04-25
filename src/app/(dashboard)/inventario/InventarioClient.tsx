@@ -12,7 +12,7 @@ import {
     searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, 
     createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, 
     getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, 
-    encolarCopiasNiimbot, getCategorias, createCategoria, checkExistingByBarcode, 
+    encolarCopiasNiimbot, getCategorias, createCategoria, updateCategoria, checkExistingByBarcode, 
     getActivosByGrupo, updateActivoQuick, checkGrupoExists, getActivosByIdQr, 
     searchActivosGlobal
 } from './actions';
@@ -1446,10 +1446,19 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     return (
         <>
             {catModalOpen && (
-                <CategoriaQuickModal open={catModalOpen} onClose={() => setCatModalOpen(false)} onSuccess={(id, name) => {
-                    setCategorias(prev => [...prev, { value: id, label: name }]);
-                    setCategoriaId(id);
-                }} />
+                <CategoriaQuickModal 
+                    open={catModalOpen} 
+                    onClose={() => setCatModalOpen(false)} 
+                    categorias={categorias}
+                    onSuccess={(id, name, isEdit) => {
+                        if (isEdit) {
+                            setCategorias(prev => prev.map(c => c.value === id ? { ...c, label: name } : c));
+                        } else {
+                            setCategorias(prev => [...prev, { value: id, label: name }]);
+                        }
+                        setCategoriaId(id);
+                    }} 
+                />
             )}
             {cropOpen && (
                 <CropModal
@@ -3254,27 +3263,87 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     );
 }
 
-function CategoriaQuickModal({ open, onClose, onSuccess }: { open: boolean, onClose: () => void, onSuccess: (id: string, name: string) => void }) {
+function CategoriaQuickModal({ open, onClose, onSuccess, categorias = [] }: { open: boolean, onClose: () => void, onSuccess: (id: string, name: string, isEdit?: boolean) => void, categorias?: { value: string, label: string }[] }) {
+    const [mode, setMode] = useState<'create' | 'edit'>('create');
     const [nombre, setNombre] = useState('');
+    const [selectedId, setSelectedId] = useState('');
     const [isPending, startTransition] = useTransition();
+
     if (!open) return null;
+
     return (
         <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
-                <h3 className="text-lg font-bold text-slate-900 mb-4">Nueva Categoría (Maestra)</h3>
-                <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Ej: Sensores Médicos..." className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 font-medium text-slate-800 focus:border-[#0500A3] focus:ring-0 outline-none transition-colors mb-4" autoFocus />
-                <div className="flex gap-3">
-                    <button type="button" onClick={onClose} className="flex-1 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 py-3 rounded-xl transition-colors">Cancelar</button>
-                    <button type="button" onClick={() => startTransition(async () => {
-                        if (!nombre.trim()) return alert('El nombre es obligatorio');
-                        try {
-                            const res = await createCategoria(nombre);
-                            if (res.error) alert(res.error);
-                            else if (res.categoria) { onSuccess(res.categoria.id, res.categoria.nombre); onClose(); }
-                        } catch (e) { alert('Error interno'); }
-                    })} disabled={isPending || !nombre.trim()} className="flex-1 font-bold text-white bg-[#0500A3] hover:bg-[#0600c2] py-3 rounded-xl transition-colors flex justify-center items-center">
-                        {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Guardar'}
+            <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+                <div className="flex border-b border-slate-200">
+                    <button 
+                        type="button" 
+                        onClick={() => { setMode('create'); setNombre(''); }}
+                        className={`flex-1 py-4 text-sm font-bold transition-colors ${mode === 'create' ? 'text-[#0500A3] border-b-2 border-[#0500A3] bg-blue-50/30' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        Nueva Categoría
                     </button>
+                    <button 
+                        type="button" 
+                        onClick={() => { setMode('edit'); setNombre(''); setSelectedId(''); }}
+                        className={`flex-1 py-4 text-sm font-bold transition-colors ${mode === 'edit' ? 'text-[#0500A3] border-b-2 border-[#0500A3] bg-blue-50/30' : 'text-slate-500 hover:bg-slate-50'}`}
+                    >
+                        Editar Existente
+                    </button>
+                </div>
+                
+                <div className="p-6">
+                    {mode === 'edit' && (
+                        <div className="mb-4">
+                            <label className="block text-sm font-semibold text-slate-700 mb-1.5">Seleccionar Categoría</label>
+                            <select 
+                                value={selectedId} 
+                                onChange={e => {
+                                    setSelectedId(e.target.value);
+                                    const cat = categorias.find(c => c.value === e.target.value);
+                                    if (cat) setNombre(cat.label);
+                                }} 
+                                className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 font-medium text-slate-800 focus:border-[#0500A3] focus:ring-0 outline-none transition-colors"
+                            >
+                                <option value="" disabled>Selecciona una categoría...</option>
+                                {categorias.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                            </select>
+                        </div>
+                    )}
+
+                    <div className="mb-6">
+                        <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                            {mode === 'create' ? 'Nombre de la Categoría' : 'Nuevo Nombre'}
+                        </label>
+                        <input 
+                            type="text" 
+                            value={nombre} 
+                            onChange={e => setNombre(e.target.value)} 
+                            placeholder="Ej: Sensores Médicos..." 
+                            className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 font-medium text-slate-800 focus:border-[#0500A3] focus:ring-0 outline-none transition-colors" 
+                            autoFocus 
+                        />
+                    </div>
+
+                    <div className="flex gap-3">
+                        <button type="button" onClick={onClose} className="flex-1 font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 py-3 rounded-xl transition-colors">Cancelar</button>
+                        <button type="button" onClick={() => startTransition(async () => {
+                            if (!nombre.trim()) return alert('El nombre es obligatorio');
+                            try {
+                                if (mode === 'create') {
+                                    const res = await createCategoria(nombre);
+                                    if (res.error) alert(res.error);
+                                    else if (res.categoria) { onSuccess(res.categoria.id, res.categoria.nombre, false); onClose(); }
+                                } else {
+                                    if (!selectedId) return alert('Debes seleccionar una categoría');
+                                    const res = await updateCategoria(selectedId, nombre);
+                                    if (res.error) alert(res.error);
+                                    else if (res.categoria) { onSuccess(res.categoria.id, res.categoria.nombre, true); onClose(); }
+                                }
+                            } catch (e) { alert('Error interno'); }
+                        })} disabled={isPending || !nombre.trim() || (mode === 'edit' && !selectedId)} className="flex-1 font-bold text-white bg-[#0500A3] hover:bg-[#0600c2] py-3 rounded-xl transition-colors flex justify-center items-center">
+                            {isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Guardar'}
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

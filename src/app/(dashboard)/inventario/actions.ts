@@ -133,6 +133,21 @@ export async function createCategoria(nombre: string, color?: string) {
     }
 }
 
+export async function updateCategoria(id: string, nombre: string, color?: string) {
+    try {
+        const orgId = await getOrgId();
+        const cat = await prisma.categoria.update({
+            where: { id, organizationId: orgId },
+            data: { nombre: nombre.trim().toUpperCase(), color }
+        });
+        revalidatePath('/inventario');
+        return { success: true, categoria: cat };
+    } catch (e: any) {
+        if (e.code === 'P2002') return { error: 'Ya existe otra categoría con ese nombre.' };
+        return { error: 'Error interno al actualizar la categoría.' };
+    }
+}
+
 // ─── Fetch Activos by Group Code ─────────────────────────────────────────────
 export async function getActivosByGrupo(codigoGrupo: string) {
     if (!codigoGrupo) return [];
