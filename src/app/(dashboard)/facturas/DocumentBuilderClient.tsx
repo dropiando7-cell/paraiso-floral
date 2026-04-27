@@ -507,49 +507,54 @@ function LineItemRow({
         ) : (
           <div className="flex-1 grid grid-cols-[20fr_30fr_9fr_20fr_9fr_12fr_20fr] gap-2 min-w-0 relative">
             {/* Code */}
-            <div className={`min-w-0 relative flex items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
-              <input
-                value={item.code}
-                disabled={viewMode}
-                onFocus={() => { if(!viewMode) { setFocusedField('code'); setShowAutocomplete(true); } }}
-                onChange={e => {
-                  if(viewMode) return;
-                  onChange(item.id, 'code', e.target.value);
-                  setFocusedField('code');
-                  setShowAutocomplete(true);
-                }}
-                onKeyDown={handleKeyDown}
-                onBlur={async (e) => {
-                  if(viewMode) return;
-                  const val = e.target.value.trim();
-                  setTimeout(async () => {
-                    if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
-                      try {
-                        const res = await buscarItemPorCodigo(val);
-                        if (res) {
-                          onChange(item.id, 'shortDesc', res.name);
-                          if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
-                          if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
-                          if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
-                          if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
-                          if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
-                        }
-                      } catch(e) { console.error('Error in onBlur search:', e); }
-                    }
-                  }, 200);
-                }}
-                placeholder="Código"
-                data-pdf-hide="true"
-                className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
-              />
-              <div data-pdf-show="true" style={{ display: 'none' }} className="w-full text-[10px] md:text-[11px] tracking-tight font-mono text-center text-slate-800 break-words print:!block">
+            <div className={`min-w-0 relative flex items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
+              {viewMode ? (
+                <div className="w-full text-[10px] md:text-[11px] tracking-tight font-mono text-center text-slate-800 break-words print:hidden">
+                  {item.code || ' '}
+                </div>
+              ) : (
+                <input
+                  value={item.code}
+                  onFocus={() => { setFocusedField('code'); setShowAutocomplete(true); }}
+                  onChange={e => {
+                    onChange(item.id, 'code', e.target.value);
+                    setFocusedField('code');
+                    setShowAutocomplete(true);
+                  }}
+                  onKeyDown={handleKeyDown}
+                  onBlur={async (e) => {
+                    const val = e.target.value.trim();
+                    setTimeout(async () => {
+                      if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
+                        try {
+                          const res = await buscarItemPorCodigo(val);
+                          if (res) {
+                            onChange(item.id, 'shortDesc', res.name);
+                            if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
+                            if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
+                            if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
+                            if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
+                            if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
+                          }
+                        } catch(err) { console.error('Error in onBlur search:', err); }
+                      }
+                    }, 200);
+                  }}
+                  placeholder="Código"
+                  className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
+                />
+              )}
+              <div className="hidden print:block w-full text-[10px] md:text-[11px] tracking-tight font-mono text-center text-slate-800 break-words">
                 {item.code || ' '}
               </div>
               {focusedField === 'code' && !viewMode && renderDropdown()}
+              {settings?.showTableVerticalBorders && (
+                <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
+              )}
             </div>
 
             {/* Description */}
-            <div className={`min-w-0 relative flex gap-2 items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`min-w-0 relative flex gap-2 items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && (
                 <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
                   {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
@@ -580,10 +585,13 @@ function LineItemRow({
 
               </div>
               {focusedField === 'desc' && !viewMode && renderDropdown()}
+              {settings?.showTableVerticalBorders && (
+                <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
+              )}
             </div>
 
             {/* Qty — centered horizontally and vertically */}
-            <div className={`min-w-0 flex items-center justify-center ${padClass} ${settings?.showTableVerticalBorders ? 'px-1' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`min-w-0 flex items-center justify-center relative ${padClass} ${settings?.showTableVerticalBorders ? 'px-1' : ''}`}>
               {!viewMode ? (
                 <input
                   type="number"
@@ -596,10 +604,13 @@ function LineItemRow({
               <span className={`text-xs font-semibold text-slate-800 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
                 {item.qty}
               </span>
+              {settings?.showTableVerticalBorders && (
+                <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
+              )}
             </div>
 
             {/* Unit Price — vertically centered, right-aligned */}
-            <div className={`min-w-0 flex items-center justify-end ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`min-w-0 flex items-center justify-end relative ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {!viewMode ? (
                 <div className="relative w-full print:hidden">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">L</span>
@@ -614,10 +625,13 @@ function LineItemRow({
               <span className={`text-xs font-semibold text-slate-800 text-right font-mono ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
                 {fmt(Number(item.unitPrice) || 0)}
               </span>
+              {settings?.showTableVerticalBorders && (
+                <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
+              )}
             </div>
 
             {/* Discount — vertically centered, right-aligned — (compact) */}
-            <div className={`min-w-0 flex items-center justify-end ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`min-w-0 flex items-center justify-end relative ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {!viewMode ? (
                 <div className="relative w-full print:hidden">
                   <input
@@ -640,10 +654,13 @@ function LineItemRow({
                   ? (item.discountType === 'percentage' ? `${item.discount}%` : fmt(Number(item.discount)))
                   : '-'}
               </span>
+              {settings?.showTableVerticalBorders && (
+                <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
+              )}
             </div>
 
             {/* Tax — vertically centered, centered — */}
-            <div className={`min-w-0 flex items-center justify-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`} style={settings?.showTableVerticalBorders ? { borderRightWidth: settings.tableBorderThickness || '1px', borderColor: settings.tableBorderColor || '#e2e8f0' } : {}}>
+            <div className={`min-w-0 flex items-center justify-center relative ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {!viewMode ? (
                 <select
                   value={item.tax}
@@ -659,6 +676,9 @@ function LineItemRow({
               <span className={`text-[10px] font-semibold text-slate-700 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
                 {item.tax === 'isv15' ? 'ISV 15%' : item.tax === 'isv18' ? 'ISV 18%' : item.tax === 'exento' ? 'Exento' : 'Exonerado'}
               </span>
+              {settings?.showTableVerticalBorders && (
+                <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
+              )}
             </div>
 
             {/* Monto / Subtotal — vertically centered, centered */}
@@ -1046,10 +1066,11 @@ export default function DocumentBuilderClient({
 
         // PREPROCESS: Convert images to base64 to avoid html2canvas Tainted Canvas / CORS silent drops
         const imagesToConvert = Array.from(container.querySelectorAll('img'));
-        const originalSrcs: string[] = [];
+        imagesToConvert.forEach((img) => {
+          img.setAttribute('data-original-src', img.src);
+        });
         
         await Promise.all(imagesToConvert.map(async (img) => {
-          originalSrcs.push(img.src);
           if (img.src.startsWith('data:')) return;
           try {
             const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(img.src)}`;
@@ -1068,29 +1089,36 @@ export default function DocumentBuilderClient({
           }
         }));
 
-        // Damos tiempo suficiente (800ms) para que el navegador re-renderice las imágenes con la enorme cadena de texto base64
-        await new Promise(r => setTimeout(r, 800));
+        let canvas: any;
+        try {
+          // Damos tiempo suficiente (800ms) para que el navegador re-renderice las imágenes con la enorme cadena de texto base64
+          await new Promise(r => setTimeout(r, 800));
 
-        const canvas = await html2canvas(container, {
-          scale: 2,
-          useCORS: true,
-          allowTaint: true,
-          backgroundColor: '#ffffff',
-          logging: false,
-        });
+          canvas = await html2canvas(container, {
+            scale: 2,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#ffffff',
+            logging: false,
+          });
+        } finally {
+          // RESTORE SIEMPRE, INCLUSO SI FALLA EL RENDER O DA TIMEOUT
+          imagesToConvert.forEach((img) => {
+            const orig = img.getAttribute('data-original-src');
+            if (orig) {
+              img.src = orig;
+              img.removeAttribute('data-original-src');
+            }
+          });
 
-        // RESTORE
-        imagesToConvert.forEach((img, i) => {
-          img.src = originalSrcs[i];
-        });
-
-        container.className = originalClasses;
-        uiElements.forEach((el, i) => {
-          (el as HTMLElement).style.display = originalDisplays[i];
-        });
-        showElements.forEach((el, i) => {
-          (el as HTMLElement).style.display = originalShowDisplays[i];
-        });
+          container.className = originalClasses;
+          uiElements.forEach((el, i) => {
+            (el as HTMLElement).style.display = originalDisplays[i];
+          });
+          showElements.forEach((el, i) => {
+            (el as HTMLElement).style.display = originalShowDisplays[i];
+          });
+        }
 
         const imgData = canvas.toDataURL('image/png');
         const pageWidth = 215.9;
