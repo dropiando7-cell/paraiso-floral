@@ -186,7 +186,8 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                             porcentajeIsv: d.porcentajeIsv || 15,
                             totalLinea: d.totalLinea,
                             productoId: d.productoId || null,
-                            activoId: d.activoId || null
+                            activoId: d.activoId || null,
+                            mostrarDescripcion: d.mostrarDescripcion || false
                         }))
                     }
                 }
@@ -292,7 +293,8 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                                 totalDescuento: discountAmt || 0,
                                 totalLinea: lineTotal || 0,
                                 productoId: item.productoId || null,
-                                activoId: item.activoId || null
+                                activoId: item.activoId || null,
+                                mostrarDescripcion: item.showLongDesc || false
                             };
                         })
                     }
@@ -419,7 +421,8 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                                 totalDescuento: discountAmt || 0,
                                 totalLinea: lineTotal || 0,
                                 productoId: item.productoId || null,
-                                activoId: item.activoId || null
+                                activoId: item.activoId || null,
+                                mostrarDescripcion: item.showLongDesc || false
                             };
                         })
                     }
@@ -725,7 +728,8 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
                             totalDescuento: d.totalDescuento,
                             totalLinea: d.totalLinea,
                             productoId: d.productoId,
-                            activoId: d.activoId
+                            activoId: d.activoId,
+                            mostrarDescripcion: d.mostrarDescripcion || false
                         }))
                     }
                 }

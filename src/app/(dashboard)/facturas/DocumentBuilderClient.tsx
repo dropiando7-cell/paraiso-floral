@@ -743,19 +743,20 @@ function LineItemRow({
             ) : (
               <div className="print:hidden">
                 <RichDescriptionEditor
-                  content={item.richDesc || item.longDesc || ''}
+                  content={item.richDesc || (item.longDesc ? item.longDesc.replace(/\n/g, '<br/>') : '')}
                   onChange={html => {
                     onChange(item.id, 'richDesc', html);
                     // Keep plain-text longDesc synced as fallback
+                    const temp = html.replace(/<br\s*[\/]?>/gi, '\n').replace(/<\/p>/gi, '\n').replace(/<p[^>]*>/gi, '');
                     const div = document.createElement('div');
-                    div.innerHTML = html;
+                    div.innerHTML = temp;
                     onChange(item.id, 'longDesc', div.textContent || '');
                   }}
                   placeholder="Descripción técnica detallada, especificaciones..."
                 />
               </div>
             )}
-            <div className={`hidden ${!viewMode ? 'print:block' : 'print:hidden'} text-xs text-slate-600 prose prose-sm max-w-none`} dangerouslySetInnerHTML={{ __html: item.richDesc || item.longDesc }} />
+            <div className={`hidden ${!viewMode ? 'print:block' : 'print:hidden'} text-xs text-slate-600 prose prose-sm max-w-none`} dangerouslySetInnerHTML={{ __html: item.richDesc || (item.longDesc ? item.longDesc.replace(/\n/g, '<br/>') : '') }} />
           </div>
         )}
       </div>
@@ -1171,7 +1172,7 @@ export default function DocumentBuilderClient({
             longDesc,
             richDesc: d.descripcionEnriquecida || '',
             isSection,
-            showLongDesc: false, // Por defecto cerrado para que no salgan en el PDF a menos que se fuerce
+            showLongDesc: d.mostrarDescripcion || false,
             qty: d.cantidad,
             unitPrice: Number(d.precioUnitario),
             tax,

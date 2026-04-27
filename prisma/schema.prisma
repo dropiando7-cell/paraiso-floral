@@ -631,6 +631,7 @@ model DetalleFactura {
   totalDescuento          Decimal     @default(0) @db.Decimal(12, 2)
   totalLinea              Decimal     @db.Decimal(12, 2)
   descripcionEnriquecida  String?
+  mostrarDescripcion      Boolean     @default(false)
   activo         ActivoFijo? @relation(fields: [activoId], references: [id])
   factura        Factura     @relation(fields: [facturaId], references: [id], onDelete: Cascade)
   producto       Producto?   @relation(fields: [productoId], references: [id])
