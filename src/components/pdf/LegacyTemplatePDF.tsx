@@ -247,7 +247,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             marginBottom: isCenter ? 16 : 0
           }}>
             {images['logo'] ? (
-              <Image src={images['logo']} style={{ height: logoSizePx, width: 'auto' }} />
+              <Image src={images['logo']} style={{ height: logoSizePx }} />
             ) : (
               <View style={{ width: logoSizePx, height: logoSizePx, borderWidth: 1, borderColor: '#d1d5db', backgroundColor: '#f9fafb', justifyContent: 'center', alignItems: 'center' }}>
                 <Text style={{ fontSize: 10, color: '#9ca3af', fontWeight: 'bold' }}>Sin Logo</Text>

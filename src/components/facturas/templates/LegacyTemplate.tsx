@@ -96,7 +96,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  <option value="60 días netos">60 días netos</option>
  <option value="90 días netos">90 días netos</option>
  </select>
- <span className="hidden print:flex text-gray-600 mt-1">{paymentTerms}</span>
+ <span className="hidden print:flex text-gray-600 mt-1" data-pdf-show>{paymentTerms}</span>
  </div>
 
  <div className="flex flex-col border-l border-slate-200 pl-3 cursor-pointer" onClick={() => setShowClientModal(true)}>

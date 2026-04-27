@@ -1030,12 +1030,12 @@ export default function DocumentBuilderClient({
     const toastId = toast.loading('Generando PDF Vectorial (Máxima Calidad)...');
 
     try {
-      // Petición al API de Puppeteer (Nivel Odoo)
+      // Petición al API de generación PDF Serverless
       const res = await fetch(`/api/pdf/${docId}`);
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        console.error('Puppeteer Server API Error:', errBody);
-        throw new Error(errBody.error || 'API Error');
+        console.warn('PDF Server API Error:', errBody);
+        throw new Error(errBody.error || 'Serverless API Error');
       }
       
       const blob = await res.blob();
