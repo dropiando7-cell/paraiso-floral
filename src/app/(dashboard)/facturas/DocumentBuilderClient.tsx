@@ -831,6 +831,7 @@ export default function DocumentBuilderClient({
   const [showCustomizer, setShowCustomizer] = useState(false);
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [isForcePrinting, setIsForcePrinting] = useState(false);
   const templateContainerRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<InvoiceSettings>(() => {
     // Always merge organization settings (available on both server and client as a prop).
@@ -841,7 +842,7 @@ export default function DocumentBuilderClient({
 
   const isAnulada = initialData?.estado === 'ANULADA';
   const isConvertida = initialData?.estado === 'CONVERTIDA';
-  const effectiveViewMode = viewMode || isAnulada || isConvertida;
+  const effectiveViewMode = viewMode || isAnulada || isConvertida || isForcePrinting;
 
   const estaVencida = typeof window !== 'undefined' ? (function() {
     if (!initialData?.fechaEmision || initialData?.tipoDocumento !== 'COTIZACION') return false;
@@ -1027,6 +1028,17 @@ export default function DocumentBuilderClient({
     }
   }, [effectiveViewMode, searchParams]);
 
+  // Print handler for edit mode
+  const handlePrintEditor = () => {
+    setIsForcePrinting(true);
+    setTimeout(() => {
+      window.print();
+      setTimeout(() => {
+        setIsForcePrinting(false);
+      }, 500);
+    }, 150);
+  };
+
   // PDF Download handler
   const handleDownloadPDF = async () => {
     const container = templateContainerRef.current;
@@ -1081,11 +1093,14 @@ export default function DocumentBuilderClient({
         setIsDownloadingPDF(false);
         return;
       }
-      try {
-        const html2canvasModule = await import('html2canvas-pro');
-        const jsPDFModule = await import('jspdf');
-        const html2canvas = html2canvasModule.default;
-        const jsPDF = jsPDFModule.default;
+
+      setIsForcePrinting(true);
+      setTimeout(async () => {
+        try {
+          const html2canvasModule = await import('html2canvas-pro');
+          const jsPDFModule = await import('jspdf');
+          const html2canvas = html2canvasModule.default;
+          const jsPDF = jsPDFModule.default;
 
         const uiElements = container.querySelectorAll('button, select, [data-pdf-hide]');
         const originalDisplays: string[] = [];
@@ -1203,9 +1218,11 @@ export default function DocumentBuilderClient({
         console.error('Fallback error:', fallbackError);
         toast.error('Mecanismos de PDF agotados. Imprime manualmente.', { id: toastId });
       } finally {
+        setIsForcePrinting(false);
         setIsDownloadingPDF(false);
       }
-    }
+    }, 150);
+  }
   };
 
   // Cargar initialData si existe
@@ -1838,7 +1855,7 @@ export default function DocumentBuilderClient({
             <button className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
               <Copy size={14} /> Duplicar
             </button>
-            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
+            <button onClick={handlePrintEditor} className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm">
               <Printer size={14} /> Imprimir
             </button>
 
