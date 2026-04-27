@@ -23,11 +23,20 @@ export default function FacturacionTabsClient({ organization, history }: Props) 
     }
   }, [searchParams]);
 
+  const handleTabChange = (tab: 'creador' | 'facturas' | 'cotizaciones' | 'proforma') => {
+    setActiveTab(tab);
+    if (typeof window !== 'undefined') {
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.set('tab', tab);
+      window.history.replaceState(null, '', newUrl.toString());
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
       
       {/* Global Module Header Tabs */}
-      <FacturacionHeader activeTab={activeTab} onTabChange={setActiveTab} />
+      <FacturacionHeader activeTab={activeTab} onTabChange={handleTabChange} />
 
       {/* Tab Content */}
       <div className={`${activeTab === 'creador' ? '' : 'p-6 max-w-[1400px] mx-auto w-full'}`}>

@@ -487,21 +487,37 @@ function LineItemRow({
                  minHeight: '34px'
                }}
              >
-               <input
-                 value={item.shortDesc}
-                 disabled={viewMode}
-                 onChange={e => onChange(item.id, 'shortDesc', e.target.value)}
-                 placeholder="TITULO DE SECCIÓN (Ej: 2 AÑOS DE GARANTÍA)"
-                 className="w-full bg-transparent border-none outline-none focus:ring-0 px-2 py-1 placeholder:text-slate-400"
-                 style={{
-                   color: item.sectionStyle?.color || '#1e293b',
-                   fontWeight: item.sectionStyle?.bold ? 'bold' : 'normal',
-                   textAlign: item.sectionStyle?.align || 'left',
-                   textTransform: 'uppercase',
-                   fontSize: '11px',
-                   letterSpacing: '0.05em'
-                 }}
-               />
+               {viewMode ? (
+                 <div
+                   className="w-full px-2 py-1 flex items-center"
+                   style={{
+                     color: item.sectionStyle?.color || '#1e293b',
+                     fontWeight: item.sectionStyle?.bold ? 'bold' : 'normal',
+                     textAlign: item.sectionStyle?.align || 'left',
+                     textTransform: 'uppercase',
+                     fontSize: '11px',
+                     letterSpacing: '0.05em'
+                   }}
+                 >
+                   {item.shortDesc || ' '}
+                 </div>
+               ) : (
+                 <input
+                   value={item.shortDesc}
+                   disabled={viewMode}
+                   onChange={e => onChange(item.id, 'shortDesc', e.target.value)}
+                   placeholder="TITULO DE SECCIÓN (Ej: 2 AÑOS DE GARANTÍA)"
+                   className="w-full bg-transparent border-none outline-none focus:ring-0 px-2 py-1 placeholder:text-slate-400"
+                   style={{
+                     color: item.sectionStyle?.color || '#1e293b',
+                     fontWeight: item.sectionStyle?.bold ? 'bold' : 'normal',
+                     textAlign: item.sectionStyle?.align || 'left',
+                     textTransform: 'uppercase',
+                     fontSize: '11px',
+                     letterSpacing: '0.05em'
+                   }}
+                 />
+               )}
              </div>
           </div>
         ) : (
