@@ -449,7 +449,7 @@ function LineItemRow({
         borderStyle: settings?.descriptionBorderDashed !== false ? 'dashed' : 'solid'
       }}>
         <div 
-          className={`flex items-start gap-2 w-full px-4 print:px-4 ${item.isSection ? '' : (Number(item.qty) > 0 && Number(item.unitPrice) > 0 ? 'bg-white hover:bg-blue-50/20' : 'bg-slate-50/50')}`}
+          className={`flex items-stretch gap-2 w-full px-4 print:px-4 ${item.isSection ? '' : (Number(item.qty) > 0 && Number(item.unitPrice) > 0 ? 'bg-white hover:bg-blue-50/20' : 'bg-slate-50/50')}`}
           style={item.isSection ? { 
             backgroundColor: item.sectionStyle?.bg || '#f1f5f9',
             WebkitPrintColorAdjust: 'exact',
@@ -509,7 +509,7 @@ function LineItemRow({
             {/* Code */}
             <div className={`min-w-0 relative flex items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {viewMode ? (
-                <div className="w-full text-[10px] md:text-[11px] tracking-tight font-mono text-center text-slate-800 break-words print:hidden">
+                <div className="w-full text-[10px] md:text-[11px] tracking-tight font-mono text-center text-slate-800 break-words">
                   {item.code || ' '}
                 </div>
               ) : (
@@ -544,9 +544,6 @@ function LineItemRow({
                   className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
                 />
               )}
-              <div className="hidden print:block w-full text-[10px] md:text-[11px] tracking-tight font-mono text-center text-slate-800 break-words">
-                {item.code || ' '}
-              </div>
               {focusedField === 'code' && !viewMode && renderDropdown()}
               {settings?.showTableVerticalBorders && (
                 <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
@@ -562,7 +559,7 @@ function LineItemRow({
               )}
               <div className="flex-1 min-w-0">
               {viewMode ? (
-                <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words print:hidden">{item.shortDesc}</div>
+                <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">{item.shortDesc}</div>
               ) : (
                 <input
                   type="text"
@@ -579,9 +576,6 @@ function LineItemRow({
                   className="w-full h-[34px] text-xs border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
                 />
               )}
-              <div className="hidden print:block text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">
-                {item.shortDesc}
-              </div>
 
               </div>
               {focusedField === 'desc' && !viewMode && renderDropdown()}
@@ -849,6 +843,38 @@ export default function DocumentBuilderClient({
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const draftKey = 'bea_factura_draft_v2'; // Single unified draft
+
+  // PRE-CONVERT IMAGES TO BASE64 IN VIEW MODE (PUPPETEER PRINT CONTEXT)
+  useEffect(() => {
+    if (effectiveViewMode && typeof window !== 'undefined') {
+      const convertImagesToBase64 = async () => {
+        const images = document.querySelectorAll('img');
+        const convertPromises = Array.from(images).map(async (img) => {
+          if (!img.src || img.src.startsWith('data:') || img.src.includes('lucide')) return;
+          try {
+            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(img.src)}`;
+            const res = await fetch(proxyUrl);
+            if (res.ok) {
+              const blob = await res.blob();
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                if (typeof reader.result === 'string') {
+                  img.src = reader.result;
+                }
+              };
+              reader.readAsDataURL(blob);
+            }
+          } catch (e) {
+            console.warn('Error pre-converting image in viewMode', e);
+          }
+        });
+        await Promise.allSettled(convertPromises);
+      };
+      
+      // Delay allowing DOM hydration to finish before querying images
+      setTimeout(convertImagesToBase64, 400);
+    }
+  }, [effectiveViewMode]);
 
   // 1. Hydrate from localStorage on mount (ONLY if it's a new document and not in viewMode)
   useEffect(() => {
