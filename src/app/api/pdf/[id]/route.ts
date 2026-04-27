@@ -160,7 +160,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         const res = await fetch(fetchUrl);
         if (!res.ok) return null;
         const arrayBuffer = await res.arrayBuffer();
-        let buffer = Buffer.from(arrayBuffer);
+        let buffer: any = Buffer.from(arrayBuffer);
         let contentType = res.headers.get('content-type') || 'image/jpeg';
         
         // react-pdf/renderer does not support WebP, convert to PNG using sharp
