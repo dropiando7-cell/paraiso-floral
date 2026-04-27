@@ -539,8 +539,12 @@ function LineItemRow({
                   }, 200);
                 }}
                 placeholder="Código"
-                className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:border-transparent print:bg-transparent print:p-0 print:text-slate-800 disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
+                data-pdf-hide="true"
+                className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
               />
+              <div data-pdf-show="true" style={{ display: 'none' }} className="w-full text-[10px] md:text-[11px] tracking-tight font-mono text-center text-slate-800 break-words print:!block">
+                {item.code || ' '}
+              </div>
               {focusedField === 'code' && !viewMode && renderDropdown()}
             </div>
 
@@ -1029,6 +1033,14 @@ export default function DocumentBuilderClient({
           htmlEl.style.display = 'none';
         });
 
+        const showElements = container.querySelectorAll('[data-pdf-show]');
+        const originalShowDisplays: string[] = [];
+        showElements.forEach((el, i) => {
+          const htmlEl = el as HTMLElement;
+          originalShowDisplays[i] = htmlEl.style.display;
+          htmlEl.style.display = 'block';
+        });
+
         const originalClasses = container.className;
         container.className = originalClasses.replace('pr-80', '').replace('scale-[0.95]', '');
 
@@ -1056,7 +1068,8 @@ export default function DocumentBuilderClient({
           }
         }));
 
-        await new Promise(r => setTimeout(r, 200));
+        // Damos tiempo suficiente (800ms) para que el navegador re-renderice las imágenes con la enorme cadena de texto base64
+        await new Promise(r => setTimeout(r, 800));
 
         const canvas = await html2canvas(container, {
           scale: 2,
@@ -1075,23 +1088,40 @@ export default function DocumentBuilderClient({
         uiElements.forEach((el, i) => {
           (el as HTMLElement).style.display = originalDisplays[i];
         });
+        showElements.forEach((el, i) => {
+          (el as HTMLElement).style.display = originalShowDisplays[i];
+        });
 
         const imgData = canvas.toDataURL('image/png');
-        const imgWidth = 215.9;
+        const pageWidth = 215.9;
         const pageHeight = 279.4;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        let imgWidth = pageWidth;
+        let imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        // Si la imagen es un poco más alta que 1 página (hasta un 15% más), 
+        // la escalamos para que quepa exactamente en 1 sola página sin generar una hoja extra casi vacía.
+        if (imgHeight > pageHeight && imgHeight <= pageHeight * 1.15) {
+             const scale = pageHeight / imgHeight;
+             imgWidth = imgWidth * scale;
+             imgHeight = pageHeight;
+        }
 
         const pdf = new jsPDF('p', 'mm', 'letter');
         let heightLeft = imgHeight;
         let position = 0;
 
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        // Centrar horizontalmente si fue escalada
+        const xOffset = (pageWidth - imgWidth) / 2;
+
+        pdf.addImage(imgData, 'PNG', xOffset, position, imgWidth, imgHeight);
         heightLeft -= pageHeight;
 
-        while (heightLeft > 0) {
+        // Usamos > 2 para evitar páginas en blanco por un par de milímetros residuales
+        while (heightLeft > 2) {
           position -= pageHeight;
           pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          pdf.addImage(imgData, 'PNG', xOffset, position, imgWidth, imgHeight);
           heightLeft -= pageHeight;
         }
 
