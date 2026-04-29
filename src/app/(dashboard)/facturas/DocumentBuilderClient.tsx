@@ -521,7 +521,7 @@ function LineItemRow({
              </div>
           </div>
         ) : (
-          <div className="flex-1 grid grid-cols-[20fr_30fr_9fr_20fr_9fr_12fr_20fr] gap-2 min-w-0 relative">
+          <div className="flex-1 grid grid-cols-[18fr_30fr_9fr_18fr_14fr_15fr_16fr] gap-2 min-w-0 relative">
             {/* Code */}
             <div className={`min-w-0 relative flex items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {viewMode ? (
@@ -692,8 +692,8 @@ function LineItemRow({
             </div>
 
             {/* Monto / Subtotal — vertically centered, centered */}
-            <div className={`min-w-0 flex items-center justify-center ${padClass}`}>
-              <p className="text-xs font-bold text-slate-800 text-center font-mono">
+            <div className={`min-w-0 flex items-center justify-end ${padClass}`}>
+              <p className="text-xs font-bold text-slate-800 text-right font-mono pr-2">
                 {fmt(total)}
               </p>
             </div>

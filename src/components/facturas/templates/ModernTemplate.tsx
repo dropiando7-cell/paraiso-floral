@@ -140,14 +140,14 @@ export default function ModernTemplate(props: TemplateProps) {
  <div className="flex items-center gap-2 mb-3 px-3 print:px-0 print:mb-2">
  <div className="w-4 shrink-0 print:hidden" />
  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
- <div className="flex-1 grid grid-cols-[20fr_30fr_9fr_20fr_9fr_12fr_20fr] gap-2 text-[10px] font-bold text-slate-400 uppercase">
+ <div className="flex-1 grid grid-cols-[18fr_30fr_9fr_18fr_14fr_15fr_16fr] gap-2 text-[10px] font-bold text-slate-400 uppercase">
  <div className="text-center">Código</div>
  <div className="text-center">Descripción</div>
  <div className="text-center print:text-left">Cant.</div>
  <div className="text-center">P. Unitario</div>
  <div className="text-center">Descuento</div>
  <div className="text-center">Impuesto</div>
- <div className="text-center">Subtotal</div>
+ <div className="text-right pr-2">Subtotal</div>
  </div>
  <div className="w-6 shrink-0 print:hidden" />
  </div>

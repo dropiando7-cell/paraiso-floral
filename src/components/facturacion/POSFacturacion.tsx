@@ -505,7 +505,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                       <select
                         value={item.taxState}
                         onChange={(e) => changeTax(item.cartId, e.target.value as any)}
-                        className={`text-[8.5px] font-black px-1 py-1 rounded transition-colors uppercase tracking-widest outline-none border-none appearance-none text-center cursor-pointer min-w-[70px] max-w-[80px] shrink-0 ${
+                        className={`text-[9px] font-black px-1.5 py-1 rounded transition-colors uppercase tracking-widest outline-none border-none appearance-none text-center cursor-pointer min-w-[76px] max-w-[90px] shrink-0 ${
                           item.taxState === 'isv15' ? 'bg-orange-100 text-orange-600' :
                           item.taxState === 'isv18' ? 'bg-red-100 text-red-600' :
                           item.taxState === 'exonerado' ? 'bg-blue-100 text-blue-600' :
@@ -518,13 +518,13 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                         <option value="isv15">+15% ISV</option>
                         <option value="isv18">+18% ISV</option>
                       </select>
-                      <div className="flex items-center bg-rose-50 rounded border border-rose-100 hover:border-rose-300 focus-within:ring-2 focus-within:ring-rose-200 transition-all h-6 px-1 shrink-0" title="Descuento aplicado al producto">
+                      <div className="flex items-center bg-rose-50 rounded border border-rose-100 hover:border-rose-300 focus-within:ring-2 focus-within:ring-rose-200 transition-all h-6 px-1.5 shrink-0" title="Descuento aplicado al producto">
                         <input
                           type="number"
                           value={item.discountPercentage > 0 ? item.discountPercentage : ''}
                           onChange={e => changeDiscount(item.cartId, Number(e.target.value))}
                           placeholder="0"
-                          className="w-5 text-center bg-transparent text-[10px] font-black text-rose-600 outline-none placeholder:text-rose-300 [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-8 text-center bg-transparent text-[10px] font-black text-rose-600 outline-none placeholder:text-rose-300 [&::-webkit-inner-spin-button]:appearance-none"
                         />
                         <span className="text-rose-400 font-bold text-[9px] pointer-events-none">%</span>
                       </div>
@@ -532,9 +532,9 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
                   </div>
                   
-                  <div className="flex flex-col items-end justify-between shrink-0 pl-2">
+                  <div className="flex flex-col items-end justify-between shrink-0 pl-1">
                      <div className="flex flex-col items-end">
-                       <p className={`text-sm font-black bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100 ${item.discountPercentage > 0 ? 'text-indigo-600' : 'text-gray-900'}`}>
+                       <p className={`text-xs font-black bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100 ${item.discountPercentage > 0 ? 'text-indigo-600' : 'text-gray-900'}`}>
                          {fmt((item.precioVenta * item.qty) * (1 - item.discountPercentage / 100))}
                        </p>
                        {item.discountPercentage > 0 && <p className="text-[9px] font-bold text-gray-400 line-through mt-0.5">{fmt(item.precioVenta * item.qty)}</p>}

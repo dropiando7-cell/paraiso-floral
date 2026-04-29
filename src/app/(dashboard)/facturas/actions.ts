@@ -183,7 +183,7 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                             descripcion: d.descripcion,
                             cantidad: d.cantidad,
                             precioUnitario: d.precioUnitario,
-                            porcentajeIsv: d.porcentajeIsv || 15,
+                            porcentajeIsv: d.porcentajeIsv ?? 15,
                             totalLinea: d.totalLinea,
                             productoId: d.productoId || null,
                             activoId: d.activoId || null,
