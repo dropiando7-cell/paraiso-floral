@@ -46,18 +46,53 @@ export type CrearProductoInput = {
   precioVenta: number;
 };
 
+function getAccentCombinations(str: string): string[] {
+    const map: Record<string, string[]> = {
+        'a': ['a', 'á'],
+        'e': ['e', 'é'],
+        'i': ['i', 'í'],
+        'o': ['o', 'ó'],
+        'u': ['u', 'ú']
+    };
+
+    const normalizedStr = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+    let results = [''];
+    let vowelCount = 0;
+    
+    for (const char of normalizedStr) {
+        const options = map[char] || [char];
+        if (options.length > 1) vowelCount++;
+        
+        if (vowelCount > 5) {
+            results = results.map(r => r + char);
+            continue;
+        }
+
+        const nextResults: string[] = [];
+        for (const res of results) {
+            for (const opt of options) {
+                nextResults.push(res + opt);
+            }
+        }
+        results = nextResults;
+    }
+    return Array.from(new Set(results));
+}
+
 export async function getProductosPricing(query?: string): Promise<ProductoPricing[]> {
     const orgId = await getOrgId();
+    const searchTerms = query ? getAccentCombinations(query) : [];
 
     // 1. Obtener los productos ya registrados en el catálogo
     const productos = await prisma.producto.findMany({
         where: {
             organizationId: orgId,
             ...(query ? {
-                OR: [
-                    { nombre: { contains: query, mode: 'insensitive' } },
-                    { sku: { contains: query, mode: 'insensitive' } }
-                ]
+                OR: searchTerms.flatMap(term => [
+                    { nombre: { contains: term, mode: 'insensitive' } },
+                    { sku: { contains: term, mode: 'insensitive' } }
+                ])
             } : {})
         },
         include: {
@@ -76,10 +111,10 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
             productoId: null,
             estatusContable: 'VIGENTE',
             ...(query ? {
-                OR: [
-                    { descripcionCorta: { contains: query, mode: 'insensitive' } },
-                    { codigoBarras: { contains: query, mode: 'insensitive' } }
-                ]
+                OR: searchTerms.flatMap(term => [
+                    { descripcionCorta: { contains: term, mode: 'insensitive' } },
+                    { codigoBarras: { contains: term, mode: 'insensitive' } }
+                ])
             } : {})
         },
         select: {
