@@ -25,6 +25,7 @@ export default async function AuthenticatedLayout({
     });
 
     if (!dbUser) {
+        console.log('layout.tsx: dbUser not found in Prisma. Redirecting to unauthorized. Supabase user.email:', user.email);
         // If authenticated via Google but not in Prisma DB -> Kick out
         redirect("/unauthorized");
     }

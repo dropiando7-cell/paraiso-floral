@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { LogoutButton } from './LogoutButton'
 
 export default function UnauthorizedPage() {
     return (
@@ -20,12 +21,9 @@ export default function UnauthorizedPage() {
                 </p>
             </div>
 
-            <Link
-                href="/login"
-                className="text-blue-400 hover:text-blue-300 font-medium transition-colors"
-            >
-                Volver al inicio de sesión
-            </Link>
+            <div className="flex flex-col gap-4 items-center">
+                <LogoutButton />
+            </div>
         </div>
     )
 }

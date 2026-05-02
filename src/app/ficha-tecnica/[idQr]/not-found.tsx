@@ -17,7 +17,7 @@ export default function NotFound() {
                     Misión Cristiana Elim Honduras
                 </div>
             </div>
-            <p className="mt-6 text-xs text-white/30">sistemaselim.app</p>
+            <p className="mt-6 text-xs text-white/30">bioelectronicahn.vercel.app</p>
         </div>
     );
 }

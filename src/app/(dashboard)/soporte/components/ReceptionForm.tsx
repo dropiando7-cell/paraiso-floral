@@ -51,22 +51,35 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
       // Upload photos to R2 first
       const uploadedUrls = [];
       for (const photo of photos) {
-        // Fetch pre-signed URL from our endpoint
-        const res = await fetch('/api/upload', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: photo.name, contentType: photo.file.type })
-        });
-        if (!res.ok) throw new Error("Error obteniendo URL de subida");
-        const { uploadUrl, publicUrl } = await res.json();
-        
-        // Upload file to R2
-        await fetch(uploadUrl, {
-            method: 'PUT',
-            body: photo.file,
-            headers: { 'Content-Type': photo.file.type }
-        });
-        uploadedUrls.push(publicUrl);
+        try {
+            // Fetch pre-signed URL from our endpoint
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: photo.name, contentType: photo.file.type })
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(()=>({}));
+                throw new Error(`Error del servidor al obtener URL: ${res.status} ${errData.error || ''}`);
+            }
+            const { uploadUrl, publicUrl } = await res.json();
+            
+            // Upload file to R2
+            const uploadRes = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: photo.file,
+                headers: { 'Content-Type': photo.file.type }
+            });
+            
+            if (!uploadRes.ok) {
+                throw new Error(`Error de Cloudflare R2: ${uploadRes.status} ${uploadRes.statusText}`);
+            }
+            
+            uploadedUrls.push(publicUrl);
+        } catch (uploadError: any) {
+            console.error("Upload error detail:", uploadError);
+            throw new Error(`Fallo al subir la imagen ${photo.name}. Revisa la configuración CORS en R2 o tu conexión. Detalles: ${uploadError.message}`);
+        }
       }
 
       await onSave({ ...form, fotosEstadoInicial: uploadedUrls });
@@ -77,9 +90,9 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
           setForm({ cliente: "", telefono: "", equipo: "medico", modelo: "", serie: "", marca: "", descripcionFalla: "", prioridad: "normal", tecnico: "" });
           setPhotos([]);
       }, 3000);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Hubo un error al guardar la orden de soporte.");
+      alert("Hubo un error al guardar la orden de soporte: " + (e.message || 'Error desconocido'));
     } finally {
       setIsSubmitting(false);
     }

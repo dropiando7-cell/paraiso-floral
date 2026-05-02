@@ -1,0 +1,104 @@
+diagnostico_en_curso
+HXba0f9917a004d43530fa18525b98be88
+
+Hola {{1}},
+
+Tu equipo *{{2}}* (Orden {{3}}) está siendo evaluado por nuestro equipo técnico.
+
+📅 *Fecha estimada de diagnóstico:* {{4}}
+
+En cuanto terminemos la evaluación, te enviaremos el presupuesto con el detalle de la falla y el costo de reparación.
+
+Gracias por tu paciencia. 🛠️
+
+*Bioelectrónica Honduras*
+
+-------------------------------
+
+recepcion_del_equipo
+HXbcb3979eddda4b77766b46c8ea51e849
+
+Hola {{2}} 👋
+
+Recibimos tu equipo en el taller de *Bioelectrónica Honduras*.
+
+📋 *Orden:* {{3}}
+🔧 *Equipo:* {{4}}
+🏷️ *N° Serie:* {{5}}
+👨‍🔧 *Técnico asignado:* {{6}}
+
+Guarda la imagen de arriba — el *código QR* es tu comprobante para retirar el equipo cuando esté listo.
+
+Te avisaremos en cada etapa del proceso. ⚙️
+
+-------------------------------
+
+reparacion_iniciada
+HXaa7d2b1ae59dced812cb143e38246e0a
+
+Confirmado, {{1}}.
+
+Ya iniciamos la reparación de tu *{{2}}* (Orden {{3}}).
+
+👨‍🔧 *Técnico:* {{4}}
+📅 *Entrega estimada:* {{5}}
+🔧 *Trabajo:* {{6}}
+
+Te avisaremos cuando tu equipo este listo para retirar. Gracias por confiar en nosotros.
+
+-------------------------------
+
+presupuesto_aprobacion
+HXc0be41cec35b484f162077113a970e04
+
+Hola {{1}},
+
+Terminamos el diagnóstico de tu *{{2}}* (Orden {{3}}).
+
+🔍 *Falla encontrada:*
+{{4}}
+
+🛠️ *Trabajo a realizar:*
+{{5}}
+
+💵 *Costo total:* L {{6}}
+⏱️ *Tiempo estimado:* {{7}}
+
+Necesitamos tu aprobación para continuar con la reparación. Responde abajo 👇
+
+-------------------------------
+
+Hola {{1}},
+
+Terminamos el diagnóstico de tu *{{2}}* (Orden {{3}}).
+
+🔍 *Falla encontrada:*
+{{4}}
+
+🛠️ *Trabajo a realizar:*
+{{5}}
+
+💵 *Costo total:* L {{6}}
+⏱️ *Tiempo estimado:* {{7}}
+
+Necesitamos tu aprobación para continuar con la reparación. Responde abajo 👇
+
+-------------------------------
+
+equipo_listo_retiro
+HXfdb98386354dbed017dd06788784e060
+
+Buenas noticias, {{2}}. 🎉
+
+Tu equipo *{{3}}* ya esta listo para retirar.
+
+📋 *Orden:* {{4}}
+💵 *Monto a pagar:* L {{5}}
+🕐 *Horario de retiro:* Lunes a Viernes, 8:00 a.m. a 5:00 p.m.
+
+Presenta la imagen con el código QR al momento del retiro. Es tu comprobante oficial.
+
+⚠️ *Importante:*
+Tienes {{6}} días hábiles para retirar tu equipo sin cargo adicional. A partir del día {{7}}, se aplicara un cargo por almacenaje de L {{8}} por día.
+
+Te esperamos.

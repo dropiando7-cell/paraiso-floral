@@ -149,7 +149,7 @@ export async function sendCheckInNotification(
     const sid = "HXbbd437cb6c585ea474a41418a64cf4cc";
 
     // URL dinámica que genera la imagen con QR y Barras
-    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://sistemaselim.app";
+    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
     const mediaUrl = `${domain}/api/checkin/pass?name=${encodeURIComponent(payload.kidName)}&room=${encodeURIComponent(payload.classroomName)}&code=${encodeURIComponent(payload.securityCode)}`;
 
     // La plantilla checkin_pase_recogidav8 usa {{1}} para texto y {{2}} para media
@@ -237,11 +237,10 @@ export async function sendSoporteRecepcion(
     // SID: recepcion_del_equipo
     const sid = "HXbcb3979eddda4b77766b46c8ea51e849";
 
-    // OJO: Asumimos que la plantilla tiene variables {{1}} y {{2}}. 
-    // Ajustar según configuración real en Meta/Twilio.
+    // OJO: La plantilla recepcion_del_equipo según las referencias usa {{2}} para el nombre
     const variables: Record<string, string> = {
-        "1": clienteNombre,
-        "2": ordenCodigo
+        "1": clienteNombre, // En caso de que 1 sea el nombre o media
+        "2": clienteNombre
     };
 
     if (mediaUrl) {

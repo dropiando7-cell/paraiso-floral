@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     const H = 203;
 
     // Obtener host de los headers para construir la URL absoluta (Deep Link)
-    const host = req.headers.get('host') || 'sistemaselim.app';
+    const host = req.headers.get('host') || 'bioelectronicahn.vercel.app';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     const fullUrl = `${protocol}://${host}/inventario?areaQr=${finalIdQr}`;
 

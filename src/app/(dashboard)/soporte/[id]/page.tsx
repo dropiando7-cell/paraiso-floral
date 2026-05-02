@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation';
 import SoporteDetailClient from './SoporteDetailClient';
 import { createClient } from '@/utils/supabase/server';
 
-export default async function SoporteDetailPage({ params }: { params: { id: string } }) {
+export default async function SoporteDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || !user.email) redirect('/login');
@@ -12,7 +13,7 @@ export default async function SoporteDetailPage({ params }: { params: { id: stri
   const userRole = dbUser?.role || 'USER';
 
   const orden = await prisma.ordenTrabajo.findUnique({
-    where: { id: params.id },
+    where: { id: resolvedParams.id },
     include: {
       cliente: true,
       usuarioRecepcion: true,

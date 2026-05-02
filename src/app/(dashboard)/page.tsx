@@ -12,9 +12,16 @@ export default async function Home() {
 
     if (dbUser?.role !== 'SUPER_ADMIN') {
       const allowedModules = dbUser?.accessibleModules || [];
+      console.log('page.tsx: dbUser is', dbUser?.email, 'allowedModules:', allowedModules);
       if (!allowedModules.includes('/')) {
-        if (allowedModules.length > 0) redirect(allowedModules[0]);
-        else redirect('/unauthorized');
+        if (allowedModules.length > 0) {
+            console.log('page.tsx: redirecting to', allowedModules[0]);
+            redirect(allowedModules[0]);
+        }
+        else {
+            console.log('page.tsx: no allowed modules, redirecting to unauthorized');
+            redirect('/unauthorized');
+        }
       }
     }
     if (dbUser?.role === 'CHECKIN_KIDS') redirect('/checkin');

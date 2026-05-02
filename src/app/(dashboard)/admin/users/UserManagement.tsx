@@ -56,7 +56,10 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         CHECKIN_KIDS_ADMIN: 'CHECKIN_KIDS_ADMIN',
         MEDICAL_STAFF: 'MEDICAL_STAFF',
         EXECUTIVE_ASSISTANT: 'EXECUTIVE_ASSISTANT',
-        INVENTARIO_EDITOR: 'INVENTARIO_EDITOR'
+        INVENTARIO_EDITOR: 'INVENTARIO_EDITOR',
+        RECEPCION: 'RECEPCION',
+        TECNICO: 'TECNICO',
+        GERENTE: 'GERENTE'
     }) as Role[];
 
     const roleTextMapping: Record<Role, string> = {
@@ -67,8 +70,11 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         CHECKIN_KIDS_ADMIN: 'CHECKIN_KIDS_ADMIN',
         MEDICAL_STAFF: 'MEDICAL_STAFF',
         EXECUTIVE_ASSISTANT: 'EXECUTIVE_ASSISTANT',
-        INVENTARIO_EDITOR: 'Editor de Inventario'
-    };
+        INVENTARIO_EDITOR: 'Editor de Inventario',
+        RECEPCION: 'Soporte - Recepción',
+        TECNICO: 'Soporte - Técnico',
+        GERENTE: 'Soporte - Gerencia'
+    } as Record<Role, string>;
 
     const availableModules = [
         { id: '/', label: 'Portal Bioelectrónica' },
@@ -118,6 +124,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
             setAccessibleModules(['/', '/medico']);
         } else if (newRole === 'INVENTARIO_EDITOR') {
             setAccessibleModules(['/', '/inventario/historico']);
+        } else if (newRole === 'RECEPCION' || newRole === 'TECNICO' || newRole === 'GERENTE') {
+            setAccessibleModules(['/', '/soporte', '/inventario']);
         } else {
             setAccessibleModules(['/']);
         }

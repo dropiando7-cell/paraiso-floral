@@ -85,16 +85,16 @@ export async function createUser(data: {
         // Send Welcome Email asynchronously
         try {
             // Provide a graceful fallback if the URL environment variable isn't set
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sistemaselim.app';
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bioelectronicahn.vercel.app';
             
             // Get Organization Details for Whitelabel
             const organization = await prisma.organization.findUnique({
                 where: { id: data.organizationId }
             });
-            const orgName = organization?.name || 'Sistemas Elim';
+            const orgName = organization?.name || 'Bioelectrónica';
             const logoUrl = organization?.logoUrl || undefined;
 
-            const senderEmail = `${orgName} <admin@mail.sistemaselim.app>`;
+            const senderEmail = `${orgName} <admin@bioelectronica.hn>`;
             const computedFirstName = data.firstName || data.email.split('@')[0];
 
             // 1. Fetch the corresponding custom template from the database
@@ -481,16 +481,16 @@ export async function sendManualWelcomeEmail(userId: string) {
         const isGoogle = authTargetUser.app_metadata?.providers?.includes('google');
         const computedFirstName = authTargetUser.user_metadata?.full_name?.split(' ')[0] || targetUser.email.split('@')[0];
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sistemaselim.app';
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bioelectronicahn.vercel.app';
         
         // Get Organization Details for Whitelabel
         const organization = await prisma.organization.findUnique({
             where: { id: targetUser.organizationId }
         });
-        const orgName = organization?.name || 'Sistemas Elim';
+        const orgName = organization?.name || 'Bioelectrónica';
         const logoUrl = organization?.logoUrl || undefined;
 
-        const senderEmail = `${orgName} <admin@mail.sistemaselim.app>`;
+        const senderEmail = `${orgName} <admin@bioelectronica.hn>`;
 
         let newTempPassword = null;
         let templateType: EmailTemplateType = 'GOOGLE_WELCOME';

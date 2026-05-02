@@ -20,10 +20,7 @@ export default function NuevoSoporteClient({ userId, clientes = [] }: { userId: 
 
     if (result) {
         // Pantalla de Éxito
-        const textToWA = `Hola ${result.cliente?.nombre}, le notificamos que hemos recibido su equipo en Bioelectrónica para evaluación técnica: \n\n*Equipo:* ${result.equipoDano}\n*Accesorios:* ${result.accesorios || 'Ninguno'}\n*Costo Revisión:* L. 450.00\n\n*Su código único de retiro es:* ${result.codigoSeguridad}\n_Presente este mensaje al retirar su equipo._`;
-        const waLink = result.cliente?.telefono 
-            ? `https://wa.me/${result.cliente.telefono.replace(/[\+\s\-]/g, '')}?text=${encodeURIComponent(textToWA)}`
-            : `https://wa.me/?text=${encodeURIComponent(textToWA)}`;
+        // Pantalla de Éxito
 
         return (
             <div className="p-8 max-w-2xl mx-auto min-h-[80vh] flex flex-col items-center justify-center text-center">
@@ -42,15 +39,15 @@ export default function NuevoSoporteClient({ userId, clientes = [] }: { userId: 
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-3 w-full">
-                        <a 
-                            href={waLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                        <button 
+                            onClick={() => {
+                                setResult(null);
+                                router.refresh(); // Refresh to get the updated clients list
+                            }}
+                            className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-colors"
                         >
-                            <Send className="w-5 h-5" />
-                            Enviar Comprobante Whatsapp
-                        </a>
+                            Registrar Nueva Orden
+                        </button>
                         <button 
                             onClick={() => router.push('/soporte')}
                             className="flex-1 bg-white border-2 border-slate-200 hover:bg-slate-50 text-slate-700 font-bold py-3 px-6 rounded-xl transition-colors"
