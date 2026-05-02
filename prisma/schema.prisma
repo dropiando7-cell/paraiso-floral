@@ -44,6 +44,7 @@ model Organization {
   ordenesTrabajo        OrdenTrabajo[]
   passwordVaults        PasswordVault[]
   productos             Producto[]
+  productosOdoo         ProductoOdoo[]
   rentasEquipo          RentaEquipo[]
   roleTemplates         RoleTemplate[]
   tasks                 Task[]
@@ -493,6 +494,31 @@ model ColaImpresionCheckin {
   @@index([organizationId])
   @@index([estado])
   @@map("cola_impresion_checkin")
+}
+
+model ProductoOdoo {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String   @db.Uuid
+  odooId                String?
+  nombre                String
+  nombreMostrar         String?
+  codigoBarras          String?
+  notasInternas         String?
+  cantidadOdoo          Int?
+  descripcionSitioWeb   String?
+  imagenUrl             String?
+  pasilloEstante        String?
+  referenciaInterna     String?
+  tipoProducto          String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([nombre])
+  @@index([codigoBarras])
+  @@map("productos_odoo_referencia")
 }
 
 model Producto {

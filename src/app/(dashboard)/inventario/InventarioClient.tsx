@@ -22,6 +22,7 @@ import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
 import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
 import { removeBackground } from '@imgly/background-removal';
 import { DateInput } from '@/components/ui/DateInput';
+import BuscadorOdoo, { OdooAlertPanel } from './BuscadorOdoo';
 
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
 function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number) => void; isPrinting: boolean }) {
@@ -798,6 +799,29 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const [tagInput, setTagInput] = useState('');
     const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
+
+    const [odooReference, setOdooReference] = useState<any>(null);
+
+    const handleOdooSelect = (product: any) => {
+        setOdooReference(product);
+        if (product.nombreMostrar || product.nombre) setDescripcionCorta(product.nombreMostrar || product.nombre);
+        if (product.imagenUrl && !imagenUrl) setImagenUrl(product.imagenUrl);
+        if (product.codigoBarras && !codigoBarras) setCodigoBarras(product.codigoBarras);
+        if (product.referenciaInterna && !referencia) setReferencia(product.referenciaInterna);
+        
+        if (product.tipoProducto && product.tipoProducto !== 'N/A') {
+            setEsConsumible(product.tipoProducto.toLowerCase().includes('consu') || product.tipoProducto.toLowerCase().includes('almacenable'));
+        }
+
+        if (product.pasilloEstante) {
+            setSelectedArea(product.pasilloEstante.toUpperCase().replace(/\s+/g, '-'));
+        }
+
+        setCompatibilidad(prev => {
+            const nuevas = new Set([...prev, 'MIGRACION-ODOO', 'REPUESTO']);
+            return Array.from(nuevas);
+        });
+    };
     const [costoAdq, setCostoAdq] = useState<string>(editActivo?.costoAdq ? Number(editActivo.costoAdq).toString() : '');
 
 
@@ -1604,6 +1628,14 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                             </div>
                         ) : (
                             <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
+
+                                {/* ── BUSCADOR TEMPORAL ODOO ── */}
+                                {!isEdit && tipoRegistro === 'nuevo' && (
+                                    <>
+                                        <BuscadorOdoo onSelect={handleOdooSelect} />
+                                        <OdooAlertPanel product={odooReference} />
+                                    </>
+                                )}
 
                                 {/* ── SECCIÓN 1: FOTOGRAFÍA ── */}
                                 <div>
