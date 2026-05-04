@@ -53,10 +53,11 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
       for (const photo of photos) {
         try {
             // Fetch pre-signed URL from our endpoint
+            const contentType = photo.file.type || 'application/octet-stream';
             const res = await fetch('/api/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: photo.name, contentType: photo.file.type })
+                body: JSON.stringify({ fileName: photo.name, contentType })
             });
             if (!res.ok) {
                 const errData = await res.json().catch(()=>({}));
@@ -68,7 +69,7 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
             const uploadRes = await fetch(uploadUrl, {
                 method: 'PUT',
                 body: photo.file,
-                headers: { 'Content-Type': photo.file.type }
+                headers: { 'Content-Type': contentType }
             });
             
             if (!uploadRes.ok) {

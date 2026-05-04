@@ -99,10 +99,11 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                 uploadedUrls.push(photo.url);
                 continue;
             }
+            const contentType = photo.file.type || 'application/octet-stream';
             const res = await fetch('/api/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: photo.name, contentType: photo.file.type })
+                body: JSON.stringify({ fileName: photo.name, contentType })
             });
             if (!res.ok) throw new Error("Error servidor URL");
             const { uploadUrl, publicUrl } = await res.json();
@@ -110,7 +111,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
             const uploadRes = await fetch(uploadUrl, {
                 method: 'PUT',
                 body: photo.file,
-                headers: { 'Content-Type': photo.file.type }
+                headers: { 'Content-Type': contentType }
             });
             if (!uploadRes.ok) throw new Error("Error Cloudflare R2");
             uploadedUrls.push(publicUrl);

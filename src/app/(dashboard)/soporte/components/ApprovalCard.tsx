@@ -21,6 +21,7 @@ export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps
   const [whatsappSent, setWhatsappSent] = useState(false);
   const [nota, setNota] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const [repuestos, setRepuestos] = useState<any[]>(
     orderData?.repuestos?.map((r: any) => ({
@@ -111,15 +112,15 @@ export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps
             <h5 className="text-sm font-bold text-slate-800 mb-2">Evidencia Fotográfica</h5>
             <div className="flex gap-4 overflow-x-auto pb-2">
                 {orderData?.fotosEstadoInicial?.map((url: string, i: number) => (
-                    <div key={`rec-${i}`} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-200 relative">
+                    <div key={`rec-${i}`} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-200 relative cursor-pointer" onClick={() => setSelectedImage(url)}>
                         <span className="absolute top-0 left-0 bg-slate-900/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">Recepción</span>
-                        <img src={url} alt="Recepción" className="w-full h-full object-cover" />
+                        <img src={url} alt="Recepción" className="w-full h-full object-cover hover:scale-105 transition-transform" />
                     </div>
                 ))}
                 {orderData?.fotosTecnico?.map((url: string, i: number) => (
-                    <div key={`tec-${i}`} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-200 relative">
+                    <div key={`tec-${i}`} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-200 relative cursor-pointer" onClick={() => setSelectedImage(url)}>
                         <span className="absolute top-0 left-0 bg-indigo-600/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">Técnico</span>
-                        <img src={url} alt="Técnico" className="w-full h-full object-cover" />
+                        <img src={url} alt="Técnico" className="w-full h-full object-cover hover:scale-105 transition-transform" />
                     </div>
                 ))}
             </div>
@@ -251,6 +252,26 @@ export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps
           {whatsappSent ? "Enviado ✓" : <><Send className="w-3.5 h-3.5"/> Whatsapp</>}
         </button>
       </div>
+      {selectedImage && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setSelectedImage(null)}
+        >
+          <div className="relative max-w-5xl max-h-screen w-full h-full flex items-center justify-center">
+            <button 
+              className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 backdrop-blur-md transition-colors"
+              onClick={(e) => { e.stopPropagation(); setSelectedImage(null); }}
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <img 
+              src={selectedImage} 
+              alt="Evidencia a pantalla completa" 
+              className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl" 
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
