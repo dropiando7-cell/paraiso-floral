@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'crypto';
 import { sendSoporteRecepcion, sendSoporteEquipoListo } from '@/lib/checkin-notifications';
+import { createClient } from '@/utils/supabase/server';
 
 export async function getOrdenesActivas() {
     const org = await prisma.organization.findFirst();
@@ -164,13 +165,51 @@ export async function entregarOrden(id: string) {
 }
 
 export async function finalizarReparacion(id: string) {
-    const orden = await prisma.ordenTrabajo.update({
-        where: { id },
-        data: {
-            estado: 'LISTO_ENTREGA',
-            fechaListo: new Date()
-        },
-        include: { cliente: true }
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    let userId = null;
+    if (user?.email) {
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email }});
+        userId = dbUser?.id;
+    }
+
+    const orden = await prisma.$transaction(async (tx) => {
+        const order = await tx.ordenTrabajo.findUnique({
+            where: { id },
+            include: { repuestos: true, cliente: true }
+        });
+
+        if (!order) throw new Error('Orden no encontrada');
+
+        // Deduct inventory
+        for (const rep of order.repuestos) {
+            await tx.producto.update({
+                where: { id: rep.productoId },
+                data: { stockActual: { decrement: rep.cantidad } }
+            });
+
+            if (userId) {
+                await tx.movimientoInventario.create({
+                    data: {
+                        organizationId: order.organizationId,
+                        productoId: rep.productoId,
+                        tipoMovimiento: 'SALIDA',
+                        cantidad: rep.cantidad,
+                        motivo: `Uso en Orden Soporte #${order.codigoSeguridad}`,
+                        usuarioId: userId
+                    }
+                });
+            }
+        }
+
+        return tx.ordenTrabajo.update({
+            where: { id },
+            data: {
+                estado: 'LISTO_ENTREGA',
+                fechaListo: new Date()
+            },
+            include: { cliente: true }
+        });
     });
 
     if (orden.cliente?.telefono) {
@@ -195,4 +234,120 @@ export async function finalizarReparacion(id: string) {
         costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
         costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
     };
+}
+
+export async function searchRepuestos(query: string) {
+    if (!query) return [];
+    const org = await prisma.organization.findFirst();
+    if (!org) return [];
+
+    return prisma.producto.findMany({
+        where: {
+            organizationId: org.id,
+            esServicio: false,
+            OR: [
+                { nombre: { contains: query, mode: 'insensitive' } },
+                { sku: { contains: query, mode: 'insensitive' } }
+            ]
+        },
+        take: 10,
+        select: {
+            id: true,
+            nombre: true,
+            sku: true,
+            precioVenta: true,
+            stockActual: true
+        }
+    }).then(products => products.map(p => ({
+        ...p,
+        precioVenta: Number(p.precioVenta)
+    })));
+}
+
+export async function guardarDiagnostico(
+    ordenId: string, 
+    diagnostico: string, 
+    repuestos: any[], 
+    manoObra: any[], 
+    costoSugerido: number
+) {
+    const org = await prisma.organization.findFirst();
+    if (!org) throw new Error("Organización no encontrada");
+
+    await prisma.$transaction(async (tx) => {
+        // Borrar repuestos anteriores si existen (para evitar duplicados al re-guardar)
+        await tx.ordenTrabajoRepuesto.deleteMany({
+            where: { ordenTrabajoId: ordenId }
+        });
+
+        // Crear nuevos repuestos
+        if (repuestos.length > 0) {
+            await tx.ordenTrabajoRepuesto.createMany({
+                data: repuestos.map(r => ({
+                    ordenTrabajoId: ordenId,
+                    productoId: r.productoId,
+                    cantidad: r.cantidad,
+                    precioSugerido: r.precio,
+                    subtotal: r.cantidad * r.precio
+                }))
+            });
+        }
+
+        // Actualizar orden
+        await tx.ordenTrabajo.update({
+            where: { id: ordenId },
+            data: {
+                estado: 'ESPERANDO_APROBACION',
+                fechaEvaluado: new Date(),
+                diagnosticoTecnico: diagnostico,
+                detalleManoObra: manoObra as any,
+                costoReparacion: costoSugerido
+            }
+        });
+    });
+
+    revalidatePath('/soporte');
+    revalidatePath(`/soporte/${ordenId}`);
+    return { success: true };
+}
+
+export async function aprobarPresupuesto(
+    ordenId: string, 
+    repuestosAprobados: any[], 
+    costoFinalLabor: number,
+    costoFinalReparacion: number
+) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    let userId = null;
+    if (user?.email) {
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email }});
+        userId = dbUser?.id;
+    }
+
+    await prisma.$transaction(async (tx) => {
+        for (const rep of repuestosAprobados) {
+            await tx.ordenTrabajoRepuesto.update({
+                where: { id: rep.id },
+                data: {
+                    precioAprobado: rep.precioAprobado,
+                    subtotalAprobado: rep.subtotalAprobado
+                }
+            });
+        }
+
+        await tx.ordenTrabajo.update({
+            where: { id: ordenId },
+            data: {
+                estado: 'REPARACION',
+                fechaAprobado: new Date(),
+                usuarioAprobacionId: userId || undefined,
+                costoReparacion: costoFinalReparacion
+            }
+        });
+    });
+
+    revalidatePath('/soporte');
+    revalidatePath(`/soporte/${ordenId}`);
+    return { success: true };
 }

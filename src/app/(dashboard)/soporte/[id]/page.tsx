@@ -19,6 +19,7 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
       usuarioRecepcion: true,
       tecnicoReparacion: true,
       usuarioAprobacion: true,
+      repuestos: { include: { producto: true } }
     }
   });
 
@@ -27,7 +28,22 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
   }
 
   return <SoporteDetailClient 
-    orden={{...orden, costoRevision: Number(orden.costoRevision), costoReparacion: Number(orden.costoReparacion)}} 
+    orden={{
+        ...orden, 
+        costoRevision: Number(orden.costoRevision), 
+        costoReparacion: Number(orden.costoReparacion),
+        repuestos: orden.repuestos.map((r: any) => ({
+            ...r,
+            precioSugerido: Number(r.precioSugerido),
+            subtotal: Number(r.subtotal),
+            precioAprobado: r.precioAprobado ? Number(r.precioAprobado) : null,
+            subtotalAprobado: r.subtotalAprobado ? Number(r.subtotalAprobado) : null,
+            producto: {
+                ...r.producto,
+                precioVenta: Number(r.producto.precioVenta)
+            }
+        }))
+    }} 
     userRole={userRole}
     customRoleName={dbUser?.customRoleName || ''}
   />;

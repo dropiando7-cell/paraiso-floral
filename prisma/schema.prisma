@@ -541,6 +541,7 @@ model Producto {
   activosFijos    ActivoFijo[]
   detallesFactura DetalleFactura[]
   movimientos     MovimientoInventario[]
+  ordenesTrabajoRepuestos OrdenTrabajoRepuesto[]
   organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, sku])
@@ -688,6 +689,8 @@ model OrdenTrabajo {
   codigoSeguridad    String
   notificadoWhatsApp Boolean      @default(false)
   fotosEstadoInicial String[]     @default([])
+  diagnosticoTecnico String?
+  detalleManoObra    Json?
   
   usuarioRecepcionId String?      @db.Uuid
   tecnicoReparacionId String?     @db.Uuid
@@ -698,11 +701,29 @@ model OrdenTrabajo {
   usuarioRecepcion   User?        @relation("RecepcionOrdenes", fields: [usuarioRecepcionId], references: [id])
   tecnicoReparacion  User?        @relation("TecnicoOrdenes", fields: [tecnicoReparacionId], references: [id])
   usuarioAprobacion  User?        @relation("AprobacionOrdenes", fields: [usuarioAprobacionId], references: [id])
-
+  repuestos          OrdenTrabajoRepuesto[]
   @@index([organizationId])
   @@index([clienteId])
   @@index([estado])
   @@map("ordenes_trabajo")
+}
+
+model OrdenTrabajoRepuesto {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ordenTrabajoId  String       @db.Uuid
+  productoId      String       @db.Uuid
+  cantidad        Int
+  precioSugerido  Decimal      @db.Decimal(12, 2)
+  subtotal        Decimal      @db.Decimal(12, 2)
+  precioAprobado  Decimal?     @db.Decimal(12, 2)
+  subtotalAprobado Decimal?    @db.Decimal(12, 2)
+
+  ordenTrabajo    OrdenTrabajo @relation(fields: [ordenTrabajoId], references: [id], onDelete: Cascade)
+  producto        Producto     @relation(fields: [productoId], references: [id])
+
+  @@index([ordenTrabajoId])
+  @@index([productoId])
+  @@map("ordenes_trabajo_repuestos")
 }
 
 model RentaEquipo {
