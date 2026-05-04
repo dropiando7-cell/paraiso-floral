@@ -1724,38 +1724,36 @@ export default function DocumentBuilderClient({
     <div className="min-h-screen bg-slate-50 font-sans print:bg-white overflow-x-hidden print:overflow-visible print:min-h-0 print:block">
       {/* Top Bar */}
       <div className={`sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[320px]' : ''}`}>
-        <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          {/* Left section: Breadcrumb space */}
-          <div className="flex items-center gap-4 flex-1">
-            {/* Espacio para breadcrumb exterior */}
+        <div className="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-y-3 gap-x-4 overflow-x-auto sm:overflow-visible">
+          
+          <div className="flex items-center gap-4 flex-1 min-w-[300px]">
+             <DocTypeSelector value={docType} onChange={setDocType} />
           </div>
 
-          <DocTypeSelector value={docType} onChange={setDocType} />
-
-          <div className="flex items-center gap-2 flex-1 justify-end">
+          <div className="flex items-center gap-2 shrink-0 ml-auto">
             {!isLocked ? (
               <>
                 <button
                   onClick={() => setShowActionsModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 hover:border-slate-300 transition-all shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 hover:border-slate-300 transition-all shadow-sm whitespace-nowrap shrink-0"
                 >
                   <LayoutGrid size={15} /> Más Acciones
                 </button>
                 <button
                   onClick={() => window.print()}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm whitespace-nowrap shrink-0"
                 >
                   <Printer size={15} /> Imprimir
                 </button>
               </>
             ) : (
-              <span className="text-sm font-semibold text-slate-400 mr-4">Selecciona y crea tu documento para comenzar</span>
+              <span className="text-sm font-semibold text-slate-400 mr-4 whitespace-nowrap">Selecciona y crea tu documento para comenzar</span>
             )}
             {!isAnulada && !isLocked && (
               <button 
                 onClick={handleSave}
                 disabled={isSaving}
-                className={`flex items-center gap-2 px-5 py-2 text-white rounded-xl text-sm font-bold shadow-md transition-all ${isSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'}`}
+                className={`flex items-center gap-2 px-5 py-2 text-white rounded-xl text-sm font-bold shadow-md transition-all whitespace-nowrap shrink-0 ${isSaving ? 'bg-slate-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-200'}`}
               >
                 <Send size={15} />
                 {isSaving ? 'Guardando...' : (docType === 'factura' ? 'Emitir Factura' : 'Guardar Documento')}

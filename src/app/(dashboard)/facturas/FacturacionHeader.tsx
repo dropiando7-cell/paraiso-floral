@@ -50,39 +50,52 @@ export default function FacturacionHeader(props: Props) {
 
   return (
     <div className="bg-white border-b border-slate-200 sticky top-0 z-[40] print:hidden">
-      <div className="max-w-[1600px] mx-auto px-4 flex items-center gap-4 overflow-x-auto">
-        <div className="py-4 flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shrink-0 shadow-md shadow-blue-500/20">
-            <LayoutDashboard size={16} className="text-white" />
+      <div className="max-w-[1600px] mx-auto px-4 flex flex-wrap items-center justify-between min-h-[64px] py-2 gap-y-2">
+        
+        {/* Lado Izquierdo: Título y Tabs */}
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 flex-1">
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center shadow-md shadow-blue-500/20">
+              <LayoutDashboard size={16} className="text-white" />
+            </div>
+            <span className="font-bold text-slate-800 tracking-tight text-lg drop-shadow-sm">Facturación</span>
           </div>
-          <span className="font-bold text-slate-800 tracking-tight text-lg mr-4 drop-shadow-sm">Facturación</span>
+
+          <nav className="flex flex-wrap items-center gap-1">
+            <Suspense fallback={<div className="w-20" />}>
+              <NavButtonInner {...props} id="creador" icon={PlusCircle} label="Crear Documento" />
+              <NavButtonInner {...props} id="facturas" icon={CheckCircle2} label="Registro de Facturas" />
+              <NavButtonInner {...props} id="proforma" icon={Receipt} label="Facturas Pro Forma" />
+              <NavButtonInner {...props} id="cotizaciones" icon={FileText} label="Cotizaciones Previas" />
+            </Suspense>
+          </nav>
         </div>
 
-        <nav className="flex items-center gap-1 -mb-px shrink-0">
-          <Suspense fallback={<div className="w-20" />}>
-            <NavButtonInner {...props} id="creador" icon={PlusCircle} label="Crear Documento" />
-            <NavButtonInner {...props} id="facturas" icon={CheckCircle2} label="Registro de Facturas" />
-            <NavButtonInner {...props} id="proforma" icon={Receipt} label="Facturas Pro Forma" />
-            <NavButtonInner {...props} id="cotizaciones" icon={FileText} label="Cotizaciones Previas" />
-          </Suspense>
+        {/* Lado Derecho: Acciones y POS */}
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
           {(props.activeTab === 'ver' || props.activeTab === 'editar') && (
-            <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-200">
-               <button onClick={handleVolver} className="py-2 px-3 font-semibold text-sm flex items-center gap-2 text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-all">
-                  <ArrowLeft size={15} /> Volver
+            <div className="flex items-center gap-2">
+               <button 
+                 onClick={handleVolver} 
+                 className="py-2.5 px-4 font-bold text-sm flex items-center gap-2 text-slate-600 border-2 border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 hover:text-slate-800 transition-all shadow-sm"
+               >
+                  <ArrowLeft size={16} /> Volver
                </button>
-               <span className="py-2 px-3 font-semibold text-sm flex items-center gap-2 text-blue-700 bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
+               <span className="py-2.5 px-4 font-bold text-sm flex items-center gap-2 text-blue-700 bg-blue-50/50 border-2 border-blue-200/60 rounded-xl shadow-sm">
+                 <FileText size={16} className="text-blue-500" />
                  {props.activeTab === 'ver' ? 'Vista Previa de Documento' : 'Edición de Documento'}
                </span>
             </div>
           )}
-        </nav>
 
-        <div className="flex shrink-0 border-l border-slate-200 pl-4 ml-auto py-2">
-           <Link href="/facturas/pos" prefetch={true} className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all group hover:-translate-y-0.5">
-             <Zap size={16} className="text-white fill-white/20 group-hover:fill-white/40 transition-colors" />
-             Caja Rápida POS
-           </Link>
+          <div className="pl-3 border-l border-slate-200 hidden sm:block">
+            <Link href="/facturas/pos" prefetch={true} className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-indigo-500/20 transition-all group hover:-translate-y-0.5">
+              <Zap size={16} className="text-white fill-white/20 group-hover:fill-white/40 transition-colors" />
+              Caja Rápida POS
+            </Link>
+          </div>
         </div>
+
       </div>
     </div>
   );
