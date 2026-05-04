@@ -11,14 +11,15 @@ import { useRouter } from 'next/navigation';
 
 type Orden = any;
 
-export default function SoporteDetailClient({ orden, userRole }: { orden: Orden, userRole: string }) {
+export default function SoporteDetailClient({ orden, userRole, customRoleName }: { orden: Orden, userRole: string, customRoleName?: string }) {
   const role = userRole;
+  const cRole = customRoleName?.toUpperCase() || '';
 
   // Determine visible blocks based on role (for demo they used isGlobal/isYensi, we use real roles)
   const isGlobal = role === 'SUPER_ADMIN' || role === 'ORG_ADMIN';
-  const isRecepcion = isGlobal || role === 'RECEPCION';
-  const isTecnico = isGlobal || role === 'TECNICO' || role === 'INVENTARIO_EDITOR';
-  const isGerente = isGlobal || role === 'GERENTE';
+  const isRecepcion = isGlobal || role === 'RECEPCION' || cRole === 'RECEPCION' || cRole.includes('RECEPCION');
+  const isTecnico = isGlobal || role === 'TECNICO' || role === 'INVENTARIO_EDITOR' || cRole === 'TECNICO' || cRole.includes('TECNICO');
+  const isGerente = isGlobal || role === 'GERENTE' || cRole === 'GERENTE' || cRole.includes('GERENTE');
 
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);

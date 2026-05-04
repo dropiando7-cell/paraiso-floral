@@ -26,5 +26,9 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
     redirect('/soporte');
   }
 
-  return <SoporteDetailClient orden={{...orden, costoRevision: Number(orden.costoRevision), costoReparacion: Number(orden.costoReparacion)}} userRole={userRole} />;
+  return <SoporteDetailClient 
+    orden={{...orden, costoRevision: Number(orden.costoRevision), costoReparacion: Number(orden.costoReparacion)}} 
+    userRole={userRole}
+    customRoleName={dbUser?.customRoleName || ''}
+  />;
 }
