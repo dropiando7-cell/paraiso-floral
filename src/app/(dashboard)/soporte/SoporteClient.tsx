@@ -74,7 +74,7 @@ export default function SoporteClient({ initialData }: { initialData: Orden[] })
                                                     <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase">
                                                         #{orden.codigoSeguridad}
                                                     </span>
-                                                    <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                                                    <span suppressHydrationWarning className="text-xs font-semibold text-slate-500 flex items-center gap-1">
                                                         <Clock className="w-3 h-3" />
                                                         {new Date(orden.fechaRecibido).toLocaleDateString()}
                                                     </span>
