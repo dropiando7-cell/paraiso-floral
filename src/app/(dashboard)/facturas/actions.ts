@@ -328,12 +328,12 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     if (item.activoId && debeDescontarInventario) {
                         await tx.activoFijo.update({
                             where: { id: item.activoId },
-                            data: { estado: 'VENDIDO', modificadoAt: new Date() }
+                            data: { estatusContable: 'VENDIDO' }
                         });
                     } else if (item.activoId && debeRestaurarInventario) {
                         await tx.activoFijo.update({
                             where: { id: item.activoId },
-                            data: { estado: 'VIGENTE', modificadoAt: new Date() }
+                            data: { estatusContable: 'VIGENTE' }
                         });
                     }
                 }
