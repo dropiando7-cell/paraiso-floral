@@ -104,7 +104,11 @@ export async function createOrdenTrabajo(data: {
     }
 
     revalidatePath('/soporte');
-    return orden;
+    return {
+        ...orden,
+        costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
+        costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
+    };
 }
 
 export async function updateEstadoOrden(id: string, nuevoEstado: string) {
@@ -121,7 +125,11 @@ export async function updateEstadoOrden(id: string, nuevoEstado: string) {
     });
 
     revalidatePath('/soporte');
-    return updated;
+    return {
+        ...updated,
+        costoRevision: updated.costoRevision ? Number(updated.costoRevision) : null,
+        costoReparacion: updated.costoReparacion ? Number(updated.costoReparacion) : null,
+    };
 }
 
 export async function updateCostoReparacion(id: string, costo: number) {
@@ -132,7 +140,11 @@ export async function updateCostoReparacion(id: string, costo: number) {
         }
     });
     revalidatePath('/soporte');
-    return updated;
+    return {
+        ...updated,
+        costoRevision: updated.costoRevision ? Number(updated.costoRevision) : null,
+        costoReparacion: updated.costoReparacion ? Number(updated.costoReparacion) : null,
+    };
 }
 
 export async function entregarOrden(id: string) {
@@ -144,7 +156,11 @@ export async function entregarOrden(id: string) {
         }
     });
     revalidatePath('/soporte');
-    return updated;
+    return {
+        ...updated,
+        costoRevision: updated.costoRevision ? Number(updated.costoRevision) : null,
+        costoReparacion: updated.costoReparacion ? Number(updated.costoReparacion) : null,
+    };
 }
 
 export async function finalizarReparacion(id: string) {
@@ -174,5 +190,9 @@ export async function finalizarReparacion(id: string) {
 
     revalidatePath('/soporte');
     revalidatePath(`/soporte/${id}`);
-    return orden;
+    return {
+        ...orden,
+        costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
+        costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
+    };
 }
