@@ -9,7 +9,7 @@ interface DocumentActionsModalProps {
   onClose: () => void;
   onDownloadPDF: () => void;
   onToggleCustomizer: () => void;
-  onConvert?: (targetType: string) => void;
+  onConvert?: (targetType: 'PROFORMA' | 'FACTURA') => void;
   isDownloadingPDF?: boolean;
   isConverting?: boolean;
   docType?: string; // 'cotizacion', 'proforma', etc
