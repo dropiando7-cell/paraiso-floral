@@ -269,7 +269,8 @@ export async function guardarDiagnostico(
     diagnostico: string, 
     repuestos: any[], 
     manoObra: any[], 
-    costoSugerido: number
+    costoSugerido: number,
+    fotosTecnico: string[] = []
 ) {
     const org = await prisma.organization.findFirst();
     if (!org) throw new Error("Organización no encontrada");
@@ -301,7 +302,8 @@ export async function guardarDiagnostico(
                 fechaEvaluado: new Date(),
                 diagnosticoTecnico: diagnostico,
                 detalleManoObra: manoObra as any,
-                costoReparacion: costoSugerido
+                costoReparacion: costoSugerido,
+                fotosTecnico: fotosTecnico
             }
         });
     });

@@ -29,7 +29,9 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
   
   const [diagnostico, setDiagnostico] = useState(orderData?.diagnosticoTecnico || "");
   const [nuevaHora, setNuevaHora] = useState({ descripcion: "", horas: "", tarifa: 400 });
-  const [fotoFalla, setFotoFalla] = useState<{name: string; url: string; file: File}[]>([]);
+  const [fotoFalla, setFotoFalla] = useState<{name: string; url: string; file?: File}[]>(
+    orderData?.fotosTecnico?.map((url: string, i: number) => ({ name: `foto-${i}`, url })) || []
+  );
   const [activeTab, setActiveTab] = useState("repuestos");
   const fileRef2 = useRef<HTMLInputElement>(null);
 
@@ -91,7 +93,30 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
     }
     setIsSaving(true);
     try {
-        await guardarDiagnostico(orderData.id, diagnostico, repuestos, horas, totalGeneral);
+        const uploadedUrls = [];
+        for (const photo of fotoFalla) {
+            if (!photo.file) {
+                uploadedUrls.push(photo.url);
+                continue;
+            }
+            const res = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ fileName: photo.name, contentType: photo.file.type })
+            });
+            if (!res.ok) throw new Error("Error servidor URL");
+            const { uploadUrl, publicUrl } = await res.json();
+            
+            const uploadRes = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: photo.file,
+                headers: { 'Content-Type': photo.file.type }
+            });
+            if (!uploadRes.ok) throw new Error("Error Cloudflare R2");
+            uploadedUrls.push(publicUrl);
+        }
+
+        await guardarDiagnostico(orderData.id, diagnostico, repuestos, horas, totalGeneral, uploadedUrls);
         router.refresh();
     } catch (e) {
         console.error("Error al guardar", e);

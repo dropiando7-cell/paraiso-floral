@@ -99,6 +99,33 @@ export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps
         )}
       </div>
 
+      <div className="mb-4">
+        <h5 className="text-sm font-bold text-slate-800 mb-2">Diagnóstico Técnico</h5>
+        <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700">
+            {orderData?.diagnosticoTecnico || "Sin diagnóstico técnico registrado."}
+        </div>
+      </div>
+
+      {(orderData?.fotosEstadoInicial?.length > 0 || orderData?.fotosTecnico?.length > 0) && (
+          <div className="mb-5">
+            <h5 className="text-sm font-bold text-slate-800 mb-2">Evidencia Fotográfica</h5>
+            <div className="flex gap-4 overflow-x-auto pb-2">
+                {orderData?.fotosEstadoInicial?.map((url: string, i: number) => (
+                    <div key={`rec-${i}`} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-200 relative">
+                        <span className="absolute top-0 left-0 bg-slate-900/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">Recepción</span>
+                        <img src={url} alt="Recepción" className="w-full h-full object-cover" />
+                    </div>
+                ))}
+                {orderData?.fotosTecnico?.map((url: string, i: number) => (
+                    <div key={`tec-${i}`} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-200 relative">
+                        <span className="absolute top-0 left-0 bg-indigo-600/80 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-br-lg">Técnico</span>
+                        <img src={url} alt="Técnico" className="w-full h-full object-cover" />
+                    </div>
+                ))}
+            </div>
+          </div>
+      )}
+
       <div className="bg-slate-50 rounded-xl p-4 mb-4">
         <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-2.5">
           DESGLOSE Y AJUSTE DE PRECIOS
@@ -134,6 +161,30 @@ export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps
                 ))}
               </tbody>
             </table>
+        )}
+
+        {orderData?.detalleManoObra && orderData.detalleManoObra.length > 0 && (
+            <div className="mb-3 mt-4 border-t border-slate-200 pt-3">
+                <div className="text-[11px] font-bold text-slate-400 tracking-wider mb-2">MANO DE OBRA SUGERIDA</div>
+                <table className="w-full text-left text-xs mb-2">
+                    <thead>
+                        <tr className="border-b border-slate-200">
+                            <th className="py-1 font-semibold text-slate-500">Actividad</th>
+                            <th className="py-1 font-semibold text-slate-500 text-center">Horas</th>
+                            <th className="py-1 font-semibold text-slate-500 text-right">Tarifa (L)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {orderData.detalleManoObra.map((h: any) => (
+                            <tr key={h.id} className="border-b border-slate-100 last:border-0">
+                                <td className="py-1 text-slate-700">{h.descripcion}</td>
+                                <td className="py-1 text-slate-700 text-center">{h.horas}</td>
+                                <td className="py-1 text-slate-700 text-right">{(h.horas * h.tarifa).toFixed(2)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         )}
 
         <div className="flex justify-between items-center mb-1 mt-3">

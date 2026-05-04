@@ -689,6 +689,7 @@ model OrdenTrabajo {
   codigoSeguridad    String
   notificadoWhatsApp Boolean      @default(false)
   fotosEstadoInicial String[]     @default([])
+  fotosTecnico       String[]     @default([])
   diagnosticoTecnico String?
   detalleManoObra    Json?
   
