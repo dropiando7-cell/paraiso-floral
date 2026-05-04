@@ -69,8 +69,13 @@ export default function StatusStepper({ estadoActual, ordenId, equipoInfo }: Sta
           const IconInfo = step.icon;
           return (
             <div key={step.key} className="flex-1 flex flex-col items-center relative z-10">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${s.bg} ${s.border} ${state === 'active' ? 'shadow-[0_0_0_4px_rgba(79,70,229,0.15)] ring-4 ring-indigo-50/50' : ''}`}>
-                <IconInfo className={`w-4 h-4 ${s.iconColor}`} />
+              <div className="relative flex items-center justify-center w-10 h-10">
+                {state === 'active' && (
+                  <div className="absolute inset-0 rounded-full bg-indigo-400 animate-ping opacity-75"></div>
+                )}
+                <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-200 ${s.bg} ${s.border} ${state === 'active' ? 'shadow-[0_0_0_4px_rgba(79,70,229,0.15)] ring-4 ring-indigo-50/50 scale-110' : ''}`}>
+                  <IconInfo className={`w-4 h-4 ${s.iconColor}`} />
+                </div>
               </div>
               <div className="text-center mt-3 max-w-[90px]">
                 <div className={`text-xs ${state === 'pending' ? 'font-medium' : 'font-bold'} ${s.labelColor} leading-tight`}>
