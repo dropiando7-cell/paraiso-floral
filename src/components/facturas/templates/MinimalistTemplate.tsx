@@ -150,9 +150,10 @@ export default function MinimalistTemplate(props: TemplateProps) {
  onChange={e => setNotes(e.target.value)}
  rows={5}
  className="w-full text-xs border-none bg-slate-50 p-4 resize-y min-h-[80px] focus:ring-0 text-slate-600 rounded-2xl whitespace-pre-wrap break-words print:hidden"
+ data-pdf-hide
  placeholder="Condiciones de pago..."
  />
- <div className="hidden print:block text-[11px] text-slate-500 whitespace-pre-wrap break-words w-full">
+ <div className="hidden print:block text-[11px] text-slate-500 whitespace-pre-wrap break-words w-full" data-pdf-show>
  {notes}
  </div>
  </div>

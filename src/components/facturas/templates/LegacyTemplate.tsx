@@ -178,7 +178,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  {/* Totals Section */}
  <div className="flex flex-col md:flex-row justify-between mb-4 mt-6 print:mt-1 gap-8 print:flex-row print:justify-between print:gap-4 print:break-inside-avoid">
  {/* Notes section left */}
- <div className="flex-1 mt-auto">
+ <div className="flex-1 print:w-[400px] mt-auto">
  <div className="text-sm">
  <p className="font-bold mb-1 text-xs">Nota / Plazo de pago:</p>
  <textarea
@@ -186,9 +186,10 @@ export default function LegacyTemplate(props: TemplateProps) {
  onChange={e => setNotes(e.target.value)}
  rows={5}
  className="w-full text-[11px] border border-gray-300 p-2 resize-y min-h-[80px] focus:outline-none whitespace-pre-wrap break-words print:hidden"
+ data-pdf-hide
  placeholder="Pago inmediato..."
  />
- <div className="hidden print:block text-[11px] whitespace-pre-wrap break-words w-full">{notes || paymentTerms}</div>
+ <div className="hidden print:block text-[11px] whitespace-pre-wrap break-words w-full" data-pdf-show>{notes || paymentTerms}</div>
  </div>
  </div>
 

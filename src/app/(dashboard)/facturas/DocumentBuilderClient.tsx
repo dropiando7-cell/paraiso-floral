@@ -8,8 +8,9 @@ import {
   Package, Stethoscope, Zap, CheckCircle2, Clock, AlertCircle,
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
-  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo
+  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid
 } from 'lucide-react';
+import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
 
@@ -824,8 +825,9 @@ export default function DocumentBuilderClient({
   const [notes, setNotes] = useState('');
   const [clientSearch, setClientSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
-  const [showClientModal, setShowClientModal] = useState(false);
   const [showProductModal, setShowProductModal] = useState(false);
+  const [showClientModal, setShowClientModal] = useState(false);
+  const [showActionsModal, setShowActionsModal] = useState(false);
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientData, setNewClientData] = useState({ nombre: '', email: '', telefono: '', rtn: '', direccion: '' });
@@ -1734,21 +1736,11 @@ export default function DocumentBuilderClient({
             {!isLocked ? (
               <>
                 <button
-                  onClick={() => setShowCustomizer(!showCustomizer)}
-                  className={`flex items-center gap-2 px-4 py-2 ${showCustomizer ? 'bg-blue-600 text-white shadow-md' : 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 text-blue-700'} rounded-xl text-sm font-semibold hover:shadow-md transition-all sm:flex`}
+                  onClick={() => setShowActionsModal(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 hover:border-slate-300 transition-all shadow-sm"
                 >
-                  {showCustomizer ? <X size={15} /> : <Sparkles size={15} />}
-                  {showCustomizer ? 'Ocultar Panel' : 'Personalizar Diseño'}
+                  <LayoutGrid size={15} /> Más Acciones
                 </button>
-                {(effectiveViewMode || initialData?.id || reservedDocId) && (
-                <button
-                  onClick={handleDownloadPDF}
-                  disabled={isDownloadingPDF}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all shadow-sm ${isDownloadingPDF ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 text-emerald-700 hover:from-emerald-100 hover:to-teal-100 hover:shadow-md'}`}
-                >
-                  <Download size={15} className={isDownloadingPDF ? 'animate-bounce' : ''} /> {isDownloadingPDF ? 'Generando...' : 'Descargar PDF'}
-                </button>
-                )}
                 <button
                   onClick={() => window.print()}
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl text-sm font-semibold hover:bg-slate-50 transition-all shadow-sm"
@@ -1758,42 +1750,6 @@ export default function DocumentBuilderClient({
               </>
             ) : (
               <span className="text-sm font-semibold text-slate-400 mr-4">Selecciona y crea tu documento para comenzar</span>
-            )}
-            {!isLocked && !isAnulada && !isConvertida && effectiveViewMode && initialData?.id && (
-              <>
-                {initialData.tipoDocumento === 'COTIZACION' && (
-                  <button
-                    onClick={() => handleConvert('PROFORMA')}
-                    disabled={isConverting || estaVencida}
-                    title={estaVencida ? "Esta cotización ha vencido. Duplíquela para renovarla." : "Convertir a Pro Forma"}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-violet-500 to-violet-600 text-white rounded-xl text-sm font-semibold hover:from-violet-600 hover:to-violet-700 shadow-md shadow-violet-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ArrowRight size={15} />
-                    {isConverting ? 'Convirtiendo...' : 'Convertir a Pro Forma'}
-                  </button>
-                )}
-                {initialData.tipoDocumento === 'PROFORMA' && (
-                  <button
-                    onClick={() => handleConvert('FACTURA')}
-                    disabled={isConverting}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-600 hover:to-emerald-700 shadow-md shadow-emerald-200 transition-all disabled:opacity-50"
-                  >
-                    <ArrowRight size={15} />
-                    {isConverting ? 'Convirtiendo...' : 'Convertir a Factura Oficial'}
-                  </button>
-                )}
-                {initialData.tipoDocumento === 'COTIZACION' && (
-                  <button
-                    onClick={() => handleConvert('FACTURA')}
-                    disabled={isConverting || estaVencida}
-                    title={estaVencida ? "Esta cotización ha vencido. Duplíquela para renovarla." : "Convertir directamente a Factura"}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-600 hover:to-emerald-700 shadow-md shadow-emerald-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <ArrowRight size={15} />
-                    {isConverting ? 'Convirtiendo...' : 'Facturar Directo'}
-                  </button>
-                )}
-              </>
             )}
             {!isAnulada && !isLocked && (
               <button 
@@ -2228,7 +2184,10 @@ export default function DocumentBuilderClient({
                 Hacer Nuevo
               </button>
               <button
-                onClick={() => router.push(`/facturas/ver/${showSuccessModal.docId}`)}
+                onClick={() => {
+                  setShowSuccessModal(null);
+                  router.push(`/facturas/ver/${showSuccessModal.docId}`);
+                }}
                 className="flex-[1.5] py-3 px-4 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all"
               >
                 Ver Documento
@@ -2270,6 +2229,19 @@ export default function DocumentBuilderClient({
             </div>
           </div>
         </div>
+      )}
+
+      {showActionsModal && (
+        <DocumentActionsModal
+          onClose={() => setShowActionsModal(false)}
+          onDownloadPDF={handleDownloadPDF}
+          onToggleCustomizer={() => setShowCustomizer(!showCustomizer)}
+          onConvert={(!isLocked && !isAnulada && !isConvertida && effectiveViewMode && initialData?.id) ? handleConvert : undefined}
+          isDownloadingPDF={isDownloadingPDF}
+          isConverting={isConverting}
+          docType={initialData?.tipoDocumento?.toLowerCase() || docType}
+          estaVencida={estaVencida}
+        />
       )}
     </div>
   );

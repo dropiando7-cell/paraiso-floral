@@ -196,9 +196,10 @@ export default function ClassicTemplate(props: TemplateProps) {
  onChange={e => setNotes(e.target.value)}
  rows={5}
  className="w-full text-xs border border-slate-200 bg-slate-50 p-3 resize-y min-h-[80px] focus:border-slate-400 focus:ring-0 whitespace-pre-wrap break-words print:hidden"
+ data-pdf-hide
  placeholder="Ingresar condiciones..."
  />
- <div className="hidden print:block text-xs text-slate-700 whitespace-pre-wrap break-words w-full mt-1">
+ <div className="hidden print:block text-xs text-slate-700 whitespace-pre-wrap break-words w-full mt-1" data-pdf-show>
  {notes}
  </div>
  </div>
