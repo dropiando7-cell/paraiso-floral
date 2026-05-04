@@ -8,12 +8,12 @@ import {
   Package, Stethoscope, Zap, CheckCircle2, Clock, AlertCircle,
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
-  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette
+  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo
 } from 'lucide-react';
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
 
-type DocType = 'cotizacion' | 'proforma' | 'factura';
+type DocType = 'cotizacion' | 'proforma' | 'factura' | 'nota_credito';
 type TaxType = 'isv15' | 'isv18' | 'exento' | 'exonerado';
 
 interface LineItem {
@@ -85,6 +85,7 @@ const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; color: st
   { key: 'cotizacion', label: 'Cotización', icon: <FileText size={14} />, color: 'text-blue-600', bg: 'bg-blue-50', description: 'Propuesta comercial formal' },
   { key: 'proforma', label: 'Pro Forma', icon: <Receipt size={14} />, color: 'text-violet-600', bg: 'bg-violet-50', description: 'Factura preliminar de exportación' },
   { key: 'factura', label: 'Factura Oficial', icon: <CheckCircle2 size={14} />, color: 'text-emerald-600', bg: 'bg-emerald-50', description: 'Documento fiscal definitivo' },
+  { key: 'nota_credito', label: 'Nota de Crédito', icon: <Undo size={14} />, color: 'text-purple-600', bg: 'bg-purple-50', description: 'Documento de devolución/descuento' },
 ];
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -805,12 +806,14 @@ export default function DocumentBuilderClient({
   organization, 
   initialData, 
   editMode = false, 
-  viewMode = false 
+  viewMode = false,
+  isNotaCredito = false
 }: { 
   organization?: any;
   initialData?: any;
   editMode?: boolean;
   viewMode?: boolean;
+  isNotaCredito?: boolean;
 }) {
   const [docType, setDocType] = useState<DocType>('cotizacion');
   const [docNumber, setDocNumber] = useState('');
@@ -1230,15 +1233,20 @@ export default function DocumentBuilderClient({
   // Cargar initialData si existe
   useEffect(() => {
     if (initialData) {
-      setDocType(initialData.tipoDocumento.toLowerCase() as DocType);
+      if (isNotaCredito) {
+        setDocType('nota_credito');
+        setNotes(`Aplica a Factura Oficial No. ${initialData.correlativo}\n`);
+      } else {
+        setDocType(initialData.tipoDocumento.toLowerCase() as DocType);
+        setNotes(initialData.notas || '');
+      }
       
       // Mostrar correlativo al editar o ver; solo borrar cuando sea un clon (nueva copia)
-      const isClone = !editMode && !viewMode;
+      const isClone = !editMode && !viewMode && !isNotaCredito;
       setDocNumber(isClone ? '' : initialData.correlativo);
       
       setPaymentTerms(initialData.terminosPago || '30 días netos');
       setValidityDays(initialData.validezDias || 30);
-      setNotes(initialData.notas || '');
       // Extraemos totales manuales si la suma no cuaja, pero como no sabemos de donde vino, tomamos el valor guardado y restamos lo calculado por lineas.
       let lineBaseExento = 0;
       let lineBaseExonerado = 0;
@@ -1575,7 +1583,7 @@ export default function DocumentBuilderClient({
     try {
       const data = {
         clienteId: selectedClient.id,
-        tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : docType === 'proforma' ? 'PROFORMA' : 'FACTURA',
+        tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : docType === 'proforma' ? 'PROFORMA' : docType === 'nota_credito' ? 'NOTA_CREDITO' : 'FACTURA',
         notas: notes,
         terminosPago: paymentTerms,
         validezDias: validityDays,
@@ -1588,7 +1596,8 @@ export default function DocumentBuilderClient({
         totalGravado18: totals.gravado18,
         isv18: totals.isv18,
         total: totals.total,
-        templateSettings: settings
+        templateSettings: settings,
+        documentoOrigenId: isNotaCredito ? initialData?.id : undefined
       };
       
       let res;
@@ -1706,6 +1715,7 @@ export default function DocumentBuilderClient({
     cotizacion: { badge: 'bg-blue-50 text-blue-600 border border-blue-200', label: 'COTIZACIÓN' },
     proforma: { badge: 'bg-violet-50 text-violet-600 border border-violet-200', label: 'PRO FORMA' },
     factura: { badge: 'bg-emerald-50 text-emerald-600 border border-emerald-200', label: 'FACTURA OFICIAL' },
+    nota_credito: { badge: 'bg-purple-50 text-purple-600 border border-purple-200', label: 'NOTA DE CRÉDITO' },
   };
 
   return (
@@ -1818,7 +1828,7 @@ export default function DocumentBuilderClient({
             nombreUsuario={initialData?.nombreUsuario}
             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
             today={today} futureDate={futureDate} selectedClient={selectedClient} 
-            setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
+            setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
             setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
@@ -1831,7 +1841,7 @@ export default function DocumentBuilderClient({
              nombreUsuario={initialData?.nombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
-             setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
+             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
@@ -1844,7 +1854,7 @@ export default function DocumentBuilderClient({
              nombreUsuario={initialData?.nombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
-             setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
+             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
@@ -1857,7 +1867,7 @@ export default function DocumentBuilderClient({
              nombreUsuario={initialData?.nombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
-             setShowClientModal={setShowClientModal} paymentTerms={paymentTerms} 
+             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}

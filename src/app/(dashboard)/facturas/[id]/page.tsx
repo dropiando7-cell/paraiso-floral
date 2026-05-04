@@ -18,6 +18,7 @@ export default async function EditDocumentPage({
     const { id } = await params;
     const resolvedSearchParams = await searchParams;
     const isClone = resolvedSearchParams?.clone === 'true';
+    const isNotaCredito = resolvedSearchParams?.notaCredito === 'true';
 
     let org = null;
     let doc = null;
@@ -50,9 +51,9 @@ export default async function EditDocumentPage({
 
     return (
         <div className="bg-slate-50 min-h-screen flex flex-col">
-            <FacturacionHeader activeTab={isClone ? "creador" : "editar"} isSubPage={true} />
+            <FacturacionHeader activeTab={isClone || isNotaCredito ? "creador" : "editar"} isSubPage={true} />
             <div className="p-6 max-w-[1400px] mx-auto w-full">
-               <DocumentBuilderClient organization={org} initialData={doc} editMode={!isClone} />
+               <DocumentBuilderClient organization={org} initialData={doc} editMode={!isClone && !isNotaCredito} isNotaCredito={isNotaCredito} />
             </div>
         </div>
     );

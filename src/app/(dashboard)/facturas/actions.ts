@@ -29,6 +29,7 @@ export async function getOrganizationId() {
 function formatCorrelativo(numeroInterno: number, tipoDocumento: string): string {
     const prefix = tipoDocumento === 'COTIZACION' ? 'COT-SO' :
                    tipoDocumento === 'PROFORMA' ? 'PRO-SO' :
+                   tipoDocumento === 'NOTA_CREDITO' ? 'NC-SO' :
                    'FAC-SO';
     return `${prefix}${String(numeroInterno).padStart(8, '0')}`;
 }
@@ -303,22 +304,36 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
 
             // Descontar inventario (sólo si no lo estaba ya)
             const debeDescontarInventario = (data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'PROFORMA');
-            if (docExistente.estado === 'BORRADOR' && debeDescontarInventario) {
+            const debeRestaurarInventario = (data.tipoDocumento === 'NOTA_CREDITO');
+            
+            if (docExistente.estado === 'BORRADOR' && (debeDescontarInventario || debeRestaurarInventario)) {
                 for (const item of lineItems) {
                     if (item.productoId) {
                         const prod = await tx.producto.findUnique({ where: { id: item.productoId } });
                         const esServicio = prod?.esServicio === true || prod?.stockActual === 9999;
                         if (!esServicio) {
-                            await tx.producto.update({
-                                where: { id: item.productoId },
-                                data: { stockActual: { decrement: Number(item.qty) } }
-                            });
+                            if (debeDescontarInventario) {
+                                await tx.producto.update({
+                                    where: { id: item.productoId },
+                                    data: { stockActual: { decrement: Number(item.qty) } }
+                                });
+                            } else if (debeRestaurarInventario) {
+                                await tx.producto.update({
+                                    where: { id: item.productoId },
+                                    data: { stockActual: { increment: Number(item.qty) } }
+                                });
+                            }
                         }
                     }
-                    if (item.activoId) {
+                    if (item.activoId && debeDescontarInventario) {
                         await tx.activoFijo.update({
                             where: { id: item.activoId },
-                            data: { estatusContable: 'VENDIDO/ENTREGADO' }
+                            data: { estado: 'VENDIDO', modificadoAt: new Date() }
+                        });
+                    } else if (item.activoId && debeRestaurarInventario) {
+                        await tx.activoFijo.update({
+                            where: { id: item.activoId },
+                            data: { estado: 'VIGENTE', modificadoAt: new Date() }
                         });
                     }
                 }
@@ -375,6 +390,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
 
         // Descuenta inventario: FACTURA y PROFORMA sí, COTIZACION no
         const debeDescontarInventario = data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'PROFORMA';
+        const debeRestaurarInventario = data.tipoDocumento === 'NOTA_CREDITO';
 
         const result = await prisma.$transaction(async (tx) => {
             // Crear el documento — el correlativo se genera DESPUÉS del create (usa numeroInterno auto)
@@ -436,24 +452,36 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                 data: { correlativo: correlativoFinal }
             });
 
-            // Descontar inventario (FACTURA y PROFORMA, no servicios)
-            if (debeDescontarInventario) {
+            // Descontar o restaurar inventario
+            if (debeDescontarInventario || debeRestaurarInventario) {
                 for (const item of lineItems) {
                     if (item.productoId) {
                         // Verificar si es servicio (esServicio=true o stockActual=9999)
                         const prod = await tx.producto.findUnique({ where: { id: item.productoId } });
                         const esServicio = prod?.esServicio === true || prod?.stockActual === 9999;
                         if (!esServicio) {
-                            await tx.producto.update({
-                                where: { id: item.productoId },
-                                data: { stockActual: { decrement: Number(item.qty) } }
-                            });
+                            if (debeDescontarInventario) {
+                                await tx.producto.update({
+                                    where: { id: item.productoId },
+                                    data: { stockActual: { decrement: Number(item.qty) } }
+                                });
+                            } else if (debeRestaurarInventario) {
+                                await tx.producto.update({
+                                    where: { id: item.productoId },
+                                    data: { stockActual: { increment: Number(item.qty) } }
+                                });
+                            }
                         }
                     }
-                    if (item.activoId) {
+                    if (item.activoId && debeDescontarInventario) {
                         await tx.activoFijo.update({
                             where: { id: item.activoId },
-                            data: { estatusContable: 'VENDIDO/ENTREGADO' }
+                            data: { estado: 'VENDIDO', modificadoAt: new Date() }
+                        });
+                    } else if (item.activoId && debeRestaurarInventario) {
+                        await tx.activoFijo.update({
+                            where: { id: item.activoId },
+                            data: { estado: 'VIGENTE', modificadoAt: new Date() }
                         });
                     }
                 }
@@ -644,8 +672,27 @@ export async function anularDocumento(id: string) {
                 }
             });
 
-            // 2. Si el documento había descontado inventario (Facturas o Proformas), devolverlo
-            if (doc.inventarioDescontado) {
+            // 2. Si el documento había descontado inventario (Facturas o Proformas), devolverlo. Si era Nota de Crédito, volver a descontar.
+            if (doc.tipoDocumento === 'NOTA_CREDITO') {
+                for (const item of doc.detalles) {
+                    if (item.productoId) {
+                        try {
+                           await tx.producto.update({
+                               where: { id: item.productoId },
+                               data: { stockActual: { decrement: item.cantidad } }
+                           });
+                        } catch(e) {}
+                    }
+                    if (item.activoId) {
+                        try {
+                           await tx.activoFijo.update({
+                               where: { id: item.activoId },
+                               data: { estado: 'VENDIDO', modificadoAt: new Date() }
+                           });
+                        } catch(e) {}
+                    }
+                }
+            } else if (doc.inventarioDescontado) {
                 for (const item of doc.detalles) {
                     if (item.productoId) {
                         try {

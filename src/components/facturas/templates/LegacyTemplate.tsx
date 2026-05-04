@@ -184,11 +184,11 @@ export default function LegacyTemplate(props: TemplateProps) {
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}
- rows={3}
- className="w-full text-[11px] border border-gray-300 p-2 resize-none focus:outline-none print:hidden"
+ rows={5}
+ className="w-full text-[11px] border border-gray-300 p-2 resize-y min-h-[80px] focus:outline-none whitespace-pre-wrap break-words print:hidden"
  placeholder="Pago inmediato..."
  />
- <div className="hidden print:flex text-[11px] whitespace-pre-wrap">{notes || paymentTerms}</div>
+ <div className="hidden print:block text-[11px] whitespace-pre-wrap break-words w-full">{notes || paymentTerms}</div>
  </div>
  </div>
 

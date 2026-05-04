@@ -148,11 +148,11 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}
- rows={3}
- className="w-full text-xs border-none bg-slate-50 p-4 resize-none focus:ring-0 text-slate-600 rounded-2xl print:hidden"
+ rows={5}
+ className="w-full text-xs border-none bg-slate-50 p-4 resize-y min-h-[80px] focus:ring-0 text-slate-600 rounded-2xl whitespace-pre-wrap break-words print:hidden"
  placeholder="Condiciones de pago..."
  />
- <div className="hidden print:flex text-[11px] text-slate-500 whitespace-pre-wrap">
+ <div className="hidden print:block text-[11px] text-slate-500 whitespace-pre-wrap break-words w-full">
  {notes}
  </div>
  </div>

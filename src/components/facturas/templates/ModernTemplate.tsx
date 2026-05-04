@@ -199,11 +199,11 @@ export default function ModernTemplate(props: TemplateProps) {
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}
- rows={3}
+ rows={5}
  placeholder="Condiciones de entrega, garantía, soporte técnico incluido, instrucciones especiales..."
- className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-none placeholder:text-slate-300 text-slate-600 print:hidden"
+ className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 bg-slate-50 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all resize-y min-h-[80px] placeholder:text-slate-300 text-slate-600 whitespace-pre-wrap break-words print:hidden"
  />
- <div className="hidden print:flex text-sm text-slate-800 whitespace-pre-wrap">
+ <div className="hidden print:block text-sm text-slate-800 whitespace-pre-wrap break-words w-full">
  {notes || " "}
  </div>
  </div>

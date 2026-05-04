@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { anularDocumento } from '@/app/(dashboard)/facturas/actions';
@@ -63,8 +63,12 @@ export default function DocumentListTable({ data, type }: Props) {
       // Filter out anuladas if the toggle is off
       if (!showAnuladas && doc.estado === 'ANULADA') return false;
       
-      // If type isn't TODOS, filter by type
-      if (type !== 'TODOS' && doc.tipoDocumento !== type) return false;
+      // Si estamos en la pestaña FACTURA, mostrar tanto facturas como notas de crédito
+      if (type === 'FACTURA') {
+        if (doc.tipoDocumento !== 'FACTURA' && doc.tipoDocumento !== 'NOTA_CREDITO') return false;
+      } else if (type !== 'TODOS' && doc.tipoDocumento !== type) {
+        return false;
+      }
       
       const q = search.toLowerCase();
       return doc.correlativo.toLowerCase().includes(q) || 
@@ -147,8 +151,8 @@ export default function DocumentListTable({ data, type }: Props) {
                 >
                   <td className="p-4 align-middle">
                    <div className="flex items-center gap-3">
-                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm border ${doc.tipoDocumento === 'FACTURA' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
-                       {doc.tipoDocumento === 'FACTURA' ? <CheckCircle2 size={18} /> : <FileText size={18} />}
+                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm border ${doc.tipoDocumento === 'FACTURA' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : doc.tipoDocumento === 'NOTA_CREDITO' ? 'bg-purple-50 text-purple-600 border-purple-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                       {doc.tipoDocumento === 'FACTURA' ? <CheckCircle2 size={18} /> : doc.tipoDocumento === 'NOTA_CREDITO' ? <Undo size={18} /> : <FileText size={18} />}
                      </div>
                      <div>
                        <p className="font-bold text-slate-800 tabular-nums">{doc.correlativo}</p>
@@ -188,6 +192,11 @@ export default function DocumentListTable({ data, type }: Props) {
                     >
                       <MessageCircle size={16} />
                     </button>
+                    {doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA' && (
+                      <Link href={`/facturas/${doc.id}?notaCredito=true`} title="Generar Nota de Crédito" className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-100 rounded-lg transition-colors">
+                        <Undo size={16} />
+                      </Link>
+                    )}
                     {doc.estado !== 'ANULADA' && (
                       <button 
                         onClick={() => setDocToAnul(doc)} 
