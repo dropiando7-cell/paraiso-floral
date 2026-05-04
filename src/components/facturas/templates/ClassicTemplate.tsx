@@ -135,9 +135,9 @@ export default function ClassicTemplate(props: TemplateProps) {
  borderColor: settings?.tableBorderColor || '#1e293b'
  }}
  >
- <div className="w-4 shrink-0 print:hidden" />
+ <div className="w-4 shrink-0 print:hidden" data-pdf-hide />
  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-[34px] shrink-0" />}
- <div className={`flex-1 grid grid-cols-[18fr_30fr_9fr_18fr_14fr_15fr_16fr] gap-2 text-[10px] font-bold uppercase ${baseColor}`}>
+ <div className={`flex-1 grid grid-cols-[minmax(0,21fr)_minmax(0,27fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,16fr)] gap-2 text-[10px] font-bold uppercase ${baseColor}`}>
   <div className={`relative flex items-center justify-center text-center py-2 print:py-1 `}>Código
     {settings?.showTableVerticalBorders && <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#1e293b', zIndex: 10 }} />}
   </div>
@@ -158,7 +158,7 @@ export default function ClassicTemplate(props: TemplateProps) {
   </div>
   <div className="relative flex items-center justify-end text-right py-2 print:py-1 pr-2">Monto</div>
  </div>
- <div className="w-[24px] shrink-0 print:hidden" />
+ <div className="w-[24px] shrink-0 print:hidden" data-pdf-hide />
  </div>
 
  <div className="flex flex-col">

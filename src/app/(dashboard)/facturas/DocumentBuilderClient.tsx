@@ -65,7 +65,7 @@ interface Product {
   fechaVencimiento?: string | Date | null;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion } from './actions';
 import { createContacto } from '../contactos/actions';
 import toast from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -459,6 +459,7 @@ function LineItemRow({
         {/* Drag handle + index */}
         <div 
           className={`relative flex flex-col items-center justify-center w-4 h-[34px] shrink-0 print:hidden ${padClass}`}
+          data-pdf-hide
           onMouseEnter={() => setIsDraggable(true)}
           onMouseLeave={() => setIsDraggable(false)}
         >
@@ -467,7 +468,7 @@ function LineItemRow({
             <GripVertical size={14} className="text-slate-400 hover:text-slate-600" />
           </div>
           )}
-          <span className={`text-[10px] font-bold text-slate-300 w-4 text-center ${!viewMode ? 'group-hover:opacity-0 transition-opacity' : ''}`}>{index + 1}</span>
+          <span data-pdf-hide className={`text-[10px] font-bold text-slate-300 w-4 text-center ${!viewMode ? 'group-hover:opacity-0 transition-opacity' : ''}`}>{index + 1}</span>
         </div>
 
         {/* First Column Image Position (if enabled) */}
@@ -521,7 +522,7 @@ function LineItemRow({
              </div>
           </div>
         ) : (
-          <div className="flex-1 grid grid-cols-[18fr_30fr_9fr_18fr_14fr_15fr_16fr] gap-2 min-w-0 relative">
+          <div className="flex-1 grid grid-cols-[minmax(0,21fr)_minmax(0,27fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,16fr)] gap-2 min-w-0 relative">
             {/* Code */}
             <div className={`min-w-0 relative flex items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {viewMode ? (
@@ -701,7 +702,7 @@ function LineItemRow({
         )}
 
         {/* Actions */}
-        <div className={`relative w-[24px] shrink-0 print:hidden flex items-center justify-center ${padClass}`}>
+        <div className={`relative w-[24px] shrink-0 print:hidden flex items-center justify-center ${padClass}`} data-pdf-hide>
           <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-row gap-0.5 items-center justify-end opacity-0 group-hover:opacity-100 transition-all bg-white/95 backdrop-blur-sm px-1 py-0.5 rounded-md shadow-sm border border-slate-200 z-[60]">
             {item.isSection ? (
               <button
@@ -832,6 +833,7 @@ export default function DocumentBuilderClient({
   const [isDownloadingPDF, setIsDownloadingPDF] = useState(false);
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [isForcePrinting, setIsForcePrinting] = useState(false);
+  const [showExpiredOnly, setShowExpiredOnly] = useState(false);
   const templateContainerRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<InvoiceSettings>(() => {
     // Always merge organization settings (available on both server and client as a prop).
@@ -1335,6 +1337,7 @@ export default function DocumentBuilderClient({
           brand: p.marca || '',
           type: p.type || 'producto',
           imageUrl: p.imageUrl || p.imagenUrl || null,
+          fechaVencimiento: p.fechaVencimiento || null,
         })));
       } catch (e) {
         console.error("Error al cargar datos", e);
@@ -1418,11 +1421,18 @@ export default function DocumentBuilderClient({
   };
 
   const nProductSearch = normalizeText(productSearch);
-  const filteredProducts = allProducts.filter(p =>
-    normalizeText(p.name).includes(nProductSearch) ||
-    normalizeText(p.code).includes(nProductSearch) ||
-    normalizeText(p.category).includes(nProductSearch)
-  );
+  const filteredProducts = allProducts.filter(p => {
+    const matchesSearch = normalizeText(p.name).includes(nProductSearch) ||
+      normalizeText(p.code).includes(nProductSearch) ||
+      normalizeText(p.category).includes(nProductSearch);
+      
+    if (showExpiredOnly) {
+      const isExpired = p.fechaVencimiento && new Date(p.fechaVencimiento) < new Date();
+      return matchesSearch && isExpired;
+    }
+    
+    return matchesSearch;
+  });
 
   const handleLineChange = useCallback((id: string, field: any, val: any) => {
     setLineItems(prev => prev.map(item => item.id === id ? { ...item, [field]: val } : item));
@@ -1433,10 +1443,19 @@ export default function DocumentBuilderClient({
   }, []);
 
   const handleToggleLongDesc = useCallback((id: string) => {
+    const targetItem = lineItems.find(i => i.id === id);
+    if (!targetItem) return;
+    const newVal = !targetItem.showLongDesc;
+    
+    // Guardado automático en BD si es un registro real
+    if (id && id.length > 20) {
+      toggleMostrarDescripcion(id, newVal).catch(e => console.error('Error auto-saving desc toggle:', e));
+    }
+    
     setLineItems(prev => prev.map(item =>
-      item.id === id ? { ...item, showLongDesc: !item.showLongDesc } : item
+      item.id === id ? { ...item, showLongDesc: newVal } : item
     ));
-  }, []);
+  }, [lineItems]);
 
   const handleDuplicateLine = useCallback((id: string) => {
     setLineItems(prev => {
@@ -2032,15 +2051,25 @@ export default function DocumentBuilderClient({
               </button>
             </div>
             <div className="p-4 border-b border-slate-100 bg-white">
-              <div className="relative">
-                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  autoFocus
-                  value={productSearch}
-                  onChange={e => setProductSearch(e.target.value)}
-                  placeholder="Buscar equipo, marca o código..."
-                  className="w-full pl-11 pr-4 py-3 text-sm border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
-                />
+              <div className="flex gap-2 items-center">
+                <div className="relative flex-1">
+                  <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    autoFocus
+                    value={productSearch}
+                    onChange={e => setProductSearch(e.target.value)}
+                    placeholder="Buscar equipo, marca o código..."
+                    className="w-full pl-11 pr-4 py-3 text-sm border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none"
+                  />
+                </div>
+                <button
+                  onClick={() => setShowExpiredOnly(!showExpiredOnly)}
+                  className={`px-4 py-3 rounded-xl text-xs font-semibold border-2 transition-all flex items-center justify-center whitespace-nowrap ${showExpiredOnly ? 'bg-red-50 text-red-600 border-red-200' : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'}`}
+                  title="Mostrar solo productos vencidos"
+                >
+                  <AlertCircle size={14} className="mr-1.5" />
+                  Vencidos
+                </button>
               </div>
             </div>
             <div className="overflow-y-auto p-4 bg-slate-50/50 flex-1">

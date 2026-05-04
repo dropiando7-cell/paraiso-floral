@@ -600,6 +600,20 @@ export async function getDocumentoById(id: string) {
     }
 }
 
+// --- ACTUALIZAR ESTADO DE DESCRIPCION TECNICA ---
+export async function toggleMostrarDescripcion(id: string, mostrar: boolean) {
+    try {
+        await prisma.detalleFactura.update({
+            where: { id },
+            data: { mostrarDescripcion: mostrar }
+        });
+        return { success: true };
+    } catch (e) {
+        // Ignorar errores (por ejemplo si el id es un draft y aún no existe en DB)
+        return { success: false };
+    }
+}
+
 // --- ANULAR DOCUMENTO (Soft Delete + Restore Inventory) ---
 export async function anularDocumento(id: string) {
     try {
