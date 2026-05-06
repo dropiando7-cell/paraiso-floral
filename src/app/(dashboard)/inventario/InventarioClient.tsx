@@ -3305,7 +3305,7 @@ function CategoriaQuickModal({ open, onClose, onSuccess, categorias = [] }: { op
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-[70] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
                 <div className="flex border-b border-slate-200">
                     <button 
