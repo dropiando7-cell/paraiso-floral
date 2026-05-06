@@ -1911,7 +1911,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             <FieldLabel required>Nombre / Descripción Corta <span className="opacity-50">(Para Tickets)</span></FieldLabel>
                                             <input type="text" name="descripcionCorta" required
                                                 disabled={isExistingGroup}
-                                                value={descripcionCorta}
+                                                value={descripcionCorta || ''}
                                                 onChange={e => setDescripcionCorta(e.target.value)}
                                                 placeholder="Ej: Silla Ejecutiva, Escritorio 4 Gavetas..."
                                                 className={`${aiResult?.descripcionCorta ? inputAiCls : inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
@@ -1964,7 +1964,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                     {aiResult?.marca && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
                                                 </FieldLabel>
                                                 <input type="text" name="marca"
-                                                    value={marca}
+                                                    value={marca || ''}
                                                     disabled={isExistingGroup}
                                                     onChange={e => setMarca(e.target.value)}
                                                     placeholder="Ej: Yamaha, Sony..."
@@ -1976,7 +1976,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                     {aiResult?.modelo && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
                                                 </FieldLabel>
                                                 <input type="text" name="modelo"
-                                                    value={modelo}
+                                                    value={modelo || ''}
                                                     disabled={isExistingGroup}
                                                     onChange={e => setModelo(e.target.value)}
                                                     placeholder="Ej: P-125..."
@@ -1985,7 +1985,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             <div>
                                                 <FieldLabel>Referencia Comercial</FieldLabel>
                                                 <input type="text" name="referencia"
-                                                    value={referencia}
+                                                    value={referencia || ''}
                                                     disabled={isExistingGroup}
                                                     onChange={e => setReferencia(e.target.value)}
                                                     placeholder="Ej: REF-10293..."
@@ -1994,7 +1994,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             <div>
                                                 <FieldLabel>Lote</FieldLabel>
                                                 <input type="text" name="lote"
-                                                    value={lote}
+                                                    value={lote || ''}
                                                     disabled={isExistingGroup}
                                                     onChange={e => setLote(e.target.value)}
                                                     placeholder="Ej: LTA-2023..."
@@ -2052,7 +2052,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
                                             <div>
                                                 <FieldLabel>Lote</FieldLabel>
-                                                <input type="text" value={lote} onChange={e => setLote(e.target.value)} placeholder="Opcional" className={inputCls} disabled={isExistingGroup} />
+                                                <input type="text" value={lote || ''} onChange={e => setLote(e.target.value)} placeholder="Opcional" className={inputCls} disabled={isExistingGroup} />
                                             </div>
                                             <div>
                                                 <FieldLabel>Fecha Fabricación</FieldLabel>
@@ -2070,7 +2070,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                 Descripción Detallada
                                             </FieldLabel>
                                             <textarea name="descripcionDetallada" rows={3}
-                                                value={descripcionDetallada}
+                                                value={descripcionDetallada || ''}
                                                 disabled={isExistingGroup}
                                                 onChange={e => setDescripcionDetallada(e.target.value)}
                                                 placeholder="Marca, modelo, color, características adicionales..."
