@@ -60,7 +60,7 @@ export default async function POSPage() {
       isvAplicable: a.producto?.isvAplicable ?? 15,
       esServicio: false,
       isActivoFijo: true,
-      imageUrl: a.imagenUrl || a.producto?.imageUrl || undefined,
+      imageUrl: a.imagenUrl || undefined,
       codigoBarras: a.codigoBarras || null
     }))
   ];
