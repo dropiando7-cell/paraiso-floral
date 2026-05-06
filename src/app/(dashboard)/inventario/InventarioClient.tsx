@@ -696,7 +696,7 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
     ];
 
     return (
-        <div className="fixed inset-0 z-[60] flex flex-col bg-black" style={{ touchAction: 'none' }}>
+        <div className="fixed inset-0 z-[150] flex flex-col bg-black" style={{ touchAction: 'none' }}>
             <div className="flex items-center justify-between px-4 py-3 bg-black/80">
                 <p className="text-white text-sm font-medium">📐 Arrastra el recuadro para recortar</p>
                 <button onClick={onCancel} className="p-2 text-white/70 hover:text-white"><X className="w-5 h-5" /></button>
