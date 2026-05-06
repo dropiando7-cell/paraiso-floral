@@ -8,7 +8,7 @@ import { useRouter } from 'next/navigation';
 const INACTIVITY_TIMEOUT_MS = 600_000; // 10 min → mostrará el modal
 const COUNTDOWN_SECONDS = 30;      // segundos para hacer logout automático
 
-const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keypress', 'touchstart', 'scroll'] as const;
+const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'] as const;
 
 export function InactivityGuard({ children, enabled = true }: { children: React.ReactNode, enabled?: boolean }) {
     const router = useRouter();
@@ -65,23 +65,34 @@ export function InactivityGuard({ children, enabled = true }: { children: React.
 
     /* ── Montar listeners de actividad ──────────────────────────────────── */
     useEffect(() => {
-        if (!enabled) {
+        // --- 1. Supabase Auth Listener (Prevención de Sesión Fantasma) ---
+        const supabase = createClient();
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            // Si la sesión expiró naturalmente (computadora suspendida) o cerraron sesión en otra pestaña
+            if (event === 'SIGNED_OUT' || (event === 'TOKEN_REFRESHED' && !session)) {
+                router.push('/login');
+            }
+        });
+
+        // --- 2. Inactivity Timers (Solo si está activado) ---
+        const handler = () => resetInactivityTimer();
+        
+        if (enabled) {
+            resetInactivityTimer();
+            ACTIVITY_EVENTS.forEach(ev => window.addEventListener(ev, handler, { passive: true }));
+        } else {
             clearTimeout(inactivityTimer.current!);
             clearInterval(countdownTimer.current!);
-            return;
         }
 
-        // Inicia el timer la primera vez
-        resetInactivityTimer();
-
-        const handler = () => resetInactivityTimer();
-        ACTIVITY_EVENTS.forEach(ev => window.addEventListener(ev, handler, { passive: true }));
-
         return () => {
-            // Limpiar todo al desmontar
+            // Limpiar todo al desmontar o cambiar dependencias
             clearTimeout(inactivityTimer.current!);
             clearInterval(countdownTimer.current!);
-            ACTIVITY_EVENTS.forEach(ev => window.removeEventListener(ev, handler));
+            if (enabled) {
+                ACTIVITY_EVENTS.forEach(ev => window.removeEventListener(ev, handler));
+            }
+            subscription.unsubscribe();
         };
     }, [resetInactivityTimer, enabled]);
 
