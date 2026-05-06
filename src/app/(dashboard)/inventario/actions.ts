@@ -264,7 +264,8 @@ export async function searchActivosGlobal(query: string) {
                 estatusContable: true,
                 imagenUrl: true,
                 referencia: true,
-                lote: true
+                lote: true,
+                createdBy: { select: { nombre: true, apellido: true } }
             },
             take: 100
         });
@@ -324,7 +325,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '')
             orderBy: { createdAt: 'desc' },
             skip,
             take: PER_PAGE,
-            include: { categoria: true },
+            include: { categoria: true, createdBy: { select: { nombre: true, apellido: true } } },
         }),
         prisma.activoFijo.count({ where }),
     ]);
