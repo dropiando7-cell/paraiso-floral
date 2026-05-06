@@ -312,6 +312,7 @@ type Activo = {
     accionRecomendada?: string | null;
     responsable?: string | null;
     observaciones?: string | null;
+    createdBy?: { nombre?: string | null; apellido?: string | null; email?: string | null } | null;
 
     historicoId?: string | null;
     categoriaDepreciacion?: string | null;
