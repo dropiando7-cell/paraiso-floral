@@ -87,6 +87,10 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
+  // Scanner Refs
+  const barcodeBufferRef = useRef<string>('');
+  const lastKeyTimeRef = useRef<number>(0);
+
   // Computed: Products Filtered
   const filteredProducts = useMemo(() => {
     return productos.filter(p => {
@@ -231,10 +235,44 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     }
   };
 
-  // Keyboard Shortcuts
+  // Keyboard Shortcuts & Scanner Logic
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === 'INPUT' && document.activeElement !== searchInputRef.current && e.key !== 'Escape') {
+      const now = Date.now();
+
+      // --- Scanner Logic ---
+      if (e.key.length === 1) {
+        const timeDiff = now - lastKeyTimeRef.current;
+        if (timeDiff < 50) {
+          // Fast typing (Scanner)
+          barcodeBufferRef.current += e.key;
+        } else {
+          // Human typing (Reset)
+          barcodeBufferRef.current = e.key;
+        }
+        lastKeyTimeRef.current = now;
+      }
+
+      // If Enter is pressed, check if it was from a fast scan
+      if (e.key === 'Enter' && barcodeBufferRef.current.length > 2) {
+         const timeDiff = now - lastKeyTimeRef.current;
+         if (timeDiff < 50) {
+            e.preventDefault();
+            const scannedSku = barcodeBufferRef.current.replace(/'/g, '-');
+            barcodeBufferRef.current = '';
+            
+            // Find exact SKU
+            const product = productos.find(p => p.sku.toLowerCase() === scannedSku.toLowerCase());
+            if (product) {
+               addToCart(product);
+               setSearchTerm(''); // Clear input so scanner garbage is removed
+               return; // Stop processing further
+            }
+         }
+      }
+      // --- End Scanner Logic ---
+
+      if (document.activeElement?.tagName === 'INPUT' && document.activeElement !== searchInputRef.current && e.key !== 'Escape' && e.key !== 'Enter') {
          return; 
       }
 
@@ -275,7 +313,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cart.length, showCheckout, showSuccess, filteredProducts, addToCart]);
+  }, [cart.length, showCheckout, showSuccess, filteredProducts, addToCart, productos]);
 
   const fmt = (v: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(v);
 
@@ -302,7 +340,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
               type="text"
               placeholder={`Buscar producto por código, nombre o escanea... (${shortcuts.search})`}
               value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value.replace(/'/g, '-'))}
               className="w-full pl-12 pr-4 py-3.5 bg-gray-100 hover:bg-gray-200/50 focus:bg-white border-2 border-transparent focus:border-indigo-500 rounded-2xl outline-none text-base font-semibold transition-all shadow-sm focus:shadow-md"
             />
             <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 px-2 py-1 rounded-md text-[10px] font-black text-indigo-500 shadow-sm border border-indigo-100 uppercase tracking-widest hidden md:block">

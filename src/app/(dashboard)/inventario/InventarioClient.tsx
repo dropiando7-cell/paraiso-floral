@@ -2453,7 +2453,7 @@ function ProductSummaryModal({
                 cleanCode = cleanCode.substring(cleanCode.lastIndexOf('/') + 1);
             }
         }
-        cleanCode = cleanCode.toUpperCase();
+        cleanCode = cleanCode.toUpperCase().replace(/'/g, '-');
         
         setSearchQuery(cleanCode);
         setIsScanning(false);
@@ -2500,7 +2500,7 @@ function ProductSummaryModal({
                                 type="text"
                                 placeholder="Ej: BEA-000001, CIRCUITO, MONITOR..."
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value.toUpperCase())}
+                                onChange={(e) => setSearchQuery(e.target.value.toUpperCase().replace(/'/g, '-'))}
                                 className="w-full pl-10 pr-12 py-3 text-sm font-mono tracking-widest text-[#0500A3] border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-slate-50 transition-all placeholder:text-slate-300 placeholder:font-sans placeholder:tracking-normal placeholder:font-normal"
                             />
                             <QrCode className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
