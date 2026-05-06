@@ -497,23 +497,23 @@ model ColaImpresionCheckin {
 }
 
 model ProductoOdoo {
-  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId        String   @db.Uuid
-  odooId                String?
-  nombre                String
-  nombreMostrar         String?
-  codigoBarras          String?
-  notasInternas         String?
-  cantidadOdoo          Int?
-  descripcionSitioWeb   String?
-  imagenUrl             String?
-  pasilloEstante        String?
-  referenciaInterna     String?
-  tipoProducto          String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId      String   @db.Uuid
+  odooId              String?
+  nombre              String
+  nombreMostrar       String?
+  codigoBarras        String?
+  notasInternas       String?
+  cantidadOdoo        Int?
+  descripcionSitioWeb String?
+  imagenUrl           String?
+  pasilloEstante      String?
+  referenciaInterna   String?
+  tipoProducto        String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([nombre])
@@ -522,27 +522,27 @@ model ProductoOdoo {
 }
 
 model Producto {
-  id              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId  String                 @db.Uuid
-  sku             String                 @unique
-  nombre          String
-  descripcion     String?
-  marca           String?
-  modelo          String?
-  precioVenta     Decimal                @db.Decimal(12, 2)
-  costoBase       Decimal?               @db.Decimal(12, 2)
-  stockActual     Int                    @default(0)
-  stockMinimo     Int                    @default(5)
-  isvAplicable    Int                    @default(15)
-  estado          String                 @default("ACTIVO")
-  esServicio      Boolean                @default(false)
-  createdAt       DateTime               @default(now())
-  updatedAt       DateTime               @updatedAt
-  activosFijos    ActivoFijo[]
-  detallesFactura DetalleFactura[]
-  movimientos     MovimientoInventario[]
+  id                      String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId          String                 @db.Uuid
+  sku                     String                 @unique
+  nombre                  String
+  descripcion             String?
+  marca                   String?
+  modelo                  String?
+  precioVenta             Decimal                @db.Decimal(12, 2)
+  costoBase               Decimal?               @db.Decimal(12, 2)
+  stockActual             Int                    @default(0)
+  stockMinimo             Int                    @default(5)
+  isvAplicable            Int                    @default(15)
+  estado                  String                 @default("ACTIVO")
+  esServicio              Boolean                @default(false)
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  activosFijos            ActivoFijo[]
+  detallesFactura         DetalleFactura[]
+  movimientos             MovimientoInventario[]
   ordenesTrabajoRepuestos OrdenTrabajoRepuesto[]
-  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization            Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -647,62 +647,63 @@ model Factura {
 }
 
 model DetalleFactura {
-  id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  facturaId      String      @db.Uuid
-  productoId     String?     @db.Uuid
-  activoId       String?     @db.Uuid
-  descripcion    String
-  cantidad       Int
-  precioUnitario Decimal     @db.Decimal(12, 2)
-  porcentajeIsv  Int         @default(15)
-  totalDescuento          Decimal     @default(0) @db.Decimal(12, 2)
-  totalLinea              Decimal     @db.Decimal(12, 2)
-  descripcionEnriquecida  String?
-  mostrarDescripcion      Boolean     @default(false)
-  activo         ActivoFijo? @relation(fields: [activoId], references: [id])
-  factura        Factura     @relation(fields: [facturaId], references: [id], onDelete: Cascade)
-  producto       Producto?   @relation(fields: [productoId], references: [id])
+  id                     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  facturaId              String      @db.Uuid
+  productoId             String?     @db.Uuid
+  activoId               String?     @db.Uuid
+  descripcion            String
+  cantidad               Int
+  precioUnitario         Decimal     @db.Decimal(12, 2)
+  porcentajeIsv          Int         @default(15)
+  totalDescuento         Decimal     @default(0) @db.Decimal(12, 2)
+  totalLinea             Decimal     @db.Decimal(12, 2)
+  descripcionEnriquecida String?
+  mostrarDescripcion     Boolean     @default(false)
+  activo                 ActivoFijo? @relation(fields: [activoId], references: [id])
+  factura                Factura     @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  producto               Producto?   @relation(fields: [productoId], references: [id])
 
   @@index([facturaId])
   @@map("detalles_factura")
 }
 
 model OrdenTrabajo {
-  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  organizationId     String       @db.Uuid
-  clienteId          String       @db.Uuid
+  id                 String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String    @db.Uuid
+  clienteId          String    @db.Uuid
   equipoDano         String
-  tipoAparato        String?      @default("MEDICO")
+  tipoAparato        String?   @default("MEDICO")
   marcaModelo        String?
   serie              String?
   descripcionFalla   String?
   accesorios         String?
-  estado             String       @default("RECIBIDO")
-  costoRevision      Decimal      @default(650) @db.Decimal(12, 2)
-  costoReparacion    Decimal?     @db.Decimal(12, 2)
-  aprobado           Boolean      @default(false)
-  fechaRecibido      DateTime     @default(now())
+  estado             String    @default("RECIBIDO")
+  costoRevision      Decimal   @default(650) @db.Decimal(12, 2)
+  costoReparacion    Decimal?  @db.Decimal(12, 2)
+  aprobado           Boolean   @default(false)
+  fechaRecibido      DateTime  @default(now())
   fechaEvaluado      DateTime?
   fechaAprobado      DateTime?
   fechaListo         DateTime?
   fechaEntregado     DateTime?
   codigoSeguridad    String
-  notificadoWhatsApp Boolean      @default(false)
-  fotosEstadoInicial String[]     @default([])
-  fotosTecnico       String[]     @default([])
+  notificadoWhatsApp Boolean   @default(false)
+  fotosEstadoInicial String[]  @default([])
+  fotosTecnico       String[]  @default([])
   diagnosticoTecnico String?
   detalleManoObra    Json?
-  
-  usuarioRecepcionId String?      @db.Uuid
-  tecnicoReparacionId String?     @db.Uuid
-  usuarioAprobacionId String?     @db.Uuid
 
-  cliente            Cliente      @relation(fields: [clienteId], references: [id])
-  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  usuarioRecepcion   User?        @relation("RecepcionOrdenes", fields: [usuarioRecepcionId], references: [id])
-  tecnicoReparacion  User?        @relation("TecnicoOrdenes", fields: [tecnicoReparacionId], references: [id])
-  usuarioAprobacion  User?        @relation("AprobacionOrdenes", fields: [usuarioAprobacionId], references: [id])
-  repuestos          OrdenTrabajoRepuesto[]
+  usuarioRecepcionId  String? @db.Uuid
+  tecnicoReparacionId String? @db.Uuid
+  usuarioAprobacionId String? @db.Uuid
+
+  cliente           Cliente                @relation(fields: [clienteId], references: [id])
+  organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  usuarioRecepcion  User?                  @relation("RecepcionOrdenes", fields: [usuarioRecepcionId], references: [id])
+  tecnicoReparacion User?                  @relation("TecnicoOrdenes", fields: [tecnicoReparacionId], references: [id])
+  usuarioAprobacion User?                  @relation("AprobacionOrdenes", fields: [usuarioAprobacionId], references: [id])
+  repuestos         OrdenTrabajoRepuesto[]
+
   @@index([organizationId])
   @@index([clienteId])
   @@index([estado])
@@ -710,17 +711,17 @@ model OrdenTrabajo {
 }
 
 model OrdenTrabajoRepuesto {
-  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ordenTrabajoId  String       @db.Uuid
-  productoId      String       @db.Uuid
-  cantidad        Int
-  precioSugerido  Decimal      @db.Decimal(12, 2)
-  subtotal        Decimal      @db.Decimal(12, 2)
-  precioAprobado  Decimal?     @db.Decimal(12, 2)
-  subtotalAprobado Decimal?    @db.Decimal(12, 2)
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ordenTrabajoId   String   @db.Uuid
+  productoId       String   @db.Uuid
+  cantidad         Int
+  precioSugerido   Decimal  @db.Decimal(12, 2)
+  subtotal         Decimal  @db.Decimal(12, 2)
+  precioAprobado   Decimal? @db.Decimal(12, 2)
+  subtotalAprobado Decimal? @db.Decimal(12, 2)
 
-  ordenTrabajo    OrdenTrabajo @relation(fields: [ordenTrabajoId], references: [id], onDelete: Cascade)
-  producto        Producto     @relation(fields: [productoId], references: [id])
+  ordenTrabajo OrdenTrabajo @relation(fields: [ordenTrabajoId], references: [id], onDelete: Cascade)
+  producto     Producto     @relation(fields: [productoId], references: [id])
 
   @@index([ordenTrabajoId])
   @@index([productoId])

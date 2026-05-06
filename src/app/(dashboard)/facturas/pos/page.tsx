@@ -48,7 +48,8 @@ export default async function POSPage() {
       stockActual: p.stockActual,
       isvAplicable: p.isvAplicable,
       esServicio: p.esServicio,
-      isActivoFijo: false
+      isActivoFijo: false,
+      codigoBarras: null
     })),
     ...rawActivos.map(a => ({
       id: a.id,
@@ -58,8 +59,9 @@ export default async function POSPage() {
       stockActual: 1, // Unique physical asset
       isvAplicable: a.producto?.isvAplicable ?? 15,
       esServicio: false,
-      imageUrl: a.imagenUrl || undefined,
-      isActivoFijo: true
+      isActivoFijo: true,
+      imageUrl: a.imagenUrl || a.producto?.imageUrl || undefined,
+      codigoBarras: a.codigoBarras || null
     }))
   ];
 

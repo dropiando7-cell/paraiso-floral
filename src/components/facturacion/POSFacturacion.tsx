@@ -14,6 +14,7 @@ export interface POSProduct {
   esServicio: boolean;
   imageUrl?: string;
   isActivoFijo?: boolean;
+  codigoBarras?: string | null;
 }
 
 interface CartItem extends POSProduct {
@@ -243,7 +244,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       // --- Scanner Logic ---
       if (e.key.length === 1) {
         const timeDiff = now - lastKeyTimeRef.current;
-        if (timeDiff < 50) {
+        if (timeDiff < 200) {
           // Fast typing (Scanner)
           barcodeBufferRef.current += e.key;
         } else {
@@ -256,13 +257,13 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       // If Enter is pressed, check if it was from a fast scan
       if (e.key === 'Enter' && barcodeBufferRef.current.length > 2) {
          const timeDiff = now - lastKeyTimeRef.current;
-         if (timeDiff < 50) {
+         if (timeDiff < 200) {
             e.preventDefault();
             const scannedSku = barcodeBufferRef.current.replace(/'/g, '-');
             barcodeBufferRef.current = '';
             
-            // Find exact SKU
-            const product = productos.find(p => p.sku.toLowerCase() === scannedSku.toLowerCase());
+            // Find exact SKU or barcode
+            const product = productos.find(p => p.sku.toLowerCase() === scannedSku.toLowerCase() || (p.codigoBarras && p.codigoBarras.toLowerCase() === scannedSku.toLowerCase()));
             if (product) {
                addToCart(product);
                setSearchTerm(''); // Clear input so scanner garbage is removed
