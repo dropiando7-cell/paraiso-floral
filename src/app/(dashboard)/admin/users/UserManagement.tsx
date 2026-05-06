@@ -561,18 +561,18 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
             )}
 
             {isModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50 shrink-0">
                             <h3 className="font-semibold text-slate-800">
                                 {editingUserId ? 'Editar Usuario' : 'Añadir Nuevo Usuario'}
                             </h3>
-                            <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                            <button type="button" onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="p-6">
+                        <form onSubmit={handleSubmit} className="p-6 overflow-y-auto">
                             {error && (
                                 <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm flex gap-3 items-start">
                                     <ShieldAlert className="w-5 h-5 shrink-0" />
@@ -754,18 +754,18 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
             )}
 
             {isRoleModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
-                        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50 shrink-0">
                             <h3 className="font-semibold text-slate-800">
                                 {editingRoleId ? 'Editar Rol Personalizado' : 'Crear Nuevo Rol'}
                             </h3>
-                            <button onClick={() => setIsRoleModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                            <button type="button" onClick={() => setIsRoleModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSaveTemplate} className="p-6">
+                        <form onSubmit={handleSaveTemplate} className="p-6 overflow-y-auto">
                             {error && (
                                 <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-100 text-red-600 text-sm flex gap-3 items-start">
                                     <ShieldAlert className="w-5 h-5 shrink-0" />

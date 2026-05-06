@@ -178,6 +178,7 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     total: facturaData.total,
                     
                     estado: 'EMITIDA',
+                    inventarioDescontado: true,
                     
                     detalles: {
                         create: detalles.map((d) => ({
@@ -205,11 +206,17 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                 }
                 
                 if (detalle.activoId) {
-                    // Es un equipo único (Ej. Aire Acondicionado Serial XYZ): Cambiar Estatus
-                    await tx.activoFijo.update({
-                        where: { id: detalle.activoId },
-                        data: { estatusContable: 'VENDIDO/ENTREGADO' }
-                    });
+                    const activo = await tx.activoFijo.findUnique({ where: { id: detalle.activoId }});
+                    if (activo) {
+                        const nuevoStock = activo.stock - detalle.cantidad;
+                        await tx.activoFijo.update({
+                            where: { id: detalle.activoId },
+                            data: { 
+                                stock: Math.max(0, nuevoStock),
+                                estatusContable: nuevoStock <= 0 ? 'VENDIDO/ENTREGADO' : activo.estatusContable
+                            }
+                        });
+                    }
                 }
             }
 
@@ -326,15 +333,28 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                         }
                     }
                     if (item.activoId && debeDescontarInventario) {
-                        await tx.activoFijo.update({
-                            where: { id: item.activoId },
-                            data: { estatusContable: 'VENDIDO' }
-                        });
+                        const activo = await tx.activoFijo.findUnique({ where: { id: item.activoId }});
+                        if (activo) {
+                            const nuevoStock = activo.stock - Number(item.qty);
+                            await tx.activoFijo.update({
+                                where: { id: item.activoId },
+                                data: { 
+                                    stock: Math.max(0, nuevoStock),
+                                    estatusContable: nuevoStock <= 0 ? 'VENDIDO' : activo.estatusContable
+                                }
+                            });
+                        }
                     } else if (item.activoId && debeRestaurarInventario) {
-                        await tx.activoFijo.update({
-                            where: { id: item.activoId },
-                            data: { estatusContable: 'VIGENTE' }
-                        });
+                        const activo = await tx.activoFijo.findUnique({ where: { id: item.activoId }});
+                        if (activo) {
+                            await tx.activoFijo.update({
+                                where: { id: item.activoId },
+                                data: { 
+                                    stock: activo.stock + Number(item.qty),
+                                    estatusContable: 'VIGENTE' 
+                                }
+                            });
+                        }
                     }
                 }
                 // Mark inventory deducted
@@ -474,15 +494,28 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                         }
                     }
                     if (item.activoId && debeDescontarInventario) {
-                        await tx.activoFijo.update({
-                            where: { id: item.activoId },
-                            data: { estatusContable: 'VENDIDO' }
-                        });
+                        const activo = await tx.activoFijo.findUnique({ where: { id: item.activoId }});
+                        if (activo) {
+                            const nuevoStock = activo.stock - Number(item.qty);
+                            await tx.activoFijo.update({
+                                where: { id: item.activoId },
+                                data: { 
+                                    stock: Math.max(0, nuevoStock),
+                                    estatusContable: nuevoStock <= 0 ? 'VENDIDO' : activo.estatusContable
+                                }
+                            });
+                        }
                     } else if (item.activoId && debeRestaurarInventario) {
-                        await tx.activoFijo.update({
-                            where: { id: item.activoId },
-                            data: { estatusContable: 'VIGENTE' }
-                        });
+                        const activo = await tx.activoFijo.findUnique({ where: { id: item.activoId }});
+                        if (activo) {
+                            await tx.activoFijo.update({
+                                where: { id: item.activoId },
+                                data: { 
+                                    stock: activo.stock + Number(item.qty),
+                                    estatusContable: 'VIGENTE' 
+                                }
+                            });
+                        }
                     }
                 }
             }
@@ -685,10 +718,17 @@ export async function anularDocumento(id: string) {
                     }
                     if (item.activoId) {
                         try {
-                           await tx.activoFijo.update({
-                               where: { id: item.activoId },
-                               data: { estatusContable: 'VENDIDO' }
-                           });
+                           const activo = await tx.activoFijo.findUnique({ where: { id: item.activoId }});
+                           if (activo) {
+                               const nuevoStock = activo.stock - item.cantidad;
+                               await tx.activoFijo.update({
+                                   where: { id: item.activoId },
+                                   data: { 
+                                       stock: Math.max(0, nuevoStock),
+                                       estatusContable: nuevoStock <= 0 ? 'VENDIDO' : activo.estatusContable
+                                   }
+                               });
+                           }
                         } catch(e) {}
                     }
                 }
@@ -704,10 +744,16 @@ export async function anularDocumento(id: string) {
                     }
                     if (item.activoId) {
                         try {
-                           await tx.activoFijo.update({
-                               where: { id: item.activoId },
-                               data: { estatusContable: 'VIGENTE' }
-                           });
+                           const activo = await tx.activoFijo.findUnique({ where: { id: item.activoId }});
+                           if (activo) {
+                               await tx.activoFijo.update({
+                                   where: { id: item.activoId },
+                                   data: { 
+                                       stock: activo.stock + item.cantidad,
+                                       estatusContable: 'VIGENTE' 
+                                   }
+                               });
+                           }
                         } catch(e) {}
                     }
                 }
@@ -817,10 +863,17 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
                         }
                     }
                     if (detalle.activoId) {
-                        await tx.activoFijo.update({
-                            where: { id: detalle.activoId },
-                            data: { estatusContable: 'VENDIDO/ENTREGADO' }
-                        });
+                        const activo = await tx.activoFijo.findUnique({ where: { id: detalle.activoId }});
+                        if (activo) {
+                            const nuevoStock = activo.stock - detalle.cantidad;
+                            await tx.activoFijo.update({
+                                where: { id: detalle.activoId },
+                                data: { 
+                                    stock: Math.max(0, nuevoStock),
+                                    estatusContable: nuevoStock <= 0 ? 'VENDIDO/ENTREGADO' : activo.estatusContable
+                                }
+                            });
+                        }
                     }
                 }
             }

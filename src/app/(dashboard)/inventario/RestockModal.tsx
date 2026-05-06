@@ -256,7 +256,7 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
             <div className="min-h-full flex items-start justify-center p-0 sm:p-4 md:p-6">
                 <div className="bg-white w-full sm:rounded-3xl shadow-2xl sm:max-w-xl sm:my-8 overflow-hidden flex flex-col">
                     

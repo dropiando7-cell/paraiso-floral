@@ -1491,7 +1491,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                     onCancel={() => { setCropOpen(false); URL.revokeObjectURL(cropImgSrc); setCropImgSrc(''); }}
                 />
             )}
-            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm overflow-y-auto">
                 <div className="min-h-full flex items-start justify-center p-0 sm:p-4 md:p-6">
                     <div className="bg-white w-full sm:rounded-2xl shadow-2xl sm:max-w-2xl sm:my-4">
 
@@ -2191,7 +2191,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             </div >
             {/* ── Modal Reabastecer (cuando el código ya existe) ── */}
             {restockTarget && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
                         <div className="px-5 py-4 bg-emerald-50 border-b border-emerald-200 flex items-center gap-3">
                             <div className="bg-emerald-500 text-white rounded-full p-2">
@@ -2302,7 +2302,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 function DeleteConfirm({ activo, onClose, onSuccess }: { activo: Activo; onClose: () => void; onSuccess: () => void }) {
     const [isPending, startTransition] = useTransition();
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
                 <div className="flex items-center gap-3 mb-4">
                     <div className="bg-red-100 p-2.5 rounded-xl"><Trash2 className="w-5 h-5 text-red-600" /></div>
@@ -2336,7 +2336,7 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 text-left">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 relative">
                 <button type="button" onClick={onClose} className="absolute top-4 right-4 p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors">
                     <X className="w-5 h-5" />
@@ -2896,7 +2896,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
             {/* Modal Confirmación de Cierre */}
             {isClosingModalOpen && lockedArea && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 hide-on-print">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 hide-on-print">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
                         <div className="bg-amber-100 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
                             <AlertTriangle className="w-6 h-6 text-amber-600" />
@@ -3112,7 +3112,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
             />
             {/* No Area Open Modal */}
             {noAreaModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
                     <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center">
                         <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
                             <QrCode className="w-8 h-8 text-amber-600" />
@@ -3188,7 +3188,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
             {/* View Activo Modal */}
             {viewActivo && (
-                <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm overflow-y-auto" onClick={() => setViewActivo(null)}>
+                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm overflow-y-auto" onClick={() => setViewActivo(null)}>
                     <div className="min-h-full flex items-center justify-center p-4">
                         <div className="bg-white w-full rounded-2xl shadow-2xl max-w-xl overflow-hidden" onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
