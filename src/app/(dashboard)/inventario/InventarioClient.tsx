@@ -3060,7 +3060,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                                 <td className="px-3 py-3 max-w-[140px]"><div className="text-[10px] text-slate-600 truncate">{a.cuentaAct}</div></td>
                                 <td className="px-3 py-3"><EstatusBadge estatus={a.estatusContable} /></td>
                                 <td className="px-3 py-3"><DanoBadge dano={a.estadoDano} /></td>
-                                <td className="px-3 py-3 max-w-[100px]"><div className="text-[10px] text-slate-600 truncate" title={a.createdBy?.nombre ? `${a.createdBy.nombre} ${a.createdBy.apellido || ''}`.trim() : '—'}>{a.createdBy?.nombre ? `${a.createdBy.nombre} ${a.createdBy.apellido || ''}`.trim() : '—'}</div></td>
+                                <td className="px-3 py-3 max-w-[100px]"><div className="text-[10px] text-slate-600 truncate" title={a.createdBy?.nombre ? `${a.createdBy.nombre} ${a.createdBy.apellido || ''}`.trim() : (a.createdBy?.email?.split('@')[0] || '—')}>{a.createdBy?.nombre ? `${a.createdBy.nombre} ${a.createdBy.apellido || ''}`.trim() : (a.createdBy?.email?.split('@')[0] || '—')}</div></td>
                                 <td className="px-3 py-3 hide-on-print" onClick={e => e.stopPropagation()}>
                                     <div className="flex items-center gap-1">
                                         <button onClick={(e) => { e.stopPropagation(); setEditActivo(a); setModalOpen(true); }} className="p-2 hover:bg-slate-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Editar"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
@@ -3232,7 +3232,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                                     </div>
                                     <div>
                                         <div className="text-xs text-slate-400 mb-1">Registrado por</div>
-                                        <div className="font-medium text-slate-800 truncate" title={viewActivo.createdBy?.nombre ? `${viewActivo.createdBy.nombre} ${viewActivo.createdBy.apellido || ''}`.trim() : '—'}>{viewActivo.createdBy?.nombre ? `${viewActivo.createdBy.nombre} ${viewActivo.createdBy.apellido || ''}`.trim() : '—'}</div>
+                                        <div className="font-medium text-slate-800 truncate" title={viewActivo.createdBy?.nombre ? `${viewActivo.createdBy.nombre} ${viewActivo.createdBy.apellido || ''}`.trim() : (viewActivo.createdBy?.email?.split('@')[0] || '—')}>{viewActivo.createdBy?.nombre ? `${viewActivo.createdBy.nombre} ${viewActivo.createdBy.apellido || ''}`.trim() : (viewActivo.createdBy?.email?.split('@')[0] || '—')}</div>
                                     </div>
                                     {viewActivo.modelo && (
                                         <div>
