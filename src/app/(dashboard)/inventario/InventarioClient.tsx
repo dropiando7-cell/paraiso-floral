@@ -1248,12 +1248,12 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                     }
                 }
             } else {
-                alert('La IA no pudo analizar la imagen: ' + (data.error || 'Error desconocido'));
+                alert('✅ Foto subida exitosamente.\n\n⚠️ Aviso: La Inteligencia Artificial no pudo procesar los datos automáticamente (' + (data.error || 'Error desconocido') + ').\n\nPuedes continuar ingresando los datos manualmente.');
             }
             setUploadPhase('done');
         } catch (err: any) {
             setUploadPhase('done');
-            alert('Error al analizar: ' + (err.message || 'Intenta de nuevo'));
+            alert('✅ Foto subida exitosamente.\n\n⚠️ Aviso: Hubo un problema de conexión con la Inteligencia Artificial.\n\nPuedes continuar ingresando los datos manualmente sin problemas.');
         }
     }
 
