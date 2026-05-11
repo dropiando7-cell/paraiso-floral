@@ -34,12 +34,27 @@ export async function GET(req: NextRequest) {
     const fechaVencUrl = searchParams.get('fechaVenc') || '';
     const serieUrl = searchParams.get('serie') || '';
 
-    // Si no hay codigo de barras explícito, utilizamos el id interno como codigo de barra 1D también.
-    const barcodeData = codigoBarras ? codigoBarras : idQr;
+    const size = searchParams.get('size') || '70x40';
+    const is70x40 = size === '70x40';
 
-    // 2" x 1.3" a 203 DPI (50.8mm x 33mm) - Tally Dascom DL-210
-    const W = 406;
-    const H = 264;
+    // Dimensiones según tamaño
+    const W = is70x40 ? 559 : 406;
+    const H = is70x40 ? 320 : 264;
+    
+    // Configuraciones de estilo dinámicas
+    const cfg = {
+        padding: is70x40 ? '16px 20px 10px 20px' : '12px 14px 8px 14px',
+        idSize: is70x40 ? 22 : 17,
+        descSizeLong: is70x40 ? 18 : 14,
+        descSizeShort: is70x40 ? 22 : 18,
+        metaSize: is70x40 ? 15 : 12,
+        qrSize: is70x40 ? 110 : 90,
+        qrImgSize: is70x40 ? 105 : 85,
+        bioSize: is70x40 ? 16 : 13,
+        barcodeWidth: is70x40 ? 500 : 370,
+        barcodeHeight: is70x40 ? 50 : 38,
+        barcodeTextSize: is70x40 ? 14 : 11,
+    };
 
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
     const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=L&includetext=false`;
@@ -62,7 +77,7 @@ export async function GET(req: NextRequest) {
                     height: H,
                     backgroundColor: '#FFFFFF',
                     fontFamily: 'sans-serif',
-                    padding: '12px 14px 8px 14px',
+                    padding: cfg.padding,
                     boxSizing: 'border-box',
                 }}
             >
@@ -71,41 +86,41 @@ export async function GET(req: NextRequest) {
 
                     {/* LEFT COLUMN: ID + Description + Meta */}
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '10px' }}>
-                        <span style={{ fontSize: 17, fontWeight: 900, color: '#000', marginBottom: '5px' }}>{idQr}</span>
-                        <span style={{ fontSize: isLongName ? 14 : 18, fontWeight: 900, color: '#000', lineHeight: 1.1, overflow: 'hidden', wordBreak: 'keep-all', overflowWrap: 'normal' }}>
+                        <span style={{ fontSize: cfg.idSize, fontWeight: 900, color: '#000', marginBottom: '5px' }}>{idQr}</span>
+                        <span style={{ fontSize: isLongName ? cfg.descSizeLong : cfg.descSizeShort, fontWeight: 900, color: '#000', lineHeight: 1.1, overflow: 'hidden', wordBreak: 'keep-all', overflowWrap: 'normal' }}>
                             {descStr}
                         </span>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginTop: '8px' }}>
                             {marcaUrl ? (
-                                <span style={{ fontSize: 12, color: '#333', fontWeight: 600 }}>Marca: {marcaUrl}</span>
+                                <span style={{ fontSize: cfg.metaSize, color: '#333', fontWeight: 600 }}>Marca: {marcaUrl}</span>
                             ) : (
-                                <span style={{ fontSize: 12, color: '#333', fontWeight: 600 }}>Adq: {fechaAdqDisplay}</span>
+                                <span style={{ fontSize: cfg.metaSize, color: '#333', fontWeight: 600 }}>Adq: {fechaAdqDisplay}</span>
                             )}
-                            <span style={{ fontSize: 12, color: '#333', fontWeight: 600 }}>Mod: {modeloDisplay}</span>
-                            {serieUrl && <span style={{ fontSize: 12, color: '#333', fontWeight: 600 }}>SN: {serieUrl}</span>}
-                            {fechaFabUrl && <span style={{ fontSize: 12, color: '#333', fontWeight: 600 }}>Fab: {fechaFabUrl}</span>}
-                            {fechaVencUrl && <span style={{ fontSize: 12, color: '#333', fontWeight: 600 }}>Venc: {fechaVencUrl}</span>}
+                            <span style={{ fontSize: cfg.metaSize, color: '#333', fontWeight: 600 }}>Mod: {modeloDisplay}</span>
+                            {serieUrl && <span style={{ fontSize: cfg.metaSize, color: '#333', fontWeight: 600 }}>SN: {serieUrl}</span>}
+                            {fechaFabUrl && <span style={{ fontSize: cfg.metaSize, color: '#333', fontWeight: 600 }}>Fab: {fechaFabUrl}</span>}
+                            {fechaVencUrl && <span style={{ fontSize: cfg.metaSize, color: '#333', fontWeight: 600 }}>Venc: {fechaVencUrl}</span>}
                         </div>
                     </div>
 
                     {/* RIGHT COLUMN: QR Code */}
-                    <div style={{ display: 'flex', width: 90, height: 90, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', width: cfg.qrSize, height: cfg.qrSize, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={qrUrl} alt="QR" width={85} height={85} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
+                        <img src={qrUrl} alt="QR" width={cfg.qrImgSize} height={cfg.qrImgSize} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
                     </div>
 
                 </div>
 
                 {/* EMPRESA ROW: separado del barcode para que siempre sea visible */}
                 <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', width: '100%', marginTop: '4px', marginBottom: '2px' }}>
-                    <span style={{ fontSize: 13, color: '#000', fontWeight: 900, letterSpacing: 1 }}>BIOELECTRONICA</span>
+                    <span style={{ fontSize: cfg.bioSize, color: '#000', fontWeight: 900, letterSpacing: 1 }}>BIOELECTRONICA</span>
                 </div>
 
                 {/* BARCODE ROW: altura y texto controlados para no desbordarse de los 264px */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={barcodeUrl} alt="Barcode" width={370} height={38} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
-                    <span style={{ fontSize: 11, marginTop: '2px', letterSpacing: 3, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
+                    <img src={barcodeUrl} alt="Barcode" width={cfg.barcodeWidth} height={cfg.barcodeHeight} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
+                    <span style={{ fontSize: cfg.barcodeTextSize, marginTop: '2px', letterSpacing: 3, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
                 </div>
             </div>
         ),

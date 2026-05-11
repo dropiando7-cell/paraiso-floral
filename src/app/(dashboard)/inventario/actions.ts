@@ -973,7 +973,7 @@ export async function getActiveUserArea() {
     }
 }
 
-export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number) {
+export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number, size: string = '70x40') {
     const orgId = await getOrgId();
 
     // Buscar los ultimos N activos con ese codigo de grupo para la organizacion de forma global
@@ -1023,6 +1023,7 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
         });
         if (activo.fechaFabricacion) params.set('fechaFab', activo.fechaFabricacion.toISOString().split('T')[0]);
         if (activo.fechaVencimiento) params.set('fechaVenc', activo.fechaVencimiento.toISOString().split('T')[0]);
+        params.set('size', size);
         const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
         return {
             organizationId: orgId,
@@ -1039,7 +1040,7 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
     return { success: true, count: countPayload.count };
 }
 
-export async function encolarCopiasNiimbot(activoId: string, cantidad: number) {
+export async function encolarCopiasNiimbot(activoId: string, cantidad: number, size: string = '70x40') {
     const orgId = await getOrgId();
 
     const activo = await prisma.activoFijo.findUnique({
@@ -1071,7 +1072,8 @@ export async function encolarCopiasNiimbot(activoId: string, cantidad: number) {
         marca: activo.marca || '',
         modelo: activo.modelo || '',
         codigoBarras: activo.codigoBarras || '',
-        serie: activo.serie || ''
+        serie: activo.serie || '',
+        size: size
     });
     const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
 

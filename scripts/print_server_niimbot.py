@@ -17,20 +17,57 @@ API_COMPLETAR  = f"{HOST}/api/impresion/niimbot/completar"
 IMPRESORA     = "NIIMBOT K3"
 TIEMPO_ESPERA = 3
 
-# ─── Dimensiones — Etiqueta 50mm × 33mm @ 203 DPI ────────────────────────────
-#   REQUISITO PREVIO: El driver Windows debe tener configurado 50mm × 33mm.
-#   (Preferencias de impresión → Formulario en papel → Editar → Altura =  33.0mm)
-#
-#   50mm / 25.4 × 203 = ~399 px  (ancho)
-#   33mm / 25.4 × 203 = ~263 px  (alto físico)
-#   Alto seguro (93%)  = 245 px  ← techo duro para no quemar etiqueta extra
-ANCHO_FIJO  = 399
-ALTO_MAXIMO = 245   # ← NO subir este valor
-
-# ─── Parámetros de layout ─────────────────────────────────────────────────────
-QR_MARGEN     = 22   # px — margen del QR con borde derecho y superior
-QR_ESCALA     = 1.2 # factor de reducción del QR (1.0 = tamaño natural de bwipjs)
-CB_MARGEN_INF = 18   # px — espacio entre texto del CB y borde inferior (aumentado para evitar corte)
+# ─── Tamaños de Etiqueta ──────────────────────────────────────────────────────
+# Se define un diccionario con las configuraciones según el tamaño deseado.
+# 70x40mm: Ancho = 559px, Alto = 320px -> Alto seguro = 300px
+# 50x33mm: Ancho = 399px, Alto = 263px -> Alto seguro = 245px
+TAMANOS = {
+    "50x33": {
+        "ANCHO_FIJO": 399,
+        "ALTO_MAXIMO": 245,
+        "QR_MARGEN": 22,
+        "QR_ESCALA": 1.2,
+        "CB_MARGEN_INF": 18,
+        "FONT_ID": 24,
+        "FONT_DESC_LONG": 17,
+        "FONT_DESC_SHORT": 20,
+        "FONT_SMALL": 16,
+        "FONT_BARCODE": 15,
+        "FONT_BIO": 15,
+        "WRAP_MAX_PX": 250,
+        "X_TEXT": 14,
+        "Y_TEXT": 12,
+        "Y_OFFSET_2_LINES": 74,
+        "Y_OFFSET_1_LINE": 56,
+        "MARCA_Y_OFFSET": 20,
+        "SERIE_Y_OFFSET": 20,
+        "BIO_Y_OFFSET_SERIE": 40,
+        "BIO_Y_OFFSET_NO_SERIE": 20,
+    },
+    "70x40": {
+        "ANCHO_FIJO": 559,
+        "ALTO_MAXIMO": 300,
+        "QR_MARGEN": 28,
+        "QR_ESCALA": 1.5,
+        "CB_MARGEN_INF": 24,
+        "FONT_ID": 30,
+        "FONT_DESC_LONG": 20,
+        "FONT_DESC_SHORT": 24,
+        "FONT_SMALL": 18,
+        "FONT_BARCODE": 17,
+        "FONT_BIO": 17,
+        "WRAP_MAX_PX": 360,
+        "X_TEXT": 20,
+        "Y_TEXT": 18,
+        "Y_OFFSET_2_LINES": 95,
+        "Y_OFFSET_1_LINE": 75,
+        "MARCA_Y_OFFSET": 24,
+        "SERIE_Y_OFFSET": 24,
+        "BIO_Y_OFFSET_SERIE": 48,
+        "BIO_Y_OFFSET_NO_SERIE": 24,
+    }
+}
+DEFAULT_SIZE = "70x40"
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -94,6 +131,12 @@ def imprimir_etiqueta(url_imagen):
 
         parsed_url   = urllib.parse.urlparse(url_imagen)
         query_params = urllib.parse.parse_qs(parsed_url.query)
+        
+        # Determinar configuración de tamaño
+        size_param = query_params.get('size', [DEFAULT_SIZE])[0]
+        if size_param not in TAMANOS:
+            size_param = DEFAULT_SIZE
+        cfg = TAMANOS[size_param]
 
         # Conectar al driver
         hDC = win32ui.CreateDC()
@@ -102,7 +145,7 @@ def imprimir_etiqueta(url_imagen):
         # Log diagnóstico — solo informativo
         ancho_driver = hDC.GetDeviceCaps(win32con.HORZRES)
         alto_driver  = hDC.GetDeviceCaps(win32con.VERTRES)
-        print(f"[*] Driver reporta: {ancho_driver}×{alto_driver}px | Canvas fijo: {ANCHO_FIJO}×{ALTO_MAXIMO}px")
+        print(f"[*] Driver reporta: {ancho_driver}×{alto_driver}px | Canvas fijo: {cfg['ANCHO_FIJO']}×{cfg['ALTO_MAXIMO']}px | Tamaño: {size_param}")
 
         if 'idQr' in query_params:
             print("[*] Generando etiqueta NATIVA...")
@@ -123,15 +166,15 @@ def imprimir_etiqueta(url_imagen):
             serie = query_params.get('serie', [''])[0] # <-- SERIE INTERCEPTADA
 
             # Canvas blanco
-            img_canvas = Image.new("RGB", (ANCHO_FIJO, ALTO_MAXIMO), (255, 255, 255))
+            img_canvas = Image.new("RGB", (cfg['ANCHO_FIJO'], cfg['ALTO_MAXIMO']), (255, 255, 255))
             draw = ImageDraw.Draw(img_canvas)
 
             # Fuentes
             try:
-                font_id      = ImageFont.truetype("arialbd.ttf", 24)
-                font_desc    = ImageFont.truetype("arialbd.ttf", 20 if len(descripcion) <= 22 else 17)
-                font_small   = ImageFont.truetype("arialbd.ttf", 16)
-                font_barcode = ImageFont.truetype("arialbd.ttf", 15)
+                font_id      = ImageFont.truetype("arialbd.ttf", cfg['FONT_ID'])
+                font_desc    = ImageFont.truetype("arialbd.ttf", cfg['FONT_DESC_SHORT'] if len(descripcion) <= 22 else cfg['FONT_DESC_LONG'])
+                font_small   = ImageFont.truetype("arialbd.ttf", cfg['FONT_SMALL'])
+                font_barcode = ImageFont.truetype("arialbd.ttf", cfg['FONT_BARCODE'])
             except IOError:
                 font_id = font_desc = font_small = font_barcode = ImageFont.load_default()
 
@@ -161,52 +204,52 @@ def imprimir_etiqueta(url_imagen):
                     qr_w, qr_h = qr_rgb.size
 
                     # Reducir QR con factor de escala + límite de área útil
-                    area_util_h = ALTO_MAXIMO - QR_MARGEN * 2
-                    factor = QR_ESCALA
+                    area_util_h = cfg['ALTO_MAXIMO'] - cfg['QR_MARGEN'] * 2
+                    factor = cfg['QR_ESCALA']
                     if int(qr_h * factor) > area_util_h:
                         factor = area_util_h / qr_h
                     qr_rgb = qr_rgb.resize((max(1, int(qr_w * factor)), max(1, int(qr_h * factor))), Image.NEAREST)
                     qr_w, qr_h = qr_rgb.size
 
-                    x_qr = ANCHO_FIJO - qr_w - QR_MARGEN
-                    y_qr = QR_MARGEN
+                    x_qr = cfg['ANCHO_FIJO'] - qr_w - cfg['QR_MARGEN']
+                    y_qr = cfg['QR_MARGEN']
                     img_canvas.paste(qr_rgb, (x_qr, y_qr))
                     print(f"[*] QR: {qr_w}×{qr_h}px en ({x_qr}, {y_qr})")
             except Exception as e:
                 print(f"[-] Error obteniendo QR: {e}")
 
             # ── Textos columna izquierda ───────────────────────────────────
-            x_text = 14
-            y_text = 12
+            x_text = cfg['X_TEXT']
+            y_text = cfg['Y_TEXT']
 
             draw.text((x_text, y_text), id_qr, font=font_id, fill=(0, 0, 0))
 
             # Descripción con salto de linea por palabra (sin cortar palabras)
-            lineas_desc = wrap_descripcion(descripcion, font=font_desc, max_px=250)
+            lineas_desc = wrap_descripcion(descripcion, font=font_desc, max_px=cfg['WRAP_MAX_PX'])
             if len(lineas_desc) >= 2:
                 draw.text((x_text, y_text + 30), lineas_desc[0], font=font_desc, fill=(0, 0, 0))
                 draw.text((x_text, y_text + 50), lineas_desc[1], font=font_desc, fill=(0, 0, 0))
-                y_offset = 74
+                y_offset = cfg['Y_OFFSET_2_LINES']
             else:
                 draw.text((x_text, y_text + 30), lineas_desc[0], font=font_desc, fill=(0, 0, 0))
-                y_offset = 56
+                y_offset = cfg['Y_OFFSET_1_LINE']
 
             # Marca (más útil que fecha de adquisición que suele estar vacía)
             if marca:
                 draw.text((x_text, y_text + y_offset), f"Marca: {marca}", font=font_small, fill=(0, 0, 0))
-                y_marca = 20
+                y_marca = cfg['MARCA_Y_OFFSET']
             else:
                 y_marca = 0
             draw.text((x_text, y_text + y_offset + y_marca), f"Mod: {modelo_display}", font=font_small, fill=(0, 0, 0))
             
             # Serie (SN) — posición relativa a Mod, que ya considera y_marca
             if serie:
-                draw.text((x_text, y_text + y_offset + y_marca + 20), f"SN: {serie}", font=font_small, fill=(0, 0, 0))
+                draw.text((x_text, y_text + y_offset + y_marca + cfg['SERIE_Y_OFFSET']), f"SN: {serie}", font=font_small, fill=(0, 0, 0))
 
             # BIOELECTRONICA — siempre visible, debajo del último campo
-            bio_y = y_text + y_offset + y_marca + (40 if serie else 20)
+            bio_y = y_text + y_offset + y_marca + (cfg['BIO_Y_OFFSET_SERIE'] if serie else cfg['BIO_Y_OFFSET_NO_SERIE'])
             try:
-                font_bio = ImageFont.truetype("arialbd.ttf", 15)
+                font_bio = ImageFont.truetype("arialbd.ttf", cfg['FONT_BIO'])
             except IOError:
                 font_bio = font_barcode
             draw.text((x_text, bio_y), "BIOELECTRONICA", font=font_bio, fill=(0, 0, 0))
@@ -229,8 +272,8 @@ def imprimir_etiqueta(url_imagen):
                     bc_rgb = fondo_bc.convert("RGB")
 
                     bc_w, bc_h = bc_rgb.size
-                    if bc_w > ANCHO_FIJO - 32:
-                        bc_rgb = bc_rgb.resize((ANCHO_FIJO - 32, bc_h), Image.NEAREST)
+                    if bc_w > cfg['ANCHO_FIJO'] - 32:
+                        bc_rgb = bc_rgb.resize((cfg['ANCHO_FIJO'] - 32, bc_h), Image.NEAREST)
                         bc_w, bc_h = bc_rgb.size
 
                     # Medir texto del CB
@@ -244,26 +287,26 @@ def imprimir_etiqueta(url_imagen):
 
                     gap_texto  = 3
                     # Posiciones desde abajo
-                    y_texto_cb = ALTO_MAXIMO - CB_MARGEN_INF - text_h
+                    y_texto_cb = cfg['ALTO_MAXIMO'] - cfg['CB_MARGEN_INF'] - text_h
                     y_bc       = y_texto_cb - gap_texto - bc_h
 
                     if y_bc < 0:
                         y_bc = 2
 
-                    x_bc = (ANCHO_FIJO - bc_w) // 2
+                    x_bc = (cfg['ANCHO_FIJO'] - bc_w) // 2
                     img_canvas.paste(bc_rgb, (x_bc, y_bc))
 
-                    x_t = (ANCHO_FIJO - text_w) // 2
+                    x_t = (cfg['ANCHO_FIJO'] - text_w) // 2
                     draw.text((x_t, y_texto_cb), codigo_barras, font=font_barcode, fill=(0, 0, 0))
 
-                    print(f"[*] CB: y={y_bc}  texto: y={y_texto_cb}  fin={y_texto_cb + text_h}  max={ALTO_MAXIMO}")
+                    print(f"[*] CB: y={y_bc}  texto: y={y_texto_cb}  fin={y_texto_cb + text_h}  max={cfg['ALTO_MAXIMO']}")
             except Exception as e:
                 print(f"[-] Error obteniendo Código de Barras: {e}")
 
             # Binarizar — umbral 128: grises oscuros (#333, L≈80) → negro; blanco → blanco
             img_gris  = img_canvas.convert("L")
             img_final = img_gris.point(lambda x: 0 if x < 128 else 255, "1")
-            nuevo_alto = ALTO_MAXIMO
+            nuevo_alto = cfg['ALTO_MAXIMO']
 
         else:
             print("[*] Modo legacy: imagen pre-renderizada...")
@@ -276,9 +319,9 @@ def imprimir_etiqueta(url_imagen):
             fondo.paste(img, mask=img.split()[3] if len(img.split()) == 4 else None)
             img = fondo.convert("RGB")
 
-            ratio      = ANCHO_FIJO / float(img.width)
-            nuevo_alto = int(min(img.height * ratio, ALTO_MAXIMO))
-            img_scaled = img.resize((ANCHO_FIJO, nuevo_alto), Image.NEAREST)
+            ratio      = cfg['ANCHO_FIJO'] / float(img.width)
+            nuevo_alto = int(min(img.height * ratio, cfg['ALTO_MAXIMO']))
+            img_scaled = img.resize((cfg['ANCHO_FIJO'], nuevo_alto), Image.NEAREST)
 
             img_gris  = img_scaled.convert("L")
             img_final = img_gris.point(lambda x: 0 if x < 128 else 255, "1")
@@ -288,13 +331,13 @@ def imprimir_etiqueta(url_imagen):
         hDC.StartPage()
 
         dib = ImageWin.Dib(img_final)
-        dib.draw(hDC.GetHandleOutput(), (0, 0, ANCHO_FIJO, nuevo_alto))
+        dib.draw(hDC.GetHandleOutput(), (0, 0, cfg['ANCHO_FIJO'], nuevo_alto))
 
         hDC.EndPage()
         hDC.EndDoc()
         hDC.DeleteDC()
 
-        print(f"[+] Enviado al spooler — {ANCHO_FIJO}×{nuevo_alto}px")
+        print(f"[+] Enviado al spooler — {cfg['ANCHO_FIJO']}×{nuevo_alto}px")
         return True
 
     except Exception as e:
@@ -304,11 +347,10 @@ def imprimir_etiqueta(url_imagen):
 
 def iniciar():
     print("=================================================")
-    print(" SERVIDOR DE IMPRESION NIIMBOT K3 - Bioelectrónica  [V2]")
+    print(" SERVIDOR DE IMPRESION NIIMBOT K3 - Bioelectrónica  [V3 - Soporte Múltiples Tamaños]")
     print(f" Servidor URL : {HOST}")
     print(f" Impresora    : {IMPRESORA}")
-    print(f" Canvas fijo  : {ANCHO_FIJO}×{ALTO_MAXIMO}px  (50mm×33mm @ 203 DPI, 93%)")
-    print(f" Binarización : umbral 128 | Margen barcode: {CB_MARGEN_INF}px")
+    print(f" Tamaños Soportados: 70x40mm, 50x33mm")
     print("=================================================\n")
     print("Sondeando trabajos pendientes en la nube...")
 

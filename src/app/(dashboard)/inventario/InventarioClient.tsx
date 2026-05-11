@@ -25,8 +25,9 @@ import { DateInput } from '@/components/ui/DateInput';
 import BuscadorOdoo, { OdooAlertPanel } from './BuscadorOdoo';
 
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
-function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number) => void; isPrinting: boolean }) {
+function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number, size: string) => void; isPrinting: boolean }) {
     const [cantidad, setCantidad] = useState(1);
+    const [size, setSize] = useState('70x40');
     const searchParams = new URLSearchParams({
         idQr: activo.idQr,
         descripcion: activo.descripcionCorta || '',
@@ -40,6 +41,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
     });
     if ((activo as any).fechaFabricacion) searchParams.set('fechaFab', new Date((activo as any).fechaFabricacion).toISOString().split('T')[0]);
     if ((activo as any).fechaVencimiento) searchParams.set('fechaVenc', new Date((activo as any).fechaVencimiento).toISOString().split('T')[0]);
+    searchParams.set('size', size);
     const url = `/api/impresion/generar-etiqueta?${searchParams.toString()}`;
 
     return (
@@ -53,16 +55,29 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                         <p className="text-xs text-slate-500 mt-0.5">Asegúrate de que la impresora NIIMBOT K3 esté conectada y lista.</p>
                     </div>
                 </div>
-                <div className="mb-4 flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
-                    <span className="text-sm font-semibold text-slate-700">Copias a Imprimir:</span>
-                    <input 
-                        type="number" 
-                        min="1" 
-                        max="100" 
-                        value={cantidad} 
-                        onChange={(e) => setCantidad(Number(e.target.value) || 1)}
-                        className="w-20 text-center font-bold font-mono py-1.5 px-2 rounded-lg border-slate-300 focus:ring-blue-500"
-                    />
+                <div className="mb-4 flex flex-col gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-slate-700">Copias a Imprimir:</span>
+                        <input 
+                            type="number" 
+                            min="1" 
+                            max="100" 
+                            value={cantidad} 
+                            onChange={(e) => setCantidad(Number(e.target.value) || 1)}
+                            className="w-20 text-center font-bold font-mono py-1.5 px-2 rounded-lg border-slate-300 focus:ring-blue-500"
+                        />
+                    </div>
+                    <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                        <span className="text-sm font-semibold text-slate-700">Tamaño Etiqueta:</span>
+                        <select 
+                            value={size} 
+                            onChange={(e) => setSize(e.target.value)}
+                            className="text-sm font-semibold py-1.5 px-2 rounded-lg border-slate-300 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="70x40">70x40 mm</option>
+                            <option value="50x33">50x33 mm</option>
+                        </select>
+                    </div>
                 </div>
                 <div className="border-4 border-slate-100 rounded-xl p-4 bg-slate-50 flex justify-center mb-6 overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -70,7 +85,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                 </div>
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 font-semibold border-2 border-slate-200 text-slate-600 py-3 rounded-xl hover:bg-slate-50 active:scale-95 transition-all">Cancelar</button>
-                    <button onClick={() => { onPrint(cantidad); onClose(); }} disabled={isPrinting} className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#0500A3] text-white hover:bg-[#0600c2] font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
+                    <button onClick={() => { onPrint(cantidad, size); onClose(); }} disabled={isPrinting} className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#0500A3] text-white hover:bg-[#0600c2] font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
                         {isPrinting ? <Loader2 className="w-5 h-5 animate-spin"/> : <Printer className="w-5 h-5" />} Enviar a Impresora
                     </button>
                 </div>
@@ -83,6 +98,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
 function SuperAdminLabelPreviewModal({ onClose, activo }: { onClose: () => void; activo: Activo | null }) {
     const [scale, setScale] = useState<1 | 2 | 3>(2);
     const [reloadKey, setReloadKey] = useState(0);
+    const [size, setSize] = useState('70x40');
 
     if (!activo) return null;
 
@@ -99,11 +115,12 @@ function SuperAdminLabelPreviewModal({ onClose, activo }: { onClose: () => void;
     });
     if ((activo as any).fechaFabricacion) searchParams.set('fechaFab', new Date((activo as any).fechaFabricacion).toISOString().split('T')[0]);
     if ((activo as any).fechaVencimiento) searchParams.set('fechaVenc', new Date((activo as any).fechaVencimiento).toISOString().split('T')[0]);
+    searchParams.set('size', size);
     const url = `/api/impresion/generar-etiqueta?${searchParams.toString()}&_r=${reloadKey}`;
 
-    // Dimensiones reales en px del canvas: 406 × 264
-    const W = 406;
-    const H = 264;
+    // Dimensiones reales en px del canvas
+    const W = size === '70x40' ? 559 : 406;
+    const H = size === '70x40' ? 320 : 264;
 
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
@@ -120,10 +137,17 @@ function SuperAdminLabelPreviewModal({ onClose, activo }: { onClose: () => void;
                         </div>
                         <div>
                             <h3 className="text-lg font-bold text-slate-900 leading-tight">Vista Previa de Etiqueta</h3>
-                            <p className="text-[11px] text-slate-500 mt-0.5 font-mono">
-                                <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded font-semibold">SUPER_ADMIN</span>
-                                &nbsp;· Canvas: 406×264px · Solo lectura
-                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                                <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold">SUPER_ADMIN</span>
+                                <select 
+                                    value={size} 
+                                    onChange={(e) => setSize(e.target.value)}
+                                    className="text-[11px] font-mono font-semibold py-0.5 px-1 rounded border border-slate-200 bg-white"
+                                >
+                                    <option value="70x40">70x40mm ({559}x{320}px)</option>
+                                    <option value="50x33">50x33mm ({406}x{264}px)</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                     <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400">
@@ -208,8 +232,8 @@ function SuperAdminLabelPreviewModal({ onClose, activo }: { onClose: () => void;
                 <div className="mx-6 mb-5 mt-3 flex flex-wrap gap-2">
                     <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">Canvas: {W}×{H}px</span>
                     <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">203 DPI</span>
-                    <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">2"×1.3" (50.8×33mm)</span>
-                    <span className="text-[11px] bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-semibold">Tally Dascom DL-210</span>
+                    <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">{size === '70x40' ? '2.7"×1.5" (70×40mm)' : '2"×1.3" (50.8×33mm)'}</span>
+                    <span className="text-[11px] bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-semibold">NIIMBOT K3</span>
                 </div>
 
                 {/* Footer */}
@@ -2332,6 +2356,7 @@ function DeleteConfirm({ activo, onClose, onSuccess }: { activo: Activo; onClose
 function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean; onClose: () => void; grupos: any[]; onSuccess: () => void }) {
     const [grupo, setGrupo] = useState('');
     const [cantidad, setCantidad] = useState('');
+    const [size, setSize] = useState('70x40');
     const [isPending, startTransition] = useTransition();
 
     if (!open) return null;
@@ -2367,6 +2392,17 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
                             className={inputCls} placeholder="Ej: 50" />
                         <p className="text-[10px] text-slate-500 mt-1.5 ml-1 leading-tight">Se enviarán a imprimir automáticamente los {cantidad || 'N'} registros más recientes de este grupo.</p>
                     </div>
+                    <div>
+                        <FieldLabel required>Tamaño Etiqueta</FieldLabel>
+                        <select 
+                            value={size} 
+                            onChange={(e) => setSize(e.target.value)}
+                            className={selectCls}
+                        >
+                            <option value="70x40">70x40 mm</option>
+                            <option value="50x33">50x33 mm</option>
+                        </select>
+                    </div>
                 </div>
 
                 <button onClick={() => startTransition(async () => {
@@ -2374,7 +2410,7 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
                     if (Number(cantidad) < 1) return alert('Cantidad inválida');
 
                     try {
-                        const res = await encolarLoteImpresion(grupo, Number(cantidad));
+                        const res = await encolarLoteImpresion(grupo, Number(cantidad), size);
                         if (res.error) alert(res.error);
                         else {
                             alert(`Se enviaron ${cantidad} etiquetas a la cola de impresión exitosamente.`);
@@ -2710,11 +2746,11 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
 
     // The initial fetch is now handled Serverside on `page.tsx` directly!
 
-    async function handlePrintLabel(activo: Activo, cantidad: number = 1) {
+    async function handlePrintLabel(activo: Activo, cantidad: number = 1, size: string = '70x40') {
         setPrintingId(activo.id);
         setPrintStatus('sending');
         try {
-            const result = await encolarCopiasNiimbot(activo.id, cantidad);
+            const result = await encolarCopiasNiimbot(activo.id, cantidad, size);
 
             if (!result.success) throw new Error(result.error || 'Error al encolar impresión');
             
@@ -2949,7 +2985,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                     activo={previewActivo}
                     onClose={() => setPreviewActivo(null)}
                     isPrinting={printingId === previewActivo.id && printStatus === 'sending'}
-                    onPrint={(cantidad) => handlePrintLabel(previewActivo, cantidad)}
+                    onPrint={(cantidad, size) => handlePrintLabel(previewActivo, cantidad, size)}
                 />
             )}
 
