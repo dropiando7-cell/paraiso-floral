@@ -37,6 +37,9 @@ export async function GET(req: NextRequest) {
     const size = searchParams.get('size') || '70x40';
     const is70x40 = size === '70x40';
 
+    // Si no hay codigo de barras explícito, utilizamos el id interno como codigo de barra 1D también.
+    const barcodeData = codigoBarras ? codigoBarras : idQr;
+
     // Dimensiones según tamaño
     const W = is70x40 ? 559 : 406;
     const H = is70x40 ? 320 : 264;
