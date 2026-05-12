@@ -1458,6 +1458,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 modelo: fd.get('modelo') as string || '',
                                 codigoBarras: codigoBarras || '',
                                 serie: fd.get('serie') as string || '',
+                                size: '70x40',
                             });
                             const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
                             
