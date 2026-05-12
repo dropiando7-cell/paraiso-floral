@@ -140,7 +140,7 @@ export default function ModernTemplate(props: TemplateProps) {
  <div className="flex items-center gap-2 mb-3 px-3 print:px-0 print:mb-2">
  <div className="w-4 shrink-0 print:hidden" data-pdf-hide />
  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
- <div className="flex-1 grid grid-cols-[minmax(0,21fr)_minmax(0,27fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,16fr)] gap-2 text-[10px] font-bold text-slate-400 uppercase">
+ <div className="flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 text-[10px] font-bold text-slate-400 uppercase">
  <div className="text-center">Código</div>
  <div className="text-center">Descripción</div>
  <div className="text-center print:text-left">Cant.</div>

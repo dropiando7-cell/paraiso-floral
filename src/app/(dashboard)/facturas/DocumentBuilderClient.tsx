@@ -524,7 +524,7 @@ function LineItemRow({
              </div>
           </div>
         ) : (
-          <div className="flex-1 grid grid-cols-[minmax(0,21fr)_minmax(0,27fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,16fr)] gap-2 min-w-0 relative">
+          <div className="flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 min-w-0 relative">
             {/* Code */}
             <div className={`min-w-0 relative flex items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {viewMode ? (
