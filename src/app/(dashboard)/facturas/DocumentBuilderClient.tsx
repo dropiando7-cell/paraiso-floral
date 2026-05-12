@@ -532,8 +532,9 @@ function LineItemRow({
                   {item.code || ' '}
                 </div>
               ) : (
-                <input
-                  value={item.code}
+                <>
+                  <input
+                    value={item.code}
                   onFocus={() => { setFocusedField('code'); setShowAutocomplete(true); }}
                   onChange={e => {
                     onChange(item.id, 'code', e.target.value);
@@ -562,6 +563,10 @@ function LineItemRow({
                   placeholder="Código"
                   className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
                 />
+                <span className="hidden print:block w-full text-[10px] md:text-[11px] tracking-tight font-mono text-center text-slate-800 break-words">
+                  {item.code || ' '}
+                </span>
+                </>
               )}
               {focusedField === 'code' && !viewMode && renderDropdown()}
               {settings?.showTableVerticalBorders && (
@@ -580,6 +585,7 @@ function LineItemRow({
               {viewMode ? (
                 <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">{item.shortDesc}</div>
               ) : (
+                <>
                 <input
                   type="text"
                   value={item.shortDesc}
@@ -594,6 +600,10 @@ function LineItemRow({
                   placeholder="Descripción del producto o servicio"
                   className="w-full h-[34px] text-xs border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
                 />
+                <span className="hidden print:block text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">
+                  {item.shortDesc}
+                </span>
+                </>
               )}
 
               </div>

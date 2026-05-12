@@ -223,12 +223,14 @@ export default function LegacyTemplate(props: TemplateProps) {
  <span className="font-mono">{fmt(totals.isv15)}</span>
  </div>
  
- <div 
-    className="flex justify-between items-center px-3 py-1.5 mt-1 rounded-sm shadow-sm print:border-t-2 print:border-b-2 print:border-solid print:py-1 print:px-0"
+    <div 
+    className="flex justify-between items-center px-3 py-1.5 mt-1 rounded-sm shadow-sm print:border-t-2 print:border-b-2 print:border-solid print:py-1 print:px-3"
     style={{
       backgroundColor: settings.totalBgColor || '#0f172a',
       color: settings.totalTextColor || '#ffffff',
-      borderColor: settings.totalBgColor || '#0f172a'
+      borderColor: settings.totalBgColor || '#0f172a',
+      WebkitPrintColorAdjust: 'exact',
+      printColorAdjust: 'exact'
     }}
   >
   <span className="font-bold print:font-black text-sm print:text-base">TOTAL</span>
