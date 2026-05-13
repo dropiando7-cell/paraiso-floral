@@ -24,7 +24,12 @@ export default async function RentasPage() {
         redirect('/unauthorized');
     }
 
-    const initialRentas = await getRentas();
+    const rawRentas = await getRentas();
+    const initialRentas = rawRentas.map(renta => ({
+        ...renta,
+        costoRenta: Number(renta.costoRenta),
+        deposito: Number(renta.deposito),
+    }));
 
     return <RentasClient initialRentas={initialRentas} />;
 }

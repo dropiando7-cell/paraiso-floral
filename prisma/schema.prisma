@@ -82,6 +82,8 @@ model User {
   activosActualizados   ActivoFijo[]           @relation("UpdatedActivos")
   facturasCreadas       Factura[]              @relation("CreatedFacturas")
   facturasAnuladas      Factura[]              @relation("AnuladaFacturas")
+  rentasCreadas         RentaEquipo[]          @relation("CreatedRentas")
+  rentasModificadas     RentaEquipo[]          @relation("UpdatedRentas")
   organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   ordenesRecepcionadas  OrdenTrabajo[]         @relation("RecepcionOrdenes")
   ordenesReparadas      OrdenTrabajo[]         @relation("TecnicoOrdenes")
@@ -339,6 +341,7 @@ model ActivoFijo {
   imagenPlacaUrl        String?
   fechaLevantamiento    DateTime?
   categoriaDepreciacion String?
+  esParaRenta           Boolean              @default(false)
   historicoId           String?              @db.Uuid
   vidaUtilOverride      Decimal?             @db.Decimal(5, 2)
   codigoGrupo           String?
@@ -740,11 +743,19 @@ model RentaEquipo {
   costoRenta       Decimal      @db.Decimal(12, 2)
   deposito         Decimal      @default(0) @db.Decimal(12, 2)
   notas            String?
+  tipoAlquiler     String       @default("Mensual")
+  mesesRenta       Int          @default(1)
+  horasTrabajoSalida String?
+  accesoriosIncluidos String?
+  creadoPorId      String?      @db.Uuid
+  modificadoPorId  String?      @db.Uuid
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   activoFijo       ActivoFijo   @relation(fields: [activoFijoId], references: [id])
   cliente          Cliente      @relation(fields: [clienteId], references: [id])
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creadoPor        User?        @relation("CreatedRentas", fields: [creadoPorId], references: [id])
+  modificadoPor    User?        @relation("UpdatedRentas", fields: [modificadoPorId], references: [id])
 
   @@index([organizationId])
   @@index([clienteId])

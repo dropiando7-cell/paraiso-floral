@@ -47,6 +47,7 @@ async function generateIdQr(organizationId: string, area: string, codigoGrupo: s
     const todos = await prisma.activoFijo.findMany({
         where: { 
             organizationId,
+            esParaRenta: false,
             idQr: { startsWith: `${prefijoBase}-` }
         },
         select: { idQr: true }
@@ -83,13 +84,13 @@ export async function getGruposAutocompletado() {
         // Agrupar por descripcionCorta para obtener cantidad
         const agrupados = await prisma.activoFijo.groupBy({
             by: ['descripcionCorta'],
-            where: { organizationId: orgId },
+            where: { organizationId: orgId, esParaRenta: false },
             _count: { id: true }
         });
 
         const resultados = await Promise.all(agrupados.map(async (g) => {
             const last = await prisma.activoFijo.findFirst({
-                where: { organizationId: orgId, descripcionCorta: g.descripcionCorta },
+                where: { organizationId: orgId, descripcionCorta: g.descripcionCorta, esParaRenta: false },
                 orderBy: { createdAt: 'desc' },
                 select: { codigoGrupo: true }
             });
@@ -154,7 +155,7 @@ export async function getActivosByGrupo(codigoGrupo: string) {
     try {
         const orgId = await getOrgId();
         const activos = await prisma.activoFijo.findMany({
-            where: { organizationId: orgId, codigoGrupo },
+            where: { organizationId: orgId, codigoGrupo, esParaRenta: false },
             orderBy: { area: 'asc' },
             select: {
                 id: true,
@@ -186,7 +187,7 @@ export async function getActivosByDescripcionCorta(descripcionCorta: string) {
     try {
         const orgId = await getOrgId();
         const activos = await prisma.activoFijo.findMany({
-            where: { organizationId: orgId, descripcionCorta },
+            where: { organizationId: orgId, descripcionCorta, esParaRenta: false },
             orderBy: { area: 'asc' },
             select: {
                 id: true,
@@ -219,7 +220,7 @@ export async function getActivosByIdQr(idQr: string) {
     try {
         const orgId = await getOrgId();
         const activos = await prisma.activoFijo.findMany({
-            where: { organizationId: orgId, idQr },
+            where: { organizationId: orgId, idQr, esParaRenta: false },
             orderBy: { area: 'asc' },
             select: {
                 id: true,
@@ -246,6 +247,7 @@ export async function searchActivosGlobal(query: string) {
         const activos = await prisma.activoFijo.findMany({
             where: {
                 organizationId: orgId,
+                esParaRenta: false,
                 OR: [
                     { idQr: { contains: query, mode: 'insensitive' } },
                     { codigoBarras: { contains: query, mode: 'insensitive' } },
@@ -306,6 +308,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '')
 
     const where = {
         organizationId: orgId,
+        esParaRenta: false,
         ...(search && {
             OR: [
                 { descripcionCorta: { contains: search, mode: 'insensitive' as const } },
@@ -361,7 +364,7 @@ export async function getActivoStats(area?: string) {
         WITH org_areas AS (
             SELECT COUNT(DISTINCT "area") as areas_count 
             FROM "activos_fijos" 
-            WHERE "organizationId" = ${orgId}::uuid
+            WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false
             ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
         )
         SELECT 
@@ -372,7 +375,7 @@ export async function getActivoStats(area?: string) {
             COALESCE(SUM("stock") FILTER (WHERE "estadoDano" IS NOT NULL), 0) as con_dano,
             (SELECT areas_count FROM org_areas)
         FROM "activos_fijos"
-        WHERE "organizationId" = ${orgId}::uuid
+        WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false
         ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
     `;
 
@@ -392,7 +395,7 @@ export async function getActivoStats(area?: string) {
 export async function getUbicacionesActivasByProducto(identificador: string, tipo: 'codigoBarras' | 'codigoGrupo' | 'descripcionCorta') {
     const orgId = await getOrgId();
     
-    const whereClause: any = { organizationId: orgId };
+    const whereClause: any = { organizationId: orgId, esParaRenta: false };
     if (tipo === 'codigoBarras') {
         whereClause.codigoBarras = identificador;
     } else if (tipo === 'codigoGrupo') {
@@ -420,7 +423,7 @@ export async function getUbicacionesActivasByProducto(identificador: string, tip
 export async function findActivoByBarcode(codigoBarras: string) {
     const orgId = await getOrgId();
     const activo = await prisma.activoFijo.findFirst({
-        where: { organizationId: orgId, codigoBarras },
+        where: { organizationId: orgId, codigoBarras, esParaRenta: false },
         orderBy: { createdAt: 'asc' }
     });
     return activo;
@@ -434,7 +437,7 @@ export async function checkExistingByBarcode(codigoBarras: string) {
     if (!codigoBarras?.trim()) return null;
     const orgId = await getOrgId();
     const activo = await prisma.activoFijo.findFirst({
-        where: { organizationId: orgId, codigoBarras: codigoBarras.trim() },
+        where: { organizationId: orgId, codigoBarras: codigoBarras.trim(), esParaRenta: false },
         orderBy: { createdAt: 'asc' },
         select: {
             id: true,
@@ -458,7 +461,7 @@ export async function checkExistingByBarcode(codigoBarras: string) {
 export async function getActivoDetailsByBarcode(codigoBarras: string) {
     const orgId = await getOrgId();
     return await prisma.activoFijo.findFirst({
-        where: { organizationId: orgId, codigoBarras },
+        where: { organizationId: orgId, codigoBarras, esParaRenta: false },
         select: {
             descripcionCorta: true,
             descripcionDetallada: true,
@@ -481,6 +484,7 @@ export async function searchActivosForAutocomplete(query: string) {
     const results = await prisma.activoFijo.findMany({
         where: {
             organizationId: orgId,
+            esParaRenta: false,
             codigoBarras: { not: null },
             OR: [
                 { codigoBarras: { contains: query, mode: 'insensitive' } },
@@ -510,6 +514,7 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
     const codigoBarrasForm = formData.get('codigoBarras') as string;
     const codigoBarras = codigoBarrasForm ? codigoBarrasForm.trim() : null;
     const esConsumible = formData.get('esConsumible') === 'true';
+    const esParaRenta = formData.get('esParaRenta') === 'true';
 
     // Generar 1 idQr si es consumible (o será agrupado), o N idQrs si es Activo Fijo (serialización forzada)
     const numIds = esConsumible ? 1 : cantidadRegistros;
@@ -582,7 +587,8 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
         valorLibros: deprec?.valorLibros ?? null,
         // ── Retail fields ──
         codigoBarras,
-        stock: cantidadRegistros
+        stock: cantidadRegistros,
+        esParaRenta
     };
 
     // ── Master-Data Integrity Constraint ──

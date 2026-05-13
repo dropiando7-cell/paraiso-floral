@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
-    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag
+    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft
 } from 'lucide-react';
 import {
     searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, 
@@ -16,6 +16,7 @@ import {
     getActivosByGrupo, updateActivoQuick, checkGrupoExists, getActivosByIdQr, 
     searchActivosGlobal
 } from './actions';
+import { getEquiposParaRenta, getRentaStats } from '../rentas/equipos/actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 import { RestockModal } from './RestockModal';
 import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
@@ -784,8 +785,8 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
 }
 
 // ─── Modal Form (iPad-first + AI vision) ─────────────────────────────────────
-function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock }: {
-    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void;
+function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode }: {
+    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean;
 }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
@@ -2179,8 +2180,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
                                 {/* ── FOOTER ── */}
                                 <div className="flex flex-col sm:flex-row gap-3 pt-2 border-t border-slate-100">
-                                    <button type="button" onClick={onClose}
-                                        className="flex-1 text-base font-medium border-2 border-slate-200 text-slate-600 py-4 rounded-2xl hover:bg-slate-50 active:scale-[0.98] transition-all">
+                                    <input type="hidden" name="esParaRenta" value={isRentaMode ? "true" : "false"} />
+                                    <button type="button" onClick={onClose} className="flex-1 py-3.5 border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors active:scale-95">
                                         Cancelar
                                     </button>
                                     {isEdit ? (
@@ -2695,8 +2696,9 @@ function ProductSummaryModal({
     );
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
-export function InventarioClient({ initialData, initialStats, dbAreas = [], userRole }: { initialData?: any; initialStats?: any; dbAreas?: any[]; userRole?: string }) {
+// ─── Main Client Component ───────────────────────────────────────────────────
+export function InventarioClient({ initialData, initialStats, dbAreas, userRole, isRentaMode = false }: { initialData: any, initialStats: any, dbAreas: any[], userRole: string, isRentaMode?: boolean }) {
+    const router = useRouter();   
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
         label: a.description ? `${a.name} — ${a.description}` : a.name
@@ -2732,12 +2734,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     useEffect(() => { getGruposAutocompletado().then(res => setGruposDisponibles(res)); }, []);
 
     const searchParams = useSearchParams();
-    const router = useRouter();
 
     // QR Area Control
     const [lockedArea, setLockedArea] = useState<string | null>(null);
     const [isCheckingArea, setIsCheckingArea] = useState(false);
-    const [isAutoCategorizing, setIsAutoCategorizing] = useState(false);
     
     const [noAreaModalOpen, setNoAreaModalOpen] = useState(false);
     const [isClosingAct, startClosingAct] = useTransition();
@@ -2841,16 +2841,39 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
     }
     const PER_PAGE = 10;
 
+    const handleSuccess = () => { refresh(1); };
+
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-6">
-            {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-6 hide-on-print">
+        <div className="min-h-screen bg-slate-50 p-4 md:p-6 font-sans">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
                 <div>
+                    {isRentaMode && (
+                        <button 
+                            onClick={() => router.push('/rentas')}
+                            className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-[#0500A3] mb-3 transition-colors"
+                        >
+                            <ChevronLeft className="w-4 h-4" />
+                            Volver al módulo de Rentas
+                        </button>
+                    )}
                     <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-3">
-                        <Package className="w-8 h-8 text-[#0500A3]" />
-                        Inventario de Productos
+                        {isRentaMode ? (
+                            <>
+                                <ArrowRightLeft className="w-8 h-8 text-[#0500A3]" />
+                                Equipos para Renta
+                            </>
+                        ) : (
+                            <>
+                                <Package className="w-8 h-8 text-[#0500A3]" />
+                                Catálogo de Productos
+                            </>
+                        )}
                     </h1>
-                    <p className="text-sm text-slate-500 mt-0.5">Catálogo Comercial y Existencias · Bioelectrónica Honduras</p>
+                    <p className="text-sm text-slate-500 mt-1">
+                        {isRentaMode 
+                            ? 'Gestión del inventario dedicado exclusivamente para rentar a clientes.'
+                            : 'Gestión y control de inventario general de ventas.'}
+                    </p>
                 </div>
                 <div className="flex flex-col items-end gap-2 w-full sm:w-auto mt-4 sm:mt-0">
                     <div className="flex items-center gap-2">
@@ -2902,11 +2925,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                             </button>
                             <button
                                 onClick={() => setModalOpen(true)}
-                                disabled={isCheckingArea}
-                                className="flex items-center justify-center gap-2 text-base font-bold bg-[#0500A3] text-white px-5 py-3 rounded-2xl transition-all shadow-md w-full sm:w-auto justify-center hide-on-print"
+                                className="flex items-center gap-2 bg-[#0500A3] hover:bg-[#0600c2] text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm active:scale-95"
                             >
-                                {isCheckingArea ? <Loader2 className="w-5 h-5 animate-spin" /> : <Plus className="w-5 h-5" />}
-                                {isCheckingArea ? 'Iniciando...' : 'Registrar Producto'}
+                                <Plus className="w-5 h-5" />
+                                {isRentaMode ? 'Nuevo Equipo' : 'Nuevo Producto'}
                             </button>
                         </div>
                     </div>
@@ -3031,7 +3053,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 <h1 className="text-2xl font-bold text-slate-900">Reporte de Inventario de Activos Fijos</h1>
                 <div className="text-zinc-600 mt-1">Iglesia Misión Cristiana Elim Central - San Pedro Sula, Honduras</div>
                 <div className="mt-4 flex justify-between font-bold text-slate-800 text-sm">
-                    <div>Filtro de Área: {filtroArea ? (AREAS.find(a => a.value === filtroArea)?.label || filtroArea) : 'TODAS LAS ÁREAS'}</div>
+                    <div>Filtro de Área: {filtroArea ? (AREAS.find((a: any) => a.value === filtroArea)?.label || filtroArea) : 'TODAS LAS ÁREAS'}</div>
                     <div suppressHydrationWarning>Fecha de Reporte: {new Date().toLocaleDateString('es-HN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
                 </div>
             </div>
@@ -3144,9 +3166,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas = [], user
                 open={modalOpen}
                 onClose={() => { setModalOpen(false); setEditActivo(null); }}
                 editActivo={editActivo}
-                onSuccess={() => refresh(1)}
+                onSuccess={handleSuccess}
                 lockedArea={lockedArea}
                 onSelectRestock={() => { setModalOpen(false); setRestockModalOpen(true); }}
+                isRentaMode={isRentaMode}
             />
             {/* No Area Open Modal */}
             {noAreaModalOpen && (

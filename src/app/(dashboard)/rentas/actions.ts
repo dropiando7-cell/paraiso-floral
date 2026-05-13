@@ -33,7 +33,7 @@ export async function returnRenta(rentaId: string) {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
-        select: { organizationId: true },
+        select: { id: true, organizationId: true },
     });
     if (!dbUser) throw new Error('Unauthorized');
 
@@ -43,6 +43,7 @@ export async function returnRenta(rentaId: string) {
         data: {
             estado: 'DEVUELTO',
             fechaDevolucion: new Date(),
+            modificadoPorId: dbUser.id,
         },
     });
 
@@ -52,6 +53,35 @@ export async function returnRenta(rentaId: string) {
         data: {
             estatusContable: 'VIGENTE',
         }
+    });
+
+    return true;
+}
+
+export async function editRenta(rentaId: string, payload: {
+    tipoAlquiler?: string;
+    mesesRenta?: number;
+    costoRenta?: number;
+    deposito?: number;
+    notas?: string;
+    fechaFinEsperada?: Date;
+}) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Unauthorized');
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { id: true, organizationId: true },
+    });
+    if (!dbUser) throw new Error('Unauthorized');
+
+    await prisma.rentaEquipo.update({
+        where: { id: rentaId, organizationId: dbUser.organizationId },
+        data: {
+            ...payload,
+            modificadoPorId: dbUser.id,
+        },
     });
 
     return true;

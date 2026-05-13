@@ -10,14 +10,33 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
+    const [mesesRenta, setMesesRenta] = useState(1);
+    const [costoRenta, setCostoRenta] = useState(1500);
+    const [isNewClient, setIsNewClient] = useState(false);
+    const [fechaFin, setFechaFin] = useState(() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + 1);
+        return d.toISOString().split('T')[0];
+    });
+
+    const handleMesesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const meses = parseInt(e.target.value) || 1;
+        setMesesRenta(meses);
+        setCostoRenta(meses * 1500);
+        
+        const d = new Date();
+        d.setMonth(d.getMonth() + meses);
+        setFechaFin(d.toISOString().split('T')[0]);
+    };
+
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
         
         startTransition(async () => {
             try {
-                await createRenta(fd);
-                router.push('/rentas');
+                const renta = await createRenta(fd);
+                router.push(`/rentas/${renta.id}/contrato`);
                 router.refresh();
             } catch (err) {
                 alert('Error al crear la renta');
@@ -50,10 +69,30 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                             <div className="grid md:grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Cliente / Doctor <span className="text-red-500">*</span></label>
-                                    <select name="clienteId" required className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold">
+                                    <select 
+                                        name="clienteId" 
+                                        required={!isNewClient}
+                                        onChange={(e) => setIsNewClient(e.target.value === 'NEW')}
+                                        className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold"
+                                    >
                                         <option value="">Selecciona un cliente...</option>
+                                        <option value="NEW" className="font-bold text-[#0500A3]">+ Registrar Nuevo Cliente</option>
                                         {clientes.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
                                     </select>
+
+                                    {isNewClient && (
+                                        <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-100 rounded-xl">
+                                            <label className="block text-xs font-bold text-slate-700 mb-2">Nombre Completo del Nuevo Cliente <span className="text-red-500">*</span></label>
+                                            <input 
+                                                type="text" 
+                                                name="nuevoClienteNombre" 
+                                                required={isNewClient} 
+                                                placeholder="Ej. Dr. Juan Pérez" 
+                                                className="w-full border-2 border-blue-200 rounded-lg px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
+                                                autoFocus
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Equipo Médico <span className="text-red-500">*</span></label>
@@ -61,6 +100,18 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                         <option value="">Selecciona un equipo disponible...</option>
                                         {equipos.map(e => <option key={e.id} value={e.id}>{e.descripcionCorta} {e.serie ? `(S/N: ${e.serie})` : ''}</option>)}
                                     </select>
+                                </div>
+                            </div>
+
+                            {/* Datos del Cliente Adicionales */}
+                            <div className="grid md:grid-cols-2 gap-5 mt-5">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono del Cliente (Opcional)</label>
+                                    <input type="text" name="telefono" placeholder="Ej. 9999-9999" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Dirección (Opcional)</label>
+                                    <input type="text" name="direccion" placeholder="Ej. Col. Juan Lindo..." className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
                                 </div>
                             </div>
                         </div>
@@ -71,8 +122,21 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                             
                             <div className="grid md:grid-cols-2 gap-5">
                                 <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Alquiler</label>
+                                    <select name="tipoAlquiler" defaultValue="Mensual" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold">
+                                        <option value="Quincenal">Quincenal</option>
+                                        <option value="Mensual">Mensual</option>
+                                        <option value="Anual">Anual</option>
+                                        <option value="Otro">Otro</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Meses a Rentar</label>
+                                    <input type="number" name="mesesRenta" value={mesesRenta} onChange={handleMesesChange} min="1" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                </div>
+                                <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><Calendar className="w-4 h-4 text-slate-400" /> Fecha de Entrega Esperada <span className="text-red-500">*</span></label>
-                                    <input type="date" name="fechaFinEsperada" required className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                    <input type="date" name="fechaFinEsperada" value={fechaFin} onChange={e => setFechaFin(e.target.value)} required className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
                                 </div>
                             </div>
                         </div>
@@ -84,19 +148,34 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                             <div className="grid md:grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><DollarSign className="w-4 h-4 text-slate-400" /> Costo Total Renta (L.) <span className="text-red-500">*</span></label>
-                                    <input type="number" step="0.01" name="costoRenta" required min="0" placeholder="Ej. 1500" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-bold text-emerald-700" />
+                                    <input type="number" step="0.01" name="costoRenta" value={costoRenta} onChange={e => setCostoRenta(parseFloat(e.target.value) || 0)} required min="0" placeholder="Ej. 1500" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-bold text-emerald-700" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><DollarSign className="w-4 h-4 text-slate-400" /> Depósito en Garantía (L.)</label>
-                                    <input type="number" step="0.01" name="deposito" min="0" defaultValue="0" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                    <input type="number" step="0.01" name="deposito" min="0" defaultValue="1500" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Detalles Físicos */}
+                        <div className="space-y-5 pt-6 border-t border-slate-100">
+                            <h2 className="text-sm uppercase tracking-wider font-bold text-slate-400">4. Detalles del Equipo (Contrato)</h2>
+                            <div className="grid md:grid-cols-2 gap-5">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Horas de Trabajo de Salida</label>
+                                    <input type="text" name="horasTrabajoSalida" placeholder="Ej. 1200 hrs" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">Accesorios Incluidos</label>
+                                    <input type="text" name="accesoriosIncluidos" placeholder="Ej. Manguera, Cable de poder..." className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
                                 </div>
                             </div>
                         </div>
 
                         {/* Notas */}
                         <div className="space-y-5 pt-6 border-t border-slate-100">
-                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><Text className="w-4 h-4 text-slate-400" /> Notas y Condiciones Adicionales</label>
-                            <textarea name="notas" rows={3} placeholder="Condición del equipo al entregar, accesorios incluidos..." className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-medium"></textarea>
+                            <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><Text className="w-4 h-4 text-slate-400" /> Notas Internas Adicionales</label>
+                            <textarea name="notas" rows={2} placeholder="Condición del equipo al entregar..." className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-medium"></textarea>
                         </div>
 
                         <div className="pt-6 border-t border-slate-100">
