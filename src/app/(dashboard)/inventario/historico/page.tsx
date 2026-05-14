@@ -16,7 +16,7 @@ export default async function HistoricoPage() {
     });
     if (!dbUser) redirect('/unauthorized');
 
-    if (dbUser.role !== 'SUPER_ADMIN') {
+    if (dbUser.role !== 'SUPER_ADMIN' && !dbUser.accessibleModules.includes('/inventario/historico')) {
         redirect('/unauthorized');
     }
 

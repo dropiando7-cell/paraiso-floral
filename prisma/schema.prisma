@@ -24,6 +24,7 @@ model Organization {
   telefono              String?
   qrPrefix              String                 @default("BEA")
   invoiceSettings       Json?
+  invoiceTemplates      Json?
   activosFijos          ActivoFijo[]
   areaInventoryStatuses AreaInventoryStatus[]
   areas                 Area[]

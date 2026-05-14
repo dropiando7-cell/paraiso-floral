@@ -37,16 +37,14 @@ export async function getEquiposParaRenta(page = 1, search = '', area = '', esta
         ...(estatus && { estatusContable: estatus }),
     };
 
-    const [activos, total] = await Promise.all([
-        prisma.activoFijo.findMany({
-            where,
-            orderBy: { createdAt: 'desc' },
-            skip,
-            take: PER_PAGE,
-            include: { categoria: true, createdBy: { select: { nombre: true, apellido: true, email: true } } },
-        }),
-        prisma.activoFijo.count({ where }),
-    ]);
+    const activos = await prisma.activoFijo.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: PER_PAGE,
+        include: { categoria: true, createdBy: { select: { nombre: true, apellido: true, email: true } } },
+    });
+    const total = await prisma.activoFijo.count({ where });
 
     const plainActivos = activos.map(a => ({
         ...a,

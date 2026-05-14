@@ -265,6 +265,22 @@ function LineItemRow({
   const paddingClasses = ['py-0 print:py-0', 'py-[2px] print:py-[2px]', 'py-2 print:py-1', 'py-3 print:py-2', 'py-4 print:py-3'];
   const padClass = paddingClasses[settings?.tableRowPadding ?? 2] || 'py-2 print:py-1';
 
+  const imgSizeClass = settings?.productImageSize === 'large' ? 'w-24 h-24' : 
+                       settings?.productImageSize === 'medium' ? 'w-16 h-16' : 'w-[34px] h-[34px]';
+  
+  const imgStyleClass = settings?.productImageStyle === 'original' 
+    ? 'bg-transparent overflow-visible border-none'
+    : settings?.productImageStyle === 'square' 
+      ? 'bg-slate-50 rounded-none border border-slate-200 overflow-hidden print:border-none print:bg-transparent'
+      : 'bg-slate-50 rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent';
+      
+  const imgObjectClass = settings?.productImageStyle === 'original' ? 'object-contain' : 'object-cover';
+
+  const isDescNum = typeof settings?.itemDescFontSize === 'number';
+  const descSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[10px]' : 'text-xs';
+  const inputDescSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[10px]' : 'text-xs';
+  const descStyle = isDescNum ? { fontSize: `${settings.itemDescFontSize}px` } as React.CSSProperties : undefined;
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -390,7 +406,7 @@ function LineItemRow({
                 <p className="text-xs font-black text-blue-600 shrink-0">{fmt(p.price)}</p>
               </div>
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded font-medium ${idx === selectedIndex ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>{p.code}</span>
+                <span className={`text-[10px] ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} px-1.5 py-0.5 rounded font-medium ${idx === selectedIndex ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>{p.code}</span>
                 {p.type === 'activo' ? (
                   <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">Activo Fijo</span>
                 ) : (
@@ -460,7 +476,7 @@ function LineItemRow({
         >
         {/* Drag handle + index */}
         <div 
-          className={`relative flex flex-col items-center justify-center w-4 h-[34px] shrink-0 print:hidden ${padClass}`}
+          className={`relative flex flex-col items-center justify-center w-4 ${item.isSection ? 'py-2 print:py-1' : `h-[34px] ${padClass}`} shrink-0 print:hidden`}
           data-pdf-hide
           onMouseEnter={() => setIsDraggable(true)}
           onMouseLeave={() => setIsDraggable(false)}
@@ -474,21 +490,20 @@ function LineItemRow({
         </div>
 
         {/* First Column Image Position (if enabled) */}
-        {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && !item.isSection && (
+        {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && !item.isSection && (
           <div className={`${padClass} shrink-0`}>
-            <div className="w-[34px] h-[34px] bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
-              {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
+            <div className={`${imgSizeClass} ${imgStyleClass} flex items-center justify-center`}>
+              {item.imageUrl ? <img src={item.imageUrl} alt="" className={`w-full h-full ${imgObjectClass}`} /> : <Package size={14} className="text-slate-300" />}
             </div>
           </div>
         )}
 
         {item.isSection ? (
-          <div className={`flex-1 flex flex-col relative print:my-1 ${padClass}`}>
+          <div 
+            className={`flex-1 flex flex-col relative py-2 print:py-1`}
+          >
              <div 
                className="w-full h-full flex items-center px-1 transition-all border border-transparent print:border-none focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-500/20"
-               style={{
-                 minHeight: '34px'
-               }}
              >
                {viewMode ? (
                  <div
@@ -526,48 +541,57 @@ function LineItemRow({
         ) : (
           <div className="flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 min-w-0 relative">
             {/* Code */}
-            <div className={`min-w-0 relative flex items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
-              {viewMode ? (
-                <div className="w-full text-[10px] md:text-[11px] tracking-tight font-mono text-center text-slate-800 break-words">
-                  {item.code || ' '}
-                </div>
+            <div className={`min-w-0 relative flex items-center justify-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
+              {settings?.showItemCode !== false ? (
+                viewMode ? (
+                  <div className={`w-full ${descSizeClass} tracking-tight ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center text-slate-800 break-words`} style={descStyle}>
+                    {item.code || ' '}
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      value={item.code}
+                    onFocus={() => { setFocusedField('code'); setShowAutocomplete(true); }}
+                    onChange={e => {
+                      onChange(item.id, 'code', e.target.value);
+                      setFocusedField('code');
+                      setShowAutocomplete(true);
+                    }}
+                    onKeyDown={handleKeyDown}
+                    onBlur={async (e) => {
+                      const val = e.target.value.trim();
+                      setTimeout(async () => {
+                        if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
+                          try {
+                            const res = await buscarItemPorCodigo(val);
+                            if (res) {
+                              onChange(item.id, 'shortDesc', res.name);
+                              if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
+                              if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
+                              if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
+                              if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
+                              if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
+                            }
+                          } catch(err) { console.error('Error in onBlur search:', err); }
+                        }
+                      }, 200);
+                    }}
+                    placeholder="Código"
+                    className={`w-full h-[34px] text-[10px] md:text-[11px] tracking-tight ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700`}
+                  />
+                  <span className={`hidden print:block w-full ${descSizeClass} tracking-tight ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center text-slate-800 break-words`} style={descStyle}>
+                    {item.code || ' '}
+                  </span>
+                  </>
+                )
               ) : (
-                <>
-                  <input
-                    value={item.code}
-                  onFocus={() => { setFocusedField('code'); setShowAutocomplete(true); }}
-                  onChange={e => {
-                    onChange(item.id, 'code', e.target.value);
-                    setFocusedField('code');
-                    setShowAutocomplete(true);
-                  }}
-                  onKeyDown={handleKeyDown}
-                  onBlur={async (e) => {
-                    const val = e.target.value.trim();
-                    setTimeout(async () => {
-                      if (val && val.length >= 3 && (!item.shortDesc || item.shortDesc.trim() === '')) {
-                        try {
-                          const res = await buscarItemPorCodigo(val);
-                          if (res) {
-                            onChange(item.id, 'shortDesc', res.name);
-                            if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
-                            if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
-                            if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
-                            if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
-                            if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
-                          }
-                        } catch(err) { console.error('Error in onBlur search:', err); }
-                      }
-                    }, 200);
-                  }}
-                  placeholder="Código"
-                  className="w-full h-[34px] text-[10px] md:text-[11px] tracking-tight font-mono text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-700"
-                />
-                <span className="hidden print:block w-full text-[10px] md:text-[11px] tracking-tight font-mono text-center text-slate-800 break-words">
-                  {item.code || ' '}
-                </span>
-                </>
+                settings?.showProductImages && (
+                  <div className={`${imgSizeClass} shrink-0 flex items-center justify-center ${imgStyleClass}`}>
+                    {item.imageUrl ? <img src={item.imageUrl} alt="" className={`w-full h-full ${imgObjectClass}`} /> : <Package size={14} className="text-slate-300" />}
+                  </div>
+                )
               )}
+
               {focusedField === 'code' && !viewMode && renderDropdown()}
               {settings?.showTableVerticalBorders && (
                 <div className="print:block" style={{ position: 'absolute', right: 0, top: 0, bottom: '-1.5px', width: settings.tableBorderThickness || '1px', backgroundColor: settings.tableBorderColor || '#e2e8f0', zIndex: 10 }} />
@@ -576,14 +600,14 @@ function LineItemRow({
 
             {/* Description */}
             <div className={`min-w-0 relative flex gap-2 items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
-              {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && (
-                <div className="w-[34px] h-[34px] shrink-0 bg-slate-50 flex items-center justify-center rounded-lg border border-slate-200 overflow-hidden print:border-none print:bg-transparent">
-                  {item.imageUrl ? <img src={item.imageUrl} alt="" className="w-full h-full object-cover" /> : <Package size={14} className="text-slate-300" />}
+              {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && settings?.showItemCode !== false && (
+                <div className={`${imgSizeClass} shrink-0 flex items-center justify-center ${imgStyleClass}`}>
+                  {item.imageUrl ? <img src={item.imageUrl} alt="" className={`w-full h-full ${imgObjectClass}`} /> : <Package size={14} className="text-slate-300" />}
                 </div>
               )}
               <div className="flex-1 min-w-0">
               {viewMode ? (
-                <div className="text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">{item.shortDesc}</div>
+                <div className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words`} style={descStyle}>{item.shortDesc}</div>
               ) : (
                 <>
                 <input
@@ -598,9 +622,10 @@ function LineItemRow({
                   }}
                   onKeyDown={handleKeyDown}
                   placeholder="Descripción del producto o servicio"
-                  className="w-full h-[34px] text-xs border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800"
+                  className={`w-full h-[34px] ${inputDescSizeClass} border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800`}
+                  style={descStyle}
                 />
-                <span className="hidden print:block text-xs font-semibold text-slate-800 whitespace-pre-wrap break-words">
+                <span className={`hidden print:block ${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words`} style={descStyle}>
                   {item.shortDesc}
                 </span>
                 </>
@@ -621,10 +646,11 @@ function LineItemRow({
                   min="1"
                   value={item.qty}
                   onChange={e => onChange(item.id, 'qty', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                  className="w-full h-[34px] text-xs text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all print:hidden [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                  style={descStyle}
                 />
               ) : null}
-              <span className={`text-xs font-semibold text-slate-800 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+              <span className={`${descSizeClass} font-semibold text-slate-800 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`} style={descStyle}>
                 {item.qty}
               </span>
               {settings?.showTableVerticalBorders && (
@@ -641,11 +667,12 @@ function LineItemRow({
                     type="number"
                     value={item.unitPrice}
                     onChange={e => onChange(item.id, 'unitPrice', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
-                    className="w-full h-[34px] text-xs text-right pl-5 pr-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pl-5 pr-2 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                    style={descStyle}
                   />
                 </div>
               ) : null}
-              <span className={`text-xs font-semibold text-slate-800 text-right font-mono ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+              <span className={`${descSizeClass} font-semibold text-slate-800 text-right ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} ${!viewMode ? 'hidden print:inline' : 'inline'}`} style={descStyle}>
                 {fmt(Number(item.unitPrice) || 0)}
               </span>
               {settings?.showTableVerticalBorders && (
@@ -662,7 +689,8 @@ function LineItemRow({
                     value={item.discount}
                     onChange={e => onChange(item.id, 'discount', e.target.value === '' ? '' : (parseFloat(e.target.value) || 0))}
                     placeholder="0"
-                    className="w-full h-[34px] text-xs text-right pr-6 pl-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pr-6 pl-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
+                    style={descStyle}
                   />
                   <button
                     type="button"
@@ -672,7 +700,7 @@ function LineItemRow({
                   >{item.discountType === 'percentage' ? '%' : 'L'}</button>
                 </div>
               ) : null}
-              <span className={`text-xs font-semibold text-slate-800 text-right ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+              <span className={`${descSizeClass} font-semibold text-slate-800 text-right ${!viewMode ? 'hidden print:inline' : 'inline'}`} style={descStyle}>
                 {Number(item.discount) > 0
                   ? (item.discountType === 'percentage' ? `${item.discount}%` : fmt(Number(item.discount)))
                   : '-'}
@@ -688,7 +716,8 @@ function LineItemRow({
                 <select
                   value={item.tax}
                   onChange={e => onChange(item.id, 'tax', e.target.value as TaxType)}
-                  className="w-full min-w-0 h-[34px] text-[10px] font-semibold border border-slate-200 rounded-lg px-0.5 text-center bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer print:hidden"
+                  className={`w-full min-w-0 h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} font-semibold border border-slate-200 rounded-lg px-0.5 text-center bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all cursor-pointer print:hidden`}
+                  style={descStyle}
                 >
                   <option value="isv15">ISV 15%</option>
                   <option value="isv18">ISV 18%</option>
@@ -696,7 +725,7 @@ function LineItemRow({
                   <option value="exonerado">Exonerado</option>
                 </select>
               ) : null}
-              <span className={`text-[10px] font-semibold text-slate-700 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`}>
+              <span className={`${descSizeClass} font-semibold text-slate-700 text-center ${!viewMode ? 'hidden print:inline' : 'inline'}`} style={descStyle}>
                 {item.tax === 'isv15' ? 'ISV 15%' : item.tax === 'isv18' ? 'ISV 18%' : item.tax === 'exento' ? 'Exento' : 'Exonerado'}
               </span>
               {settings?.showTableVerticalBorders && (
@@ -706,7 +735,7 @@ function LineItemRow({
 
             {/* Monto / Subtotal — vertically centered, centered */}
             <div className={`min-w-0 flex items-center justify-end ${padClass}`}>
-              <p className="text-xs font-bold text-slate-800 text-right font-mono pr-2">
+              <p className={`${descSizeClass} font-bold text-slate-800 text-right ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} pr-2`} style={descStyle}>
                 {fmt(total)}
               </p>
             </div>
@@ -785,7 +814,7 @@ function LineItemRow({
                   dangerouslySetInnerHTML={{ __html: item.richDesc }}
                 />
               ) : (
-                <div className="text-xs text-slate-600 whitespace-pre-wrap break-words">{item.longDesc}</div>
+                <div className={`text-slate-600 whitespace-pre-wrap break-words ${descSizeClass}`} style={descStyle}>{item.longDesc}</div>
               )
             ) : (
               <div className="print:hidden">
@@ -803,7 +832,7 @@ function LineItemRow({
                 />
               </div>
             )}
-            <div className={`hidden ${!viewMode ? 'print:block' : 'print:hidden'} text-xs text-slate-600 prose prose-sm max-w-none`} dangerouslySetInnerHTML={{ __html: item.richDesc || (item.longDesc ? item.longDesc.replace(/\n/g, '<br/>') : '') }} />
+            <div className={`hidden ${!viewMode ? 'print:block' : 'print:hidden'} text-slate-600 prose prose-sm max-w-none ${descSizeClass}`} style={descStyle} dangerouslySetInnerHTML={{ __html: item.richDesc || (item.longDesc ? item.longDesc.replace(/\n/g, '<br/>') : '') }} />
           </div>
         )}
       </div>
@@ -1731,12 +1760,12 @@ export default function DocumentBuilderClient({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans print:bg-white overflow-x-hidden print:overflow-visible print:min-h-0 print:block">
+    <div className="min-h-screen bg-slate-50 font-sans print:!bg-white overflow-x-hidden print:overflow-visible print:min-h-0 print:block">
       {/* Top Bar */}
-      <div className={`sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[320px]' : ''}`}>
+      <div className={`sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[360px]' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-y-3 gap-x-4 overflow-x-auto sm:overflow-visible">
           
-          <div className="flex items-center gap-4 flex-1 min-w-[300px]">
+          <div className="flex items-center gap-4">
              <DocTypeSelector value={docType} onChange={setDocType} />
           </div>
 
@@ -1778,7 +1807,7 @@ export default function DocumentBuilderClient({
 
         <div className={`w-full relative transition-all duration-300 print:block ${isLocked ? 'pointer-events-none' : ''}`}>
           
-          <div className={`transition-all duration-500 relative flex-1 min-w-0 z-10 print:block ${showCustomizer ? 'pr-80 print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''} ${isLocked ? 'blur-[6px] opacity-60 grayscale-[0.1]' : ''}`}>
+          <div className={`transition-all duration-500 relative flex-1 min-w-0 z-10 print:block ${showCustomizer ? 'pr-[360px] print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''} ${isLocked ? 'blur-[6px] opacity-60 grayscale-[0.1]' : ''}`}>
              <div ref={templateContainerRef} className="max-w-[816px] mx-auto relative bg-white">
           
           {isAnulada && (
@@ -2178,7 +2207,7 @@ export default function DocumentBuilderClient({
             
             <div className="bg-slate-50 border border-slate-100 rounded-2xl p-4 w-full mt-2">
               <p className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-1">Correlativo</p>
-              <p className="font-mono text-lg font-bold text-slate-800">{showSuccessModal.correlativo}</p>
+              <p className={`${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-lg font-bold text-slate-800`}>{showSuccessModal.correlativo}</p>
             </div>
 
             <div className="flex gap-3 w-full mt-4">

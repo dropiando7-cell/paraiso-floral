@@ -26,9 +26,28 @@ export interface InvoiceSettings {
   showTableOuterBorders?: boolean;
   descriptionBorderDashed?: boolean;
   tableRowPadding?: number;
+  subtotalsBorder?: boolean;
+  subtotalsBorderStyle?: 'full' | 'grouped';
+  // Font Sizes
+  headerFontSize?: 'small' | 'normal' | 'large' | number;
+  tableHeaderFontSize?: 'small' | 'normal' | 'large' | number;
+  itemDescFontSize?: 'small' | 'normal' | 'large' | number;
+  totalFontSize?: 'small' | 'normal' | 'large' | number;
+  // Product Image adjustments
+  productImageSize?: 'small' | 'medium' | 'large';
+  productImageStyle?: 'original' | 'rounded' | 'square';
   // Total colors
   totalBgColor?: string;
   totalTextColor?: string;
+  // Misc
+  showItemCode?: boolean;
+  useMonospaceNumbers?: boolean;
+}
+
+export interface CustomInvoiceTemplate {
+  id: string;
+  name: string;
+  settings: InvoiceSettings;
 }
 
 export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
@@ -52,9 +71,13 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   tableHeaderBg: '#f8fafc',
   tableBorderThickness: '1px',
   tableBorderColor: '#e2e8f0',
+  subtotalsBorder: false,
+  subtotalsBorderStyle: 'grouped',
   showTableOuterBorders: true,
   descriptionBorderDashed: true,
   tableRowPadding: 2,
   totalBgColor: '#0f172a',
   totalTextColor: '#ffffff',
+  showItemCode: true,
+  useMonospaceNumbers: true,
 };

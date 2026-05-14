@@ -27,6 +27,45 @@ export default function ModernTemplate(props: TemplateProps) {
  // Font class
  const fontClass = settings.fontFamily || 'font-sans';
 
+  const isHeaderNum = typeof settings.headerFontSize === 'number';
+  const headerBaseSize = isHeaderNum ? 'text-[length:var(--header-base)]' : settings.headerFontSize === 'large' ? 'text-lg' : settings.headerFontSize === 'small' ? 'text-sm' : 'text-base';
+  const headerSmallSize = isHeaderNum ? 'text-[length:var(--header-small)]' : settings.headerFontSize === 'large' ? 'text-xs' : settings.headerFontSize === 'small' ? 'text-[9px]' : 'text-[11px]';
+
+  const isTableNum = typeof settings.tableHeaderFontSize === 'number';
+  const tableHeaderSize = isTableNum ? 'text-[length:var(--table-header)]' : settings.tableHeaderFontSize === 'large' ? 'text-sm' : settings.tableHeaderFontSize === 'small' ? 'text-[9px]' : 'text-[10px]';
+
+  const templateStyles = {
+    '--header-base': isHeaderNum ? `${settings.headerFontSize}px` : undefined,
+    '--header-small': isHeaderNum ? `${(settings.headerFontSize as number) * 0.75}px` : undefined,
+    '--table-header': isTableNum ? `${settings.tableHeaderFontSize}px` : undefined,
+  } as React.CSSProperties;
+
+  const isDescNum = typeof settings?.itemDescFontSize === 'number';
+  const descSizeVal = typeof settings?.itemDescFontSize === 'number' ? settings.itemDescFontSize : 12;
+  const subtotalSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[10px]' : 'text-xs';
+  const subtotalStyle = isDescNum ? { fontSize: `${descSizeVal}px` } : {};
+  const isTotalNum = typeof settings?.totalFontSize === 'number';
+  const totalSizeVal = isTotalNum 
+    ? settings.totalFontSize 
+    : settings?.totalFontSize === 'large' 
+      ? 30 
+      : settings?.totalFontSize === 'small' 
+        ? 18 
+        : 24;
+  const totalSizeClass = '';
+  const totalStyle = { fontSize: `${totalSizeVal}px` };
+  
+  const totalLabelSizeVal = isTotalNum 
+    ? ((settings.totalFontSize as number) - 10) 
+    : settings?.totalFontSize === 'large' 
+      ? 20 
+      : settings?.totalFontSize === 'small' 
+        ? 12 
+        : 14;
+  const totalLabelStyle = { fontSize: `${totalLabelSizeVal}px` };
+  const monoClass = settings?.useMonospaceNumbers !== false ? 'font-mono' : '';
+ const imageColWidth = settings?.productImageSize === 'large' ? 'w-24' : settings?.productImageSize === 'medium' ? 'w-16' : 'w-10';
+
  // Logo rendering block helper:
  const renderLogoSection = () => (
  <div className={`flex items-center gap-3 mb-4 ${settings.logoPosition === 'center' ? 'justify-center flex-col' : settings.logoPosition === 'right' ? 'flex-row-reverse justify-end' : ''}`}>
@@ -45,7 +84,7 @@ export default function ModernTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1 print:flex min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass}`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1 print:flex min-w-0 space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass} print:bg-white`} style={templateStyles}>
  {/* Document Card */}
  <div className="bg-white rounded-3xl border border-slate-100 shadow-xl print:shadow-none print:border-none print:rounded-none print:overflow-visible">
 
@@ -55,7 +94,7 @@ export default function ModernTemplate(props: TemplateProps) {
  {/* Logo/Org Side */}
  <div className={`flex-1 ${settings.logoPosition === 'center' ? 'flex flex-col items-center justify-center w-full' : ''}`}>
  {settings.logoPosition !== 'right' && renderLogoSection()}
- <div className={`space-y-1 mt-2 text-[11px] ${settings.logoPosition === 'center' ? 'text-center' : ''} `}>
+ <div className={`space-y-1 mt-2 ${headerSmallSize} ${settings.logoPosition === 'center' ? 'text-center' : ''} `}>
  {organization?.direccion && <p className="text-slate-400 whitespace-pre-wrap max-w-[350px] leading-relaxed ">{organization.direccion}</p>}
  <p className="text-slate-400 ">
  {organization?.rtn && `RTN: ${organization.rtn}`}
@@ -79,15 +118,15 @@ export default function ModernTemplate(props: TemplateProps) {
  <span className={currentDocType.color}>{currentDocType.icon}</span>
  <span className={`text-xs font-bold ${currentDocType.color}`}>{currentDocType.label.toUpperCase()}</span>
  </div>
- <p className="text-white font-black text-xl font-mono whitespace-nowrap">{docNumber}</p>
+ <p className={`text-white font-black text-xl ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} whitespace-nowrap`}>{docNumber}</p>
  <div className="mt-3 space-y-1">
  <div className="flex items-center gap-2 justify-end">
- <span className="text-slate-400 text-[11px] ">Fecha:</span>
- <span className="text-white text-[11px] font-semibold ">{today}</span>
+ <span className={`text-slate-400 ${headerSmallSize} `}>Fecha:</span>
+ <span className={`text-white ${headerSmallSize} font-semibold `}>{today}</span>
  </div>
  <div className="flex items-center gap-2 justify-end">
- <span className="text-slate-400 text-[11px] ">Válido hasta:</span>
- <span className={`${theme.headerText} text-[11px] font-semibold `}>{futureDate(validityDays)}</span>
+ <span className={`text-slate-400 ${headerSmallSize} `}>Válido hasta:</span>
+ <span className={`${theme.headerText} ${headerSmallSize} font-semibold `}>{futureDate(validityDays)}</span>
  </div>
  </div>
  </div>
@@ -96,17 +135,17 @@ export default function ModernTemplate(props: TemplateProps) {
  {/* Client info strip */}
  <div className="mt-6 bg-white/5 border border-white/10 rounded-2xl p-4 flex flex-wrap md:flex-nowrap items-center gap-4 relative ">
  <div className="flex-1 min-w-[200px]">
- <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1 ">Cliente</p>
- <button onClick={() => setShowClientModal(true)} className={`text-white hover:${theme.headerText} text-sm font-semibold flex items-center gap-2 transition-colors `}>
+ <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Cliente</p>
+ <button onClick={() => setShowClientModal(true)} className={`text-white hover:${theme.headerText} ${headerBaseSize} font-semibold flex items-center gap-2 transition-colors `}>
  {selectedClient?.name || 'Seleccionar cliente...'} <Search size={14} className="opacity-50 print:hidden" />
  </button>
  </div>
  <div>
- <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1 ">RTN</p>
- <p className="text-white text-xs font-mono ">{selectedClient?.rtn || '—'}</p>
+ <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>RTN</p>
+ <p className={`text-white ${headerSmallSize} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''}`}>{selectedClient?.rtn || '—'}</p>
  </div>
  <div className="w-32">
- <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1 ">Términos de Pago</p>
+ <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Términos de Pago</p>
  <select
  value={paymentTerms}
  onChange={e => setPaymentTerms(e.target.value)}
@@ -120,7 +159,7 @@ export default function ModernTemplate(props: TemplateProps) {
  </select>
  </div>
  <div className="w-24">
- <p className="text-slate-500 text-[10px] uppercase tracking-wider mb-1 ">Vigencia</p>
+ <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Vigencia</p>
  <div className="flex items-center gap-1">
  <input
  type="number"
@@ -139,9 +178,9 @@ export default function ModernTemplate(props: TemplateProps) {
  {/* Column headers */}
  <div className="flex items-center gap-2 mb-3 px-3 print:px-0 print:mb-2">
  <div className="w-4 shrink-0 print:hidden" data-pdf-hide />
- {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
- <div className="flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 text-[10px] font-bold text-slate-400 uppercase">
- <div className="text-center">Código</div>
+ {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && <div className={`${imageColWidth} shrink-0`} />}
+ <div className={`flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 ${tableHeaderSize} font-bold text-slate-400 uppercase`}>
+ <div className="text-center">{settings?.showItemCode !== false ? 'Código' : (settings?.showProductImages ? 'Imagen' : '')}</div>
  <div className="text-center">Descripción</div>
  <div className="text-center print:text-left">Cant.</div>
  <div className="text-center">P. Unitario</div>
@@ -210,54 +249,80 @@ export default function ModernTemplate(props: TemplateProps) {
  </div>
 
  {/* Totals Section */}
- <div className="border-t border-slate-100 bg-slate-50/70 p-6 print:p-2 rounded-b-3xl print:break-inside-avoid">
+ <div className="border-t border-slate-100 bg-white p-6 print:p-2 rounded-b-3xl print:break-inside-avoid">
  <div className="flex justify-end">
  <div className="w-full max-w-xs space-y-3">
  <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">Resumen Financiero</p>
 
- <div className="flex justify-between items-center">
- <span className="text-sm text-slate-500">Subtotal L.</span>
- <span className="text-sm font-semibold text-slate-700">{fmt(totals.subtotal)}</span>
+ <div className={`${settings?.subtotalsBorder ? 'border border-b-0 text-sm' : 'space-y-3'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span className={`${subtotalSizeClass} text-slate-500`} style={subtotalStyle}>Subtotal L.</span>
  </div>
- <div className="flex justify-between items-center">
- <span className="text-sm text-slate-500">Total descuentos y rebajas L.</span>
- <span className="text-sm font-semibold text-red-500">-{fmt(totals.descuentos)}</span>
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : ''}`}>
+ <span className={`${subtotalSizeClass} font-semibold text-slate-700 ${monoClass}`} style={subtotalStyle}>{fmt(totals.subtotal)}</span>
  </div>
- <div className="flex justify-between items-center group">
- <div className="flex flex-col">
- <span className="text-sm text-slate-500">Total exento L.</span>
  </div>
- <div className="flex items-center gap-2">
- <span className="text-sm font-semibold text-slate-700">
+ <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span className={`${subtotalSizeClass} text-slate-500`} style={subtotalStyle}>Total descuentos y rebajas L.</span>
+ </div>
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : ''}`}>
+ <span className={`${subtotalSizeClass} font-semibold text-red-500 ${monoClass}`} style={subtotalStyle}>-{fmt(totals.descuentos)}</span>
+ </div>
+ </div>
+ <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center group'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : 'flex-col items-start'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span className={`${subtotalSizeClass} text-slate-500`} style={subtotalStyle}>Total exento L.</span>
+ </div>
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : 'gap-2'}`}>
+ <span className={`${subtotalSizeClass} font-semibold text-slate-700 ${monoClass}`} style={subtotalStyle}>
  {fmt(totals.exento)}
  </span>
  </div>
  </div>
- <div className="flex justify-between items-center group">
- <div className="flex flex-col">
- <span className="text-sm text-slate-500">Total exonerado L.</span>
+ <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center group'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : 'flex-col items-start'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span className={`${subtotalSizeClass} text-slate-500`} style={subtotalStyle}>Total exonerado L.</span>
  </div>
- <div className="flex items-center gap-2">
- <span className="text-sm font-semibold text-slate-700">
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : 'gap-2'}`}>
+ <span className={`${subtotalSizeClass} font-semibold text-slate-700 ${monoClass}`} style={subtotalStyle}>
  {fmt(totals.exonerado)}
  </span>
  </div>
  </div>
- <div className="flex justify-between items-center">
- <span className="text-sm text-slate-500">Total gravado 15% L.</span>
- <span className="text-sm font-semibold text-slate-700">{fmt(totals.gravado15)}</span>
+ <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span className={`${subtotalSizeClass} text-slate-500`} style={subtotalStyle}>Total gravado 15% L.</span>
  </div>
- <div className="flex justify-between items-center">
- <span className="text-sm text-slate-500">Total ISV 15% L.</span>
- <span className="text-sm font-semibold text-amber-600">{fmt(totals.isv15)}</span>
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : ''}`}>
+ <span className={`${subtotalSizeClass} font-semibold text-slate-700 ${monoClass}`} style={subtotalStyle}>{fmt(totals.gravado15)}</span>
  </div>
- <div className="flex justify-between items-center">
- <span className="text-sm text-slate-500">Total gravado 18% L.</span>
- <span className="text-sm font-semibold text-slate-700">{fmt(totals.gravado18)}</span>
  </div>
- <div className="flex justify-between items-center">
- <span className="text-sm text-slate-500">Total ISV 18% L.</span>
- <span className="text-sm font-semibold text-amber-600">{fmt(totals.isv18)}</span>
+ <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span className={`${subtotalSizeClass} text-slate-500`} style={subtotalStyle}>Total ISV 15% L.</span>
+ </div>
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : ''}`}>
+ <span className={`${subtotalSizeClass} font-semibold text-amber-600 ${monoClass}`} style={subtotalStyle}>{fmt(totals.isv15)}</span>
+ </div>
+ </div>
+ <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span className={`${subtotalSizeClass} text-slate-500`} style={subtotalStyle}>Total gravado 18% L.</span>
+ </div>
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : ''}`}>
+ <span className={`${subtotalSizeClass} font-semibold text-slate-700 ${monoClass}`} style={subtotalStyle}>{fmt(totals.gravado18)}</span>
+ </div>
+ </div>
+ <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+ <span className={`${subtotalSizeClass} text-slate-500`} style={subtotalStyle}>Total ISV 18% L.</span>
+ </div>
+ <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : ''}`}>
+ <span className={`${subtotalSizeClass} font-semibold text-amber-600 ${monoClass}`} style={subtotalStyle}>{fmt(totals.isv18)}</span>
+ </div>
+ </div>
  </div>
 
  <div className="border-t border-slate-200 pt-3">

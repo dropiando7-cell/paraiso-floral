@@ -937,3 +937,53 @@ export async function reservarCorrelativoVacio(tipoDocumento: string) {
         return { success: false, error: 'Incapaz de reservar correlativo: ' + error.message };
     }
 }
+
+// --- GESTIÓN DE PLANTILLAS PERSONALIZADAS ---
+export async function guardarInvoiceTemplate(name: string, settings: any) {
+    try {
+        const organizationId = await getOrganizationId();
+        const org = await prisma.organization.findUnique({ where: { id: organizationId } });
+        if (!org) throw new Error("Organización no encontrada");
+
+        const currentTemplates: any[] = Array.isArray(org.invoiceTemplates) ? org.invoiceTemplates : [];
+        const newTemplate = { id: Math.random().toString(36).slice(2, 9), name, settings };
+        const updatedTemplates = [...currentTemplates, newTemplate];
+
+        await prisma.organization.update({
+            where: { id: organizationId },
+            data: { invoiceTemplates: updatedTemplates }
+        });
+        return { success: true, templates: updatedTemplates };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function eliminarInvoiceTemplate(templateId: string) {
+    try {
+        const organizationId = await getOrganizationId();
+        const org = await prisma.organization.findUnique({ where: { id: organizationId } });
+        if (!org) throw new Error("Organización no encontrada");
+
+        const currentTemplates: any[] = Array.isArray(org.invoiceTemplates) ? org.invoiceTemplates : [];
+        const updatedTemplates = currentTemplates.filter(t => t.id !== templateId);
+
+        await prisma.organization.update({
+            where: { id: organizationId },
+            data: { invoiceTemplates: updatedTemplates }
+        });
+        return { success: true, templates: updatedTemplates };
+    } catch (e: any) {
+        return { success: false, error: e.message };
+    }
+}
+
+export async function getInvoiceTemplates() {
+    try {
+        const organizationId = await getOrganizationId();
+        const org = await prisma.organization.findUnique({ where: { id: organizationId } });
+        return Array.isArray(org?.invoiceTemplates) ? org.invoiceTemplates : [];
+    } catch (e) {
+        return [];
+    }
+}

@@ -23,10 +23,8 @@ export default async function NuevaRentaPage() {
         redirect('/unauthorized');
     }
 
-    const [clientes, equipos] = await Promise.all([
-        getClientesLista(),
-        getEquiposDisponibles()
-    ]);
+    const clientes = await getClientesLista();
+    const equipos = await getEquiposDisponibles();
 
     return <NuevaRentaClient clientes={clientes} equipos={equipos} />;
 }

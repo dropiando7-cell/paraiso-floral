@@ -30,14 +30,12 @@ export default async function InventarioPage() {
     const orgId = dbUser.organizationId;
 
     // Fetch initial data on the server for instant UI rendering!
-    const [initialData, initialStats, dbAreas] = await Promise.all([
-        getActivos(1, '', '', ''),
-        getActivoStats(),
-        prisma.area.findMany({
-            where: { organizationId: orgId },
-            orderBy: { name: 'asc' },
-        })
-    ]);
+    const initialData = await getActivos(1, '', '', '');
+    const initialStats = await getActivoStats();
+    const dbAreas = await prisma.area.findMany({
+        where: { organizationId: orgId },
+        orderBy: { name: 'asc' },
+    });
 
     return <InventarioClient initialData={initialData} initialStats={initialStats} dbAreas={dbAreas} userRole={dbUser.role} />;
 }

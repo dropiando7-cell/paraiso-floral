@@ -88,18 +88,19 @@ export async function getGruposAutocompletado() {
             _count: { id: true }
         });
 
-        const resultados = await Promise.all(agrupados.map(async (g) => {
+        const resultados = [];
+        for (const g of agrupados) {
             const last = await prisma.activoFijo.findFirst({
                 where: { organizationId: orgId, descripcionCorta: g.descripcionCorta, esParaRenta: false },
                 orderBy: { createdAt: 'desc' },
                 select: { codigoGrupo: true }
             });
-            return {
+            resultados.push({
                 codigoGrupo: last?.codigoGrupo || '001',
                 cantidad: g._count.id,
                 descripcionCorta: g.descripcionCorta!
-            };
-        }));
+            });
+        }
 
         return resultados.sort((a, b) => a.descripcionCorta.localeCompare(b.descripcionCorta));
     } catch (e) {
@@ -322,16 +323,14 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '')
         ...(estatus && { estatusContable: estatus }),
     };
 
-    const [activos, total] = await Promise.all([
-        prisma.activoFijo.findMany({
-            where,
-            orderBy: { createdAt: 'desc' },
-            skip,
-            take: PER_PAGE,
-            include: { categoria: true, createdBy: { select: { nombre: true, apellido: true, email: true } } },
-        }),
-        prisma.activoFijo.count({ where }),
-    ]);
+    const activos = await prisma.activoFijo.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: PER_PAGE,
+        include: { categoria: true, createdBy: { select: { nombre: true, apellido: true, email: true } } },
+    });
+    const total = await prisma.activoFijo.count({ where });
 
     const plainActivos = activos.map(a => ({
         ...a,

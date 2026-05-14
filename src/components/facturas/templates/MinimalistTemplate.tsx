@@ -22,6 +22,47 @@ export default function MinimalistTemplate(props: TemplateProps) {
  };
  const themeText = colorMap[settings.colorTheme]?.split(' ')[0] || 'text-slate-900';
 
+ const isHeaderNum = typeof settings.headerFontSize === 'number';
+ const headerBaseSize = isHeaderNum ? 'text-[length:var(--header-base)]' : settings.headerFontSize === 'large' ? 'text-lg' : settings.headerFontSize === 'small' ? 'text-sm' : 'text-base';
+ const headerSmallSize = isHeaderNum ? 'text-[length:var(--header-small)]' : settings.headerFontSize === 'large' ? 'text-xs' : settings.headerFontSize === 'small' ? 'text-[9px]' : 'text-[11px]';
+
+ const isTableNum = typeof settings.tableHeaderFontSize === 'number';
+ const tableHeaderSize = isTableNum ? 'text-[length:var(--table-header)]' : settings.tableHeaderFontSize === 'large' ? 'text-sm' : settings.tableHeaderFontSize === 'small' ? 'text-[9px]' : 'text-[10px]';
+
+
+  const isDescNum = typeof settings?.itemDescFontSize === 'number';
+  const descSizeVal = typeof settings?.itemDescFontSize === 'number' ? settings.itemDescFontSize : 12;
+  const subtotalSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[10px]' : 'text-xs';
+  const subtotalStyle = isDescNum ? { fontSize: `${descSizeVal}px` } : {};
+  const isTotalNum = typeof settings?.totalFontSize === 'number';
+  const totalSizeVal = isTotalNum 
+    ? settings.totalFontSize 
+    : settings?.totalFontSize === 'large' 
+      ? 30 
+      : settings?.totalFontSize === 'small' 
+        ? 18 
+        : 24;
+  const totalSizeClass = '';
+  const totalStyle = { fontSize: `${totalSizeVal}px` };
+  
+  const totalLabelSizeVal = isTotalNum 
+    ? ((settings.totalFontSize as number) - 10) 
+    : settings?.totalFontSize === 'large' 
+      ? 20 
+      : settings?.totalFontSize === 'small' 
+        ? 12 
+        : 14;
+  const totalLabelStyle = { fontSize: `${totalLabelSizeVal}px` };
+  const monoClass = settings?.useMonospaceNumbers !== false ? 'font-mono' : '';
+
+
+ const templateStyles = {
+   '--header-base': isHeaderNum ? `${settings.headerFontSize}px` : undefined,
+   '--header-small': isHeaderNum ? `${(settings.headerFontSize as number) * 0.75}px` : undefined,
+   '--table-header': isTableNum ? `${settings.tableHeaderFontSize}px` : undefined,
+ } as React.CSSProperties;
+ const imageColWidth = settings?.productImageSize === 'large' ? 'w-24' : settings?.productImageSize === 'medium' ? 'w-16' : 'w-10';
+
  const renderLogo = () => (
  <div className={`mb-6 flex ${settings.logoPosition === 'center' ? 'justify-center' : settings.logoPosition === 'right' ? 'justify-end' : ''}`}>
  {organization?.logoUrl ? (
@@ -35,7 +76,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  );
 
  return (
- <div className={`flex flex-col min-h-[1056px] flex-1 print:flex space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`}>
+ <div className={`flex flex-col min-h-[1056px] flex-1 print:flex space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass} bg-white max-w-4xl mx-auto shadow-sm print:shadow-none`} style={templateStyles}>
  <div className="flex flex-col flex-1 p-8 md:p-14 print:p-0">
  
  {/* Header Block Minimal */}
@@ -43,7 +84,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <div className={`flex-1 ${settings.logoPosition === 'center' ? 'text-center' : settings.logoPosition === 'right' ? 'text-right' : 'text-left'}`}>
  {settings.logoPosition !== 'right' && renderLogo()}
  <h1 className={`text-xl font-light text-slate-800 ${settings.logoPosition === 'center' ? 'mx-auto' : ''}`}>{organization?.name || 'Comercial'}</h1>
- <div className="text-[11px] text-slate-400 mt-2 space-y-1">
+ <div className={`${headerSmallSize} text-slate-400 mt-2 space-y-1`}>
  {organization?.direccion && <p>{organization.direccion}</p>}
  <p>
  {organization?.rtn && `${organization.rtn}`}
@@ -57,8 +98,8 @@ export default function MinimalistTemplate(props: TemplateProps) {
  
  <div className="print:text-right sm:text-right">
  <h2 className={`text-2xl font-light tracking-wide ${themeText}`}>{currentDocType.label}</h2>
- <p className="font-semibold text-slate-500 mt-1">{docNumber}</p>
- <div className="mt-6 text-[11px] text-slate-400 space-y-1.5">
+ <p className={`${headerBaseSize} font-semibold text-slate-500 mt-1`}>{docNumber}</p>
+ <div className={`mt-6 ${headerSmallSize} text-slate-400 space-y-1.5`}>
  <p>Emisión: <span className="font-medium text-slate-800">{today}</span></p>
  <p>Vencimiento: <span className="font-medium text-slate-800">{futureDate(validityDays)}</span></p>
  </div>
@@ -68,10 +109,10 @@ export default function MinimalistTemplate(props: TemplateProps) {
  {/* Client Block Minimal */}
  <div className="flex flex-col print:flex-row sm:flex-row justify-between gap-6 print:gap-4 mb-10 print:mb-6">
  <div className="flex-1">
- <p className="text-[10px] text-slate-400 uppercase mb-1">Facturar A</p>
+ <p className={`${headerSmallSize} text-slate-400 uppercase mb-1`}>Facturar A</p>
  <button onClick={() => setShowClientModal(true)} className="text-left group w-full">
- <p className={`font-semibold text-base ${selectedClient ? 'text-slate-800' : 'text-slate-300'} group-hover:${themeText} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
- {selectedClient && <p className="text-xs text-slate-500 mt-1">{selectedClient.rtn || 'RTN No Disponible'}</p>}
+ <p className={`font-semibold ${headerBaseSize} ${selectedClient ? 'text-slate-800' : 'text-slate-300'} group-hover:${themeText} transition-colors`}>{selectedClient?.name || 'Seleccionar cliente...'}</p>
+ {selectedClient && <p className={`${headerSmallSize} text-slate-500 mt-1`}>{selectedClient.rtn || 'RTN No Disponible'}</p>}
  </button>
  </div>
  
@@ -104,9 +145,9 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <div className="mb-12 relative z-50 print:mb-6">
  <div className="flex items-center gap-2 mb-3 px-2 border-b border-slate-100 pb-2 print:px-0">
  <div className="w-4 shrink-0 print:hidden" data-pdf-hide />
- {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && <div className="w-10 shrink-0" />}
- <div className={`flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 text-[10px] uppercase font-semibold text-slate-400`}>
- <div className="text-center">Código</div>
+ {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && <div className={`${imageColWidth} shrink-0`} />}
+ <div className={`flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 ${tableHeaderSize} uppercase font-semibold text-slate-400`}>
+ <div className="text-center">{settings?.showItemCode !== false ? 'Código' : (settings?.showProductImages ? 'Imagen' : '')}</div>
  <div className="text-center">Descripción</div>
  <div className="text-center print:text-left">Cant.</div>
  <div className="text-center">Precio</div>

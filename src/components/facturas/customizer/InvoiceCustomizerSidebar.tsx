@@ -1,7 +1,9 @@
 'use client';
-import React, { useState } from 'react';
-import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom } from 'lucide-react';
-import { InvoiceSettings, TemplateLayout, LogoPosition, LogoSize } from '@/types/invoice';
+import React, { useState, useEffect } from 'react';
+import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling } from 'lucide-react';
+import { InvoiceSettings, TemplateLayout, LogoPosition, LogoSize, CustomInvoiceTemplate } from '@/types/invoice';
+import { getInvoiceTemplates, guardarInvoiceTemplate, eliminarInvoiceTemplate } from '@/app/(dashboard)/facturas/actions';
+import toast from 'react-hot-toast';
 
 interface Props {
   settings: InvoiceSettings;
@@ -25,8 +27,10 @@ const COLORS = [
 ];
 
 const FONTS = [
-  { id: 'font-sans', name: 'Inter / Arial (Modern)', cssClass: 'font-sans' },
+  { id: 'font-sans', name: 'Inter (Modern)', cssClass: 'font-sans' },
+  { id: 'font-arial', name: 'Arial (Clásica)', cssClass: '[font-family:Arial,_Helvetica,_sans-serif]' },
   { id: 'font-serif', name: 'Times / Georgia (Classic)', cssClass: 'font-serif' },
+  { id: 'font-times', name: 'Times New Roman (Formal)', cssClass: '[font-family:"Times_New_Roman",_Times,_serif]' },
   { id: 'font-mono', name: 'Courier / Roboto (Tech)', cssClass: 'font-mono' },
   { id: 'font-system', name: 'Helvetica (Estándar)', cssClass: '[font-family:system-ui,_-apple-system,_BlinkMacSystemFont,_"Segoe_UI",_Roboto,_sans-serif]' },
   { id: 'font-verdana', name: 'Verdana (Legible)', cssClass: '[font-family:Verdana,_sans-serif]' },
@@ -63,11 +67,104 @@ function FooterField({ label, value, onChange, placeholder, multiline }: {
   );
 }
 
-export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<'template' | 'colors' | 'font' | 'logo' | 'footer'>('template');
+function FontSizeControl({ 
+  label, 
+  subtitle, 
+  value, 
+  onChange 
+}: {
+  label: string;
+  subtitle: string;
+  value: 'small' | 'normal' | 'large' | number | undefined;
+  onChange: (val: 'small' | 'normal' | 'large' | number) => void;
+}) {
+  const isNumber = typeof value === 'number';
+  const displayVal = isNumber ? value : '';
+  const presetVal = isNumber ? null : (value || 'normal');
 
   return (
-    <div className="w-80 border-l border-slate-200 bg-white h-screen fixed right-0 top-0 z-[60] flex flex-col shadow-2xl print:hidden animate-in slide-in-from-right duration-200">
+    <div className="bg-white p-3 rounded-xl border border-slate-200 space-y-2">
+      <p className="text-xs font-bold text-slate-700">{label}</p>
+      <p className="text-[10px] text-slate-400">{subtitle}</p>
+      <div className="flex bg-slate-100 p-1 rounded-lg mt-2 items-center gap-1">
+        {(['small', 'normal', 'large'] as const).map(sz => (
+          <button
+            key={sz}
+            onClick={() => onChange(sz)}
+            className={`flex-1 text-[10px] font-bold py-1.5 px-2 rounded-md transition-all ${
+              presetVal === sz ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {sz === 'small' ? 'Pequeño' : sz === 'normal' ? 'Normal' : 'Grande'}
+          </button>
+        ))}
+        <div className="w-[1px] h-6 bg-slate-300 mx-1 shrink-0"></div>
+        <div className="flex items-center bg-white rounded-md border border-slate-200 overflow-hidden shadow-sm w-[50px] shrink-0">
+          <input
+            type="number"
+            value={displayVal}
+            onChange={e => {
+              if (e.target.value === '') {
+                onChange('normal');
+                return;
+              }
+              const num = parseInt(e.target.value);
+              if (!isNaN(num) && num > 0) onChange(num);
+            }}
+            placeholder="px"
+            className="w-full text-[10px] font-bold text-slate-700 py-1.5 px-1 border-none focus:ring-0 text-center appearance-none"
+            style={{ MozAppearance: 'textfield' }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }: Props) {
+  const [activeTab, setActiveTab] = useState<'template' | 'colors' | 'font' | 'logo' | 'footer' | 'sizes'>('template');
+  const [savedTemplates, setSavedTemplates] = useState<CustomInvoiceTemplate[]>([]);
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    getInvoiceTemplates().then(res => {
+      setSavedTemplates((res as unknown) as CustomInvoiceTemplate[]);
+    }).catch(console.error);
+  }, []);
+
+  const handleSaveTemplate = async () => {
+    if (!newTemplateName.trim()) return toast.error("Ingresa un nombre para la plantilla");
+    setIsSaving(true);
+    const res = await guardarInvoiceTemplate(newTemplateName, settings);
+    if (res.success && res.templates) {
+       setSavedTemplates((res.templates as unknown) as CustomInvoiceTemplate[]);
+       setNewTemplateName('');
+       toast.success("Plantilla guardada exitosamente");
+    } else {
+       toast.error(res.error || "Error al guardar");
+    }
+    setIsSaving(false);
+  };
+
+  const handleLoadTemplate = (t: CustomInvoiceTemplate) => {
+    Object.keys(t.settings).forEach(key => {
+      onChange(key as keyof InvoiceSettings, (t.settings as any)[key]);
+    });
+    toast.success("Plantilla cargada");
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (!confirm('¿Eliminar esta plantilla?')) return;
+    const res = await eliminarInvoiceTemplate(id);
+    if (res.success && res.templates) {
+       setSavedTemplates((res.templates as unknown) as CustomInvoiceTemplate[]);
+       toast.success("Plantilla eliminada");
+    }
+  };
+
+  return (
+    <div className="w-[360px] border-l border-slate-200 bg-white h-screen fixed right-0 top-0 z-[60] flex flex-col shadow-2xl print:hidden animate-in slide-in-from-right duration-200">
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
         <h2 className="font-bold text-slate-800 flex items-center gap-2">
@@ -84,6 +181,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
           { id: 'template', icon: <LayoutTemplate size={15} />, label: 'Template' },
           { id: 'colors',   icon: <Palette size={15} />,        label: 'Colores' },
           { id: 'font',     icon: <Type size={15} />,           label: 'Fuente' },
+          { id: 'sizes',    icon: <Scaling size={15} />,        label: 'Tamaños' },
           { id: 'logo',     icon: <ImageIcon size={15} />,      label: 'Logo' },
           { id: 'footer',   icon: <PanelBottom size={15} />,    label: 'Footer' },
         ] as const).map(tab => (
@@ -106,7 +204,25 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
         {/* ── TEMPLATE ── */}
         {activeTab === 'template' && (
           <div className="space-y-4 animate-in fade-in">
-            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Plantilla</h3>
+            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm space-y-3 mb-6">
+               <h3 className="text-[10px] font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2"><Save size={12}/> Plantillas Guardadas</h3>
+               <div className="flex gap-2">
+                 <input value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)} placeholder="Nombre de plantilla..." className="flex-1 text-xs border border-slate-200 rounded-lg px-2" />
+                 <button onClick={handleSaveTemplate} disabled={isSaving} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-blue-700 disabled:opacity-50">Guardar</button>
+               </div>
+               {savedTemplates.length > 0 && (
+                 <div className="space-y-1.5 mt-2 max-h-32 overflow-y-auto">
+                   {savedTemplates.map(t => (
+                     <div key={t.id} className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded p-1.5">
+                       <button onClick={() => handleLoadTemplate(t)} className="text-xs text-slate-700 font-medium hover:text-blue-600 flex-1 text-left">{t.name}</button>
+                       <button onClick={() => handleDeleteTemplate(t.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={12}/></button>
+                     </div>
+                   ))}
+                 </div>
+               )}
+            </div>
+
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Plantilla Base</h3>
             <p className="text-xs text-slate-500">Escoge la plantilla base de tu factura.</p>
             <div className="space-y-3">
               {TEMPLATES.map(t => (
@@ -148,26 +264,79 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                   </button>
                 </div>
                 
+                <div className="flex items-center justify-between border-t border-slate-100 pt-3">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Código de Producto</p>
+                    <p className="text-[10px] text-slate-400">Mostrar código en la tabla</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('showItemCode', settings.showItemCode !== false ? false : true)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.showItemCode !== false ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.showItemCode !== false ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+                
                 {settings.showProductImages && (
-                  <div className="pt-2 border-t border-slate-100">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Ubicación de la Imagen</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => onChange('productImagePosition', 'firstColumn')}
-                        className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
-                          settings.productImagePosition === 'firstColumn' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100'
-                        }`}
-                      >
-                        Primera columna
-                      </button>
-                      <button
-                        onClick={() => onChange('productImagePosition', 'afterCode')}
-                        className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
-                          (!settings.productImagePosition || settings.productImagePosition === 'afterCode') ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100'
-                        }`}
-                      >
-                        Después del código
-                      </button>
+                  <div className="pt-2 border-t border-slate-100 space-y-3">
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Ubicación de la Imagen</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => onChange('productImagePosition', 'firstColumn')}
+                          className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                            settings.productImagePosition === 'firstColumn' ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100'
+                          }`}
+                        >
+                          Primera columna
+                        </button>
+                        <button
+                          onClick={() => onChange('productImagePosition', 'afterCode')}
+                          className={`flex-1 py-1.5 text-[10px] font-bold rounded-lg transition-all ${
+                            (!settings.productImagePosition || settings.productImagePosition === 'afterCode') ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100'
+                          }`}
+                        >
+                          Después del código
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Tamaño de la Imagen</p>
+                      <div className="flex gap-2">
+                        {(['small', 'medium', 'large'] as const).map(sz => (
+                          <button
+                            key={sz}
+                            onClick={() => onChange('productImageSize', sz)}
+                            className={`flex-1 py-1.5 text-[10px] font-bold capitalize rounded-lg transition-all ${
+                              (settings.productImageSize || 'small') === sz ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100'
+                            }`}
+                          >
+                            {sz === 'small' ? 'Pequeño' : sz === 'medium' ? 'Mediano' : 'Grande'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Estilo de Encapsulado</p>
+                      <div className="flex gap-2">
+                        {(['rounded', 'square', 'original'] as const).map(st => (
+                          <button
+                            key={st}
+                            onClick={() => onChange('productImageStyle', st)}
+                            className={`flex-1 py-1.5 text-[10px] font-bold capitalize rounded-lg transition-all ${
+                              (settings.productImageStyle || 'rounded') === st ? 'bg-blue-100 text-blue-700 border border-blue-200' : 'bg-slate-50 text-slate-500 border border-slate-100 hover:bg-slate-100'
+                            }`}
+                          >
+                            {st === 'rounded' ? 'Redondeado' : st === 'square' ? 'Cuadrado' : 'Original'}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -258,6 +427,54 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                     }`} />
                   </button>
                 </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Bordes en Subtotales</p>
+                    <p className="text-[10px] text-slate-400">Cuadro en la sección de totales</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('subtotalsBorder', !settings.subtotalsBorder)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.subtotalsBorder ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.subtotalsBorder ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                {settings.subtotalsBorder && (
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                    <div>
+                      <p className="text-xs font-bold text-slate-700">Estilo de Subtotales</p>
+                      <p className="text-[10px] text-slate-400">Completos o Agrupados</p>
+                    </div>
+                    <div className="flex bg-slate-100 p-1 rounded-lg">
+                      <button
+                        onClick={() => onChange('subtotalsBorderStyle', 'full')}
+                        className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${
+                          settings.subtotalsBorderStyle === 'full' || !settings.subtotalsBorderStyle
+                            ? 'bg-white shadow-sm text-blue-600'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        Completos
+                      </button>
+                      <button
+                        onClick={() => onChange('subtotalsBorderStyle', 'grouped')}
+                        className={`px-2 py-1 text-[10px] font-bold rounded-md transition-all ${
+                          settings.subtotalsBorderStyle === 'grouped'
+                            ? 'bg-white shadow-sm text-blue-600'
+                            : 'text-slate-500 hover:text-slate-700'
+                        }`}
+                      >
+                        Agrupados
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                   <div>
@@ -430,6 +647,61 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                   </div>
                 </button>
               ))}
+            </div>
+            
+            <div className="pt-4 border-t border-slate-200 mt-6 space-y-3">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Estilo de Números</h3>
+              <div className="flex items-center justify-between bg-white p-3 border border-slate-200 rounded-xl">
+                <div>
+                  <p className="text-xs font-bold text-slate-700">Estilo Monoespaciado</p>
+                  <p className="text-[10px] text-slate-400">Usar un estilo diferente para valores</p>
+                </div>
+                <button
+                  onClick={() => onChange('useMonospaceNumbers', !settings.useMonospaceNumbers)}
+                  className={`w-10 h-5 rounded-full transition-all relative ${
+                    settings.useMonospaceNumbers ? 'bg-blue-600' : 'bg-slate-300'
+                  }`}
+                >
+                  <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                    settings.useMonospaceNumbers ? 'left-5' : 'left-0.5'
+                  }`} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── SIZES ── */}
+        {activeTab === 'sizes' && (
+          <div className="space-y-4 animate-in fade-in">
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tamaños de Texto</h3>
+            <p className="text-xs text-slate-500">Ajusta el tamaño de las fuentes en distintas secciones del documento.</p>
+            
+            <div className="space-y-4">
+              <FontSizeControl
+                label="Textos de Encabezado"
+                subtitle="Cliente, Comercial, No. Documento"
+                value={settings.headerFontSize}
+                onChange={v => onChange('headerFontSize', v)}
+              />
+              <FontSizeControl
+                label="Títulos de Tabla"
+                subtitle="Código, Descripción, Cantidad, etc."
+                value={settings.tableHeaderFontSize}
+                onChange={v => onChange('tableHeaderFontSize', v)}
+              />
+              <FontSizeControl
+                label="Descripción de Ítems"
+                subtitle="El texto de las filas de productos"
+                value={settings.itemDescFontSize}
+                onChange={v => onChange('itemDescFontSize', v)}
+              />
+              <FontSizeControl
+                label="Total (Monto)"
+                subtitle="El monto en la barra gris oscura"
+                value={settings.totalFontSize}
+                onChange={v => onChange('totalFontSize', v)}
+              />
             </div>
           </div>
         )}

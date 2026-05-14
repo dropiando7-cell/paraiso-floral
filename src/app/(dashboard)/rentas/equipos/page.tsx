@@ -24,14 +24,12 @@ export default async function EquiposRentaPage() {
 
     const orgId = dbUser.organizationId;
 
-    const [initialData, initialStats, dbAreas] = await Promise.all([
-        getEquiposParaRenta(1, '', '', ''),
-        getRentaStats(),
-        prisma.area.findMany({
-            where: { organizationId: orgId },
-            orderBy: { name: 'asc' },
-        })
-    ]);
+    const initialData = await getEquiposParaRenta(1, '', '', '');
+    const initialStats = await getRentaStats();
+    const dbAreas = await prisma.area.findMany({
+        where: { organizationId: orgId },
+        orderBy: { name: 'asc' },
+    });
 
     return (
         <InventarioClient 
