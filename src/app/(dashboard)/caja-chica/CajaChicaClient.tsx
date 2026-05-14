@@ -1,5 +1,9 @@
 "use client";
 import React, { useState, useMemo } from 'react';
+import { useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
+import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, anularCajaChicaMovimiento } from './actions';
+
 import {
   Wallet, Plus, Lock, Unlock, TrendingUp, TrendingDown, DollarSign,
   Search, Filter, Download, Printer, X, FileText, Calendar,
@@ -13,10 +17,14 @@ import {
 // Fuente: Inter (Google Fonts)
 // ============================================================
 
-export default function CajaChica() {
+export default function CajaChica({ dbUser }: { dbUser: any }) {
   // -------------------- ESTADO PRINCIPAL --------------------
-  const [cajaAbierta, setCajaAbierta] = useState(true);
-  const [saldoInicial] = useState(5000.00);
+  const [cajaAbierta, setCajaAbierta] = useState(false);
+  const [saldoInicial, setSaldoInicial] = useState(0);
+  const [sessionData, setSessionData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
   const [showModalNuevo, setShowModalNuevo] = useState(false);
   const [showModalCierre, setShowModalCierre] = useState(false);
   const [showModalApertura, setShowModalApertura] = useState(false);
@@ -26,13 +34,34 @@ export default function CajaChica() {
 
   const [movimientos, setMovimientos] = useState<any[]>([]);
 
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    const res = await getOpenSession(dbUser.organizationId);
+    if (res.success && res.session) {
+      setCajaAbierta(true);
+      setSaldoInicial(res.session.saldoInicial);
+      setSessionData(res.session);
+      setMovimientos(res.session.movimientos || []);
+    } else {
+      setCajaAbierta(false);
+      setSessionData(null);
+      setMovimientos([]);
+    }
+    setIsLoading(false);
+  }, [dbUser]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+
   // -------------------- FORMULARIO NUEVO MOVIMIENTO --------------------
   const [form, setForm] = useState({
     categoria: '',
     descripcion: '',
     documento: 'FACTURA',
     nroDoc: '',
-    importe: '',
+    importe: '0',
     moneda: 'HNL',
     tipoCambio: 1,
     beneficiario: ''
@@ -51,15 +80,15 @@ export default function CajaChica() {
   }, [movimientos]);
 
   const categorias = useMemo(() => {
-    const cats = {};
+    const cats: Record<string, number> = {};
     movimientos
       .filter(m => m.tipo === 'SALIDA')
       .forEach(m => {
-        cats[m.categoria] = (cats[m.categoria] || 0) + m.total;
+        cats[m.categoria] = (Number(cats[m.categoria]) || 0) + Number(m.total);
       });
     return Object.entries(cats)
       .map(([nombre, total]) => ({ nombre, total }))
-      .sort((a, b) => b.total - a.total);
+      .sort((a: any, b: any) => Number(b.total) - Number(a.total));
   }, [movimientos]);
 
   const movimientosFiltrados = useMemo(() => {
@@ -75,11 +104,11 @@ export default function CajaChica() {
   }, [movimientos, filtroTipo, busqueda]);
 
   // -------------------- HELPERS --------------------
-  const formatMoneda = (valor) =>
+  const formatMoneda = (valor: number | string | null | undefined) =>
     new Intl.NumberFormat('es-HN', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
-    }).format(valor);
+    }).format(Number(valor) || 0);
 
   const handleAgregarMovimiento = () => {
     if (!form.categoria || !form.descripcion || !form.importe) {
@@ -87,7 +116,7 @@ export default function CajaChica() {
       return;
     }
     const importeNum = parseFloat(String(form.importe || 0));
-    const tipoCambioNum = parseFloat(form.tipoCambio) || 1;
+    const tipoCambioNum = parseFloat(String(form.tipoCambio)) || 1;
     const total = form.moneda === 'USD' ? importeNum * tipoCambioNum : importeNum;
 
     const nuevo = {
@@ -112,7 +141,7 @@ export default function CajaChica() {
       descripcion: '',
       documento: 'FACTURA',
       nroDoc: '',
-      importe: '',
+      importe: '0',
       moneda: 'HNL',
       tipoCambio: 1,
       beneficiario: ''
@@ -120,7 +149,7 @@ export default function CajaChica() {
     setShowModalNuevo(false);
   };
 
-  const eliminarMovimiento = (id) => {
+  const eliminarMovimiento = (id: string) => {
     if (confirm('¿Eliminar este movimiento?')) {
       setMovimientos(movimientos.filter(m => m.id !== id));
     }
@@ -323,7 +352,7 @@ export default function CajaChica() {
             </div>
             <div className="space-y-3">
               {categorias.map((cat, idx) => {
-                const porcentaje = (cat.total / stats.salidas) * 100;
+                const porcentaje = (Number(cat.total) / stats.salidas) * 100;
                 return (
                   <div key={idx}>
                     <div className="flex items-center justify-between mb-1.5">
@@ -331,7 +360,7 @@ export default function CajaChica() {
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-gray-500">{porcentaje.toFixed(1)}%</span>
                         <span className="text-sm font-semibold text-gray-900 tabular-nums">
-                          L. {formatMoneda(cat.total)}
+                          L. {formatMoneda(Number(cat.total))}
                         </span>
                       </div>
                     </div>
@@ -693,7 +722,7 @@ export default function CajaChica() {
                     type="number"
                     step="0.01"
                     value={form.importe}
-                    onChange={(e) => setForm({ ...form, importe: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => setForm({ ...form, importe: String(parseFloat(e.target.value) || 0) })}
                     placeholder="0.00"
                     className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 tabular-nums"
                   />

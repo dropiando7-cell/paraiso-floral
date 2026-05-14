@@ -51,6 +51,8 @@ model Organization {
   tasks                 Task[]
   users                 User[]
 
+  cajaChicaSessions     CajaChicaSession[]
+
   @@map("organizations")
 }
 
@@ -89,6 +91,11 @@ model User {
   ordenesRecepcionadas  OrdenTrabajo[]         @relation("RecepcionOrdenes")
   ordenesReparadas      OrdenTrabajo[]         @relation("TecnicoOrdenes")
   ordenesAprobadas      OrdenTrabajo[]         @relation("AprobacionOrdenes")
+
+  cajasAbiertas         CajaChicaSession[]     @relation("CreatedCajaSession")
+  cajasCerradas         CajaChicaSession[]     @relation("ClosedCajaSession")
+  movCajaCreados        CajaChicaMovimiento[]  @relation("CreatedCajaMov")
+  movCajaAnulados       CajaChicaMovimiento[]  @relation("AnuladaCajaMov")
 
   @@map("users")
 }
@@ -793,4 +800,59 @@ enum TwoFactorType {
 enum EmailTemplateType {
   CLASSIC_WELCOME
   GOOGLE_WELCOME
+}
+
+model CajaChicaSession {
+  id               String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId   String                 @db.Uuid
+  estado           String                 @default("ABIERTA") // ABIERTA, CERRADA
+  saldoInicial     Float
+  saldoFinal       Float?                 // Saldo calculado
+  saldoReal        Float?                 // Saldo contado fisicamente en el arqueo
+  diferencia       Float?                 // Faltante o Sobrante
+  observaciones    String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+  cerradaAt        DateTime?
+  
+  // Trazabilidad
+  creadoPorId      String?                @db.Uuid
+  cerradoPorId     String?                @db.Uuid
+  
+  creadoPor        User?                  @relation("CreatedCajaSession", fields: [creadoPorId], references: [id])
+  cerradoPor       User?                  @relation("ClosedCajaSession", fields: [cerradoPorId], references: [id])
+  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  movimientos      CajaChicaMovimiento[]
+
+  @@map("caja_chica_sessions")
+}
+
+model CajaChicaMovimiento {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionId        String            @db.Uuid
+  tipo             String            // INGRESO, SALIDA
+  categoria        String
+  descripcion      String
+  documento        String            // RECIBO, FACTURA, SIN DOCUMENTO
+  nroDoc           String?
+  importe          Float
+  moneda           String            @default("HNL")
+  tipoCambio       Float             @default(1)
+  total            Float             // importe * tipoCambio
+  beneficiario     String?
+  estado           String            @default("REGISTRADO") // REGISTRADO, ANULADO
+  
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  
+  // Trazabilidad
+  creadoPorId      String?           @db.Uuid
+  anuladaPorId     String?           @db.Uuid
+  anuladaAt        DateTime?
+  
+  creadoPor        User?             @relation("CreatedCajaMov", fields: [creadoPorId], references: [id])
+  anuladaPor       User?             @relation("AnuladaCajaMov", fields: [anuladaPorId], references: [id])
+  session          CajaChicaSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@map("caja_chica_movimientos")
 }
