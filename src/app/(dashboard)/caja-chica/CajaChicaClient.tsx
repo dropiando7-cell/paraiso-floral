@@ -2,14 +2,14 @@
 import React, { useState, useMemo } from 'react';
 import { useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, anularCajaChicaMovimiento } from './actions';
+import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, anularCajaChicaMovimiento, updateCajaChicaSaldoInicial } from './actions';
 
 import {
   Wallet, Plus, Lock, Unlock, TrendingUp, TrendingDown, DollarSign,
   Search, Filter, Download, Printer, X, FileText, Calendar,
   ArrowUpCircle, ArrowDownCircle, Receipt, AlertCircle, CheckCircle2,
   Edit2, Trash2, ChevronDown, RefreshCcw, PieChart, History, FileSpreadsheet
-} from 'lucide-react';
+, AlertTriangle } from 'lucide-react';
 
 // ============================================================
 // MÓDULO DE CONTROL DE CAJA CHICA - Bioelectrónica Honduras
@@ -28,6 +28,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
   const [showModalNuevo, setShowModalNuevo] = useState(false);
   const [showModalCierre, setShowModalCierre] = useState(false);
   const [showModalApertura, setShowModalApertura] = useState(false);
+  const [showReembolsoWarning, setShowReembolsoWarning] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState('TODOS');
   const [busqueda, setBusqueda] = useState('');
   const [tipoMovimiento, setTipoMovimiento] = useState('SALIDA');
@@ -54,6 +55,61 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
     loadData();
   }, [loadData]);
 
+  const handleAbrirCaja = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const formEl = e.target as HTMLFormElement;
+    const saldo = Number((formEl.elements.namedItem('saldo_apertura') as HTMLInputElement).value);
+    
+    const res = await openCajaChicaSession(dbUser.organizationId, saldo, dbUser.id);
+    if (res.success) {
+      toast.success('Caja abierta');
+      await loadData();
+      setShowModalApertura(false);
+    } else {
+      toast.error(res.error || 'Error al abrir');
+    }
+    setIsSaving(false);
+  };
+
+  const handleCerrarCaja = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    const formEl = e.target as HTMLFormElement;
+    const saldoReal = Number((formEl.elements.namedItem('saldo_fisico') as HTMLInputElement).value);
+    const obs = (formEl.elements.namedItem('observaciones') as HTMLTextAreaElement).value;
+
+    const res = await closeCajaChicaSession(sessionData.id, saldoReal, obs, dbUser.id);
+    if (res.success) {
+      toast.success('Caja cerrada con éxito');
+      await loadData();
+      setShowModalCierre(false);
+    } else {
+      toast.error(res.error || 'Error al cerrar caja');
+    }
+    setIsSaving(false);
+  };
+
+  const handleEditarSaldo = async () => {
+    const nuevoSaldo = window.prompt('Ingrese el nuevo Saldo Inicial de Apertura:', String(saldoInicial));
+    if (nuevoSaldo === null) return;
+    
+    const parsed = Number(nuevoSaldo);
+    if (isNaN(parsed) || parsed < 0) {
+      toast.error('Monto inválido');
+      return;
+    }
+
+    setIsSaving(true);
+    const res = await updateCajaChicaSaldoInicial(sessionData.id, parsed, dbUser.id);
+    if (res.success) {
+      toast.success('Saldo inicial actualizado');
+      await loadData();
+    } else {
+      toast.error(res.error || 'Error al actualizar saldo');
+    }
+    setIsSaving(false);
+  };
 
   // -------------------- FORMULARIO NUEVO MOVIMIENTO --------------------
   const [form, setForm] = useState({
@@ -75,7 +131,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
     const salidas = movimientos
       .filter(m => m.tipo === 'SALIDA')
       .reduce((acc, m) => acc + m.total, 0);
-    const saldoFinal = ingresos - salidas;
+    const saldoFinal = saldoInicial + ingresos - salidas;
     return { ingresos, salidas, saldoFinal };
   }, [movimientos]);
 
@@ -110,48 +166,75 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
       maximumFractionDigits: 2
     }).format(Number(valor) || 0);
 
-  const handleAgregarMovimiento = () => {
+  const handleAgregarMovimiento = async () => {
     if (!form.categoria || !form.descripcion || !form.importe) {
-      alert('Por favor completa los campos obligatorios');
+      toast.error('Por favor completa los campos obligatorios');
       return;
     }
     const importeNum = parseFloat(String(form.importe || 0));
     const tipoCambioNum = parseFloat(String(form.tipoCambio)) || 1;
     const total = form.moneda === 'USD' ? importeNum * tipoCambioNum : importeNum;
+    if (tipoMovimiento === 'INGRESO' && form.categoria === 'Reembolso') {
+      if (total > stats.salidas) {
+        setShowReembolsoWarning(true);
+        return;
+      }
+    }
 
-    const nuevo = {
-      id: movimientos.length + 1,
-      fecha: new Date().toISOString().slice(0, 16).replace('T', ' '),
-      tipo: tipoMovimiento,
-      categoria: form.categoria,
-      descripcion: form.descripcion,
-      documento: form.documento,
-      nroDoc: form.nroDoc || '—',
-      importe: importeNum,
-      moneda: form.moneda,
-      tipoCambio: tipoCambioNum,
-      total,
-      responsable: 'samuel.test',
-      beneficiario: form.beneficiario || '—',
-      estado: 'REGISTRADO'
-    };
-    setMovimientos([...movimientos, nuevo]);
-    setForm({
-      categoria: '',
-      descripcion: '',
-      documento: 'FACTURA',
-      nroDoc: '',
-      importe: '0',
-      moneda: 'HNL',
-      tipoCambio: 1,
-      beneficiario: ''
-    });
-    setShowModalNuevo(false);
+    if (!sessionData?.id) {
+      toast.error('No hay sesión de caja abierta');
+      return;
+    }
+
+    setIsSaving(true);
+    const res = await registerCajaChicaMovimiento(
+      sessionData.id,
+      tipoMovimiento as any,
+      {
+        categoria: form.categoria,
+        descripcion: form.descripcion,
+        documento: form.documento,
+        nroDoc: form.nroDoc || '',
+        importe: importeNum,
+        moneda: form.moneda,
+        tipoCambio: tipoCambioNum,
+        total,
+        beneficiario: form.beneficiario || ''
+      },
+      dbUser.id
+    );
+
+    if (res.success) {
+      toast.success('Movimiento registrado con éxito');
+      await loadData();
+      setShowModalNuevo(false);
+      setForm({
+        categoria: '',
+        descripcion: '',
+        documento: 'FACTURA',
+        nroDoc: '',
+        importe: '0',
+        moneda: 'HNL',
+        tipoCambio: 1,
+        beneficiario: ''
+      });
+    } else {
+      toast.error(res.error || 'Error al guardar movimiento');
+    }
+    setIsSaving(false);
   };
 
-  const eliminarMovimiento = (id: string) => {
-    if (confirm('¿Eliminar este movimiento?')) {
-      setMovimientos(movimientos.filter(m => m.id !== id));
+  const eliminarMovimiento = async (id: string) => {
+    if (confirm('¿Estás seguro de anular este movimiento? Esta acción es irreversible.')) {
+      setIsSaving(true);
+      const res = await anularCajaChicaMovimiento(id, dbUser.id);
+      if (res.success) {
+        toast.success('Movimiento anulado exitosamente');
+        await loadData();
+      } else {
+        toast.error(res.error || 'Error al anular el movimiento');
+      }
+      setIsSaving(false);
     }
   };
 
@@ -186,10 +269,14 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                 </span>
               </div>
               <p className="text-sm text-gray-500">
-                Gestión de ingresos, salidas y arqueo de la caja chica administrativa.
+                Gestión de ingresos, gastos y arqueo de la caja chica administrativa.
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                Período actual: <span className="font-medium text-gray-600">13 / Mayo / 2026</span> · Responsable: <span className="font-medium text-gray-600">samuel.test</span>
+                Período actual: <span className="font-medium text-gray-600">
+                  {new Date().toLocaleDateString('es-HN', { day: '2-digit', month: 'long', year: 'numeric' })}
+                </span> · Responsable: <span className="font-medium text-gray-600">
+                  {dbUser?.nombre ? `${dbUser.nombre} ${dbUser.apellido}` : dbUser?.email?.split('@')[0]}
+                </span>
               </p>
             </div>
           </div>
@@ -258,7 +345,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                   }`}
               >
                 <ArrowDownCircle className="w-4 h-4" />
-                Registrar Salida
+                Registrar Gasto
               </button>
             </div>
 
@@ -280,9 +367,20 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
               <span className="text-xs font-medium text-gray-400">INICIAL</span>
             </div>
             <p className="text-xs text-gray-500 font-medium mb-1">Saldo de Apertura</p>
-            <p className="text-2xl font-bold text-gray-900 tracking-tight">
-              L. {formatMoneda(saldoInicial)}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-2xl font-bold text-gray-900 tracking-tight">
+                L. {formatMoneda(saldoInicial)}
+              </p>
+              {cajaAbierta && (
+                <button 
+                  onClick={handleEditarSaldo}
+                  className="p-1.5 hover:bg-gray-100 rounded-md transition-colors group"
+                  title="Editar Saldo Inicial"
+                >
+                  <Edit2 className="w-4 h-4 text-gray-400 group-hover:text-blue-600" />
+                </button>
+              )}
+            </div>
             <p className="text-xs text-gray-400 mt-2">Fondo asignado a la caja</p>
           </div>
 
@@ -313,7 +411,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                 -{movimientos.filter(m => m.tipo === 'SALIDA').length}
               </span>
             </div>
-            <p className="text-xs text-gray-500 font-medium mb-1">Total Salidas</p>
+            <p className="text-xs text-gray-500 font-medium mb-1">Total Gastos</p>
             <p className="text-2xl font-bold text-gray-900 tracking-tight">
               L. {formatMoneda(stats.salidas)}
             </p>
@@ -344,7 +442,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <PieChart className="w-4 h-4 text-gray-500" />
-                <h2 className="text-sm font-semibold text-gray-900">Desglose de Salidas por Categoría</h2>
+                <h2 className="text-sm font-semibold text-gray-900">Desglose de Gastos por Categoría</h2>
               </div>
               <button className="text-xs font-medium text-blue-600 hover:text-blue-700">
                 Ver reporte completo →
@@ -403,7 +501,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                           : 'text-gray-500 hover:text-gray-700'
                         }`}
                     >
-                      {t === 'TODOS' ? 'Todos' : t === 'INGRESO' ? 'Ingresos' : 'Salidas'}
+                      {t === 'TODOS' ? 'Todos' : t === 'INGRESO' ? 'Ingresos' : 'Gastos'}
                     </button>
                   ))}
                 </div>
@@ -559,7 +657,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
       {/* MODAL: NUEVO MOVIMIENTO */}
       {/* ============================================================ */}
       {showModalNuevo && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
             {/* Header del modal */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
@@ -572,7 +670,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">
-                    Registrar {tipoMovimiento === 'INGRESO' ? 'Ingreso' : 'Salida'}
+                    Registrar {tipoMovimiento === 'INGRESO' ? 'Ingreso' : 'Gasto'}
                   </h2>
                   <p className="text-sm text-gray-500">
                     Completa la información del movimiento de caja
@@ -608,7 +706,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                     }`}
                 >
                   <ArrowDownCircle className="w-4 h-4" />
-                  Salida
+                  Gasto
                 </button>
               </div>
             </div>
@@ -668,13 +766,13 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
               {/* Beneficiario */}
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Beneficiario / Proveedor
+                  {tipoMovimiento === 'INGRESO' ? 'Entregado por / Origen' : 'Beneficiario / Proveedor'}
                 </label>
                 <input
                   type="text"
                   value={form.beneficiario}
                   onChange={(e) => setForm({ ...form, beneficiario: e.target.value })}
-                  placeholder="Nombre del proveedor o beneficiario"
+                  placeholder={tipoMovimiento === 'INGRESO' ? 'Nombre de quien entrega o deposita' : 'Nombre del proveedor o beneficiario'}
                   className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400"
                 />
               </div>
@@ -690,17 +788,30 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                     onChange={(e) => setForm({ ...form, documento: e.target.value })}
                     className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white"
                   >
-                    <option>FACTURA</option>
-                    <option>BOLETA</option>
-                    <option>RECIBO</option>
-                    <option>RECIBO INTERNO</option>
-                    <option>VALE DE CAJA</option>
-                    <option>SIN DOCUMENTO</option>
+                    {tipoMovimiento === 'INGRESO' ? (
+                      <>
+                        <option>CHEQUE</option>
+                        <option>TRANSFERENCIA</option>
+                        <option>RECIBO DE CAJA</option>
+                        <option>NOTA DE CRÉDITO</option>
+                        <option>COMPROBANTE</option>
+                        <option>SIN DOCUMENTO</option>
+                      </>
+                    ) : (
+                      <>
+                        <option>FACTURA</option>
+                        <option>BOLETA</option>
+                        <option>RECIBO</option>
+                        <option>RECIBO INTERNO</option>
+                        <option>VALE DE CAJA</option>
+                        <option>SIN DOCUMENTO</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                    N° de Documento
+                    {tipoMovimiento === 'INGRESO' ? 'N° Referencia / Cheque' : 'N° de Documento'}
                   </label>
                   <input
                     type="text"
@@ -789,7 +900,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                   }`}
               >
                 <Plus className="w-4 h-4" />
-                Registrar {tipoMovimiento === 'INGRESO' ? 'Ingreso' : 'Salida'}
+                Registrar {tipoMovimiento === 'INGRESO' ? 'Ingreso' : 'Gasto'}
               </button>
             </div>
           </div>
@@ -800,7 +911,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
       {/* MODAL: CIERRE DE CAJA */}
       {/* ============================================================ */}
       {showModalCierre && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -830,7 +941,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                 <span className="text-sm font-semibold text-green-700 tabular-nums">+ L. {formatMoneda(stats.ingresos - saldoInicial)}</span>
               </div>
               <div className="flex justify-between items-center py-2 border-b border-gray-100">
-                <span className="text-sm text-gray-500">(−) Salidas del día</span>
+                <span className="text-sm text-gray-500">(−) Gastos del día</span>
                 <span className="text-sm font-semibold text-red-700 tabular-nums">− L. {formatMoneda(stats.salidas)}</span>
               </div>
               <div className="flex justify-between items-center py-3 bg-blue-50 px-4 rounded-lg">
@@ -843,9 +954,11 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                   Efectivo Físico Contado en Caja
                 </label>
                 <input
+                  name="saldo_fisico"
                   type="number"
                   step="0.01"
                   placeholder="0.00"
+                  required
                   className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 tabular-nums"
                 />
                 <p className="text-xs text-gray-400 mt-1">
@@ -858,6 +971,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                   Observaciones del Cierre
                 </label>
                 <textarea
+                  name="observaciones"
                   rows={2}
                   placeholder="Notas o comentarios sobre el cierre..."
                   className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"
@@ -867,17 +981,19 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
 
             <div className="p-5 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
               <button
+                type="button"
                 onClick={() => setShowModalCierre(false)}
                 className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
               >
                 Cancelar
               </button>
               <button
-                onClick={() => { setCajaAbierta(false); setShowModalCierre(false); }}
+                type="submit"
+                disabled={isSaving}
                 className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-lg shadow-sm shadow-orange-600/20"
               >
                 <Lock className="w-4 h-4" />
-                Confirmar Cierre
+                {isSaving ? 'Cerrando...' : 'Confirmar Cierre'}
               </button>
             </div>
           </div>
@@ -888,7 +1004,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
       {/* MODAL: APERTURA DE CAJA */}
       {/* ============================================================ */}
       {showModalApertura && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -901,6 +1017,7 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowModalApertura(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
@@ -908,45 +1025,74 @@ export default function CajaChica({ dbUser }: { dbUser: any }) {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Saldo Inicial de Apertura <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-semibold">L.</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 tabular-nums"
-                  />
+            <form onSubmit={handleAbrirCaja}>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    Saldo Inicial de Apertura <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-semibold">L.</span>
+                    <input
+                      name="saldo_apertura"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      required
+                      className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 tabular-nums"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                    Responsable Asignado
+                  </label>
+                  <select className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
+                    <option>{dbUser?.nombre ? `${dbUser.nombre} ${dbUser.apellido}` : dbUser?.email?.split('@')[0]}</option>
+                  </select>
                 </div>
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Responsable Asignado
-                </label>
-                <select className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white">
-                  <option>samuel.test - Administrador General</option>
-                  <option>emilia.zapata - Comercial</option>
-                </select>
-              </div>
-            </div>
 
-            <div className="p-5 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
+              <div className="p-5 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
+                <button
+                  type="button"
+                  onClick={() => setShowModalApertura(false)}
+                  className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-600/20"
+                >
+                  <Unlock className="w-4 h-4" />
+                  {isSaving ? 'Abriendo...' : 'Abrir Caja'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* Modal de Advertencia de Reembolso */}
+      {showReembolsoWarning && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-xl overflow-hidden border border-red-100">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900">Monto inválido</h2>
+              <p className="text-sm text-gray-500 leading-relaxed">
+                No puedes reembolsar <span className="font-bold text-gray-900">L. {formatMoneda(parseFloat(String(form.importe || 0)))}</span> porque es superior al total de los gastos registrados (<span className="font-bold text-gray-900">L. {formatMoneda(stats.salidas)}</span>).
+              </p>
+            </div>
+            <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-center">
               <button
-                onClick={() => setShowModalApertura(false)}
-                className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50"
+                onClick={() => setShowReembolsoWarning(false)}
+                className="px-6 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm shadow-red-600/20"
               >
-                Cancelar
-              </button>
-              <button
-                onClick={() => { setCajaAbierta(true); setShowModalApertura(false); }}
-                className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm shadow-blue-600/20"
-              >
-                <Unlock className="w-4 h-4" />
-                Abrir Caja
+                Entendido
               </button>
             </div>
           </div>

@@ -159,3 +159,27 @@ export async function anularCajaChicaMovimiento(movimientoId: string, userId: st
     return { success: false, error: 'Error al anular movimiento' };
   }
 }
+
+export async function updateCajaChicaSaldoInicial(sessionId: string, nuevoSaldo: number, userId: string) {
+  try {
+    const session = await prisma.cajaChicaSession.findUnique({
+      where: { id: sessionId }
+    });
+
+    if (!session) return { success: false, error: 'Sesión no encontrada' };
+    if (session.estado === 'CERRADA') return { success: false, error: 'No se puede editar una caja cerrada' };
+
+    await prisma.cajaChicaSession.update({
+      where: { id: sessionId },
+      data: {
+        saldoInicial: nuevoSaldo
+      }
+    });
+
+    revalidatePath('/caja-chica');
+    return { success: true };
+  } catch (error) {
+    console.error('Error updating session:', error);
+    return { success: false, error: 'Error al actualizar saldo' };
+  }
+}
