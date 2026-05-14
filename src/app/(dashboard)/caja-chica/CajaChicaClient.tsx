@@ -471,7 +471,21 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
                 <Wallet className="w-5 h-5 text-blue-600" />
               </div>
-              <span className="text-xs font-medium text-gray-400">INICIAL</span>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-400">INICIAL</span>
+                {cajaAbierta && (
+                  <button 
+                    onClick={() => {
+                      setNuevoSaldoApertura(saldoInicial.toString());
+                      setShowModalEditSaldo(true);
+                    }}
+                    className="p-1 hover:bg-gray-100 text-gray-400 hover:text-blue-600 rounded transition-colors"
+                    title="Editar saldo inicial"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
             </div>
             <p className="text-xs text-gray-500 font-medium mb-1">Saldo de Apertura</p>
             <p className="text-2xl font-bold text-gray-900 tracking-tight">
@@ -751,7 +765,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       {/* MODAL: NUEVO MOVIMIENTO */}
       {/* ============================================================ */}
       {showModalNuevo && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
             {/* Header del modal */}
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
@@ -1229,7 +1243,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       {/* MODAL: CIERRE DE CAJA */}
       {/* ============================================================ */}
       {showModalCierre && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1317,7 +1331,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       {/* MODAL: APERTURA DE CAJA */}
       {/* ============================================================ */}
       {showModalApertura && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1387,7 +1401,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       {/* MODAL: REPORTE DE REEMBOLSO DE CAJA CHICA */}
       {/* ============================================================ */}
       {showModalReporte && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl max-h-[92vh] overflow-y-auto">
             {/* Header */}
             <div className="sticky top-0 bg-white p-6 border-b border-gray-100 flex items-center justify-between z-10">
@@ -1725,7 +1739,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       {/* MODAL: NUEVA CATEGORÍA DE GASTO */}
       {/* ============================================================ */}
       {showModalCategoria && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -1855,7 +1869,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       {/* MODAL: SIN PRIVILEGIOS */}
       {/* ============================================================ */}
       {showModalSinPrivilegios && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 text-center">
             <div className="w-16 h-16 rounded-full bg-red-50 mx-auto flex items-center justify-center mb-4">
               <ShieldCheck className="w-8 h-8 text-red-500" />
@@ -1878,7 +1892,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       {/* MODAL: SOBREGIRO DE FONDOS */}
       {/* ============================================================ */}
       {showModalSobregiro && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6 text-center">
             <div className="w-16 h-16 rounded-full bg-red-50 mx-auto flex items-center justify-center mb-4">
               <AlertCircle className="w-8 h-8 text-red-500" />
@@ -1896,7 +1910,89 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
           </div>
         </div>
       )}
+
+      {/* ============================================================ */}
+      {/* MODAL: CONFIRMACIÓN ELIMINAR */}
+      {/* ============================================================ */}
+      {modalEliminar.show && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
+            <div className="w-16 h-16 rounded-full bg-red-50 mx-auto flex items-center justify-center mb-4">
+              <Trash2 className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              ¿Eliminar Movimiento?
+            </h3>
+            <p className="text-sm text-gray-500 mb-6">
+              Esta acción anulará el registro y recalculará automáticamente los saldos de la caja. No se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setModalEliminar({show: false, id: null})}
+                className="flex-1 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAnularConfirm}
+                className="flex-1 py-2.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm shadow-red-600/20 transition-all"
+              >
+                Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* MODAL: EDITAR SALDO INICIAL */}
+      {/* ============================================================ */}
+      {showModalEditSaldo && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
+            <div className="w-16 h-16 rounded-full bg-orange-50 mx-auto flex items-center justify-center mb-4">
+              <AlertCircle className="w-8 h-8 text-orange-500" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Editar Saldo de Apertura
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Modificar este valor alterará el balance de toda la caja actual. Se recomienda no editarlo a cada momento salvo para corregir un error inicial.
+            </p>
+            
+            <div className="mb-6 text-left">
+              <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                Nuevo Saldo Inicial <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-semibold">L.</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={nuevoSaldoApertura}
+                  onChange={(e) => setNuevoSaldoApertura(e.target.value)}
+                  className="w-full pl-10 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-100 focus:border-orange-400 tabular-nums"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowModalEditSaldo(false)}
+                className="flex-1 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleUpdateSaldo}
+                className="flex-1 py-2.5 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-700 rounded-lg shadow-sm shadow-orange-600/20 transition-all"
+              >
+                Actualizar Saldo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
-};
-
+}
