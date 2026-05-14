@@ -835,6 +835,7 @@ model CajaChicaMovimiento {
   descripcion      String
   documento        String            // RECIBO, FACTURA, SIN DOCUMENTO
   nroDoc           String?
+  adjuntoUrl       String?           // Para documentos de respaldo en R2
   importe          Float
   moneda           String            @default("HNL")
   tipoCambio       Float             @default(1)

@@ -1,8 +1,13 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, updateCajaChicaMovimiento, updateCajaChicaSaldoInicial, getUploadUrlCajaChica, anularCajaChicaMovimiento, openAndFundCajaChicaSession } from './actions';
-import toast from 'react-hot-toast';
+import {
+  getSesionActivaAction,
+  abrirCajaAction,
+  cerrarCajaAction,
+  registrarMovimientoAction,
+  anularMovimientoAction
+} from '@/app/actions/cajaChica';
 import {
   Wallet, Plus, Lock, Unlock, TrendingUp, TrendingDown, DollarSign,
   Search, Filter, Download, Printer, X, FileText, Calendar,
@@ -18,12 +23,11 @@ import {
 // Fuente: Inter (Google Fonts)
 // ============================================================
 
-export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
-  const organization = dbUser?.organization;
+const CajaChica = () => {
   // -------------------- ESTADO PRINCIPAL --------------------
   const [sesionActiva, setSesionActiva] = useState<any>(null);
   const [cargando, setCargando] = useState(true);
-  const [userRole, setUserRole] = useState(dbUser?.role || '');
+  const [userRole, setUserRole] = useState('');
   const [showModalSinPrivilegios, setShowModalSinPrivilegios] = useState(false);
   const [showModalSobregiro, setShowModalSobregiro] = useState(false);
   const [montoApertura, setMontoApertura] = useState('');
@@ -35,12 +39,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   const [showModalApertura, setShowModalApertura] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState('TODOS');
   const [busqueda, setBusqueda] = useState('');
-  const [tipoMovimiento, setTipoMovimiento] = useState<'INGRESO' | 'SALIDA' | 'APERTURA'>('SALIDA');
-  const [editandoMovimientoId, setEditandoMovimientoId] = useState<string | null>(null);
-  const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [modalEliminar, setModalEliminar] = useState<{show: boolean, id: string | null}>({show: false, id: null});
-  const [showModalEditSaldo, setShowModalEditSaldo] = useState(false);
-  const [nuevoSaldoApertura, setNuevoSaldoApertura] = useState('');
+  const [tipoMovimiento, setTipoMovimiento] = useState('SALIDA');
   const [showModalCategoria, setShowModalCategoria] = useState(false);
   const [showModalReporte, setShowModalReporte] = useState(false);
   const [nuevaCategoria, setNuevaCategoria] = useState('');
@@ -79,15 +78,15 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
 
   const cargarSesion = async () => {
     setCargando(true);
-    const res = await getOpenSession(organization?.id || dbUser?.organizationId);
+    const res = await getSesionActivaAction();
     if (res.success) {
-      setUserRole(dbUser?.role || '');
+      setUserRole(res.userRole || '');
     }
-    if (res.success && res.session) {
-      setSesionActiva(res.session);
+    if (res.success && res.data) {
+      setSesionActiva(res.data);
       setCajaAbierta(true);
-      setSaldoInicial(res.session.saldoInicial);
-      setMovimientos(res.session.movimientos || []);
+      setSaldoInicial(res.data.saldoInicial);
+      setMovimientos(res.data.movimientos || []);
     } else {
       setSesionActiva(null);
       setCajaAbierta(false);
@@ -102,27 +101,26 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   }, []);
 
   // -------------------- FORMULARIO NUEVO MOVIMIENTO --------------------
-  const formVacio = {
+  const [form, setForm] = useState({
+    // Campos compartidos
     categoria: '',
     cuentaContable: '',
     descripcion: '',
     importe: '',
     moneda: 'HNL',
     tipoCambio: 1,
+    // Campos de GASTO
     documento: 'FACTURA',
     nroDoc: '',
-    adjuntoUrl: '',
     beneficiario: '',
+    // Campos de RECARGA
     origenFondos: '',
     metodoPago: 'EFECTIVO',
     cuentaOrigen: '',
     referenciaTransferencia: '',
     autorizadoPor: '',
     notaInterna: ''
-  };
-
-  const [form, setForm] = useState<any>(formVacio);
-
+  });
 
   // -------------------- CÁLCULOS --------------------
   const stats = useMemo(() => {
@@ -165,54 +163,6 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   }, [saldoInicial, stats.saldoFinal]);
 
   // -------------------- HELPERS --------------------
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      setUploadingDoc(true);
-      const res = await getUploadUrlCajaChica(file.name, file.type, dbUser.id);
-      if (!res.success || !res.uploadUrl) throw new Error(res.error || 'Error getting url');
-      const upload = await fetch(res.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-      if (!upload.ok) throw new Error('Failed to upload file to R2');
-      setForm((prev: any) => ({ ...prev, adjuntoUrl: res.publicUrl }));
-      toast.success('Documento adjuntado correctamente');
-    } catch (err) {
-      console.error(err);
-      toast.error('Error al subir el documento');
-    } finally {
-      setUploadingDoc(false);
-    }
-  };
-
-  const handleUpdateSaldo = async () => {
-    if (!sesionActiva) return;
-    const nuevo = parseFloat(nuevoSaldoApertura);
-    if (isNaN(nuevo) || nuevo < 0) {
-      toast.error('Ingresa un monto válido');
-      return;
-    }
-    const res = await updateCajaChicaSaldoInicial(sesionActiva.id, nuevo, dbUser.id);
-    if (res.success) {
-      toast.success('Saldo inicial actualizado');
-      await cargarSesion();
-      setShowModalEditSaldo(false);
-    } else {
-      toast.error(res.error || 'Error al actualizar saldo');
-    }
-  };
-
-  const handleAnularConfirm = async () => {
-    if (!modalEliminar.id) return;
-    const res = await anularCajaChicaMovimiento(modalEliminar.id, dbUser.id);
-    if (res.success) {
-      toast.success('Movimiento eliminado');
-      await cargarSesion();
-      setModalEliminar({show: false, id: null});
-    } else {
-      toast.error(res.error || 'Error al anular');
-    }
-  };
-
   const formatMoneda = (valor: number) =>
     new Intl.NumberFormat('es-HN', {
       minimumFractionDigits: 2,
@@ -255,47 +205,55 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       return;
     }
 
-    let res;
-    const payload = {
+    const res = await registrarMovimientoAction({
+      sesionId: sesionActiva.id,
+      tipo: tipoMovimiento,
       categoria: form.categoria,
       cuentaContable: tipoMovimiento === 'SALIDA' ? form.cuentaContable : undefined,
-      descripcion: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? (form.descripcion || `${form.categoria} desde ${form.origenFondos}`) : form.descripcion,
-      documento: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.metodoPago : form.documento,
-      nroDoc: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? (form.referenciaTransferencia || undefined) : (form.nroDoc || undefined),
+      descripcion: tipoMovimiento === 'INGRESO'
+        ? (form.descripcion || `${form.categoria} desde ${form.origenFondos}`)
+        : form.descripcion,
+      documento: tipoMovimiento === 'INGRESO' ? form.metodoPago : form.documento,
+      nroDoc: tipoMovimiento === 'INGRESO'
+        ? (form.referenciaTransferencia || undefined)
+        : (form.nroDoc || undefined),
       importe: importeNum,
-      moneda: form.moneda,
-      tipoCambio: 1,
       total,
-      adjuntoUrl: form.adjuntoUrl || undefined,
-      beneficiario: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? undefined : (form.beneficiario || undefined),
-      origenFondos: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.origenFondos : undefined,
-      metodoPago: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.metodoPago : undefined,
-      referenciaTransferencia: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.referenciaTransferencia : undefined,
-      autorizadoPor: (tipoMovimiento === 'INGRESO' || tipoMovimiento === 'APERTURA') ? form.autorizadoPor : undefined,
-    };
-
-    if (editandoMovimientoId) {
-      res = await updateCajaChicaMovimiento(editandoMovimientoId, payload, dbUser.id);
-    } else if (tipoMovimiento === 'APERTURA') {
-      res = await openAndFundCajaChicaSession(organization?.id || dbUser?.organizationId, payload, dbUser.id);
-    } else {
-      res = await registerCajaChicaMovimiento(sesionActiva.id, tipoMovimiento as any, payload, dbUser.id);
-    }
+      beneficiario: tipoMovimiento === 'INGRESO' ? undefined : (form.beneficiario || undefined),
+      origenFondos: tipoMovimiento === 'INGRESO' ? form.origenFondos : undefined,
+      metodoPago: tipoMovimiento === 'INGRESO' ? form.metodoPago : undefined,
+      referenciaTransferencia: tipoMovimiento === 'INGRESO' ? form.referenciaTransferencia : undefined,
+      autorizadoPor: tipoMovimiento === 'INGRESO' ? form.autorizadoPor : undefined,
+    });
 
     if (res.success) {
       await cargarSesion();
     } else {
-      toast.error(res.error || 'Error al guardar el movimiento');
+      alert(res.error || 'Error al guardar el movimiento');
     }
-    toast.success(editandoMovimientoId ? 'Movimiento actualizado' : (tipoMovimiento === 'APERTURA' ? 'Caja abierta con fondo inicial' : 'Movimiento registrado'));
-    setShowModalNuevo(false);
-    setForm(formVacio);
+    setForm({
+      categoria: '',
+      cuentaContable: '',
+      descripcion: '',
+      importe: '',
+      moneda: 'HNL',
+      tipoCambio: 1,
+      documento: 'FACTURA',
+      nroDoc: '',
+      beneficiario: '',
+      origenFondos: '',
+      metodoPago: 'EFECTIVO',
+      cuentaOrigen: '',
+      referenciaTransferencia: '',
+      autorizadoPor: '',
+      notaInterna: ''
+    });
     setShowModalNuevo(false);
   };
 
   const eliminarMovimiento = async (id: string) => {
     if (confirm('¿Estás seguro de anular este movimiento?')) {
-      const res = await anularCajaChicaMovimiento(id, dbUser.id);
+      const res = await anularMovimientoAction(id);
       if (res.success) {
         await cargarSesion();
       } else {
@@ -310,7 +268,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       alert("Ingrese un monto válido");
       return;
     }
-    const res = await openCajaChicaSession(organization?.id || dbUser?.organizationId, amt, dbUser.id);
+    const res = await abrirCajaAction(amt);
     if (res.success) {
       setShowModalApertura(false);
       setMontoApertura('');
@@ -322,7 +280,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
 
   const handleCerrarCaja = async () => {
     if (!sesionActiva) return;
-    const res = await closeCajaChicaSession(sesionActiva.id, stats.saldoFinal, 'Cierre por sistema', dbUser.id);
+    const res = await cerrarCajaAction(sesionActiva.id, stats.saldoFinal);
     if (res.success) {
       setShowModalCierre(false);
       await cargarSesion();
@@ -397,14 +355,14 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => {
-                  if (!['SUPER_ADMIN', 'ORG_ADMIN'].includes(userRole)) {
+                  if (userRole !== 'SUPER_ADMIN') {
                      setShowModalSinPrivilegios(true);
                      return;
                   }
                   if (!cajaAbierta) setShowModalApertura(true);
                 }}
                 className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  (cajaAbierta || !['SUPER_ADMIN', 'ORG_ADMIN'].includes(userRole))
+                  (cajaAbierta || userRole !== 'SUPER_ADMIN')
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-600/20'
                 }`}
@@ -414,14 +372,14 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               </button>
               <button
                 onClick={() => {
-                  if (!['SUPER_ADMIN', 'ORG_ADMIN'].includes(userRole)) {
+                  if (userRole !== 'SUPER_ADMIN') {
                      setShowModalSinPrivilegios(true);
                      return;
                   }
                   if (cajaAbierta) setShowModalCierre(true);
                 }}
                 className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
-                  (!cajaAbierta || !['SUPER_ADMIN', 'ORG_ADMIN'].includes(userRole))
+                  (!cajaAbierta || userRole !== 'SUPER_ADMIN')
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                     : 'bg-orange-500 text-white hover:bg-orange-600 shadow-sm shadow-orange-500/20'
                 }`}
@@ -431,7 +389,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               </button>
               <div className="h-8 w-px bg-gray-200 mx-1" />
               <button
-                onClick={() => { setTipoMovimiento('INGRESO'); setForm((f: any) => ({ ...f, categoria: 'Reposición de fondos' })); setShowModalNuevo(true); }}
+                onClick={() => { setTipoMovimiento('INGRESO'); setForm(f => ({ ...f, categoria: 'Reposición de fondos' })); setShowModalNuevo(true); }}
                 disabled={!cajaAbierta}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
                   !cajaAbierta
@@ -869,7 +827,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     type="number"
                     step="0.01"
                     value={tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos' ? montoARecargar : form.importe}
-                    onChange={(e) => setForm((f: any) => ({ ...f, importe: e.target.value }))}
+                    onChange={(e) => setForm({ ...form, importe: e.target.value })}
                     disabled={tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos'}
                     placeholder="0.00"
                     className={`w-full pl-11 pr-3 py-3 text-lg font-bold border rounded-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 ${
@@ -1009,16 +967,10 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     </label>
                     <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all">
                       <Paperclip className="w-4 h-4 text-gray-400" />
-                      {uploadingDoc ? (
-                        <span className="text-sm text-blue-500 flex items-center gap-2"><RefreshCcw className="w-4 h-4 animate-spin"/> Subiendo...</span>
-                      ) : (
-                        <>
-                          <span className="text-sm text-gray-500">
-                            {form.adjuntoUrl ? "Documento adjuntado (clic para cambiar)" : "Adjuntar boleta, voucher o captura de transferencia"}
-                          </span>
-                          <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
-                        </>
-                      )}
+                      <span className="text-sm text-gray-500">
+                        Adjuntar boleta, voucher o captura de transferencia
+                      </span>
+                      <input type="file" className="hidden" accept="image/*,application/pdf" />
                     </label>
                   </div>
                 </>
@@ -1115,7 +1067,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                       </label>
                       <select
                         value={form.documento}
-                        onChange={(e) => setForm((f: any) => ({ ...f, documento: e.target.value }))}
+                        onChange={(e) => setForm({ ...form, documento: e.target.value })}
                         className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 bg-white"
                       >
                         <option>FACTURA</option>
@@ -1138,26 +1090,6 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                         className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 font-mono"
                       />
                     </div>
-                  </div>
-
-                  {/* Comprobante adjunto Gasto */}
-                  <div className="mt-4">
-                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                      Comprobante (opcional)
-                    </label>
-                    <label className="flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all">
-                      <Paperclip className="w-4 h-4 text-gray-400" />
-                      {uploadingDoc ? (
-                        <span className="text-sm text-blue-500 flex items-center gap-2"><RefreshCcw className="w-4 h-4 animate-spin"/> Subiendo...</span>
-                      ) : (
-                        <>
-                          <span className="text-sm text-gray-500">
-                            {form.adjuntoUrl ? "Documento adjuntado (clic para cambiar)" : "Adjuntar boleta, voucher o captura de transferencia"}
-                          </span>
-                          <input type="file" className="hidden" accept="image/*,application/pdf" onChange={handleFileUpload} />
-                        </>
-                      )}
-                    </label>
                   </div>
                 </>
               )}
@@ -1862,7 +1794,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
             </div>
             <h2 className="text-xl font-bold text-gray-900 mb-2">Acceso Denegado</h2>
             <p className="text-sm text-gray-500 mb-6">
-              No tienes los privilegios necesarios para realizar esta acción. Solo un Administrador General (ORG_ADMIN / SUPER_ADMIN) puede abrir, cerrar o modificar los fondos de la caja chica.
+              No tienes los privilegios necesarios para realizar esta acción. Solo un Administrador General (SUPER_ADMIN) puede abrir, cerrar o modificar los fondos de la caja chica.
             </p>
             <button
               onClick={() => setShowModalSinPrivilegios(false)}
@@ -1900,3 +1832,4 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   );
 };
 
+export default CajaChica;

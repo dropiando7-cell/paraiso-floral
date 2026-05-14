@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { getR2UploadUrl } from '@/lib/storage/r2';
 
 export async function getOpenSession(organizationId: string) {
   try {
@@ -55,6 +56,49 @@ export async function openCajaChicaSession(organizationId: string, saldoInicial:
   } catch (error) {
     console.error('Error opening session:', error);
     return { success: false, error: 'Error al abrir caja' };
+  }
+}
+
+export async function openAndFundCajaChicaSession(organizationId: string, data: any, userId: string) {
+  try {
+    const openSession = await prisma.cajaChicaSession.findFirst({
+      where: { organizationId, estado: 'ABIERTA' }
+    });
+    
+    if (openSession) {
+      return { success: false, error: 'Ya existe una caja abierta.' };
+    }
+
+    const session = await prisma.cajaChicaSession.create({
+      data: {
+        organizationId,
+        saldoInicial: data.importe,
+        estado: 'ABIERTA',
+        creadoPorId: userId,
+        movimientos: {
+          create: {
+            tipo: 'APERTURA',
+            categoria: data.categoria || 'Apertura de caja',
+            descripcion: data.descripcion || 'Fondo inicial asignado a la caja chica',
+            documento: data.documento || 'RECIBO',
+            nroDoc: data.nroDoc || null,
+            adjuntoUrl: data.adjuntoUrl || null,
+            importe: data.importe,
+            moneda: data.moneda || 'HNL',
+            tipoCambio: data.tipoCambio || 1,
+            total: data.total || data.importe,
+            beneficiario: data.beneficiario || null,
+            creadoPorId: userId
+          }
+        }
+      }
+    });
+
+    revalidatePath('/caja-chica');
+    return { success: true, session };
+  } catch (error) {
+    console.error('Error opening and funding session:', error);
+    return { success: false, error: 'Error al abrir caja con fondo' };
   }
 }
 
@@ -124,6 +168,7 @@ export async function registerCajaChicaMovimiento(
         moneda: data.moneda || 'HNL',
         tipoCambio: data.tipoCambio || 1,
         total: data.total,
+        adjuntoUrl: data.adjuntoUrl || null,
         beneficiario: data.beneficiario || null,
         creadoPorId: userId
       }
@@ -181,5 +226,57 @@ export async function updateCajaChicaSaldoInicial(sessionId: string, nuevoSaldo:
   } catch (error) {
     console.error('Error updating session:', error);
     return { success: false, error: 'Error al actualizar saldo' };
+  }
+}
+
+export async function updateCajaChicaMovimiento(
+  movimientoId: string,
+  data: any,
+  userId: string
+) {
+  try {
+    const mov = await prisma.cajaChicaMovimiento.findUnique({
+      where: { id: movimientoId },
+      include: { session: true }
+    });
+
+    if (!mov) return { success: false, error: 'Movimiento no encontrado' };
+    if (mov.session.estado === 'CERRADA') return { success: false, error: 'La caja ya está cerrada' };
+
+    const updatedMovimiento = await prisma.cajaChicaMovimiento.update({
+      where: { id: movimientoId },
+      data: {
+        categoria: data.categoria,
+        descripcion: data.descripcion,
+        documento: data.documento,
+        nroDoc: data.nroDoc || null,
+        importe: data.importe,
+        moneda: data.moneda || 'HNL',
+        tipoCambio: data.tipoCambio || 1,
+        total: data.total,
+        adjuntoUrl: data.adjuntoUrl !== undefined ? data.adjuntoUrl : mov.adjuntoUrl,
+        beneficiario: data.beneficiario || null,
+      }
+    });
+
+    revalidatePath('/caja-chica');
+    return { success: true, movimiento: updatedMovimiento };
+  } catch (error) {
+    console.error('Error updating movement:', error);
+    return { success: false, error: 'Error al actualizar el movimiento' };
+  }
+}
+
+export async function getUploadUrlCajaChica(fileName: string, contentType: string, userId: string) {
+  try {
+    const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const storagePath = `caja-chica/${userId}/${Date.now()}-${safeFileName}`;
+    const uploadUrl = await getR2UploadUrl(storagePath, contentType);
+    const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${storagePath}`;
+    
+    return { success: true, uploadUrl, publicUrl };
+  } catch (error) {
+    console.error('Error generating upload URL:', error);
+    return { success: false, error: 'Error al generar URL de carga' };
   }
 }
