@@ -54,6 +54,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
       { name: 'Mantenimiento y Reparaciones', href: '/soporte', icon: Wrench, roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
       { name: 'Inventario IA', href: '/inventario-ia', icon: Sparkles, badge: 'NUEVO', badgeColor: 'bg-green-500/20 text-green-700' },
       { name: 'Rentas de Equipos', href: '/rentas', icon: Box },
+      { name: 'Control de Caja Chica', href: '/caja-chica', icon: CircleDollarSign },
       { name: 'Gráficas e Informes', href: '/graficas', icon: TrendingUp },
     ]
   },
