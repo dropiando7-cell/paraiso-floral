@@ -1441,10 +1441,10 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               <div className="flex items-start justify-between pb-6 border-b-2 border-gray-200 mb-6">
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900 tracking-tight" style={{ fontFamily: 'Georgia, serif' }}>
-                    IGLESIA MISION CRISTIANA ELIM HONDURAS
+                    BIOELECTRÓNICA HONDURAS
                   </h1>
                   <p className="text-xs text-gray-500 mt-1">
-                    15 y 16 Calle, 2 Ave., N.O., Bo.Guadalupe, San Pedro Sula, Honduras, C.A.
+                    Barrio Guamilito, 7 calle, 9 avenida, San Pedro Sula, Cortés, Honduras.
                   </p>
                 </div>
                 <div className="text-right">
