@@ -25,8 +25,8 @@ TIEMPO_ESPERA = 3
 TAMANOS = {
     "50x25": {
         "ANCHO_FIJO": 399,
-        "ALTO_MAXIMO": 185,
-        "QR_MARGEN": 14,
+        "ALTO_MAXIMO": 198,
+        "QR_MARGEN": 16,
         "QR_ESCALA": 1.0,
         "CB_MARGEN_INF": 10,
         "FONT_ID": 20,
@@ -38,8 +38,8 @@ TAMANOS = {
         "WRAP_MAX_PX": 260,
         "X_TEXT": 12,
         "Y_TEXT": 8,
-        "Y_OFFSET_2_LINES": 50,
-        "Y_OFFSET_1_LINE": 35,
+        "Y_OFFSET_2_LINES": 68,
+        "Y_OFFSET_1_LINE": 50,
         "MARCA_Y_OFFSET": 14,
         "SERIE_Y_OFFSET": 14,
         "BIO_Y_OFFSET_SERIE": 28,
@@ -309,9 +309,26 @@ def imprimir_etiqueta(url_imagen):
                         text_h = 16
 
                     gap_texto  = 3
-                    # Posiciones desde abajo
+                    
+                    # Calcular el borde inferior de BIOELECTRONICA (aproximando altura de fuente si getbbox falla)
+                    try:
+                        bio_bbox = font_bio.getbbox("BIOELECTRONICA")
+                        bio_h = bio_bbox[3] - bio_bbox[1]
+                    except AttributeError:
+                        bio_h = cfg['FONT_BIO']
+                    
+                    bottom_of_bio = bio_y + bio_h
+
+                    # Posiciones predeterminadas desde abajo
                     y_texto_cb = cfg['ALTO_MAXIMO'] - cfg['CB_MARGEN_INF'] - text_h
                     y_bc       = y_texto_cb - gap_texto - bc_h
+
+                    # Lógica de colisión dinámica
+                    margen_seguridad = 4
+                    if y_bc < bottom_of_bio + margen_seguridad:
+                        # Si chocan, empujamos el código de barras hacia abajo justo después del margen
+                        y_bc = bottom_of_bio + margen_seguridad
+                        y_texto_cb = y_bc + bc_h + gap_texto
 
                     if y_bc < 0:
                         y_bc = 2

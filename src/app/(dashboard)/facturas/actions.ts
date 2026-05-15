@@ -291,7 +291,10 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                             const discountAmt = basePrice * ((item.discount || 0) / 100);
                             const lineTotal = basePrice - discountAmt;
                             let finalDesc = item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : '');
-                            if (item.isSection) finalDesc = `__SECTION__${finalDesc}`;
+                            if (item.isSection) {
+                                finalDesc = `__SECTION__${finalDesc}`;
+                                if (item.sectionStyle) finalDesc += `__STYLE__${JSON.stringify(item.sectionStyle)}`;
+                            }
                             return {
                                 descripcion: finalDesc,
                                 descripcionEnriquecida: item.richDesc || null,
@@ -447,7 +450,10 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                                 : basePrice * ((Number(item.discount) || 0) / 100);
                             const lineTotal = basePrice - discountAmt;
                             let finalDesc = item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : '');
-                            if (item.isSection) finalDesc = `__SECTION__${finalDesc}`;
+                            if (item.isSection) {
+                                finalDesc = `__SECTION__${finalDesc}`;
+                                if (item.sectionStyle) finalDesc += `__STYLE__${JSON.stringify(item.sectionStyle)}`;
+                            }
                             return {
                                 descripcion: finalDesc,
                                 descripcionEnriquecida: item.richDesc || null,
@@ -946,8 +952,17 @@ export async function guardarInvoiceTemplate(name: string, settings: any) {
         if (!org) throw new Error("Organización no encontrada");
 
         const currentTemplates: any[] = Array.isArray(org.invoiceTemplates) ? org.invoiceTemplates : [];
-        const newTemplate = { id: Math.random().toString(36).slice(2, 9), name, settings };
-        const updatedTemplates = [...currentTemplates, newTemplate];
+        
+        const existingIndex = currentTemplates.findIndex(t => t.name.trim().toLowerCase() === name.trim().toLowerCase());
+        
+        let updatedTemplates;
+        if (existingIndex >= 0) {
+            updatedTemplates = [...currentTemplates];
+            updatedTemplates[existingIndex] = { ...updatedTemplates[existingIndex], settings };
+        } else {
+            const newTemplate = { id: Math.random().toString(36).slice(2, 9), name: name.trim(), settings };
+            updatedTemplates = [...currentTemplates, newTemplate];
+        }
 
         await prisma.organization.update({
             where: { id: organizationId },

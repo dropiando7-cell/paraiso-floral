@@ -905,7 +905,8 @@ export default function DocumentBuilderClient({
   const [isReserving, setIsReserving] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const draftKey = 'bea_factura_draft_v2'; // Single unified draft
+  const draftKey = `bea_factura_draft_v2_${initialData?.id || 'new'}`; // Dynamic draft per doc
+  const draftLoadedRef = useRef(false);
 
   // PRE-CONVERT IMAGES TO BASE64 IN VIEW MODE (PUPPETEER PRINT CONTEXT)
   useEffect(() => {
@@ -942,7 +943,7 @@ export default function DocumentBuilderClient({
   // 1. Hydrate from localStorage on mount (ONLY if it's a new document and not in viewMode)
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (initialData || effectiveViewMode || editMode) {
+    if (effectiveViewMode) {
       setIsHydrated(true);
       return; 
     }
@@ -960,19 +961,21 @@ export default function DocumentBuilderClient({
         if (parsed.paymentTerms) setPaymentTerms(parsed.paymentTerms);
         if (parsed.validityDays) setValidityDays(parsed.validityDays);
         if (!parsed.reservedDocId) setIsLocked(true); // Must reserve first 
+        draftLoadedRef.current = true;
+        toast('Borrador restaurado', { icon: '📝' });
       } else {
-        setIsLocked(true); // Locked if completely blank session
+        if (!initialData) setIsLocked(true); // Locked if completely blank session
       }
     } catch (e) {
       console.warn("Failed to parse draft", e);
-      setIsLocked(true);
+      if (!initialData) setIsLocked(true);
     }
     setIsHydrated(true);
-  }, [initialData, effectiveViewMode, editMode]);
+  }, [draftKey, effectiveViewMode, initialData]);
 
   // 2. Auto-save to localStorage with debounce
   useEffect(() => {
-    if (!isHydrated || initialData || effectiveViewMode || editMode) return;
+    if (!isHydrated || effectiveViewMode) return;
 
     const handler = setTimeout(() => {
       try {
@@ -985,7 +988,7 @@ export default function DocumentBuilderClient({
     }, 1500);
 
     return () => clearTimeout(handler);
-  }, [isHydrated, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, validityDays, initialData, effectiveViewMode, editMode]);
+  }, [isHydrated, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, validityDays, effectiveViewMode, draftKey]);
 
   const clearLocalDraft = () => {
     try {
@@ -1273,7 +1276,7 @@ export default function DocumentBuilderClient({
 
   // Cargar initialData si existe
   useEffect(() => {
-    if (initialData) {
+    if (initialData && !draftLoadedRef.current) {
       if (isNotaCredito) {
         setDocType('nota_credito');
         setNotes(`Aplica a Factura Oficial No. ${initialData.correlativo}\n`);
@@ -1313,10 +1316,18 @@ export default function DocumentBuilderClient({
           // For exonerado, we would have logic, but default to exento if 0
           
           let isSection = false;
+          let sectionStyle;
           let rawDesc = d.descripcion || '';
           if (rawDesc.startsWith('__SECTION__')) {
               isSection = true;
               rawDesc = rawDesc.substring(11);
+              const styleIdx = rawDesc.indexOf('__STYLE__');
+              if (styleIdx !== -1) {
+                  try {
+                      sectionStyle = JSON.parse(rawDesc.substring(styleIdx + 9));
+                  } catch(e){}
+                  rawDesc = rawDesc.substring(0, styleIdx);
+              }
           }
 
           let longDesc = '';
@@ -1340,6 +1351,7 @@ export default function DocumentBuilderClient({
             longDesc,
             richDesc: d.descripcionEnriquecida || '',
             isSection,
+            sectionStyle,
             showLongDesc: d.mostrarDescripcion || false,
             qty: d.cantidad,
             unitPrice: Number(d.precioUnitario),

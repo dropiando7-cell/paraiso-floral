@@ -73,9 +73,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }
       
       let isSection = false;
+      let sectionStyle;
       if (shortDesc.startsWith('__SECTION__')) {
         isSection = true;
-        shortDesc = shortDesc.replace('__SECTION__', '');
+        shortDesc = shortDesc.substring(11);
+        const styleIdx = shortDesc.indexOf('__STYLE__');
+        if (styleIdx !== -1) {
+            try { sectionStyle = JSON.parse(shortDesc.substring(styleIdx + 9)); } catch(e){}
+            shortDesc = shortDesc.substring(0, styleIdx);
+        }
       }
 
       const code = d.producto?.sku || d.activo?.idQr || '';
@@ -92,6 +98,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         discount: d.totalDescuento,
         discountType: 'amount',
         isSection: isSection,
+        sectionStyle: sectionStyle,
         imageUrl: d.producto?.imageUrl || d.activo?.imagenUrl || null
       };
     });

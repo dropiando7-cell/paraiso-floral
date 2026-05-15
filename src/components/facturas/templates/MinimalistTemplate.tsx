@@ -46,7 +46,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
   const totalStyle = { fontSize: `${totalSizeVal}px` };
   
   const totalLabelSizeVal = isTotalNum 
-    ? ((settings.totalFontSize as number) - 10) 
+    ? Math.max((settings.totalFontSize as number) * 0.75, 9)
     : settings?.totalFontSize === 'large' 
       ? 20 
       : settings?.totalFontSize === 'small' 

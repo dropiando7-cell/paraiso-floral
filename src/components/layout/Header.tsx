@@ -10,11 +10,11 @@ export function Header({ dbUser, onMenuClick }: HeaderProps) {
     return (
         <header className="h-[72px] bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-6 shrink-0 sticky top-0 z-[60] w-full gap-3 print:hidden">
 
-            {/* Hamburger — mobile only */}
+            {/* Hamburger */}
             <button
                 onClick={onMenuClick}
-                className="lg:hidden p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
-                aria-label="Abrir menú"
+                className="p-2 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
+                aria-label="Alternar menú"
             >
                 <Menu className="w-5 h-5" />
             </button>

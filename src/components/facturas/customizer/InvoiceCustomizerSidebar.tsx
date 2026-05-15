@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling } from 'lucide-react';
+import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { InvoiceSettings, TemplateLayout, LogoPosition, LogoSize, CustomInvoiceTemplate } from '@/types/invoice';
 import { getInvoiceTemplates, guardarInvoiceTemplate, eliminarInvoiceTemplate } from '@/app/(dashboard)/facturas/actions';
 import toast from 'react-hot-toast';
@@ -117,6 +117,9 @@ function FontSizeControl({
           />
         </div>
       </div>
+
+
+
     </div>
   );
 }
@@ -125,6 +128,8 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
   const [activeTab, setActiveTab] = useState<'template' | 'colors' | 'font' | 'logo' | 'footer' | 'sizes'>('template');
   const [savedTemplates, setSavedTemplates] = useState<CustomInvoiceTemplate[]>([]);
   const [newTemplateName, setNewTemplateName] = useState('');
+  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
+  const [templateToDelete, setTemplateToDelete] = useState<{id: string, name: string} | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -139,7 +144,11 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
     const res = await guardarInvoiceTemplate(newTemplateName, settings);
     if (res.success && res.templates) {
        setSavedTemplates((res.templates as unknown) as CustomInvoiceTemplate[]);
-       setNewTemplateName('');
+       
+       // Encontrar la plantilla que se acaba de guardar/actualizar para seleccionarla
+       const savedTpl = ((res.templates as unknown) as CustomInvoiceTemplate[]).find(t => t.name.trim().toLowerCase() === newTemplateName.trim().toLowerCase());
+       if (savedTpl) setActiveTemplateId(savedTpl.id);
+
        toast.success("Plantilla guardada exitosamente");
     } else {
        toast.error(res.error || "Error al guardar");
@@ -151,14 +160,19 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
     Object.keys(t.settings).forEach(key => {
       onChange(key as keyof InvoiceSettings, (t.settings as any)[key]);
     });
+    setNewTemplateName(t.name);
+    setActiveTemplateId(t.id);
     toast.success("Plantilla cargada");
   };
 
-  const handleDeleteTemplate = async (id: string) => {
-    if (!confirm('¿Eliminar esta plantilla?')) return;
+  const confirmDeleteTemplate = async () => {
+    if (!templateToDelete) return;
+    const id = templateToDelete.id;
+    setTemplateToDelete(null);
     const res = await eliminarInvoiceTemplate(id);
     if (res.success && res.templates) {
        setSavedTemplates((res.templates as unknown) as CustomInvoiceTemplate[]);
+       if (activeTemplateId === id) setActiveTemplateId(null);
        toast.success("Plantilla eliminada");
     }
   };
@@ -212,12 +226,18 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                </div>
                {savedTemplates.length > 0 && (
                  <div className="space-y-1.5 mt-2 max-h-32 overflow-y-auto">
-                   {savedTemplates.map(t => (
-                     <div key={t.id} className="flex items-center justify-between bg-slate-50 border border-slate-100 rounded p-1.5">
-                       <button onClick={() => handleLoadTemplate(t)} className="text-xs text-slate-700 font-medium hover:text-blue-600 flex-1 text-left">{t.name}</button>
-                       <button onClick={() => handleDeleteTemplate(t.id)} className="text-red-400 hover:text-red-600 p-1"><Trash2 size={12}/></button>
-                     </div>
-                   ))}
+                   {savedTemplates.map(t => {
+                     const isSelected = t.id === activeTemplateId;
+                     return (
+                       <div key={t.id} className={`flex items-center justify-between border rounded p-1.5 transition-all ${isSelected ? 'bg-emerald-50 border-emerald-300 shadow-sm' : 'bg-slate-50 border-slate-100'}`}>
+                         <button onClick={() => handleLoadTemplate(t)} className={`text-xs font-bold flex-1 text-left flex items-center gap-2 ${isSelected ? 'text-emerald-700' : 'text-slate-700 hover:text-blue-600'}`}>
+                           {isSelected && <CheckCircle2 size={14} className="text-emerald-600 shrink-0" />}
+                           <span className="truncate">{t.name}</span>
+                         </button>
+                         <button onClick={() => setTemplateToDelete({id: t.id, name: t.name})} className="text-red-400 hover:text-red-600 p-1 shrink-0"><Trash2 size={12}/></button>
+                       </div>
+                     );
+                   })}
                  </div>
                )}
             </div>
@@ -817,6 +837,41 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
         )}
 
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {templateToDelete && (
+        <div className="fixed inset-0 z-[70] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6">
+              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4 mx-auto">
+                <AlertTriangle className="text-red-600" size={24} />
+              </div>
+              <h3 className="text-lg font-bold text-center text-slate-800 mb-2">Eliminar Plantilla</h3>
+              <p className="text-sm text-center text-slate-500 mb-1">
+                ¿Estás seguro de que quieres eliminar la plantilla <strong className="text-slate-700">"{templateToDelete.name}"</strong>?
+              </p>
+              <p className="text-xs text-center text-red-500 bg-red-50 p-2 rounded-lg mt-3">
+                Esta acción es irreversible y perderás tu configuración guardada.
+              </p>
+            </div>
+            <div className="border-t border-slate-100 p-4 flex gap-3 bg-slate-50">
+              <button 
+                onClick={() => setTemplateToDelete(null)}
+                className="flex-1 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-200 bg-slate-100 rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmDeleteTemplate}
+                className="flex-1 px-4 py-2 text-sm font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors shadow-sm shadow-red-200"
+              >
+                Sí, Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

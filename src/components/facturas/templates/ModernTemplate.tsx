@@ -56,7 +56,7 @@ export default function ModernTemplate(props: TemplateProps) {
   const totalStyle = { fontSize: `${totalSizeVal}px` };
   
   const totalLabelSizeVal = isTotalNum 
-    ? ((settings.totalFontSize as number) - 10) 
+    ? Math.max((settings.totalFontSize as number) * 0.75, 9)
     : settings?.totalFontSize === 'large' 
       ? 20 
       : settings?.totalFontSize === 'small' 
@@ -327,9 +327,9 @@ export default function ModernTemplate(props: TemplateProps) {
 
  <div className="border-t border-slate-200 pt-3">
  <div className="flex justify-between items-center">
- <span className="text-base font-black text-slate-800">TOTAL L.</span>
+ <span className={`font-black text-slate-800 ${isTotalNum ? '' : 'text-base'}`} style={totalLabelStyle}>TOTAL L.</span>
  <div className="text-right flex items-center h-full">
- <span className={`text-2xl font-black ${theme.accentText} tabular-nums leading-none`}>{fmt(totals.total)}</span>
+ <span className={`font-black ${theme.accentText} tabular-nums leading-none ${isTotalNum ? '' : 'text-2xl'}`} style={totalStyle}>{fmt(totals.total)}</span>
  </div>
  </div>
  </div>
