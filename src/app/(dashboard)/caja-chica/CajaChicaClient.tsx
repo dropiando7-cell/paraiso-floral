@@ -366,7 +366,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                 Gestión de recargas, gastos y arqueo de la caja chica administrativa.
               </p>
               <p className="text-xs text-gray-400 mt-1">
-                Período actual: <span className="font-medium text-gray-600">{sesionActiva ? new Date(sesionActiva.fechaApertura).toLocaleDateString('es-HN') : '—'}</span> · Responsable: <span className="font-medium text-gray-600">{sesionActiva?.responsableApertura?.email || '—'}</span>
+                Período actual: <span className="font-medium text-gray-600">{sesionActiva?.createdAt ? new Date(sesionActiva.createdAt).toLocaleDateString('es-HN') : '—'}</span> · Responsable: <span className="font-medium text-gray-600">{sesionActiva?.creadoPor ? `${sesionActiva.creadoPor.nombre || ''} ${sesionActiva.creadoPor.apellido || ''}`.trim() : (dbUser?.nombre ? `${dbUser.nombre} ${dbUser.apellido || ''}`.trim() : dbUser?.email || '—')}</span>
               </p>
             </div>
           </div>
@@ -458,7 +458,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
 
             <div className="flex items-center gap-2 text-xs text-gray-500">
               <Calendar className="w-3.5 h-3.5" />
-              <span>Apertura: <span className="font-semibold text-gray-700">13/05/2026 08:15 a.m.</span></span>
+              <span>Apertura: <span className="font-semibold text-gray-700">{sesionActiva?.createdAt ? new Date(sesionActiva.createdAt).toLocaleString('es-HN') : '—'}</span></span>
             </div>
           </div>
         </div>
@@ -1467,7 +1467,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     Período
                   </p>
                   <p className="text-sm font-semibold text-gray-900">
-                    13/05/2026
+                    {sesionActiva?.createdAt ? new Date(sesionActiva.createdAt).toLocaleDateString('es-HN') : '—'}
                   </p>
                   <p className="text-[11px] text-gray-500">Apertura del día</p>
                 </div>
@@ -1487,7 +1487,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1">
                     Responsable
                   </p>
-                  <p className="text-sm font-semibold text-gray-900">{sesionActiva?.responsableApertura?.email || '—'}</p>
+                  <p className="text-sm font-semibold text-gray-900">{sesionActiva?.creadoPor ? `${sesionActiva.creadoPor.nombre || ''} ${sesionActiva.creadoPor.apellido || ''}`.trim() : (dbUser?.nombre ? `${dbUser.nombre} ${dbUser.apellido || ''}`.trim() : dbUser?.email || '—')}</p>
                   <p className="text-[11px] text-gray-500">Administrador General</p>
                 </div>
                 <div>
@@ -1677,7 +1677,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               <div className="grid grid-cols-3 gap-8 pt-8 border-t-2 border-gray-200">
                 <div className="text-center">
                   <div className="border-t-2 border-gray-400 mb-2 mx-4"></div>
-                  <p className="text-xs font-bold text-gray-700">{sesionActiva?.responsableApertura?.email || '—'}</p>
+                  <p className="text-xs font-bold text-gray-700">{sesionActiva?.creadoPor ? `${sesionActiva.creadoPor.nombre || ''} ${sesionActiva.creadoPor.apellido || ''}`.trim() : (dbUser?.nombre ? `${dbUser.nombre} ${dbUser.apellido || ''}`.trim() : dbUser?.email || '—')}</p>
                   <p className="text-[10px] text-gray-500 uppercase tracking-wider mt-0.5">
                     Solicitante
                   </p>
