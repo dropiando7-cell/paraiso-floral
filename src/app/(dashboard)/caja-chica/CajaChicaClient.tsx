@@ -798,7 +798,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
             <div className="px-6 pt-5">
               <div className="grid grid-cols-2 gap-2 p-1 bg-gray-100 rounded-lg">
                 <button
-                  onClick={() => { setTipoMovimiento('INGRESO'); setForm(f => ({ ...f, categoria: 'Reposición de fondos' })); }}
+                  onClick={() => { setTipoMovimiento('INGRESO'); setForm((f: any) => ({ ...f, categoria: 'Reposición de fondos' })); }}
                   className={`flex items-center justify-center gap-2 py-2.5 rounded-md text-sm font-semibold transition-all ${
                     tipoMovimiento === 'INGRESO'
                       ? 'bg-white text-green-700 shadow-sm'
