@@ -34,36 +34,38 @@ export async function GET(req: NextRequest) {
     const fechaVencUrl = searchParams.get('fechaVenc') || '';
     const serieUrl = searchParams.get('serie') || '';
 
-    const size = searchParams.get('size') || '70x40';
+    const size = searchParams.get('size') || '50x25';
     const is70x40 = size === '70x40';
+    const is50x25 = size === '50x25';
 
     // Si no hay codigo de barras explícito, utilizamos el id interno como codigo de barra 1D también.
     const barcodeData = codigoBarras ? codigoBarras : idQr;
 
     // Dimensiones según tamaño
     const W = is70x40 ? 559 : 406;
-    const H = is70x40 ? 320 : 264;
+    const H = is70x40 ? 320 : (is50x25 ? 203 : 264);
     
     // Configuraciones de estilo dinámicas
     const cfg = {
-        padding: is70x40 ? '16px 20px 10px 20px' : '12px 14px 8px 14px',
-        idSize: is70x40 ? 22 : 17,
-        descSizeLong: is70x40 ? 18 : 14,
-        descSizeShort: is70x40 ? 22 : 18,
-        metaSize: is70x40 ? 15 : 12,
-        qrSize: is70x40 ? 110 : 90,
-        qrImgSize: is70x40 ? 105 : 85,
-        bioSize: is70x40 ? 16 : 13,
-        barcodeWidth: is70x40 ? 500 : 370,
-        barcodeHeight: is70x40 ? 50 : 38,
-        barcodeTextSize: is70x40 ? 14 : 11,
+        padding: is70x40 ? '16px 20px 10px 20px' : (is50x25 ? '8px 10px 6px 10px' : '12px 14px 8px 14px'),
+        idSize: is70x40 ? 22 : (is50x25 ? 15 : 17),
+        descSizeLong: is70x40 ? 18 : (is50x25 ? 12 : 14),
+        descSizeShort: is70x40 ? 22 : (is50x25 ? 15 : 18),
+        metaSize: is70x40 ? 15 : (is50x25 ? 11 : 12),
+        qrSize: is70x40 ? 110 : (is50x25 ? 80 : 90),
+        qrImgSize: is70x40 ? 105 : (is50x25 ? 75 : 85),
+        bioSize: is70x40 ? 16 : (is50x25 ? 11 : 13),
+        barcodeWidth: is70x40 ? 500 : (is50x25 ? 350 : 370),
+        barcodeHeight: is70x40 ? 50 : (is50x25 ? 30 : 38),
+        barcodeTextSize: is70x40 ? 14 : (is50x25 ? 10 : 11),
     };
 
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
     const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=L&includetext=false`;
 
     // Barcode height=8 para que quepa sin desbordarse fuera de los 264px de alto
-    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=8&scale=4&includetext=false`;
+    const barcodeHeightAPI = is50x25 ? 6 : 8;
+    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=${barcodeHeightAPI}&scale=4&includetext=false`;
 
     const descStr = descripcion.substring(0, 60).toUpperCase();
     const isLongName = descStr.length > 22;

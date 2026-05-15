@@ -28,7 +28,7 @@ import BuscadorOdoo, { OdooAlertPanel } from './BuscadorOdoo';
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
 function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number, size: string) => void; isPrinting: boolean }) {
     const [cantidad, setCantidad] = useState(1);
-    const [size, setSize] = useState('70x40');
+    const [size, setSize] = useState('50x25');
     const searchParams = new URLSearchParams({
         idQr: activo.idQr,
         descripcion: activo.descripcionCorta || '',
@@ -77,6 +77,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                         >
                             <option value="70x40">70x40 mm</option>
                             <option value="50x33">50x33 mm</option>
+                            <option value="50x25">50x25 mm</option>
                         </select>
                     </div>
                 </div>
@@ -99,7 +100,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
 function SuperAdminLabelPreviewModal({ onClose, activo }: { onClose: () => void; activo: Activo | null }) {
     const [scale, setScale] = useState<1 | 2 | 3>(2);
     const [reloadKey, setReloadKey] = useState(0);
-    const [size, setSize] = useState('70x40');
+    const [size, setSize] = useState('50x25');
 
     if (!activo) return null;
 
@@ -120,8 +121,8 @@ function SuperAdminLabelPreviewModal({ onClose, activo }: { onClose: () => void;
     const url = `/api/impresion/generar-etiqueta?${searchParams.toString()}&_r=${reloadKey}`;
 
     // Dimensiones reales en px del canvas
-    const W = size === '70x40' ? 559 : 406;
-    const H = size === '70x40' ? 320 : 264;
+    const W = size === '70x40' ? 559 : (size === '50x33' ? 406 : 406);
+    const H = size === '70x40' ? 320 : (size === '50x33' ? 264 : 203);
 
     return (
         <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={onClose}>
@@ -147,6 +148,7 @@ function SuperAdminLabelPreviewModal({ onClose, activo }: { onClose: () => void;
                                 >
                                     <option value="70x40">70x40mm ({559}x{320}px)</option>
                                     <option value="50x33">50x33mm ({406}x{264}px)</option>
+                                    <option value="50x25">50x25mm ({406}x{203}px)</option>
                                 </select>
                             </div>
                         </div>
@@ -233,7 +235,7 @@ function SuperAdminLabelPreviewModal({ onClose, activo }: { onClose: () => void;
                 <div className="mx-6 mb-5 mt-3 flex flex-wrap gap-2">
                     <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">Canvas: {W}×{H}px</span>
                     <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">203 DPI</span>
-                    <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">{size === '70x40' ? '2.7"×1.5" (70×40mm)' : '2"×1.3" (50.8×33mm)'}</span>
+                    <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-mono font-semibold">{size === '70x40' ? '2.7"×1.5" (70×40mm)' : size === '50x33' ? '2"×1.3" (50.8×33mm)' : '2"×1" (50.8×25mm)'}</span>
                     <span className="text-[11px] bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-semibold">NIIMBOT K3</span>
                 </div>
 
@@ -1459,7 +1461,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 modelo: fd.get('modelo') as string || '',
                                 codigoBarras: codigoBarras || '',
                                 serie: fd.get('serie') as string || '',
-                                size: '70x40',
+                                size: '50x25',
                             });
                             const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
                             
@@ -2358,7 +2360,7 @@ function DeleteConfirm({ activo, onClose, onSuccess }: { activo: Activo; onClose
 function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean; onClose: () => void; grupos: any[]; onSuccess: () => void }) {
     const [grupo, setGrupo] = useState('');
     const [cantidad, setCantidad] = useState('');
-    const [size, setSize] = useState('70x40');
+    const [size, setSize] = useState('50x25');
     const [isPending, startTransition] = useTransition();
 
     if (!open) return null;
@@ -2403,6 +2405,7 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
                         >
                             <option value="70x40">70x40 mm</option>
                             <option value="50x33">50x33 mm</option>
+                            <option value="50x25">50x25 mm</option>
                         </select>
                     </div>
                 </div>
@@ -2747,7 +2750,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
 
     // The initial fetch is now handled Serverside on `page.tsx` directly!
 
-    async function handlePrintLabel(activo: Activo, cantidad: number = 1, size: string = '70x40') {
+    async function handlePrintLabel(activo: Activo, cantidad: number = 1, size: string = '50x25') {
         setPrintingId(activo.id);
         setPrintStatus('sending');
         try {

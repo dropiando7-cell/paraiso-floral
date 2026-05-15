@@ -21,7 +21,30 @@ TIEMPO_ESPERA = 3
 # Se define un diccionario con las configuraciones según el tamaño deseado.
 # 70x40mm: Ancho = 559px, Alto = 320px -> Alto seguro = 300px
 # 50x33mm: Ancho = 399px, Alto = 263px -> Alto seguro = 245px
+# 50x25mm: Ancho = 399px, Alto = 200px -> Alto seguro = 185px
 TAMANOS = {
+    "50x25": {
+        "ANCHO_FIJO": 399,
+        "ALTO_MAXIMO": 185,
+        "QR_MARGEN": 14,
+        "QR_ESCALA": 1.0,
+        "CB_MARGEN_INF": 10,
+        "FONT_ID": 20,
+        "FONT_DESC_LONG": 14,
+        "FONT_DESC_SHORT": 16,
+        "FONT_SMALL": 13,
+        "FONT_BARCODE": 12,
+        "FONT_BIO": 13,
+        "WRAP_MAX_PX": 260,
+        "X_TEXT": 12,
+        "Y_TEXT": 8,
+        "Y_OFFSET_2_LINES": 50,
+        "Y_OFFSET_1_LINE": 35,
+        "MARCA_Y_OFFSET": 14,
+        "SERIE_Y_OFFSET": 14,
+        "BIO_Y_OFFSET_SERIE": 28,
+        "BIO_Y_OFFSET_NO_SERIE": 14,
+    },
     "50x33": {
         "ANCHO_FIJO": 399,
         "ALTO_MAXIMO": 245,
@@ -67,7 +90,7 @@ TAMANOS = {
         "BIO_Y_OFFSET_NO_SERIE": 24,
     }
 }
-DEFAULT_SIZE = "70x40"
+DEFAULT_SIZE = "50x25"
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -350,7 +373,7 @@ def iniciar():
     print(" SERVIDOR DE IMPRESION NIIMBOT K3 - Bioelectrónica  [V3 - Soporte Múltiples Tamaños]")
     print(f" Servidor URL : {HOST}")
     print(f" Impresora    : {IMPRESORA}")
-    print(f" Tamaños Soportados: 70x40mm, 50x33mm")
+    print(f" Tamaños Soportados: 70x40mm, 50x33mm, 50x25mm")
     print("=================================================\n")
     print("Sondeando trabajos pendientes en la nube...")
 
