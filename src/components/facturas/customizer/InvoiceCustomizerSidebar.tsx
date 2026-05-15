@@ -637,6 +637,42 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
               </div>
             </div>
 
+            <div className="pt-4 border-t border-slate-200 mt-6 space-y-3">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Líneas de Sección</h3>
+              
+              <div className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Fondo de Sección</p>
+                    <p className="text-[10px] text-slate-400">Color por defecto</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={settings.sectionBgColor || '#f1f5f9'} 
+                      onChange={e => onChange('sectionBgColor', e.target.value)}
+                      className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Texto de Sección</p>
+                    <p className="text-[10px] text-slate-400">Color de fuente por defecto</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={settings.sectionTextColor || '#1e293b'} 
+                      onChange={e => onChange('sectionTextColor', e.target.value)}
+                      className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -800,6 +836,22 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
               multiline
             />
 
+            {/* Tamaño del Footer */}
+            <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
+              <div>
+                <p className="text-xs font-bold text-slate-700">Tamaño de letra (puntos)</p>
+                <p className="text-[10px] text-slate-400">Ajusta el tamaño del texto del footer</p>
+              </div>
+              <input
+                type="number"
+                value={settings.footerFontSize || 10}
+                onChange={e => onChange('footerFontSize', parseInt(e.target.value) || 10)}
+                className="w-16 px-2 py-1 bg-slate-50 border border-slate-200 rounded text-center text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 outline-none"
+                min={6}
+                max={16}
+              />
+            </div>
+
             {/* Mostrar número de página */}
             <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-xl">
               <div>
@@ -822,12 +874,13 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
             <div className="mt-2 p-3 bg-slate-100 rounded-xl border border-slate-200">
               <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-2">Vista previa del footer</p>
               <div className="border-t border-slate-400 pt-2 text-center space-y-1">
-                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5">
-                  {settings.footerTelefono && <span className="text-[9px] text-slate-600">Tel.: {settings.footerTelefono}</span>}
-                  {settings.footerCorreo && <span className="text-[9px] text-slate-600">•</span>}
-                  {settings.footerCorreo && <span className="text-[9px] text-slate-600 truncate max-w-[140px]">{settings.footerCorreo}</span>}
-                  {settings.footerWeb && <span className="text-[9px] text-slate-600">•</span>}
-                  {settings.footerWeb && <span className="text-[9px] text-slate-600">{settings.footerWeb}</span>}
+                <div 
+                  className="flex flex-nowrap whitespace-nowrap items-center justify-center gap-x-2 text-slate-600 w-full overflow-hidden"
+                  style={{ fontSize: `${settings.footerFontSize || 10}px` }}
+                >
+                  {settings.footerTelefono && <span>Tel.: {settings.footerTelefono}</span>}
+                  {settings.footerCorreo && <span>Correo: {settings.footerCorreo}</span>}
+                  {settings.footerWeb && <span>Web: {settings.footerWeb}</span>}
                 </div>
                 {settings.footerNota && <p className="text-[9px] text-slate-500 italic">{settings.footerNota}</p>}
                 {settings.footerMostrarPagina && <p className="text-[9px] text-slate-400">Página: 1/1</p>}

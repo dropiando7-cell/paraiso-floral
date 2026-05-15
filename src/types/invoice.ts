@@ -14,6 +14,7 @@ export interface InvoiceSettings {
   footerWeb: string;
   footerNota: string;
   footerMostrarPagina: boolean;
+  footerFontSize?: number;
   // Table display options
   showProductImages: boolean;
   productImagePosition?: 'firstColumn' | 'afterCode';
@@ -42,6 +43,9 @@ export interface InvoiceSettings {
   // Misc
   showItemCode?: boolean;
   useMonospaceNumbers?: boolean;
+  // Global Section Defaults
+  sectionBgColor?: string;
+  sectionTextColor?: string;
 }
 
 export interface CustomInvoiceTemplate {
@@ -80,4 +84,6 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   totalTextColor: '#ffffff',
   showItemCode: true,
   useMonospaceNumbers: true,
+  sectionBgColor: '#f1f5f9',
+  sectionTextColor: '#1e293b',
 };

@@ -105,11 +105,15 @@ const emptyLine = (): LineItem => ({
   qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage',
 });
 
-const emptySectionLine = (): LineItem => ({
+const emptySectionLine = (settings?: any): LineItem => ({
   id: uid(), code: '', shortDesc: '', longDesc: '', richDesc: '', showLongDesc: false,
   qty: 0, unitPrice: '', tax: 'exento', discount: 0, discountType: 'percentage',
   isSection: true,
-  sectionStyle: { bg: '#f1f5f9', color: '#1e293b', bold: true, align: 'left' }
+  sectionStyle: { 
+    bg: settings?.sectionBgColor || '#f1f5f9', 
+    color: settings?.sectionTextColor || '#1e293b', 
+    bold: true, align: 'left' 
+  }
 });
 
 const calcLine = (item: LineItem) => {
@@ -1836,7 +1840,7 @@ export default function DocumentBuilderClient({
             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
             setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={() => emptySectionLine(settings)}
             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
@@ -1849,7 +1853,7 @@ export default function DocumentBuilderClient({
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={() => emptySectionLine(settings)}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
@@ -1862,7 +1866,7 @@ export default function DocumentBuilderClient({
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={() => emptySectionLine(settings)}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
@@ -1875,7 +1879,7 @@ export default function DocumentBuilderClient({
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
-             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={() => emptySectionLine(settings)}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}

@@ -465,14 +465,20 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
           </View>
         </View>
 
-        <View style={styles.pageFooter} fixed>
-          <Text>
-            {organization?.telefono ? `Tel.: ${organization.telefono}` : 'Tel.: +504 2552-0491'}
-            {' | '}
-            {organization?.correoContacto ? `Correo: ${organization.correoContacto}` : 'Correo: ventas@bioelectronicahn.com'}
-            {' | '}
-            {organization?.domain ? `Web: ${organization.domain}` : 'Web: www.bioelectronicahn.com'}
+        <View style={[styles.pageFooter, { paddingTop: 4 }]} fixed>
+          <Text style={{ fontSize: settings?.footerFontSize || 8 }}>
+            {[
+              settings?.footerTelefono || organization?.telefono ? `Tel.: ${settings?.footerTelefono || organization?.telefono}` : '',
+              settings?.footerCorreo || organization?.correoContacto ? `Correo: ${settings?.footerCorreo || organization?.correoContacto}` : '',
+              settings?.footerWeb || organization?.domain ? `Web: ${settings?.footerWeb || organization?.domain}` : ''
+            ].filter(Boolean).join('   ')}
           </Text>
+          {settings?.footerNota && (
+            <Text style={{ fontSize: (settings?.footerFontSize || 8) - 1, marginTop: 2 }}>{settings.footerNota}</Text>
+          )}
+          {settings?.footerMostrarPagina !== false && (
+            <Text style={{ fontSize: (settings?.footerFontSize || 8) - 1, marginTop: 2 }} render={({ pageNumber, totalPages }) => (`Página: ${pageNumber}/${totalPages}`)} fixed />
+          )}
         </View>
       </Page>
     </Document>

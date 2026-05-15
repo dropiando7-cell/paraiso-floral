@@ -26,16 +26,17 @@ export default function InvoiceFooter({ settings, organization, className = '' }
 
  return (
  <div className={`border-t border-slate-300 pt-2 mt-6 print:fixed print:bottom-0 print:left-0 print:w-full print:bg-white print:z-[100] print:pb-2 ${className}`}>
- {/* Main info row */}
- {hasContent && (
- <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[10px] text-slate-600">
- {tel && <span>Tel.: {tel}</span>}
- {tel && (correo || web) && <span className="text-slate-300">•</span>}
- {correo && <span>Correo: {correo}</span>}
- {correo && web && <span className="text-slate-300">•</span>}
- {web && <span>Web: {web}</span>}
- </div>
- )}
+  {/* Main info row */}
+  {hasContent && (
+  <div 
+    className="flex flex-nowrap whitespace-nowrap items-center justify-center gap-x-3 text-slate-600 w-full overflow-hidden"
+    style={{ fontSize: `${settings.footerFontSize || 10}px` }}
+  >
+  {tel && <span>Tel.: {tel}</span>}
+  {correo && <span>Correo: {correo}</span>}
+  {web && <span>Web: {web}</span>}
+  </div>
+  )}
 
  {/* Nota adicional */}
  {nota && (
