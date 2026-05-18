@@ -117,3 +117,50 @@ export async function cancelRenta(rentaId: string) {
 
     return true;
 }
+
+export async function processRecepcion(data: FormData) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Unauthorized');
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { id: true, organizationId: true },
+    });
+    if (!dbUser) throw new Error('Unauthorized');
+
+    const rentaId = data.get('rentaId') as string;
+    const recepcionNotas = data.get('recepcionNotas') as string;
+    const depositoDevueltoStr = data.get('depositoDevuelto') as string;
+    const depositoDevuelto = depositoDevueltoStr ? parseFloat(depositoDevueltoStr) : null;
+    const nuevoEstadoEquipo = data.get('nuevoEstadoEquipo') as string || 'VIGENTE';
+
+    let recepcionFotos: string[] = [];
+    try {
+        const rawFotos = data.get('recepcionFotos') as string;
+        if (rawFotos) recepcionFotos = JSON.parse(rawFotos);
+    } catch (e) {
+        console.error("Error parsing fotos:", e);
+    }
+
+    const renta = await prisma.rentaEquipo.update({
+        where: { id: rentaId, organizationId: dbUser.organizationId },
+        data: {
+            estado: 'DEVUELTO',
+            fechaDevolucion: new Date(),
+            recibidoPorId: dbUser.id,
+            recepcionNotas,
+            recepcionFotos,
+            depositoDevuelto: depositoDevuelto !== null ? depositoDevuelto : null,
+        },
+    });
+
+    await prisma.activoFijo.update({
+        where: { id: renta.activoFijoId },
+        data: {
+            estatusContable: nuevoEstadoEquipo,
+        }
+    });
+
+    return true;
+}

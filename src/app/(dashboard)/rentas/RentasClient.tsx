@@ -10,7 +10,6 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [editingRenta, setEditingRenta] = useState<any | null>(null);
-    const [confirmReturnId, setConfirmReturnId] = useState<string | null>(null);
     const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
     const [showCanceladas, setShowCanceladas] = useState(false);
 
@@ -34,23 +33,6 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                 router.refresh();
             } catch (e) {
                 alert('Error al actualizar la renta');
-            }
-        });
-    };
-
-    const handleReturn = (id: string) => {
-        setConfirmReturnId(id);
-    };
-
-    const confirmAndExecuteReturn = () => {
-        if (!confirmReturnId) return;
-        startTransition(async () => {
-            try {
-                await returnRenta(confirmReturnId);
-                setConfirmReturnId(null);
-                router.refresh(); // Reload data
-            } catch (e) {
-                alert('Error al devolver la renta');
             }
         });
     };
@@ -211,13 +193,12 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                             )}
                                             
                                             {renta.estado === 'ACTIVA' && (
-                                                <button 
-                                                    onClick={() => handleReturn(renta.id)}
-                                                    disabled={isPending}
-                                                    className="text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                                                <Link 
+                                                    href={`/rentas/${renta.id}/recepcion`}
+                                                    className="text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
                                                 >
-                                                    Marcar Devuelto
-                                                </button>
+                                                    Recibir Equipo
+                                                </Link>
                                             )}
 
                                             {renta.estado === 'PENDIENTE_FIRMA' && (
@@ -287,51 +268,6 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                     </div>
                 </div>
             )}
-            {/* Confirmation Return Modal */}
-            {confirmReturnId && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all border border-slate-100">
-                        <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-slate-50">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-amber-100 p-2.5 rounded-full shrink-0">
-                                    <AlertTriangle className="w-6 h-6 text-amber-600" />
-                                </div>
-                                <h3 className="text-xl font-bold text-slate-800">Confirmar Devolución</h3>
-                            </div>
-                        </div>
-                        <div className="p-6">
-                            <p className="text-slate-600 text-[15px] leading-relaxed">
-                                ¿Confirmas que el equipo médico fue devuelto por el cliente en <strong className="text-slate-800">buen estado</strong> y completo?
-                            </p>
-                            <p className="text-sm text-slate-500 mt-3 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                Al confirmar, la renta se marcará como devuelta y el equipo estará nuevamente disponible en el catálogo de equipos para renta.
-                            </p>
-                            <div className="flex gap-3 mt-6">
-                                <button
-                                    onClick={() => setConfirmReturnId(null)}
-                                    disabled={isPending}
-                                    className="flex-1 py-3 px-4 border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors active:scale-95 disabled:opacity-50"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={confirmAndExecuteReturn}
-                                    disabled={isPending}
-                                    className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
-                                >
-                                    {isPending ? (
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    ) : (
-                                        <CheckCircle2 className="w-5 h-5" />
-                                    )}
-                                    {isPending ? 'Confirmando...' : 'Sí, Equipo Devuelto'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
-
             {/* Confirmation Cancel Modal */}
             {confirmCancelId && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">

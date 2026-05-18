@@ -87,6 +87,7 @@ model User {
   facturasAnuladas      Factura[]              @relation("AnuladaFacturas")
   rentasCreadas         RentaEquipo[]          @relation("CreatedRentas")
   rentasModificadas     RentaEquipo[]          @relation("UpdatedRentas")
+  rentasRecibidas       RentaEquipo[]          @relation("ReceivedRentas")
   organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   ordenesRecepcionadas  OrdenTrabajo[]         @relation("RecepcionOrdenes")
   ordenesReparadas      OrdenTrabajo[]         @relation("TecnicoOrdenes")
@@ -759,6 +760,10 @@ model RentaEquipo {
   firmaUrl         String?
   creadoPorId      String?      @db.Uuid
   modificadoPorId  String?      @db.Uuid
+  recibidoPorId    String?      @db.Uuid
+  recepcionNotas   String?
+  recepcionFotos   String[]     @default([])
+  depositoDevuelto Decimal?     @db.Decimal(12, 2)
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
   activoFijo       ActivoFijo   @relation(fields: [activoFijoId], references: [id])
@@ -766,6 +771,7 @@ model RentaEquipo {
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   creadoPor        User?        @relation("CreatedRentas", fields: [creadoPorId], references: [id])
   modificadoPor    User?        @relation("UpdatedRentas", fields: [modificadoPorId], references: [id])
+  recibidoPor      User?        @relation("ReceivedRentas", fields: [recibidoPorId], references: [id])
 
   @@index([organizationId])
   @@index([clienteId])
