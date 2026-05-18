@@ -105,13 +105,11 @@ const emptyLine = (): LineItem => ({
   qty: 1, unitPrice: '', tax: 'isv15', discount: 0, discountType: 'percentage',
 });
 
-const emptySectionLine = (settings?: any): LineItem => ({
+const emptySectionLine = (): LineItem => ({
   id: uid(), code: '', shortDesc: '', longDesc: '', richDesc: '', showLongDesc: false,
   qty: 0, unitPrice: '', tax: 'exento', discount: 0, discountType: 'percentage',
   isSection: true,
   sectionStyle: { 
-    bg: settings?.sectionBgColor || '#f1f5f9', 
-    color: settings?.sectionTextColor || '#1e293b', 
     bold: true, align: 'left' 
   }
 });
@@ -473,7 +471,7 @@ function LineItemRow({
         <div 
           className={`flex items-stretch gap-2 w-full px-4 print:px-4 ${item.isSection ? '' : (Number(item.qty) > 0 && Number(item.unitPrice) > 0 ? 'bg-white hover:bg-blue-50/20' : 'bg-slate-50/50')}`}
           style={item.isSection ? { 
-            backgroundColor: item.sectionStyle?.bg || '#f1f5f9',
+            backgroundColor: (item.sectionStyle?.bg && item.sectionStyle.bg !== '#f1f5f9') ? item.sectionStyle.bg : (settings?.sectionBgColor || '#f1f5f9'),
             WebkitPrintColorAdjust: 'exact',
             printColorAdjust: 'exact'
           } : undefined}
@@ -511,9 +509,9 @@ function LineItemRow({
              >
                {viewMode ? (
                  <div
-                   className="w-full px-2 py-1 flex items-center"
+                   className="w-full px-2 py-0 flex items-center"
                    style={{
-                     color: item.sectionStyle?.color || '#1e293b',
+                     color: (item.sectionStyle?.color && item.sectionStyle.color !== '#1e293b') ? item.sectionStyle.color : (settings?.sectionTextColor || '#1e293b'),
                      fontWeight: item.sectionStyle?.bold ? 'bold' : 'normal',
                      textAlign: item.sectionStyle?.align || 'left',
                      textTransform: 'uppercase',
@@ -529,9 +527,9 @@ function LineItemRow({
                    disabled={viewMode}
                    onChange={e => onChange(item.id, 'shortDesc', e.target.value)}
                    placeholder="TITULO DE SECCIÓN (Ej: 2 AÑOS DE GARANTÍA)"
-                   className="w-full bg-transparent border-none outline-none focus:ring-0 px-2 py-1 placeholder:text-slate-400"
+                   className="w-full bg-transparent border-none outline-none focus:ring-0 px-2 py-0 placeholder:text-[currentColor]"
                    style={{
-                     color: item.sectionStyle?.color || '#1e293b',
+                     color: (item.sectionStyle?.color && item.sectionStyle.color !== '#1e293b') ? item.sectionStyle.color : (settings?.sectionTextColor || '#1e293b'),
                      fontWeight: item.sectionStyle?.bold ? 'bold' : 'normal',
                      textAlign: item.sectionStyle?.align || 'left',
                      textTransform: 'uppercase',
@@ -803,12 +801,16 @@ function LineItemRow({
                   <div className="w-[1px] h-5 bg-slate-300" />
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Fondo</span>
-                    <input type="color" value={item.sectionStyle?.bg || '#f1f5f9'} onChange={e => onChange(item.id, 'sectionStyle', { ...item.sectionStyle, bg: e.target.value })} className="w-6 h-6 rounded cursor-pointer border-0 p-0 shadow-sm" title="Color de Fondo" />
+                    <input type="color" value={(item.sectionStyle?.bg && item.sectionStyle.bg !== '#f1f5f9') ? item.sectionStyle.bg : (settings?.sectionBgColor || '#f1f5f9')} onChange={e => {
+                      onChange(item.id, 'sectionStyle', { ...item.sectionStyle, bg: e.target.value });
+                    }} className="w-6 h-6 rounded cursor-pointer border-0 p-0 shadow-sm" title="Color de Fondo" />
                   </div>
                   <div className="w-[1px] h-5 bg-slate-300" />
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Texto</span>
-                    <input type="color" value={item.sectionStyle?.color || '#1e293b'} onChange={e => onChange(item.id, 'sectionStyle', { ...item.sectionStyle, color: e.target.value })} className="w-6 h-6 rounded cursor-pointer border-0 p-0 shadow-sm" title="Color de Texto" />
+                    <input type="color" value={(item.sectionStyle?.color && item.sectionStyle.color !== '#1e293b') ? item.sectionStyle.color : (settings?.sectionTextColor || '#1e293b')} onChange={e => {
+                      onChange(item.id, 'sectionStyle', { ...item.sectionStyle, color: e.target.value });
+                    }} className="w-6 h-6 rounded cursor-pointer border-0 p-0 shadow-sm" title="Color de Texto" />
                   </div>
                </div>
             ) : viewMode ? (
@@ -1500,6 +1502,13 @@ export default function DocumentBuilderClient({
   });
 
   const handleLineChange = useCallback((id: string, field: any, val: any) => {
+    if (field === 'sectionStyle' && val) {
+      setSettings(prev => ({
+        ...prev,
+        sectionBgColor: val.bg || prev.sectionBgColor,
+        sectionTextColor: val.color || prev.sectionTextColor
+      }));
+    }
     setLineItems(prev => prev.map(item => item.id === id ? { ...item, [field]: val } : item));
   }, []);
 

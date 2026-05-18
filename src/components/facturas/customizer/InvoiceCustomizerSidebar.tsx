@@ -128,7 +128,6 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
   const [activeTab, setActiveTab] = useState<'template' | 'colors' | 'font' | 'logo' | 'footer' | 'sizes'>('template');
   const [savedTemplates, setSavedTemplates] = useState<CustomInvoiceTemplate[]>([]);
   const [newTemplateName, setNewTemplateName] = useState('');
-  const [activeTemplateId, setActiveTemplateId] = useState<string | null>(null);
   const [templateToDelete, setTemplateToDelete] = useState<{id: string, name: string} | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -141,13 +140,17 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
   const handleSaveTemplate = async () => {
     if (!newTemplateName.trim()) return toast.error("Ingresa un nombre para la plantilla");
     setIsSaving(true);
-    const res = await guardarInvoiceTemplate(newTemplateName, settings);
+    
+    // Limpiamos el ID de la plantilla activa antes de guardar para no ensuciar el payload
+    const { activeCustomTemplateId, ...settingsToSave } = settings;
+    
+    const res = await guardarInvoiceTemplate(newTemplateName, settingsToSave);
     if (res.success && res.templates) {
        setSavedTemplates((res.templates as unknown) as CustomInvoiceTemplate[]);
        
        // Encontrar la plantilla que se acaba de guardar/actualizar para seleccionarla
        const savedTpl = ((res.templates as unknown) as CustomInvoiceTemplate[]).find(t => t.name.trim().toLowerCase() === newTemplateName.trim().toLowerCase());
-       if (savedTpl) setActiveTemplateId(savedTpl.id);
+       if (savedTpl) onChange('activeCustomTemplateId', savedTpl.id);
 
        toast.success("Plantilla guardada exitosamente");
     } else {
@@ -160,8 +163,8 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
     Object.keys(t.settings).forEach(key => {
       onChange(key as keyof InvoiceSettings, (t.settings as any)[key]);
     });
+    onChange('activeCustomTemplateId', t.id);
     setNewTemplateName(t.name);
-    setActiveTemplateId(t.id);
     toast.success("Plantilla cargada");
   };
 
@@ -172,7 +175,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
     const res = await eliminarInvoiceTemplate(id);
     if (res.success && res.templates) {
        setSavedTemplates((res.templates as unknown) as CustomInvoiceTemplate[]);
-       if (activeTemplateId === id) setActiveTemplateId(null);
+       if (settings.activeCustomTemplateId === id) onChange('activeCustomTemplateId', undefined);
        toast.success("Plantilla eliminada");
     }
   };
@@ -227,7 +230,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                {savedTemplates.length > 0 && (
                  <div className="space-y-1.5 mt-2 max-h-32 overflow-y-auto">
                    {savedTemplates.map(t => {
-                     const isSelected = t.id === activeTemplateId;
+                     const isSelected = t.id === settings.activeCustomTemplateId;
                      return (
                        <div key={t.id} className={`flex items-center justify-between border rounded p-1.5 transition-all ${isSelected ? 'bg-emerald-50 border-emerald-300 shadow-sm' : 'bg-slate-50 border-slate-100'}`}>
                          <button onClick={() => handleLoadTemplate(t)} className={`text-xs font-bold flex-1 text-left flex items-center gap-2 ${isSelected ? 'text-emerald-700' : 'text-slate-700 hover:text-blue-600'}`}>

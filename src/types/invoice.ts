@@ -46,6 +46,8 @@ export interface InvoiceSettings {
   // Global Section Defaults
   sectionBgColor?: string;
   sectionTextColor?: string;
+  // State persistence
+  activeCustomTemplateId?: string;
 }
 
 export interface CustomInvoiceTemplate {
