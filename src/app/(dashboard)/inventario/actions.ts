@@ -47,7 +47,6 @@ async function generateIdQr(organizationId: string, area: string, codigoGrupo: s
     const todos = await prisma.activoFijo.findMany({
         where: { 
             organizationId,
-            esParaRenta: false,
             idQr: { startsWith: `${prefijoBase}-` }
         },
         select: { idQr: true }
