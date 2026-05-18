@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, CheckCircle2, AlertTriangle, Camera, Upload, Trash2, Text, ShieldAlert, BadgeDollarSign, HeartPulse } from 'lucide-react';
+import { ArrowLeft, Save, CheckCircle2, AlertTriangle, Camera, Upload, Trash2, Text, ShieldAlert, BadgeDollarSign, HeartPulse, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { processRecepcion } from '../../actions';
 
