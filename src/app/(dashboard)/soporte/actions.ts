@@ -3,7 +3,13 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'crypto';
-import { sendSoporteRecepcion, sendSoporteEquipoListo } from '@/lib/checkin-notifications';
+import { 
+    sendSoporteRecepcion, 
+    sendSoporteEquipoListo,
+    sendSoporteDiagnostico,
+    sendSoportePresupuesto,
+    sendSoporteReparacionIniciada
+} from '@/lib/checkin-notifications';
 import { createClient } from '@/utils/supabase/server';
 
 export async function getOrdenesActivas() {
@@ -97,7 +103,8 @@ export async function createOrdenTrabajo(data: {
                 phoneWithCountryCode,
                 orden.codigoSeguridad,
                 orden.equipoDano,
-                null // mediaUrl
+                orden.serie || 'No especificado',
+                'Por asignar'
             );
         } catch (e) {
             console.error("Twilio Recepcion Error:", e);
@@ -122,8 +129,27 @@ export async function updateEstadoOrden(id: string, nuevoEstado: string) {
 
     const updated = await prisma.ordenTrabajo.update({
         where: { id },
-        data
+        data,
+        include: { cliente: true }
     });
+
+    if (nuevoEstado === 'REVISION' && updated.cliente?.telefono) {
+        const phoneWithCountryCode = updated.cliente.telefono.startsWith('+') ? updated.cliente.telefono : `+504${updated.cliente.telefono}`;
+        const fechaEst = new Date();
+        fechaEst.setDate(fechaEst.getDate() + 2);
+        
+        try {
+            await sendSoporteDiagnostico(
+                updated.cliente.nombre,
+                phoneWithCountryCode,
+                updated.equipoDano,
+                updated.codigoSeguridad,
+                fechaEst.toLocaleDateString()
+            );
+        } catch (e) {
+            console.error("Twilio Diagnostico Error:", e);
+        }
+    }
 
     revalidatePath('/soporte');
     return {
@@ -222,12 +248,15 @@ export async function finalizarReparacion(id: string) {
     if (orden.cliente?.telefono) {
         const phoneWithCountryCode = orden.cliente.telefono.startsWith('+') ? orden.cliente.telefono : `+504${orden.cliente.telefono}`;
         try {
+            const montoAPagar = (orden.costoRevision ? Number(orden.costoRevision) : 0) + (orden.costoReparacion ? Number(orden.costoReparacion) : 0);
             await sendSoporteEquipoListo(
                 orden.cliente.nombre,
                 phoneWithCountryCode,
-                orden.codigoSeguridad,
                 orden.equipoDano,
-                null
+                orden.codigoSeguridad,
+                montoAPagar,
+                5, // Días hábiles
+                50.00 // Cargo almacenaje
             );
         } catch (e) {
             console.error("Twilio Listo Error:", e);
@@ -306,7 +335,7 @@ export async function guardarDiagnostico(
         }
 
         // Actualizar orden
-        await tx.ordenTrabajo.update({
+        const orden = await tx.ordenTrabajo.update({
             where: { id: ordenId },
             data: {
                 estado: 'ESPERANDO_APROBACION',
@@ -315,8 +344,33 @@ export async function guardarDiagnostico(
                 detalleManoObra: manoObra as any,
                 costoReparacion: costoSugerido,
                 fotosTecnico: fotosTecnico
-            }
+            },
+            include: { cliente: true }
         });
+
+        if (orden.cliente?.telefono) {
+            const phoneWithCountryCode = orden.cliente.telefono.startsWith('+') ? orden.cliente.telefono : `+504${orden.cliente.telefono}`;
+            // Tiempo estimado de reparacion (placeholder 3 a 5 días)
+            const tiempoEst = "3 a 5 días hábiles";
+            const falla = diagnostico.substring(0, 100) + (diagnostico.length > 100 ? "..." : "");
+            const trabajosArr = manoObra.map(m => m.descripcion);
+            const trabajosStr = trabajosArr.length > 0 ? trabajosArr.join(', ').substring(0, 50) : "Reparación General";
+            
+            try {
+                await sendSoportePresupuesto(
+                    orden.cliente.nombre,
+                    phoneWithCountryCode,
+                    orden.equipoDano,
+                    orden.codigoSeguridad,
+                    falla,
+                    trabajosStr,
+                    costoSugerido,
+                    tiempoEst
+                );
+            } catch (e) {
+                console.error("Twilio Presupuesto Error:", e);
+            }
+        }
     });
 
     revalidatePath('/soporte');
@@ -349,15 +403,36 @@ export async function aprobarPresupuesto(
             });
         }
 
-        await tx.ordenTrabajo.update({
+        const orden = await tx.ordenTrabajo.update({
             where: { id: ordenId },
             data: {
                 estado: 'REPARACION',
                 fechaAprobado: new Date(),
                 usuarioAprobacionId: userId || undefined,
                 costoReparacion: costoFinalReparacion
-            }
+            },
+            include: { cliente: true, tecnicoReparacion: true }
         });
+
+        if (orden.cliente?.telefono) {
+            const phoneWithCountryCode = orden.cliente.telefono.startsWith('+') ? orden.cliente.telefono : `+504${orden.cliente.telefono}`;
+            const entregaEst = new Date();
+            entregaEst.setDate(entregaEst.getDate() + 5);
+            
+            try {
+                await sendSoporteReparacionIniciada(
+                    orden.cliente.nombre,
+                    phoneWithCountryCode,
+                    orden.equipoDano,
+                    orden.codigoSeguridad,
+                    orden.tecnicoReparacion?.nombre || "Equipo Técnico",
+                    entregaEst.toLocaleDateString(),
+                    "Reparación autorizada"
+                );
+            } catch (e) {
+                console.error("Twilio Reparacion Iniciada Error:", e);
+            }
+        }
     });
 
     revalidatePath('/soporte');

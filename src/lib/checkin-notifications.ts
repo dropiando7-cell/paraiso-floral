@@ -229,23 +229,111 @@ export async function sendSoporteRecepcion(
     clienteTelefono: string,
     ordenCodigo: string,
     equipoDescripcion: string,
-    mediaUrl: string | null = null
+    numeroSerie: string,
+    tecnicoAsignado: string
 ): Promise<NotificationResult> {
     if (!clienteTelefono) return { success: false, provider: "twilio_whatsapp", error: "Sin teléfono" };
     const cleanPhone = clienteTelefono.replace(/[\s\-()]/g, "");
     
     // SID: recepcion_del_equipo
     const sid = "HXbcb3979eddda4b77766b46c8ea51e849";
+    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
+    const mediaUrl = `${domain}/api/soporte/pass?code=${encodeURIComponent(ordenCodigo)}&equipo=${encodeURIComponent(equipoDescripcion)}`;
 
-    // OJO: La plantilla recepcion_del_equipo según las referencias usa {{2}} para el nombre
+    try {
+        const preflight = await fetch(mediaUrl, { method: 'GET' });
+        if (!preflight.ok) {
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            await fetch(mediaUrl, { method: 'GET' });
+        }
+    } catch (error) {
+        console.warn('Error en pre-flight fetch de la imagen de soporte:', error);
+    }
+
     const variables: Record<string, string> = {
-        "1": clienteNombre, // En caso de que 1 sea el nombre o media
-        "2": clienteNombre
+        "1": mediaUrl,
+        "2": clienteNombre,
+        "3": ordenCodigo,
+        "4": equipoDescripcion,
+        "5": numeroSerie || "No especificado",
+        "6": tecnicoAsignado || "Por asignar"
     };
 
-    if (mediaUrl) {
-        variables["3"] = mediaUrl; // Si requiere URL de medio en otra variable
-    }
+    return sendTwilioWhatsApp(cleanPhone, sid, variables);
+}
+
+export async function sendSoporteDiagnostico(
+    clienteNombre: string,
+    clienteTelefono: string,
+    equipoDescripcion: string,
+    ordenCodigo: string,
+    fechaEstimada: string
+): Promise<NotificationResult> {
+    if (!clienteTelefono) return { success: false, provider: "twilio_whatsapp", error: "Sin teléfono" };
+    const cleanPhone = clienteTelefono.replace(/[\s\-()]/g, "");
+    
+    // SID: diagnostico_en_curso
+    const sid = "HXba0f9917a004d43530fa18525b98be88";
+    const variables: Record<string, string> = {
+        "1": clienteNombre,
+        "2": equipoDescripcion,
+        "3": ordenCodigo,
+        "4": fechaEstimada
+    };
+
+    return sendTwilioWhatsApp(cleanPhone, sid, variables);
+}
+
+export async function sendSoportePresupuesto(
+    clienteNombre: string,
+    clienteTelefono: string,
+    equipoDescripcion: string,
+    ordenCodigo: string,
+    fallaEncontrada: string,
+    trabajoARealizar: string,
+    costoTotal: number,
+    tiempoEstimado: string
+): Promise<NotificationResult> {
+    if (!clienteTelefono) return { success: false, provider: "twilio_whatsapp", error: "Sin teléfono" };
+    const cleanPhone = clienteTelefono.replace(/[\s\-()]/g, "");
+    
+    // SID: presupuesto_aprobacion
+    const sid = "HXc0be41cec35b484f162077113a970e04";
+    const variables: Record<string, string> = {
+        "1": clienteNombre,
+        "2": equipoDescripcion,
+        "3": ordenCodigo,
+        "4": fallaEncontrada,
+        "5": trabajoARealizar,
+        "6": costoTotal.toFixed(2),
+        "7": tiempoEstimado
+    };
+
+    return sendTwilioWhatsApp(cleanPhone, sid, variables);
+}
+
+export async function sendSoporteReparacionIniciada(
+    clienteNombre: string,
+    clienteTelefono: string,
+    equipoDescripcion: string,
+    ordenCodigo: string,
+    tecnicoAsignado: string,
+    entregaEstimada: string,
+    trabajoARealizar: string
+): Promise<NotificationResult> {
+    if (!clienteTelefono) return { success: false, provider: "twilio_whatsapp", error: "Sin teléfono" };
+    const cleanPhone = clienteTelefono.replace(/[\s\-()]/g, "");
+    
+    // SID: reparacion_iniciada
+    const sid = "HXaa7d2b1ae59dced812cb143e38246e0a";
+    const variables: Record<string, string> = {
+        "1": clienteNombre,
+        "2": equipoDescripcion,
+        "3": ordenCodigo,
+        "4": tecnicoAsignado || "Equipo Técnico",
+        "5": entregaEstimada,
+        "6": trabajoARealizar
+    };
 
     return sendTwilioWhatsApp(cleanPhone, sid, variables);
 }
@@ -253,25 +341,40 @@ export async function sendSoporteRecepcion(
 export async function sendSoporteEquipoListo(
     clienteNombre: string,
     clienteTelefono: string,
-    ordenCodigo: string,
     equipoDescripcion: string,
-    mediaUrl: string | null = null
+    ordenCodigo: string,
+    montoAPagar: number,
+    diasHabiles: number = 5,
+    cargoAlmacenaje: number = 50.00
 ): Promise<NotificationResult> {
     if (!clienteTelefono) return { success: false, provider: "twilio_whatsapp", error: "Sin teléfono" };
     const cleanPhone = clienteTelefono.replace(/[\s\-()]/g, "");
     
     // SID: equipo_listo_retiro
     const sid = "HXfdb98386354dbed017dd06788784e060";
+    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
+    const mediaUrl = `${domain}/api/soporte/pass?code=${encodeURIComponent(ordenCodigo)}&equipo=${encodeURIComponent(equipoDescripcion)}`;
+
+    try {
+        const preflight = await fetch(mediaUrl, { method: 'GET' });
+        if (!preflight.ok) {
+            await new Promise((resolve) => setTimeout(resolve, 800));
+            await fetch(mediaUrl, { method: 'GET' });
+        }
+    } catch (error) {
+        console.warn('Error en pre-flight fetch de la imagen de equipo listo:', error);
+    }
 
     const variables: Record<string, string> = {
-        "1": clienteNombre,
-        "2": equipoDescripcion,
-        "3": ordenCodigo
+        "1": mediaUrl,
+        "2": clienteNombre,
+        "3": equipoDescripcion,
+        "4": ordenCodigo,
+        "5": montoAPagar.toFixed(2),
+        "6": diasHabiles.toString(),
+        "7": (diasHabiles + 1).toString(), // ej. A partir del día 6
+        "8": cargoAlmacenaje.toFixed(2)
     };
-
-    if (mediaUrl) {
-         variables["4"] = mediaUrl;
-    }
 
     return sendTwilioWhatsApp(cleanPhone, sid, variables);
 }
