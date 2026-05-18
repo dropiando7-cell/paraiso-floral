@@ -822,7 +822,16 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
     const [responsable, setResponsable] = useState(editActivo?.responsable || (lockedArea ? RESPONSABLES[lockedArea] : '') || '');
 
     // Pre-step Registration Type
-    const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso'>(editActivo ? 'reingreso' : 'seleccion');
+    const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso' | 'servicio'>(editActivo ? 'reingreso' : 'seleccion');
+    const [isServiceMode, setIsServiceMode] = useState(false);
+
+    useEffect(() => {
+        if (tipoRegistro === 'servicio') {
+            setIsServiceMode(true);
+        } else {
+            setIsServiceMode(false);
+        }
+    }, [tipoRegistro]);
     const [compatibilidad, setCompatibilidad] = useState<string[]>(isEdit && editActivo ? editActivo.compatibilidad || [] : []);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const [tagInput, setTagInput] = useState('');
@@ -1393,9 +1402,9 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             return;
         }
         const fd = new FormData(e.currentTarget);
-        fd.set('imagenUrl', imagenUrl);
-        fd.set('imagenPlacaUrl', imagenPlacaUrl);
-        fd.set('area', selectedArea);
+        fd.set('imagenUrl', isServiceMode ? '' : imagenUrl);
+        fd.set('imagenPlacaUrl', isServiceMode ? '' : imagenPlacaUrl);
+        fd.set('area', isServiceMode ? 'SERVICIOS' : selectedArea);
         fd.set('cuentaAct', 'INVENTARIO');
 
         // Use proper group code — generateIdQr handles auto-increment sequence
@@ -1403,10 +1412,13 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
         fd.set('codigoGrupo', finalCodigoGrupo);
         if (codigoBarras) fd.set('codigoBarras', codigoBarras);
-        fd.set('cantidad', cantidad);
+        fd.set('cantidad', isServiceMode ? '9999' : cantidad);
         fd.set('compatibilidad', JSON.stringify(compatibilidad));
 
         if (categoriaId) fd.set('categoriaId', categoriaId);
+        
+        // Ensure esServicio is passed to backend
+        if (isServiceMode) fd.set('esServicio', 'true');
         fd.set('esConsumible', String(esConsumible));
         if (lote) fd.set('lote', lote);
         if (fechaVencimiento) fd.set('fechaVencimiento', fechaVencimiento);
@@ -1654,12 +1666,37 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         </p>
                                     </div>
                                 </button>
+                                
+                                <button type="button" onClick={() => setTipoRegistro('servicio')}
+                                    className="w-full text-left p-6 border-2 border-slate-100 rounded-2xl hover:border-[#0500A3] hover:bg-[#0500A3]/5 transition-all group flex items-start gap-5">
+                                    <div className="w-14 h-14 shrink-0 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#0500A3]">Nuevo Servicio</h3>
+                                        <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                                            Registrar un código para servicios, reparaciones o mantenimientos (no inventariable).
+                                        </p>
+                                    </div>
+                                </button>
                             </div>
                         ) : (
                             <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
 
+                                {/* ── SWITCH SERVICIO ── */}
+                                <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-2xl p-4">
+                                    <div>
+                                        <h3 className="text-sm font-bold text-purple-900">Es un Servicio (No inventariable)</h3>
+                                        <p className="text-xs text-purple-700">Se ocultarán fotos e IA, y el stock se fijará en 9999.</p>
+                                    </div>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input type="checkbox" className="sr-only peer" checked={isServiceMode} onChange={(e) => setIsServiceMode(e.target.checked)} />
+                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                                    </label>
+                                </div>
+
                                 {/* ── BUSCADOR TEMPORAL ODOO ── */}
-                                {!isEdit && tipoRegistro === 'nuevo' && (
+                                {!isEdit && tipoRegistro === 'nuevo' && !isServiceMode && (
                                     <>
                                         <BuscadorOdoo onSelect={handleOdooSelect} />
                                         <OdooAlertPanel product={odooReference} />
@@ -1667,6 +1704,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 )}
 
                                 {/* ── SECCIÓN 1: FOTOGRAFÍA ── */}
+                                {!isServiceMode && (
                                 <div>
                                     <SectionTitle>📸 Fotografía del Activo</SectionTitle>
 
@@ -1768,19 +1806,36 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                         </div>
                                     </div>
                                 </div>
+                                )}
 
                                 {/* ── SECCIÓN 2: IDENTIFICACIÓN ── */}
                                 <div className="col-span-12 xl:col-span-8">
                                     <div className="bg-white rounded-2xl border-2 border-[#0500A3]/10 p-5 lg:p-6 shadow-sm">
                                         <SectionTitle>📋 Identificación</SectionTitle>
+
                                         
-                                        {!isEdit && tipoRegistro === 'nuevo' && previewCode && previewCode !== '...' && (
+                                        {!isEdit && (tipoRegistro === 'nuevo' || tipoRegistro === 'servicio') && !isServiceMode && previewCode && previewCode !== '...' && (
                                             <div className="mb-6 bg-indigo-50/50 border-2 border-indigo-200 border-dashed p-4 rounded-xl flex flex-col items-center justify-center relative overflow-hidden">
                                                 <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-full blur-2xl"></div>
                                                 <p className="text-[10px] text-indigo-500 font-bold tracking-widest uppercase mb-1 z-10">Generación Automática de Placa ARSA</p>
                                                 <div className="font-mono text-xl sm:text-2xl tracking-widest text-[#0500A3] font-black z-10 bg-white/50 px-4 py-1 rounded">
                                                     {previewCode}
                                                 </div>
+                                            </div>
+                                        )}
+
+                                        {isServiceMode && !isEdit && (
+                                            <div className="mb-6 bg-purple-50/50 border-2 border-purple-200 border-dashed p-4 rounded-xl">
+                                                <FieldLabel required>Código de Servicio Personalizado</FieldLabel>
+                                                <input
+                                                    type="text"
+                                                    value={codigoBarras}
+                                                    onChange={e => setCodigoBarras(e.target.value.toUpperCase())}
+                                                    placeholder="Ej: TEC001, MANT-02"
+                                                    className="w-full mt-1 border border-purple-300 rounded-xl px-4 py-3 bg-white text-purple-900 font-mono font-bold uppercase focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none"
+                                                    required
+                                                />
+                                                <p className="text-xs text-purple-600 mt-1">Este código será usado como ID para buscarlo y facturarlo.</p>
                                             </div>
                                         )}
                                         <div className="space-y-4">
@@ -1875,33 +1930,37 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                             {/* Área — Searchable / Locked */}
-                                            <div>
-                                                <FieldLabel required>Área / Ubicación</FieldLabel>
-                                                <AreaSplitInput
-                                                    id="area"
-                                                    value={selectedArea}
-                                                    onChange={val => setSelectedArea(val)}
-                                                    required
-                                                    dbAreas={dbAreas}
-                                                />
-                                                <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">Usa tu teclado numérico o Alfanumérico, avanza con Espacio.</p>
-                                            </div>
+                                            {!isServiceMode && (
+                                                <div>
+                                                    <FieldLabel required>Área / Ubicación</FieldLabel>
+                                                    <AreaSplitInput
+                                                        id="area"
+                                                        value={selectedArea}
+                                                        onChange={val => setSelectedArea(val)}
+                                                        required
+                                                        dbAreas={dbAreas}
+                                                    />
+                                                    <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">Usa tu teclado numérico o Alfanumérico, avanza con Espacio.</p>
+                                                </div>
+                                            )}
 
                                             {/* Cantidad Input */}
-                                            <div>
-                                                <FieldLabel required>Cantidad</FieldLabel>
-                                                <input
-                                                    type="number"
-                                                    min="1"
-                                                    value={cantidad}
-                                                    onChange={e => setCantidad(e.target.value)}
-                                                    className={`${inputCls} font-mono font-bold text-center border-slate-200 focus:ring-blue-500`}
-                                                />
-                                                <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">Stock Inicial</p>
-                                            </div>
+                                            {!isServiceMode && (
+                                                <div>
+                                                    <FieldLabel required>Cantidad</FieldLabel>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={cantidad}
+                                                        onChange={e => setCantidad(e.target.value)}
+                                                        className={`${inputCls} font-mono font-bold text-center border-slate-200 focus:ring-blue-500`}
+                                                    />
+                                                    <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">Stock Inicial</p>
+                                                </div>
+                                            )}
 
                                             {/* Es Consumible Toggle */}
-                                            <div>
+                                            <div className={isServiceMode ? "col-span-3 sm:col-span-1" : ""}>
                                                 <FieldLabel>Clasificación de Ingreso</FieldLabel>
                                                 <button
                                                     type="button"

@@ -363,7 +363,7 @@ export async function getActivoStats(area?: string) {
         WITH org_areas AS (
             SELECT COUNT(DISTINCT "area") as areas_count 
             FROM "activos_fijos" 
-            WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false
+            WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false AND "stock" < 9999
             ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
         )
         SELECT 
@@ -374,7 +374,7 @@ export async function getActivoStats(area?: string) {
             COALESCE(SUM("stock") FILTER (WHERE "estadoDano" IS NOT NULL), 0) as con_dano,
             (SELECT areas_count FROM org_areas)
         FROM "activos_fijos"
-        WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false
+        WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false AND "stock" < 9999
         ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
     `;
 
@@ -514,10 +514,13 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
     const codigoBarras = codigoBarrasForm ? codigoBarrasForm.trim() : null;
     const esConsumible = formData.get('esConsumible') === 'true';
     const esParaRenta = formData.get('esParaRenta') === 'true';
+    const esServicio = formData.get('esServicio') === 'true';
 
     // Generar 1 idQr si es consumible (o será agrupado), o N idQrs si es Activo Fijo (serialización forzada)
-    const numIds = esConsumible ? 1 : cantidadRegistros;
-    const idQrs = await generateIdQr(orgId, area, codigoGrupo, numIds);
+    const numIds = (esConsumible || esServicio) ? 1 : cantidadRegistros;
+    
+    // Si es servicio, usar el codigo manual ingresado (codigoBarras) como idQr para rastreo exacto.
+    const idQrs = (esServicio && codigoBarras) ? [codigoBarras] : await generateIdQr(orgId, area, codigoGrupo, numIds);
 
     const costoStr = formData.get('costoAdq') as string;
     const fechaStr = formData.get('fechaAdq') as string;
@@ -641,8 +644,8 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
 
     while (!createdExitosamente && intentos < maxIntentos) {
         try {
-            if (esConsumible) {
-                // Nuevo consumible: 1 fila con stock = N
+            if (esConsumible || esServicio) {
+                // Nuevo consumible o servicio: 1 fila con stock = N (o 9999)
                 const dataToInsert = { ...baseData, idQr: finalIdQrs[0] };
                 const created = await prisma.activoFijo.create({ data: dataToInsert });
                 firstCreatedId = created.id;
@@ -671,6 +674,7 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
             intentos++;
             // P2002 es el error de Prisma de restricción única (Unique Constraint)
             if (error?.code === 'P2002') {
+                if (esServicio) throw new Error("Ya existe un registro con este Código de Servicio en la organización.");
                 if (intentos >= maxIntentos) throw new Error("Sistema saturado por múltiples registros globales. Envía de nuevo.");
                 // Recalcular IDs debido a colisión
                 const numIdsError = esConsumible ? 1 : cantidadRegistros;
