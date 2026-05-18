@@ -1402,7 +1402,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             return;
         }
         const fd = new FormData(e.currentTarget);
-        fd.set('imagenUrl', isServiceMode ? '' : imagenUrl);
+        fd.set('imagenUrl', isServiceMode ? (imagenUrl || '/services/mantenimiento.svg') : imagenUrl);
         fd.set('imagenPlacaUrl', isServiceMode ? '' : imagenPlacaUrl);
         fd.set('area', isServiceMode ? 'SERVICIOS' : selectedArea);
         fd.set('cuentaAct', 'INVENTARIO');
@@ -1432,10 +1432,11 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
 
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    function confirmSave() {
+    function confirmSave(printLabel = true) {
         if (!pendingFormData || isSubmitting) return;
         setIsSubmitting(true);
         const fd = pendingFormData;
+        fd.set('shouldPrint', printLabel ? 'true' : 'false');
         startTransition(async () => {
             try {
                 if (isEdit) {
@@ -1610,7 +1611,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             <div>
                                                 <p className="text-[10px] font-bold text-[#0500A3]/60 uppercase tracking-wider">Código QR que se asignará</p>
                                                 <p className="text-xs font-black text-[#0500A3] font-mono tracking-tight">
-                                                    {previewCode}
+                                                    {isServiceMode ? codigoBarras : previewCode}
                                                 </p>
                                             </div>
                                         </div>
@@ -1620,20 +1621,31 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                 </div>
 
                                 <div className="mt-6 flex flex-col gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={confirmSave}
-                                        disabled={isPending || isSubmitting}
-                                        className="flex items-center justify-center gap-2 text-base font-bold bg-green-600 text-white py-4 px-5 rounded-2xl hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
-                                    >
-                                        {(isPending || isSubmitting) ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />}
-                                        {(isPending || isSubmitting) ? 'Guardando...' : (pendingFormData?.get('shouldPrint') === 'false' ? 'Confirmar Registro (Sin Etiqueta)' : '✅ Confirmar, Registrar e Imprimir')}
-                                    </button>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => confirmSave(true)}
+                                            disabled={isPending || isSubmitting}
+                                            className="flex-1 flex items-center justify-center gap-2 text-sm font-bold bg-green-600 text-white py-3 px-4 rounded-xl hover:bg-green-700 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
+                                        >
+                                            {(isPending || isSubmitting) ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                                            {(isPending || isSubmitting) ? 'Guardando...' : 'Guardar e Imprimir'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => confirmSave(false)}
+                                            disabled={isPending || isSubmitting}
+                                            className="flex-1 flex items-center justify-center gap-2 text-sm font-bold bg-[#0500A3] text-white py-3 px-4 rounded-xl hover:bg-[#0500A3]/90 active:scale-[0.98] transition-all disabled:opacity-60 shadow-md"
+                                        >
+                                            {(isPending || isSubmitting) ? <Loader2 className="w-4 h-4 animate-spin" /> : '💾 '}
+                                            {(isPending || isSubmitting) ? 'Guardando...' : 'Solo Guardar'}
+                                        </button>
+                                    </div>
                                     <button
                                         type="button"
                                         onClick={() => setPendingFormData(null)}
                                         disabled={isPending || isSubmitting}
-                                        className="flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 border-2 border-slate-200 py-3.5 px-5 rounded-2xl hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-60"
+                                        className="w-full flex items-center justify-center gap-2 text-sm font-semibold text-slate-600 border-2 border-slate-200 py-3.5 px-5 rounded-xl hover:bg-slate-50 active:scale-95 transition-all disabled:opacity-60"
                                     >
                                         ✏️ Volver a editar
                                     </button>
@@ -1824,18 +1836,47 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             </div>
                                         )}
 
-                                        {isServiceMode && !isEdit && (
-                                            <div className="mb-6 bg-purple-50/50 border-2 border-purple-200 border-dashed p-4 rounded-xl">
-                                                <FieldLabel required>Código de Servicio Personalizado</FieldLabel>
-                                                <input
-                                                    type="text"
-                                                    value={codigoBarras}
-                                                    onChange={e => setCodigoBarras(e.target.value.toUpperCase())}
-                                                    placeholder="Ej: TEC001, MANT-02"
-                                                    className="w-full mt-1 border border-purple-300 rounded-xl px-4 py-3 bg-white text-purple-900 font-mono font-bold uppercase focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none"
-                                                    required
-                                                />
-                                                <p className="text-xs text-purple-600 mt-1">Este código será usado como ID para buscarlo y facturarlo.</p>
+                                        {isServiceMode && (
+                                            <div className="mb-6 bg-purple-50/50 border-2 border-purple-200 border-dashed p-4 rounded-xl space-y-4">
+                                                <div>
+                                                    <FieldLabel required>Código de Servicio Personalizado</FieldLabel>
+                                                    <input
+                                                        type="text"
+                                                        value={codigoBarras}
+                                                        onChange={e => setCodigoBarras(e.target.value.toUpperCase())}
+                                                        disabled={isEdit}
+                                                        placeholder="Ej: TEC001, MANT-02"
+                                                        className="w-full mt-1 border border-purple-300 rounded-xl px-4 py-3 bg-white text-purple-900 font-mono font-bold uppercase focus:ring-4 focus:ring-purple-500/20 focus:border-purple-500 transition-all outline-none"
+                                                        required
+                                                    />
+                                                    <p className="text-xs text-purple-600 mt-1">Este código será usado como ID para buscarlo y facturarlo.</p>
+                                                </div>
+                                                <div>
+                                                    <FieldLabel>Icono para Facturación</FieldLabel>
+                                                    <div className="grid grid-cols-5 gap-2 mt-2 bg-white/60 p-2 rounded-xl">
+                                                        {[
+                                                            { id: '/services/mantenimiento.svg', label: 'Mant.' },
+                                                            { id: '/services/soporte.svg', label: 'Soporte' },
+                                                            { id: '/services/envio.svg', label: 'Envío' },
+                                                            { id: '/services/garantia.svg', label: 'Garantía' },
+                                                            { id: '/services/software.svg', label: 'Software' }
+                                                        ].map(icon => (
+                                                            <button
+                                                                type="button"
+                                                                key={icon.id}
+                                                                onClick={() => setImagenUrl(icon.id)}
+                                                                className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg border-2 transition-all ${
+                                                                    (imagenUrl === icon.id || (!imagenUrl && icon.id === '/services/mantenimiento.svg')) 
+                                                                        ? 'border-purple-500 bg-purple-100 shadow-sm scale-105' 
+                                                                        : 'border-transparent hover:bg-purple-50 hover:border-purple-200'
+                                                                }`}
+                                                            >
+                                                                <img src={icon.id} alt={icon.label} className="w-7 h-7 object-contain mb-1 opacity-90" />
+                                                                <span className="text-[9px] text-purple-900 font-bold text-center leading-tight uppercase">{icon.label}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                </div>
                                             </div>
                                         )}
                                         <div className="space-y-4">
@@ -1904,6 +1945,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                             )}
 
                                             {/* Código de Barras / SKU Comercial */}
+                                            {!isServiceMode && (
                                             <div>
                                                 <div className="relative" ref={barcodeRef}>
                                                     <div className="flex items-center justify-between">
@@ -1926,6 +1968,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                                 <p className="text-[10px] text-slate-500 mt-1.5">Escanea la caja o placa si tiene UDI / GTIN. Si es detectado, se autocompletará el equipo.</p>
                                             </div>
                                             </div>
+                                            )}
                                         </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
