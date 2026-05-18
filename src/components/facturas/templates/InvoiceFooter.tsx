@@ -28,13 +28,15 @@ export default function InvoiceFooter({ settings, organization, className = '' }
  <div className={`border-t border-slate-300 pt-2 mt-6 print:fixed print:bottom-0 print:left-0 print:w-full print:bg-white print:z-[100] print:pb-2 ${className}`}>
   {/* Main info row */}
   {hasContent && (
-  <div 
-    className="flex flex-nowrap whitespace-nowrap items-center justify-center gap-x-3 text-slate-600 w-full overflow-hidden"
-    style={{ fontSize: `${settings.footerFontSize || 10}px` }}
-  >
-  {tel && <span>Tel.: {tel}</span>}
-  {correo && <span>Correo: {correo}</span>}
-  {web && <span>Web: {web}</span>}
+  <div className="w-full flex justify-center overflow-hidden">
+    <div 
+      className="flex flex-nowrap whitespace-nowrap items-center gap-x-3 text-slate-600 max-w-full"
+      style={{ fontSize: `${settings.footerFontSize || 10}px` }}
+    >
+      {tel && <span className="shrink-0">Tel.: {tel}</span>}
+      {correo && <span className="shrink truncate">Correo: {correo}</span>}
+      {web && <span className="shrink-0 truncate">Web: {web}</span>}
+    </div>
   </div>
   )}
 

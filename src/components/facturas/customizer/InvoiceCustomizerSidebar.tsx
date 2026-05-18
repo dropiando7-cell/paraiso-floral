@@ -676,6 +676,27 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
               </div>
             </div>
 
+            <div className="pt-4 border-t border-slate-200 mt-6 space-y-3">
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Iconos</h3>
+              
+              <div className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Iconos de Servicio</p>
+                    <p className="text-[10px] text-slate-400">Color de iconos de servicios en tabla</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="color" 
+                      value={settings.serviceIconColor || '#0500A3'} 
+                      onChange={e => onChange('serviceIconColor', e.target.value)}
+                      className="w-8 h-8 rounded cursor-pointer border-0 p-0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         )}
 

@@ -46,6 +46,8 @@ export interface InvoiceSettings {
   // Global Section Defaults
   sectionBgColor?: string;
   sectionTextColor?: string;
+  // Icon colors
+  serviceIconColor?: string;
   // State persistence
   activeCustomTemplateId?: string;
 }
@@ -88,4 +90,5 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   useMonospaceNumbers: true,
   sectionBgColor: '#f1f5f9',
   sectionTextColor: '#1e293b',
+  serviceIconColor: '#0500A3',
 };

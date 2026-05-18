@@ -283,6 +283,30 @@ function LineItemRow({
   const inputDescSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[10px]' : 'text-xs';
   const descStyle = isDescNum ? { fontSize: `${settings.itemDescFontSize}px` } as React.CSSProperties : undefined;
 
+  const isServiceIcon = item.imageUrl?.includes('/services/');
+  const renderImage = () => {
+    if (!item.imageUrl) return <Package size={14} className="text-slate-300" />;
+    if (isServiceIcon) {
+      return (
+        <div 
+          className="w-full h-full print:!-webkit-print-color-adjust:exact"
+          style={{
+            backgroundColor: settings?.serviceIconColor || '#0500A3',
+            WebkitMaskImage: `url(${item.imageUrl})`,
+            WebkitMaskSize: 'contain',
+            WebkitMaskRepeat: 'no-repeat',
+            WebkitMaskPosition: 'center',
+            maskImage: `url(${item.imageUrl})`,
+            maskSize: 'contain',
+            maskRepeat: 'no-repeat',
+            maskPosition: 'center',
+          }}
+        />
+      );
+    }
+    return <img src={item.imageUrl} alt="" className={`w-full h-full ${imgObjectClass}`} />;
+  };
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -495,7 +519,7 @@ function LineItemRow({
         {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && !item.isSection && (
           <div className={`${padClass} shrink-0`}>
             <div className={`${imgSizeClass} ${imgStyleClass} flex items-center justify-center`}>
-              {item.imageUrl ? <img src={item.imageUrl} alt="" className={`w-full h-full ${imgObjectClass}`} /> : <Package size={14} className="text-slate-300" />}
+{renderImage()}
             </div>
           </div>
         )}
@@ -589,7 +613,7 @@ function LineItemRow({
               ) : (
                 settings?.showProductImages && (
                   <div className={`${imgSizeClass} shrink-0 flex items-center justify-center ${imgStyleClass}`}>
-                    {item.imageUrl ? <img src={item.imageUrl} alt="" className={`w-full h-full ${imgObjectClass}`} /> : <Package size={14} className="text-slate-300" />}
+{renderImage()}
                   </div>
                 )
               )}
@@ -604,7 +628,7 @@ function LineItemRow({
             <div className={`min-w-0 relative flex gap-2 items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && settings?.showItemCode !== false && (
                 <div className={`${imgSizeClass} shrink-0 flex items-center justify-center ${imgStyleClass}`}>
-                  {item.imageUrl ? <img src={item.imageUrl} alt="" className={`w-full h-full ${imgObjectClass}`} /> : <Package size={14} className="text-slate-300" />}
+{renderImage()}
                 </div>
               )}
               <div className="flex-1 min-w-0">
