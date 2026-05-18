@@ -199,8 +199,8 @@ export default async function ContratoRentaPage({ params }: { params: Promise<{ 
                             </p>
                         </div>
                         <div className="text-right">
-                            <p className="font-bold text-slate-800">{activo.descripcionCorta}</p>
-                            <p className="text-xs font-mono text-slate-500">{activo.numeroSerie}</p>
+                            <p className="font-bold text-slate-800">{activoFijo.descripcionCorta}</p>
+                            <p className="text-xs font-mono text-slate-500">{activoFijo.numeroSerie}</p>
                         </div>
                     </div>
 
