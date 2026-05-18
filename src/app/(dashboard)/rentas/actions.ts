@@ -86,3 +86,34 @@ export async function editRenta(rentaId: string, payload: {
 
     return true;
 }
+
+export async function cancelRenta(rentaId: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Unauthorized');
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { id: true, organizationId: true },
+    });
+    if (!dbUser) throw new Error('Unauthorized');
+
+    const renta = await prisma.rentaEquipo.update({
+        where: { id: rentaId, organizationId: dbUser.organizationId },
+        data: {
+            estado: 'CANCELADA',
+            modificadoPorId: dbUser.id,
+            // updatedAt is automatically handled by Prisma @updatedAt
+        },
+    });
+
+    // Liberar equipo en el inventario
+    await prisma.activoFijo.update({
+        where: { id: renta.activoFijoId },
+        data: {
+            estatusContable: 'VIGENTE',
+        }
+    });
+
+    return true;
+}

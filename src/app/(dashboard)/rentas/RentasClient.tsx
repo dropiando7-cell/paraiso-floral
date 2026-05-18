@@ -2,15 +2,16 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Package, Calendar, User as UserIcon, CheckCircle2, AlertTriangle, ArrowRightLeft, DollarSign, Clock, Edit2 } from 'lucide-react';
+import { Plus, Package, Calendar, User as UserIcon, CheckCircle2, AlertTriangle, ArrowRightLeft, DollarSign, Clock, Edit2, Trash2, XCircle } from 'lucide-react';
 import Link from 'next/link';
-import { returnRenta, editRenta } from './actions';
+import { returnRenta, editRenta, cancelRenta } from './actions';
 
 export default function RentasClient({ initialRentas }: { initialRentas: any[] }) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [editingRenta, setEditingRenta] = useState<any | null>(null);
     const [confirmReturnId, setConfirmReturnId] = useState<string | null>(null);
+    const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
 
     const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -51,7 +52,24 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
         });
     };
 
+    const confirmAndExecuteCancel = () => {
+        if (!confirmCancelId) return;
+        startTransition(async () => {
+            try {
+                await cancelRenta(confirmCancelId);
+                setConfirmCancelId(null);
+                router.refresh();
+            } catch (e) {
+                alert('Error al anular la renta');
+            }
+        });
+    };
+
     function getStatusBadge(estado: string, fechaFinEsperada: Date) {
+        if (estado === 'CANCELADA') {
+            return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-200"><XCircle className="w-3.5 h-3.5" /> Anulada</span>;
+        }
+
         if (estado === 'DEVUELTO') {
             return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600"><CheckCircle2 className="w-3.5 h-3.5" /> Devuelto</span>;
         }
@@ -157,13 +175,22 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                     <td className="px-5 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2">
                                             {(renta.estado === 'ACTIVA' || renta.estado === 'PENDIENTE_FIRMA') && (
-                                                <button 
-                                                    onClick={() => setEditingRenta(renta)}
-                                                    className="text-slate-500 hover:text-[#0500A3] p-1.5 rounded-md hover:bg-blue-50 transition-colors"
-                                                    title="Editar Renta"
-                                                >
-                                                    <Edit2 className="w-4 h-4" />
-                                                </button>
+                                                <>
+                                                    <button 
+                                                        onClick={() => setEditingRenta(renta)}
+                                                        className="text-slate-500 hover:text-[#0500A3] p-1.5 rounded-md hover:bg-blue-50 transition-colors"
+                                                        title="Editar Renta"
+                                                    >
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => setConfirmCancelId(renta.id)}
+                                                        className="text-slate-500 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors"
+                                                        title="Anular Renta"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </>
                                             )}
                                             
                                             {renta.estado === 'ACTIVA' && (
@@ -281,6 +308,51 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                         <CheckCircle2 className="w-5 h-5" />
                                     )}
                                     {isPending ? 'Confirmando...' : 'Sí, Equipo Devuelto'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Confirmation Cancel Modal */}
+            {confirmCancelId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all border border-slate-100">
+                        <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-red-50">
+                            <div className="flex items-center gap-3">
+                                <div className="bg-red-100 p-2.5 rounded-full shrink-0">
+                                    <Trash2 className="w-6 h-6 text-red-600" />
+                                </div>
+                                <h3 className="text-xl font-bold text-red-900">Anular Renta</h3>
+                            </div>
+                        </div>
+                        <div className="p-6">
+                            <p className="text-slate-600 text-[15px] leading-relaxed">
+                                ¿Estás seguro de que deseas anular esta renta?
+                            </p>
+                            <p className="text-sm text-slate-500 mt-3 p-3 bg-red-50/50 rounded-xl border border-red-100 text-red-800">
+                                Esta acción marcará la renta como <strong>CANCELADA</strong> y liberará el equipo para que vuelva a estar disponible en el inventario. Se guardará un registro inmutable de esta anulación para propósitos de auditoría.
+                            </p>
+                            <div className="flex gap-3 mt-6">
+                                <button
+                                    onClick={() => setConfirmCancelId(null)}
+                                    disabled={isPending}
+                                    className="flex-1 py-3 px-4 border-2 border-slate-200 text-slate-600 font-bold rounded-xl hover:bg-slate-50 transition-colors active:scale-95 disabled:opacity-50"
+                                >
+                                    Volver
+                                </button>
+                                <button
+                                    onClick={confirmAndExecuteCancel}
+                                    disabled={isPending}
+                                    className="flex-1 py-3 px-4 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
+                                >
+                                    {isPending ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <Trash2 className="w-5 h-5" />
+                                    )}
+                                    {isPending ? 'Anulando...' : 'Sí, Anular'}
                                 </button>
                             </div>
                         </div>
