@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     try {
+        const { id } = await params;
         const renta = await prisma.rentaEquipo.findUnique({
-            where: { id: params.id },
+            where: { id },
             select: { estado: true, firmaUrl: true }
         });
 

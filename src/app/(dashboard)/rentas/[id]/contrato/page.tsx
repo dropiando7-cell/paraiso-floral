@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import AutoPrint from './AutoPrint';
 import Image from 'next/image';
 
-export default async function ContratoRentaPage({ params }: { params: { id: string } }) {
+export default async function ContratoRentaPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
     
     const renta = await prisma.rentaEquipo.findUnique({

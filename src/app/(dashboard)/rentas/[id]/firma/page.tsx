@@ -7,7 +7,8 @@ export const metadata = {
     title: 'Firma de Contrato | Bioelectrónica',
 };
 
-export default async function FirmaRentaPage({ params }: { params: { id: string } }) {
+export default async function FirmaRentaPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
@@ -22,7 +23,7 @@ export default async function FirmaRentaPage({ params }: { params: { id: string 
 
     const renta = await prisma.rentaEquipo.findFirst({
         where: {
-            id: params.id,
+            id,
             organizationId: dbUser.organizationId
         },
         include: {

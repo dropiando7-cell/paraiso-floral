@@ -6,9 +6,10 @@ export const metadata = {
     title: 'Firma de Contrato de Renta | Bioelectrónica',
 };
 
-export default async function FirmaPublicaPage({ params }: { params: { id: string } }) {
+export default async function FirmaPublicaPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
     const renta = await prisma.rentaEquipo.findUnique({
-        where: { id: params.id },
+        where: { id },
         include: {
             cliente: true,
             activoFijo: true,
