@@ -99,6 +99,7 @@ export default function StatusStepper({ estadoActual, ordenId, equipoInfo }: Sta
             </div>
           );
         })}
+        </div>
       </div>
     </div>
   );
