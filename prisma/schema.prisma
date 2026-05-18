@@ -756,6 +756,7 @@ model RentaEquipo {
   horasTrabajoSalida String?
   accesoriosIncluidos String?
   evidenciaFotos   String[]     @default([])
+  firmaUrl         String?
   creadoPorId      String?      @db.Uuid
   modificadoPorId  String?      @db.Uuid
   createdAt        DateTime     @default(now())

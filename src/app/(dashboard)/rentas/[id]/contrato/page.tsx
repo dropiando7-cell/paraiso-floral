@@ -173,7 +173,12 @@ export default async function ContratoRentaPage({ params }: { params: { id: stri
                             <span className="font-semibold text-xs text-slate-600">Nombre, firma y sello BIOELECTRONICA</span>
                         </div>
                         <div className="w-[45%] flex flex-col items-center">
-                            <div className="w-full border-t border-slate-800 mb-1 text-center pt-1 font-mono text-xs text-blue-900 font-bold">
+                            <div className="w-full border-t border-slate-800 mb-1 relative text-center pt-1 font-mono text-xs text-blue-900 font-bold">
+                                {(renta as any).firmaUrl && (
+                                    <div className="absolute bottom-full left-0 w-full flex justify-center mb-1">
+                                        <img src={(renta as any).firmaUrl} alt="Firma Cliente" className="h-16 object-contain mix-blend-multiply" />
+                                    </div>
+                                )}
                                 {cliente.nombre} <br/>
                                 {cliente.rtn || ''}
                             </div>
@@ -181,8 +186,41 @@ export default async function ContratoRentaPage({ params }: { params: { id: stri
                         </div>
                     </div>
                 </div>
-
             </div>
+
+            {/* Anexo Fotográfico (Solo si hay fotos) */}
+            {(renta as any).evidenciaFotos && (renta as any).evidenciaFotos.length > 0 && (
+                <div className="bg-white p-8 sm:p-12 min-h-[11in] text-slate-900 mx-auto shadow-xl print:shadow-none print:p-0 print:w-full font-sans print:break-before-page mt-8" style={{ pageBreakBefore: 'always' }}>
+                    <div className="border-b-2 border-[#0500A3] pb-4 mb-6 flex justify-between items-end">
+                        <div>
+                            <h2 className="text-2xl font-black text-[#0500A3]">ANEXO: ESTADO FÍSICO DEL EQUIPO</h2>
+                            <p className="text-sm font-semibold text-slate-600 uppercase tracking-widest mt-1">
+                                REGISTRO VISUAL AL MOMENTO DE LA ENTREGA
+                            </p>
+                        </div>
+                        <div className="text-right">
+                            <p className="font-bold text-slate-800">{activo.descripcionCorta}</p>
+                            <p className="text-xs font-mono text-slate-500">{activo.numeroSerie}</p>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        {(renta as any).evidenciaFotos.map((url: string, idx: number) => (
+                            <div key={idx} className="border border-slate-300 p-2 rounded-xl bg-slate-50">
+                                <div className="aspect-[4/3] w-full relative rounded-lg overflow-hidden border border-slate-200">
+                                    <img src={url} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+                                </div>
+                                <p className="text-center text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Fotografía {idx + 1}</p>
+                            </div>
+                        ))}
+                    </div>
+                    
+                    <div className="mt-8 text-xs text-slate-500 text-center font-semibold">
+                        <p>Documento anexo generado automáticamente por el sistema de Bioelectrónica.</p>
+                        <p>Referencia de Contrato: {renta.id.split('-')[0].toUpperCase()}</p>
+                    </div>
+                </div>
+            )}
 
             {/* Estilos específicos de impresión */}
             <style dangerouslySetInnerHTML={{__html: `

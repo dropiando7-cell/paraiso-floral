@@ -71,7 +71,7 @@ export async function createRenta(data: FormData) {
             costoRenta,
             deposito,
             notas,
-            estado: 'ACTIVA',
+            estado: 'PENDIENTE_FIRMA',
             tipoAlquiler,
             mesesRenta,
             horasTrabajoSalida,
@@ -79,11 +79,6 @@ export async function createRenta(data: FormData) {
             evidenciaFotos,
             creadoPorId: dbUser.id,
         }
-    });
-
-    await prisma.activoFijo.update({
-        where: { id: activoFijoId },
-        data: { estatusContable: 'EN_RENTA' }
     });
 
     return {

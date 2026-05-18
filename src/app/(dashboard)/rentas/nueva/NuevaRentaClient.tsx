@@ -68,7 +68,7 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
         startTransition(async () => {
             try {
                 const renta = await createRenta(fd);
-                router.push(`/rentas/${renta.id}/contrato`);
+                router.push(`/rentas/${renta.id}/firma`);
                 router.refresh();
             } catch (err) {
                 alert('Error al crear la renta');
