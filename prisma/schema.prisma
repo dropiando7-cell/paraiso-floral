@@ -346,6 +346,7 @@ model ActivoFijo {
   accionRecomendada     String?
   responsable           String?
   observaciones         String?
+  horasTrabajoActuales  String?
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
   imagenPlacaUrl        String?
@@ -760,6 +761,7 @@ model RentaEquipo {
   tipoAlquiler     String       @default("Mensual")
   mesesRenta       Int          @default(1)
   horasTrabajoSalida String?
+  horasTrabajoRecibido String?
   accesoriosIncluidos String?
   evidenciaFotos   String[]     @default([])
   firmaUrl         String?

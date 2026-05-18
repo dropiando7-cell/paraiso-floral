@@ -156,9 +156,15 @@ export default function RecepcionClient({ renta }: { renta: any }) {
                             </div>
                         </div>
 
-                        {/* Estado y Destino */}
+                        {/* Datos de Recepción y Estado */}
                         <div className="space-y-5 pt-6 border-t border-slate-100">
-                            <h2 className="text-sm uppercase tracking-wider font-bold text-slate-400">2. Destino del Equipo</h2>
+                            <h2 className="text-sm uppercase tracking-wider font-bold text-slate-400">2. Datos y Destino del Equipo</h2>
+                            
+                            <div className="mb-6">
+                                <label className="block text-sm font-bold text-slate-700 mb-2">Horas de Trabajo de Recibido</label>
+                                <input type="text" name="horasTrabajoRecibido" placeholder="Ej. 1350 hrs" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                <p className="text-xs text-slate-500 mt-1">Este número se actualizará como el nuevo kilometraje/horas de vida del equipo para la próxima renta.</p>
+                            </div>
                             
                             <div className="grid md:grid-cols-2 gap-4">
                                 <label className="cursor-pointer">

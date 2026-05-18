@@ -13,6 +13,7 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
     const [mesesRenta, setMesesRenta] = useState(1);
     const [costoRenta, setCostoRenta] = useState(1500);
     const [isNewClient, setIsNewClient] = useState(false);
+    const [horasTrabajoSalida, setHorasTrabajoSalida] = useState('');
     
     const [isDirecto, setIsDirecto] = useState(false);
     const [fechaInicio, setFechaInicio] = useState(() => {
@@ -101,6 +102,16 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
         setFechaFin(d.toISOString().split('T')[0]);
     };
 
+    const handleEquipoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const equipoId = e.target.value;
+        const equipo = equipos.find(eq => eq.id === equipoId);
+        if (equipo && equipo.horasTrabajoActuales) {
+            setHorasTrabajoSalida(equipo.horasTrabajoActuales);
+        } else {
+            setHorasTrabajoSalida('');
+        }
+    };
+
     async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
@@ -114,8 +125,9 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                     router.push(`/rentas/${renta.id}/firma`);
                 }
                 router.refresh();
-            } catch (err) {
-                alert('Error al crear la renta');
+            } catch (err: any) {
+                console.error("Error al crear renta:", err);
+                alert(err.message || 'Error al crear la renta');
             }
         });
     }
@@ -184,7 +196,7 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Equipo Médico <span className="text-red-500">*</span></label>
-                                    <select name="activoFijoId" required className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold">
+                                    <select name="activoFijoId" required onChange={handleEquipoChange} className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold">
                                         <option value="">Selecciona un equipo disponible...</option>
                                         {equipos.map(e => <option key={e.id} value={e.id}>{e.descripcionCorta} {e.serie ? `(S/N: ${e.serie})` : ''}</option>)}
                                     </select>
@@ -262,7 +274,7 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                             <div className="grid md:grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Horas de Trabajo de Salida</label>
-                                    <input type="text" name="horasTrabajoSalida" placeholder="Ej. 1200 hrs" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                    <input type="text" name="horasTrabajoSalida" value={horasTrabajoSalida} onChange={e => setHorasTrabajoSalida(e.target.value)} placeholder="Ej. 1200 hrs" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Accesorios Incluidos</label>

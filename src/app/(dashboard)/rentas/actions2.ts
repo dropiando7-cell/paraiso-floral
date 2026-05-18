@@ -85,10 +85,13 @@ export async function createRenta(data: FormData) {
         }
     });
 
-    // Marcar el equipo como EN_RENTA para que no vuelva a aparecer en el dropdown
+    // Marcar el equipo como EN_RENTA y guardar horas actuales
     await prisma.activoFijo.update({
         where: { id: activoFijoId },
-        data: { estatusContable: 'EN_RENTA' }
+        data: { 
+            estatusContable: 'EN_RENTA',
+            ...(horasTrabajoSalida ? { horasTrabajoActuales: horasTrabajoSalida } : {})
+        }
     });
 
     return {
@@ -128,6 +131,6 @@ export async function getEquiposDisponibles() {
             esParaRenta: true
         },
         orderBy: { descripcionCorta: 'asc' },
-        select: { id: true, descripcionCorta: true, serie: true, codigoBarras: true }
+        select: { id: true, descripcionCorta: true, serie: true, codigoBarras: true, horasTrabajoActuales: true }
     });
 }

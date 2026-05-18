@@ -134,6 +134,7 @@ export async function processRecepcion(data: FormData) {
     const depositoDevueltoStr = data.get('depositoDevuelto') as string;
     const depositoDevuelto = depositoDevueltoStr ? parseFloat(depositoDevueltoStr) : null;
     const nuevoEstadoEquipo = data.get('nuevoEstadoEquipo') as string || 'VIGENTE';
+    const horasTrabajoRecibido = data.get('horasTrabajoRecibido') as string;
 
     let recepcionFotos: string[] = [];
     try {
@@ -152,6 +153,7 @@ export async function processRecepcion(data: FormData) {
             recepcionNotas,
             recepcionFotos,
             depositoDevuelto: depositoDevuelto !== null ? depositoDevuelto : null,
+            horasTrabajoRecibido,
         },
     });
 
@@ -159,6 +161,7 @@ export async function processRecepcion(data: FormData) {
         where: { id: renta.activoFijoId },
         data: {
             estatusContable: nuevoEstadoEquipo,
+            ...(horasTrabajoRecibido ? { horasTrabajoActuales: horasTrabajoRecibido } : {})
         }
     });
 
