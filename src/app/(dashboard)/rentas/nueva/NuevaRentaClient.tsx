@@ -30,14 +30,40 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
         setUploadingFotos(true);
         const newUrls: string[] = [];
         for (let i = 0; i < files.length; i++) {
-            const formData = new FormData();
-            formData.append('file', files[i]);
+            const file = files[i];
             try {
+                // Comprimir imagen en el lado del cliente
+                const url = URL.createObjectURL(file);
+                const img = new window.Image();
+                img.src = url;
+                await new Promise((resolve) => { img.onload = resolve; });
+                URL.revokeObjectURL(url);
+
+                const canvas = document.createElement('canvas');
+                const MAX_SIZE = 1200; // Un poco más pequeño para renta múltiple
+                let { width, height } = img;
+                if (width > height && width > MAX_SIZE) { height *= MAX_SIZE / width; width = MAX_SIZE; }
+                else if (height > MAX_SIZE) { width *= MAX_SIZE / height; height = MAX_SIZE; }
+
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.80));
+
+                const formData = new FormData();
+                formData.append('file', blob, 'evidencia.jpg');
+                
                 const res = await fetch('/api/upload/inventario', { method: 'POST', body: formData });
-                const data = await res.json();
-                if (data.url) newUrls.push(data.url);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.url) newUrls.push(data.url);
+                } else {
+                    console.error("Error del servidor al subir foto:", await res.text());
+                }
             } catch (err) {
-                console.error("Error uploading photo:", err);
+                console.error("Error procesando foto:", err);
             }
         }
         setEvidenciaFotos(prev => [...prev, ...newUrls]);
