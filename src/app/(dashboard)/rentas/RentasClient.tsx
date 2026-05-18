@@ -69,7 +69,11 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
             return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700"><AlertTriangle className="w-3.5 h-3.5" /> Por Vencer</span>;
         }
 
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-[#0500A3]"><Clock className="w-3.5 h-3.5" /> Activa</span>;
+        if (estado === 'PENDIENTE_FIRMA') {
+            return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700"><Clock className="w-3.5 h-3.5" /> Pend. Firma</span>;
+        }
+
+        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-[#0500A3]"><CheckCircle2 className="w-3.5 h-3.5" /> Activa</span>;
     }
 
     return (
@@ -151,8 +155,8 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                         {getStatusBadge(renta.estado, renta.fechaFinEsperada)}
                                     </td>
                                     <td className="px-5 py-4 text-right">
-                                        {renta.estado === 'ACTIVA' && (
-                                            <div className="flex items-center justify-end gap-2">
+                                        <div className="flex items-center justify-end gap-2">
+                                            {(renta.estado === 'ACTIVA' || renta.estado === 'PENDIENTE_FIRMA') && (
                                                 <button 
                                                     onClick={() => setEditingRenta(renta)}
                                                     className="text-slate-500 hover:text-[#0500A3] p-1.5 rounded-md hover:bg-blue-50 transition-colors"
@@ -160,6 +164,9 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                                 >
                                                     <Edit2 className="w-4 h-4" />
                                                 </button>
+                                            )}
+                                            
+                                            {renta.estado === 'ACTIVA' && (
                                                 <button 
                                                     onClick={() => handleReturn(renta.id)}
                                                     disabled={isPending}
@@ -167,8 +174,17 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                                 >
                                                     Marcar Devuelto
                                                 </button>
-                                            </div>
-                                        )}
+                                            )}
+
+                                            {renta.estado === 'PENDIENTE_FIRMA' && (
+                                                <Link 
+                                                    href={`/rentas/${renta.id}/firma`}
+                                                    className="text-xs font-bold text-white bg-[#0500A3] hover:bg-blue-800 px-3 py-1.5 rounded-lg transition-colors"
+                                                >
+                                                    Completar Firma
+                                                </Link>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))}

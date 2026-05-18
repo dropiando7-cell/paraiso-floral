@@ -81,6 +81,12 @@ export async function createRenta(data: FormData) {
         }
     });
 
+    // Marcar el equipo como EN_RENTA para que no vuelva a aparecer en el dropdown
+    await prisma.activoFijo.update({
+        where: { id: activoFijoId },
+        data: { estatusContable: 'EN_RENTA' }
+    });
+
     return {
         ...renta,
         costoRenta: Number(renta.costoRenta),
