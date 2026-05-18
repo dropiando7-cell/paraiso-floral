@@ -755,6 +755,7 @@ model RentaEquipo {
   mesesRenta       Int          @default(1)
   horasTrabajoSalida String?
   accesoriosIncluidos String?
+  evidenciaFotos   String[]     @default([])
   creadoPorId      String?      @db.Uuid
   modificadoPorId  String?      @db.Uuid
   createdAt        DateTime     @default(now())

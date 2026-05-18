@@ -144,8 +144,8 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                         </div>
                                     </td>
                                     <td className="px-5 py-4">
-                                        <div className="font-bold text-emerald-700">L. {Number(renta.costoRenta).toLocaleString()}</div>
-                                        {Number(renta.deposito) > 0 && <div className="text-[10px] text-slate-500 font-semibold">Depósito: L. {Number(renta.deposito).toLocaleString()}</div>}
+                                        <div className="font-bold text-emerald-700">L. {Number(renta.costoRenta).toLocaleString('en-US')}</div>
+                                        {Number(renta.deposito) > 0 && <div className="text-[10px] text-slate-500 font-semibold">Depósito: L. {Number(renta.deposito).toLocaleString('en-US')}</div>}
                                     </td>
                                     <td className="px-5 py-4">
                                         {getStatusBadge(renta.estado, renta.fechaFinEsperada)}

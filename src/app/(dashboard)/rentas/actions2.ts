@@ -16,6 +16,7 @@ export async function createRenta(data: FormData) {
 
     let clienteId = data.get('clienteId') as string;
     const nuevoClienteNombre = data.get('nuevoClienteNombre') as string;
+    const nuevoClienteRtn = data.get('nuevoClienteRtn') as string;
     
     const activoFijoId = data.get('activoFijoId') as string;
     const fechaFinEsperada = data.get('fechaFinEsperada') as string;
@@ -26,15 +27,27 @@ export async function createRenta(data: FormData) {
     const mesesRenta = parseInt(data.get('mesesRenta') as string) || 1;
     const horasTrabajoSalida = data.get('horasTrabajoSalida') as string;
     const accesoriosIncluidos = data.get('accesoriosIncluidos') as string;
-    const telefono = data.get('telefono') as string;
+    let telefono = data.get('telefono') as string;
+    if (telefono && telefono.trim() === '+504') {
+        telefono = '';
+    }
     const direccion = data.get('direccion') as string;
+
+    let evidenciaFotos: string[] = [];
+    try {
+        const rawFotos = data.get('evidenciaFotos') as string;
+        if (rawFotos) evidenciaFotos = JSON.parse(rawFotos);
+    } catch (e) {
+        console.error("Error parsing fotos:", e);
+    }
 
     if (clienteId === 'NEW' && nuevoClienteNombre) {
         const nuevoCliente = await prisma.cliente.create({
             data: {
                 organizationId: dbUser.organizationId,
                 nombre: nuevoClienteNombre,
-                ...(telefono ? { telefono } : {}),
+                ...(nuevoClienteRtn ? { rtn: nuevoClienteRtn } : {}),
+                ...(telefono && telefono.trim() !== '+504' ? { telefono } : {}),
                 ...(direccion ? { direccion } : {})
             }
         });
@@ -43,7 +56,7 @@ export async function createRenta(data: FormData) {
         await prisma.cliente.update({
             where: { id: clienteId },
             data: {
-                ...(telefono ? { telefono } : {}),
+                ...(telefono && telefono.trim() !== '+504' ? { telefono } : {}),
                 ...(direccion ? { direccion } : {})
             }
         });
@@ -63,6 +76,7 @@ export async function createRenta(data: FormData) {
             mesesRenta,
             horasTrabajoSalida,
             accesoriosIncluidos,
+            evidenciaFotos,
             creadoPorId: dbUser.id,
         }
     });
