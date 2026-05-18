@@ -52,6 +52,7 @@ model Organization {
   users                 User[]
 
   cajaChicaSessions     CajaChicaSession[]
+  rentasPagos           RentaPago[]
 
   @@map("organizations")
 }
@@ -776,12 +777,33 @@ model RentaEquipo {
   creadoPor        User?        @relation("CreatedRentas", fields: [creadoPorId], references: [id])
   modificadoPor    User?        @relation("UpdatedRentas", fields: [modificadoPorId], references: [id])
   recibidoPor      User?        @relation("ReceivedRentas", fields: [recibidoPorId], references: [id])
+  pagos            RentaPago[]
 
   @@index([organizationId])
   @@index([clienteId])
   @@index([activoFijoId])
   @@index([estado])
   @@map("rentas_equipo")
+}
+
+model RentaPago {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @db.Uuid
+  rentaId        String       @db.Uuid
+  monto          Decimal      @db.Decimal(12, 2)
+  fechaPago      DateTime     @default(now())
+  metodoPago     String?
+  referencia     String?
+  notas          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  renta          RentaEquipo  @relation(fields: [rentaId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([rentaId])
+  @@map("rentas_pagos")
 }
 
 enum Role {

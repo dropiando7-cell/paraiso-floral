@@ -192,6 +192,14 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                                 </>
                                             )}
                                             
+                                            <Link 
+                                                href={`/rentas/${renta.id}/pagos`}
+                                                className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                                                title="Estado de Cuenta / Pagos"
+                                            >
+                                                💰 Pagos
+                                            </Link>
+
                                             {renta.estado === 'ACTIVA' && (
                                                 <Link 
                                                     href={`/rentas/${renta.id}/recepcion`}

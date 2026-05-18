@@ -13,6 +13,12 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
     const [mesesRenta, setMesesRenta] = useState(1);
     const [costoRenta, setCostoRenta] = useState(1500);
     const [isNewClient, setIsNewClient] = useState(false);
+    
+    const [isDirecto, setIsDirecto] = useState(false);
+    const [fechaInicio, setFechaInicio] = useState(() => {
+        return new Date().toISOString().split('T')[0];
+    });
+
     const [fechaFin, setFechaFin] = useState(() => {
         const d = new Date();
         d.setMonth(d.getMonth() + 1);
@@ -82,8 +88,16 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
         setMesesRenta(meses);
         setCostoRenta(meses * 1500);
         
-        const d = new Date();
+        const d = new Date(fechaInicio + 'T12:00:00Z');
         d.setMonth(d.getMonth() + meses);
+        setFechaFin(d.toISOString().split('T')[0]);
+    };
+
+    const handleFechaInicioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const nuevaFecha = e.target.value;
+        setFechaInicio(nuevaFecha);
+        const d = new Date(nuevaFecha + 'T12:00:00Z');
+        d.setMonth(d.getMonth() + mesesRenta);
         setFechaFin(d.toISOString().split('T')[0]);
     };
 
@@ -94,7 +108,11 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
         startTransition(async () => {
             try {
                 const renta = await createRenta(fd);
-                router.push(`/rentas/${renta.id}/firma`);
+                if (isDirecto) {
+                    router.push(`/rentas/${renta.id}/pagos`);
+                } else {
+                    router.push(`/rentas/${renta.id}/firma`);
+                }
                 router.refresh();
             } catch (err) {
                 alert('Error al crear la renta');
@@ -188,7 +206,13 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
 
                         {/* 2. Fechas */}
                         <div className="space-y-5 pt-6 border-t border-slate-100">
-                            <h2 className="text-sm uppercase tracking-wider font-bold text-slate-400">2. Plazos</h2>
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-sm uppercase tracking-wider font-bold text-slate-400">2. Plazos y Fechas</h2>
+                                <label className="flex items-center gap-2 cursor-pointer bg-blue-50 px-3 py-1.5 rounded-full border border-blue-100">
+                                    <input type="checkbox" name="isDirecto" checked={isDirecto} onChange={e => setIsDirecto(e.target.checked)} className="w-4 h-4 text-[#0500A3] rounded border-blue-300 focus:ring-[#0500A3]" value="true" />
+                                    <span className="text-xs font-bold text-[#0500A3]">Registro Histórico / Directo</span>
+                                </label>
+                            </div>
                             
                             <div className="grid md:grid-cols-2 gap-5">
                                 <div>
@@ -203,6 +227,11 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Meses a Rentar</label>
                                     <input type="number" name="mesesRenta" value={mesesRenta} onChange={handleMesesChange} min="1" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><Calendar className="w-4 h-4 text-slate-400" /> Fecha de Inicio <span className="text-red-500">*</span></label>
+                                    <input type="date" name="fechaInicio" value={fechaInicio} onChange={handleFechaInicioChange} readOnly={!isDirecto} className={`w-full border-2 border-slate-200 rounded-xl px-4 py-3 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold ${!isDirecto ? 'bg-slate-100 text-slate-500' : 'bg-slate-50'}`} />
+                                    {!isDirecto && <p className="text-[10px] text-slate-400 mt-1">Activa "Registro Histórico" para editar esta fecha.</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><Calendar className="w-4 h-4 text-slate-400" /> Fecha de Entrega Esperada <span className="text-red-500">*</span></label>

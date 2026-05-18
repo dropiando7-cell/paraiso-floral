@@ -62,16 +62,20 @@ export async function createRenta(data: FormData) {
         });
     }
 
+    const isDirecto = data.get('isDirecto') === 'true';
+    const fechaInicioStr = data.get('fechaInicio') as string;
+    
     const renta = await prisma.rentaEquipo.create({
         data: {
             organizationId: dbUser.organizationId,
             clienteId,
             activoFijoId,
-            fechaFinEsperada: new Date(fechaFinEsperada),
+            fechaInicio: isDirecto && fechaInicioStr ? new Date(fechaInicioStr + 'T12:00:00Z') : new Date(),
+            fechaFinEsperada: new Date(fechaFinEsperada + 'T12:00:00Z'),
             costoRenta,
             deposito,
             notas,
-            estado: 'PENDIENTE_FIRMA',
+            estado: isDirecto ? 'ACTIVA' : 'PENDIENTE_FIRMA',
             tipoAlquiler,
             mesesRenta,
             horasTrabajoSalida,
