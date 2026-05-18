@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { UploadCloud, Check, X, Wrench, Snowflake, Tags } from 'lucide-react';
 
 type ReceptionFormProps = {
@@ -10,13 +10,29 @@ type ReceptionFormProps = {
 
 export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormProps) {
   const [form, setForm] = useState({
-    cliente: "", telefono: "", equipo: "medico", modelo: "", serie: "",
+    cliente: "", telefono: "+504 ", equipo: "medico", modelo: "", serie: "",
     marca: "", descripcionFalla: "", prioridad: "normal", tecnico: ""
   });
   const [photos, setPhotos] = useState<{name: string; file: File; url: string; size: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredClientes = form.cliente 
+    ? clientes.filter(c => c.nombre.toLowerCase().includes(form.cliente.toLowerCase()))
+    : clientes;
 
   const handleChange = (k: string, v: string) => {
     if (k === 'cliente') {
@@ -88,7 +104,7 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
       setSaved(true);
       setTimeout(() => {
           setSaved(false);
-          setForm({ cliente: "", telefono: "", equipo: "medico", modelo: "", serie: "", marca: "", descripcionFalla: "", prioridad: "normal", tecnico: "" });
+          setForm({ cliente: "", telefono: "+504 ", equipo: "medico", modelo: "", serie: "", marca: "", descripcionFalla: "", prioridad: "normal", tecnico: "" });
           setPhotos([]);
       }, 3000);
     } catch (e: any) {
@@ -112,18 +128,36 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-        <div>
+        <div className="relative" ref={dropdownRef}>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Cliente / Empresa *</label>
           <input 
-             list="lista-clientes"
              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white"
-             value={form.cliente} onChange={e => handleChange("cliente", e.target.value)} placeholder="Ej. Hospital Centro"
+             value={form.cliente} 
+             onChange={e => {
+                 handleChange("cliente", e.target.value);
+                 setShowDropdown(true);
+             }}
+             onFocus={() => setShowDropdown(true)}
+             placeholder="Ej. Hospital Centro"
+             autoComplete="off"
           />
-          <datalist id="lista-clientes">
-            {clientes.map(c => (
-              <option key={c.id} value={c.nombre} />
-            ))}
-          </datalist>
+          {showDropdown && filteredClientes.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto py-1">
+                  {filteredClientes.map((c: any) => (
+                      <div 
+                          key={c.id} 
+                          className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm text-slate-700 font-medium transition-colors border-b border-slate-100 last:border-0"
+                          onMouseDown={(e) => {
+                              e.preventDefault();
+                              handleChange("cliente", c.nombre);
+                              setShowDropdown(false);
+                          }}
+                      >
+                          {c.nombre}
+                      </div>
+                  ))}
+              </div>
+          )}
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Teléfono / WhatsApp</label>
