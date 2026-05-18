@@ -33,10 +33,19 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
         if (isPending) return;
         setIsPending(true);
         setIsOpen(false);
-        // Client-side sign out — no server round-trip needed, instant!
-        await supabase.auth.signOut();
-        router.push('/login');
-        router.refresh();
+        
+        try {
+            // Wait max 800ms for Supabase to sign out
+            await Promise.race([
+                supabase.auth.signOut(),
+                new Promise(resolve => setTimeout(resolve, 800))
+            ]);
+        } catch (e) {
+            console.error("Error al cerrar sesión:", e);
+        } finally {
+            // Force immediate hard redirect to login page
+            window.location.href = '/login';
+        }
     }
 
     // Generate initials for fallback avatar

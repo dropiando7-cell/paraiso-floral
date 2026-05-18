@@ -11,8 +11,17 @@ export function LogoutButton() {
     const handleLogout = async () => {
         setLoading(true);
         const supabase = createClient();
-        await supabase.auth.signOut();
-        router.push('/login');
+        
+        try {
+            await Promise.race([
+                supabase.auth.signOut(),
+                new Promise(resolve => setTimeout(resolve, 800))
+            ]);
+        } catch (e) {
+            console.error("Error signing out:", e);
+        } finally {
+            window.location.href = '/login';
+        }
     };
 
     return (
