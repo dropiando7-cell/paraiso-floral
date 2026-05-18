@@ -233,7 +233,22 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                         }}
                       />
                     </td>
-                    <td className="py-2 px-2 text-slate-800 font-medium">L {r.precio.toFixed(2)}</td>
+                    <td className="py-2 px-2 text-slate-800 font-medium">
+                      <div className="flex items-center gap-1">
+                        <span className="text-slate-400">L</span>
+                        <input 
+                          type="number" 
+                          min="0"
+                          step="0.01"
+                          className="w-20 border border-slate-200 rounded px-1 py-0.5 outline-none"
+                          value={r.precio}
+                          onChange={(e) => {
+                             const val = parseFloat(e.target.value) || 0;
+                             setRepuestos(p => p.map(x => x.id === r.id ? {...x, precio: val} : x));
+                          }}
+                        />
+                      </div>
+                    </td>
                     <td className="py-2 px-2 text-slate-800 font-bold">L {(r.cantidad * r.precio).toFixed(2)}</td>
                     <td className="py-2 px-2 text-right">
                       <button onClick={() => setRepuestos(p => p.filter(x => x.id !== r.id))} className="text-red-500 hover:text-red-700 bg-transparent p-1 rounded">

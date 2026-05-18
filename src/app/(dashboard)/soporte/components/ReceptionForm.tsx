@@ -100,7 +100,7 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] h-full flex flex-col">
+    <div className="bg-white rounded-2xl p-4 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] h-full flex flex-col">
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
           <Wrench className="w-5 h-5 text-indigo-600" />
@@ -111,7 +111,7 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Cliente / Empresa *</label>
           <input 
@@ -145,7 +145,7 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-3 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         {[["modelo","Modelo","Dash 4000"],["serie","N° Serie","SN-123"],["marca","Marca","GE"]].map(([k,l,ph]) => (
           <div key={k}>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">{l}</label>

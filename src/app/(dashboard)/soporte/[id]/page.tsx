@@ -19,7 +19,7 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
       usuarioRecepcion: true,
       tecnicoReparacion: true,
       usuarioAprobacion: true,
-      repuestos: { include: { producto: true } }
+      repuestos: { include: { producto: true, activoFijo: true } }
     }
   });
 
@@ -38,10 +38,15 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
             subtotal: Number(r.subtotal),
             precioAprobado: r.precioAprobado ? Number(r.precioAprobado) : null,
             subtotalAprobado: r.subtotalAprobado ? Number(r.subtotalAprobado) : null,
-            producto: {
+            producto: r.activoFijo ? {
+                ...r.activoFijo,
+                nombre: r.activoFijo.descripcionCorta,
+                sku: r.activoFijo.codigoBarras || r.activoFijo.idQr,
+                precioVenta: Number(r.activoFijo.costoAdq || 0)
+            } : r.producto ? {
                 ...r.producto,
                 precioVenta: Number(r.producto.precioVenta)
-            }
+            } : null
         }))
     }} 
     userRole={userRole}

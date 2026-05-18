@@ -183,12 +183,19 @@ export async function finalizarReparacion(id: string) {
 
         // Deduct inventory
         for (const rep of order.repuestos) {
-            await tx.producto.update({
-                where: { id: rep.productoId },
-                data: { stockActual: { decrement: rep.cantidad } }
-            });
+            if (rep.activoFijoId) {
+                await tx.activoFijo.update({
+                    where: { id: rep.activoFijoId },
+                    data: { stock: { decrement: rep.cantidad } }
+                });
+            } else if (rep.productoId) {
+                await tx.producto.update({
+                    where: { id: rep.productoId },
+                    data: { stockActual: { decrement: rep.cantidad } }
+                });
+            }
 
-            if (userId) {
+            if (userId && rep.productoId) {
                 await tx.movimientoInventario.create({
                     data: {
                         organizationId: order.organizationId,
@@ -241,26 +248,30 @@ export async function searchRepuestos(query: string) {
     const org = await prisma.organization.findFirst();
     if (!org) return [];
 
-    return prisma.producto.findMany({
+    return prisma.activoFijo.findMany({
         where: {
             organizationId: org.id,
-            esServicio: false,
             OR: [
-                { nombre: { contains: query, mode: 'insensitive' } },
-                { sku: { contains: query, mode: 'insensitive' } }
+                { descripcionCorta: { contains: query, mode: 'insensitive' } },
+                { codigoBarras: { contains: query, mode: 'insensitive' } },
+                { idQr: { contains: query, mode: 'insensitive' } }
             ]
         },
         take: 10,
         select: {
             id: true,
-            nombre: true,
-            sku: true,
-            precioVenta: true,
-            stockActual: true
+            descripcionCorta: true,
+            codigoBarras: true,
+            idQr: true,
+            costoAdq: true,
+            stock: true
         }
     }).then(products => products.map(p => ({
-        ...p,
-        precioVenta: Number(p.precioVenta)
+        id: p.id,
+        nombre: p.descripcionCorta,
+        sku: p.codigoBarras || p.idQr || '',
+        precioVenta: p.costoAdq ? Number(p.costoAdq) : 0,
+        stockActual: p.stock || 0
     })));
 }
 
@@ -286,7 +297,7 @@ export async function guardarDiagnostico(
             await tx.ordenTrabajoRepuesto.createMany({
                 data: repuestos.map(r => ({
                     ordenTrabajoId: ordenId,
-                    productoId: r.productoId,
+                    activoFijoId: r.productoId, // We used 'productoId' in frontend still
                     cantidad: r.cantidad,
                     precioSugerido: r.precio,
                     subtotal: r.cantidad * r.precio

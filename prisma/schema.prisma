@@ -381,6 +381,7 @@ model ActivoFijo {
   colaImpresion         ColaImpresion[]
   detallesFactura       DetalleFactura[]
   rentasEquipo          RentaEquipo[]
+  ordenesTrabajoRepuesto OrdenTrabajoRepuesto[]
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -725,7 +726,8 @@ model OrdenTrabajo {
 model OrdenTrabajoRepuesto {
   id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   ordenTrabajoId   String   @db.Uuid
-  productoId       String   @db.Uuid
+  productoId       String?  @db.Uuid
+  activoFijoId     String?  @db.Uuid
   cantidad         Int
   precioSugerido   Decimal  @db.Decimal(12, 2)
   subtotal         Decimal  @db.Decimal(12, 2)
@@ -733,10 +735,12 @@ model OrdenTrabajoRepuesto {
   subtotalAprobado Decimal? @db.Decimal(12, 2)
 
   ordenTrabajo OrdenTrabajo @relation(fields: [ordenTrabajoId], references: [id], onDelete: Cascade)
-  producto     Producto     @relation(fields: [productoId], references: [id])
+  producto     Producto?    @relation(fields: [productoId], references: [id])
+  activoFijo   ActivoFijo?  @relation(fields: [activoFijoId], references: [id])
 
   @@index([ordenTrabajoId])
   @@index([productoId])
+  @@index([activoFijoId])
   @@map("ordenes_trabajo_repuestos")
 }
 

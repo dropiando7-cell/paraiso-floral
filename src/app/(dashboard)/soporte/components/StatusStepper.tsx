@@ -39,7 +39,7 @@ export default function StatusStepper({ estadoActual, ordenId, equipoInfo }: Sta
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06),_0_1px_2px_rgba(0,0,0,0.04)] mb-5">
+    <div className="bg-white rounded-2xl p-4 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-5">
       <div className="flex items-center justify-between mb-8">
         <div>
           <h3 className="m-0 text-[15px] font-bold text-slate-900 tracking-tight">Estado del Servicio</h3>
@@ -55,9 +55,10 @@ export default function StatusStepper({ estadoActual, ordenId, equipoInfo }: Sta
       </div>
 
       {/* Stepper Grid Layout */}
-      <div className="flex items-start bg-transparent relative">
-        {/* Connectors Background (absolute) */}
-        <div className="absolute top-5 left-10 right-10 h-0.5 bg-slate-200 z-0" />
+      <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+        <div className="flex items-start bg-transparent relative min-w-[500px] md:min-w-full">
+          {/* Connectors Background (absolute) */}
+          <div className="absolute top-5 left-10 right-10 h-0.5 bg-slate-200 z-0" />
         <div 
           className="absolute top-5 left-10 h-0.5 bg-indigo-600 z-0 transition-all duration-300"
           style={{ width: `${(currentStep / (steps.length - 1)) * 100}%`, maxWidth: `calc(100% - 80px)` }}
