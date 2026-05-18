@@ -12,6 +12,9 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
     const [editingRenta, setEditingRenta] = useState<any | null>(null);
     const [confirmReturnId, setConfirmReturnId] = useState<string | null>(null);
     const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
+    const [showCanceladas, setShowCanceladas] = useState(false);
+
+    const displayedRentas = initialRentas.filter(r => showCanceladas ? r.estado === 'CANCELADA' : r.estado !== 'CANCELADA');
 
     const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -123,6 +126,20 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                 </div>
             </div>
 
+            <div className="flex justify-end mb-4">
+                <button 
+                    onClick={() => setShowCanceladas(!showCanceladas)}
+                    className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95 border ${
+                        showCanceladas 
+                            ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' 
+                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                    }`}
+                >
+                    <XCircle className="w-4 h-4" />
+                    {showCanceladas ? 'Ocultar Anuladas' : 'Ver Historial de Anuladas'}
+                </button>
+            </div>
+
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
@@ -137,15 +154,15 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
-                            {initialRentas.length === 0 ? (
+                            {displayedRentas.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-5 py-12 text-center text-slate-500">
                                         <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                                        <p className="font-semibold text-lg text-slate-700">No hay rentas activas</p>
-                                        <p className="text-sm mt-1">Presiona "Nueva Renta" para registrar un arrendamiento.</p>
+                                        <p className="font-semibold text-lg text-slate-700">No hay rentas {showCanceladas ? 'anuladas' : 'activas'}</p>
+                                        <p className="text-sm mt-1">{showCanceladas ? 'Aquí aparecerá el historial de rentas que han sido canceladas.' : 'Presiona "Nueva Renta" para registrar un arrendamiento.'}</p>
                                     </td>
                                 </tr>
-                            ) : initialRentas.map(renta => (
+                            ) : displayedRentas.map(renta => (
                                 <tr key={renta.id} className="hover:bg-slate-50/50 transition-colors">
                                     <td className="px-5 py-4">
                                         <div className="font-bold text-slate-800 flex items-center gap-2">
