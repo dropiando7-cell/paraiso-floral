@@ -17,10 +17,10 @@ export default async function RentasPage() {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
-        select: { role: true, organizationId: true },
+        select: { role: true, organizationId: true, accessibleModules: true },
     });
 
-    if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN')) {
+    if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && !dbUser.accessibleModules.includes('/rentas'))) {
         redirect('/unauthorized');
     }
 
