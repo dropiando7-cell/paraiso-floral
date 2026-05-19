@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import QRCode from 'react-qr-code';
 import { CheckCircle2, ArrowLeft, Send } from 'lucide-react';
 import { createOrdenTrabajo } from '../actions';
 import ReceptionForm from '../components/ReceptionForm';
+import QRGenerator from '../components/QRGenerator';
 
 export default function NuevoSoporteClient({ userId, clientes = [] }: { userId: string, clientes?: any[] }) {
     const router = useRouter();
@@ -31,11 +31,14 @@ export default function NuevoSoporteClient({ userId, clientes = [] }: { userId: 
                     <h2 className="text-3xl font-bold text-slate-800 tracking-tight">¡Equipo Recepcionado!</h2>
                     <p className="text-slate-500 mt-2 mb-8">La orden de trabajo ha sido generada con éxito. Cargo a aplicar: L. 450.</p>
 
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 mb-8 inline-block shadow-inner">
-                        <QRCode value={result.codigoSeguridad} size={180} className="mx-auto" />
-                        <div className="mt-4 text-2xl tracking-widest font-mono font-bold text-slate-800">
-                            {result.codigoSeguridad}
-                        </div>
+                    <div className="w-full max-w-sm mb-8 text-left">
+                        <QRGenerator 
+                            orderId={result.codigoSeguridad} 
+                            serie={result.serie || "N/A"} 
+                            cliente={result.cliente?.nombre || result.cliente || ""} 
+                            equipo={result.equipoDano}
+                            fecha={new Date().toLocaleDateString("es-HN")}
+                        />
                     </div>
 
                     <div className="flex flex-col sm:flex-row gap-3 w-full">

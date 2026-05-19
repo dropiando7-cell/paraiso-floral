@@ -88,6 +88,8 @@ export default function SoporteDetailClient({ orden, userRole, customRoleName }:
                 orderId={orden.codigoSeguridad} 
                 serie={orden.serie || "N/A"} 
                 cliente={orden.cliente?.nombre || ""} 
+                equipo={orden.equipoDano}
+                fecha={new Date(orden.fechaRecibido || new Date()).toLocaleDateString("es-HN")}
               />
             </div>
           </>
@@ -151,6 +153,8 @@ export default function SoporteDetailClient({ orden, userRole, customRoleName }:
                 orderId={orden.codigoSeguridad} 
                 serie={orden.serie || "N/A"} 
                 cliente={orden.cliente?.nombre || ""} 
+                equipo={orden.equipoDano}
+                fecha={new Date(orden.fechaRecibido || new Date()).toLocaleDateString("es-HN")}
               />
           </div>
         )}

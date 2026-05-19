@@ -16,7 +16,14 @@ export async function GET(req: NextRequest) {
         const trabajos = await prisma.colaImpresion.findMany({
             where,
             take: 20,
-            orderBy: { createdAt: 'asc' }
+            orderBy: { createdAt: 'asc' },
+            select: {
+                id: true,
+                urlImagen: true,
+                impresora: true,
+                tamano: true,
+                organizationId: true
+            }
         });
 
         return NextResponse.json({ trabajos });

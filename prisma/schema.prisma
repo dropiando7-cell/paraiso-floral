@@ -439,12 +439,14 @@ model AreaInventoryStatus {
 model ColaImpresion {
   id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   organizationId String       @db.Uuid
-  activoId       String       @db.Uuid
+  activoId       String?      @db.Uuid
   urlImagen      String
   estado         String       @default("PENDIENTE")
+  impresora      String       @default("Niimbot")
+  tamano         String       @default("50x30")
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
-  activo         ActivoFijo   @relation(fields: [activoId], references: [id], onDelete: Cascade)
+  activo         ActivoFijo?  @relation(fields: [activoId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])

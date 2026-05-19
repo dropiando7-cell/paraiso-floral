@@ -23,28 +23,12 @@ export async function POST(req: Request) {
 
         const orgId = dbUser.organizationId;
         const body = await req.json();
-        let { activoId, urlImagen } = body;
+        let { activoId, urlImagen, impresora, tamano } = body;
 
-        // Modo debug envía un ID dummy o vacío
-        const isDebug = activoId === "00000000-0000-0000-0000-000000000000" || !activoId;
+        // Modo debug envía un ID dummy explícito
+        const isDebug = activoId === "00000000-0000-0000-0000-000000000000";
 
-        if (isDebug) {
-            // Para respetar la Foreign Key, buscamos CUALQUIER activo de esta org
-            // Si no existe ninguno, creamos uno temporal o lanzamos error
-            const unActivo = await prisma.activoFijo.findFirst({
-                where: { organizationId: orgId },
-                select: { id: true }
-            });
-            if (!unActivo) {
-                return NextResponse.json(
-                    { error: "Debes tener al menos 1 activo registrado para poder enviar colas de impresión tipo debug." },
-                    { status: 400 }
-                );
-            }
-            activoId = unActivo.id;
-        }
-
-        if (!activoId || !urlImagen) {
+        if (!urlImagen) {
             return NextResponse.json(
                 { error: "Faltan datos obligatorios (urlImagen)" },
                 { status: 400 }
@@ -55,9 +39,11 @@ export async function POST(req: Request) {
         const nuevoTrabajo = await prisma.colaImpresion.create({
             data: {
                 organizationId: orgId,
-                activoId,
+                activoId: isDebug ? undefined : (activoId || undefined),
                 urlImagen,
                 estado: "PENDIENTE",
+                impresora: impresora || "Niimbot",
+                tamano: tamano || "50x30",
             },
         });
 
