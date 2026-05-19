@@ -99,6 +99,9 @@ model User {
   movCajaCreados        CajaChicaMovimiento[]  @relation("CreatedCajaMov")
   movCajaAnulados       CajaChicaMovimiento[]  @relation("AnuladaCajaMov")
 
+  pagosCreados          RentaPago[]            @relation("CreatedPagos")
+  pagosModificados      RentaPago[]            @relation("UpdatedPagos")
+
   @@map("users")
 }
 
@@ -800,8 +803,13 @@ model RentaPago {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
+  creadoPorId    String?      @db.Uuid
+  modificadoPorId String?     @db.Uuid
+
   renta          RentaEquipo  @relation(fields: [rentaId], references: [id], onDelete: Cascade)
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  creadoPor      User?        @relation("CreatedPagos", fields: [creadoPorId], references: [id])
+  modificadoPor  User?        @relation("UpdatedPagos", fields: [modificadoPorId], references: [id])
 
   @@index([organizationId])
   @@index([rentaId])

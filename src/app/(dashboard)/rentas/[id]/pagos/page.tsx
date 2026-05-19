@@ -30,7 +30,11 @@ export default async function PagosRentaPage({ params }: { params: Promise<{ id:
             cliente: true,
             activoFijo: true,
             pagos: {
-                orderBy: { fechaPago: 'desc' }
+                orderBy: { fechaPago: 'desc' },
+                include: {
+                    creadoPor: { select: { nombre: true, apellido: true } },
+                    modificadoPor: { select: { nombre: true, apellido: true } }
+                }
             }
         }
     });

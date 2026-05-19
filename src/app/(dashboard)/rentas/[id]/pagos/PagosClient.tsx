@@ -2,14 +2,16 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Loader2, Calendar, DollarSign, Plus, Trash2, FileText, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Calendar, DollarSign, Plus, Trash2, FileText, CheckCircle2, Edit, X } from 'lucide-react';
 import Link from 'next/link';
-import { registrarPagoRenta, eliminarPagoRenta } from './actions';
+import { registrarPagoRenta, eliminarPagoRenta, editarPagoRenta } from './actions';
 
 export default function PagosClient({ renta }: { renta: any }) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const [isDeleting, setIsDeleting] = useState<string | null>(null);
+    const [deleteModalOpen, setDeleteModalOpen] = useState<string | null>(null);
+    const [editModalOpen, setEditModalOpen] = useState<any | null>(null);
 
     const [monto, setMonto] = useState('');
     const [fechaPago, setFechaPago] = useState(() => new Date().toISOString().split('T')[0]);
@@ -47,16 +49,33 @@ export default function PagosClient({ renta }: { renta: any }) {
         });
     }
 
-    async function handleDeletePago(pagoId: string) {
-        if (!confirm('¿Estás seguro de eliminar este pago? Esto afectará los cálculos.')) return;
-        setIsDeleting(pagoId);
+    async function handleDeleteConfirm() {
+        if (!deleteModalOpen) return;
+        setIsDeleting(deleteModalOpen);
         try {
-            await eliminarPagoRenta(pagoId, renta.id);
+            await eliminarPagoRenta(deleteModalOpen, renta.id);
+            setDeleteModalOpen(null);
         } catch (err: any) {
             alert(err.message || 'Error al eliminar pago');
         } finally {
             setIsDeleting(null);
         }
+    }
+
+    async function handleEditSubmit(e: React.FormEvent<HTMLFormElement>) {
+        e.preventDefault();
+        if (!editModalOpen) return;
+        const fd = new FormData(e.currentTarget);
+        fd.append('rentaId', renta.id);
+        
+        startTransition(async () => {
+            try {
+                await editarPagoRenta(editModalOpen.id, fd);
+                setEditModalOpen(null);
+            } catch (err: any) {
+                alert(err.message || 'Error al editar pago');
+            }
+        });
     }
 
     return (
@@ -252,16 +271,31 @@ export default function PagosClient({ renta }: { renta: any }) {
                                                     <td className="px-6 py-4">
                                                         <div className="text-sm text-slate-700">{pago.referencia || '-'}</div>
                                                         <div className="text-xs text-slate-500 mt-1">{pago.notas}</div>
+                                                        {(pago.creadoPor || pago.modificadoPor) && (
+                                                            <div className="text-[10px] text-slate-400 mt-2 space-y-0.5">
+                                                                {pago.creadoPor && <div>Registrado por: <span className="font-medium text-slate-500">{pago.creadoPor.nombre} {pago.creadoPor.apellido}</span></div>}
+                                                                {pago.modificadoPor && <div>Editado por: <span className="font-medium text-slate-500">{pago.modificadoPor.nombre} {pago.modificadoPor.apellido}</span></div>}
+                                                            </div>
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4 text-right">
-                                                        <button 
-                                                            onClick={() => handleDeletePago(pago.id)}
-                                                            disabled={isDeleting === pago.id}
-                                                            className="text-slate-400 hover:text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
-                                                            title="Eliminar Abono"
-                                                        >
-                                                            {isDeleting === pago.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                                        </button>
+                                                        <div className="flex justify-end items-center gap-1">
+                                                            <button 
+                                                                onClick={() => setEditModalOpen(pago)}
+                                                                className="text-slate-400 hover:text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors"
+                                                                title="Editar Abono"
+                                                            >
+                                                                <Edit className="w-4 h-4" />
+                                                            </button>
+                                                            <button 
+                                                                onClick={() => setDeleteModalOpen(pago.id)}
+                                                                disabled={isDeleting === pago.id}
+                                                                className="text-slate-400 hover:text-red-500 p-2 rounded-md hover:bg-red-50 transition-colors disabled:opacity-50"
+                                                                title="Eliminar Abono"
+                                                            >
+                                                                {isDeleting === pago.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                                            </button>
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             ))}
@@ -274,6 +308,115 @@ export default function PagosClient({ renta }: { renta: any }) {
                     </div>
                 </div>
             </div>
+
+            {/* Modal de Eliminar */}
+            {deleteModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
+                        <h3 className="text-lg font-bold text-slate-800 mb-2">Eliminar Abono</h3>
+                        <p className="text-sm text-slate-600 mb-6">¿Estás seguro de eliminar este pago? Esta acción recalculará los saldos de la renta y no se puede deshacer.</p>
+                        <div className="flex justify-end gap-3">
+                            <button 
+                                onClick={() => setDeleteModalOpen(null)}
+                                className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={handleDeleteConfirm}
+                                disabled={isDeleting === deleteModalOpen}
+                                className="px-4 py-2 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 transition-colors flex items-center gap-2"
+                            >
+                                {isDeleting === deleteModalOpen ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                Eliminar Abono
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Edición */}
+            {editModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-0 animate-in fade-in zoom-in duration-200 overflow-hidden">
+                        <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <Edit className="w-5 h-5 text-blue-600" /> Editar Abono
+                            </h3>
+                            <button type="button" onClick={() => setEditModalOpen(null)} className="p-1 hover:bg-slate-200 rounded-lg text-slate-500 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Monto (L.) *</label>
+                                    <input 
+                                        type="number" step="0.01" name="monto" required min="0.01"
+                                        defaultValue={editModalOpen.monto}
+                                        className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-bold text-emerald-700 focus:border-[#0500A3]" 
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Fecha de Pago *</label>
+                                    <input 
+                                        type="date" name="fechaPago" required 
+                                        defaultValue={new Date(editModalOpen.fechaPago).toISOString().split('T')[0]}
+                                        className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
+                                    />
+                                </div>
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Método de Pago</label>
+                                    <select 
+                                        name="metodoPago" 
+                                        defaultValue={editModalOpen.metodoPago}
+                                        className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]"
+                                    >
+                                        <option value="Efectivo">Efectivo</option>
+                                        <option value="Transferencia">Transferencia</option>
+                                        <option value="Tarjeta">Tarjeta</option>
+                                        <option value="Cheque">Cheque</option>
+                                        <option value="Link de pago de Occidente">Link de pago de Occidente</option>
+                                    </select>
+                                </div>
+                                <div className="col-span-2 sm:col-span-1">
+                                    <label className="block text-xs font-bold text-slate-700 mb-1">Referencia / Recibo</label>
+                                    <input 
+                                        type="text" name="referencia" 
+                                        defaultValue={editModalOpen.referencia}
+                                        className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
+                                    />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold text-slate-700 mb-1">Notas</label>
+                                <input 
+                                    type="text" name="notas" 
+                                    defaultValue={editModalOpen.notas}
+                                    className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
+                                />
+                            </div>
+                            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-6">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditModalOpen(null)}
+                                    className="px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isPending}
+                                    className="flex items-center gap-2 bg-[#0500A3] hover:bg-blue-800 text-white px-6 py-2.5 rounded-xl font-bold transition-all shadow-md active:scale-95 disabled:opacity-70"
+                                >
+                                    {isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                    Guardar Cambios
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

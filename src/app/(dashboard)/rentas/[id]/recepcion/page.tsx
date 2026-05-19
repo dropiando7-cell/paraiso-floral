@@ -29,5 +29,12 @@ export default async function RecepcionPage({ params }: { params: Promise<{ id: 
         redirect('/rentas');
     }
 
-    return <RecepcionClient renta={renta} />;
+    const rentaSerialized = {
+        ...renta,
+        costoRenta: Number(renta.costoRenta),
+        deposito: Number(renta.deposito),
+        depositoDevuelto: renta.depositoDevuelto ? Number(renta.depositoDevuelto) : null,
+    };
+
+    return <RecepcionClient renta={rentaSerialized} />;
 }
