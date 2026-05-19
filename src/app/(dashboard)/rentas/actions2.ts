@@ -42,16 +42,29 @@ export async function createRenta(data: FormData) {
     }
 
     if (clienteId === 'NEW' && nuevoClienteNombre) {
-        const nuevoCliente = await prisma.cliente.create({
-            data: {
+        const clienteExistente = await prisma.cliente.findFirst({
+            where: {
                 organizationId: dbUser.organizationId,
-                nombre: nuevoClienteNombre,
-                ...(nuevoClienteRtn ? { rtn: nuevoClienteRtn } : {}),
-                ...(telefono && telefono.trim() !== '+504' ? { telefono } : {}),
-                ...(direccion ? { direccion } : {})
+                nombre: {
+                    equals: nuevoClienteNombre.trim(),
+                    mode: 'insensitive'
+                }
             }
         });
-        clienteId = nuevoCliente.id;
+        if (clienteExistente) {
+            clienteId = clienteExistente.id;
+        } else {
+            const nuevoCliente = await prisma.cliente.create({
+                data: {
+                    organizationId: dbUser.organizationId,
+                    nombre: nuevoClienteNombre.trim(),
+                    ...(nuevoClienteRtn ? { rtn: nuevoClienteRtn } : {}),
+                    ...(telefono && telefono.trim() !== '+504' ? { telefono } : {}),
+                    ...(direccion ? { direccion } : {})
+                }
+            });
+            clienteId = nuevoCliente.id;
+        }
     } else if (telefono || direccion) {
         await prisma.cliente.update({
             where: { id: clienteId },

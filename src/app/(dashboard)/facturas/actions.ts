@@ -126,19 +126,32 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
     try {
         const organizationId = await getOrganizationId();
 
-        // Si el cliente no existe, lo creamos rápido
+        // Si el cliente no existe, lo buscamos por nombre o lo creamos rápido
         let clienteId = facturaData.clienteId;
         if (!clienteId && facturaData.clienteNombre) {
-            const nuevoCliente = await prisma.cliente.create({
-                data: {
+            const clienteExistente = await prisma.cliente.findFirst({
+                where: {
                     organizationId,
-                    nombre: facturaData.clienteNombre,
-                    rtn: facturaData.rtn,
-                    telefono: facturaData.telefono,
-                    direccion: facturaData.direccion
+                    nombre: {
+                        equals: facturaData.clienteNombre.trim(),
+                        mode: 'insensitive'
+                    }
                 }
             });
-            clienteId = nuevoCliente.id;
+            if (clienteExistente) {
+                clienteId = clienteExistente.id;
+            } else {
+                const nuevoCliente = await prisma.cliente.create({
+                    data: {
+                        organizationId,
+                        nombre: facturaData.clienteNombre.trim(),
+                        rtn: facturaData.rtn,
+                        telefono: facturaData.telefono,
+                        direccion: facturaData.direccion
+                    }
+                });
+                clienteId = nuevoCliente.id;
+            }
         }
 
         if (!clienteId) throw new Error("Se requiere un cliente válido.");
@@ -246,17 +259,30 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
 
         let clienteId = data.clienteId;
         if (!clienteId && data.clienteNombre) {
-            const nuevoCliente = await prisma.cliente.create({
-                data: {
+            const clienteExistente = await prisma.cliente.findFirst({
+                where: {
                     organizationId,
-                    nombre: data.clienteNombre,
-                    rtn: data.rtn || null,
-                    telefono: data.telefono || null,
-                    email: data.email || null,
-                    direccion: data.direccion || null
+                    nombre: {
+                        equals: data.clienteNombre.trim(),
+                        mode: 'insensitive'
+                    }
                 }
             });
-            clienteId = nuevoCliente.id;
+            if (clienteExistente) {
+                clienteId = clienteExistente.id;
+            } else {
+                const nuevoCliente = await prisma.cliente.create({
+                    data: {
+                        organizationId,
+                        nombre: data.clienteNombre.trim(),
+                        rtn: data.rtn || null,
+                        telefono: data.telefono || null,
+                        email: data.email || null,
+                        direccion: data.direccion || null
+                    }
+                });
+                clienteId = nuevoCliente.id;
+            }
         }
 
         if (!clienteId) throw new Error('Se requiere un cliente válido.');
@@ -396,17 +422,30 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
 
         let clienteId = data.clienteId;
         if (!clienteId && data.clienteNombre) {
-            const nuevoCliente = await prisma.cliente.create({
-                data: {
+            const clienteExistente = await prisma.cliente.findFirst({
+                where: {
                     organizationId,
-                    nombre: data.clienteNombre,
-                    rtn: data.rtn || null,
-                    telefono: data.telefono || null,
-                    email: data.email || null,
-                    direccion: data.direccion || null
+                    nombre: {
+                        equals: data.clienteNombre.trim(),
+                        mode: 'insensitive'
+                    }
                 }
             });
-            clienteId = nuevoCliente.id;
+            if (clienteExistente) {
+                clienteId = clienteExistente.id;
+            } else {
+                const nuevoCliente = await prisma.cliente.create({
+                    data: {
+                        organizationId,
+                        nombre: data.clienteNombre.trim(),
+                        rtn: data.rtn || null,
+                        telefono: data.telefono || null,
+                        email: data.email || null,
+                        direccion: data.direccion || null
+                    }
+                });
+                clienteId = nuevoCliente.id;
+            }
         }
 
         if (!clienteId) throw new Error("Se requiere un cliente válido.");
