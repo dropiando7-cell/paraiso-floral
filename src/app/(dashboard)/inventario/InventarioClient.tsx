@@ -1051,9 +1051,13 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         if (tipoRegistro === 'nuevo' && !isEdit) {
             const timer = setTimeout(() => {
                 const groupToUse = codigoGrupo && codigoGrupo.trim() !== '' ? codigoGrupo.trim() : '001';
+                console.log('[CLIENT] useEffect calling previewIdQr with area:', selectedArea, 'group:', groupToUse);
                 previewIdQr(selectedArea, groupToUse).then(code => {
+                    console.log('[CLIENT] useEffect previewIdQr resolved:', code);
                     setPreviewCode(code);
-                }).catch(e => console.error(e));
+                }).catch(e => {
+                    console.error('[CLIENT] useEffect previewIdQr error:', e);
+                });
             }, 400);
             return () => clearTimeout(timer);
         }
@@ -1337,7 +1341,10 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             const url = URL.createObjectURL(file);
             const img = new window.Image();
             img.src = url;
-            await new Promise((resolve) => { img.onload = resolve; });
+            await new Promise((resolve, reject) => {
+                img.onload = () => resolve(null);
+                img.onerror = () => reject(new Error("Formato de imagen no soportado (ej. HEIC/HEIF de iPhone) o archivo corrupto. Intenta con JPG/PNG."));
+            });
             URL.revokeObjectURL(url);
 
             const canvas = document.createElement('canvas');
@@ -1351,7 +1358,12 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
             const ctx = canvas.getContext('2d');
             ctx?.drawImage(img, 0, 0, width, height);
 
-            const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.85));
+            const blob = await new Promise<Blob>((resolve, reject) => {
+                canvas.toBlob(b => {
+                    if (b) resolve(b);
+                    else reject(new Error("Error al convertir la imagen de la placa a Blob."));
+                }, 'image/jpeg', 0.85);
+            });
 
             const placaFormData = new FormData();
             placaFormData.append('file', blob, 'placa.jpg');
@@ -1452,7 +1464,14 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         // Show preview and fetch real next code in parallel
         fd.set('shouldPrint', printRef.current ? 'true' : 'false');
         setPendingFormData(fd);
-        previewIdQr(selectedArea, finalCodigoGrupo).then(code => setPreviewCode(code)).catch(() => setPreviewCode('—'));
+        console.log('[CLIENT] handleSubmit calling previewIdQr with area:', selectedArea, 'group:', finalCodigoGrupo);
+        previewIdQr(selectedArea, finalCodigoGrupo).then(code => {
+            console.log('[CLIENT] handleSubmit previewIdQr resolved:', code);
+            setPreviewCode(code);
+        }).catch((e) => {
+            console.error('[CLIENT] handleSubmit previewIdQr error:', e);
+            setPreviewCode('—');
+        });
     }
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -2973,8 +2992,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
         try {
             const resolvedAreaFilter = a || (currentLockedArea || undefined);
             const [data, st] = await Promise.all([
-                getActivos(p, s, resolvedAreaFilter, e), 
-                getActivoStats(currentLockedArea || undefined)
+                isRentaMode 
+                    ? getEquiposParaRenta(p, s, resolvedAreaFilter, e)
+                    : getActivos(p, s, resolvedAreaFilter, e),
+                isRentaMode 
+                    ? getRentaStats(resolvedAreaFilter)
+                    : getActivoStats(currentLockedArea || undefined)
             ]);
             setActivos(data.activos as Activo[]);
             setTotal(data.total); setTotalPages(data.totalPages); setStats(st);

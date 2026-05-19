@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
         const publicUrl = await uploadToR2(buffer, uniqueName, contentType);
         console.log('[Upload Inventario] Uploaded to R2:', publicUrl);
-        return NextResponse.json({ publicUrl });
+        return NextResponse.json({ publicUrl, url: publicUrl });
     } catch (err: any) {
         console.error('[Upload Inventario] R2 Error:', err);
         return NextResponse.json({ error: `R2 Error: ${err.message}` }, { status: 500 });

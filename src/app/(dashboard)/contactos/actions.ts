@@ -37,9 +37,25 @@ export async function createContacto(data: { nombre: string; email?: string; tel
     const org = await prisma.organization.findFirst();
     if (!org) throw new Error('Org no encontrada');
 
+    const cleanNombre = data.nombre.trim();
+    const existe = await prisma.cliente.findFirst({
+        where: {
+            organizationId: org.id,
+            nombre: {
+                equals: cleanNombre,
+                mode: 'insensitive'
+            }
+        }
+    });
+
+    if (existe) {
+        throw new Error(`Ya existe un contacto con el nombre "${cleanNombre}".`);
+    }
+
     const created = await prisma.cliente.create({
         data: {
             ...data,
+            nombre: cleanNombre,
             organizationId: org.id,
         },
     });

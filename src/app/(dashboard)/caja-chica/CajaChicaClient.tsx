@@ -9,7 +9,7 @@ import {
   ArrowUpCircle, ArrowDownCircle, Receipt, AlertCircle, CheckCircle2,
   Edit2, Trash2, ChevronDown, RefreshCcw, PieChart, History, FileSpreadsheet,
   Landmark, Banknote, CreditCard, Building2, UserCircle2, ShieldCheck,
-  Paperclip, Hash, Sparkles, Info, Coins
+  Paperclip, Hash, Sparkles, Info, Coins, Save
 } from 'lucide-react';
 
 // ============================================================
@@ -213,6 +213,52 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
     }
   };
 
+  const abrirNuevoMovimiento = (tipo: 'INGRESO' | 'SALIDA') => {
+    setEditandoMovimientoId(null);
+    setTipoMovimiento(tipo);
+    if (tipo === 'INGRESO') {
+      setForm({
+        ...formVacio,
+        categoria: 'Reposición de fondos',
+        origenFondos: '',
+        autorizadoPor: ''
+      });
+    } else {
+      setForm(formVacio);
+    }
+    setShowModalNuevo(true);
+  };
+
+  const cerrarModalNuevo = () => {
+    setShowModalNuevo(false);
+    setEditandoMovimientoId(null);
+    setForm(formVacio);
+  };
+
+  const iniciarEdicion = (m: any) => {
+    const esIngreso = m.tipo === 'INGRESO' || m.tipo === 'APERTURA';
+    setEditandoMovimientoId(m.id);
+    setTipoMovimiento(m.tipo);
+    setForm({
+      categoria: m.categoria || '',
+      cuentaContable: m.cuentaContable || '',
+      descripcion: m.descripcion || '',
+      importe: m.importe.toString(),
+      moneda: m.moneda || 'HNL',
+      tipoCambio: m.tipoCambio || 1,
+      documento: esIngreso ? 'FACTURA' : (m.documento || 'FACTURA'),
+      nroDoc: esIngreso ? '' : (m.nroDoc || ''),
+      adjuntoUrl: m.adjuntoUrl || '',
+      beneficiario: m.beneficiario || '',
+      origenFondos: esIngreso ? 'Caja chica' : '',
+      metodoPago: esIngreso ? (m.documento || 'EFECTIVO') : 'EFECTIVO',
+      referenciaTransferencia: esIngreso ? (m.nroDoc || '') : '',
+      autorizadoPor: esIngreso ? 'Gerencia' : '',
+      notaInterna: m.notaInterna || ''
+    });
+    setShowModalNuevo(true);
+  };
+
   const formatMoneda = (valor: number) =>
     new Intl.NumberFormat('es-HN', {
       minimumFractionDigits: 2,
@@ -221,9 +267,11 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
 
   const handleAgregarMovimiento = async () => {
     // Validación contextual
-    const importeNum = (tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos') ? montoARecargar : parseFloat(form.importe);
+    const importeNum = (editandoMovimientoId)
+      ? parseFloat(form.importe)
+      : ((tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos') ? montoARecargar : parseFloat(form.importe));
 
-    if (tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos' && importeNum <= 0) {
+    if (!editandoMovimientoId && tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos' && importeNum <= 0) {
       alert('La caja ya se encuentra en su saldo máximo inicial, no requiere recarga.');
       return;
     }
@@ -233,11 +281,11 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       return;
     }
     if (tipoMovimiento === 'INGRESO') {
-      if (!form.categoria || !form.origenFondos || !form.autorizadoPor) {
+      if (!editandoMovimientoId && (!form.categoria || !form.origenFondos || !form.autorizadoPor)) {
         alert('Por favor completa: tipo de recarga, origen de fondos y autorización');
         return;
       }
-      if (form.metodoPago !== 'EFECTIVO' && !form.referenciaTransferencia) {
+      if (!editandoMovimientoId && form.metodoPago !== 'EFECTIVO' && !form.referenciaTransferencia) {
         alert('Debes ingresar el número de referencia o cheque');
         return;
       }
@@ -250,7 +298,20 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
 
     const total = importeNum;
 
-    if (tipoMovimiento === 'SALIDA' && total > stats.saldoFinal) {
+    const oldMovement = editandoMovimientoId ? movimientos.find((m: any) => m.id === editandoMovimientoId) : null;
+    const oldAmount = oldMovement ? oldMovement.total : 0;
+    const oldTipo = oldMovement ? oldMovement.tipo : '';
+
+    let balanceSinEste = stats.saldoFinal;
+    if (oldMovement) {
+      if (oldTipo === 'SALIDA') {
+        balanceSinEste += oldAmount;
+      } else if (oldTipo === 'INGRESO') {
+        balanceSinEste -= oldAmount;
+      }
+    }
+
+    if (tipoMovimiento === 'SALIDA' && total > balanceSinEste) {
       setShowModalSobregiro(true);
       return;
     }
@@ -288,9 +349,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       toast.error(res.error || 'Error al guardar el movimiento');
     }
     toast.success(editandoMovimientoId ? 'Movimiento actualizado' : (tipoMovimiento === 'APERTURA' ? 'Caja abierta con fondo inicial' : 'Movimiento registrado'));
-    setShowModalNuevo(false);
-    setForm(formVacio);
-    setShowModalNuevo(false);
+    cerrarModalNuevo();
   };
 
   const eliminarMovimiento = async (id: string) => {
@@ -431,7 +490,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               </button>
               <div className="h-8 w-px bg-gray-200 mx-1" />
               <button
-                onClick={() => { setTipoMovimiento('INGRESO'); setForm((f: any) => ({ ...f, categoria: 'Reposición de fondos' })); setShowModalNuevo(true); }}
+                onClick={() => abrirNuevoMovimiento('INGRESO')}
                 disabled={!cajaAbierta}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
                   !cajaAbierta
@@ -443,7 +502,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                 Recargar Fondo
               </button>
               <button
-                onClick={() => { setTipoMovimiento('SALIDA'); setShowModalNuevo(true); }}
+                onClick={() => abrirNuevoMovimiento('SALIDA')}
                 disabled={!cajaAbierta}
                 className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${
                   !cajaAbierta
@@ -702,7 +761,11 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     </td>
                     <td className="px-5 py-3 whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
-                        <button className="p-1.5 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded transition-colors" title="Editar">
+                        <button 
+                          onClick={() => iniciarEdicion(m)}
+                          className="p-1.5 hover:bg-blue-50 text-gray-400 hover:text-blue-600 rounded transition-colors" 
+                          title="Editar"
+                        >
                           <Edit2 className="w-3.5 h-3.5" />
                         </button>
                         <button className="p-1.5 hover:bg-gray-50 text-gray-400 hover:text-gray-600 rounded transition-colors" title="Ver documento">
@@ -779,15 +842,17 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-900">
-                    {tipoMovimiento === 'INGRESO' ? 'Recargar Fondo' : 'Registrar Gasto'}
+                    {editandoMovimientoId 
+                      ? (tipoMovimiento === 'INGRESO' ? 'Editar Recarga' : 'Editar Gasto') 
+                      : (tipoMovimiento === 'INGRESO' ? 'Recargar Fondo' : 'Registrar Gasto')}
                   </h2>
                   <p className="text-sm text-gray-500">
-                    Completa la información del movimiento de caja
+                    {editandoMovimientoId ? 'Modifica los detalles del movimiento seleccionado' : 'Completa la información del movimiento de caja'}
                   </p>
                 </div>
               </div>
               <button
-                onClick={() => setShowModalNuevo(false)}
+                onClick={cerrarModalNuevo}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5 text-gray-400" />
@@ -882,12 +947,12 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   <input
                     type="number"
                     step="0.01"
-                    value={tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos' ? montoARecargar : form.importe}
+                    value={(!editandoMovimientoId && tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos') ? montoARecargar : form.importe}
                     onChange={(e) => setForm((f: any) => ({ ...f, importe: e.target.value }))}
-                    disabled={tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos'}
+                    disabled={!editandoMovimientoId && tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos'}
                     placeholder="0.00"
                     className={`w-full pl-11 pr-3 py-3 text-lg font-bold border rounded-lg tabular-nums focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 ${
-                      tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos'
+                      (!editandoMovimientoId && tipoMovimiento === 'INGRESO' && form.categoria === 'Reposición de fondos')
                         ? 'bg-gray-100 text-gray-500 border-gray-200 cursor-not-allowed'
                         : 'bg-white text-gray-900 border-gray-200'
                     }`}
@@ -1218,7 +1283,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
             {/* Footer modal */}
             <div className="p-5 border-t border-gray-100 flex items-center justify-end gap-3 bg-gray-50/50">
               <button
-                onClick={() => setShowModalNuevo(false)}
+                onClick={cerrarModalNuevo}
                 className="px-5 py-2.5 text-sm font-semibold text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancelar
@@ -1226,13 +1291,17 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
               <button
                 onClick={handleAgregarMovimiento}
                 className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg transition-all shadow-sm ${
-                  tipoMovimiento === 'INGRESO'
-                    ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20'
-                    : 'bg-red-600 hover:bg-red-700 shadow-red-600/20'
+                  editandoMovimientoId
+                    ? 'bg-blue-600 hover:bg-blue-700 shadow-blue-600/20'
+                    : (tipoMovimiento === 'INGRESO'
+                        ? 'bg-green-600 hover:bg-green-700 shadow-green-600/20'
+                        : 'bg-red-600 hover:bg-red-700 shadow-red-600/20')
                 }`}
               >
-                <Plus className="w-4 h-4" />
-                {tipoMovimiento === 'INGRESO' ? 'Recargar Fondo' : 'Registrar Gasto'}
+                {editandoMovimientoId ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                {editandoMovimientoId 
+                  ? 'Guardar Cambios' 
+                  : (tipoMovimiento === 'INGRESO' ? 'Recargar Fondo' : 'Registrar Gasto')}
               </button>
             </div>
           </div>

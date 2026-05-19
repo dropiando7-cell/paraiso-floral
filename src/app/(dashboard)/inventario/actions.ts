@@ -800,9 +800,17 @@ export async function uploadActivoImage(formData: FormData): Promise<{ url: stri
 
 // ─── PREVIEW ID QR (for form) ────────────────────────────────────────────────
 export async function previewIdQr(area: string, codigoGrupo: string = '001'): Promise<string> {
-    const orgId = await getOrgId();
-    const ids = await generateIdQr(orgId, area, codigoGrupo);
-    return ids[0];
+    try {
+        console.log('[DEBUG_PREVIEW] previewIdQr called with area:', area, 'codigoGrupo:', codigoGrupo);
+        const orgId = await getOrgId();
+        console.log('[DEBUG_PREVIEW] previewIdQr got orgId:', orgId);
+        const ids = await generateIdQr(orgId, area, codigoGrupo);
+        console.log('[DEBUG_PREVIEW] previewIdQr generated ids:', ids);
+        return ids[0];
+    } catch (err: any) {
+        console.error('[DEBUG_PREVIEW] Error in previewIdQr server action:', err);
+        throw err;
+    }
 }
 
 export async function checkGrupoExists(codigoGrupo: string): Promise<boolean> {

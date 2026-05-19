@@ -35,15 +35,44 @@ export default function FirmaRentaClient({ renta }: { renta: any }) {
 
     const handleWhatsApp = async () => {
         setSendingWhatsapp(true);
-        // Fallback for now until Twilio backend is ready: open wa.me
-        const phone = renta.cliente?.telefono?.replace(/[^0-9]/g, '');
-        if (phone) {
-            const message = encodeURIComponent(`Hola ${renta.cliente?.nombre}, por favor ingresa a este enlace para firmar tu contrato de renta de equipo: ${publicUrl}`);
-            window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
-        } else {
+        const rawPhone = renta.cliente?.telefono;
+        if (!rawPhone) {
             alert('El cliente no tiene un teléfono registrado válido.');
+            setSendingWhatsapp(false);
+            return;
         }
-        setSendingWhatsapp(false);
+
+        const phone = rawPhone.replace(/[^0-9+]/g, '');
+        const textMessage = `por favor ingresa a este enlace para firmar tu contrato de renta de equipo: ${publicUrl}`;
+
+        try {
+            const res = await fetch('/api/whatsapp/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    telefono: phone,
+                    nombre: renta.cliente?.nombre,
+                    mensaje: textMessage
+                })
+            });
+
+            const data = await res.json();
+            if (data.ok) {
+                alert(`¡Mensaje de WhatsApp enviado exitosamente a ${renta.cliente?.nombre}!`);
+            } else {
+                console.warn('Twilio API failed, falling back to manual wa.me link:', data.error);
+                const cleanPhone = phone.replace(/[^0-9]/g, '');
+                const message = encodeURIComponent(`Hola ${renta.cliente?.nombre}, por favor ingresa a este enlace para firmar tu contrato de renta de equipo: ${publicUrl}`);
+                window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+            }
+        } catch (err) {
+            console.error('Error sending WhatsApp message:', err);
+            const cleanPhone = phone.replace(/[^0-9]/g, '');
+            const message = encodeURIComponent(`Hola ${renta.cliente?.nombre}, por favor ingresa a este enlace para firmar tu contrato de renta de equipo: ${publicUrl}`);
+            window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+        } finally {
+            setSendingWhatsapp(false);
+        }
     };
 
     if (renta.estado === 'ACTIVA') {

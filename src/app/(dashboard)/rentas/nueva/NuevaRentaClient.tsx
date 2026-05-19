@@ -43,7 +43,10 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                 const url = URL.createObjectURL(file);
                 const img = new window.Image();
                 img.src = url;
-                await new Promise((resolve) => { img.onload = resolve; });
+                await new Promise((resolve, reject) => {
+                    img.onload = () => resolve(null);
+                    img.onerror = () => reject(new Error("Formato de imagen no soportado (ej. HEIC/HEIF de iPhone) o archivo corrupto. Intenta con JPG/PNG."));
+                });
                 URL.revokeObjectURL(url);
 
                 const canvas = document.createElement('canvas');
@@ -57,7 +60,12 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, width, height);
 
-                const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.80));
+                const blob = await new Promise<Blob>((resolve, reject) => {
+                    canvas.toBlob(b => {
+                        if (b) resolve(b);
+                        else reject(new Error("Error al convertir la imagen a Blob."));
+                    }, 'image/jpeg', 0.80);
+                });
 
                 const formData = new FormData();
                 formData.append('file', blob, 'evidencia.jpg');
@@ -67,10 +75,13 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                     const data = await res.json();
                     if (data.url) newUrls.push(data.url);
                 } else {
-                    console.error("Error del servidor al subir foto:", await res.text());
+                    const errorText = await res.text();
+                    console.error("Error del servidor al subir foto:", errorText);
+                    alert(`Error del servidor al subir foto: ${errorText}`);
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Error procesando foto:", err);
+                alert(`Error procesando foto "${file.name}": ${err.message || err}`);
             }
         }
         setEvidenciaFotos(prev => [...prev, ...newUrls]);

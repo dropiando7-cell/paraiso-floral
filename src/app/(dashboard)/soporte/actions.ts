@@ -57,16 +57,23 @@ export async function createOrdenTrabajo(data: {
     const org = await prisma.organization.findFirst();
     if (!org) throw new Error('Organización no encontrada');
 
+    const cleanNombre = data.cliente.trim();
     // Find or create cliente
     let clienteRecord = await prisma.cliente.findFirst({
-        where: { nombre: data.cliente, organizationId: org.id }
+        where: { 
+            organizationId: org.id,
+            nombre: {
+                equals: cleanNombre,
+                mode: 'insensitive'
+            }
+        }
     });
 
     if (!clienteRecord) {
         clienteRecord = await prisma.cliente.create({
             data: {
-                nombre: data.cliente,
-                telefono: data.telefono,
+                nombre: cleanNombre,
+                telefono: data.telefono?.trim() || null,
                 organizationId: org.id
             }
         });

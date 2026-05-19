@@ -34,5 +34,12 @@ export default async function FirmaRentaPage({ params }: { params: Promise<{ id:
 
     if (!renta) redirect('/rentas');
 
-    return <FirmaRentaClient renta={renta as any} />;
+    const rentaSerialized = {
+        ...renta,
+        costoRenta: Number(renta.costoRenta),
+        deposito: Number(renta.deposito),
+        depositoDevuelto: renta.depositoDevuelto ? Number(renta.depositoDevuelto) : null,
+    };
+
+    return <FirmaRentaClient renta={rentaSerialized} />;
 }

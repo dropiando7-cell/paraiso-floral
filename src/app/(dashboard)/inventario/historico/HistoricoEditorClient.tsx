@@ -209,7 +209,7 @@ async function compressAndUpload(file: File, endpoint: 'activo.jpg' | 'placa.jpg
 
     const blob = await new Promise<Blob>((resolve) => canvas.toBlob(b => resolve(b!), 'image/jpeg', 0.85));
 
-    const res = await fetch('/api/upload/inventario', {
+    const res = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileName: endpoint, contentType: 'image/jpeg' }),
@@ -228,7 +228,7 @@ async function compressAndUpload(file: File, endpoint: 'activo.jpg' | 'placa.jpg
 }
 
 async function uploadDirectly(blob: Blob, endpoint: 'activo.jpg' | 'placa.jpg'): Promise<string> {
-    const res = await fetch('/api/upload/inventario', {
+    const res = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fileName: endpoint, contentType: 'image/jpeg' }),
