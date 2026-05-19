@@ -649,7 +649,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   <tr key={m.id} className="hover:bg-blue-50/30 transition-colors group">
                     <td className="px-5 py-3 text-xs text-gray-600 whitespace-nowrap tabular-nums">
                       {(() => {
-                        const dateObj = new Date(m.fecha);
+                        const dateObj = new Date(m.createdAt);
                         const d = String(dateObj.getDate()).padStart(2, '0');
                         const mo = String(dateObj.getMonth() + 1).padStart(2, '0');
                         const y = dateObj.getFullYear();
@@ -1575,7 +1575,7 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {movimientos.filter(m => m.tipo === 'SALIDA').map((m, idx) => {
-                        const dateObj = new Date(m.fecha);
+                        const dateObj = new Date(m.createdAt);
                         const d = String(dateObj.getDate()).padStart(2, '0');
                         const mo = String(dateObj.getMonth() + 1).padStart(2, '0');
                         const y = dateObj.getFullYear();
