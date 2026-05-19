@@ -981,7 +981,7 @@ export async function getActiveUserArea() {
     }
 }
 
-export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number, size: string = '70x40') {
+export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number, size: string = '70x40', impresora: string = 'Niimbot') {
     const orgId = await getOrgId();
 
     // Buscar los ultimos N activos con ese codigo de grupo para la organizacion de forma global
@@ -1037,7 +1037,9 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
             organizationId: orgId,
             activoId: activo.id,
             urlImagen,
-            estado: 'PENDIENTE'
+            estado: 'PENDIENTE',
+            impresora: impresora,
+            tamano: size
         };
     });
 
@@ -1048,7 +1050,7 @@ export async function encolarLoteImpresion(codigoGrupo: string, cantidad: number
     return { success: true, count: countPayload.count };
 }
 
-export async function encolarCopiasNiimbot(activoId: string, cantidad: number, size: string = '70x40') {
+export async function encolarCopiasNiimbot(activoId: string, cantidad: number, size: string = '70x40', impresora: string = 'Niimbot') {
     const orgId = await getOrgId();
 
     const activo = await prisma.activoFijo.findUnique({
@@ -1089,7 +1091,9 @@ export async function encolarCopiasNiimbot(activoId: string, cantidad: number, s
         organizationId: orgId,
         activoId: activo.id,
         urlImagen,
-        estado: 'PENDIENTE'
+        estado: 'PENDIENTE',
+        impresora: impresora,
+        tamano: size
     }));
 
     const countPayload = await prisma.colaImpresion.createMany({

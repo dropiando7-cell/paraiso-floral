@@ -26,9 +26,23 @@ import { DateInput } from '@/components/ui/DateInput';
 import BuscadorOdoo, { OdooAlertPanel } from './BuscadorOdoo';
 
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
-function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number, size: string) => void; isPrinting: boolean }) {
+function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number, size: string, impresora: string) => void; isPrinting: boolean }) {
     const [cantidad, setCantidad] = useState(1);
     const [size, setSize] = useState('50x25');
+    const [impresora, setImpresora] = useState('Niimbot');
+
+    useEffect(() => {
+        const saved = localStorage.getItem('default_printer');
+        if (saved) {
+            setImpresora(saved);
+        }
+    }, []);
+
+    const handlePrinterChange = (newPrinter: string) => {
+        setImpresora(newPrinter);
+        localStorage.setItem('default_printer', newPrinter);
+    };
+
     const searchParams = new URLSearchParams({
         idQr: activo.idQr,
         descripcion: activo.descripcionCorta || '',
@@ -53,7 +67,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                     <div className="bg-blue-100 p-2.5 rounded-xl"><Printer className="w-5 h-5 text-[#0500A3]" /></div>
                     <div>
                         <h3 className="text-xl font-bold text-slate-800 leading-tight">Vista Previa de Etiqueta QR</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Asegúrate de que la impresora NIIMBOT K3 esté conectada y lista.</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Asegúrate de que la impresora {impresora === 'Niimbot' ? 'NIIMBOT K3' : 'TSC TE200'} esté conectada y lista.</p>
                     </div>
                 </div>
                 <div className="mb-4 flex flex-col gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -80,6 +94,17 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                             <option value="50x25">50x25 mm</option>
                         </select>
                     </div>
+                    <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                        <span className="text-sm font-semibold text-slate-700">Impresora:</span>
+                        <select 
+                            value={impresora} 
+                            onChange={(e) => handlePrinterChange(e.target.value)}
+                            className="text-sm font-semibold py-1.5 px-2 rounded-lg border-slate-300 focus:ring-blue-500 bg-white"
+                        >
+                            <option value="Niimbot">NIIMBOT K3</option>
+                            <option value="TSC TE200">TSC TE200</option>
+                        </select>
+                    </div>
                 </div>
                 <div className="border-4 border-slate-100 rounded-xl p-4 bg-slate-50 flex justify-center mb-6 overflow-hidden">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -87,7 +112,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                 </div>
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 font-semibold border-2 border-slate-200 text-slate-600 py-3 rounded-xl hover:bg-slate-50 active:scale-95 transition-all">Cancelar</button>
-                    <button onClick={() => { onPrint(cantidad, size); onClose(); }} disabled={isPrinting} className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#0500A3] text-white hover:bg-[#0600c2] font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
+                    <button onClick={() => { onPrint(cantidad, size, impresora); onClose(); }} disabled={isPrinting} className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#0500A3] text-white hover:bg-[#0600c2] font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
                         {isPrinting ? <Loader2 className="w-5 h-5 animate-spin"/> : <Printer className="w-5 h-5" />} Enviar a Impresora
                     </button>
                 </div>
@@ -1479,6 +1504,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                             const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?${params.toString()}`;
                             
                             // Si el stock es N, encolamos N etiquetas iguales
+                            const defaultPrinter = localStorage.getItem('default_printer') || 'Niimbot';
                             const qtyToPrint = Number(cantidad) || 1;
                             const enqueuePromises = [];
                             for (let i = 0; i < qtyToPrint; i++) {
@@ -1486,7 +1512,12 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                                     fetch('/api/impresion/encolar', {
                                         method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ activoId: result.id, urlImagen }),
+                                        body: JSON.stringify({ 
+                                            activoId: result.id, 
+                                            urlImagen,
+                                            impresora: defaultPrinter,
+                                            tamano: '50x25'
+                                        }),
                                     })
                                 );
                             }
@@ -2463,7 +2494,20 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
     const [grupo, setGrupo] = useState('');
     const [cantidad, setCantidad] = useState('');
     const [size, setSize] = useState('50x25');
+    const [impresora, setImpresora] = useState('Niimbot');
     const [isPending, startTransition] = useTransition();
+
+    useEffect(() => {
+        const saved = localStorage.getItem('default_printer');
+        if (saved) {
+            setImpresora(saved);
+        }
+    }, []);
+
+    const handlePrinterChange = (newPrinter: string) => {
+        setImpresora(newPrinter);
+        localStorage.setItem('default_printer', newPrinter);
+    };
 
     if (!open) return null;
 
@@ -2510,6 +2554,17 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
                             <option value="50x25">50x25 mm</option>
                         </select>
                     </div>
+                    <div>
+                        <FieldLabel required>Impresora</FieldLabel>
+                        <select 
+                            value={impresora} 
+                            onChange={(e) => handlePrinterChange(e.target.value)}
+                            className={selectCls}
+                        >
+                            <option value="Niimbot">NIIMBOT K3</option>
+                            <option value="TSC TE200">TSC TE200</option>
+                        </select>
+                    </div>
                 </div>
 
                 <button onClick={() => startTransition(async () => {
@@ -2517,7 +2572,7 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
                     if (Number(cantidad) < 1) return alert('Cantidad inválida');
 
                     try {
-                        const res = await encolarLoteImpresion(grupo, Number(cantidad), size);
+                        const res = await encolarLoteImpresion(grupo, Number(cantidad), size, impresora);
                         if (res.error) alert(res.error);
                         else {
                             alert(`Se enviaron ${cantidad} etiquetas a la cola de impresión exitosamente.`);
@@ -2852,11 +2907,11 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
 
     // The initial fetch is now handled Serverside on `page.tsx` directly!
 
-    async function handlePrintLabel(activo: Activo, cantidad: number = 1, size: string = '50x25') {
+    async function handlePrintLabel(activo: Activo, cantidad: number = 1, size: string = '50x25', impresora: string = 'Niimbot') {
         setPrintingId(activo.id);
         setPrintStatus('sending');
         try {
-            const result = await encolarCopiasNiimbot(activo.id, cantidad, size);
+            const result = await encolarCopiasNiimbot(activo.id, cantidad, size, impresora);
 
             if (!result.success) throw new Error(result.error || 'Error al encolar impresión');
             
@@ -2892,12 +2947,14 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
         try {
             // Etiqueta de prueba: texto simple "IMPRESION EXITOSA ELIM"
             const urlImagen = `${window.location.origin}/api/impresion/generar-etiqueta?debug=1&idQr=TEST-DEBUG`;
+            const defaultPrinter = localStorage.getItem('default_printer') || 'Niimbot';
             const res = await fetch('/api/impresion/encolar', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     activoId: '00000000-0000-0000-0000-000000000000', // ID placeholder para debug
                     urlImagen,
+                    impresora: defaultPrinter,
                 }),
             });
             if (!res.ok) throw new Error();
@@ -3113,7 +3170,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                     activo={previewActivo}
                     onClose={() => setPreviewActivo(null)}
                     isPrinting={printingId === previewActivo.id && printStatus === 'sending'}
-                    onPrint={(cantidad, size) => handlePrintLabel(previewActivo, cantidad, size)}
+                    onPrint={(cantidad, size, impresora) => handlePrintLabel(previewActivo, cantidad, size, impresora)}
                 />
             )}
 

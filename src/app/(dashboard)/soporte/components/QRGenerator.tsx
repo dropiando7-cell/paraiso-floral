@@ -25,6 +25,18 @@ export default function QRGenerator({
   const [resultado, setResultado] = useState<{ success: boolean; message: string } | null>(null);
 
   useEffect(() => {
+    const saved = localStorage.getItem('default_printer');
+    if (saved) {
+      setImpresora(saved);
+    }
+  }, []);
+
+  const handlePrinterChange = (newPrinter: string) => {
+    setImpresora(newPrinter);
+    localStorage.setItem('default_printer', newPrinter);
+  };
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
@@ -133,7 +145,7 @@ export default function QRGenerator({
             <label className="text-[10px] text-slate-500 font-bold uppercase mb-1 block">Impresora</label>
             <select 
               value={impresora}
-              onChange={(e) => setImpresora(e.target.value)}
+              onChange={(e) => handlePrinterChange(e.target.value)}
               className="w-full text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg p-2 outline-none focus:border-indigo-500"
             >
               <option value="TSC TE200">TSC TE200</option>
