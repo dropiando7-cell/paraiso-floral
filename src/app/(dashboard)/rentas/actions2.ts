@@ -2,17 +2,18 @@
 
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
 
 export async function createRenta(data: FormData) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    if (!user) redirect('/login');
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
         select: { id: true, organizationId: true },
     });
-    if (!dbUser) throw new Error('Unauthorized');
+    if (!dbUser) redirect('/login');
 
     let clienteId = data.get('clienteId') as string;
     const nuevoClienteNombre = data.get('nuevoClienteNombre') as string;
@@ -117,10 +118,10 @@ export async function createRenta(data: FormData) {
 export async function getClientesLista() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    if (!user) redirect('/login');
 
     const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { organizationId: true } });
-    if (!dbUser) return [];
+    if (!dbUser) redirect('/login');
 
     return prisma.cliente.findMany({
         where: { organizationId: dbUser.organizationId },
@@ -132,10 +133,10 @@ export async function getClientesLista() {
 export async function getEquiposDisponibles() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return [];
+    if (!user) redirect('/login');
 
     const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { organizationId: true } });
-    if (!dbUser) return [];
+    if (!dbUser) redirect('/login');
 
     return prisma.activoFijo.findMany({
         where: { 

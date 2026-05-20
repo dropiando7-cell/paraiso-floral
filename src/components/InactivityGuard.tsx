@@ -77,24 +77,62 @@ export function InactivityGuard({ children, enabled = true }: { children: React.
         // --- 2. Inactivity Timers (Solo si está activado) ---
         const handler = () => resetInactivityTimer();
         
+        let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+        
         if (enabled) {
             resetInactivityTimer();
             ACTIVITY_EVENTS.forEach(ev => window.addEventListener(ev, handler, { passive: true }));
         } else {
             clearTimeout(inactivityTimer.current!);
             clearInterval(countdownTimer.current!);
+            
+            // Mantener sesión activa indefinidamente si "Cierre por Inactividad" está desactivado
+            keepAliveTimer = setInterval(async () => {
+                try {
+                    const { error } = await supabase.auth.refreshSession();
+                    if (error) {
+                        console.error("InactivityGuard: Error al refrescar token en keep-alive:", error);
+                    }
+                } catch (e) {
+                    console.error("InactivityGuard: Error en keep-alive de sesión:", e);
+                }
+            }, 10 * 60 * 1000); // Cada 10 minutos
         }
 
         return () => {
             // Limpiar todo al desmontar o cambiar dependencias
             clearTimeout(inactivityTimer.current!);
             clearInterval(countdownTimer.current!);
+            if (keepAliveTimer) clearInterval(keepAliveTimer);
             if (enabled) {
                 ACTIVITY_EVENTS.forEach(ev => window.removeEventListener(ev, handler));
             }
             subscription.unsubscribe();
         };
-    }, [resetInactivityTimer, enabled]);
+    }, [resetInactivityTimer, enabled, router]);
+
+    /* ── Verificar validez de la sesión al enfocar ventana ────────────────── */
+    useEffect(() => {
+        const supabase = createClient();
+        const checkSession = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (!session) {
+                    router.push('/login');
+                }
+            } catch (e) {
+                console.error("InactivityGuard: Error al verificar sesión en focus:", e);
+            }
+        };
+
+        window.addEventListener('focus', checkSession);
+        document.addEventListener('visibilitychange', checkSession);
+
+        return () => {
+            window.removeEventListener('focus', checkSession);
+            document.removeEventListener('visibilitychange', checkSession);
+        };
+    }, [router]);
 
     /* ── Dígitos del countdown ──────────────────────────────────────────── */
     const tens = Math.floor(countdown / 10);

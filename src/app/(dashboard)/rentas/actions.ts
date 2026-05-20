@@ -2,17 +2,18 @@
 
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
 
 export async function getRentas() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    if (!user) redirect('/login');
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
         select: { organizationId: true },
     });
-    if (!dbUser) throw new Error('Unauthorized');
+    if (!dbUser) redirect('/login');
 
     const rentas = await prisma.rentaEquipo.findMany({
         where: { organizationId: dbUser.organizationId },
@@ -29,13 +30,13 @@ export async function getRentas() {
 export async function returnRenta(rentaId: string) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    if (!user) redirect('/login');
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
         select: { id: true, organizationId: true },
     });
-    if (!dbUser) throw new Error('Unauthorized');
+    if (!dbUser) redirect('/login');
 
     // Mover a completado
     const renta = await prisma.rentaEquipo.update({
@@ -68,13 +69,13 @@ export async function editRenta(rentaId: string, payload: {
 }) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    if (!user) redirect('/login');
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
         select: { id: true, organizationId: true },
     });
-    if (!dbUser) throw new Error('Unauthorized');
+    if (!dbUser) redirect('/login');
 
     await prisma.rentaEquipo.update({
         where: { id: rentaId, organizationId: dbUser.organizationId },
@@ -90,13 +91,13 @@ export async function editRenta(rentaId: string, payload: {
 export async function cancelRenta(rentaId: string) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    if (!user) redirect('/login');
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
         select: { id: true, organizationId: true },
     });
-    if (!dbUser) throw new Error('Unauthorized');
+    if (!dbUser) redirect('/login');
 
     const renta = await prisma.rentaEquipo.update({
         where: { id: rentaId, organizationId: dbUser.organizationId },
@@ -121,13 +122,13 @@ export async function cancelRenta(rentaId: string) {
 export async function processRecepcion(data: FormData) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    if (!user) redirect('/login');
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
         select: { id: true, organizationId: true },
     });
-    if (!dbUser) throw new Error('Unauthorized');
+    if (!dbUser) redirect('/login');
 
     const rentaId = data.get('rentaId') as string;
     const recepcionNotas = data.get('recepcionNotas') as string;
