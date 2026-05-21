@@ -314,7 +314,9 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     detalles: {
                         create: lineItems.map((item) => {
                             const basePrice = item.qty * item.unitPrice;
-                            const discountAmt = basePrice * ((item.discount || 0) / 100);
+                            const discountAmt = item.discountType === 'amount'
+                                ? Number(item.discount) || 0
+                                : basePrice * ((Number(item.discount) || 0) / 100);
                             const lineTotal = basePrice - discountAmt;
                             let finalDesc = item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : '');
                             if (item.isSection) {
