@@ -106,7 +106,7 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                     <img
                         src={images[imgIdx]}
                         alt="Vista ampliada"
-                        className="max-h-[90vh] max-w-full object-contain rounded-xl shadow-2xl"
+                        className="w-[600px] max-w-full h-auto max-h-[80vh] object-contain bg-white p-4 rounded-xl shadow-2xl"
                         onClick={e => e.stopPropagation()}
                     />
                     {images.length > 1 && (

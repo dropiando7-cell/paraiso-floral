@@ -26,7 +26,8 @@ export type ProductoPricing = {
   estado: string;
   sinPrecio: boolean;
   tipo: 'PRODUCTO' | 'GRUPO_ACTIVO_FIJO';
-  subActivos?: { idQr: string; serie: string | null; ubicacion: string; stock: number }[];
+  imagenUrl?: string | null;
+  subActivos?: { idQr: string; serie: string | null; ubicacion: string; stock: number; imagenUrl?: string | null }[];
 };
 
 export type ActualizarPrecioInput = {
@@ -98,7 +99,7 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
         include: {
             activosFijos: {
                 where: { estatusContable: 'VIGENTE' },
-                select: { idQr: true, serie: true, area: true, stock: true }
+                select: { idQr: true, serie: true, area: true, stock: true, imagenUrl: true }
             }
         }
     });
@@ -126,7 +127,8 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
             stock: true,
             area: true,
             serie: true,
-            categoria: { select: { nombre: true } }
+            categoria: { select: { nombre: true } },
+            imagenUrl: true
         }
     });
 
@@ -135,7 +137,7 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
 
     for (const activo of activosSinProducto) {
         const desc = activo.descripcionCorta || 'Sin Descripción';
-        const subItem = { idQr: activo.idQr, serie: activo.serie, ubicacion: activo.area || 'Sin asignar', stock: activo.stock || 1 };
+        const subItem = { idQr: activo.idQr, serie: activo.serie, ubicacion: activo.area || 'Sin asignar', stock: activo.stock || 1, imagenUrl: activo.imagenUrl };
 
         if (!grupos.has(desc)) {
             grupos.set(desc, {
@@ -150,12 +152,16 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
                 estado: 'VIGENTE',
                 sinPrecio: true,
                 tipo: 'GRUPO_ACTIVO_FIJO',
+                imagenUrl: activo.imagenUrl || null,
                 subActivos: [subItem]
             });
         } else {
             const actual = grupos.get(desc)!;
             actual.stock += (activo.stock || 1);
             actual.subActivos!.push(subItem);
+            if (!actual.imagenUrl && activo.imagenUrl) {
+                actual.imagenUrl = activo.imagenUrl;
+            }
         }
     }
 
@@ -164,6 +170,8 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
         ...productos.map(p => {
              const sumHijos = p.activosFijos ? p.activosFijos.reduce((acc, curr) => acc + (curr.stock || 1), 0) : 0;
              const finalStock = p.activosFijos && p.activosFijos.length > 0 ? sumHijos : (p.stockActual || 0);
+             const firstAssetWithImg = p.activosFijos?.find(a => a.imagenUrl);
+             const mainImageUrl = firstAssetWithImg?.imagenUrl || null;
              
              return {
                  id: p.id,
@@ -177,11 +185,13 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
                  estado: p.estado,
                  sinPrecio: !p.costoBase || !p.precioVenta,
                  tipo: 'PRODUCTO' as const,
+                 imagenUrl: mainImageUrl,
                  subActivos: p.activosFijos && p.activosFijos.length > 0 ? p.activosFijos.map(a => ({
                      idQr: a.idQr,
                      serie: a.serie,
                      ubicacion: a.area || 'Sin asignar',
-                     stock: a.stock || 1
+                     stock: a.stock || 1,
+                     imagenUrl: a.imagenUrl
                  })) : []
              };
         }),
@@ -293,3 +303,77 @@ export async function crearProducto(data: CrearProductoInput) {
         return { success: false, message: 'Error interno: ' + e.message };
     }
 }
+
+export async function buscarReferenciaOdoo(query: string): Promise<any[]> {
+    const orgId = await getOrgId();
+    if (!query || query.trim().length === 0) return [];
+
+    const searchTerm = query.trim();
+    const keywords = searchTerm.split(/\s+/).filter(Boolean);
+    if (keywords.length === 0) return [];
+
+    const andConditions = keywords.map(keyword => ({
+        OR: [
+            { nombre: { contains: keyword, mode: 'insensitive' as const } },
+            { nombreMostrar: { contains: keyword, mode: 'insensitive' as const } },
+            { codigoBarras: { contains: keyword, mode: 'insensitive' as const } },
+            { referenciaInterna: { contains: keyword, mode: 'insensitive' as const } },
+            { odooId: { contains: keyword, mode: 'insensitive' as const } },
+            { notasInternas: { contains: keyword, mode: 'insensitive' as const } },
+            { descripcionSitioWeb: { contains: keyword, mode: 'insensitive' as const } }
+        ]
+    }));
+
+    try {
+        const odooProducts = await prisma.productoOdoo.findMany({
+            where: {
+                AND: andConditions
+            },
+            take: 30,
+        });
+
+        const results = [];
+        for (const prod of odooProducts) {
+            // Buscar si hay un costo histórico correspondiente en InventarioHistorico
+            let costoHistorico: number | null = null;
+            if (prod.odooId) {
+                const hist = await prisma.inventarioHistorico.findFirst({
+                    where: {
+                        organizationId: orgId,
+                        observaciones: {
+                            contains: `ODOO-${prod.odooId}`
+                        }
+                    },
+                    select: {
+                        costoAdquisicion: true
+                    }
+                });
+                if (hist && hist.costoAdquisicion) {
+                    costoHistorico = hist.costoAdquisicion.toNumber();
+                }
+            }
+
+            results.push({
+                id: prod.id,
+                odooId: prod.odooId,
+                nombre: prod.nombre,
+                nombreMostrar: prod.nombreMostrar,
+                codigoBarras: prod.codigoBarras,
+                notasInternas: prod.notasInternas,
+                cantidadOdoo: prod.cantidadOdoo,
+                descripcionSitioWeb: prod.descripcionSitioWeb,
+                imagenUrl: prod.imagenUrl,
+                pasilloEstante: prod.pasilloEstante,
+                referenciaInterna: prod.referenciaInterna,
+                tipoProducto: prod.tipoProducto,
+                costoHistorico
+            });
+        }
+
+        return results;
+    } catch (error) {
+        console.error("Error al buscar referencia de Odoo:", error);
+        return [];
+    }
+}
+

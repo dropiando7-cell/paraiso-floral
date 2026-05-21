@@ -152,7 +152,7 @@ export default function HistoricoEditorClient() {
                         <img
                             src={previewImage}
                             alt="Vista ampliada"
-                            className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+                            className="w-[600px] max-w-full h-auto max-h-[80vh] object-contain bg-white p-4 rounded-xl shadow-2xl"
                             onClick={(e) => e.stopPropagation()}
                         />
                     </div>

@@ -2464,7 +2464,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                     <img 
                         src={lightboxImage} 
                         alt="Vista Ampliada" 
-                        className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl ring-1 ring-white/10" 
+                        className="w-[600px] max-w-full h-auto max-h-[80vh] object-contain bg-white p-4 rounded-xl shadow-2xl ring-1 ring-white/10" 
                         onClick={(e) => e.stopPropagation()}
                     />
                 </div>
