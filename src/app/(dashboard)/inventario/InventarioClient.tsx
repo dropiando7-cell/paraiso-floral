@@ -1090,7 +1090,8 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         }
     }
 
-    function applyHistoricRecord(record: any) {
+    function applyHistoricRecord(record: any, options?: { skipImage?: boolean }) {
+        const skipImage = options?.skipImage ?? false;
         setSelectedHistorico(record);
         setSearchHistoricoText(record.nombrePropiedad);
         if (record.vidaUtil) {
@@ -1118,8 +1119,11 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
         setDescripcionDetallada(prev => prev || record.descripcionDetallada || '');
         setMarca(prev => prev || record.marca);
         setModelo(prev => prev || record.modelo);
-        if (record.imagenUrl && !imagenUrl) setImagenUrl(record.imagenUrl);
-        if (record.imagenPlacaUrl && !imagenPlacaUrl) setImagenPlacaUrl(record.imagenPlacaUrl);
+        
+        // Use functional state updates to prevent stale closures overwriting fresh image state
+        setImagenUrl(prev => (!skipImage && record.imagenUrl && !prev) ? record.imagenUrl : prev);
+        setImagenPlacaUrl(prev => (record.imagenPlacaUrl && !prev) ? record.imagenPlacaUrl : prev);
+        
         setAiMatchFailed(false);
 
         if (record.cantidad && record.cantidad > 1) {
@@ -1302,7 +1306,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                         if (searchRes.ok) {
                             const historicos = await searchRes.json();
                             if (historicos && historicos.length > 0) {
-                                applyHistoricRecord(historicos[0]);
+                                applyHistoricRecord(historicos[0], { skipImage: true });
                             } else {
                                 setAiMatchFailed(true);
                             }
@@ -1408,7 +1412,7 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                         .then(r => r.json())
                         .then(res => {
                             if (res && res.length > 0) {
-                                applyHistoricRecord(res[0]);
+                                applyHistoricRecord(res[0], { skipImage: true });
                             } else {
                                 setAiMatchFailed(true);
                             }
