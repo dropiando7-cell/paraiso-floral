@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import DocumentBuilderClient from '../DocumentBuilderClient';
-import { getOrganizationId, getDocumentoById } from '../actions';
+import { getAuthenticatedUser, getDocumentoById } from '../actions';
 import { redirect } from 'next/navigation';
 
 import FacturacionHeader from '../FacturacionHeader';
@@ -22,9 +22,13 @@ export default async function EditDocumentPage({
 
     let org = null;
     let doc = null;
+    let userRole = 'USER';
     
     try {
-        const orgId = await getOrganizationId();
+        const authUser = await getAuthenticatedUser();
+        const orgId = authUser.organizationId;
+        userRole = authUser.role;
+
         org = await prisma.organization.findUnique({ 
             where: { id: orgId },
             select: { 
@@ -49,11 +53,18 @@ export default async function EditDocumentPage({
     if (!org) redirect('/dashboard');
     if (!doc && id !== 'nuevo') redirect('/facturas');
 
+    // Restricción: Si el documento es una Factura ya Emitida y no es admin, redirigir a ver
+    if (doc && doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA' && !isClone && !isNotaCredito) {
+        if (userRole !== 'SUPER_ADMIN' && userRole !== 'ORG_ADMIN') {
+            redirect(`/facturas/ver/${id}`);
+        }
+    }
+
     return (
         <div className="bg-slate-50 min-h-screen flex flex-col">
             <FacturacionHeader activeTab={isClone || isNotaCredito ? "creador" : "editar"} isSubPage={true} />
             <div className="p-6 max-w-[1400px] mx-auto w-full">
-               <DocumentBuilderClient organization={org} initialData={doc} editMode={!isClone && !isNotaCredito} isNotaCredito={isNotaCredito} />
+               <DocumentBuilderClient organization={org} initialData={doc} editMode={!isClone && !isNotaCredito} isNotaCredito={isNotaCredito} userRole={userRole} />
             </div>
         </div>
     );

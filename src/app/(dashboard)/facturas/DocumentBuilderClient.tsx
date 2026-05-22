@@ -8,7 +8,7 @@ import {
   Package, Stethoscope, Zap, CheckCircle2, Clock, AlertCircle,
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
-  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid
+  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, Pencil
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
 
@@ -877,13 +877,15 @@ export default function DocumentBuilderClient({
   initialData, 
   editMode = false, 
   viewMode = false,
-  isNotaCredito = false
+  isNotaCredito = false,
+  userRole = 'USER'
 }: { 
   organization?: any;
   initialData?: any;
   editMode?: boolean;
   viewMode?: boolean;
   isNotaCredito?: boolean;
+  userRole?: string;
 }) {
   const [docType, setDocType] = useState<DocType>('cotizacion');
   const [docNumber, setDocNumber] = useState('');
@@ -1077,6 +1079,18 @@ export default function DocumentBuilderClient({
   const searchParams = useSearchParams();
   const [isSaving, setIsSaving] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
+  const [showAdminWarningModal, setShowAdminWarningModal] = useState(false);
+
+  const handleEditClick = () => {
+    if (docType === 'factura' && initialData?.estado === 'EMITIDA') {
+      if (userRole !== 'SUPER_ADMIN' && userRole !== 'ORG_ADMIN') {
+        setShowAdminWarningModal(true);
+        return;
+      }
+    }
+    router.push(`/facturas/${initialData.id}`);
+  };
+
   const [allClients, setAllClients] = useState<Client[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [showSuccessModal, setShowSuccessModal] = useState<{show: boolean, docId: string, correlativo: string, format: string} | null>(null);
@@ -1821,6 +1835,14 @@ export default function DocumentBuilderClient({
           <div className="flex items-center gap-2 shrink-0 ml-auto">
             {!isLocked ? (
               <>
+                {viewMode && !isAnulada && !isConvertida && (docType === 'cotizacion' || docType === 'factura') && (
+                  <button
+                    onClick={handleEditClick}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold hover:shadow-indigo-100 hover:shadow-lg transition-all shadow-sm whitespace-nowrap shrink-0"
+                  >
+                    <Pencil size={15} /> Editar
+                  </button>
+                )}
                 <button
                   onClick={() => setShowActionsModal(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 hover:border-slate-300 transition-all shadow-sm whitespace-nowrap shrink-0"
@@ -1837,7 +1859,7 @@ export default function DocumentBuilderClient({
             ) : (
               <span className="text-sm font-semibold text-slate-400 mr-4 whitespace-nowrap">Selecciona y crea tu documento para comenzar</span>
             )}
-            {!isAnulada && !isLocked && (
+            {!isAnulada && !isLocked && !viewMode && (
               <button 
                 onClick={handleSave}
                 disabled={isSaving}
@@ -2311,6 +2333,30 @@ export default function DocumentBuilderClient({
                 className="flex-[1.5] py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 shadow-lg shadow-red-500/30 transition-all"
               >
                 Sí, Descartar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAdminWarningModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[3000] flex items-center justify-center animate-in fade-in p-4 print:hidden">
+          <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col items-center">
+            <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-amber-50/50">
+              <AlertCircle size={32} className="stroke-[2.5]" />
+            </div>
+            
+            <h3 className="text-2xl font-black text-slate-900 text-center mb-2 tracking-tight">Acceso Restringido</h3>
+            <p className="text-sm text-slate-500 text-center mb-6 font-medium px-2 leading-relaxed">
+              Esta factura ya fue emitida. Solo un rol de administrador tiene privilegios para manipular esta información sensible. Se recomienda anular esta y crear una nueva.
+            </p>
+            
+            <div className="w-full">
+              <button
+                onClick={() => setShowAdminWarningModal(false)}
+                className="w-full py-4 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-2xl shadow-lg transition-all"
+              >
+                Entendido
               </button>
             </div>
           </div>

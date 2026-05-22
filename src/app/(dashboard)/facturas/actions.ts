@@ -248,7 +248,9 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
 // --- ACTUALIZAR DOCUMENTO EXISTENTE (Cotización, Proforma, Factura) ---
 export async function actualizarDocumentoBuilder(id: string, data: any, lineItems: any[]) {
     try {
-        const organizationId = await getOrganizationId();
+        const user = await getAuthenticatedUser();
+        const organizationId = user.organizationId;
+        const userRole = user.role;
 
         // Verificar que el documento existe y pertenece a la organización
         const docExistente = await prisma.factura.findFirst({
@@ -256,6 +258,13 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
         });
         if (!docExistente) throw new Error('Documento no encontrado o sin permisos.');
         if (docExistente.estado === 'ANULADA') throw new Error('No se puede modificar un documento anulado.');
+
+        // Restricción para facturas emitidas
+        if (docExistente.tipoDocumento === 'FACTURA' && docExistente.estado === 'EMITIDA') {
+            if (userRole !== 'SUPER_ADMIN' && userRole !== 'ORG_ADMIN') {
+                throw new Error('Esta factura ya fue emitida. Solo un rol de administrador tiene privilegios para manipular esta información sensible.');
+            }
+        }
 
         let clienteId = data.clienteId;
         if (!clienteId && data.clienteNombre) {

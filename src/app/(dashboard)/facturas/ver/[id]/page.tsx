@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import DocumentBuilderClient from '../../DocumentBuilderClient';
-import { getOrganizationId, getDocumentoById } from '../../actions';
+import { getAuthenticatedUser, getDocumentoById } from '../../actions';
 import { redirect } from 'next/navigation';
 
 import FacturacionHeader from '../../FacturacionHeader';
@@ -12,9 +12,13 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
     const { id } = await params;
     let org = null;
     let doc = null;
+    let userRole = 'USER';
     
     try {
-        const orgId = await getOrganizationId();
+        const authUser = await getAuthenticatedUser();
+        const orgId = authUser.organizationId;
+        userRole = authUser.role;
+
         org = await prisma.organization.findUnique({ 
             where: { id: orgId },
             select: { 
@@ -42,7 +46,7 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
     return (
         <div className="bg-slate-50 min-h-screen print:overflow-visible">
             <FacturacionHeader activeTab="ver" isSubPage={true} />
-            <DocumentBuilderClient organization={org} initialData={doc} viewMode={true} />
+            <DocumentBuilderClient organization={org} initialData={doc} viewMode={true} userRole={userRole} />
         </div>
     );
 }
