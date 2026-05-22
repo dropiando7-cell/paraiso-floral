@@ -29,6 +29,7 @@ export default async function RentasPage() {
         ...renta,
         costoRenta: Number(renta.costoRenta),
         deposito: Number(renta.deposito),
+        depositoDevuelto: renta.depositoDevuelto ? Number(renta.depositoDevuelto) : null,
     }));
 
     return <RentasClient initialRentas={initialRentas} />;

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plus, Package, Calendar, User as UserIcon, CheckCircle2, AlertTriangle, ArrowRightLeft, DollarSign, Clock, Edit2, Trash2, XCircle } from 'lucide-react';
+import { Plus, Package, Calendar, User as UserIcon, CheckCircle2, AlertTriangle, ArrowRightLeft, DollarSign, Clock, Edit2, Trash2, XCircle, FileText } from 'lucide-react';
 import Link from 'next/link';
 import { returnRenta, editRenta, cancelRenta } from './actions';
 
@@ -52,16 +52,16 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
 
     function getStatusBadge(estado: string, fechaFinEsperada: Date) {
         if (estado === 'CANCELADA') {
-            return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-200"><XCircle className="w-3.5 h-3.5" /> Anulada</span>;
+            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600 border border-red-200 whitespace-nowrap"><XCircle className="w-3 h-3" /> Anulada</span>;
         }
 
         if (estado === 'DEVUELTO') {
-            return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600"><CheckCircle2 className="w-3.5 h-3.5" /> Devuelto</span>;
+            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 whitespace-nowrap"><CheckCircle2 className="w-3 h-3" /> Devuelto</span>;
         }
 
         const isOverdue = new Date() > new Date(fechaFinEsperada);
         if (isOverdue) {
-            return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-100 text-red-700 animate-pulse"><AlertTriangle className="w-3.5 h-3.5" /> Vencida</span>;
+            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 animate-pulse whitespace-nowrap"><AlertTriangle className="w-3 h-3" /> Vencida</span>;
         }
 
         const tresDias = new Date();
@@ -69,14 +69,14 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
         const isExpiringSoon = new Date(fechaFinEsperada) <= tresDias;
 
         if (isExpiringSoon) {
-            return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-orange-100 text-orange-700"><AlertTriangle className="w-3.5 h-3.5" /> Por Vencer</span>;
+            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 whitespace-nowrap"><AlertTriangle className="w-3 h-3" /> Por Vencer</span>;
         }
 
         if (estado === 'PENDIENTE_FIRMA') {
-            return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-700"><Clock className="w-3.5 h-3.5" /> Pend. Firma</span>;
+            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 whitespace-nowrap"><Clock className="w-3 h-3" /> Pend. Firma</span>;
         }
 
-        return <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-[#0500A3]"><CheckCircle2 className="w-3.5 h-3.5" /> Activa</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-[#0500A3] whitespace-nowrap"><CheckCircle2 className="w-3 h-3" /> Activa</span>;
     }
 
     return (
@@ -129,10 +129,10 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                             <tr>
                                 <th className="px-5 py-4 font-semibold">Cliente</th>
                                 <th className="px-5 py-4 font-semibold">Equipo Rentado</th>
-                                <th className="px-5 py-4 font-semibold">Fechas</th>
-                                <th className="px-5 py-4 font-semibold">Costo Total</th>
-                                <th className="px-5 py-4 font-semibold">Estado</th>
-                                <th className="px-5 py-4 font-semibold text-right">Acciones</th>
+                                <th className="px-5 py-4 font-semibold whitespace-nowrap">Fechas</th>
+                                <th className="px-5 py-4 font-semibold whitespace-nowrap">Costo Total</th>
+                                <th className="px-5 py-4 font-semibold whitespace-nowrap">Estado</th>
+                                <th className="px-5 py-4 font-semibold text-right whitespace-nowrap">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100">
@@ -158,33 +158,43 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                         <div className="font-semibold text-[#0500A3]">{renta.activoFijo?.descripcionCorta}</div>
                                         <div className="text-xs text-slate-500 mt-0.5">S/N: {renta.activoFijo?.serie || 'N/A'}</div>
                                     </td>
-                                    <td className="px-5 py-4">
+                                    <td className="px-5 py-4 whitespace-nowrap">
                                         <div className="flex flex-col gap-1 text-xs">
                                             <span className="text-slate-600"><span className="font-semibold text-slate-400">Sale:</span> {new Date(renta.fechaInicio).toLocaleDateString()}</span>
                                             <span className="text-slate-800 font-semibold"><span className="font-semibold text-slate-400">Vence:</span> {new Date(renta.fechaFinEsperada).toLocaleDateString()}</span>
                                         </div>
                                     </td>
-                                    <td className="px-5 py-4">
-                                        <div className="font-bold text-emerald-700">L. {Number(renta.costoRenta).toLocaleString('en-US')}</div>
-                                        {Number(renta.deposito) > 0 && <div className="text-[10px] text-slate-500 font-semibold">Depósito: L. {Number(renta.deposito).toLocaleString('en-US')}</div>}
+                                    <td className="px-5 py-4 whitespace-nowrap">
+                                        <div className="font-bold text-emerald-700 whitespace-nowrap">L. {Number(renta.costoRenta).toLocaleString('en-US')}</div>
+                                        {Number(renta.deposito) > 0 && <div className="text-[10px] text-slate-500 font-semibold whitespace-nowrap">Depósito: L. {Number(renta.deposito).toLocaleString('en-US')}</div>}
                                     </td>
-                                    <td className="px-5 py-4">
+                                    <td className="px-5 py-4 whitespace-nowrap">
                                         {getStatusBadge(renta.estado, renta.fechaFinEsperada)}
                                     </td>
-                                    <td className="px-5 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2">
+                                    <td className="px-5 py-4 text-right whitespace-nowrap">
+                                        <div className="flex items-center justify-end gap-1.5 sm:gap-2 whitespace-nowrap">
+                                            {renta.estado !== 'CANCELADA' && (
+                                                <Link 
+                                                    href={`/rentas/${renta.id}/contrato`}
+                                                    target="_blank"
+                                                    className="text-slate-500 hover:text-[#0500A3] p-1.5 rounded-md hover:bg-blue-50 transition-colors shrink-0"
+                                                    title="Imprimir / Vista Previa Contrato"
+                                                >
+                                                    <FileText className="w-4 h-4" />
+                                                </Link>
+                                            )}
                                             {(renta.estado === 'ACTIVA' || renta.estado === 'PENDIENTE_FIRMA') && (
                                                 <>
                                                     <button 
                                                         onClick={() => setEditingRenta(renta)}
-                                                        className="text-slate-500 hover:text-[#0500A3] p-1.5 rounded-md hover:bg-blue-50 transition-colors"
+                                                        className="text-slate-500 hover:text-[#0500A3] p-1.5 rounded-md hover:bg-blue-50 transition-colors shrink-0"
                                                         title="Editar Renta"
                                                     >
                                                         <Edit2 className="w-4 h-4" />
                                                     </button>
                                                     <button 
                                                         onClick={() => setConfirmCancelId(renta.id)}
-                                                        className="text-slate-500 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors"
+                                                        className="text-slate-500 hover:text-red-600 p-1.5 rounded-md hover:bg-red-50 transition-colors shrink-0"
                                                         title="Anular Renta"
                                                     >
                                                         <Trash2 className="w-4 h-4" />
@@ -194,7 +204,7 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                             
                                             <Link 
                                                 href={`/rentas/${renta.id}/pagos`}
-                                                className="text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                                                className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap shrink-0"
                                                 title="Estado de Cuenta / Pagos"
                                             >
                                                 💰 Pagos
@@ -203,7 +213,7 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                             {renta.estado === 'ACTIVA' && (
                                                 <Link 
                                                     href={`/rentas/${renta.id}/recepcion`}
-                                                    className="text-xs font-bold text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+                                                    className="text-[11px] font-bold text-white bg-slate-800 hover:bg-slate-700 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap shrink-0"
                                                 >
                                                     Recibir Equipo
                                                 </Link>
@@ -212,7 +222,7 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                             {renta.estado === 'PENDIENTE_FIRMA' && (
                                                 <Link 
                                                     href={`/rentas/${renta.id}/firma`}
-                                                    className="text-xs font-bold text-white bg-[#0500A3] hover:bg-blue-800 px-3 py-1.5 rounded-lg transition-colors"
+                                                    className="text-[11px] font-bold text-white bg-[#0500A3] hover:bg-blue-800 px-2.5 py-1 rounded-lg transition-colors whitespace-nowrap shrink-0"
                                                 >
                                                     Completar Firma
                                                 </Link>

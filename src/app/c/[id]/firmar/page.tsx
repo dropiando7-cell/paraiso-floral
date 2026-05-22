@@ -35,5 +35,12 @@ export default async function FirmaPublicaPage({ params }: { params: Promise<{ i
         );
     }
 
-    return <FirmaClient renta={renta as any} />;
+    const rentaSerialized = {
+        ...renta,
+        costoRenta: Number(renta.costoRenta),
+        deposito: Number(renta.deposito),
+        depositoDevuelto: renta.depositoDevuelto ? Number(renta.depositoDevuelto) : null,
+    };
+
+    return <FirmaClient renta={rentaSerialized as any} />;
 }
