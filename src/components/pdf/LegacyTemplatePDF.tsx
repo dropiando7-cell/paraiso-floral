@@ -465,6 +465,178 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
           </View>
         </View>
 
+        {/* Signatures and Seals Section */}
+        {settings?.showSignatures && (
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', marginTop: 35, marginBottom: 15, position: 'relative' }} wrap={false}>
+            {/* Company Seal (Center) */}
+            {settings.showSeals && settings.showCompanySeal !== false && (settings.companySealPosition === 'center') && images['seal_company'] && (
+              <Image 
+                src={images['seal_company']} 
+                style={{ 
+                  position: 'absolute', 
+                  left: '50%', 
+                  marginLeft: -((settings.sealSize || 112) / 2),
+                  top: -10, 
+                  width: settings.sealSize || 112, 
+                  height: settings.sealSize || 112, 
+                  opacity: 0.75 
+                }} 
+              />
+            )}
+
+            {/* Company Seal (Right) */}
+            {settings.showSeals && settings.showCompanySeal !== false && (settings.companySealPosition === 'right') && images['seal_company'] && (
+              <Image 
+                src={images['seal_company']} 
+                style={{ 
+                  position: 'absolute', 
+                  right: 10, 
+                  top: -10, 
+                  width: settings.sealSize || 112, 
+                  height: settings.sealSize || 112, 
+                  opacity: 0.75 
+                }} 
+              />
+            )}
+
+            {/* Status Seal (Center) */}
+            {settings.showSeals && settings.selectedStatusSeal && settings.selectedStatusSeal !== 'none' && (settings.statusSealPosition === 'center') && images[`seal_${settings.selectedStatusSeal}`] && (
+              <Image 
+                src={images[`seal_${settings.selectedStatusSeal}`]} 
+                style={{ 
+                  position: 'absolute', 
+                  left: '50%', 
+                  marginLeft: -((settings.sealSize || 112) / 2),
+                  top: -10, 
+                  width: settings.sealSize || 112, 
+                  height: settings.sealSize || 112, 
+                  opacity: 0.8 
+                }} 
+              />
+            )}
+
+            {/* Emilia Zapata Column */}
+            {settings.showEmiliaZapata !== false && (
+              <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 20, position: 'relative' }}>
+                {/* Company Seal on Emilia */}
+                {settings.showSeals && settings.showCompanySeal !== false && settings.companySealPosition === 'emilia' && images['seal_company'] && (
+                  <Image 
+                    src={images['seal_company']} 
+                    style={{ 
+                      position: 'absolute', 
+                      top: -15, 
+                      width: settings.sealSize || 112, 
+                      height: settings.sealSize || 112, 
+                      opacity: 0.75 
+                    }} 
+                  />
+                )}
+                {/* Status Seal on Emilia */}
+                {settings.showSeals && settings.selectedStatusSeal && settings.selectedStatusSeal !== 'none' && settings.statusSealPosition === 'emilia' && images[`seal_${settings.selectedStatusSeal}`] && (
+                  <Image 
+                    src={images[`seal_${settings.selectedStatusSeal}`]} 
+                    style={{ 
+                      position: 'absolute', 
+                      top: -15, 
+                      width: settings.sealSize || 112, 
+                      height: settings.sealSize || 112, 
+                      opacity: 0.8 
+                    }} 
+                  />
+                )}
+                {images['signature_emilia'] ? (
+                  <Image 
+                    src={images['signature_emilia']} 
+                    style={{ 
+                      height: settings.signatureHeight || 64, 
+                      objectFit: 'contain', 
+                      marginBottom: 2, 
+                      position: 'relative', 
+                      top: settings.signatureSpacing || 0 
+                    }} 
+                  />
+                ) : (
+                  <View style={{ height: settings.signatureHeight || 64 }} />
+                )}
+                <View style={{ width: '100%', borderTopWidth: 1, borderTopColor: '#9ca3af', marginVertical: 3 }} />
+                <Text style={{ fontSize: 9, fontFamily: 'Inter', fontWeight: 700, color: '#1f2937' }}>Ing. Emilia Zapata</Text>
+                <Text style={{ fontSize: 7, color: '#4b5563' }}>Jefa del departamento de Biomédica</Text>
+              </View>
+            )}
+
+            {/* Manuel Tejada Column */}
+            {settings.showManuelTejada !== false && (
+              <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 20, position: 'relative' }}>
+                {/* Company Seal on Manuel */}
+                {settings.showSeals && settings.showCompanySeal !== false && settings.companySealPosition === 'manuel' && images['seal_company'] && (
+                  <Image 
+                    src={images['seal_company']} 
+                    style={{ 
+                      position: 'absolute', 
+                      top: -15, 
+                      width: settings.sealSize || 112, 
+                      height: settings.sealSize || 112, 
+                      opacity: 0.75 
+                    }} 
+                  />
+                )}
+                {/* Status Seal on Manuel */}
+                {settings.showSeals && settings.selectedStatusSeal && settings.selectedStatusSeal !== 'none' && settings.statusSealPosition === 'manuel' && images[`seal_${settings.selectedStatusSeal}`] && (
+                  <Image 
+                    src={images[`seal_${settings.selectedStatusSeal}`]} 
+                    style={{ 
+                      position: 'absolute', 
+                      top: -15, 
+                      width: settings.sealSize || 112, 
+                      height: settings.sealSize || 112, 
+                      opacity: 0.8 
+                    }} 
+                  />
+                )}
+                {images['signature_manuel'] ? (
+                  <Image 
+                    src={images['signature_manuel']} 
+                    style={{ 
+                      height: settings.signatureHeight || 64, 
+                      objectFit: 'contain', 
+                      marginBottom: 2, 
+                      position: 'relative', 
+                      top: settings.signatureSpacing || 0 
+                    }} 
+                  />
+                ) : (
+                  <View style={{ height: settings.signatureHeight || 64 }} />
+                )}
+                <View style={{ width: '100%', borderTopWidth: 1, borderTopColor: '#9ca3af', marginVertical: 3 }} />
+                <Text style={{ fontSize: 9, fontFamily: 'Inter', fontWeight: 700, color: '#1f2937' }}>Ing. Manuel Tejada</Text>
+                <Text style={{ fontSize: 7, color: '#4b5563' }}>Gerente General</Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Fallback Company Seal when signatures are off but seals are on */}
+        {!settings?.showSignatures && settings?.showSeals && settings?.showCompanySeal !== false && images['seal_company'] && (
+          <View style={{ alignItems: 'center', marginTop: 25, marginBottom: 15 }} wrap={false}>
+            <Image src={images['seal_company']} style={{ width: settings.sealSize || 112, height: settings.sealSize || 112, opacity: 0.8 }} />
+          </View>
+        )}
+
+        {/* Status Seal (CANCELADO / ENTREGADO) positioned absolutely on the page */}
+        {settings?.showSeals && settings?.selectedStatusSeal && settings?.selectedStatusSeal !== 'none' && settings.statusSealPosition === 'right' && images[`seal_${settings.selectedStatusSeal}`] && (
+          <Image 
+            src={images[`seal_${settings.selectedStatusSeal}`]} 
+            style={{ 
+              position: 'absolute', 
+              right: 60, 
+              bottom: 120, 
+              width: settings.sealSize || 112, 
+              height: settings.sealSize || 112, 
+              opacity: 0.8 
+            }} 
+          />
+        )}
+
         <View style={[styles.pageFooter, { paddingTop: 4 }]} fixed>
           <Text style={{ fontSize: settings?.footerFontSize || 8 }}>
             {[

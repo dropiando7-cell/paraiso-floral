@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import React from 'react';
 import { renderToStream } from '@react-pdf/renderer';
 import LegacyTemplatePDF from '@/components/pdf/LegacyTemplatePDF';
+import { DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 
 // We need to set max duration since Vercel's default 10s might be too short 
 export const maxDuration = 60;
@@ -122,10 +123,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     ];
     const currentDocType = DOC_TYPES.find(d => d.key === doc.tipoDocumento.toLowerCase()) || DOC_TYPES[0];
 
+    const docSettings = (doc as any).templateSettings || {};
+    const orgSettings = (org as any).invoiceSettings || {};
+    const settings = { ...DEFAULT_INVOICE_SETTINGS, ...orgSettings, ...docSettings };
+
     // Build the data object 
     const templateData = {
       organization: org,
-      settings: (org as any).invoiceSettings || {},
+      settings: settings,
       docNumber: (doc as any).correlativo || (doc as any).numeroDocumento || 'PENDIENTE',
       currentDocType,
       selectedClient: doc.cliente ? {
@@ -215,6 +220,73 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       if (item.imageUrl) {
         const itemImageBase64 = await fetchImageAsBase64(item.imageUrl);
         if (itemImageBase64) images[item.id] = itemImageBase64;
+      }
+    }
+
+    // Load signatures and seals if enabled
+    const getLocalOrRemoteImage = async (url: string) => {
+      try {
+        if (url.startsWith('/')) {
+          const fs = await import('fs');
+          const path = await import('path');
+          const localPath = path.join(process.cwd(), 'public', url);
+          if (fs.existsSync(localPath)) {
+            let buffer = fs.readFileSync(localPath);
+            
+            // Process signature and seal images to make their white background transparent
+            try {
+              const sharp = (await import('sharp')).default;
+              const image = sharp(buffer);
+              const { data, info } = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+              for (let i = 0; i < data.length; i += 4) {
+                // If pixel is white/near-white, make it transparent
+                if (data[i] > 240 && data[i+1] > 240 && data[i+2] > 240) {
+                  data[i+3] = 0;
+                }
+              }
+              buffer = (await sharp(data as any, {
+                raw: {
+                  width: info.width,
+                  height: info.height,
+                  channels: 4
+                }
+              }).png().toBuffer()) as any;
+            } catch (sharpErr) {
+              console.warn('Failed to process image transparency with sharp:', sharpErr);
+            }
+
+            const contentType = 'image/png';
+            return `data:${contentType};base64,${buffer.toString('base64')}`;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to read local image, trying fetch:', err);
+      }
+      return fetchImageAsBase64(url);
+    };
+
+    if (settings.showSignatures) {
+      if (settings.showEmiliaZapata !== false) {
+        const emiliaBase64 = await getLocalOrRemoteImage('/firmas-sellos/firma emilia zapata.png');
+        if (emiliaBase64) images['signature_emilia'] = emiliaBase64;
+      }
+      if (settings.showManuelTejada !== false) {
+        const manuelBase64 = await getLocalOrRemoteImage('/firmas-sellos/firma Ing Manuel Tejada.png');
+        if (manuelBase64) images['signature_manuel'] = manuelBase64;
+      }
+    }
+
+    if (settings.showSeals) {
+      if (settings.showCompanySeal !== false) {
+        const companySealBase64 = await getLocalOrRemoteImage('/firmas-sellos/SELLO DE BIOELECTRONICA.png');
+        if (companySealBase64) images['seal_company'] = companySealBase64;
+      }
+      if (settings.selectedStatusSeal === 'cancelado') {
+        const canceladoBase64 = await getLocalOrRemoteImage('/firmas-sellos/SELLO DE CANCELADO.png');
+        if (canceladoBase64) images['seal_cancelado'] = canceladoBase64;
+      } else if (settings.selectedStatusSeal === 'entregado') {
+        const entregadoBase64 = await getLocalOrRemoteImage('/firmas-sellos/SELLO DE ENTREGADO.png');
+        if (entregadoBase64) images['seal_entregado'] = entregadoBase64;
       }
     }
 

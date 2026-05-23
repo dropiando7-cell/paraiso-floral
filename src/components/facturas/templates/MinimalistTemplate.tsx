@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, Plus, Percent, Stethoscope } from 'lucide-react';
 import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
+import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 
 export default function MinimalistTemplate(props: TemplateProps) {
  const {
@@ -262,6 +263,9 @@ export default function MinimalistTemplate(props: TemplateProps) {
 
  {/* Spacer to push footer down in html2canvas */}
  <div className="flex-1 print:hidden" />
+
+ {/* Signatures and Seals */}
+ <InvoiceSignaturesAndSeals settings={settings} />
 
  {/* Footer */}
  <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:px-12" />

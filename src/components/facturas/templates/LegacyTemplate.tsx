@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search, Plus } from 'lucide-react';
 import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
+import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 
 export default function LegacyTemplate(props: TemplateProps) {
  const {
@@ -320,6 +321,9 @@ export default function LegacyTemplate(props: TemplateProps) {
 
  {/* Spacer to push the footer naturally in flex views if needed */}
  <div className="flex-1" />
+
+ {/* Signatures and Seals */}
+ <InvoiceSignaturesAndSeals settings={settings} />
 
  {/* Footer */}
  <InvoiceFooter

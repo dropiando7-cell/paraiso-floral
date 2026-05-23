@@ -2,6 +2,7 @@ import React from 'react';
 import { Search, Plus, CheckCircle2, Receipt, Send, Sparkles, Copy, Printer, Mail, Percent, Stethoscope } from 'lucide-react';
 import { TemplateProps } from './TemplateProps';
 import InvoiceFooter from './InvoiceFooter';
+import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 
 export default function ModernTemplate(props: TemplateProps) {
  const {
@@ -357,6 +358,9 @@ export default function ModernTemplate(props: TemplateProps) {
  
  {/* Spacer to push footer to bottom in html2canvas */}
  <div className="flex-1 print:hidden" />
+
+ {/* Signatures and Seals */}
+ <InvoiceSignaturesAndSeals settings={settings} />
 
  {/* Footer */}
  <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0" />

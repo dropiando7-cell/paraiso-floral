@@ -50,6 +50,18 @@ export interface InvoiceSettings {
   serviceIconColor?: string;
   // State persistence
   activeCustomTemplateId?: string;
+  // Signatures and Seals
+  showSignatures?: boolean;
+  showEmiliaZapata?: boolean;
+  showManuelTejada?: boolean;
+  showSeals?: boolean;
+  showCompanySeal?: boolean;
+  selectedStatusSeal?: 'none' | 'cancelado' | 'entregado';
+  signatureHeight?: number;
+  sealSize?: number;
+  companySealPosition?: 'manuel' | 'emilia' | 'center' | 'right';
+  statusSealPosition?: 'right' | 'manuel' | 'emilia' | 'center';
+  signatureSpacing?: number;
 }
 
 export interface CustomInvoiceTemplate {
@@ -91,4 +103,16 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   sectionBgColor: '#f1f5f9',
   sectionTextColor: '#1e293b',
   serviceIconColor: '#0500A3',
+  // Signatures and Seals defaults
+  showSignatures: false,
+  showEmiliaZapata: true,
+  showManuelTejada: true,
+  showSeals: false,
+  showCompanySeal: true,
+  selectedStatusSeal: 'none',
+  signatureHeight: 64,
+  sealSize: 112,
+  companySealPosition: 'manuel',
+  statusSealPosition: 'right',
+  signatureSpacing: 0,
 };

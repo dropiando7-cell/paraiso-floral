@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling, CheckCircle2, AlertTriangle, FileSignature } from 'lucide-react';
 import { InvoiceSettings, TemplateLayout, LogoPosition, LogoSize, CustomInvoiceTemplate } from '@/types/invoice';
 import { getInvoiceTemplates, guardarInvoiceTemplate, eliminarInvoiceTemplate } from '@/app/(dashboard)/facturas/actions';
 import toast from 'react-hot-toast';
@@ -200,7 +200,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
           { id: 'font',     icon: <Type size={15} />,           label: 'Fuente' },
           { id: 'sizes',    icon: <Scaling size={15} />,        label: 'Tamaños' },
           { id: 'logo',     icon: <ImageIcon size={15} />,      label: 'Logo' },
-          { id: 'footer',   icon: <PanelBottom size={15} />,    label: 'Footer' },
+          { id: 'footer',   icon: <PanelBottom size={15} />,    label: 'Footer / Firmas' },
         ] as const).map(tab => (
           <button
             key={tab.id}
@@ -908,6 +908,211 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                 </div>
                 {settings.footerNota && <p className="text-[9px] text-slate-500 italic">{settings.footerNota}</p>}
                 {settings.footerMostrarPagina && <p className="text-[9px] text-slate-400">Página: 1/1</p>}
+              </div>
+            </div>
+
+            {/* Firmas y Sellos Section */}
+            <div className="pt-4 border-t border-slate-200 mt-6 space-y-4">
+              <h3 className="text-[10px] font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                <FileSignature size={12} className="text-blue-600" /> Firmas y Sellos
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Habilita firmas de responsables y sellos de Bioelectrónica en la parte inferior del documento.
+              </p>
+
+              {/* Firmas Area */}
+              <div className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Mostrar Firmas</p>
+                    <p className="text-[10px] text-slate-400">Mostrar firmas de responsables</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('showSignatures', !settings.showSignatures)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.showSignatures ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.showSignatures ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                {settings.showSignatures && (
+                  <div className="pt-3 border-t border-slate-100 space-y-3">
+                    {/* Toggle Emilia Zapata */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-700">Ing. Emilia Zapata</p>
+                        <p className="text-[10px] text-slate-400">Jefa de Biomédica</p>
+                      </div>
+                      <button
+                        onClick={() => onChange('showEmiliaZapata', settings.showEmiliaZapata !== false ? false : true)}
+                        className={`w-8 h-4 rounded-full transition-all relative ${
+                          settings.showEmiliaZapata !== false ? 'bg-blue-500' : 'bg-slate-200'
+                        }`}
+                      >
+                        <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${
+                          settings.showEmiliaZapata !== false ? 'left-4' : 'left-0.5'
+                        }`} />
+                      </button>
+                    </div>
+
+                    {/* Toggle Manuel Tejada */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-700">Ing. Manuel Tejada</p>
+                        <p className="text-[10px] text-slate-400">Gerente General</p>
+                      </div>
+                      <button
+                        onClick={() => onChange('showManuelTejada', settings.showManuelTejada !== false ? false : true)}
+                        className={`w-8 h-4 rounded-full transition-all relative ${
+                          settings.showManuelTejada !== false ? 'bg-blue-500' : 'bg-slate-200'
+                        }`}
+                      >
+                        <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${
+                          settings.showManuelTejada !== false ? 'left-4' : 'left-0.5'
+                        }`} />
+                      </button>
+                    </div>
+
+                    {/* Slider for Signature height */}
+                    <div className="space-y-1 pt-2 border-t border-slate-100">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alto de Firmas</label>
+                        <span className="text-[10px] font-bold text-slate-700">{settings.signatureHeight ?? 64}px</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="30" max="120" step="2"
+                        value={settings.signatureHeight ?? 64}
+                        onChange={e => onChange('signatureHeight', Number(e.target.value))}
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Slider for Signature spacing (Margin Top) */}
+                    <div className="space-y-1 pt-2 border-t border-slate-100">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ajuste Vertical Firmas</label>
+                        <span className="text-[10px] font-bold text-slate-700">{settings.signatureSpacing ?? 0}px</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="-60" max="60" step="1"
+                        value={settings.signatureSpacing ?? 0}
+                        onChange={e => onChange('signatureSpacing', Number(e.target.value))}
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sellos Area */}
+              <div className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Mostrar Sellos</p>
+                    <p className="text-[10px] text-slate-400">Habilitar sellos en el documento</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('showSeals', !settings.showSeals)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.showSeals ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.showSeals ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                {settings.showSeals && (
+                  <div className="pt-3 border-t border-slate-100 space-y-3">
+                    {/* Toggle Sello de la Empresa */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-slate-700">Sello Bioelectrónica</p>
+                        <p className="text-[10px] text-slate-400">Sello oficial de la empresa</p>
+                      </div>
+                      <button
+                        onClick={() => onChange('showCompanySeal', settings.showCompanySeal !== false ? false : true)}
+                        className={`w-8 h-4 rounded-full transition-all relative ${
+                          settings.showCompanySeal !== false ? 'bg-blue-500' : 'bg-slate-200'
+                        }`}
+                      >
+                        <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${
+                          settings.showCompanySeal !== false ? 'left-4' : 'left-0.5'
+                        }`} />
+                      </button>
+                    </div>
+
+                    {/* Sello de Estado Select */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Sello de Estado</label>
+                      <select
+                        value={settings.selectedStatusSeal || 'none'}
+                        onChange={e => onChange('selectedStatusSeal', e.target.value)}
+                        className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-slate-700 cursor-pointer"
+                      >
+                        <option value="none">Ninguno</option>
+                        <option value="entregado">Entregado (Azul/Verde)</option>
+                        <option value="cancelado">Cancelado (Rojo)</option>
+                      </select>
+                    </div>
+
+                    {/* Slider for Seal size */}
+                    <div className="space-y-1 pt-2 border-t border-slate-100">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Tamaño de Sellos</label>
+                        <span className="text-[10px] font-bold text-slate-700">{settings.sealSize ?? 112}px</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="50" max="180" step="2"
+                        value={settings.sealSize ?? 112}
+                        onChange={e => onChange('sealSize', Number(e.target.value))}
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Company Seal Alignment Position Select */}
+                    {settings.showCompanySeal !== false && (
+                      <div className="space-y-1 pt-2 border-t border-slate-100">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Alineación Sello Empresa</label>
+                        <select
+                          value={settings.companySealPosition || 'manuel'}
+                          onChange={e => onChange('companySealPosition', e.target.value as any)}
+                          className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-slate-700 cursor-pointer"
+                        >
+                          <option value="manuel">Encima de Manuel Tejada</option>
+                          <option value="emilia">Encima de Emilia Zapata</option>
+                          <option value="center">Centrado (Medio)</option>
+                          <option value="right">Esquina Derecha</option>
+                        </select>
+                      </div>
+                    )}
+
+                    {/* Status Seal Alignment Position Select */}
+                    {settings.selectedStatusSeal !== 'none' && (
+                      <div className="space-y-1 pt-2 border-t border-slate-100">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Ubicación Sello de Estado</label>
+                        <select
+                          value={settings.statusSealPosition || 'right'}
+                          onChange={e => onChange('statusSealPosition', e.target.value as any)}
+                          className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-slate-700 cursor-pointer"
+                        >
+                          <option value="right">Esquina Superior Derecha</option>
+                          <option value="center">Centrado (Medio)</option>
+                          <option value="manuel">Sobre Manuel Tejada</option>
+                          <option value="emilia">Sobre Emilia Zapata</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
