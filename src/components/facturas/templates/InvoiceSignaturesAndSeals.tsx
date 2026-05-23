@@ -99,7 +99,7 @@ export default function InvoiceSignaturesAndSeals({ settings }: InvoiceSignature
                   />
                 </div>
               )}
-              <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: `${signatureHeight}px` }}>
+              <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: '64px' }}>
                 <img 
                   src="/firmas-sellos/firma emilia zapata.png" 
                   alt="Firma Ing. Emilia Zapata" 
@@ -145,7 +145,7 @@ export default function InvoiceSignaturesAndSeals({ settings }: InvoiceSignature
                   />
                 </div>
               )}
-              <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: `${signatureHeight}px` }}>
+              <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: '64px' }}>
                 <img 
                   src="/firmas-sellos/firma Ing Manuel Tejada.png" 
                   alt="Firma Ing. Manuel Tejada" 

@@ -985,7 +985,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                       </div>
                       <input 
                         type="range" 
-                        min="30" max="120" step="2"
+                        min="30" max="200" step="2"
                         value={settings.signatureHeight ?? 64}
                         onChange={e => onChange('signatureHeight', Number(e.target.value))}
                         className="w-full accent-blue-600 cursor-pointer"
@@ -1071,7 +1071,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                       </div>
                       <input 
                         type="range" 
-                        min="50" max="180" step="2"
+                        min="50" max="250" step="2"
                         value={settings.sealSize ?? 112}
                         onChange={e => onChange('sealSize', Number(e.target.value))}
                         className="w-full accent-blue-600 cursor-pointer"

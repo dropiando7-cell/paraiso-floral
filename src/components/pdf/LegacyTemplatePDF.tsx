@@ -544,20 +544,19 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                     }} 
                   />
                 )}
-                {images['signature_emilia'] ? (
-                  <Image 
-                    src={images['signature_emilia']} 
-                    style={{ 
-                      height: settings.signatureHeight || 64, 
-                      objectFit: 'contain', 
-                      marginBottom: 2, 
-                      position: 'relative', 
-                      top: settings.signatureSpacing || 0 
-                    }} 
-                  />
-                ) : (
-                  <View style={{ height: settings.signatureHeight || 64 }} />
-                )}
+                <View style={{ height: 64, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
+                  {images['signature_emilia'] && (
+                    <Image 
+                      src={images['signature_emilia']} 
+                      style={{ 
+                        height: settings.signatureHeight || 64, 
+                        objectFit: 'contain', 
+                        position: 'relative', 
+                        top: settings.signatureSpacing || 0 
+                      }} 
+                    />
+                  )}
+                </View>
                 <View style={{ width: '100%', borderTopWidth: 1, borderTopColor: '#9ca3af', marginVertical: 3 }} />
                 <Text style={{ fontSize: 9, fontFamily: 'Inter', fontWeight: 700, color: '#1f2937' }}>Ing. Emilia Zapata</Text>
                 <Text style={{ fontSize: 7, color: '#4b5563' }}>Jefa del departamento de Biomédica</Text>
@@ -593,20 +592,19 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                     }} 
                   />
                 )}
-                {images['signature_manuel'] ? (
-                  <Image 
-                    src={images['signature_manuel']} 
-                    style={{ 
-                      height: settings.signatureHeight || 64, 
-                      objectFit: 'contain', 
-                      marginBottom: 2, 
-                      position: 'relative', 
-                      top: settings.signatureSpacing || 0 
-                    }} 
-                  />
-                ) : (
-                  <View style={{ height: settings.signatureHeight || 64 }} />
-                )}
+                <View style={{ height: 64, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
+                  {images['signature_manuel'] && (
+                    <Image 
+                      src={images['signature_manuel']} 
+                      style={{ 
+                        height: settings.signatureHeight || 64, 
+                        objectFit: 'contain', 
+                        position: 'relative', 
+                        top: settings.signatureSpacing || 0 
+                      }} 
+                    />
+                  )}
+                </View>
                 <View style={{ width: '100%', borderTopWidth: 1, borderTopColor: '#9ca3af', marginVertical: 3 }} />
                 <Text style={{ fontSize: 9, fontFamily: 'Inter', fontWeight: 700, color: '#1f2937' }}>Ing. Manuel Tejada</Text>
                 <Text style={{ fontSize: 7, color: '#4b5563' }}>Gerente General</Text>
