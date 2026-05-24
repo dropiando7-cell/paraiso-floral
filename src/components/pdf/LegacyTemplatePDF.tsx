@@ -1,5 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { SignatureItem } from '@/types/invoice';
 
 // Register Inter font
 Font.register({
@@ -217,6 +218,12 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
   const logoSizePx = settings?.logoSize === 'small' ? 64 : settings?.logoSize === 'large' ? 144 : 112;
   const isCenter = settings?.logoPosition === 'center';
   const isRight = settings?.logoPosition === 'right';
+
+  const signaturesList: SignatureItem[] = settings?.signaturesList || [
+    { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: settings?.showEmiliaZapata !== false },
+    { id: 'manuel', name: 'Ing. Manuel Tejada', role: 'Gerente General', imageUrl: '/firmas-sellos/firma Ing Manuel Tejada.png', enabled: settings?.showManuelTejada !== false }
+  ];
+  const activeSigs = signaturesList.filter(sig => sig.enabled);
 
   const tableBorderColor = settings?.tableBorderColor || '#1e293b';
   const tableBorderThickness = settings?.tableBorderThickness ? parseInt(settings.tableBorderThickness) : 1;
@@ -466,7 +473,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
         </View>
 
         {/* Signatures and Seals Section */}
-        {settings?.showSignatures && (
+        {settings?.showSignatures && activeSigs.length > 0 && (
           <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', marginTop: 35, marginBottom: 15, position: 'relative' }} wrap={false}>
             {/* Company Seal (Center) */}
             {settings.showSeals && settings.showCompanySeal !== false && (settings.companySealPosition === 'center') && images['seal_company'] && (
@@ -515,101 +522,56 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
               />
             )}
 
-            {/* Emilia Zapata Column */}
-            {settings.showEmiliaZapata !== false && (
-              <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 20, position: 'relative' }}>
-                {/* Company Seal on Emilia */}
-                {settings.showSeals && settings.showCompanySeal !== false && settings.companySealPosition === 'emilia' && images['seal_company'] && (
-                  <Image 
-                    src={images['seal_company']} 
-                    style={{ 
-                      position: 'absolute', 
-                      top: -15, 
-                      width: settings.sealSize || 112, 
-                      height: settings.sealSize || 112, 
-                      opacity: 0.75 
-                    }} 
-                  />
-                )}
-                {/* Status Seal on Emilia */}
-                {settings.showSeals && settings.selectedStatusSeal && settings.selectedStatusSeal !== 'none' && settings.statusSealPosition === 'emilia' && images[`seal_${settings.selectedStatusSeal}`] && (
-                  <Image 
-                    src={images[`seal_${settings.selectedStatusSeal}`]} 
-                    style={{ 
-                      position: 'absolute', 
-                      top: -15, 
-                      width: settings.sealSize || 112, 
-                      height: settings.sealSize || 112, 
-                      opacity: 0.8 
-                    }} 
-                  />
-                )}
-                <View style={{ height: 64, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
-                  {images['signature_emilia'] && (
+            {/* Dynamic Signatures Columns */}
+            {activeSigs.map((sig) => {
+              const columnWidth = activeSigs.length <= 2 ? '40%' : '28%';
+              return (
+                <View key={sig.id} style={{ width: columnWidth, alignItems: 'center', marginHorizontal: 15, position: 'relative' }}>
+                  {/* Company Seal on top of this signature */}
+                  {settings.showSeals && settings.showCompanySeal !== false && settings.companySealPosition === sig.id && images['seal_company'] && (
                     <Image 
-                      src={images['signature_emilia']} 
+                      src={images['seal_company']} 
                       style={{ 
-                        height: settings.signatureHeight || 64, 
-                        objectFit: 'contain', 
-                        position: 'relative', 
-                        top: settings.signatureSpacing || 0 
+                        position: 'absolute', 
+                        top: -15, 
+                        width: settings.sealSize || 112, 
+                        height: settings.sealSize || 112, 
+                        opacity: 0.75 
                       }} 
                     />
                   )}
-                </View>
-                <View style={{ width: '100%', borderTopWidth: 1, borderTopColor: '#9ca3af', marginVertical: 3 }} />
-                <Text style={{ fontSize: 9, fontFamily: 'Inter', fontWeight: 700, color: '#1f2937' }}>Ing. Emilia Zapata</Text>
-                <Text style={{ fontSize: 7, color: '#4b5563' }}>Jefa del departamento de Biomédica</Text>
-              </View>
-            )}
-
-            {/* Manuel Tejada Column */}
-            {settings.showManuelTejada !== false && (
-              <View style={{ flex: 1, alignItems: 'center', marginHorizontal: 20, position: 'relative' }}>
-                {/* Company Seal on Manuel */}
-                {settings.showSeals && settings.showCompanySeal !== false && settings.companySealPosition === 'manuel' && images['seal_company'] && (
-                  <Image 
-                    src={images['seal_company']} 
-                    style={{ 
-                      position: 'absolute', 
-                      top: -15, 
-                      width: settings.sealSize || 112, 
-                      height: settings.sealSize || 112, 
-                      opacity: 0.75 
-                    }} 
-                  />
-                )}
-                {/* Status Seal on Manuel */}
-                {settings.showSeals && settings.selectedStatusSeal && settings.selectedStatusSeal !== 'none' && settings.statusSealPosition === 'manuel' && images[`seal_${settings.selectedStatusSeal}`] && (
-                  <Image 
-                    src={images[`seal_${settings.selectedStatusSeal}`]} 
-                    style={{ 
-                      position: 'absolute', 
-                      top: -15, 
-                      width: settings.sealSize || 112, 
-                      height: settings.sealSize || 112, 
-                      opacity: 0.8 
-                    }} 
-                  />
-                )}
-                <View style={{ height: 64, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
-                  {images['signature_manuel'] && (
+                  {/* Status Seal on top of this signature */}
+                  {settings.showSeals && settings.selectedStatusSeal && settings.selectedStatusSeal !== 'none' && settings.statusSealPosition === sig.id && images[`seal_${settings.selectedStatusSeal}`] && (
                     <Image 
-                      src={images['signature_manuel']} 
+                      src={images[`seal_${settings.selectedStatusSeal}`]} 
                       style={{ 
-                        height: settings.signatureHeight || 64, 
-                        objectFit: 'contain', 
-                        position: 'relative', 
-                        top: settings.signatureSpacing || 0 
+                        position: 'absolute', 
+                        top: -15, 
+                        width: settings.sealSize || 112, 
+                        height: settings.sealSize || 112, 
+                        opacity: 0.8 
                       }} 
                     />
                   )}
+                  <View style={{ height: 64, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
+                    {images[`sig_${sig.id}`] && (
+                      <Image 
+                        src={images[`sig_${sig.id}`]} 
+                        style={{ 
+                          height: settings.signatureHeight || 64, 
+                          objectFit: 'contain', 
+                          position: 'relative', 
+                          top: settings.signatureSpacing || 0 
+                        }} 
+                      />
+                    )}
+                  </View>
+                  <View style={{ width: '100%', borderTopWidth: 1, borderTopColor: '#9ca3af', marginVertical: 3 }} />
+                  <Text style={{ fontSize: 9, fontFamily: 'Inter', fontWeight: 700, color: '#1f2937' }}>{sig.name}</Text>
+                  <Text style={{ fontSize: 7, color: '#4b5563', textAlign: 'center' }}>{sig.role}</Text>
                 </View>
-                <View style={{ width: '100%', borderTopWidth: 1, borderTopColor: '#9ca3af', marginVertical: 3 }} />
-                <Text style={{ fontSize: 9, fontFamily: 'Inter', fontWeight: 700, color: '#1f2937' }}>Ing. Manuel Tejada</Text>
-                <Text style={{ fontSize: 7, color: '#4b5563' }}>Gerente General</Text>
-              </View>
-            )}
+              );
+            })}
           </View>
         )}
 

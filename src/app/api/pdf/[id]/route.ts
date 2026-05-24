@@ -266,27 +266,41 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     };
 
     if (settings.showSignatures) {
-      if (settings.showEmiliaZapata !== false) {
-        const emiliaBase64 = await getLocalOrRemoteImage('/firmas-sellos/firma emilia zapata.png');
-        if (emiliaBase64) images['signature_emilia'] = emiliaBase64;
-      }
-      if (settings.showManuelTejada !== false) {
-        const manuelBase64 = await getLocalOrRemoteImage('/firmas-sellos/firma Ing Manuel Tejada.png');
-        if (manuelBase64) images['signature_manuel'] = manuelBase64;
+      const signaturesList = settings.signaturesList || [
+        { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: settings.showEmiliaZapata !== false },
+        { id: 'manuel', name: 'Ing. Manuel Tejada', role: 'Gerente General', imageUrl: '/firmas-sellos/firma Ing Manuel Tejada.png', enabled: settings.showManuelTejada !== false }
+      ];
+      for (const sig of signaturesList) {
+        if (sig.enabled && sig.imageUrl) {
+          const sigBase64 = await getLocalOrRemoteImage(sig.imageUrl);
+          if (sigBase64) {
+            images[`sig_${sig.id}`] = sigBase64;
+          }
+        }
       }
     }
 
     if (settings.showSeals) {
+      const companySealImg = settings.companySealUrl || '/firmas-sellos/SELLO DE BIOELECTRONICA.png';
       if (settings.showCompanySeal !== false) {
-        const companySealBase64 = await getLocalOrRemoteImage('/firmas-sellos/SELLO DE BIOELECTRONICA.png');
+        const companySealBase64 = await getLocalOrRemoteImage(companySealImg);
         if (companySealBase64) images['seal_company'] = companySealBase64;
       }
+      
+      let statusSealImg = '';
       if (settings.selectedStatusSeal === 'cancelado') {
-        const canceladoBase64 = await getLocalOrRemoteImage('/firmas-sellos/SELLO DE CANCELADO.png');
-        if (canceladoBase64) images['seal_cancelado'] = canceladoBase64;
+        statusSealImg = '/firmas-sellos/SELLO DE CANCELADO.png';
       } else if (settings.selectedStatusSeal === 'entregado') {
-        const entregadoBase64 = await getLocalOrRemoteImage('/firmas-sellos/SELLO DE ENTREGADO.png');
-        if (entregadoBase64) images['seal_entregado'] = entregadoBase64;
+        statusSealImg = '/firmas-sellos/SELLO DE ENTREGADO.png';
+      } else if (settings.selectedStatusSeal && settings.selectedStatusSeal !== 'none') {
+        statusSealImg = settings.selectedStatusSeal; // Custom URL
+      }
+      
+      if (statusSealImg) {
+        const statusSealBase64 = await getLocalOrRemoteImage(statusSealImg);
+        if (statusSealBase64) {
+          images[`seal_${settings.selectedStatusSeal}`] = statusSealBase64;
+        }
       }
     }
 

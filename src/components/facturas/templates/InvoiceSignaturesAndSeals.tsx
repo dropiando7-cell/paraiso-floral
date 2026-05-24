@@ -7,8 +7,6 @@ interface InvoiceSignaturesAndSealsProps {
 
 export default function InvoiceSignaturesAndSeals({ settings }: InvoiceSignaturesAndSealsProps) {
   const showSignatures = settings.showSignatures ?? false;
-  const showEmilia = settings.showEmiliaZapata ?? true;
-  const showManuel = settings.showManuelTejada ?? true;
   
   const showSeals = settings.showSeals ?? false;
   const showCompanySeal = settings.showCompanySeal ?? true;
@@ -19,13 +17,31 @@ export default function InvoiceSignaturesAndSeals({ settings }: InvoiceSignature
   const companySealPosition = settings.companySealPosition ?? 'manuel';
   const statusSealPosition = settings.statusSealPosition ?? 'right';
   const signatureSpacing = settings.signatureSpacing ?? 0;
+
+  // Dynamic signatures list fallback
+  const signaturesList = settings.signaturesList || [
+    { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: settings.showEmiliaZapata !== false },
+    { id: 'manuel', name: 'Ing. Manuel Tejada', role: 'Gerente General', imageUrl: '/firmas-sellos/firma Ing Manuel Tejada.png', enabled: settings.showManuelTejada !== false }
+  ];
+
+  const activeSigs = signaturesList.filter(sig => sig.enabled);
+  const companySealImg = settings.companySealUrl || '/firmas-sellos/SELLO DE BIOELECTRONICA.png';
+
+  let statusSealImg = '';
+  if (selectedStatusSeal === 'cancelado') {
+    statusSealImg = '/firmas-sellos/SELLO DE CANCELADO.png';
+  } else if (selectedStatusSeal === 'entregado') {
+    statusSealImg = '/firmas-sellos/SELLO DE ENTREGADO.png';
+  } else if (selectedStatusSeal && selectedStatusSeal !== 'none') {
+    statusSealImg = selectedStatusSeal; // Custom URL from library
+  }
   
-  if (!showSignatures && !showSeals) return null;
+  if ((!showSignatures || activeSigs.length === 0) && !showSeals) return null;
   
   return (
     <div className="relative mt-10 mb-6 w-full print:break-inside-avoid">
       {/* Sello de Estado Independiente (Posición: Derecha o Centro) */}
-      {showSeals && selectedStatusSeal !== 'none' && (statusSealPosition === 'right' || statusSealPosition === 'center') && (
+      {showSeals && statusSealImg && (statusSealPosition === 'right' || statusSealPosition === 'center') && (
         <div 
           className={`absolute z-20 pointer-events-none transform rotate-[12deg] select-none ${
             statusSealPosition === 'center' ? 'left-1/2 -translate-x-1/2 -top-10' : 'right-12 -top-10'
@@ -33,15 +49,15 @@ export default function InvoiceSignaturesAndSeals({ settings }: InvoiceSignature
           style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
         >
           <img 
-            src={selectedStatusSeal === 'cancelado' ? '/firmas-sellos/SELLO DE CANCELADO.png' : '/firmas-sellos/SELLO DE ENTREGADO.png'} 
+            src={statusSealImg} 
             alt={`Sello ${selectedStatusSeal}`} 
             className="w-full h-full object-contain mix-blend-multiply opacity-80" 
           />
         </div>
       )}
 
-      {showSignatures && (
-        <div className="flex justify-around items-end pt-10 relative">
+      {showSignatures && activeSigs.length > 0 && (
+        <div className="flex flex-wrap justify-around items-end pt-10 relative gap-y-8">
           {/* Sello de la Empresa Independiente (Posición: Centro) */}
           {showSeals && showCompanySeal && companySealPosition === 'center' && (
             <div 
@@ -49,7 +65,7 @@ export default function InvoiceSignaturesAndSeals({ settings }: InvoiceSignature
               style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
             >
               <img 
-                src="/firmas-sellos/SELLO DE BIOELECTRONICA.png" 
+                src={companySealImg} 
                 alt="Sello Bioelectrónica" 
                 className="w-full h-full object-contain mix-blend-multiply opacity-75" 
               />
@@ -63,116 +79,75 @@ export default function InvoiceSignaturesAndSeals({ settings }: InvoiceSignature
               style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
             >
               <img 
-                src="/firmas-sellos/SELLO DE BIOELECTRONICA.png" 
+                src={companySealImg} 
                 alt="Sello Bioelectrónica" 
                 className="w-full h-full object-contain mix-blend-multiply opacity-75" 
               />
             </div>
           )}
 
-          {/* Emilia Zapata Column */}
-          {showEmilia && (
-            <div className="flex flex-col items-center text-center w-[40%] relative">
-              {/* Sello de la Empresa superpuesto sobre Emilia */}
-              {showSeals && showCompanySeal && companySealPosition === 'emilia' && (
-                <div 
-                  className="absolute -top-12 z-10 pointer-events-none transform rotate-[-8deg] select-none"
-                  style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
-                >
-                  <img 
-                    src="/firmas-sellos/SELLO DE BIOELECTRONICA.png" 
-                    alt="Sello Bioelectrónica" 
-                    className="w-full h-full object-contain mix-blend-multiply opacity-75" 
-                  />
+          {/* Render Active Signatures columns */}
+          {activeSigs.map((sig) => {
+            const columnWidth = activeSigs.length <= 2 ? 'w-[40%]' : 'w-[28%]';
+            return (
+              <div key={sig.id} className={`flex flex-col items-center text-center relative ${columnWidth}`}>
+                {/* Sello de la Empresa superpuesto sobre esta firma */}
+                {showSeals && showCompanySeal && companySealPosition === sig.id && (
+                  <div 
+                    className="absolute -top-12 z-10 pointer-events-none transform rotate-[-8deg] select-none animate-in fade-in"
+                    style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
+                  >
+                    <img 
+                      src={companySealImg} 
+                      alt="Sello Bioelectrónica" 
+                      className="w-full h-full object-contain mix-blend-multiply opacity-75" 
+                    />
+                  </div>
+                )}
+                {/* Sello de Estado superpuesto sobre esta firma */}
+                {showSeals && statusSealImg && statusSealPosition === sig.id && (
+                  <div 
+                    className="absolute -top-12 z-20 pointer-events-none transform rotate-[10deg] select-none animate-in fade-in"
+                    style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
+                  >
+                    <img 
+                      src={statusSealImg} 
+                      alt="Sello Estado" 
+                      className="w-full h-full object-contain mix-blend-multiply opacity-80" 
+                    />
+                  </div>
+                )}
+                <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: '64px' }}>
+                  {sig.imageUrl && (
+                    <img 
+                      src={sig.imageUrl} 
+                      alt={`Firma ${sig.name}`} 
+                      className="object-contain relative mix-blend-multiply" 
+                      style={{ 
+                        height: `${signatureHeight}px`,
+                        top: `${signatureSpacing}px`
+                      }}
+                    />
+                  )}
                 </div>
-              )}
-              {/* Sello de Estado superpuesto sobre Emilia */}
-              {showSeals && selectedStatusSeal !== 'none' && statusSealPosition === 'emilia' && (
-                <div 
-                  className="absolute -top-12 z-20 pointer-events-none transform rotate-[10deg] select-none"
-                  style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
-                >
-                  <img 
-                    src={selectedStatusSeal === 'cancelado' ? '/firmas-sellos/SELLO DE CANCELADO.png' : '/firmas-sellos/SELLO DE ENTREGADO.png'} 
-                    alt={`Sello ${selectedStatusSeal}`} 
-                    className="w-full h-full object-contain mix-blend-multiply opacity-80" 
-                  />
-                </div>
-              )}
-              <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: '64px' }}>
-                <img 
-                  src="/firmas-sellos/firma emilia zapata.png" 
-                  alt="Firma Ing. Emilia Zapata" 
-                  className="object-contain relative mix-blend-multiply" 
-                  style={{ 
-                    height: `${signatureHeight}px`,
-                    top: `${signatureSpacing}px`
-                  }}
-                />
+                <div className="w-full border-t border-slate-400 my-1"></div>
+                <p className="font-bold text-slate-800 text-xs">{sig.name}</p>
+                <p className="text-slate-500 text-[10px]">{sig.role}</p>
               </div>
-              <div className="w-full border-t border-slate-400 my-1"></div>
-              <p className="font-bold text-slate-800 text-xs">Ing. Emilia Zapata</p>
-              <p className="text-slate-500 text-[10px]">Jefa del departamento de Biomédica</p>
-            </div>
-          )}
-
-          {/* Manuel Tejada Column */}
-          {showManuel && (
-            <div className="flex flex-col items-center text-center w-[40%] relative">
-              {/* Sello de la Empresa superpuesto sobre Manuel */}
-              {showSeals && showCompanySeal && companySealPosition === 'manuel' && (
-                <div 
-                  className="absolute -top-12 -right-4 z-10 pointer-events-none transform rotate-[-8deg] select-none"
-                  style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
-                >
-                  <img 
-                    src="/firmas-sellos/SELLO DE BIOELECTRONICA.png" 
-                    alt="Sello Bioelectrónica" 
-                    className="w-full h-full object-contain mix-blend-multiply opacity-75" 
-                  />
-                </div>
-              )}
-              {/* Sello de Estado superpuesto sobre Manuel */}
-              {showSeals && selectedStatusSeal !== 'none' && statusSealPosition === 'manuel' && (
-                <div 
-                  className="absolute -top-12 z-20 pointer-events-none transform rotate-[10deg] select-none"
-                  style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
-                >
-                  <img 
-                    src={selectedStatusSeal === 'cancelado' ? '/firmas-sellos/SELLO DE CANCELADO.png' : '/firmas-sellos/SELLO DE ENTREGADO.png'} 
-                    alt={`Sello ${selectedStatusSeal}`} 
-                    className="w-full h-full object-contain mix-blend-multiply opacity-80" 
-                  />
-                </div>
-              )}
-              <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: '64px' }}>
-                <img 
-                  src="/firmas-sellos/firma Ing Manuel Tejada.png" 
-                  alt="Firma Ing. Manuel Tejada" 
-                  className="object-contain relative mix-blend-multiply" 
-                  style={{ 
-                    height: `${signatureHeight}px`,
-                    top: `${signatureSpacing}px`
-                  }}
-                />
-              </div>
-              <div className="w-full border-t border-slate-400 my-1"></div>
-              <p className="font-bold text-slate-800 text-xs">Ing. Manuel Tejada</p>
-              <p className="text-slate-500 text-[10px]">Gerente General</p>
-            </div>
-          )}
+            );
+          })}
         </div>
       )}
 
       {/* Caso especial: Sólo sellos activados, sin firmas y en el centro */}
-      {!showSignatures && showSeals && showCompanySeal && (companySealPosition === 'center' || companySealPosition === 'manuel' || companySealPosition === 'emilia' || companySealPosition === 'right') && (
+      {(!showSignatures || activeSigs.length === 0) && showSeals && showCompanySeal && (
         <div className="flex justify-center items-center py-4">
           <div 
             className="pointer-events-none transform rotate-[-5deg] select-none"
             style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
           >
             <img 
-              src="/firmas-sellos/SELLO DE BIOELECTRONICA.png" 
+              src={companySealImg} 
               alt="Sello Bioelectrónica" 
               className="w-full h-full object-contain mix-blend-multiply opacity-80" 
             />

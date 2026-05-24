@@ -2,6 +2,14 @@ export type TemplateLayout = 'modern' | 'classic' | 'minimalist' | 'legacy';
 export type LogoPosition = 'left' | 'center' | 'right';
 export type LogoSize = 'small' | 'medium' | 'large';
 
+export interface SignatureItem {
+  id: string;
+  name: string;
+  role: string;
+  imageUrl: string;
+  enabled: boolean;
+}
+
 export interface InvoiceSettings {
   template: TemplateLayout;
   colorTheme: string;
@@ -56,12 +64,16 @@ export interface InvoiceSettings {
   showManuelTejada?: boolean;
   showSeals?: boolean;
   showCompanySeal?: boolean;
-  selectedStatusSeal?: 'none' | 'cancelado' | 'entregado';
+  selectedStatusSeal?: 'none' | 'cancelado' | 'entregado' | string;
   signatureHeight?: number;
   sealSize?: number;
-  companySealPosition?: 'manuel' | 'emilia' | 'center' | 'right';
-  statusSealPosition?: 'right' | 'manuel' | 'emilia' | 'center';
+  companySealPosition?: 'manuel' | 'emilia' | 'center' | 'right' | string;
+  statusSealPosition?: 'right' | 'manuel' | 'emilia' | 'center' | string;
   signatureSpacing?: number;
+  signaturesList?: SignatureItem[];
+  signaturesLibrary?: string[];
+  sealsLibrary?: string[];
+  companySealUrl?: string;
 }
 
 export interface CustomInvoiceTemplate {
@@ -115,4 +127,18 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   companySealPosition: 'manuel',
   statusSealPosition: 'right',
   signatureSpacing: 0,
+  signaturesList: [
+    { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: true },
+    { id: 'manuel', name: 'Ing. Manuel Tejada', role: 'Gerente General', imageUrl: '/firmas-sellos/firma Ing Manuel Tejada.png', enabled: true }
+  ],
+  signaturesLibrary: [
+    '/firmas-sellos/firma emilia zapata.png',
+    '/firmas-sellos/firma Ing Manuel Tejada.png'
+  ],
+  sealsLibrary: [
+    '/firmas-sellos/SELLO DE BIOELECTRONICA.png',
+    '/firmas-sellos/SELLO DE ENTREGADO.png',
+    '/firmas-sellos/SELLO DE CANCELADO.png'
+  ],
+  companySealUrl: '/firmas-sellos/SELLO DE BIOELECTRONICA.png'
 };
