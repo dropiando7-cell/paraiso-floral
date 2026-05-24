@@ -53,6 +53,10 @@ model Organization {
 
   cajaChicaSessions     CajaChicaSession[]
   rentasPagos           RentaPago[]
+  cortesCaja            CorteCajaSession[]
+  
+  kanbanSpaces          KanbanSpace[]
+  kanbanTasks           KanbanTask[]
 
   @@map("organizations")
 }
@@ -101,6 +105,16 @@ model User {
 
   pagosCreados          RentaPago[]            @relation("CreatedPagos")
   pagosModificados      RentaPago[]            @relation("UpdatedPagos")
+
+  cortesCreados         CorteCajaSession[]     @relation("CreatedCortes")
+  cortesModificados     CorteCajaSession[]     @relation("UpdatedCortes")
+  cortesCerrados        CorteCajaSession[]     @relation("ClosedCortes")
+  
+  kanbanSpacesCreados   KanbanSpace[]          @relation("CreatedKanbanSpaces")
+  kanbanTasksAsignadas  KanbanTask[]           @relation("AssignedKanbanTasks")
+  kanbanTasksCreadas    KanbanTask[]           @relation("CreatedKanbanTasks")
+  kanbanTasksModificadas KanbanTask[]          @relation("ModifiedKanbanTasks")
+  kanbanActivities      KanbanActivity[]
 
   @@map("users")
 }
@@ -659,6 +673,9 @@ model Factura {
   detalles                 DetalleFactura[]
   cliente                  Cliente          @relation(fields: [clienteId], references: [id])
   organization             Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  metodoPago               String?
+  cajaSessionId            String?          @db.Uuid
+  cajaSession              CorteCajaSession? @relation(fields: [cajaSessionId], references: [id])
 
   @@unique([organizationId, correlativo])
   @@index([organizationId])
@@ -812,6 +829,8 @@ model RentaPago {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   creadoPor      User?        @relation("CreatedPagos", fields: [creadoPorId], references: [id])
   modificadoPor  User?        @relation("UpdatedPagos", fields: [modificadoPorId], references: [id])
+  cajaSessionId  String?      @db.Uuid
+  cajaSession    CorteCajaSession? @relation(fields: [cajaSessionId], references: [id])
 
   @@index([organizationId])
   @@index([rentaId])
@@ -902,4 +921,105 @@ model CajaChicaMovimiento {
   session          CajaChicaSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@map("caja_chica_movimientos")
+}
+
+// Nuevo modelo de Cierre/Corte de Caja Diario
+model CorteCajaSession {
+  id                 String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String            @db.Uuid
+  estado             String            @default("ABIERTA") // ABIERTA, CERRADA
+  saldoInicial       Decimal           @db.Decimal(12, 2)
+  saldoFinalEfectivo Decimal?          @db.Decimal(12, 2) // Monto físico real contado en el arqueo
+  diferencia         Decimal?          @db.Decimal(12, 2) // Saldo Real - Saldo Esperado en efectivo
+  observaciones      String?
+  aperturaAt         DateTime          @default(now())
+  cierreAt           DateTime?
+  
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  // Trazabilidad Estándar
+  creadoPorId        String?           @db.Uuid
+  modificadoPorId    String?           @db.Uuid
+  cerradoPorId       String?           @db.Uuid
+  
+  creadoPor          User?             @relation("CreatedCortes", fields: [creadoPorId], references: [id])
+  modificadoPor      User?             @relation("UpdatedCortes", fields: [modificadoPorId], references: [id])
+  cerradoPor         User?             @relation("ClosedCortes", fields: [cerradoPorId], references: [id])
+  organization       Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  // Relaciones transaccionales del turno
+  facturas           Factura[]
+  rentasPagos        RentaPago[]
+  
+  @@map("cortes_caja_sessions")
+}
+
+model KanbanSpace {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId  String               @db.Uuid
+  nombre          String
+  clave           String               // Ej: "DB" para Desarrollo Bioelectrónica
+  tiposActividad  String[]             @default(["Task", "Story", "Feature", "Bug"])
+  columnas        String[]             @default(["Por hacer", "En curso", "En revisión", "Listo"])
+  lastTaskNumber  Int                  @default(0) // Para generar DB-1, DB-2 correlativos
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  creadoPorId     String?              @db.Uuid
+  creadoPor       User?                @relation("CreatedKanbanSpaces", fields: [creadoPorId], references: [id])
+  organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  tasks           KanbanTask[]
+  activities      KanbanActivity[]
+
+  @@unique([organizationId, clave])
+  @@map("kanban_spaces")
+}
+
+model KanbanTask {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  spaceId         String               @db.Uuid
+  organizationId  String               @db.Uuid
+  codigo          String               // Ej: "DB-4"
+  title           String
+  description     String?
+  status          String               // Ej: "Por hacer", "En curso"
+  type            String               // Ej: "Task", "Bug"
+  priority        String               @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  dueDate         DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  asignadoId      String?              @db.Uuid
+  creadoPorId     String?              @db.Uuid
+  modificadoPorId String?              @db.Uuid
+
+  space           KanbanSpace          @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  asignado        User?                @relation("AssignedKanbanTasks", fields: [asignadoId], references: [id])
+  creadoPor       User?                @relation("CreatedKanbanTasks", fields: [creadoPorId], references: [id])
+  modificadoPor   User?                @relation("ModifiedKanbanTasks", fields: [modificadoPorId], references: [id])
+  activities      KanbanActivity[]
+
+  @@unique([spaceId, codigo])
+  @@index([spaceId])
+  @@map("kanban_tasks")
+}
+
+model KanbanActivity {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  spaceId         String               @db.Uuid
+  taskId          String?              @db.Uuid
+  usuarioId       String               @db.Uuid
+  accion          String               // Ej: "CREACION", "MOVIMIENTO", "PRIORIDAD", "COMENTARIO"
+  detalles        String               // Ej: "De 'Por hacer' a 'En curso'"
+  createdAt       DateTime             @default(now())
+
+  space           KanbanSpace          @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  task            KanbanTask?          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  usuario         User                 @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([spaceId])
+  @@index([taskId])
+  @@map("kanban_activities")
 }

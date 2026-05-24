@@ -1,0 +1,971 @@
+'use client';
+
+import { useState, useTransition, useMemo } from 'react';
+import Link from 'next/link';
+import { 
+    ArrowLeft, 
+    Plus, 
+    Search, 
+    Filter, 
+    Briefcase, 
+    Calendar,
+    User as UserIcon,
+    AlertCircle,
+    Layout,
+    BarChart2,
+    Clock,
+    X,
+    Check,
+    MoreHorizontal,
+    ChevronRight,
+    Trash2
+} from 'lucide-react';
+import { 
+    createKanbanTask, 
+    updateTaskStatus, 
+    updateTaskFields, 
+    deleteKanbanTask,
+    addColumnToSpace,
+    deleteColumnFromSpace
+} from '../actions';
+import TaskDetailModal from '@/components/kanban/TaskDetailModal';
+import { toast } from 'react-hot-toast';
+
+interface Task {
+    id: string;
+    codigo: string;
+    title: string;
+    description: string;
+    status: string;
+    type: string;
+    priority: string;
+    dueDate: string | null;
+    asignado: {
+        id: string;
+        nombre: string;
+    } | null;
+    createdAt: string;
+}
+
+interface Activity {
+    id: string;
+    taskId: string | null;
+    usuario: string;
+    accion: string;
+    detalles: string;
+    createdAt: string;
+}
+
+interface Member {
+    id: string;
+    nombre: string;
+}
+
+interface Space {
+    id: string;
+    nombre: string;
+    clave: string;
+    columnas: string[];
+    tiposActividad: string[];
+}
+
+interface Props {
+    initialData: {
+        space: Space;
+        tasks: Task[];
+        activities: Activity[];
+        members: Member[];
+    };
+}
+
+export default function KanbanSpaceClient({ initialData }: Props) {
+    const space = initialData.space;
+    const [tasks, setTasks] = useState<Task[]>(initialData.tasks);
+    const [activities, setActivities] = useState<Activity[]>(initialData.activities);
+    const [members] = useState<Member[]>(initialData.members);
+    
+    // Columnas dinamicas
+    const [columnas, setColumnas] = useState<string[]>(space.columnas);
+    const [isAddingColumn, setIsAddingColumn] = useState(false);
+    const [newColumnName, setNewColumnName] = useState('');
+    const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
+
+    const [activeTab, setActiveTab] = useState<'tablero' | 'resumen'>('tablero');
+    const [isPending, startTransition] = useTransition();
+
+    // Filtros
+    const [search, setSearch] = useState('');
+    const [selectedType, setSelectedType] = useState('');
+    const [selectedPriority, setSelectedPriority] = useState('');
+    const [selectedAssignee, setSelectedAssignee] = useState('');
+
+    // Tarea activa en modal
+    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+    // Controles de creación rápida por columna
+    const [addingInColumn, setAddingInColumn] = useState<string | null>(null);
+    const [newTitle, setNewTitle] = useState('');
+    const [newType, setNewType] = useState('Task');
+    const [newPriority, setNewPriority] = useState('MEDIUM');
+
+    // Helper para identificar si es una columna "LISTO" (completado)
+    const isDoneColumn = (columnName: string) => {
+        const lower = columnName.toLowerCase();
+        return lower === 'listo' || lower === 'completado' || lower === 'done' || lower === 'terminado' || lower === 'finalizado';
+    };
+
+    // Agregar nueva columna
+    const handleAddColumn = () => {
+        const name = newColumnName.trim();
+        if (!name) {
+            toast.error('El nombre de la columna no puede estar vacío.');
+            return;
+        }
+
+        // Validar duplicados localmente
+        const isDuplicate = columnas.some(
+            col => col.toLowerCase() === name.toLowerCase()
+        );
+
+        if (isDuplicate) {
+            toast.error(`La columna "${name}" ya existe.`);
+            return;
+        }
+
+        startTransition(async () => {
+            const res = await addColumnToSpace(space.id, name);
+            if (res.success && res.columnas) {
+                setColumnas(res.columnas);
+                setIsAddingColumn(false);
+                setNewColumnName('');
+                toast.success(`Columna "${name}" agregada.`);
+
+                // Registrar actividad local
+                const newAct: Activity = {
+                    id: Math.random().toString(),
+                    taskId: null,
+                    usuario: 'Tú',
+                    accion: 'ACTUALIZACION',
+                    detalles: `Agregó la columna "${name}" al tablero`,
+                    createdAt: new Date().toISOString()
+                };
+                setActivities(prev => [newAct, ...prev].slice(0, 30));
+            } else {
+                toast.error(res.error || 'Error al agregar columna.');
+            }
+        });
+    };
+
+    // Eliminar columna
+    const handleDeleteColumn = (columnName: string) => {
+        if (columnas.length <= 1) {
+            toast.error('Debe haber al menos una columna en el tablero.');
+            return;
+        }
+
+        const remaining = columnas.filter(c => c !== columnName);
+        const fallback = remaining[0];
+
+        startTransition(async () => {
+            const res = await deleteColumnFromSpace(space.id, columnName);
+            if (res.success && res.columnas) {
+                setColumnas(res.columnas);
+                setColumnToDelete(null);
+                toast.success(`Columna "${columnName}" eliminada.`);
+
+                // Actualizar las tareas localmente
+                setTasks(prev => prev.map(t => t.status === columnName ? { ...t, status: res.fallbackColumn || fallback } : t));
+
+                // Registrar actividad local
+                const newAct: Activity = {
+                    id: Math.random().toString(),
+                    taskId: null,
+                    usuario: 'Tú',
+                    accion: 'ACTUALIZACION',
+                    detalles: `Eliminó la columna "${columnName}" (las tareas fueron movidas a "${res.fallbackColumn || fallback}")`,
+                    createdAt: new Date().toISOString()
+                };
+                setActivities(prev => [newAct, ...prev].slice(0, 30));
+            } else {
+                toast.error(res.error || 'Error al eliminar la columna.');
+            }
+        });
+    };
+
+
+    // 1. Filtrar tareas
+    const filteredTasks = useMemo(() => {
+        return tasks.filter(task => {
+            const matchesSearch = 
+                task.title.toLowerCase().includes(search.toLowerCase()) ||
+                task.codigo.toLowerCase().includes(search.toLowerCase());
+            const matchesType = selectedType ? task.type === selectedType : true;
+            const matchesPriority = selectedPriority ? task.priority === selectedPriority : true;
+            const matchesAssignee = selectedAssignee ? 
+                (selectedAssignee === 'unassigned' ? !task.asignado : task.asignado?.id === selectedAssignee) 
+                : true;
+
+            return matchesSearch && matchesType && matchesPriority && matchesAssignee;
+        });
+    }, [tasks, search, selectedType, selectedPriority, selectedAssignee]);
+
+
+    // 2. Drag & Drop nativo de HTML5
+    const handleDragStart = (e: React.DragEvent, taskId: string) => {
+        e.dataTransfer.setData('text/plain', taskId);
+        e.dataTransfer.effectAllowed = 'move';
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+    };
+
+    const handleDrop = async (e: React.DragEvent, targetColumn: string) => {
+        e.preventDefault();
+        const taskId = e.dataTransfer.getData('text/plain');
+        if (!taskId) return;
+
+        const originalTasks = [...tasks];
+        const taskToMove = tasks.find(t => t.id === taskId);
+        if (!taskToMove || taskToMove.status === targetColumn) return;
+
+        // 1. Optimistic Update en UI para respuesta instantánea
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: targetColumn } : t));
+
+        // 2. Enviar cambio al servidor
+        startTransition(async () => {
+            const res = await updateTaskStatus(taskId, targetColumn);
+            if (res.success && res.task) {
+                // Registrar nueva actividad localmente en la lista de actividades
+                const newAct: Activity = {
+                    id: Math.random().toString(),
+                    taskId: taskId,
+                    usuario: 'Tú',
+                    accion: 'MOVIMIENTO',
+                    detalles: `Mover de "${taskToMove.status}" a "${targetColumn}"`,
+                    createdAt: new Date().toISOString()
+                };
+                setActivities(prev => [newAct, ...prev].slice(0, 30));
+            } else {
+                // Revertir en caso de fallo
+                setTasks(originalTasks);
+                toast.error('Error al actualizar el estado de la tarea.');
+            }
+        });
+    };
+
+    // 3. Crear Tarea Rápida
+    const handleCreateQuickTask = (column: string) => {
+        if (!newTitle.trim()) {
+            toast.error('El título es requerido.');
+            return;
+        }
+
+        startTransition(async () => {
+            const res = await createKanbanTask({
+                spaceId: space.id,
+                title: newTitle.trim(),
+                status: column,
+                type: newType,
+                priority: newPriority
+            });
+
+            if (res.success && res.task) {
+                const createdTask: Task = {
+                    id: res.task.id,
+                    codigo: res.task.codigo,
+                    title: res.task.title,
+                    description: res.task.description || '',
+                    status: res.task.status,
+                    type: res.task.type,
+                    priority: res.task.priority,
+                    dueDate: res.task.dueDate ? res.task.dueDate.toISOString() : null,
+                    asignado: null,
+                    createdAt: res.task.createdAt.toISOString()
+                };
+
+                setTasks(prev => [createdTask, ...prev]);
+                
+                // Registrar actividad local
+                const newAct: Activity = {
+                    id: Math.random().toString(),
+                    taskId: createdTask.id,
+                    usuario: 'Tú',
+                    accion: 'CREACION_TAREA',
+                    detalles: `Creó la tarea ${createdTask.codigo}: "${createdTask.title}" en "${column}"`,
+                    createdAt: new Date().toISOString()
+                };
+                setActivities(prev => [newAct, ...prev].slice(0, 30));
+
+                // Limpiar inputs
+                setNewTitle('');
+                setAddingInColumn(null);
+                toast.success(`Tarea ${createdTask.codigo} creada.`);
+            } else {
+                toast.error(res.error || 'Error al crear la tarea');
+            }
+        });
+    };
+
+    // 4. Actualizar Tarea desde el Modal
+    const handleUpdateTaskFromModal = async (taskId: string, fields: any): Promise<boolean> => {
+        const res = await updateTaskFields(taskId, fields);
+        if (res.success && res.task) {
+            setTasks(prev => prev.map(t => {
+                if (t.id === taskId) {
+                    const assignedUser = fields.asignadoId !== undefined ? 
+                        members.find(m => m.id === fields.asignadoId) || null : t.asignado;
+                    return {
+                        ...t,
+                        title: fields.title !== undefined ? fields.title : t.title,
+                        description: fields.description !== undefined ? fields.description : t.description,
+                        status: fields.status !== undefined ? fields.status : t.status,
+                        type: fields.type !== undefined ? fields.type : t.type,
+                        priority: fields.priority !== undefined ? fields.priority : t.priority,
+                        dueDate: fields.dueDate !== undefined ? fields.dueDate : t.dueDate,
+                        asignado: assignedUser ? { id: assignedUser.id, nombre: assignedUser.nombre } : null
+                    };
+                }
+                return t;
+            }));
+
+            // Agregar log local
+            const newAct: Activity = {
+                id: Math.random().toString(),
+                taskId: taskId,
+                usuario: 'Tú',
+                accion: 'ACTUALIZACION',
+                detalles: `Actualizó campos de la tarea`,
+                createdAt: new Date().toISOString()
+            };
+            setActivities(prev => [newAct, ...prev].slice(0, 30));
+
+            // Sincronizar tarea abierta en modal
+            if (selectedTask && selectedTask.id === taskId) {
+                const updatedTask = {
+                    ...selectedTask,
+                    ...fields,
+                    asignado: fields.asignadoId !== undefined ? 
+                        (fields.asignadoId ? members.find(m => m.id === fields.asignadoId) || null : null) 
+                        : selectedTask.asignado
+                };
+                setSelectedTask(updatedTask as Task);
+            }
+            return true;
+        } else {
+            toast.error(res.error || 'Error al actualizar tarea');
+            return false;
+        }
+    };
+
+    // 5. Eliminar Tarea desde el Modal
+    const handleDeleteTaskFromModal = async (taskId: string): Promise<boolean> => {
+        const res = await deleteKanbanTask(taskId);
+        if (res.success) {
+            setTasks(prev => prev.filter(t => t.id !== taskId));
+            
+            // Agregar log local
+            const newAct: Activity = {
+                id: Math.random().toString(),
+                taskId: null,
+                usuario: 'Tú',
+                accion: 'ELIMINACION',
+                detalles: `Eliminó la tarea`,
+                createdAt: new Date().toISOString()
+            };
+            setActivities(prev => [newAct, ...prev].slice(0, 30));
+
+            setSelectedTask(null);
+            toast.success('Tarea eliminada correctamente.');
+            return true;
+        } else {
+            toast.error(res.error || 'Error al eliminar la tarea');
+            return false;
+        }
+    };
+
+    // 6. Estadísticas para la pestaña de Resumen
+    const stats = useMemo(() => {
+        const total = tasks.length;
+        const columnCounts = columnas.reduce((acc, col) => {
+            acc[col] = tasks.filter(t => t.status === col).length;
+            return acc;
+        }, {} as Record<string, number>);
+
+        const priorityCounts = {
+            LOW: tasks.filter(t => t.priority === 'LOW').length,
+            MEDIUM: tasks.filter(t => t.priority === 'MEDIUM').length,
+            HIGH: tasks.filter(t => t.priority === 'HIGH').length,
+            URGENT: tasks.filter(t => t.priority === 'URGENT').length
+        };
+
+        const urgentCount = priorityCounts.HIGH + priorityCounts.URGENT;
+
+        return {
+            total,
+            columnCounts,
+            priorityCounts,
+            urgentCount
+        };
+    }, [tasks, columnas]);
+
+    // Colores para prioridades
+    const getPriorityBadgeClass = (priority: string) => {
+        switch (priority) {
+            case 'URGENT': return 'bg-red-50 border-red-200 text-red-600';
+            case 'HIGH': return 'bg-amber-50 border-amber-200 text-amber-700';
+            case 'MEDIUM': return 'bg-blue-50 border-blue-200 text-blue-600';
+            default: return 'bg-slate-50 border-slate-200 text-slate-500';
+        }
+    };
+
+    // Colores para tipos
+    const getTypeBadgeClass = (type: string) => {
+        switch (type) {
+            case 'Bug': return 'bg-red-100 text-red-700 border border-red-200';
+            case 'Feature': return 'bg-purple-100 text-purple-700 border border-purple-200';
+            case 'Story': return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+            default: return 'bg-blue-100 text-blue-700 border border-blue-200';
+        }
+    };
+
+    return (
+        <div className="flex-1 flex flex-col min-h-screen bg-slate-50">
+            {/* Cabecera del Espacio */}
+            <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+                <div className="flex items-center gap-4">
+                    <Link 
+                        href="/kanban"
+                        className="p-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-slate-900 rounded-xl transition"
+                    >
+                        <ArrowLeft className="h-4 w-4" />
+                    </Link>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <h1 className="text-xl font-extrabold text-slate-900">{space.nombre}</h1>
+                            <span className="text-[10px] bg-brand-50 border border-brand-200 text-brand-600 font-mono font-bold px-2 py-0.5 rounded">
+                                {space.clave}
+                            </span>
+                        </div>
+                        <p className="text-slate-400 text-[11px] mt-0.5">Espacio de Trabajo / Tablero Kanban</p>
+                    </div>
+                </div>
+
+                {/* Alternador de Pestañas */}
+                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 self-start md:self-center">
+                    <button
+                        onClick={() => setActiveTab('tablero')}
+                        className={`flex items-center gap-2 text-xs font-semibold px-4.5 py-1.5 rounded-lg transition ${activeTab === 'tablero' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                        <Layout className="h-3.5 w-3.5" />
+                        Tablero
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('resumen')}
+                        className={`flex items-center gap-2 text-xs font-semibold px-4.5 py-1.5 rounded-lg transition ${activeTab === 'resumen' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    >
+                        <BarChart2 className="h-3.5 w-3.5" />
+                        Resumen
+                    </button>
+                </div>
+            </div>
+
+            {/* VISTA TABLERO */}
+            {activeTab === 'tablero' && (
+                <div className="flex-1 flex flex-col overflow-hidden">
+                    {/* Barra de Filtros */}
+                    <div className="bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-center gap-3 shrink-0">
+                        {/* Buscador */}
+                        <div className="relative w-full md:w-64">
+                            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Buscar por título o código..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-brand-500 focus:outline-none"
+                            />
+                        </div>
+
+                        {/* Tipo */}
+                        <select
+                            value={selectedType}
+                            onChange={(e) => setSelectedType(e.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-brand-500"
+                        >
+                            <option value="">Todos los Tipos</option>
+                            {space.tiposActividad.map(t => (
+                                <option key={t} value={t}>{t}</option>
+                            ))}
+                        </select>
+
+                        {/* Prioridad */}
+                        <select
+                            value={selectedPriority}
+                            onChange={(e) => setSelectedPriority(e.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-brand-500"
+                        >
+                            <option value="">Todas las Prioridades</option>
+                            <option value="LOW">Baja</option>
+                            <option value="MEDIUM">Media</option>
+                            <option value="HIGH">Alta</option>
+                            <option value="URGENT">Urgente</option>
+                        </select>
+
+                        {/* Responsable */}
+                        <select
+                            value={selectedAssignee}
+                            onChange={(e) => setSelectedAssignee(e.target.value)}
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-brand-500"
+                        >
+                            <option value="">Todos los Responsables</option>
+                            <option value="unassigned">Sin asignar</option>
+                            {members.map(m => (
+                                <option key={m.id} value={m.id}>{m.nombre}</option>
+                            ))}
+                        </select>
+
+                        {/* Botón resetear filtros */}
+                        {(search || selectedType || selectedPriority || selectedAssignee) && (
+                            <button
+                                onClick={() => {
+                                    setSearch('');
+                                    setSelectedType('');
+                                    setSelectedPriority('');
+                                    setSelectedAssignee('');
+                                }}
+                                className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-semibold px-2 py-1 rounded-lg hover:bg-slate-50 transition"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                                Limpiar Filtros
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Columnas del Tablero Kanban */}
+                    <div className="flex-1 overflow-x-auto p-6 flex gap-6 items-start">
+                        {columnas.map((columna) => {
+                            const columnTasks = filteredTasks.filter(t => t.status === columna);
+
+                            // Helper para icono del tipo de tarea
+                            const getTypeIcon = (type: string) => {
+                                switch (type) {
+                                    case 'Bug':
+                                        return <AlertCircle className="h-3.5 w-3.5 text-red-500 fill-red-50 shrink-0" />;
+                                    case 'Feature':
+                                        return <div className="h-2.5 w-2.5 bg-purple-500 rotate-45 rounded-sm shrink-0 mt-0.5" />;
+                                    case 'Story':
+                                        return <div className="h-3 w-3 bg-emerald-500 rounded-full shrink-0" />;
+                                    default: // Task
+                                        return (
+                                            <div className="h-3.5 w-3.5 bg-blue-500 rounded flex items-center justify-center shrink-0">
+                                                <Check className="h-2.5 w-2.5 text-white stroke-[4]" />
+                                            </div>
+                                        );
+                                }
+                            };
+
+                            return (
+                                <div
+                                    key={columna}
+                                    onDragOver={handleDragOver}
+                                    onDrop={(e) => handleDrop(e, columna)}
+                                    className="w-80 shrink-0 bg-slate-100/60 border border-slate-200 rounded-2xl p-4 flex flex-col max-h-[calc(100vh-190px)]"
+                                >
+                                    {/* Cabecera Columna */}
+                                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 group/header">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">{columna}</span>
+                                            <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                                                {columnTasks.length}
+                                            </span>
+                                            {isDoneColumn(columna) && (
+                                                <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3]" />
+                                            )}
+                                        </div>
+                                        {/* Botón de eliminar columna */}
+                                        {columnas.length > 1 && (
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setColumnToDelete(columna);
+                                                }}
+                                                title="Eliminar Columna"
+                                                className="opacity-0 group-hover/header:opacity-100 p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md transition duration-150"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Listado de Tarjetas */}
+                                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
+                                        {columnTasks.length === 0 ? (
+                                            <div className="h-20 flex items-center justify-center border border-dashed border-slate-300 rounded-xl bg-white/40">
+                                                <span className="text-[10px] text-slate-400 italic">Arrastra tareas aquí</span>
+                                            </div>
+                                        ) : (
+                                            columnTasks.map((task) => (
+                                                <div
+                                                    key={task.id}
+                                                    draggable
+                                                    onDragStart={(e) => handleDragStart(e, task.id)}
+                                                    onClick={() => setSelectedTask(task)}
+                                                    className="bg-white border border-slate-200 hover:border-brand-500/40 hover:shadow-md rounded-xl p-3.5 shadow-sm cursor-grab active:cursor-grabbing transition duration-150 group"
+                                                >
+                                                    <div className="space-y-2.5">
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            {/* Tipo de Tarea */}
+                                                            <div className="flex items-center gap-1.5">
+                                                                {getTypeIcon(task.type)}
+                                                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${getTypeBadgeClass(task.type)}`}>
+                                                                    {task.type}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Código Tarea */}
+                                                            <span className="text-[9px] font-bold font-mono text-slate-400 group-hover:text-brand-600 transition">
+                                                                {task.codigo}
+                                                            </span>
+                                                        </div>
+
+                                                        {/* Título */}
+                                                        <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-relaxed">
+                                                            {task.title}
+                                                        </h4>
+
+                                                        {/* Detalle Inferior: Responsable + Prioridad */}
+                                                        <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-[10px]">
+                                                            {/* Asignado */}
+                                                            <div className="flex items-center gap-1.5 text-slate-500">
+                                                                <div className="h-4.5 w-4.5 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center text-[8px] font-bold text-brand-600 uppercase">
+                                                                    {task.asignado ? task.asignado.nombre[0] : '?'}
+                                                                </div>
+                                                                <span className="truncate max-w-[100px] text-[10px]">
+                                                                    {task.asignado ? task.asignado.nombre : 'Sin asignar'}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Prioridad y Check si es LISTO */}
+                                                            <div className="flex items-center gap-1.5">
+                                                                {isDoneColumn(columna) && (
+                                                                    <div className="h-4.5 w-4.5 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center text-emerald-600" title="Completado">
+                                                                        <Check className="h-3 w-3 stroke-[3]" />
+                                                                    </div>
+                                                                )}
+                                                                <span className={`border px-1.5 py-0.5 rounded text-[8px] font-extrabold ${getPriorityBadgeClass(task.priority)}`}>
+                                                                    {task.priority === 'URGENT' ? 'Urgente' : 
+                                                                     task.priority === 'HIGH' ? 'Alta' : 
+                                                                     task.priority === 'MEDIUM' ? 'Media' : 'Baja'}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    {/* Botón de Creación Rápida al pie */}
+                                    <div className="mt-3 border-t border-slate-200 pt-3">
+                                        {addingInColumn === columna ? (
+                                            <div className="bg-white border border-slate-200 rounded-xl p-3 space-y-2 shadow-sm">
+                                                <input
+                                                    type="text"
+                                                    value={newTitle}
+                                                    onChange={(e) => setNewTitle(e.target.value)}
+                                                    placeholder="Título de la tarea..."
+                                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-xs text-slate-800 placeholder-slate-400 focus:border-brand-500 focus:outline-none"
+                                                    autoFocus
+                                                />
+                                                <div className="flex justify-between items-center gap-1.5">
+                                                    <div className="flex gap-1">
+                                                        <select
+                                                            value={newType}
+                                                            onChange={(e) => setNewType(e.target.value)}
+                                                            className="bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-[9px] text-slate-700"
+                                                        >
+                                                            {space.tiposActividad.map(t => (
+                                                                <option key={t} value={t}>{t}</option>
+                                                            ))}
+                                                        </select>
+                                                        <select
+                                                            value={newPriority}
+                                                            onChange={(e) => setNewPriority(e.target.value)}
+                                                            className="bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-[9px] text-slate-700"
+                                                        >
+                                                            <option value="LOW">Baja</option>
+                                                            <option value="MEDIUM">Media</option>
+                                                            <option value="HIGH">Alta</option>
+                                                            <option value="URGENT">Urgente</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="flex gap-1">
+                                                        <button
+                                                            onClick={() => handleCreateQuickTask(columna)}
+                                                            disabled={isPending}
+                                                            className="bg-brand-600 hover:bg-brand-700 text-white font-semibold p-1.5 rounded-lg transition"
+                                                        >
+                                                            <Check className="h-3.5 w-3.5" />
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setAddingInColumn(null)}
+                                                            className="bg-slate-100 hover:bg-slate-200 text-slate-600 p-1.5 rounded-lg transition"
+                                                        >
+                                                            <X className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={() => {
+                                                    setAddingInColumn(columna);
+                                                    setNewTitle('');
+                                                    setNewType('Task');
+                                                    setNewPriority('MEDIUM');
+                                                }}
+                                                className="w-full flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-800 font-semibold py-1.5 rounded-xl text-xs transition shadow-sm"
+                                            >
+                                                <Plus className="h-3.5 w-3.5" />
+                                                Crear tarea
+                                            </button>
+                                        )}
+                                    </div>
+
+                                </div>
+                            );
+                        })}
+
+                        {/* Botón para crear nueva columna */}
+                        <div className="shrink-0 pb-4">
+                            {isAddingColumn ? (
+                                <div className="w-80 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3">
+                                    <h5 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Nueva Columna</h5>
+                                    <input
+                                        type="text"
+                                        placeholder="Nombre de la columna (ej. Listo)..."
+                                        value={newColumnName}
+                                        onChange={(e) => setNewColumnName(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') handleAddColumn();
+                                        }}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:border-brand-500 focus:outline-none"
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-2 justify-end">
+                                        <button
+                                            onClick={() => setIsAddingColumn(false)}
+                                            className="bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-semibold px-3 py-1.5 rounded-lg transition"
+                                        >
+                                            Cancelar
+                                        </button>
+                                        <button
+                                            onClick={handleAddColumn}
+                                            disabled={isPending}
+                                            className="bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-semibold px-3 py-1.5 rounded-lg transition shadow-sm"
+                                        >
+                                            Crear
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => {
+                                        setIsAddingColumn(true);
+                                        setNewColumnName('');
+                                    }}
+                                    title="Agregar Columna"
+                                    className="h-10 w-10 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 hover:border-brand-500/40 rounded-xl text-slate-500 hover:text-brand-600 transition shadow-sm"
+                                >
+                                    <Plus className="h-5 w-5" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* VISTA RESUMEN (DASHBOARD) */}
+            {activeTab === 'resumen' && (
+                <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+                    
+                    {/* Tarjetas de Métricas Principales */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider block">Total Actividades</span>
+                            <span className="text-3xl font-extrabold text-slate-800 mt-1 block">{stats.total}</span>
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider block">Tareas Críticas</span>
+                            <span className={`text-3xl font-extrabold mt-1 block ${stats.urgentCount > 0 ? 'text-red-500' : 'text-slate-800'}`}>
+                                {stats.urgentCount}
+                            </span>
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider block">Estados Definidos</span>
+                            <span className="text-3xl font-extrabold text-slate-800 mt-1 block">{columnas.length}</span>
+                        </div>
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+                            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider block">Miembros Activos</span>
+                            <span className="text-3xl font-extrabold text-slate-800 mt-1 block">{members.length}</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        {/* Gráfico Donut de Estados (Hecho con SVG) */}
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 flex flex-col justify-between min-h-[300px] shadow-sm">
+                            <h3 className="text-sm font-bold text-slate-800">Distribución de Estados</h3>
+                            
+                            {stats.total === 0 ? (
+                                <div className="flex-1 flex items-center justify-center text-xs text-slate-400 italic">No hay datos de tareas</div>
+                            ) : (
+                                <div className="flex-1 flex flex-col md:flex-row items-center justify-center gap-6 my-4">
+                                    {/* Gráfico Donut SVG */}
+                                    <div className="relative w-36 h-36">
+                                        <svg viewBox="0 0 36 36" className="w-full h-full transform -rotate-90">
+                                            {/* Circulo de fondo */}
+                                            <circle cx="18" cy="18" r="15.915" fill="none" stroke="#f1f5f9" strokeWidth="3" />
+                                            
+                                            {/* Segmentos de color */}
+                                            {(() => {
+                                                let accumulatedPercentage = 0;
+                                                const colors = ['#3b82f6', '#f59e0b', '#8b5cf6', '#10b981', '#ec4899', '#3b82f6'];
+                                                
+                                                return columnas.map((col, idx) => {
+                                                    const count = stats.columnCounts[col] || 0;
+                                                    const percentage = stats.total > 0 ? (count / stats.total) * 100 : 0;
+                                                    const strokeDashArray = `${percentage} ${100 - percentage}`;
+                                                    const strokeDashOffset = 100 - accumulatedPercentage;
+                                                    accumulatedPercentage += percentage;
+
+                                                    if (percentage === 0) return null;
+
+                                                    return (
+                                                        <circle
+                                                            key={col}
+                                                            cx="18"
+                                                            cy="18"
+                                                            r="15.915"
+                                                            fill="none"
+                                                            stroke={colors[idx % colors.length]}
+                                                            strokeWidth="3.2"
+                                                            strokeDasharray={strokeDashArray}
+                                                            strokeDashoffset={strokeDashOffset}
+                                                        />
+                                                    );
+                                                });
+                                            })()}
+                                        </svg>
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                            <span className="text-2xl font-black text-slate-800">{stats.total}</span>
+                                            <span className="text-[9px] text-slate-400 uppercase tracking-widest font-bold">Tareas</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Leyenda */}
+                                    <div className="flex flex-col gap-2">
+                                        {columnas.map((col, idx) => {
+                                            const colors = ['#3b82f6', '#f59e0b', '#8b5cf6', '#10b981', '#ec4899', '#3b82f6'];
+                                            const count = stats.columnCounts[col] || 0;
+                                            return (
+                                                <div key={col} className="flex items-center gap-2 text-xs">
+                                                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: colors[idx % colors.length] }}></span>
+                                                    <span className="text-slate-600 font-medium truncate max-w-[100px]">{col}</span>
+                                                    <span className="text-slate-800 font-bold">{count}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Listado de Actividades del Espacio */}
+                        <div className="bg-white border border-slate-200 rounded-2xl p-6 lg:col-span-2 flex flex-col justify-between shadow-sm">
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-800">Registro de Actividad del Espacio</h3>
+                                <p className="text-[11px] text-slate-400 mt-0.5">Auditoría en tiempo real de los cambios del equipo</p>
+                            </div>
+
+                            <div className="flex-1 overflow-y-auto mt-4 space-y-4 max-h-[220px] pr-1">
+                                {activities.length === 0 ? (
+                                    <div className="h-full flex items-center justify-center text-xs text-slate-400 italic">No hay historial disponible</div>
+                                ) : (
+                                    activities.map((act) => (
+                                        <div key={act.id} className="flex gap-3 text-xs border-b border-slate-50 pb-3 last:border-0 last:pb-0">
+                                            <div className="mt-0.5 bg-brand-50 text-brand-600 p-1 rounded-md shrink-0 h-6 w-6 flex items-center justify-center">
+                                                <Clock className="h-3.5 w-3.5" />
+                                            </div>
+                                            <div>
+                                                <p className="text-slate-700 leading-relaxed">
+                                                    <span className="font-bold text-slate-800">{act.usuario}</span>{' '}
+                                                    {act.detalles}
+                                                </p>
+                                                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                                                    {new Date(act.createdAt).toLocaleString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Detalle de Tarea */}
+            {selectedTask && (
+                <TaskDetailModal
+                    isOpen={!!selectedTask}
+                    onClose={() => setSelectedTask(null)}
+                    task={selectedTask}
+                    members={members}
+                    tiposActividad={space.tiposActividad}
+                    columnas={columnas}
+                    onUpdate={handleUpdateTaskFromModal}
+                    onDelete={handleDeleteTaskFromModal}
+                    activities={activities}
+                />
+            )}
+            {/* Modal de confirmación para eliminar columna */}
+            {columnToDelete && (
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                    <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200">
+                        <div className="flex items-center gap-3 text-red-600">
+                            <div className="h-10 w-10 bg-red-50 rounded-xl flex items-center justify-center">
+                                <AlertCircle className="h-5 w-5 stroke-[2.5]" />
+                            </div>
+                            <h3 className="text-sm font-bold text-slate-900">¿Eliminar columna "{columnToDelete}"?</h3>
+                        </div>
+                        
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                            ¿Estás seguro de que deseas eliminar esta columna? Esta acción no se puede deshacer. 
+                            {columnas.filter(c => c !== columnToDelete).length > 0 && (
+                                <span> Las tareas que se encuentran en esta columna serán movidas automáticamente a la columna <strong>"{columnas.filter(c => c !== columnToDelete)[0]}"</strong>.</span>
+                            )}
+                        </p>
+
+                        <div className="flex justify-end gap-2.5 pt-2">
+                            <button
+                                onClick={() => setColumnToDelete(null)}
+                                className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-4 py-2 rounded-xl transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={() => handleDeleteColumn(columnToDelete)}
+                                disabled={isPending}
+                                className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
+                            >
+                                {isPending ? 'Eliminando...' : 'Eliminar Columna'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+

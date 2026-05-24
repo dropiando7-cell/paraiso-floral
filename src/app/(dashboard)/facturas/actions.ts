@@ -126,6 +126,15 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
     try {
         const organizationId = await getOrganizationId();
 
+        // Check for active caja session
+        const activeCaja = await prisma.corteCajaSession.findFirst({
+            where: {
+                organizationId,
+                estado: 'ABIERTA'
+            }
+        });
+        const cajaSessionId = activeCaja?.id || null;
+
         // Si el cliente no existe, lo buscamos por nombre o lo creamos rápido
         let clienteId = facturaData.clienteId;
         if (!clienteId && facturaData.clienteNombre) {
@@ -192,6 +201,8 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     
                     estado: 'EMITIDA',
                     inventarioDescontado: true,
+                    metodoPago: facturaData.metodoPago || 'Efectivo',
+                    cajaSessionId,
                     
                     detalles: {
                         create: detalles.map((d) => ({
@@ -431,6 +442,15 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
         const authUser = await getAuthenticatedUser();
         const { organizationId, id: creadoPorId, fullName: nombreUsuario } = authUser;
 
+        // Check for active caja session
+        const activeCaja = await prisma.corteCajaSession.findFirst({
+            where: {
+                organizationId,
+                estado: 'ABIERTA'
+            }
+        });
+        const cajaSessionId = (data.tipoDocumento === 'FACTURA') ? (activeCaja?.id || null) : null;
+
         let clienteId = data.clienteId;
         if (!clienteId && data.clienteNombre) {
             const clienteExistente = await prisma.cliente.findFirst({
@@ -492,6 +512,8 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     inventarioDescontado: debeDescontarInventario,
                     documentoOrigenId: data.documentoOrigenId || null,
                     referenciaOriginalId: data.referenciaOriginalId || null,
+                    metodoPago: data.metodoPago || 'Efectivo',
+                    cajaSessionId,
                     detalles: {
                         create: lineItems.map((item) => {
                             const basePrice = Number(item.qty) * Number(item.unitPrice);
@@ -830,6 +852,15 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
         const authUser = await getAuthenticatedUser();
         const { organizationId } = authUser;
 
+        // Check for active caja session
+        const activeCaja = await prisma.corteCajaSession.findFirst({
+            where: {
+                organizationId,
+                estado: 'ABIERTA'
+            }
+        });
+        const cajaSessionId = (nuevoTipo === 'FACTURA') ? (activeCaja?.id || null) : null;
+
         const doc = await prisma.factura.findFirst({
             where: { id, organizationId },
             include: { detalles: true }
@@ -881,6 +912,8 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
                     nombreUsuario: doc.nombreUsuario,
                     inventarioDescontado: doc.inventarioDescontado || debeDescontar,
                     documentoOrigenId: doc.documentoOrigenId || doc.id,
+                    metodoPago: doc.metodoPago || 'Efectivo',
+                    cajaSessionId,
                     detalles: {
                         create: doc.detalles.map((d) => ({
                             descripcion: d.descripcion,

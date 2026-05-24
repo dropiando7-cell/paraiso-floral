@@ -11,9 +11,48 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
     const [isPending, startTransition] = useTransition();
     const [editingRenta, setEditingRenta] = useState<any | null>(null);
     const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
-    const [showCanceladas, setShowCanceladas] = useState(false);
+    const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+    const [searchTerm, setSearchTerm] = useState('');
 
-    const displayedRentas = initialRentas.filter(r => showCanceladas ? r.estado === 'CANCELADA' : r.estado !== 'CANCELADA');
+    const getRentaFilterStatus = (renta: any) => {
+        if (renta.estado === 'CANCELADA') return 'CANCELADA';
+        if (renta.estado === 'DEVUELTO') return 'DEVUELTO';
+
+        const isOverdue = new Date() > new Date(renta.fechaFinEsperada);
+        if (isOverdue) return 'VENCIDA';
+
+        const tresDias = new Date();
+        tresDias.setDate(tresDias.getDate() + 3);
+        const isExpiringSoon = new Date(renta.fechaFinEsperada) <= tresDias;
+        if (isExpiringSoon) return 'POR_VENCER';
+
+        if (renta.estado === 'PENDIENTE_FIRMA') return 'PENDIENTE_FIRMA';
+        return 'ACTIVA';
+    };
+
+    const counts = {
+        ALL: initialRentas.filter(r => r.estado !== 'CANCELADA').length,
+        ACTIVA: initialRentas.filter(r => getRentaFilterStatus(r) === 'ACTIVA').length,
+        PENDIENTE_FIRMA: initialRentas.filter(r => getRentaFilterStatus(r) === 'PENDIENTE_FIRMA').length,
+        POR_VENCER: initialRentas.filter(r => getRentaFilterStatus(r) === 'POR_VENCER').length,
+        VENCIDA: initialRentas.filter(r => getRentaFilterStatus(r) === 'VENCIDA').length,
+        DEVUELTO: initialRentas.filter(r => getRentaFilterStatus(r) === 'DEVUELTO').length,
+        CANCELADA: initialRentas.filter(r => getRentaFilterStatus(r) === 'CANCELADA').length,
+    };
+
+    const displayedRentas = initialRentas.filter(r => {
+        const status = getRentaFilterStatus(r);
+        const matchesStatus = selectedStatus === 'ALL' 
+            ? r.estado !== 'CANCELADA' 
+            : status === selectedStatus;
+
+        const matchesSearch = searchTerm.trim() === '' || 
+            r.cliente?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            r.activoFijo?.descripcionCorta?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            r.activoFijo?.serie?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        return matchesStatus && matchesSearch;
+    });
 
     const handleEditSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -52,16 +91,49 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
 
     function getStatusBadge(estado: string, fechaFinEsperada: Date) {
         if (estado === 'CANCELADA') {
-            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600 border border-red-200 whitespace-nowrap"><XCircle className="w-3 h-3" /> Anulada</span>;
+            return (
+                <span 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedStatus('CANCELADA');
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 cursor-pointer transition-colors whitespace-nowrap"
+                    title="Filtrar por Anuladas"
+                >
+                    <XCircle className="w-3 h-3" /> Anulada
+                </span>
+            );
         }
 
         if (estado === 'DEVUELTO') {
-            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 whitespace-nowrap"><CheckCircle2 className="w-3 h-3" /> Devuelto</span>;
+            return (
+                <span 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedStatus('DEVUELTO');
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 cursor-pointer transition-colors whitespace-nowrap"
+                    title="Filtrar por Devueltas"
+                >
+                    <CheckCircle2 className="w-3 h-3" /> Devuelto
+                </span>
+            );
         }
 
         const isOverdue = new Date() > new Date(fechaFinEsperada);
         if (isOverdue) {
-            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 animate-pulse whitespace-nowrap"><AlertTriangle className="w-3 h-3" /> Vencida</span>;
+            return (
+                <span 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedStatus('VENCIDA');
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 hover:bg-red-200 cursor-pointer transition-colors animate-pulse whitespace-nowrap"
+                    title="Filtrar por Vencidas"
+                >
+                    <AlertTriangle className="w-3 h-3" /> Vencida
+                </span>
+            );
         }
 
         const tresDias = new Date();
@@ -69,15 +141,58 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
         const isExpiringSoon = new Date(fechaFinEsperada) <= tresDias;
 
         if (isExpiringSoon) {
-            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 whitespace-nowrap"><AlertTriangle className="w-3 h-3" /> Por Vencer</span>;
+            return (
+                <span 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedStatus('POR_VENCER');
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-orange-100 text-orange-700 hover:bg-orange-200 cursor-pointer transition-colors whitespace-nowrap"
+                    title="Filtrar por Por Vencer"
+                >
+                    <AlertTriangle className="w-3 h-3" /> Por Vencer
+                </span>
+            );
         }
 
         if (estado === 'PENDIENTE_FIRMA') {
-            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 whitespace-nowrap"><Clock className="w-3 h-3" /> Pend. Firma</span>;
+            return (
+                <span 
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedStatus('PENDIENTE_FIRMA');
+                    }}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700 hover:bg-amber-200 cursor-pointer transition-colors whitespace-nowrap"
+                    title="Filtrar por Pendiente de Firma"
+                >
+                    <Clock className="w-3 h-3" /> Pend. Firma
+                </span>
+            );
         }
 
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-[#0500A3] whitespace-nowrap"><CheckCircle2 className="w-3 h-3" /> Activa</span>;
+        return (
+            <span 
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedStatus('ACTIVA');
+                }}
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-[#0500A3] hover:bg-blue-200 cursor-pointer transition-colors whitespace-nowrap"
+                title="Filtrar por Activas"
+            >
+                <CheckCircle2 className="w-3 h-3" /> Activa
+            </span>
+        );
     }
+
+    const statuses = [
+        { id: 'ALL', label: 'Todos', colorClass: 'bg-slate-100 text-slate-800 hover:bg-slate-200 border-slate-200', activeClass: 'bg-[#0500A3] text-white border-[#0500A3]' },
+        { id: 'ACTIVA', label: 'Activas', colorClass: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200', activeClass: 'bg-blue-600 text-white border-blue-600' },
+        { id: 'PENDIENTE_FIRMA', label: 'Pend. Firma', colorClass: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200', activeClass: 'bg-amber-600 text-white border-amber-600' },
+        { id: 'POR_VENCER', label: 'Por Vencer', colorClass: 'bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200', activeClass: 'bg-orange-600 text-white border-orange-600' },
+        { id: 'VENCIDA', label: 'Vencidas', colorClass: 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200', activeClass: 'bg-red-600 text-white border-red-600' },
+        { id: 'DEVUELTO', label: 'Devueltas', colorClass: 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200', activeClass: 'bg-slate-700 text-white border-slate-700' },
+        { id: 'CANCELADA', label: 'Anuladas', colorClass: 'bg-rose-50 text-rose-600 hover:bg-rose-100 border-rose-200', activeClass: 'bg-rose-600 text-white border-rose-600' },
+    ];
 
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-6">
@@ -108,18 +223,79 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                 </div>
             </div>
 
-            <div className="flex justify-end mb-4">
-                <button 
-                    onClick={() => setShowCanceladas(!showCanceladas)}
-                    className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95 border ${
-                        showCanceladas 
-                            ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' 
-                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                    }`}
-                >
-                    <XCircle className="w-4 h-4" />
-                    {showCanceladas ? 'Ocultar Anuladas' : 'Ver Historial de Anuladas'}
-                </button>
+            {/* Filtros y Buscador */}
+            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-4">
+                <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+                    {/* Buscador */}
+                    <div className="relative w-full lg:max-w-xs">
+                        <input
+                            type="text"
+                            placeholder="Buscar por cliente o equipo..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl pl-10 pr-10 py-2 text-sm outline-none focus:border-[#0500A3] focus:bg-white transition-all text-slate-700"
+                        />
+                        <svg
+                            className="absolute left-3 top-3 h-4 w-4 text-slate-400"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                            />
+                        </svg>
+                        {searchTerm && (
+                            <button
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-lg font-bold"
+                            >
+                                &times;
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Pills de Estado */}
+                    <div className="flex flex-wrap gap-2 items-center w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
+                        {statuses.map(status => {
+                            const isActive = selectedStatus === status.id;
+                            const count = counts[status.id as keyof typeof counts] || 0;
+                            return (
+                                <button
+                                    key={status.id}
+                                    onClick={() => setSelectedStatus(status.id)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-sm active:scale-95 whitespace-nowrap ${
+                                        isActive ? status.activeClass : status.colorClass
+                                    }`}
+                                >
+                                    {status.label}
+                                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                                        isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                                    }`}>
+                                        {count}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Botón Historial de Anuladas */}
+                    <button 
+                        onClick={() => setSelectedStatus(selectedStatus === 'CANCELADA' ? 'ALL' : 'CANCELADA')}
+                        className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95 border shrink-0 w-full lg:w-auto justify-center ${
+                            selectedStatus === 'CANCELADA'
+                                ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' 
+                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                        }`}
+                    >
+                        <XCircle className="w-4 h-4" />
+                        {selectedStatus === 'CANCELADA' ? 'Ocultar Anuladas' : 'Ver Historial de Anuladas'}
+                    </button>
+                </div>
             </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -140,8 +316,16 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                 <tr>
                                     <td colSpan={6} className="px-5 py-12 text-center text-slate-500">
                                         <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                                        <p className="font-semibold text-lg text-slate-700">No hay rentas {showCanceladas ? 'anuladas' : 'activas'}</p>
-                                        <p className="text-sm mt-1">{showCanceladas ? 'Aquí aparecerá el historial de rentas que han sido canceladas.' : 'Presiona "Nueva Renta" para registrar un arrendamiento.'}</p>
+                                        <p className="font-semibold text-lg text-slate-700">
+                                            No hay rentas {selectedStatus === 'CANCELADA' ? 'anuladas' : selectedStatus !== 'ALL' ? 'con este estado' : 'activas'}
+                                        </p>
+                                        <p className="text-sm mt-1">
+                                            {selectedStatus === 'CANCELADA' 
+                                                ? 'Aquí aparecerá el historial de rentas que han sido canceladas.' 
+                                                : selectedStatus !== 'ALL'
+                                                    ? 'No se encontraron registros de renta con el estado seleccionado.'
+                                                    : 'Presiona "Nueva Renta" para registrar un arrendamiento.'}
+                                        </p>
                                     </td>
                                 </tr>
                             ) : displayedRentas.map(renta => (

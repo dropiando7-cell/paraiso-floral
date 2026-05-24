@@ -24,6 +24,15 @@ export async function registrarPagoRenta(data: FormData) {
 
     if (!monto || monto <= 0) throw new Error('Monto inválido');
 
+    // Check for active caja session
+    const activeCaja = await prisma.corteCajaSession.findFirst({
+        where: {
+            organizationId: dbUser.organizationId,
+            estado: 'ABIERTA'
+        }
+    });
+    const cajaSessionId = activeCaja?.id || null;
+
     await prisma.rentaPago.create({
         data: {
             organizationId: dbUser.organizationId,
@@ -33,7 +42,8 @@ export async function registrarPagoRenta(data: FormData) {
             metodoPago,
             referencia,
             notas,
-            creadoPorId: dbUser.id
+            creadoPorId: dbUser.id,
+            cajaSessionId
         }
     });
 
