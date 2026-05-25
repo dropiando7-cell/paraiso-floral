@@ -9,6 +9,7 @@ import { EmailTemplateType } from '@prisma/client';
 
 const allAvailableModules = [
     { id: '/', name: 'Portal Principal (Por defecto)' },
+    { id: '/kanban', name: 'Proyectos & Kanban' },
     { id: '/checkin', name: 'Check-in Kids' },
     { id: '/medico', name: 'Asistencia Médica' },
     { id: '/inventario', name: 'Inventario de Activos' },

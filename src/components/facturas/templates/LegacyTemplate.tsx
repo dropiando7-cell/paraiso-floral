@@ -7,7 +7,7 @@ import InvoiceSignaturesAndSeals from './InvoiceSignaturesAndSeals';
 export default function LegacyTemplate(props: TemplateProps) {
  const {
  settings, organization, docNumber, docType, currentDocType,
- today, futureDate, selectedClient, paymentTerms,
+ today, futureDate, selectedClient, paymentTerms, paymentMethod, setPaymentMethod,
  validityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
  handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
  notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent,
@@ -111,37 +111,55 @@ export default function LegacyTemplate(props: TemplateProps) {
  </div>
  </div>
 
- {/* Metadata Grid (Compressed into 4 columns) */}
- <div className="grid grid-cols-[1.3fr_0.9fr_0.9fr_0.9fr] gap-3 mb-4 text-xs">
- <div className="flex flex-col">
- <span className={`font-bold ${headerBaseSize} ${theme.text} leading-tight uppercase`}>
- {currentDocType.label}
- <br/>
- <span className="text-slate-800">{docNumber}</span>
- </span>
- <span className="text-gray-600 mt-1 whitespace-nowrap">Fecha: {currentDateStr}</span>
- </div>
- 
- <div className="flex flex-col border-l border-slate-200 pl-3">
- <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Comercial:</span>
- <span className="text-gray-600 mt-1">{props.nombreUsuario || 'Administrador (BEA)'}</span>
- </div>
- 
- <div className="flex flex-col border-l border-slate-200 pl-3">
- <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Términos de pago:</span>
- <select
- value={paymentTerms}
- onChange={e => setPaymentTerms(e.target.value)}
- className="text-gray-600 mt-1 bg-transparent border-b border-gray-200 outline-none print:hidden p-0 cursor-pointer text-xs"
- >
- <option value="Pago inmediato">Pago inmediato</option>
- <option value="15 días netos">15 días netos</option>
- <option value="30 días netos">30 días netos</option>
- <option value="60 días netos">60 días netos</option>
- <option value="90 días netos">90 días netos</option>
- </select>
- <span className="hidden print:flex text-gray-600 mt-1" data-pdf-show>{paymentTerms}</span>
- </div>
+ {/* Metadata Grid (Compressed into columns) */}
+  <div className={`grid ${docType === 'factura' ? 'grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_0.8fr]' : 'grid-cols-[1.3fr_0.9fr_0.9fr_0.9fr]'} gap-3 mb-4 text-xs`}>
+  <div className="flex flex-col">
+  <span className={`font-bold ${headerBaseSize} ${theme.text} leading-tight uppercase`}>
+  {currentDocType.label}
+  <br/>
+  <span className="text-slate-800">{docNumber}</span>
+  </span>
+  <span className="text-gray-600 mt-1 whitespace-nowrap">Fecha: {currentDateStr}</span>
+  </div>
+  
+  <div className="flex flex-col border-l border-slate-200 pl-3">
+  <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Comercial:</span>
+  <span className="text-gray-600 mt-1">{props.nombreUsuario || 'Administrador (BEA)'}</span>
+  </div>
+  
+  <div className="flex flex-col border-l border-slate-200 pl-3">
+  <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Términos de pago:</span>
+  <select
+  value={paymentTerms}
+  onChange={e => setPaymentTerms(e.target.value)}
+  className="text-gray-600 mt-1 bg-transparent border-b border-gray-200 outline-none print:hidden p-0 cursor-pointer text-xs"
+  >
+  <option value="Pago inmediato">Pago inmediato</option>
+  <option value="15 días netos">15 días netos</option>
+  <option value="30 días netos">30 días netos</option>
+  <option value="60 días netos">60 días netos</option>
+  <option value="90 días netos">90 días netos</option>
+  </select>
+  <span className="hidden print:flex text-gray-600 mt-1" data-pdf-show>{paymentTerms}</span>
+  </div>
+
+  {docType === 'factura' && (
+  <div className="flex flex-col border-l border-slate-200 pl-3">
+  <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Método de pago:</span>
+  <select
+  value={paymentMethod}
+  onChange={e => setPaymentMethod(e.target.value)}
+  className="text-gray-600 mt-1 bg-transparent border-b border-gray-200 outline-none print:hidden p-0 cursor-pointer text-xs"
+  >
+  <option value="Efectivo">Efectivo</option>
+  <option value="Tarjeta">Tarjeta</option>
+  <option value="Transferencia">Transferencia</option>
+  <option value="Cheque">Cheque</option>
+  <option value="Link de pago de Occidente">Link de pago</option>
+  </select>
+  <span className="hidden print:flex text-gray-600 mt-1" data-pdf-show>{paymentMethod}</span>
+  </div>
+  )}
 
  <div className="flex flex-col border-l border-slate-200 pl-3 cursor-pointer" onClick={() => setShowClientModal(true)}>
  <span className={`font-bold uppercase text-slate-800 mb-1 ${headerSmallSize}`}>Cliente:</span>

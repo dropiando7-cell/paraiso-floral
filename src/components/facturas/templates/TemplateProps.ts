@@ -15,6 +15,8 @@ export interface TemplateProps {
   setShowClientModal: (v: boolean) => void;
   paymentTerms: string;
   setPaymentTerms: (v: string) => void;
+  paymentMethod: string;
+  setPaymentMethod: (v: string) => void;
   validityDays: number;
   setValidityDays: (v: number) => void;
   lineItems: any[];

@@ -331,6 +331,7 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     estado: 'EMITIDA', // Change state to EMITIDA officially
                     tipoDocumento: data.tipoDocumento || docExistente.tipoDocumento,
                     templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : undefined,
+                    metodoPago: data.metodoPago || docExistente.metodoPago || 'Efectivo',
                     detalles: {
                         create: lineItems.map((item) => {
                             const basePrice = item.qty * item.unitPrice;

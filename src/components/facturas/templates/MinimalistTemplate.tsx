@@ -8,6 +8,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  const {
  settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
  today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
+ paymentMethod, setPaymentMethod,
  validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
  handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
  notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode
@@ -139,14 +140,30 @@ export default function MinimalistTemplate(props: TemplateProps) {
  className="w-8 border-none bg-transparent text-sm font-medium text-slate-800 p-0 text-right focus:ring-0 print:p-0"
  />
  </div>
+ {docType === 'factura' && (
+  <div className="mt-2">
+  <p className="text-[10px] text-slate-400 uppercase mb-1">Método de Pago</p>
+  <select
+  value={paymentMethod}
+  onChange={e => setPaymentMethod(e.target.value)}
+  className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium"
+  >
+  <option value="Efectivo">Efectivo</option>
+  <option value="Tarjeta">Tarjeta</option>
+  <option value="Transferencia">Transferencia</option>
+  <option value="Cheque">Cheque</option>
+  <option value="Link de pago de Occidente">Link de pago</option>
+  </select>
+  </div>
+  )}
  </div>
  </div>
 
  {/* Items Table Minimal */}
  <div className="mb-12 relative z-50 print:mb-6">
  <div className="flex items-center gap-2 mb-3 px-2 border-b border-slate-100 pb-2 print:px-0">
- <div className="w-4 shrink-0 print:hidden" data-pdf-hide />
- {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && <div className={`${imageColWidth} shrink-0`} />}
+  <div className="w-4 shrink-0 print:hidden" data-pdf-hide />
+  {settings?.showProductImages && settings?.productImagePosition === 'firstColumn' && settings?.showItemCode !== false && <div className={`${imageColWidth} shrink-0`} />}
  <div className={`flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 ${tableHeaderSize} uppercase font-semibold text-slate-400`}>
  <div className="text-center">{settings?.showItemCode !== false ? 'Código' : (settings?.showProductImages ? 'Imagen' : '')}</div>
  <div className="text-center">Descripción</div>

@@ -78,6 +78,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
     const availableModules = [
         { id: '/', label: 'Portal Bioelectrónica' },
+        { id: '/kanban', label: 'Proyectos & Kanban' },
         { id: '/inventario-ia', label: 'Inventario IA' },
         { id: '/rentas', label: 'Rentas de Equipos' },
         { id: '/graficas', label: 'Gráficas e Informes' },

@@ -892,6 +892,7 @@ export default function DocumentBuilderClient({
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyLine(), id: 'default-line-hash' }]);
   const [paymentTerms, setPaymentTerms] = useState('30 días netos');
+  const [paymentMethod, setPaymentMethod] = useState('Efectivo');
   const [validityDays, setValidityDays] = useState(30);
   const [notes, setNotes] = useState('');
   const [clientSearch, setClientSearch] = useState('');
@@ -991,6 +992,7 @@ export default function DocumentBuilderClient({
         if (parsed.lineItems && parsed.lineItems.length > 0) setLineItems(parsed.lineItems);
         if (parsed.notes) setNotes(parsed.notes);
         if (parsed.paymentTerms) setPaymentTerms(parsed.paymentTerms);
+        if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
         if (parsed.validityDays) setValidityDays(parsed.validityDays);
         if (!parsed.reservedDocId) setIsLocked(true); // Must reserve first 
         draftLoadedRef.current = true;
@@ -1012,7 +1014,7 @@ export default function DocumentBuilderClient({
     const handler = setTimeout(() => {
       try {
         const draft = {
-          reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, validityDays
+          reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, validityDays
         };
         window.localStorage.setItem(draftKey, JSON.stringify(draft));
         setLastSaved(new Date());
@@ -1020,7 +1022,7 @@ export default function DocumentBuilderClient({
     }, 1500);
 
     return () => clearTimeout(handler);
-  }, [isHydrated, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, validityDays, effectiveViewMode, draftKey]);
+  }, [isHydrated, reservedDocId, docType, docNumber, selectedClient, lineItems, notes, paymentTerms, paymentMethod, validityDays, effectiveViewMode, draftKey]);
 
   const clearLocalDraft = () => {
     try {
@@ -1349,6 +1351,7 @@ export default function DocumentBuilderClient({
       setDocNumber(isClone ? '' : initialData.correlativo);
       
       setPaymentTerms(initialData.terminosPago || '30 días netos');
+      setPaymentMethod(initialData.metodoPago || 'Efectivo');
       setValidityDays(initialData.validezDias || 30);
       // Extraemos totales manuales si la suma no cuaja, pero como no sabemos de donde vino, tomamos el valor guardado y restamos lo calculado por lineas.
       let lineBaseExento = 0;
@@ -1705,6 +1708,7 @@ export default function DocumentBuilderClient({
         tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : docType === 'proforma' ? 'PROFORMA' : docType === 'nota_credito' ? 'NOTA_CREDITO' : 'FACTURA',
         notas: notes,
         terminosPago: paymentTerms,
+        metodoPago: paymentMethod,
         validezDias: validityDays,
         subTotal: totals.subtotal,
         descuentos: totals.descuentos,
@@ -1908,7 +1912,9 @@ export default function DocumentBuilderClient({
             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
             today={today} futureDate={futureDate} selectedClient={selectedClient} 
             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-            setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
+            setPaymentTerms={setPaymentTerms}
+            paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+            validityDays={validityDays} setValidityDays={setValidityDays} 
             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
@@ -1921,7 +1927,9 @@ export default function DocumentBuilderClient({
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-             setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
+             setPaymentTerms={setPaymentTerms}
+             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+             validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
@@ -1934,7 +1942,9 @@ export default function DocumentBuilderClient({
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-             setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
+             setPaymentTerms={setPaymentTerms}
+             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+             validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
@@ -1947,7 +1957,9 @@ export default function DocumentBuilderClient({
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
-             setPaymentTerms={setPaymentTerms} validityDays={validityDays} setValidityDays={setValidityDays} 
+             setPaymentTerms={setPaymentTerms}
+             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+             validityDays={validityDays} setValidityDays={setValidityDays} 
              lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 

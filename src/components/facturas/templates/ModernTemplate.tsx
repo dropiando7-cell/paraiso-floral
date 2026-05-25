@@ -8,6 +8,7 @@ export default function ModernTemplate(props: TemplateProps) {
  const {
  settings, organization, docNumber, docType, currentDocType, docTypeStatusConfig,
  today, futureDate, selectedClient, setShowClientModal, paymentTerms, setPaymentTerms,
+ paymentMethod, setPaymentMethod,
  validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
  handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
  notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode, nombreUsuario
@@ -171,6 +172,22 @@ export default function ModernTemplate(props: TemplateProps) {
  <span className={`${theme.headerText} text-sm font-semibold `}>días</span>
  </div>
  </div>
+ {docType === 'factura' && (
+ <div className="w-36">
+ <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Método de Pago</p>
+ <select
+ value={paymentMethod}
+ onChange={e => setPaymentMethod(e.target.value)}
+ className={`bg-transparent ${theme.headerText} text-sm font-semibold border-none outline-none cursor-pointer w-full p-0 focus:ring-0 print:appearance-none `}
+ >
+ <option value="Efectivo" className="bg-slate-800 text-white">Efectivo</option>
+ <option value="Tarjeta" className="bg-slate-800 text-white">Tarjeta</option>
+ <option value="Transferencia" className="bg-slate-800 text-white">Transferencia</option>
+ <option value="Cheque" className="bg-slate-800 text-white">Cheque</option>
+ <option value="Link de pago de Occidente" className="bg-slate-800 text-white">Link de pago</option>
+ </select>
+ </div>
+ )}
  </div>
  </div>
 
