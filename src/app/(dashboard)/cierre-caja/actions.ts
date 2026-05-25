@@ -29,6 +29,7 @@ export async function getActiveCajaSession() {
             },
             include: {
                 creadoPor: true,
+                modificadoPor: true,
                 facturas: true,
                 rentasPagos: true
             }
@@ -45,10 +46,17 @@ export async function getActiveCajaSession() {
             observaciones: active.observaciones,
             aperturaAt: active.aperturaAt.toISOString(),
             cierreAt: active.cierreAt ? active.cierreAt.toISOString() : null,
+            createdAt: active.createdAt.toISOString(),
+            updatedAt: active.updatedAt.toISOString(),
             creadoPor: active.creadoPor ? {
                 nombre: active.creadoPor.nombre,
                 apellido: active.creadoPor.apellido,
                 email: active.creadoPor.email
+            } : null,
+            modificadoPor: active.modificadoPor ? {
+                nombre: active.modificadoPor.nombre,
+                apellido: active.modificadoPor.apellido,
+                email: active.modificadoPor.email
             } : null
         };
     } catch (e) {
@@ -93,6 +101,43 @@ export async function abrirCaja(saldoInicial: number) {
     };
 }
 
+// Update Initial Balance of an open session (fully serialized)
+export async function actualizarSaldoInicial(sessionId: string, nuevoSaldoInicial: number) {
+    const user = await getAuthenticatedUser();
+
+    // Check if there is an active session for the user's organization
+    const active = await prisma.corteCajaSession.findFirst({
+        where: {
+            id: sessionId,
+            organizationId: user.organizationId,
+            estado: 'ABIERTA'
+        }
+    });
+
+    if (!active) {
+        throw new Error("No se encontró una sesión de caja abierta para actualizar.");
+    }
+
+    const updated = await prisma.corteCajaSession.update({
+        where: {
+            id: sessionId
+        },
+        data: {
+            saldoInicial: new Prisma.Decimal(nuevoSaldoInicial),
+            modificadoPorId: user.id
+        }
+    });
+
+    revalidatePath('/cierre-caja');
+    revalidatePath('/facturas/pos');
+
+    return {
+        id: updated.id,
+        saldoInicial: Number(updated.saldoInicial)
+    };
+}
+
+
 // Summary Calculation Helper (fully serialized)
 export async function getCajaSessionSummary(sessionId: string) {
     const user = await getAuthenticatedUser();
@@ -104,6 +149,7 @@ export async function getCajaSessionSummary(sessionId: string) {
         },
         include: {
             creadoPor: true,
+            modificadoPor: true,
             cerradoPor: true,
             facturas: {
                 where: { estado: { not: 'ANULADA' } }
@@ -165,10 +211,17 @@ export async function getCajaSessionSummary(sessionId: string) {
         observaciones: session.observaciones,
         aperturaAt: session.aperturaAt.toISOString(),
         cierreAt: session.cierreAt ? session.cierreAt.toISOString() : null,
+        createdAt: session.createdAt.toISOString(),
+        updatedAt: session.updatedAt.toISOString(),
         creadoPor: session.creadoPor ? {
             nombre: session.creadoPor.nombre,
             apellido: session.creadoPor.apellido,
             email: session.creadoPor.email
+        } : null,
+        modificadoPor: session.modificadoPor ? {
+            nombre: session.modificadoPor.nombre,
+            apellido: session.modificadoPor.apellido,
+            email: session.modificadoPor.email
         } : null,
         cerradoPor: session.cerradoPor ? {
             nombre: session.cerradoPor.nombre,
@@ -291,6 +344,7 @@ export async function getHistorialCortes() {
             },
             include: {
                 creadoPor: true,
+                modificadoPor: true,
                 cerradoPor: true
             },
             orderBy: {
@@ -308,8 +362,11 @@ export async function getHistorialCortes() {
             observaciones: c.observaciones,
             aperturaAt: c.aperturaAt.toISOString(),
             cierreAt: c.cierreAt ? c.cierreAt.toISOString() : null,
-            creadoPor: c.creadoPor ? { nombre: c.creadoPor.nombre, apellido: c.creadoPor.apellido } : null,
-            cerradoPor: c.cerradoPor ? { nombre: c.cerradoPor.nombre, apellido: c.cerradoPor.apellido } : null
+            createdAt: c.createdAt.toISOString(),
+            updatedAt: c.updatedAt.toISOString(),
+            creadoPor: c.creadoPor ? { nombre: c.creadoPor.nombre, apellido: c.creadoPor.apellido, email: c.creadoPor.email } : null,
+            modificadoPor: c.modificadoPor ? { nombre: c.modificadoPor.nombre, apellido: c.modificadoPor.apellido, email: c.modificadoPor.email } : null,
+            cerradoPor: c.cerradoPor ? { nombre: c.cerradoPor.nombre, apellido: c.cerradoPor.apellido, email: c.cerradoPor.email } : null
         }));
     } catch (e) {
         console.error("Error en getHistorialCortes:", e);

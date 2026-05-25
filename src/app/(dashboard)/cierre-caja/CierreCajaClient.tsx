@@ -18,9 +18,10 @@ import {
     Activity,
     HelpCircle,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Pencil
 } from 'lucide-react';
-import { abrirCaja, cerrarCaja, getCajaSessionSummary, getProductRotationReport } from './actions';
+import { abrirCaja, cerrarCaja, getCajaSessionSummary, getProductRotationReport, actualizarSaldoInicial, getActiveCajaSession } from './actions';
 
 interface CierreCajaClientProps {
     initialActiveSession: any;
@@ -51,6 +52,11 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
     const [saldoReal, setSaldoReal] = useState<string>('');
     const [observaciones, setObservaciones] = useState<string>('');
     const [isClosing, setIsClosing] = useState(false);
+    
+    // States for editing initial balance in active session
+    const [isEditingSaldoInicial, setIsEditingSaldoInicial] = useState(false);
+    const [nuevoSaldoInicial, setNuevoSaldoInicial] = useState<string>('');
+    const [isSavingSaldoInicial, setIsSavingSaldoInicial] = useState(false);
 
     // Selected past session for detailed view modal/drawer
     const [selectedPastSession, setSelectedPastSession] = useState<any>(null);
@@ -138,6 +144,49 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
             toast.error(e.message || "Error al cerrar caja");
         } finally {
             setIsClosing(false);
+        }
+    };
+
+    // Start Edit Initial Balance
+    const handleStartEdit = () => {
+        if (!activeSession) return;
+        setNuevoSaldoInicial(activeSession.saldoInicial.toString());
+        setIsEditingSaldoInicial(true);
+    };
+
+    // Save Initial Balance
+    const handleSaveSaldoInicial = async () => {
+        if (!activeSession) return;
+        const val = parseFloat(nuevoSaldoInicial);
+        if (isNaN(val) || val < 0) {
+            toast.error("El saldo inicial debe ser un número válido mayor o igual a 0");
+            return;
+        }
+
+        setIsSavingSaldoInicial(true);
+        try {
+            const res = await actualizarSaldoInicial(activeSession.id, val);
+            toast.success("Saldo inicial actualizado correctamente");
+            // Fetch fully updated active session to sync modifier and updatedAt fields
+            const updatedSession = await getActiveCajaSession();
+            if (updatedSession) {
+                setActiveSession(updatedSession);
+            } else {
+                setActiveSession((prev: any) => ({
+                    ...prev,
+                    saldoInicial: res.saldoInicial
+                }));
+            }
+            
+            // Reload the session details (which recalculates esperadoEfectivo, etc.)
+            await fetchActiveSessionDetails(activeSession.id);
+            
+            setIsEditingSaldoInicial(false);
+            router.refresh();
+        } catch (e: any) {
+            toast.error(e.message || "Error al actualizar saldo inicial");
+        } finally {
+            setIsSavingSaldoInicial(false);
         }
     };
 
@@ -264,11 +313,64 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                         <User className="w-3.5 h-3.5" />
                                         Operador: {activeSession.creadoPor ? `${activeSession.creadoPor.nombre || ''} ${activeSession.creadoPor.apellido || ''}`.trim() : 'Usuario Activo'}
                                     </p>
+                                    {activeSession.modificadoPor && (
+                                        <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1.5" suppressHydrationWarning>
+                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
+                                            <span>Última mod.: {`${activeSession.modificadoPor.nombre || ''} ${activeSession.modificadoPor.apellido || ''}`.trim()} ({activeSession.modificadoPor.email}) el {formatDate(activeSession.updatedAt)}</span>
+                                        </p>
+                                    )}
                                 </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right flex flex-col items-end">
                                 <span className="text-xs text-slate-500 font-semibold block uppercase tracking-wider">Fondo Inicial</span>
-                                <span className="text-2xl font-black text-slate-900">{formatCurrency(activeSession.saldoInicial)}</span>
+                                {isEditingSaldoInicial ? (
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                        <div className="relative rounded-lg shadow-sm w-32">
+                                            <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                                <span className="text-slate-400 font-bold text-xs">L.</span>
+                                            </div>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                className="block w-full pl-5 pr-1.5 py-1 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 text-right"
+                                                value={nuevoSaldoInicial}
+                                                onChange={(e) => setNuevoSaldoInicial(e.target.value)}
+                                                autoFocus
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={handleSaveSaldoInicial}
+                                            disabled={isSavingSaldoInicial}
+                                            className="p-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition disabled:opacity-50 cursor-pointer flex items-center justify-center"
+                                            title="Guardar"
+                                        >
+                                            {isSavingSaldoInicial ? (
+                                                <div className="w-3.5 h-3.5 border border-white border-t-transparent rounded-full animate-spin" />
+                                            ) : (
+                                                <CheckCircle className="w-3.5 h-3.5" />
+                                            )}
+                                        </button>
+                                        <button
+                                            onClick={() => setIsEditingSaldoInicial(false)}
+                                            className="p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg transition cursor-pointer"
+                                            title="Cancelar"
+                                        >
+                                            <span className="text-xs font-black px-0.5">X</span>
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2 mt-0.5">
+                                        <span className="text-2xl font-black text-slate-900">{formatCurrency(activeSession.saldoInicial)}</span>
+                                        <button 
+                                            onClick={handleStartEdit}
+                                            className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-950 transition cursor-pointer"
+                                            title="Editar fondo inicial"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -689,6 +791,9 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                             {/* WORKFLOW METADATA */}
                             <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs space-y-1.5 text-slate-700">
                                 <p suppressHydrationWarning><strong>Abierto por:</strong> {selectedPastSession.creadoPor ? `${selectedPastSession.creadoPor.nombre || ''} ${selectedPastSession.creadoPor.apellido || ''} (${selectedPastSession.creadoPor.email})` : 'N/D'} el {formatDate(selectedPastSession.aperturaAt)}</p>
+                                {selectedPastSession.modificadoPor && (
+                                    <p suppressHydrationWarning><strong>Modificado por:</strong> {`${selectedPastSession.modificadoPor.nombre || ''} ${selectedPastSession.modificadoPor.apellido || ''}`.trim()} ({selectedPastSession.modificadoPor.email}) el {formatDate(selectedPastSession.updatedAt)}</p>
+                                )}
                                 <p suppressHydrationWarning><strong>Cerrado por:</strong> {selectedPastSession.cerradoPor ? `${selectedPastSession.cerradoPor.nombre || ''} ${selectedPastSession.cerradoPor.apellido || ''} (${selectedPastSession.cerradoPor.email})` : 'N/D'} el {formatDate(selectedPastSession.cierreAt)}</p>
                                 {selectedPastSession.observaciones && (
                                     <p className="mt-2 pt-2 border-t border-slate-200"><strong>Observaciones de cierre:</strong> <span className="italic text-slate-600">"{selectedPastSession.observaciones}"</span></p>
