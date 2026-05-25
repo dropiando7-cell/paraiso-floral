@@ -1,7 +1,7 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling, CheckCircle2, AlertTriangle, FileSignature, Plus, UploadCloud, Loader2 } from 'lucide-react';
-import { InvoiceSettings, TemplateLayout, LogoPosition, LogoSize, CustomInvoiceTemplate, SignatureItem } from '@/types/invoice';
+import { InvoiceSettings, TemplateLayout, LogoPosition, LogoSize, CustomInvoiceTemplate, SignatureItem, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 import { getInvoiceTemplates, guardarInvoiceTemplate, eliminarInvoiceTemplate } from '@/app/(dashboard)/facturas/actions';
 import toast from 'react-hot-toast';
 
@@ -9,6 +9,7 @@ interface Props {
   settings: InvoiceSettings;
   onChange: (key: keyof InvoiceSettings, val: any) => void;
   onClose: () => void;
+  onLoadTemplate?: (settings: InvoiceSettings) => void;
 }
 
 const TEMPLATES: { id: TemplateLayout; name: string; desc: string }[] = [
@@ -124,7 +125,7 @@ function FontSizeControl({
   );
 }
 
-export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }: Props) {
+export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, onLoadTemplate }: Props) {
   const [activeTab, setActiveTab] = useState<'template' | 'colors' | 'font' | 'logo' | 'footer' | 'sizes'>('template');
   const [savedTemplates, setSavedTemplates] = useState<CustomInvoiceTemplate[]>([]);
   const [newTemplateName, setNewTemplateName] = useState('');
@@ -252,10 +253,18 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
   };
 
   const handleLoadTemplate = (t: CustomInvoiceTemplate) => {
-    Object.keys(t.settings).forEach(key => {
-      onChange(key as keyof InvoiceSettings, (t.settings as any)[key]);
-    });
-    onChange('activeCustomTemplateId', t.id);
+    const mergedSettings = { 
+      ...DEFAULT_INVOICE_SETTINGS, 
+      ...t.settings, 
+      activeCustomTemplateId: t.id 
+    };
+    if (onLoadTemplate) {
+      onLoadTemplate(mergedSettings);
+    } else {
+      Object.keys(mergedSettings).forEach(key => {
+        onChange(key as keyof InvoiceSettings, (mergedSettings as any)[key]);
+      });
+    }
     setNewTemplateName(t.name);
     toast.success("Plantilla cargada");
   };
@@ -1267,7 +1276,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose }
                       </div>
                       <input 
                         type="range" 
-                        min="50" max="250" step="2"
+                        min="50" max="350" step="2"
                         value={settings.sealSize ?? 112}
                         onChange={e => onChange('sealSize', Number(e.target.value))}
                         className="w-full accent-blue-600 cursor-pointer"

@@ -1052,10 +1052,17 @@ export default function DocumentBuilderClient({
   useEffect(() => {
     if (typeof window !== 'undefined' && !effectiveViewMode) {
       try {
-        const saved = localStorage.getItem('bea_invoice_template_settings');
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setSettings(prev => ({ ...prev, ...parsed }));
+        if (initialData?.templateSettings) {
+          const tSettings = typeof initialData.templateSettings === 'string'
+            ? JSON.parse(initialData.templateSettings)
+            : initialData.templateSettings;
+          setSettings(prev => ({ ...prev, ...tSettings }));
+        } else {
+          const saved = localStorage.getItem('bea_invoice_template_settings');
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            setSettings(prev => ({ ...prev, ...parsed }));
+          }
         }
       } catch (e) {
         console.error("Error al cargar settings visuales", e);
@@ -1063,9 +1070,17 @@ export default function DocumentBuilderClient({
         setIsLoaded(true);
       }
     } else {
+      if (initialData?.templateSettings) {
+        try {
+          const tSettings = typeof initialData.templateSettings === 'string'
+            ? JSON.parse(initialData.templateSettings)
+            : initialData.templateSettings;
+          setSettings(prev => ({ ...prev, ...tSettings }));
+        } catch (e) {}
+      }
       setIsLoaded(true);
     }
-  }, [effectiveViewMode]);
+  }, [effectiveViewMode, initialData]);
 
   // Save preferences when they change
   useEffect(() => {
@@ -2250,6 +2265,7 @@ export default function DocumentBuilderClient({
         <InvoiceCustomizerSidebar
           settings={settings}
           onChange={(key, val) => setSettings(p => ({ ...p, [key]: val }))}
+          onLoadTemplate={(tplSettings) => setSettings(tplSettings)}
           onClose={() => setShowCustomizer(false)}
         />
       )}
