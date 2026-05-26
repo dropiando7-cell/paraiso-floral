@@ -77,7 +77,8 @@ export async function searchProductos(query: string = "") {
                     OR: [
                         { descripcionCorta: { contains: query, mode: 'insensitive' } },
                         { idQr: { contains: query, mode: 'insensitive' } },
-                        { marca: { contains: query, mode: 'insensitive' } }
+                        { marca: { contains: query, mode: 'insensitive' } },
+                        { serie: { contains: query, mode: 'insensitive' } }
                     ]
                 },
                 include: { producto: true },
@@ -111,7 +112,8 @@ export async function searchProductos(query: string = "") {
             stockActual: a.stock || 1,
             type: 'activo',
             fechaVencimiento: a.fechaVencimiento ? a.fechaVencimiento.toISOString() : undefined,
-            imageUrl: a.imagenUrl || undefined
+            imageUrl: a.imagenUrl || undefined,
+            serie: a.serie || undefined
         }));
 
         return [...unifiedProductos, ...unifiedActivos];
@@ -651,7 +653,10 @@ export async function buscarItemPorCodigo(codigo: string) {
         const activo = await prisma.activoFijo.findFirst({
             where: {
                 organizationId,
-                idQr: { equals: codigoTrim, mode: 'insensitive' },
+                OR: [
+                    { idQr: { equals: codigoTrim, mode: 'insensitive' } },
+                    { serie: { equals: codigoTrim, mode: 'insensitive' } }
+                ],
                 estatusContable: 'VIGENTE'
             },
             include: { producto: true }

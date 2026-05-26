@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useRef } from 'react';
 import { 
     X, 
     Trash2, 
@@ -12,9 +12,24 @@ import {
     Check, 
     AlignLeft, 
     Save, 
-    Info 
+    Info,
+    Paperclip,
+    Send,
+    MessageSquare,
+    Download,
+    FileText,
+    Image as ImageIcon,
+    Loader2,
+    Camera
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { 
+    getTaskCommentsAndAttachments, 
+    createKanbanComment, 
+    deleteKanbanComment, 
+    createKanbanAttachment, 
+    deleteKanbanAttachment 
+} from '@/app/(dashboard)/kanban/actions';
 
 interface Member {
     id: string;
@@ -47,6 +62,7 @@ interface Props {
     onUpdate: (taskId: string, fields: any) => Promise<boolean>;
     onDelete: (taskId: string) => Promise<boolean>;
     activities: any[]; // Historial de actividades de esta tarea
+    userRole?: string;
 }
 
 export default function TaskDetailModal({
@@ -58,9 +74,11 @@ export default function TaskDetailModal({
     columnas,
     onUpdate,
     onDelete,
-    activities
+    activities,
+    userRole
 }: Props) {
     const [isPending, startTransition] = useTransition();
+    const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN';
     const [title, setTitle] = useState(task.title);
     const [description, setDescription] = useState(task.description);
     const [status, setStatus] = useState(task.status);
@@ -71,7 +89,21 @@ export default function TaskDetailModal({
     const [isEditingDesc, setIsEditingDesc] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
-    // Sincronizar estados locales cuando cambia la tarea seleccionada
+    // Estados para colaboración
+    const [activeTab, setActiveTab] = useState<'comentarios' | 'actividad'>('comentarios');
+    const [comments, setComments] = useState<any[]>([]);
+    const [attachments, setAttachments] = useState<any[]>([]);
+    const [loadingCollab, setLoadingCollab] = useState(false);
+    const [newComment, setNewComment] = useState("");
+    const [isUploading, setIsUploading] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+
+    // Estados para cámara web
+    const [showCameraModal, setShowCameraModal] = useState(false);
+    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    // Cargar comentarios y adjuntos al montar o cuando cambia la tarea/apertura
     useEffect(() => {
         setTitle(task.title);
         setDescription(task.description);
@@ -82,7 +114,230 @@ export default function TaskDetailModal({
         setDueDate(task.dueDate ? task.dueDate.split('T')[0] : '');
         setIsEditingDesc(false);
         setShowDeleteConfirm(false);
-    }, [task]);
+        setActiveTab('comentarios');
+
+        // Detener la cámara si cambia la tarea o se cierra el modal
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+            setShowCameraModal(false);
+        }
+
+        if (isOpen && task.id) {
+            loadCommentsAndAttachments();
+        }
+    }, [task, isOpen]);
+
+    // Limpieza al desmontar
+    useEffect(() => {
+        return () => {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+        };
+    }, [cameraStream]);
+
+    const openCamera = async () => {
+        setShowCameraModal(true);
+        setTimeout(async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }, // preferir cámara trasera si está disponible
+                    audio: false
+                });
+                setCameraStream(stream);
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+            } catch (err) {
+                console.error("Camera access error:", err);
+                toast.error("No se pudo iniciar la cámara web. Puedes usar la cámara nativa con el botón 'Cámara de Dispositivo'.");
+            }
+        }, 300);
+    };
+
+    const closeCamera = () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+        setShowCameraModal(false);
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current) {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth || 1280;
+            canvas.height = videoRef.current.videoHeight || 720;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob(async (blob) => {
+                    if (blob) {
+                        const file = new File([blob], `foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                        await handleFileUpload(file);
+                        closeCamera();
+                    }
+                }, 'image/jpeg', 0.9);
+            }
+        }
+    };
+
+    const loadCommentsAndAttachments = async () => {
+        setLoadingCollab(true);
+        try {
+            const res = await getTaskCommentsAndAttachments(task.id);
+            if (res.success && res.comments && res.attachments) {
+                setComments(res.comments);
+                setAttachments(res.attachments);
+            }
+        } catch (error) {
+            console.error("Error al cargar colaboración:", error);
+            toast.error("Error al cargar comentarios");
+        } finally {
+            setLoadingCollab(false);
+        }
+    };
+
+    const handleFileUpload = async (file: File) => {
+        if (!file) return;
+
+        if (file.size > 20 * 1024 * 1024) { // 20MB limit
+            toast.error(`El archivo "${file.name}" supera el límite de 20MB`);
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            // 1. Obtener URL pre-firmada de subida
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fileName: file.name,
+                    contentType: file.type,
+                }),
+            });
+
+            if (!response.ok) throw new Error('Error solicitando URL de subida');
+            const { uploadUrl, publicUrl } = await response.json();
+
+            // 2. Subir directamente a R2
+            const uploadResponse = await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': file.type,
+                },
+                body: file,
+            });
+
+            if (!uploadResponse.ok) throw new Error('Error al subir el archivo');
+
+            // 3. Guardar registro en la base de datos
+            const dbRes = await createKanbanAttachment({
+                taskId: task.id,
+                nombre: file.name,
+                url: publicUrl,
+                tipo: file.type,
+                tamano: file.size
+            });
+
+            if (dbRes.success && dbRes.attachment) {
+                setAttachments(prev => [dbRes.attachment, ...prev]);
+                toast.success(`Archivo "${file.name}" subido con éxito`);
+            } else {
+                throw new Error(dbRes.error || 'Error al registrar el archivo');
+            }
+        } catch (err: any) {
+            console.error('[Upload Error]:', err);
+            toast.error(`Error al subir "${file.name}": ${err.message || err}`);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+    };
+
+    const handleDrop = async (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const files = e.dataTransfer.files;
+        if (files && files.length > 0) {
+            for (let i = 0; i < files.length; i++) {
+                await handleFileUpload(files[i]);
+            }
+        }
+    };
+
+    const handleAddComment = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newComment.trim()) return;
+
+        const commentText = newComment;
+        setNewComment("");
+
+        try {
+            const res = await createKanbanComment(task.id, commentText);
+            if (res.success && res.comment) {
+                setComments(prev => [...prev, res.comment]);
+                toast.success('Comentario añadido');
+            } else {
+                toast.error(res.error || 'Error al guardar comentario');
+                setNewComment(commentText);
+            }
+        } catch (error) {
+            console.error("Error al crear comentario:", error);
+            toast.error('Error de servidor al guardar comentario');
+            setNewComment(commentText);
+        }
+    };
+
+    const handleDeleteComment = async (commentId: string) => {
+        if (!window.confirm('¿Confirmas que deseas eliminar este comentario?')) return;
+        try {
+            const res = await deleteKanbanComment(commentId);
+            if (res.success) {
+                setComments(prev => prev.filter(c => c.id !== commentId));
+                toast.success('Comentario eliminado');
+            } else {
+                toast.error(res.error || 'Error al eliminar comentario');
+            }
+        } catch (error) {
+            console.error("Error al eliminar comentario:", error);
+            toast.error('Error al eliminar comentario');
+        }
+    };
+
+    const handleDeleteAttachment = async (attachmentId: string) => {
+        if (!window.confirm('¿Confirmas que deseas eliminar este archivo adjunto?')) return;
+        try {
+            const res = await deleteKanbanAttachment(attachmentId);
+            if (res.success) {
+                setAttachments(prev => prev.filter(a => a.id !== attachmentId));
+                toast.success('Archivo adjunto eliminado');
+            } else {
+                toast.error(res.error || 'Error al eliminar archivo');
+            }
+        } catch (error) {
+            console.error("Error al eliminar adjunto:", error);
+            toast.error('Error al eliminar archivo');
+        }
+    };
+
+    const getFileIcon = (tipo: string) => {
+        if (tipo.startsWith('image/')) return <ImageIcon className="h-6 w-6 text-blue-500" />;
+        if (tipo.includes('pdf')) return <FileText className="h-6 w-6 text-red-500" />;
+        if (tipo.includes('excel') || tipo.includes('spreadsheet') || tipo.includes('sheet') || tipo.includes('csv')) return <FileText className="h-6 w-6 text-emerald-500" />;
+        return <FileText className="h-6 w-6 text-slate-400" />;
+    };
 
     if (!isOpen) return null;
 
@@ -138,7 +393,25 @@ export default function TaskDetailModal({
             <div className="relative w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[500px] max-h-[90vh]">
                 
                 {/* Lado Izquierdo: Contenido Editable de Tarea */}
-                <div className="flex-1 p-6 md:p-8 flex flex-col justify-between overflow-y-auto border-r border-slate-100 bg-white">
+                <div 
+                    className="relative flex-1 p-6 md:p-8 flex flex-col justify-between overflow-y-auto border-r border-slate-100 bg-white"
+                    onDragOver={handleDragOver}
+                >
+                    {isDragging && (
+                        <div 
+                            onDragOver={handleDragOver}
+                            onDragLeave={handleDragLeave}
+                            onDrop={handleDrop}
+                            className="absolute inset-0 bg-brand-500/10 backdrop-blur-[2px] border-2 border-dashed border-brand-500 rounded-l-2xl flex flex-col items-center justify-center z-50 transition-all duration-300"
+                        >
+                            <div className="bg-white p-6 rounded-2xl shadow-xl flex flex-col items-center gap-3 animate-bounce">
+                                <Paperclip className="h-10 w-10 text-brand-600 animate-pulse" />
+                                <p className="text-sm font-bold text-slate-700">Suelta tus archivos aquí</p>
+                                <p className="text-xs text-slate-400">Imágenes, PDFs, Excels, etc. (Máx 20MB)</p>
+                            </div>
+                        </div>
+                    )}
+
                     <div className="space-y-6">
                         
                         {/* Cabecera: Código de la tarea y Botón de Cerrar */}
@@ -213,28 +486,224 @@ export default function TaskDetailModal({
                             )}
                         </div>
 
-                        {/* Actividad / Historial */}
-                        <div className="space-y-3 pt-4 border-t border-slate-100">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-slate-400" />
-                                Actividad Reciente
-                            </h4>
+                        {/* Actividad / Colaboración (Tabs) */}
+                        <div className="pt-4 border-t border-slate-100 space-y-4">
+                            <div className="flex gap-4 border-b border-slate-100 pb-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('comentarios')}
+                                    className={`text-xs font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                        activeTab === 'comentarios' 
+                                            ? 'border-brand-600 text-brand-600' 
+                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                    }`}
+                                >
+                                    Conversación ({comments.length + attachments.length})
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('actividad')}
+                                    className={`text-xs font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                        activeTab === 'actividad' 
+                                            ? 'border-brand-600 text-brand-600' 
+                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                    }`}
+                                >
+                                    Historial ({taskActivities.length})
+                                </button>
+                            </div>
 
-                            {taskActivities.length === 0 ? (
-                                <p className="text-xs text-slate-400 italic">No hay registros de actividad para esta tarea.</p>
-                            ) : (
-                                <div className="space-y-3 max-h-[180px] overflow-y-auto pr-1">
-                                    {taskActivities.map((act) => (
-                                        <div key={act.id} className="text-xs flex flex-col gap-0.5 border-l-2 border-slate-200 pl-3">
-                                            <div className="flex items-center gap-2">
-                                                <span className="font-bold text-slate-800">{act.usuario}</span>
-                                                <span className="text-[10px] text-slate-400">
-                                                    {new Date(act.createdAt).toLocaleDateString()} {new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                                </span>
-                                            </div>
-                                            <p className="text-slate-600">{act.detalles}</p>
+                            {activeTab === 'actividad' ? (
+                                <div className="space-y-3">
+                                    {taskActivities.length === 0 ? (
+                                        <p className="text-xs text-slate-400 italic">No hay registros de actividad para esta tarea.</p>
+                                    ) : (
+                                        <div className="space-y-3 max-h-[300px] overflow-y-auto pr-1">
+                                            {taskActivities.map((act) => (
+                                                <div key={act.id} className="text-xs flex flex-col gap-0.5 border-l-2 border-slate-200 pl-3">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="font-bold text-slate-800">{act.usuario}</span>
+                                                        <span className="text-[10px] text-slate-400">
+                                                            {new Date(act.createdAt).toLocaleDateString()} {new Date(act.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-slate-600">{act.detalles}</p>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {/* Lista de adjuntos */}
+                                    {attachments.length > 0 && (
+                                        <div className="space-y-2">
+                                            <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Archivos Adjuntos ({attachments.length})</h5>
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                                                {attachments.map((att) => {
+                                                    const isImg = att.tipo.startsWith('image/');
+                                                    return (
+                                                        <div key={att.id} className="group relative rounded-xl border border-slate-100 bg-slate-50 hover:bg-white p-2 transition flex flex-col gap-1.5 shadow-sm hover:shadow">
+                                                            {isImg ? (
+                                                                <a 
+                                                                    href={att.url} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer" 
+                                                                    className="relative block aspect-video rounded-lg overflow-hidden border border-slate-200/50 bg-white"
+                                                                >
+                                                                    <img src={att.url} alt={att.nombre} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                                                                </a>
+                                                            ) : (
+                                                                <div className="aspect-video rounded-lg border border-slate-200/50 bg-slate-100 flex items-center justify-center">
+                                                                    {getFileIcon(att.tipo)}
+                                                                </div>
+                                                            )}
+                                                            <div className="flex flex-col gap-0.5 min-w-0 px-1">
+                                                                <p className="text-[10px] font-bold text-slate-700 truncate" title={att.nombre}>{att.nombre}</p>
+                                                                <p className="text-[8px] text-slate-400">{(att.tamano / 1024).toFixed(1)} KB • {att.subidoPor.nombre}</p>
+                                                            </div>
+                                                            
+                                                            {/* Acciones del Adjunto */}
+                                                            <div className="absolute top-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                                                                <a 
+                                                                    href={att.url} 
+                                                                    download={att.nombre} 
+                                                                    target="_blank"
+                                                                    rel="noopener noreferrer"
+                                                                    className="p-1 bg-white border border-slate-150 rounded-md text-slate-500 hover:text-slate-700 shadow-sm transition"
+                                                                    title="Descargar/Ver"
+                                                                >
+                                                                    <Download className="h-3 w-3" />
+                                                                </a>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeleteAttachment(att.id)}
+                                                                    className="p-1 bg-white border border-slate-150 hover:border-red-100 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 shadow-sm transition"
+                                                                    title="Eliminar"
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Hilo de Comentarios */}
+                                    <div className="space-y-3.5 max-h-[350px] overflow-y-auto pr-1">
+                                        {loadingCollab ? (
+                                            <div className="flex items-center justify-center py-6">
+                                                <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
+                                            </div>
+                                        ) : comments.length === 0 ? (
+                                            <div className="text-center py-8 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                                <MessageSquare className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                                                <p className="text-xs text-slate-500 font-medium">No hay comentarios aún</p>
+                                                <p className="text-[10px] text-slate-400">Inicia la conversación o arrastra archivos aquí para interactuar.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="space-y-3">
+                                                {comments.map((comm) => {
+                                                    const initials = comm.usuario.nombre
+                                                        ? comm.usuario.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+                                                        : '?';
+                                                    return (
+                                                        <div key={comm.id} className="flex gap-2.5 items-start group">
+                                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-500 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm">
+                                                                {initials}
+                                                            </div>
+                                                            <div className="flex-1 bg-slate-50/60 border border-slate-100 rounded-xl px-3.5 py-2 hover:bg-slate-50 transition relative">
+                                                                <div className="flex items-center justify-between gap-2 mb-1">
+                                                                    <span className="text-[10px] font-bold text-slate-800">{comm.usuario.nombre}</span>
+                                                                    <span className="text-[9px] text-slate-400">
+                                                                        {new Date(comm.createdAt).toLocaleDateString()} {new Date(comm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{comm.contenido}</p>
+                                                                
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeleteComment(comm.id)}
+                                                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition p-1 hover:bg-slate-150 rounded text-slate-400 hover:text-red-600"
+                                                                    title="Eliminar comentario"
+                                                                >
+                                                                    <Trash2 className="h-3 w-3" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Editor de comentarios */}
+                                    <div className="space-y-2">
+                                        <form onSubmit={handleAddComment} className="flex gap-2 items-end pt-2">
+                                            <div className="flex-1 bg-slate-50 hover:bg-slate-100/75 border border-slate-200 focus-within:border-brand-500 focus-within:bg-white rounded-xl px-3 py-1.5 transition flex items-center gap-2">
+                                                <textarea
+                                                    value={newComment}
+                                                    onChange={(e) => setNewComment(e.target.value)}
+                                                    placeholder="Escribe un comentario y presiona Enter..."
+                                                    rows={1}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                                            e.preventDefault();
+                                                            handleAddComment(e);
+                                                        }
+                                                    }}
+                                                    className="flex-1 bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none resize-none min-h-[22px] max-h-[80px] py-1"
+                                                />
+                                                
+                                                <input 
+                                                    type="file" 
+                                                    id="kanban-file-upload" 
+                                                    multiple 
+                                                    className="hidden" 
+                                                    onChange={async (e) => {
+                                                        const files = e.target.files;
+                                                        if (files && files.length > 0) {
+                                                            for (let i = 0; i < files.length; i++) {
+                                                                await handleFileUpload(files[i]);
+                                                            }
+                                                        }
+                                                    }}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={openCamera}
+                                                    className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
+                                                    title="Tomar fotografía"
+                                                >
+                                                    <Camera className="h-3.5 w-3.5" />
+                                                </button>
+
+                                                <label 
+                                                    htmlFor="kanban-file-upload"
+                                                    className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer transition shrink-0"
+                                                    title="Adjuntar archivos"
+                                                >
+                                                    <Paperclip className="h-3.5 w-3.5" />
+                                                </label>
+                                            </div>
+                                            <button
+                                                type="submit"
+                                                disabled={!newComment.trim()}
+                                                className="p-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-100 text-white disabled:text-slate-300 rounded-xl transition shadow-sm shrink-0"
+                                            >
+                                                <Send className="h-3.5 w-3.5" />
+                                            </button>
+                                        </form>
+
+                                        {isUploading && (
+                                            <div className="text-[10px] text-slate-500 flex items-center gap-1.5 justify-center py-1">
+                                                <Loader2 className="h-3 w-3 animate-spin text-brand-500" />
+                                                Subiendo archivo a Cloudflare R2...
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -336,49 +805,121 @@ export default function TaskDetailModal({
                     </div>
 
                     {/* Botones de acción inferior */}
-                    <div className="pt-6 border-t border-slate-200 mt-5">
-                        {showDeleteConfirm ? (
-                            <div className="bg-red-50 border border-red-100 rounded-xl p-3 space-y-2.5">
-                                <div className="text-xs text-red-700 font-bold flex items-center gap-1.5">
-                                    <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-                                    ¿Confirmas eliminar la tarea?
+                    {isAdmin && (
+                        <div className="pt-6 border-t border-slate-200 mt-5">
+                            {showDeleteConfirm ? (
+                                <div className="bg-red-50 border border-red-100 rounded-xl p-3 space-y-2.5">
+                                    <div className="text-xs text-red-700 font-bold flex items-center gap-1.5">
+                                        <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                                        ¿Confirmas eliminar la tarea?
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={handleDeleteTask}
+                                            disabled={isPending}
+                                            className="flex-1 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-1.5 rounded-lg transition"
+                                        >
+                                            Eliminar
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowDeleteConfirm(false)}
+                                            className="flex-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[10px] py-1.5 rounded-lg transition"
+                                        >
+                                            Cancelar
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="flex gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={handleDeleteTask}
-                                        disabled={isPending}
-                                        className="flex-1 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-1.5 rounded-lg transition"
-                                    >
-                                        Eliminar
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowDeleteConfirm(false)}
-                                        className="flex-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[10px] py-1.5 rounded-lg transition"
-                                    >
-                                        Cancelar
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={() => setShowDeleteConfirm(true)}
-                                className="w-full flex items-center justify-center gap-2 bg-white hover:bg-red-50 hover:text-red-600 border border-slate-200 hover:border-red-200 text-slate-500 font-semibold py-2 rounded-xl text-sm transition"
-                            >
-                                <Trash2 className="h-4 w-4" />
-                                Eliminar Tarea
-                            </button>
-                        )}
-                        <span className="text-[10px] text-slate-400 block text-center mt-3 font-medium">
-                            Creado: {new Date(task.createdAt).toLocaleDateString()}
-                        </span>
-                    </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => setShowDeleteConfirm(true)}
+                                    className="w-full flex items-center justify-center gap-2 bg-white hover:bg-red-50 hover:text-red-600 border border-slate-200 hover:border-red-200 text-slate-500 font-semibold py-2 rounded-xl text-sm transition"
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                    Eliminar Tarea
+                                </button>
+                            )}
+                        </div>
+                    )}
+                    <span className="text-[10px] text-slate-400 block text-center mt-3 font-medium">
+                        Creado: {new Date(task.createdAt).toLocaleDateString()}
+                    </span>
 
                 </div>
 
             </div>
+
+            {/* Modal de Cámara */}
+            {showCameraModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-955/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100 flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                            <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                <Camera className="h-4 w-4 text-brand-600 animate-pulse" />
+                                Tomar Fotografía
+                            </h3>
+                            <button 
+                                type="button"
+                                onClick={closeCamera}
+                                className="p-1 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        
+                        <div className="relative aspect-video bg-black flex flex-col items-center justify-center overflow-hidden">
+                            <video 
+                                ref={videoRef} 
+                                autoPlay 
+                                playsInline 
+                                className="w-full h-full object-cover"
+                            />
+                            {!cameraStream && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-xs bg-slate-900 gap-2">
+                                    <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+                                    <span>Iniciando cámara...</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 bg-slate-50 flex gap-2 justify-center">
+                            <button
+                                type="button"
+                                onClick={capturePhoto}
+                                disabled={!cameraStream}
+                                className="bg-brand-600 hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-1.5"
+                            >
+                                <Camera className="h-3.5 w-3.5" />
+                                Capturar
+                            </button>
+                            
+                            {/* Mobile camera fallback */}
+                            <input
+                                type="file"
+                                accept="image/*"
+                                capture="environment"
+                                id="mobile-camera-input"
+                                className="hidden"
+                                onChange={async (e) => {
+                                    const files = e.target.files;
+                                    if (files && files.length > 0) {
+                                        await handleFileUpload(files[0]);
+                                        closeCamera();
+                                    }
+                                }}
+                            />
+                            <label
+                                htmlFor="mobile-camera-input"
+                                className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl cursor-pointer shadow-sm transition flex items-center gap-1.5"
+                            >
+                                Cámara de Dispositivo
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

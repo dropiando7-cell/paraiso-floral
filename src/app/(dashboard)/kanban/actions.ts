@@ -41,7 +41,8 @@ export async function getSpaces() {
             columnas: s.columnas,
             tiposActividad: s.tiposActividad,
             taskCount: s._count.tasks,
-            createdAt: s.createdAt.toISOString()
+            createdAt: s.createdAt.toISOString(),
+            archivado: s.archivado
         }));
     } catch (e) {
         console.error("getSpaces Error:", e);
@@ -104,7 +105,7 @@ export async function createSpace(data: {
 // 3. Obtener detalles completos de un espacio
 export async function getSpaceDetails(spaceId: string) {
     try {
-        const { org } = await getCurrentUserAndOrg();
+        const { user, org } = await getCurrentUserAndOrg();
 
         const space = await prisma.kanbanSpace.findFirst({
             where: { id: spaceId, organizationId: org.id },
@@ -138,6 +139,7 @@ export async function getSpaceDetails(spaceId: string) {
         });
 
         return {
+            currentUserRole: user.role,
             space: {
                 id: space.id,
                 nombre: space.nombre,
@@ -378,6 +380,10 @@ export async function deleteKanbanTask(taskId: string) {
     try {
         const { user } = await getCurrentUserAndOrg();
 
+        if (user.role !== 'SUPER_ADMIN' && user.role !== 'ORG_ADMIN') {
+            throw new Error('No autorizado. Solo los administradores pueden eliminar tareas.');
+        }
+
         const task = await prisma.kanbanTask.findUnique({
             where: { id: taskId }
         });
@@ -511,5 +517,296 @@ export async function deleteColumnFromSpace(spaceId: string, columnName: string)
         return { success: false, error: e.message || 'Error al eliminar columna' };
     }
 }
+
+// 10. Archivar o desarchivar un espacio de trabajo
+export async function archiveSpace(spaceId: string, archivado: boolean) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        const space = await prisma.kanbanSpace.findFirst({
+            where: { id: spaceId, organizationId: org.id }
+        });
+
+        if (!space) throw new Error('Espacio de trabajo no encontrado');
+
+        await prisma.kanbanSpace.update({
+            where: { id: spaceId },
+            data: { archivado }
+        });
+
+        // Registrar actividad de auditoría
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId,
+                usuarioId: user.id,
+                accion: 'ACTUALIZACION',
+                detalles: archivado ? 'Archivó el espacio de trabajo' : 'Desarchivó el espacio de trabajo'
+            }
+        });
+
+        revalidatePath('/kanban');
+        return { success: true };
+    } catch (e: any) {
+        console.error("archiveSpace Error:", e);
+        return { success: false, error: e.message || 'Error al modificar estado del espacio' };
+    }
+}
+
+// 11. Obtener comentarios y archivos adjuntos de una tarea
+export async function getTaskCommentsAndAttachments(taskId: string) {
+    try {
+        const { org } = await getCurrentUserAndOrg();
+
+        const task = await prisma.kanbanTask.findFirst({
+            where: { id: taskId, organizationId: org.id }
+        });
+
+        if (!task) throw new Error('Tarea no encontrada');
+
+        const comments = await prisma.kanbanComment.findMany({
+            where: { taskId },
+            include: {
+                usuario: {
+                    select: { id: true, nombre: true, apellido: true, email: true }
+                }
+            },
+            orderBy: { createdAt: 'asc' }
+        });
+
+        const attachments = await prisma.kanbanAttachment.findMany({
+            where: { taskId },
+            include: {
+                subidoPor: {
+                    select: { id: true, nombre: true, apellido: true, email: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        return {
+            success: true,
+            comments: comments.map(c => ({
+                id: c.id,
+                contenido: c.contenido,
+                createdAt: c.createdAt.toISOString(),
+                usuario: {
+                    id: c.usuario.id,
+                    nombre: `${c.usuario.nombre || ''} ${c.usuario.apellido || ''}`.trim() || c.usuario.email
+                }
+            })),
+            attachments: attachments.map(a => ({
+                id: a.id,
+                nombre: a.nombre,
+                url: a.url,
+                tipo: a.tipo,
+                tamano: a.tamano,
+                createdAt: a.createdAt.toISOString(),
+                subidoPor: {
+                    id: a.subidoPor.id,
+                    nombre: `${a.subidoPor.nombre || ''} ${a.subidoPor.apellido || ''}`.trim() || a.subidoPor.email
+                }
+            }))
+        };
+    } catch (e: any) {
+        console.error("getTaskCommentsAndAttachments Error:", e);
+        return { success: false, error: e.message || 'Error al obtener comentarios y adjuntos' };
+    }
+}
+
+// 12. Crear un nuevo comentario
+export async function createKanbanComment(taskId: string, contenido: string) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        const task = await prisma.kanbanTask.findFirst({
+            where: { id: taskId, organizationId: org.id }
+        });
+
+        if (!task) throw new Error('Tarea no encontrada');
+
+        const comment = await prisma.kanbanComment.create({
+            data: {
+                taskId,
+                usuarioId: user.id,
+                contenido: contenido.trim()
+            },
+            include: {
+                usuario: {
+                    select: { id: true, nombre: true, apellido: true, email: true }
+                }
+            }
+        });
+
+        // Registrar auditoría
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId: task.spaceId,
+                taskId,
+                usuarioId: user.id,
+                accion: 'COMENTARIO',
+                detalles: `Añadió un comentario`
+            }
+        });
+
+        revalidatePath(`/kanban/${task.spaceId}`);
+        return {
+            success: true,
+            comment: {
+                id: comment.id,
+                contenido: comment.contenido,
+                createdAt: comment.createdAt.toISOString(),
+                usuario: {
+                    id: comment.usuario.id,
+                    nombre: `${comment.usuario.nombre || ''} ${comment.usuario.apellido || ''}`.trim() || comment.usuario.email
+                }
+            }
+        };
+    } catch (e: any) {
+        console.error("createKanbanComment Error:", e);
+        return { success: false, error: e.message || 'Error al crear comentario' };
+    }
+}
+
+// 13. Eliminar un comentario
+export async function deleteKanbanComment(commentId: string) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        const comment = await prisma.kanbanComment.findUnique({
+            where: { id: commentId },
+            include: { task: true }
+        });
+
+        if (!comment) throw new Error('Comentario no encontrado');
+        if (comment.task.organizationId !== org.id) throw new Error('No autorizado');
+
+        const isAuthor = comment.usuarioId === user.id;
+        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+
+        if (!isAuthor && !isAdmin) {
+            throw new Error('No tienes permiso para eliminar este comentario');
+        }
+
+        await prisma.kanbanComment.delete({
+            where: { id: commentId }
+        });
+
+        revalidatePath(`/kanban/${comment.task.spaceId}`);
+        return { success: true };
+    } catch (e: any) {
+        console.error("deleteKanbanComment Error:", e);
+        return { success: false, error: e.message || 'Error al eliminar comentario' };
+    }
+}
+
+// 14. Registrar un archivo adjunto
+export async function createKanbanAttachment(data: {
+    taskId: string;
+    nombre: string;
+    url: string;
+    tipo: string;
+    tamano: number;
+}) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        const task = await prisma.kanbanTask.findFirst({
+            where: { id: data.taskId, organizationId: org.id }
+        });
+
+        if (!task) throw new Error('Tarea no encontrada');
+
+        const attachment = await prisma.kanbanAttachment.create({
+            data: {
+                taskId: data.taskId,
+                nombre: data.nombre,
+                url: data.url,
+                tipo: data.tipo,
+                tamano: data.tamano,
+                subidoPorId: user.id
+            },
+            include: {
+                subidoPor: {
+                    select: { id: true, nombre: true, apellido: true, email: true }
+                }
+            }
+        });
+
+        // Registrar auditoría
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId: task.spaceId,
+                taskId: data.taskId,
+                usuarioId: user.id,
+                accion: 'COMENTARIO',
+                detalles: `Subió el archivo adjunto "${data.nombre}"`
+            }
+        });
+
+        revalidatePath(`/kanban/${task.spaceId}`);
+        return {
+            success: true,
+            attachment: {
+                id: attachment.id,
+                nombre: attachment.nombre,
+                url: attachment.url,
+                tipo: attachment.tipo,
+                tamano: attachment.tamano,
+                createdAt: attachment.createdAt.toISOString(),
+                subidoPor: {
+                    id: attachment.subidoPor.id,
+                    nombre: `${attachment.subidoPor.nombre || ''} ${attachment.subidoPor.apellido || ''}`.trim() || attachment.subidoPor.email
+                }
+            }
+        };
+    } catch (e: any) {
+        console.error("createKanbanAttachment Error:", e);
+        return { success: false, error: e.message || 'Error al registrar adjunto' };
+    }
+}
+
+// 15. Eliminar un archivo adjunto
+export async function deleteKanbanAttachment(attachmentId: string) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        const attachment = await prisma.kanbanAttachment.findUnique({
+            where: { id: attachmentId },
+            include: { task: true }
+        });
+
+        if (!attachment) throw new Error('Adjunto no encontrado');
+        if (attachment.task.organizationId !== org.id) throw new Error('No autorizado');
+
+        const isOwner = attachment.subidoPorId === user.id;
+        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+
+        if (!isOwner && !isAdmin) {
+            throw new Error('No tienes permiso para eliminar este adjunto');
+        }
+
+        await prisma.kanbanAttachment.delete({
+            where: { id: attachmentId }
+        });
+
+        // Registrar auditoría
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId: attachment.task.spaceId,
+                taskId: attachment.taskId,
+                usuarioId: user.id,
+                accion: 'ELIMINACION',
+                detalles: `Eliminó el archivo adjunto "${attachment.nombre}"`
+            }
+        });
+
+        revalidatePath(`/kanban/${attachment.task.spaceId}`);
+        return { success: true };
+    } catch (e: any) {
+        console.error("deleteKanbanAttachment Error:", e);
+        return { success: false, error: e.message || 'Error al eliminar adjunto' };
+    }
+}
+
 
 

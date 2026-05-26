@@ -64,6 +64,7 @@ interface Product {
   type: 'producto' | 'activo';
   imageUrl?: string;
   fechaVencimiento?: string | Date | null;
+  serie?: string | null;
 }
 
 import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion } from './actions';
@@ -98,6 +99,16 @@ const today = new Date().toISOString().split('T')[0];
 const futureDate = (days: number) => {
   const d = new Date(); d.setDate(d.getDate() + days);
   return d.toISOString().split('T')[0];
+};
+const formatFecha = (dStr: string | Date | null | undefined) => {
+  if (!dStr) return '';
+  try {
+    const d = new Date(dStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch (e) {
+    return '';
+  }
 };
 
 const emptyLine = (): LineItem => ({
@@ -304,7 +315,17 @@ function LineItemRow({
         />
       );
     }
-    return <img src={item.imageUrl} alt="" className={`w-full h-full ${imgObjectClass}`} />;
+    return (
+      <img 
+        src={item.imageUrl} 
+        alt="" 
+        onClick={(e) => {
+          e.stopPropagation();
+          window.dispatchEvent(new CustomEvent('show-lightbox-image', { detail: item.imageUrl }));
+        }}
+        className={`w-full h-full ${imgObjectClass} cursor-zoom-in hover:opacity-80 transition-opacity`} 
+      />
+    );
   };
 
   useEffect(() => {
@@ -322,7 +343,8 @@ function LineItemRow({
   const filteredProducts = query.trim().length >= 2 ? allProducts.filter(p => 
     normalizeText(p.name).includes(nQuery) || 
     normalizeText(p.code).includes(nQuery) ||
-    (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery))
+    (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery)) ||
+    (p.serie && normalizeText(p.serie).includes(nQuery))
   ).slice(0, 15) : [];
 
   useEffect(() => {
@@ -411,7 +433,7 @@ function LineItemRow({
   const renderDropdown = () => {
     if (!showAutocomplete || !focusedField || filteredProducts.length === 0) return null;
     return (
-      <div className="absolute top-[calc(100%+4px)] left-0 w-[450px] z-[60] bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto print:hidden">
+      <div className="absolute top-[calc(100%+4px)] left-0 w-[500px] md:w-[540px] z-[60] bg-white border border-slate-200 rounded-xl shadow-2xl max-h-72 overflow-y-auto print:hidden">
         <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coincidencias en catálogo</span>
           <span className="text-[10px] font-medium text-slate-400">{filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'}</span>
@@ -423,25 +445,62 @@ function LineItemRow({
               type="button"
               onMouseEnter={() => setSelectedIndex(idx)}
               onClick={() => handleSelectProduct(p)}
-              className={`w-full text-left px-3 py-2 rounded-lg group flex flex-col gap-1 transition-colors ${idx === selectedIndex ? 'bg-blue-50' : 'hover:bg-blue-50/70'}`}
+              className={`w-full text-left px-3 py-2.5 rounded-lg group flex items-start gap-3 transition-colors ${idx === selectedIndex ? 'bg-blue-50' : 'hover:bg-blue-50/70'}`}
             >
-              <div className="flex items-start justify-between gap-4">
-                <p className="text-xs font-bold text-slate-800 group-hover:text-blue-700 leading-tight">
-                  {p.name}
-                </p>
-                <p className="text-xs font-black text-blue-600 shrink-0">{fmt(p.price)}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`text-[10px] ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} px-1.5 py-0.5 rounded font-medium ${idx === selectedIndex ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>{p.code}</span>
-                {p.type === 'activo' ? (
-                  <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">Activo Fijo</span>
+              {/* Miniatura del Producto / Activo */}
+              <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0 relative">
+                {p.imageUrl ? (
+                  <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
+                ) : p.type === 'activo' ? (
+                  <Stethoscope size={16} className="text-indigo-400 group-hover:text-blue-500 transition-colors" />
                 ) : (
-                  <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Stock: {p.stock}</span>
+                  <Package size={16} className="text-slate-400 group-hover:text-blue-500 transition-colors" />
                 )}
               </div>
-              {p.type === 'activo' && p.description && (
-                <p className="text-[10px] text-slate-500 mt-1 truncate">{p.description}</p>
-              )}
+
+              {/* Información Detallada */}
+              <div className="flex-1 min-w-0 flex flex-col gap-1">
+                <div className="flex items-start justify-between gap-4">
+                  <p className="text-xs font-bold text-slate-800 group-hover:text-blue-700 leading-tight truncate">
+                    {p.name}
+                  </p>
+                  <p className="text-xs font-black text-blue-600 shrink-0">{fmt(p.price)}</p>
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className={`text-[10px] ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded font-medium group-hover:bg-blue-100 group-hover:text-blue-600 transition-colors`}>
+                    {p.code}
+                  </span>
+                  
+                  {p.type === 'activo' ? (
+                    <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                      Activo Fijo
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+                      Stock: {p.stock}
+                    </span>
+                  )}
+
+                  {p.type === 'activo' && p.serie && (
+                    <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-100/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <Tag size={10} className="shrink-0" />
+                      S/N: {p.serie}
+                    </span>
+                  )}
+
+                  {p.fechaVencimiento && (
+                    <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-100/50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <Calendar size={10} className="shrink-0" />
+                      Vence: {formatFecha(p.fechaVencimiento)}
+                    </span>
+                  )}
+                </div>
+
+                {p.type === 'activo' && p.description && (
+                  <p className="text-[10px] text-slate-400 truncate leading-tight">{p.description}</p>
+                )}
+              </div>
             </button>
           ))}
         </div>
@@ -931,6 +990,18 @@ export default function DocumentBuilderClient({
   })() : false;
 
   const [isLoaded, setIsLoaded] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const handleShowLightbox = (e: Event) => {
+      const customEvent = e as CustomEvent<string>;
+      if (customEvent.detail) {
+        setLightboxImage(customEvent.detail);
+      }
+    };
+    window.addEventListener('show-lightbox-image', handleShowLightbox);
+    return () => window.removeEventListener('show-lightbox-image', handleShowLightbox);
+  }, []);
 
   // --- PERSISTENCE (AUTO-SAVE) ---
   const [reservedDocId, setReservedDocId] = useState<string | null>(initialData?.id || null);
@@ -1461,6 +1532,7 @@ export default function DocumentBuilderClient({
           type: p.type || 'producto',
           imageUrl: p.imageUrl || p.imagenUrl || null,
           fechaVencimiento: p.fechaVencimiento || null,
+          serie: p.serie || null,
         })));
       } catch (e) {
         console.error("Error al cargar datos", e);
@@ -2402,6 +2474,29 @@ export default function DocumentBuilderClient({
           docType={initialData?.tipoDocumento?.toLowerCase() || docType}
           estaVencida={estaVencida}
         />
+      )}
+
+      {/* Lightbox Modal overlay for images */}
+      {lightboxImage && (
+        <div 
+          className="fixed inset-0 z-[5000] bg-black/90 flex flex-col items-center justify-center p-4 animate-in fade-in duration-200 print:hidden"
+          onClick={() => setLightboxImage(null)}
+        >
+          <button 
+            className="absolute top-6 right-6 bg-white/10 text-white p-3 rounded-full hover:bg-white/25 transition-colors border border-white/20"
+            onClick={() => setLightboxImage(null)}
+            title="Cerrar vista"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img 
+            src={lightboxImage} 
+            alt="Vista Ampliada" 
+            className="w-[600px] max-w-full h-auto max-h-[80vh] object-contain bg-white p-4 rounded-xl shadow-2xl ring-1 ring-white/10" 
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
       )}
     </div>
   );

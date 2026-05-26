@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
@@ -13,9 +13,12 @@ import {
     Lock, 
     Briefcase,
     Activity,
-    Trello as KanbanIcon 
+    Trello as KanbanIcon,
+    Archive,
+    ArchiveRestore,
+    AlertTriangle
 } from 'lucide-react';
-import { createSpace } from './actions';
+import { createSpace, archiveSpace } from './actions';
 import { toast } from 'react-hot-toast';
 
 interface Space {
@@ -26,6 +29,7 @@ interface Space {
     tiposActividad: string[];
     taskCount: number;
     createdAt: string;
+    archivado: boolean;
 }
 
 interface Props {
@@ -34,8 +38,12 @@ interface Props {
 
 export default function KanbanDashboardClient({ initialSpaces }: Props) {
     const router = useRouter();
-    const [spaces] = useState<Space[]>(initialSpaces);
+    const [spaces, setSpaces] = useState<Space[]>(initialSpaces);
     const [isPending, startTransition] = useTransition();
+
+    // States for custom archive confirmation modal
+    const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+    const [archiveTargetSpace, setArchiveTargetSpace] = useState<{ id: string; nombre: string; toArchive: boolean } | null>(null);
 
     // Estado del asistente de creación
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -133,6 +141,38 @@ export default function KanbanDashboardClient({ initialSpaces }: Props) {
         });
     };
 
+    const [activeTab, setActiveTab] = useState<'activos' | 'archivados'>('activos');
+
+    useEffect(() => {
+        setSpaces(initialSpaces);
+    }, [initialSpaces]);
+
+    const handleArchiveSpaceClick = (spaceId: string, nombre: string, toArchive: boolean, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setArchiveTargetSpace({ id: spaceId, nombre, toArchive });
+        setArchiveConfirmOpen(true);
+    };
+
+    const executeArchiveSpace = () => {
+        if (!archiveTargetSpace) return;
+        const { id, nombre, toArchive } = archiveTargetSpace;
+
+        startTransition(async () => {
+            const res = await archiveSpace(id, toArchive);
+
+            if (res.success) {
+                toast.success(toArchive ? 'Espacio de trabajo archivado.' : 'Espacio de trabajo restaurado.');
+                setSpaces(prev => prev.map(s => s.id === id ? { ...s, archivado: toArchive } : s));
+                router.refresh();
+            } else {
+                toast.error(res.error || 'Error al cambiar el estado del espacio.');
+            }
+            setArchiveConfirmOpen(false);
+            setArchiveTargetSpace(null);
+        });
+    };
+
     return (
         <div className="space-y-6">
             {/* Cabecera */}
@@ -174,53 +214,115 @@ export default function KanbanDashboardClient({ initialSpaces }: Props) {
                     </button>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {spaces.map((space) => (
-                        <Link
-                            key={space.id}
-                            href={`/kanban/${space.id}`}
-                            className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 hover:border-brand-500/40 hover:shadow-md transition duration-300"
+                <div className="space-y-6">
+                    {/* Pestañas de Filtro */}
+                    <div className="flex border-b border-slate-200 gap-6">
+                        <button
+                            onClick={() => setActiveTab('activos')}
+                            className={`pb-3 text-sm font-semibold border-b-2 transition-all ${activeTab === 'activos' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
                         >
-                            {/* Icono de fondo sutil */}
-                            <div className="absolute right-3 top-3 opacity-5 group-hover:opacity-10 transition duration-300">
-                                <KanbanIcon className="h-20 w-20 text-slate-400" />
-                            </div>
+                            Proyectos Activos ({spaces.filter(s => !s.archivado).length})
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('archivados')}
+                            className={`pb-3 text-sm font-semibold border-b-2 transition-all ${activeTab === 'archivados' ? 'border-brand-600 text-brand-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
+                        >
+                            Proyectos Archivados ({spaces.filter(s => s.archivado).length})
+                        </button>
+                    </div>
 
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 font-bold group-hover:bg-brand-100 transition">
-                                        {space.clave}
-                                    </div>
-                                    <div>
-                                        <h3 className="text-md font-bold text-slate-900 group-hover:text-brand-600 transition">
-                                            {space.nombre}
-                                        </h3>
-                                        <span className="text-[11px] text-slate-400">
-                                            Creado: {new Date(space.createdAt).toLocaleDateString()}
-                                        </span>
-                                    </div>
-                                </div>
-
-                                {/* Resumen del Tablero */}
-                                <div className="grid grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-3">
-                                    <div className="flex flex-col">
-                                        <span className="text-slate-400">Actividades</span>
-                                        <span className="font-semibold text-slate-800">{space.taskCount} tareas</span>
-                                    </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-slate-400">Estructura</span>
-                                        <span className="font-semibold text-slate-800">{space.columnas.length} columnas</span>
-                                    </div>
-                                </div>
+                    {spaces.filter(s => activeTab === 'activos' ? !s.archivado : s.archivado).length === 0 ? (
+                        <div className="flex flex-col items-center justify-center border border-slate-200 rounded-2xl p-16 text-center bg-white animate-in fade-in duration-300">
+                            <div className="bg-slate-50 p-4 rounded-full mb-4">
+                                <Folder className="h-8 w-8 text-slate-400" />
                             </div>
+                            <h3 className="text-lg font-bold text-slate-900">
+                                {activeTab === 'activos' ? 'No hay proyectos activos' : 'No hay proyectos archivados'}
+                            </h3>
+                            <p className="text-slate-500 text-sm mt-2 max-w-sm">
+                                {activeTab === 'activos'
+                                    ? 'Todos los proyectos están archivados o aún no has creado ninguno.'
+                                    : 'Aquí aparecerán los proyectos que decidas archivar para liberar espacio en el dashboard.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-350">
+                            {spaces
+                                .filter(s => activeTab === 'activos' ? !s.archivado : s.archivado)
+                                .map((space) => (
+                                    <Link
+                                        key={space.id}
+                                        href={`/kanban/${space.id}`}
+                                        className="group relative flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 hover:border-brand-500/40 hover:shadow-md transition duration-300"
+                                    >
+                                        {/* Icono de fondo sutil */}
+                                        <div className="absolute right-3 top-3 opacity-5 group-hover:opacity-10 transition duration-300">
+                                            <KanbanIcon className="h-20 w-20 text-slate-400" />
+                                        </div>
 
-                            {/* Flecha interactiva */}
-                            <div className="mt-5 flex items-center justify-between text-xs font-semibold text-brand-600 group-hover:text-brand-700 transition pt-2 border-t border-slate-100">
-                                <span>Ver Tablero Kanban</span>
-                                <ChevronRight className="h-4 w-4 transform group-hover:translate-x-1 transition duration-200" />
-                            </div>
-                        </Link>
-                    ))}
+                                        {/* Botón de Archivar / Restaurar */}
+                                        {space.archivado ? (
+                                            <button
+                                                onClick={(e) => handleArchiveSpaceClick(space.id, space.nombre, false, e)}
+                                                className="absolute right-4 top-4 z-20 p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-slate-50 transition duration-200"
+                                                title="Restaurar proyecto"
+                                            >
+                                                <ArchiveRestore className="h-4 w-4" />
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={(e) => handleArchiveSpaceClick(space.id, space.nombre, true, e)}
+                                                className="absolute right-4 top-4 z-20 p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition duration-200"
+                                                title="Archivar proyecto"
+                                            >
+                                                <Archive className="h-4 w-4" />
+                                            </button>
+                                        )}
+
+                                        <div className="space-y-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-600 font-bold group-hover:bg-brand-100 transition">
+                                                    {space.clave}
+                                                </div>
+                                                <div>
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="text-md font-bold text-slate-900 group-hover:text-brand-600 transition">
+                                                            {space.nombre}
+                                                        </h3>
+                                                        {space.archivado && (
+                                                            <span className="bg-amber-100 border border-amber-200 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                                                Archivado
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-[11px] text-slate-400">
+                                                        Creado: {new Date(space.createdAt).toLocaleDateString()}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            {/* Resumen del Tablero */}
+                                            <div className="grid grid-cols-2 gap-2 text-xs border-t border-slate-100 pt-3">
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-400">Actividades</span>
+                                                    <span className="font-semibold text-slate-800">{space.taskCount} tareas</span>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-slate-400">Estructura</span>
+                                                    <span className="font-semibold text-slate-800">{space.columnas.length} columnas</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Flecha interactiva */}
+                                        <div className="mt-5 flex items-center justify-between text-xs font-semibold text-brand-600 group-hover:text-brand-700 transition pt-2 border-t border-slate-100">
+                                            <span>Ver Tablero Kanban</span>
+                                            <ChevronRight className="h-4 w-4 transform group-hover:translate-x-1 transition duration-200" />
+                                        </div>
+                                    </Link>
+                                ))}
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -498,6 +600,70 @@ export default function KanbanDashboardClient({ initialSpaces }: Props) {
                             </div>
                         </div>
 
+                    </div>
+                </div>
+            )}
+            {/* Modal de Confirmación de Archivado */}
+            {archiveConfirmOpen && archiveTargetSpace && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                        {/* Cabecera */}
+                        <div className="px-6 py-5 flex items-center gap-3 border-b border-slate-100 bg-slate-50/50">
+                            <div className={`p-2 rounded-xl ${archiveTargetSpace.toArchive ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'}`}>
+                                <AlertTriangle className="h-5 w-5" />
+                            </div>
+                            <h3 className="font-bold text-slate-900">
+                                {archiveTargetSpace.toArchive ? 'Archivar Proyecto' : 'Restaurar Proyecto'}
+                            </h3>
+                        </div>
+
+                        {/* Contenido */}
+                        <div className="p-6 space-y-3">
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                                {archiveTargetSpace.toArchive ? (
+                                    <>
+                                        ¿Estás seguro de que deseas archivar el espacio de trabajo <strong className="text-slate-800 font-semibold">"{archiveTargetSpace.nombre}"</strong>?
+                                        <span className="block mt-2 text-slate-500">
+                                            Las tareas se conservarán en el historial pero el tablero se ocultará del listado activo. Podrás restaurarlo en cualquier momento desde la pestaña de archivados.
+                                        </span>
+                                    </>
+                                ) : (
+                                    <>
+                                        ¿Deseas restaurar el espacio de trabajo <strong className="text-slate-800 font-semibold">"{archiveTargetSpace.nombre}"</strong> al listado activo?
+                                    </>
+                                )}
+                            </p>
+                        </div>
+
+                        {/* Acciones */}
+                        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setArchiveConfirmOpen(false);
+                                    setArchiveTargetSpace(null);
+                                }}
+                                className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-sm transition-all"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={executeArchiveSpace}
+                                disabled={isPending}
+                                className={`px-5 py-2.5 text-white font-bold rounded-xl text-sm transition-all shadow-sm flex items-center justify-center min-w-[100px] ${
+                                    archiveTargetSpace.toArchive 
+                                        ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-100' 
+                                        : 'bg-brand-600 hover:bg-brand-700 shadow-brand-100'
+                                }`}
+                            >
+                                {isPending ? (
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    archiveTargetSpace.toArchive ? 'Archivar' : 'Restaurar'
+                                )}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

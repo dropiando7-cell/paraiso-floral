@@ -75,6 +75,7 @@ interface Props {
         tasks: Task[];
         activities: Activity[];
         members: Member[];
+        currentUserRole?: string;
     };
 }
 
@@ -927,6 +928,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     onUpdate={handleUpdateTaskFromModal}
                     onDelete={handleDeleteTaskFromModal}
                     activities={activities}
+                    userRole={initialData.currentUserRole}
                 />
             )}
             {/* Modal de confirmación para eliminar columna */}

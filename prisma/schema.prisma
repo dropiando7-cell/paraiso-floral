@@ -115,6 +115,8 @@ model User {
   kanbanTasksCreadas    KanbanTask[]           @relation("CreatedKanbanTasks")
   kanbanTasksModificadas KanbanTask[]          @relation("ModifiedKanbanTasks")
   kanbanActivities      KanbanActivity[]
+  kanbanComments        KanbanComment[]
+  kanbanAttachments     KanbanAttachment[]
 
   @@map("users")
 }
@@ -963,6 +965,7 @@ model KanbanSpace {
   tiposActividad  String[]             @default(["Task", "Story", "Feature", "Bug"])
   columnas        String[]             @default(["Por hacer", "En curso", "En revisión", "Listo"])
   lastTaskNumber  Int                  @default(0) // Para generar DB-1, DB-2 correlativos
+  archivado       Boolean              @default(false)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
@@ -1000,6 +1003,8 @@ model KanbanTask {
   creadoPor       User?                @relation("CreatedKanbanTasks", fields: [creadoPorId], references: [id])
   modificadoPor   User?                @relation("ModifiedKanbanTasks", fields: [modificadoPorId], references: [id])
   activities      KanbanActivity[]
+  comments        KanbanComment[]
+  attachments     KanbanAttachment[]
 
   @@unique([spaceId, codigo])
   @@index([spaceId])
@@ -1022,4 +1027,40 @@ model KanbanActivity {
   @@index([spaceId])
   @@index([taskId])
   @@map("kanban_activities")
+}
+
+model KanbanComment {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId      String             @db.Uuid
+  usuarioId   String             @db.Uuid
+  contenido   String             @db.Text
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  task        KanbanTask         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  usuario     User               @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  attachments KanbanAttachment[]
+
+  @@index([taskId])
+  @@map("kanban_comments")
+}
+
+model KanbanAttachment {
+  id          String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId      String             @db.Uuid
+  commentId   String?            @db.Uuid
+  nombre      String
+  url         String             @db.Text
+  tipo        String             // Mime-type
+  tamano      Int                // Bytes
+  subidoPorId String             @db.Uuid
+  createdAt   DateTime           @default(now())
+
+  task        KanbanTask         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  comment     KanbanComment?     @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  subidoPor   User               @relation(fields: [subidoPorId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([commentId])
+  @@map("kanban_attachments")
 }
