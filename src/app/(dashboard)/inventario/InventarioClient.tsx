@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
-    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft
+    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft, Wrench
 } from 'lucide-react';
 import {
     searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, 
@@ -16,6 +16,8 @@ import {
     getActivosByGrupo, updateActivoQuick, checkGrupoExists, getActivosByIdQr, 
     searchActivosGlobal
 } from './actions';
+import { completarReparacionActivo } from './garantias/actions';
+import toast from 'react-hot-toast';
 import { getEquiposParaRenta, getRentaStats } from '../rentas/equipos/actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 import { RestockModal } from './RestockModal';
@@ -605,9 +607,12 @@ function StatsCards({ stats }: { stats: any }) {
 
 function EstatusBadge({ estatus }: { estatus: string }) {
     const map: Record<string, string> = {
-        'VIGENTE': 'bg-emerald-100 text-emerald-700',
-        'DEPRECIADO': 'bg-amber-100 text-amber-700',
-        'PROCESO DE BAJA': 'bg-red-100 text-red-700',
+        'VIGENTE': 'bg-emerald-100 text-emerald-700 border border-emerald-200/50',
+        'DEPRECIADO': 'bg-amber-100 text-amber-700 border border-amber-200/50',
+        'PROCESO DE BAJA': 'bg-red-100 text-red-700 border border-red-200/50',
+        'EN REPARACION': 'bg-blue-100 text-blue-700 border border-blue-200/50',
+        'VENDIDO': 'bg-slate-100 text-slate-700 border border-slate-200/50',
+        'VENDIDO/ENTREGADO': 'bg-slate-100 text-slate-700 border border-slate-200/50',
     };
     return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${map[estatus] || 'bg-slate-100 text-slate-600'}`}>{estatus}</span>;
 }
@@ -2908,6 +2913,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const [searchModalQuery, setSearchModalQuery] = useState<string | null>(null);
     const [previewImage, setPreviewImage] = useState<{ index: number, images: string[] } | null>(null);
     const [printingId, setPrintingId] = useState<string | null>(null);
+    const [repairingActivo, setRepairingActivo] = useState<Activo | null>(null);
+    const [repairReport, setRepairReport] = useState('');
     const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
     const [loteModalOpen, setLoteModalOpen] = useState(false);
     const hasMounted = useRef(false);
@@ -3517,6 +3524,18 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                     <Printer className="w-4 h-4" />
                                     🖨️ Imprimir Etiqueta
                                 </button>
+                                {viewActivo?.estatusContable === 'EN REPARACION' && (
+                                    <button
+                                        onClick={() => {
+                                            setRepairingActivo(viewActivo);
+                                            setViewActivo(null);
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold transition-all active:scale-95 border-2 border-emerald-500 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:border-emerald-500 text-sm"
+                                    >
+                                        <Wrench className="w-4 h-4" />
+                                        🛠️ Completar Reparación / Marcar Vigente
+                                    </button>
+                                )}
                                 <div className="flex gap-3">
                                     <button onClick={() => { setViewActivo(null); setEditActivo(viewActivo); setModalOpen(true); }} className="flex-1 bg-[#0500A3] text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-[#0600c2] transition-colors"><Pencil className="w-4 h-4" /> Editar</button>
                                     <button
@@ -3540,6 +3559,68 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                     initialIdQr={searchModalQuery}
                     onClose={() => { setSearchModalOpen(false); setSearchModalQuery(null); }}
                 />
+            )}
+
+            {repairingActivo && (
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[3000] flex items-center justify-center animate-in fade-in p-4 print:hidden">
+                    <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col items-center">
+                        <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-emerald-50/50">
+                            <Wrench size={28} className="stroke-[2] text-emerald-600" />
+                        </div>
+                        
+                        <h3 className="text-xl font-black text-slate-900 text-center mb-1 tracking-tight">Completar Reparación</h3>
+                        <p className="text-xs text-slate-500 text-center mb-4 font-medium px-2 leading-relaxed">
+                            El equipo <span className="font-mono font-bold">{repairingActivo.idQr}</span> volverá a estar **VIGENTE** en inventario y disponible para la venta/renta.
+                        </p>
+                        
+                        <div className="w-full space-y-2 mb-6 text-left">
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reporte Técnico / Solución</label>
+                            <textarea
+                                rows={3}
+                                value={repairReport}
+                                onChange={e => setRepairReport(e.target.value)}
+                                placeholder="Explica qué se le reparó al equipo (ej. 'Cambio de placa de carga y baterías de respaldo. Pruebas de funcionamiento OK')."
+                                className="w-full text-xs border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 focus:outline-none focus:ring-2 focus:ring-emerald-100 focus:border-emerald-400 transition-all resize-none placeholder:text-slate-300 text-slate-700"
+                            />
+                        </div>
+                        
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={() => {
+                                    setRepairingActivo(null);
+                                    setRepairReport('');
+                                }}
+                                className="flex-1 py-3 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-xl text-xs hover:bg-slate-50 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    if (!repairReport.trim()) {
+                                        toast.error('El reporte técnico es obligatorio');
+                                        return;
+                                    }
+                                    try {
+                                        const res = await completarReparacionActivo(repairingActivo.id, repairReport);
+                                        if (res.success) {
+                                            toast.success('El equipo ha sido retornado a Vigente en inventario');
+                                            setRepairingActivo(null);
+                                            setRepairReport('');
+                                            window.location.reload();
+                                        } else {
+                                            toast.error(res.error || 'Error al completar la reparación');
+                                        }
+                                    } catch (e) {
+                                        toast.error('Error al conectar con el servidor');
+                                    }
+                                }}
+                                className="flex-[1.5] py-3 bg-emerald-600 text-white font-bold rounded-xl text-xs hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all"
+                            >
+                                Sí, Completar Reparación
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

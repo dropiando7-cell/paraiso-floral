@@ -93,6 +93,7 @@ model User {
   rentasCreadas         RentaEquipo[]          @relation("CreatedRentas")
   rentasModificadas     RentaEquipo[]          @relation("UpdatedRentas")
   rentasRecibidas       RentaEquipo[]          @relation("ReceivedRentas")
+  historialActivos      HistorialActivo[]      @relation("HistorialActivosCreados")
   organization          Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   ordenesRecepcionadas  OrdenTrabajo[]         @relation("RecepcionOrdenes")
   ordenesReparadas      OrdenTrabajo[]         @relation("TecnicoOrdenes")
@@ -403,6 +404,7 @@ model ActivoFijo {
   detallesFactura       DetalleFactura[]
   rentasEquipo          RentaEquipo[]
   ordenesTrabajoRepuesto OrdenTrabajoRepuesto[]
+  historial             HistorialActivo[]    @relation("ActivoHistorial")
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -1063,4 +1065,24 @@ model KanbanAttachment {
   @@index([taskId])
   @@index([commentId])
   @@map("kanban_attachments")
+}
+
+model HistorialActivo {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @db.Uuid
+  activoId       String       @db.Uuid
+  estadoAnterior String
+  estadoNuevo    String
+  motivo         String?      @db.Text
+  firmaBase64    String?      @db.Text
+  firmaNombre    String?
+  creadoPorId    String?      @db.Uuid
+  createdAt      DateTime     @default(now())
+
+  activo         ActivoFijo   @relation("ActivoHistorial", fields: [activoId], references: [id], onDelete: Cascade)
+  creadoPor      User?        @relation("HistorialActivosCreados", fields: [creadoPorId], references: [id])
+
+  @@index([activoId])
+  @@index([organizationId])
+  @@map("historial_activos")
 }
