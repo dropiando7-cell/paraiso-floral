@@ -2,14 +2,53 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { updateSession } from '@/utils/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
+    const url = request.nextUrl.clone()
+    const host = request.headers.get('host') || ''
+    const isMainDomain = host === 'bioelectronicahn.com' || host === 'www.bioelectronicahn.com'
+
+    if (isMainDomain) {
+        // Redirect ERP system routes to the operational subdomain
+        const isSystemPath = 
+            url.pathname.startsWith('/login') ||
+            url.pathname.startsWith('/auth') ||
+            url.pathname.startsWith('/api') ||
+            url.pathname.startsWith('/print') ||
+            url.pathname.startsWith('/c/') ||
+            url.pathname.startsWith('/ficha-tecnica') ||
+            url.pathname.startsWith('/pos-kiosko') ||
+            url.pathname.startsWith('/nuevo-dash') ||
+            url.pathname.startsWith('/inventario') ||
+            url.pathname.startsWith('/rentas') ||
+            url.pathname.startsWith('/facturas') ||
+            url.pathname.startsWith('/cierre-caja') ||
+            url.pathname.startsWith('/contactos') ||
+            url.pathname.startsWith('/calendario') ||
+            url.pathname.startsWith('/graficas')
+
+        if (isSystemPath) {
+            return NextResponse.redirect(`https://sistema.bioelectronicahn.com${url.pathname}${url.search}`)
+        }
+
+        // Internal rewrite to the landing under-construction page
+        if (url.pathname !== '/landing') {
+            url.pathname = '/landing'
+            return NextResponse.rewrite(url)
+        }
+        
+        return NextResponse.next()
+    } else {
+        // Redirect operational system requests to main domain if they hit /landing
+        if (url.pathname === '/landing') {
+            return NextResponse.redirect('https://bioelectronicahn.com')
+        }
+    }
+
     // Update the Supabase session
     const { supabase, supabaseResponse } = await updateSession(request)
 
     const {
         data: { user },
     } = await supabase.auth.getUser()
-
-    const url = request.nextUrl.clone()
 
     // 1. Redirect unauthenticated users to /login if they attempt to access protected routes
     // For now, everything except /login and static assets is protected.
