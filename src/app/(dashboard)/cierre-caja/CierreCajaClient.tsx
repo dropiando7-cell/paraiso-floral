@@ -415,7 +415,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                         </div>
                                         <div>
                                             <span className="text-[25px] font-black tracking-tight">{formatCurrency(esperadoEfectivo)}</span>
-                                            <p className="text-[10px] text-slate-400 mt-1">Fondo + Ventas y Rentas en efectivo</p>
+                                            <p className="text-[10px] text-slate-400 mt-1">Fondo + Ventas, Rentas y Soporte en efectivo</p>
                                         </div>
                                     </div>
 
@@ -429,7 +429,8 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                 {formatCurrency(
                                                     (summaryData?.totals?.totalIngresos || 0) - 
                                                     (summaryData?.totals?.ventasEfectivo || 0) - 
-                                                    (summaryData?.totals?.rentasEfectivo || 0)
+                                                    (summaryData?.totals?.rentasEfectivo || 0) -
+                                                    (summaryData?.totals?.soporteEfectivo || 0)
                                                 )}
                                             </span>
                                             <p className="text-[10px] text-slate-500 mt-1">Tarjetas, transferencias y links</p>
@@ -463,6 +464,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                     <th className="px-6 py-3">Método de Pago</th>
                                                     <th className="px-6 py-3 text-right">Ventas POS / Facturación</th>
                                                     <th className="px-6 py-3 text-right">Cobros de Rentas</th>
+                                                    <th className="px-6 py-3 text-right">Cobros de Soporte</th>
                                                     <th className="px-6 py-3 text-right">Total Acumulado</th>
                                                 </tr>
                                             </thead>
@@ -470,12 +472,14 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                 {['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente'].map((metodo) => {
                                                     const v = summaryData?.summary?.ventas?.[metodo] || 0;
                                                     const r = summaryData?.summary?.rentas?.[metodo] || 0;
-                                                    const total = v + r;
+                                                    const s = summaryData?.summary?.soporte?.[metodo] || 0;
+                                                    const total = v + r + s;
                                                     return (
-                                                        <tr key={metodo} className="hover:bg-slate-50 transition">
+                                                        <tr key={metodo} className="hover:bg-slate-50 transition bg-white">
                                                             <td className="px-6 py-3.5 font-bold text-slate-900">{metodo}</td>
                                                             <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(v)}</td>
                                                             <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(r)}</td>
+                                                            <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(s)}</td>
                                                             <td className={`px-6 py-3.5 text-right font-bold ${metodo === 'Efectivo' ? 'text-emerald-700 bg-emerald-50/40' : 'text-slate-900'}`}>{formatCurrency(total)}</td>
                                                         </tr>
                                                     );
@@ -484,6 +488,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                     <td className="px-6 py-4">TOTALES DEL TURNO</td>
                                                     <td className="px-6 py-4 text-right">{formatCurrency(summaryData?.totals?.totalVentas || 0)}</td>
                                                     <td className="px-6 py-4 text-right">{formatCurrency(summaryData?.totals?.totalRentas || 0)}</td>
+                                                    <td className="px-6 py-4 text-right">{formatCurrency(summaryData?.totals?.totalSoporte || 0)}</td>
                                                     <td className="px-6 py-4 text-right text-emerald-400">{formatCurrency(summaryData?.totals?.totalIngresos || 0)}</td>
                                                 </tr>
                                             </tbody>
@@ -816,6 +821,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                     <th className="px-4 py-2">Método de Pago</th>
                                                     <th className="px-4 py-2 text-right">Facturación</th>
                                                     <th className="px-4 py-2 text-right">Rentas</th>
+                                                    <th className="px-4 py-2 text-right">Soporte</th>
                                                     <th className="px-4 py-2 text-right">Total</th>
                                                 </tr>
                                             </thead>
@@ -823,12 +829,14 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                 {['Efectivo', 'Tarjeta', 'Transferencia', 'Cheque', 'Link de pago de Occidente'].map((metodo) => {
                                                     const v = pastSummaryData?.summary?.ventas?.[metodo] || 0;
                                                     const r = pastSummaryData?.summary?.rentas?.[metodo] || 0;
-                                                    const total = v + r;
+                                                    const s = pastSummaryData?.summary?.soporte?.[metodo] || 0;
+                                                    const total = v + r + s;
                                                     return (
                                                         <tr key={metodo} className="hover:bg-slate-50">
                                                             <td className="px-4 py-2.5 font-bold text-slate-900">{metodo}</td>
                                                             <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(v)}</td>
                                                             <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(r)}</td>
+                                                            <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(s)}</td>
                                                             <td className={`px-4 py-2.5 text-right font-bold ${metodo === 'Efectivo' ? 'text-emerald-700 bg-emerald-50/20' : 'text-slate-900'}`}>{formatCurrency(total)}</td>
                                                         </tr>
                                                     );
@@ -837,6 +845,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                     <td className="px-4 py-3">TOTALES</td>
                                                     <td className="px-4 py-3 text-right">{formatCurrency(pastSummaryData?.totals?.totalVentas || 0)}</td>
                                                     <td className="px-4 py-3 text-right">{formatCurrency(pastSummaryData?.totals?.totalRentas || 0)}</td>
+                                                    <td className="px-4 py-3 text-right">{formatCurrency(pastSummaryData?.totals?.totalSoporte || 0)}</td>
                                                     <td className="px-4 py-3 text-right text-emerald-400">{formatCurrency(pastSummaryData?.totals?.totalIngresos || 0)}</td>
                                                 </tr>
                                             </tbody>

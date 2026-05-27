@@ -29,7 +29,7 @@ export default function NuevoSoporteClient({ userId, clientes = [] }: { userId: 
                         <CheckCircle2 className="w-8 h-8" />
                     </div>
                     <h2 className="text-3xl font-bold text-slate-800 tracking-tight">¡Equipo Recepcionado!</h2>
-                    <p className="text-slate-500 mt-2 mb-8">La orden de trabajo ha sido generada con éxito. Cargo a aplicar: L. 450.</p>
+                    <p className="text-slate-500 mt-2 mb-8">La orden de trabajo ha sido generada con éxito. Cargo a aplicar: L. {result?.costoRevision}.</p>
 
                     <div className="w-full max-w-sm mb-8 text-left">
                         <QRGenerator 

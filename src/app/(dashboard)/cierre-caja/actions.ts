@@ -60,6 +60,13 @@ export async function autoCloseExpiredSessions(organizationId: string) {
                     }
                 });
 
+                const ordenesBefore = await prisma.ordenTrabajo.findMany({
+                    where: {
+                        cajaSessionId: active.id,
+                        fechaRecibido: { lte: thresholdUtc }
+                    }
+                });
+
                 const saldoInicial = Number(active.saldoInicial);
                 const ventasEfectivo = facturasBefore
                     .filter(f => (f.metodoPago || 'Efectivo') === 'Efectivo')
@@ -67,8 +74,11 @@ export async function autoCloseExpiredSessions(organizationId: string) {
                 const rentasEfectivo = rentasBefore
                     .filter(r => (r.metodoPago || 'Efectivo') === 'Efectivo')
                     .reduce((sum, r) => sum + Number(r.monto), 0);
+                const soporteEfectivo = ordenesBefore
+                    .filter(o => (o.metodoPagoRevision || 'Efectivo') === 'Efectivo')
+                    .reduce((sum, o) => sum + Number(o.costoRevision), 0);
 
-                const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo;
+                const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo + soporteEfectivo;
 
                 // Perform database updates in a transaction
                 await prisma.$transaction([
@@ -86,6 +96,15 @@ export async function autoCloseExpiredSessions(organizationId: string) {
                         where: {
                             cajaSessionId: active.id,
                             fechaPago: { gt: thresholdUtc }
+                        },
+                        data: {
+                            cajaSessionId: null
+                        }
+                    }),
+                    prisma.ordenTrabajo.updateMany({
+                        where: {
+                            cajaSessionId: active.id,
+                            fechaRecibido: { gt: thresholdUtc }
                         },
                         data: {
                             cajaSessionId: null
@@ -130,7 +149,8 @@ export async function getActiveCajaSession() {
                 creadoPor: true,
                 modificadoPor: true,
                 facturas: true,
-                rentasPagos: true
+                rentasPagos: true,
+                ordenesTrabajo: true
             }
         });
         
@@ -220,6 +240,18 @@ export async function abrirCaja(saldoInicial: number) {
         }
     });
 
+    await prisma.ordenTrabajo.updateMany({
+        where: {
+            organizationId: user.organizationId,
+            cajaSessionId: null,
+            metodoPagoRevision: { not: 'Ninguno' },
+            fechaRecibido: { gte: startOfTodayUtc }
+        },
+        data: {
+            cajaSessionId: nuevaSesion.id
+        }
+    });
+
     revalidatePath('/cierre-caja');
     revalidatePath('/facturas/pos');
 
@@ -287,7 +319,8 @@ export async function getCajaSessionSummary(sessionId: string) {
             facturas: {
                 where: { estado: { not: 'ANULADA' } }
             },
-            rentasPagos: true
+            rentasPagos: true,
+            ordenesTrabajo: true
         }
     });
 
@@ -300,6 +333,7 @@ export async function getCajaSessionSummary(sessionId: string) {
     const summary = {
         ventas: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
         rentas: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
+        soporte: metodos.reduce((acc, m) => ({ ...acc, [m]: 0 }), {} as Record<string, number>),
         egresos: 0
     };
 
@@ -325,15 +359,28 @@ export async function getCajaSessionSummary(sessionId: string) {
         }
     });
 
+    // Classify OrdenTrabajo (Revisiones/Diagnostico)
+    session.ordenesTrabajo.forEach(o => {
+        const metodo = o.metodoPagoRevision || 'Efectivo';
+        const total = Number(o.costoRevision);
+        if (summary.soporte[metodo] !== undefined) {
+            summary.soporte[metodo] += total;
+        } else {
+            summary.soporte[metodo] = total;
+        }
+    });
+
     const totalVentas = Object.values(summary.ventas).reduce((sum, v) => sum + v, 0);
     const totalRentas = Object.values(summary.rentas).reduce((sum, r) => sum + r, 0);
+    const totalSoporte = Object.values(summary.soporte).reduce((sum, s) => sum + s, 0);
 
     const saldoInicial = Number(session.saldoInicial);
     const ventasEfectivo = summary.ventas['Efectivo'] || 0;
     const rentasEfectivo = summary.rentas['Efectivo'] || 0;
+    const soporteEfectivo = summary.soporte['Efectivo'] || 0;
 
     // Expected cash in register
-    const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo;
+    const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo + soporteEfectivo;
 
     const serializedSession = {
         id: session.id,
@@ -373,6 +420,13 @@ export async function getCajaSessionSummary(sessionId: string) {
             monto: Number(p.monto),
             metodoPago: p.metodoPago,
             fechaPago: p.fechaPago.toISOString()
+        })),
+        ordenesTrabajo: session.ordenesTrabajo.map(o => ({
+            id: o.id,
+            codigoSeguridad: o.codigoSeguridad,
+            total: Number(o.costoRevision),
+            metodoPago: o.metodoPagoRevision,
+            fechaRecibido: o.fechaRecibido.toISOString()
         }))
     };
 
@@ -383,10 +437,12 @@ export async function getCajaSessionSummary(sessionId: string) {
             saldoInicial,
             totalVentas,
             totalRentas,
+            totalSoporte,
             ventasEfectivo,
             rentasEfectivo,
+            soporteEfectivo,
             esperadoEfectivo,
-            totalIngresos: totalVentas + totalRentas
+            totalIngresos: totalVentas + totalRentas + totalSoporte
         }
     };
 }

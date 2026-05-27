@@ -740,6 +740,10 @@ model OrdenTrabajo {
   tecnicoReparacionId String? @db.Uuid
   usuarioAprobacionId String? @db.Uuid
 
+  metodoPagoRevision  String?
+  cajaSessionId       String?                @db.Uuid
+  cajaSession         CorteCajaSession?      @relation(fields: [cajaSessionId], references: [id])
+
   cliente           Cliente                @relation(fields: [clienteId], references: [id])
   organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   usuarioRecepcion  User?                  @relation("RecepcionOrdenes", fields: [usuarioRecepcionId], references: [id])
@@ -957,6 +961,7 @@ model CorteCajaSession {
   // Relaciones transaccionales del turno
   facturas           Factura[]
   rentasPagos        RentaPago[]
+  ordenesTrabajo     OrdenTrabajo[]
   
   @@map("cortes_caja_sessions")
 }

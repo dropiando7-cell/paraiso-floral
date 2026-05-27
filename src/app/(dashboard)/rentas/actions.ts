@@ -158,6 +158,29 @@ export async function processRecepcion(data: FormData) {
         },
     });
 
+    const metodoPagoDevolucion = data.get('metodoPagoDevolucion') as string;
+    if (depositoDevuelto !== null && depositoDevuelto > 0 && metodoPagoDevolucion && metodoPagoDevolucion !== 'Ninguno') {
+        const activeCaja = await prisma.corteCajaSession.findFirst({
+            where: {
+                organizationId: dbUser.organizationId,
+                estado: 'ABIERTA'
+            }
+        });
+        const cajaSessionId = activeCaja?.id || null;
+
+        await prisma.rentaPago.create({
+            data: {
+                organizationId: dbUser.organizationId,
+                rentaId: renta.id,
+                monto: -depositoDevuelto, // Negativo representa devolución/salida de dinero
+                metodoPago: metodoPagoDevolucion,
+                notas: "Depósito en Garantía (Devuelto)",
+                creadoPorId: dbUser.id,
+                cajaSessionId
+            }
+        });
+    }
+
     await prisma.activoFijo.update({
         where: { id: renta.activoFijoId },
         data: {

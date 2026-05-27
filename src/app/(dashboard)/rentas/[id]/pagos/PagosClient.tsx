@@ -29,7 +29,9 @@ export default function PagosClient({ renta }: { renta: any }) {
     
     const pagoMensual = renta.costoRenta / renta.mesesRenta;
     const deudaEstimada = mesesTranscurridos * pagoMensual;
-    const totalPagado = renta.pagos.reduce((acc: number, p: any) => acc + Number(p.monto), 0);
+    const totalPagado = renta.pagos
+        .filter((p: any) => !p.notas?.includes('Depósito en Garantía'))
+        .reduce((acc: number, p: any) => acc + Number(p.monto), 0);
     const saldoPendiente = Math.max(0, deudaEstimada - totalPagado); // No mostramos saldo negativo si pagan por adelantado, o sí?
     const pagoAdelantado = totalPagado > deudaEstimada ? totalPagado - deudaEstimada : 0;
 
@@ -258,7 +260,7 @@ export default function PagosClient({ renta }: { renta: any }) {
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <div className="font-bold text-emerald-700">
+                                                    <div className={`font-bold ${Number(pago.monto) < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
                                                         L. {Number(pago.monto).toLocaleString('en-US', {minimumFractionDigits: 2})}
                                                     </div>
                                                 </td>

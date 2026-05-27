@@ -99,6 +99,29 @@ export async function createRenta(data: FormData) {
         }
     });
 
+    const metodoPagoDeposito = data.get('metodoPagoDeposito') as string;
+    if (deposito > 0 && metodoPagoDeposito && metodoPagoDeposito !== 'Ninguno') {
+        const activeCaja = await prisma.corteCajaSession.findFirst({
+            where: {
+                organizationId: dbUser.organizationId,
+                estado: 'ABIERTA'
+            }
+        });
+        const cajaSessionId = activeCaja?.id || null;
+
+        await prisma.rentaPago.create({
+            data: {
+                organizationId: dbUser.organizationId,
+                rentaId: renta.id,
+                monto: deposito,
+                metodoPago: metodoPagoDeposito,
+                notas: "Depósito en Garantía (Recibido)",
+                creadoPorId: dbUser.id,
+                cajaSessionId
+            }
+        });
+    }
+
     // Marcar el equipo como EN_RENTA y guardar horas actuales
     await prisma.activoFijo.update({
         where: { id: activoFijoId },

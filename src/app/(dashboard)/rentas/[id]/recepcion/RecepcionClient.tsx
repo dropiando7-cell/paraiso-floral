@@ -220,12 +220,12 @@ export default function RecepcionClient({ renta }: { renta: any }) {
 
                             {tieneDeposito ? (
                                 <div className="bg-slate-50 p-5 rounded-xl border border-slate-200">
-                                    <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-                                        <div className="flex-1">
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start md:items-center">
+                                        <div className="w-full">
                                             <div className="text-xs font-bold text-slate-500 mb-1">Depósito Original Registrado</div>
                                             <div className="text-xl font-black text-slate-800">L. {Number(renta.deposito).toLocaleString('en-US')}</div>
                                         </div>
-                                        <div className="flex-1 w-full">
+                                        <div className="w-full">
                                             <label className="block text-xs font-bold text-slate-700 mb-2">Monto a Devolver al Cliente <span className="text-red-500">*</span></label>
                                             <input 
                                                 type="number" 
@@ -235,6 +235,20 @@ export default function RecepcionClient({ renta }: { renta: any }) {
                                                 max={Number(renta.deposito)}
                                                 className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-white outline-none font-bold text-emerald-700 focus:border-[#0500A3]" 
                                             />
+                                        </div>
+                                        <div className="w-full">
+                                            <label className="block text-xs font-bold text-slate-700 mb-2">Método de Devolución del Depósito</label>
+                                            <select 
+                                                name="metodoPagoDevolucion"
+                                                defaultValue="Ninguno"
+                                                className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-white outline-none font-semibold focus:border-[#0500A3]"
+                                            >
+                                                <option value="Ninguno">No registrar en Caja (Ninguno)</option>
+                                                <option value="Efectivo">Efectivo</option>
+                                                <option value="Tarjeta">Tarjeta</option>
+                                                <option value="Transferencia">Transferencia</option>
+                                                <option value="Cheque">Cheque</option>
+                                            </select>
                                         </div>
                                     </div>
                                     {depositoDevuelto < Number(renta.deposito) && (

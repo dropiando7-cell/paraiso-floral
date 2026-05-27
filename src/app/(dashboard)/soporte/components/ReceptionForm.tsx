@@ -11,7 +11,8 @@ type ReceptionFormProps = {
 export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormProps) {
   const [form, setForm] = useState({
     cliente: "", telefono: "+504 ", equipo: "medico", modelo: "", serie: "",
-    marca: "", descripcionFalla: "", prioridad: "normal", tecnico: ""
+    marca: "", descripcionFalla: "", prioridad: "normal", tecnico: "",
+    costoRevision: "650", metodoPagoRevision: "Ninguno"
   });
   const [photos, setPhotos] = useState<{name: string; file: File; url: string; size: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -104,7 +105,19 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
       setSaved(true);
       setTimeout(() => {
           setSaved(false);
-          setForm({ cliente: "", telefono: "+504 ", equipo: "medico", modelo: "", serie: "", marca: "", descripcionFalla: "", prioridad: "normal", tecnico: "" });
+          setForm({ 
+            cliente: "", 
+            telefono: "+504 ", 
+            equipo: "medico", 
+            modelo: "", 
+            serie: "", 
+            marca: "", 
+            descripcionFalla: "", 
+            prioridad: "normal", 
+            tecnico: "",
+            costoRevision: "650",
+            metodoPagoRevision: "Ninguno"
+          });
           setPhotos([]);
       }, 3000);
     } catch (e: any) {
@@ -198,6 +211,37 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
           value={form.descripcionFalla} onChange={e => handleChange("descripcionFalla", e.target.value)}
           placeholder="¿Qué reporta el cliente?"
         />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 border-t border-slate-100 pt-4 mt-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+            Costo de Revisión / Diagnóstico (L.)
+          </label>
+          <input 
+            type="number"
+            step="0.01"
+            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors font-bold text-slate-800"
+            value={form.costoRevision} 
+            onChange={e => handleChange("costoRevision", e.target.value)} 
+            placeholder="Ej. 650"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Método de Pago (Revisión)</label>
+          <select 
+            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-semibold"
+            value={form.metodoPagoRevision}
+            onChange={e => handleChange("metodoPagoRevision", e.target.value)}
+          >
+            <option value="Ninguno">Ninguno / Pendiente</option>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Tarjeta">Tarjeta</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Link de pago de Occidente">Link de pago de Occidente</option>
+            <option value="Cheque">Cheque</option>
+          </select>
+        </div>
       </div>
 
       <div className="mb-5">

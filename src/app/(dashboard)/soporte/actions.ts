@@ -53,6 +53,8 @@ export async function createOrdenTrabajo(data: {
     descripcionFalla: string;
     fotosEstadoInicial?: string[];
     usuarioRecepcionId?: string;
+    costoRevision?: string | number;
+    metodoPagoRevision?: string;
 }) {
     const org = await prisma.organization.findFirst();
     if (!org) throw new Error('Organización no encontrada');
@@ -84,6 +86,21 @@ export async function createOrdenTrabajo(data: {
 
     const marcaModelo = [data.marca, data.modelo].filter(Boolean).join(" ") || null;
 
+    const costoRevision = data.costoRevision !== undefined ? parseFloat(data.costoRevision.toString()) : 650;
+    const metodoPagoRevision = data.metodoPagoRevision || 'Ninguno';
+
+    // Check for active caja session
+    let cajaSessionId = null;
+    if (metodoPagoRevision !== 'Ninguno') {
+        const activeCaja = await prisma.corteCajaSession.findFirst({
+            where: {
+                organizationId: org.id,
+                estado: 'ABIERTA'
+            }
+        });
+        cajaSessionId = activeCaja?.id || null;
+    }
+
     const orden = await prisma.ordenTrabajo.create({
         data: {
             organizationId: org.id,
@@ -95,7 +112,9 @@ export async function createOrdenTrabajo(data: {
             descripcionFalla: data.descripcionFalla,
             codigoSeguridad,
             fotosEstadoInicial: data.fotosEstadoInicial || [],
-            costoRevision: 650,
+            costoRevision,
+            metodoPagoRevision,
+            cajaSessionId,
             estado: 'RECIBIDO',
             usuarioRecepcionId: data.usuarioRecepcionId || null
         },
