@@ -20,7 +20,8 @@ import {
     FileText,
     Image as ImageIcon,
     Loader2,
-    Camera
+    Camera,
+    Users
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { 
@@ -34,6 +35,7 @@ import {
 interface Member {
     id: string;
     nombre: string;
+    avatarUrl: string | null;
 }
 
 interface Task {
@@ -45,10 +47,20 @@ interface Task {
     type: string;
     priority: string;
     dueDate: string | null;
+    startDate: string | null;
+    etiquetas: string[];
+    team: string;
+    parentId: string | null;
     asignado: {
         id: string;
         nombre: string;
+        avatarUrl?: string | null;
     } | null;
+    asignados: {
+        id: string;
+        nombre: string;
+        avatarUrl?: string | null;
+    }[];
     createdAt: string;
 }
 
@@ -61,8 +73,9 @@ interface Props {
     columnas: string[];
     onUpdate: (taskId: string, fields: any) => Promise<boolean>;
     onDelete: (taskId: string) => Promise<boolean>;
-    activities: any[]; // Historial de actividades de esta tarea
+    activities: any[];
     userRole?: string;
+    tasks: { id: string; codigo: string; title: string }[];
 }
 
 export default function TaskDetailModal({
@@ -75,7 +88,8 @@ export default function TaskDetailModal({
     onUpdate,
     onDelete,
     activities,
-    userRole
+    userRole,
+    tasks
 }: Props) {
     const [isPending, startTransition] = useTransition();
     const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN';
@@ -88,6 +102,15 @@ export default function TaskDetailModal({
     const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.split('T')[0] : '');
     const [isEditingDesc, setIsEditingDesc] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+    // Advanced fields
+    const [startDate, setStartDate] = useState(task.startDate ? task.startDate.split('T')[0] : '');
+    const [team, setTeam] = useState(task.team || '');
+    const [etiquetasInput, setEtiquetasInput] = useState(task.etiquetas ? task.etiquetas.join(', ') : '');
+    const [parentId, setParentId] = useState(task.parentId || '');
+    const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([]);
+    const [showAssigneeDropdown, setShowAssigneeDropdown] = useState(false);
+    const [assigneeSearch, setAssigneeSearch] = useState('');
 
     // Estados para colaboración
     const [activeTab, setActiveTab] = useState<'comentarios' | 'actividad'>('comentarios');
@@ -112,6 +135,13 @@ export default function TaskDetailModal({
         setPriority(task.priority);
         setAsignadoId(task.asignado?.id || '');
         setDueDate(task.dueDate ? task.dueDate.split('T')[0] : '');
+        setStartDate(task.startDate ? task.startDate.split('T')[0] : '');
+        setTeam(task.team || '');
+        setEtiquetasInput(task.etiquetas ? task.etiquetas.join(', ') : '');
+        setParentId(task.parentId || '');
+        setSelectedAssigneeIds(task.asignados ? task.asignados.map(a => a.id) : (task.asignado ? [task.asignado.id] : []));
+        setShowAssigneeDropdown(false);
+        setAssigneeSearch('');
         setIsEditingDesc(false);
         setShowDeleteConfirm(false);
         setActiveTab('comentarios');
@@ -352,6 +382,24 @@ export default function TaskDetailModal({
                 if (fieldName === 'priority') setPriority(value);
                 if (fieldName === 'asignadoId') setAsignadoId(value);
                 if (fieldName === 'dueDate') setDueDate(value);
+                if (fieldName === 'startDate') setStartDate(value);
+                if (fieldName === 'team') setTeam(value);
+                if (fieldName === 'etiquetas') setEtiquetasInput(value ? value.join(', ') : '');
+                if (fieldName === 'parentId') setParentId(value);
+            }
+        });
+    };
+
+    const handleToggleAssignee = (id: string) => {
+        const updatedIds = selectedAssigneeIds.includes(id)
+            ? selectedAssigneeIds.filter(aId => aId !== id)
+            : [...selectedAssigneeIds, id];
+        setSelectedAssigneeIds(updatedIds);
+        
+        startTransition(async () => {
+            const success = await onUpdate(task.id, { asignadoIds: updatedIds });
+            if (success) {
+                setAsignadoId(updatedIds.length > 0 ? updatedIds[0] : '');
             }
         });
     };
@@ -389,7 +437,7 @@ export default function TaskDetailModal({
     const taskActivities = activities.filter(act => act.taskId === task.id);
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
             <div className="relative w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[500px] max-h-[90vh]">
                 
                 {/* Lado Izquierdo: Contenido Editable de Tarea */}
@@ -739,22 +787,89 @@ export default function TaskDetailModal({
                             </select>
                         </div>
 
-                        {/* Selector de Asignado */}
-                        <div className="space-y-1.5">
+                        {/* Personas Asignadas (Multi-select) */}
+                        <div className="space-y-1.5 relative">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
-                                <UserIcon className="h-3 w-3" />
-                                Responsable
+                                <Users className="h-3.5 w-3.5 text-slate-400" />
+                                Personas Asignadas ({selectedAssigneeIds.length})
                             </label>
-                            <select
-                                value={asignadoId}
-                                onChange={(e) => handleFieldChange('asignadoId', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                            
+                            <div 
+                                onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
+                                className="min-h-[42px] w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 cursor-pointer focus:border-brand-500 transition shadow-sm flex flex-wrap gap-1.5 items-center justify-between"
                             >
-                                <option value="">Sin asignar</option>
-                                {members.map((m) => (
-                                    <option key={m.id} value={m.id}>{m.nombre}</option>
-                                ))}
-                            </select>
+                                {selectedAssigneeIds.length === 0 ? (
+                                    <span className="text-slate-400 text-xs">Seleccionar responsables...</span>
+                                ) : (
+                                    <div className="flex flex-wrap gap-1">
+                                        {selectedAssigneeIds.map(id => {
+                                            const member = members.find(m => m.id === id);
+                                            if (!member) return null;
+                                            const initials = member.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                                            return (
+                                                <div 
+                                                    key={id} 
+                                                    onClick={(e) => { e.stopPropagation(); handleToggleAssignee(id); }}
+                                                    className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg pl-1 pr-1.5 py-0.5 text-[10px] text-slate-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition"
+                                                    title="Haga clic para remover"
+                                                >
+                                                    <div className="h-3.5 w-3.5 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center text-[6px] font-bold text-brand-700 uppercase overflow-hidden relative shrink-0">
+                                                        {member.avatarUrl ? (
+                                                            <img src={member.avatarUrl} alt={member.nombre} className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            <span>{initials}</span>
+                                                        )}
+                                                    </div>
+                                                    <span className="font-semibold truncate max-w-[80px]">{member.nombre}</span>
+                                                    <span className="text-[9px] opacity-60 font-bold">&times;</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                <span className="text-[10px] text-slate-400 font-bold">▼</span>
+                            </div>
+
+                            {showAssigneeDropdown && (
+                                <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-xl p-2 z-50 animate-in fade-in slide-in-from-top-1 duration-150 max-h-48 flex flex-col">
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar miembro..."
+                                        value={assigneeSearch}
+                                        onChange={(e) => setAssigneeSearch(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 mb-1.5 shrink-0"
+                                    />
+                                    <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+                                        {members.filter(m => m.nombre.toLowerCase().includes(assigneeSearch.toLowerCase())).length === 0 ? (
+                                            <p className="text-[10px] text-slate-400 text-center py-2 italic">No se encontraron miembros</p>
+                                        ) : (
+                                            members.filter(m => m.nombre.toLowerCase().includes(assigneeSearch.toLowerCase())).map(m => {
+                                                const isChecked = selectedAssigneeIds.includes(m.id);
+                                                const initials = m.nombre.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+                                                return (
+                                                    <div
+                                                        key={m.id}
+                                                        onClick={() => handleToggleAssignee(m.id)}
+                                                        className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition ${isChecked ? 'bg-brand-50/50 text-brand-700' : 'hover:bg-slate-50 text-slate-600'}`}
+                                                    >
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="h-4.5 w-4.5 rounded-full bg-brand-100 border border-brand-200 flex items-center justify-center text-[7px] font-bold text-brand-700 uppercase overflow-hidden relative shrink-0">
+                                                                {m.avatarUrl ? (
+                                                                    <img src={m.avatarUrl} alt={m.nombre} className="h-full w-full object-cover" />
+                                                                ) : (
+                                                                    <span>{initials}</span>
+                                                                )}
+                                                            </div>
+                                                            <span className="font-medium">{m.nombre}</span>
+                                                        </div>
+                                                        {isChecked && <Check className="h-3 w-3 text-brand-600 shrink-0" />}
+                                                    </div>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Selector de Tipo */}
@@ -789,10 +904,63 @@ export default function TaskDetailModal({
                             </select>
                         </div>
 
+                        {/* Tarea Principal (Parent) */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Tarea Principal</label>
+                            <select
+                                value={parentId}
+                                onChange={(e) => handleFieldChange('parentId', e.target.value || null)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                            >
+                                <option value="">Ninguna (Tarea raíz)</option>
+                                {tasks.map(t => (
+                                    <option key={t.id} value={t.id}>{t.codigo} - {t.title}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {/* Equipo (Team) */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Equipo (Team)</label>
+                            <input
+                                type="text"
+                                value={team}
+                                onChange={(e) => setTeam(e.target.value)}
+                                onBlur={() => {
+                                    if (team !== (task.team || '')) {
+                                        handleFieldChange('team', team.trim() || null);
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        if (team !== (task.team || '')) {
+                                            handleFieldChange('team', team.trim() || null);
+                                        }
+                                    }
+                                }}
+                                placeholder="ej: Mantenimiento, Software"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                            />
+                        </div>
+
+                        {/* Fecha de Inicio */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
+                                <Calendar className="h-3 w-3 text-slate-400" />
+                                Fecha de Inicio
+                            </label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => handleFieldChange('startDate', e.target.value || null)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                            />
+                        </div>
+
                         {/* Fecha de vencimiento */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
+                                <Calendar className="h-3 w-3 text-slate-400" />
                                 Fecha Límite
                             </label>
                             <input
@@ -800,6 +968,34 @@ export default function TaskDetailModal({
                                 value={dueDate}
                                 onChange={(e) => handleFieldChange('dueDate', e.target.value || null)}
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                            />
+                        </div>
+
+                        {/* Etiquetas */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Etiquetas (Separadas por comas)</label>
+                            <input
+                                type="text"
+                                value={etiquetasInput}
+                                onChange={(e) => setEtiquetasInput(e.target.value)}
+                                onBlur={() => {
+                                    const arrayVal = etiquetasInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                                    const oldArrayVal = task.etiquetas || [];
+                                    if (JSON.stringify(arrayVal) !== JSON.stringify(oldArrayVal)) {
+                                        handleFieldChange('etiquetas', arrayVal);
+                                    }
+                                }}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        const arrayVal = etiquetasInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
+                                        const oldArrayVal = task.etiquetas || [];
+                                        if (JSON.stringify(arrayVal) !== JSON.stringify(oldArrayVal)) {
+                                            handleFieldChange('etiquetas', arrayVal);
+                                        }
+                                    }
+                                }}
+                                placeholder="ej: urgente, soporte, base-de-datos"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
                             />
                         </div>
                     </div>

@@ -5,7 +5,7 @@ import { MfaSettings } from '@/components/perfil/MfaSettings';
 import { PasswordChange } from '@/components/perfil/PasswordChange';
 import { createClient } from '@/utils/supabase/client';
 import { ExternalLink, ShieldAlert, Check, X } from 'lucide-react';
-import { updateProfile } from './actions';
+import { updateProfile, updateAvatarInDb } from './actions';
 import { getUserProfileData } from './data';
 
 const roleTextMapping: Record<string, string> = {
@@ -132,6 +132,12 @@ export default function ProfilePage() {
 
             if (updateError) {
                 console.error("Error updates supabase metadata", updateError);
+            }
+
+            // 5. Update Prisma Database
+            const dbRes = await updateAvatarInDb(publicUrl);
+            if (!dbRes.success) {
+                console.error("Error updating database avatar", dbRes.error);
             }
 
         } catch (error) {

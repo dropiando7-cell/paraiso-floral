@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { 
     ArrowLeft, 
@@ -26,9 +26,11 @@ import {
     updateTaskFields, 
     deleteKanbanTask,
     addColumnToSpace,
-    deleteColumnFromSpace
+    deleteColumnFromSpace,
+    moveTaskToSpace
 } from '../actions';
 import TaskDetailModal from '@/components/kanban/TaskDetailModal';
+import CreateTaskModal from '@/components/kanban/CreateTaskModal';
 import { toast } from 'react-hot-toast';
 
 interface Task {
@@ -40,10 +42,20 @@ interface Task {
     type: string;
     priority: string;
     dueDate: string | null;
+    startDate: string | null;
+    etiquetas: string[];
+    team: string;
+    parentId: string | null;
     asignado: {
         id: string;
         nombre: string;
+        avatarUrl: string | null;
     } | null;
+    asignados: {
+        id: string;
+        nombre: string;
+        avatarUrl: string | null;
+    }[];
     createdAt: string;
 }
 
@@ -59,6 +71,7 @@ interface Activity {
 interface Member {
     id: string;
     nombre: string;
+    avatarUrl: string | null;
 }
 
 interface Space {
@@ -72,11 +85,139 @@ interface Space {
 interface Props {
     initialData: {
         space: Space;
+        spaces: Space[];
         tasks: Task[];
         activities: Activity[];
         members: Member[];
         currentUserRole?: string;
     };
+}
+
+function CardContextMenu({
+    task,
+    columnas,
+    spaces,
+    currentSpaceId,
+    onClose,
+    onStatusChange,
+    onSpaceChange,
+    onDeleteClick
+}: {
+    task: any;
+    columnas: string[];
+    spaces: any[];
+    currentSpaceId: string;
+    onClose: () => void;
+    onStatusChange: (status: string) => void;
+    onSpaceChange: (spaceId: string) => void;
+    onDeleteClick: () => void;
+}) {
+    const [activeSubmenu, setActiveSubmenu] = useState<'main' | 'status' | 'space'>('main');
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleOutsideClick = (e: MouseEvent) => {
+            // Si el elemento cliqueado ya no está en el documento, es muy probable que haya
+            // sido deshechado/desmontado del DOM durante el render provocado por el click
+            // (como cuando se hace clic en "Cambiar estado" y se cambia de submenú).
+            if (e.target && !document.body.contains(e.target as Node)) {
+                return;
+            }
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                onClose();
+            }
+        };
+        const timer = setTimeout(() => {
+            document.addEventListener('click', handleOutsideClick);
+        }, 0);
+        return () => {
+            clearTimeout(timer);
+            document.removeEventListener('click', handleOutsideClick);
+        };
+    }, [onClose]);
+
+    return (
+        <div 
+            ref={menuRef}
+            onClick={(e) => e.stopPropagation()} 
+            className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-30 text-left animate-in fade-in duration-100"
+        >
+            {activeSubmenu === 'main' && (
+                <>
+                    <button
+                        onClick={() => setActiveSubmenu('status')}
+                        className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition flex items-center justify-between"
+                    >
+                        <span>Cambiar estado</span>
+                        <ChevronRight className="h-3 w-3" />
+                    </button>
+                    <button
+                        onClick={() => setActiveSubmenu('space')}
+                        className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition flex items-center justify-between"
+                    >
+                        <span>Mover actividad</span>
+                        <ChevronRight className="h-3 w-3" />
+                    </button>
+                    <button
+                        onClick={onDeleteClick}
+                        className="w-full text-left px-3 py-1.5 text-xs text-red-650 hover:bg-red-50 hover:text-red-750 transition"
+                    >
+                        Eliminar tarea
+                    </button>
+                </>
+            )}
+
+            {activeSubmenu === 'status' && (
+                <>
+                    <button
+                        onClick={() => setActiveSubmenu('main')}
+                        className="w-full text-left px-3 py-1 text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-1 mb-1 hover:text-slate-600"
+                    >
+                        ← Volver
+                    </button>
+                    {columnas.filter(c => c !== task.status).map(col => (
+                        <button
+                            key={col}
+                            onClick={() => {
+                                onStatusChange(col);
+                                onClose();
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition truncate"
+                        >
+                            {col}
+                        </button>
+                    ))}
+                </>
+            )}
+
+            {activeSubmenu === 'space' && (
+                <>
+                    <button
+                        onClick={() => setActiveSubmenu('main')}
+                        className="w-full text-left px-3 py-1 text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-1 mb-1 hover:text-slate-600"
+                    >
+                        ← Volver
+                    </button>
+                    {spaces.filter(s => s.id !== currentSpaceId).map(s => (
+                        <button
+                            key={s.id}
+                            onClick={() => {
+                                onSpaceChange(s.id);
+                                onClose();
+                            }}
+                            className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition truncate"
+                            title={s.nombre}
+                        >
+                            {s.nombre} ({s.clave})
+                        </button>
+                    ))}
+                    {spaces.filter(s => s.id !== currentSpaceId).length === 0 && (
+                        <p className="px-3 py-1.5 text-xs text-slate-400 italic">No hay otros espacios</p>
+                    )}
+                </>
+            )}
+        </div>
+    );
 }
 
 export default function KanbanSpaceClient({ initialData }: Props) {
@@ -102,6 +243,12 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
     // Tarea activa en modal
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+    // Modal de Creación Avanzada
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+    // Menú de 3 puntos en tarjeta
+    const [activeCardMenuTaskId, setActiveCardMenuTaskId] = useState<string | null>(null);
 
     // Controles de creación rápida por columna
     const [addingInColumn, setAddingInColumn] = useState<string | null>(null);
@@ -281,7 +428,12 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     type: res.task.type,
                     priority: res.task.priority,
                     dueDate: res.task.dueDate ? res.task.dueDate.toISOString() : null,
+                    startDate: res.task.startDate ? res.task.startDate.toISOString() : null,
+                    etiquetas: res.task.etiquetas || [],
+                    team: res.task.team || '',
+                    parentId: res.task.parentId || null,
                     asignado: null,
+                    asignados: [],
                     createdAt: res.task.createdAt.toISOString()
                 };
 
@@ -316,6 +468,8 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                 if (t.id === taskId) {
                     const assignedUser = fields.asignadoId !== undefined ? 
                         members.find(m => m.id === fields.asignadoId) || null : t.asignado;
+                    const assignedUsers = fields.asignadoIds !== undefined ?
+                        fields.asignadoIds.map((id: string) => members.find(m => m.id === id)).filter(Boolean) : t.asignados;
                     return {
                         ...t,
                         title: fields.title !== undefined ? fields.title : t.title,
@@ -324,7 +478,12 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                         type: fields.type !== undefined ? fields.type : t.type,
                         priority: fields.priority !== undefined ? fields.priority : t.priority,
                         dueDate: fields.dueDate !== undefined ? fields.dueDate : t.dueDate,
-                        asignado: assignedUser ? { id: assignedUser.id, nombre: assignedUser.nombre } : null
+                        startDate: fields.startDate !== undefined ? fields.startDate : t.startDate,
+                        etiquetas: fields.etiquetas !== undefined ? fields.etiquetas : t.etiquetas,
+                        team: fields.team !== undefined ? fields.team : t.team,
+                        parentId: fields.parentId !== undefined ? fields.parentId : t.parentId,
+                        asignado: assignedUser ? { id: assignedUser.id, nombre: assignedUser.nombre, avatarUrl: assignedUser.avatarUrl || null } : null,
+                        asignados: assignedUsers.map((u: any) => ({ id: u.id, nombre: u.nombre, avatarUrl: u.avatarUrl || null }))
                     };
                 }
                 return t;
@@ -343,18 +502,131 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
             // Sincronizar tarea abierta en modal
             if (selectedTask && selectedTask.id === taskId) {
+                const assignedUser = fields.asignadoId !== undefined ? 
+                    members.find(m => m.id === fields.asignadoId) || null : selectedTask.asignado;
+                const assignedUsers = fields.asignadoIds !== undefined ?
+                    fields.asignadoIds.map((id: string) => members.find(m => m.id === id)).filter(Boolean) : selectedTask.asignados;
                 const updatedTask = {
                     ...selectedTask,
                     ...fields,
-                    asignado: fields.asignadoId !== undefined ? 
-                        (fields.asignadoId ? members.find(m => m.id === fields.asignadoId) || null : null) 
-                        : selectedTask.asignado
+                    asignado: assignedUser ? { id: assignedUser.id, nombre: assignedUser.nombre, avatarUrl: assignedUser.avatarUrl || null } : null,
+                    asignados: assignedUsers.map((u: any) => ({ id: u.id, nombre: u.nombre, avatarUrl: u.avatarUrl || null }))
                 };
                 setSelectedTask(updatedTask as Task);
             }
             return true;
         } else {
             toast.error(res.error || 'Error al actualizar tarea');
+            return false;
+        }
+    };
+
+    // Mover Tarea de Estado (sin Drag & Drop)
+    const handleMoveTaskStatus = async (taskId: string, targetStatus: string) => {
+        const originalTasks = [...tasks];
+        const taskToMove = tasks.find(t => t.id === taskId);
+        if (!taskToMove || taskToMove.status === targetStatus) return;
+
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: targetStatus } : t));
+
+        startTransition(async () => {
+            const res = await updateTaskStatus(taskId, targetStatus);
+            if (res.success && res.task) {
+                const newAct: Activity = {
+                    id: Math.random().toString(),
+                    taskId: taskId,
+                    usuario: 'Tú',
+                    accion: 'MOVIMIENTO',
+                    detalles: `Mover de "${taskToMove.status}" a "${targetStatus}"`,
+                    createdAt: new Date().toISOString()
+                };
+                setActivities(prev => [newAct, ...prev].slice(0, 30));
+                toast.success(`Tarea movida a "${targetStatus}"`);
+            } else {
+                setTasks(originalTasks);
+                toast.error('Error al mover la tarea.');
+            }
+        });
+    };
+
+    // Trasladar Tarea a otro Espacio de Trabajo
+    const handleMoveTaskSpace = async (taskId: string, targetSpaceId: string) => {
+        const taskToMove = tasks.find(t => t.id === taskId);
+        if (!taskToMove) return;
+
+        const targetSpace = (initialData.spaces || []).find(s => s.id === targetSpaceId);
+        if (!targetSpace) return;
+
+        startTransition(async () => {
+            const res = await moveTaskToSpace(taskId, targetSpaceId);
+            if (res.success && res.task) {
+                setTasks(prev => prev.filter(t => t.id !== taskId));
+                const newAct: Activity = {
+                    id: Math.random().toString(),
+                    taskId: null,
+                    usuario: 'Tú',
+                    accion: 'MOVIMIENTO',
+                    detalles: `Trasladó la tarea ${taskToMove.codigo} al espacio "${targetSpace.nombre}"`,
+                    createdAt: new Date().toISOString()
+                };
+                setActivities(prev => [newAct, ...prev].slice(0, 30));
+                toast.success(`Tarea trasladada a ${targetSpace.nombre}`);
+            } else {
+                toast.error(res.error || 'Error al trasladar la tarea de espacio.');
+            }
+        });
+    };
+
+    // Crear Tarea desde el modal avanzado
+    const handleCreateTaskFromModal = async (taskData: any): Promise<boolean> => {
+        const res = await createKanbanTask(taskData);
+        if (res.success && res.task) {
+            const taskAssignees = (taskData.asignadoIds || []).map((id: string) => {
+                const member = members.find(m => m.id === id);
+                return member ? {
+                    id: member.id,
+                    nombre: member.nombre,
+                    avatarUrl: member.avatarUrl || null
+                } : null;
+            }).filter(Boolean);
+
+            const primaryAssignee = taskAssignees.length > 0 ? taskAssignees[0] : null;
+
+            const createdTask: Task = {
+                id: res.task.id,
+                codigo: res.task.codigo,
+                title: res.task.title,
+                description: res.task.description || '',
+                status: res.task.status,
+                type: res.task.type,
+                priority: res.task.priority,
+                dueDate: res.task.dueDate ? res.task.dueDate.toISOString() : null,
+                startDate: res.task.startDate ? res.task.startDate.toISOString() : null,
+                etiquetas: res.task.etiquetas || [],
+                team: res.task.team || '',
+                parentId: res.task.parentId || null,
+                asignado: primaryAssignee,
+                asignados: taskAssignees,
+                createdAt: res.task.createdAt.toISOString()
+            };
+
+            if (taskData.spaceId === space.id) {
+                setTasks(prev => [createdTask, ...prev]);
+            }
+
+            const newAct: Activity = {
+                id: Math.random().toString(),
+                taskId: createdTask.id,
+                usuario: 'Tú',
+                accion: 'CREACION_TAREA',
+                detalles: `Creó la tarea ${createdTask.codigo}: "${createdTask.title}" en "${taskData.status}"`,
+                createdAt: new Date().toISOString()
+            };
+            setActivities(prev => [newAct, ...prev].slice(0, 30));
+            toast.success(`Tarea ${createdTask.codigo} creada.`);
+            return true;
+        } else {
+            toast.error(res.error || 'Error al crear la tarea');
             return false;
         }
     };
@@ -452,22 +724,33 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     </div>
                 </div>
 
-                {/* Alternador de Pestañas */}
-                <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200 self-start md:self-center">
+                <div className="flex items-center gap-3 self-start md:self-center">
+                    {/* Botón "+ Crear Tarea" */}
                     <button
-                        onClick={() => setActiveTab('tablero')}
-                        className={`flex items-center gap-2 text-xs font-semibold px-4.5 py-1.5 rounded-lg transition ${activeTab === 'tablero' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-sm hover:shadow transition duration-200 cursor-pointer"
                     >
-                        <Layout className="h-3.5 w-3.5" />
-                        Tablero
+                        <Plus className="h-4 w-4" />
+                        Crear Tarea
                     </button>
-                    <button
-                        onClick={() => setActiveTab('resumen')}
-                        className={`flex items-center gap-2 text-xs font-semibold px-4.5 py-1.5 rounded-lg transition ${activeTab === 'resumen' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                    >
-                        <BarChart2 className="h-3.5 w-3.5" />
-                        Resumen
-                    </button>
+
+                    {/* Alternador de Pestañas */}
+                    <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                        <button
+                            onClick={() => setActiveTab('tablero')}
+                            className={`flex items-center gap-2 text-xs font-semibold px-4.5 py-1.5 rounded-lg transition ${activeTab === 'tablero' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                            <Layout className="h-3.5 w-3.5" />
+                            Tablero
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('resumen')}
+                            className={`flex items-center gap-2 text-xs font-semibold px-4.5 py-1.5 rounded-lg transition ${activeTab === 'resumen' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                        >
+                            <BarChart2 className="h-3.5 w-3.5" />
+                            Resumen
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -624,10 +907,45 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                 </span>
                                                             </div>
 
-                                                            {/* Código Tarea */}
-                                                            <span className="text-[9px] font-bold font-mono text-slate-400 group-hover:text-brand-600 transition">
-                                                                {task.codigo}
-                                                            </span>
+                                                            {/* Código Tarea y Menú de Tres Puntos */}
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="text-[9px] font-bold font-mono text-slate-400 group-hover:text-brand-600 transition">
+                                                                    {task.codigo}
+                                                                </span>
+                                                                <div className="relative">
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setActiveCardMenuTaskId(activeCardMenuTaskId === task.id ? null : task.id);
+                                                                        }}
+                                                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                                                                    >
+                                                                        <MoreHorizontal className="h-3.5 w-3.5" />
+                                                                    </button>
+
+                                                                    {/* Menú Popup Contextual */}
+                                                                    {activeCardMenuTaskId === task.id && (
+                                                                        <CardContextMenu
+                                                                            task={task}
+                                                                            columnas={columnas}
+                                                                            spaces={initialData.spaces || []}
+                                                                            currentSpaceId={space.id}
+                                                                            onClose={() => setActiveCardMenuTaskId(null)}
+                                                                            onStatusChange={(targetStatus) => {
+                                                                                handleMoveTaskStatus(task.id, targetStatus);
+                                                                            }}
+                                                                            onSpaceChange={(targetSpaceId) => {
+                                                                                handleMoveTaskSpace(task.id, targetSpaceId);
+                                                                            }}
+                                                                            onDeleteClick={() => {
+                                                                                if (window.confirm(`¿Confirmas eliminar la tarea ${task.codigo}?`)) {
+                                                                                    handleDeleteTaskFromModal(task.id);
+                                                                                }
+                                                                            }}
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                            </div>
                                                         </div>
 
                                                         {/* Título */}
@@ -637,13 +955,38 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
                                                         {/* Detalle Inferior: Responsable + Prioridad */}
                                                         <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-[10px]">
-                                                            {/* Asignado */}
+                                                            {/* Asignados (Multi-avatar stack) */}
                                                             <div className="flex items-center gap-1.5 text-slate-500">
-                                                                <div className="h-4.5 w-4.5 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center text-[8px] font-bold text-brand-600 uppercase">
-                                                                    {task.asignado ? task.asignado.nombre[0] : '?'}
+                                                                <div className="flex -space-x-1.5 overflow-hidden">
+                                                                    {task.asignados && task.asignados.length > 0 ? (
+                                                                        task.asignados.map((u) => {
+                                                                            const initials = u.nombre
+                                                                                ? u.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+                                                                                : '?';
+                                                                            return (
+                                                                                <div
+                                                                                    key={u.id}
+                                                                                    className="inline-block h-5 w-5 rounded-full ring-2 ring-white bg-brand-50 border border-brand-100 flex items-center justify-center text-[8px] font-bold text-brand-700 uppercase overflow-hidden relative shrink-0"
+                                                                                    title={u.nombre}
+                                                                                >
+                                                                                    {u.avatarUrl ? (
+                                                                                        <img src={u.avatarUrl} alt={u.nombre} className="h-full w-full object-cover" />
+                                                                                    ) : (
+                                                                                        <span>{initials}</span>
+                                                                                    )}
+                                                                                </div>
+                                                                            );
+                                                                        })
+                                                                    ) : (
+                                                                        <div className="h-5 w-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[8px] text-slate-400 font-bold" title="Sin asignar">
+                                                                            ?
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                                <span className="truncate max-w-[100px] text-[10px]">
-                                                                    {task.asignado ? task.asignado.nombre : 'Sin asignar'}
+                                                                <span className="truncate max-w-[85px] text-[10px] font-medium">
+                                                                    {task.asignados && task.asignados.length > 0
+                                                                        ? (task.asignados.length === 1 ? task.asignados[0].nombre : `${task.asignados.length} asignados`)
+                                                                        : 'Sin asignar'}
                                                                 </span>
                                                             </div>
 
@@ -929,11 +1272,23 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     onDelete={handleDeleteTaskFromModal}
                     activities={activities}
                     userRole={initialData.currentUserRole}
+                    tasks={tasks.filter(t => t.id !== selectedTask.id).map(t => ({ id: t.id, codigo: t.codigo, title: t.title }))}
                 />
             )}
+
+            {/* Modal de Creación de Tarea */}
+            <CreateTaskModal
+                isOpen={isCreateModalOpen}
+                onClose={() => setIsCreateModalOpen(false)}
+                currentSpaceId={space.id}
+                spaces={initialData.spaces || []}
+                members={members}
+                tasks={tasks.map(t => ({ id: t.id, codigo: t.codigo, title: t.title }))}
+                onCreate={handleCreateTaskFromModal}
+            />
             {/* Modal de confirmación para eliminar columna */}
             {columnToDelete && (
-                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">
                     <div className="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 animate-in fade-in zoom-in duration-200">
                         <div className="flex items-center gap-3 text-red-600">
                             <div className="h-10 w-10 bg-red-50 rounded-xl flex items-center justify-center">

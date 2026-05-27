@@ -113,7 +113,10 @@ export async function getSpaceDetails(spaceId: string) {
                 tasks: {
                     include: {
                         asignado: {
-                            select: { id: true, nombre: true, apellido: true, email: true }
+                            select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
+                        },
+                        asignados: {
+                            select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
                         }
                     },
                     orderBy: { createdAt: 'desc' }
@@ -135,7 +138,13 @@ export async function getSpaceDetails(spaceId: string) {
         // Obtener miembros del equipo para asignación de tareas
         const members = await prisma.user.findMany({
             where: { organizationId: org.id },
-            select: { id: true, nombre: true, apellido: true, email: true }
+            select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
+        });
+
+        // Obtener todos los espacios de la organización
+        const spaces = await prisma.kanbanSpace.findMany({
+            where: { organizationId: org.id, archivado: false },
+            select: { id: true, nombre: true, clave: true, columnas: true, tiposActividad: true }
         });
 
         return {
@@ -147,6 +156,13 @@ export async function getSpaceDetails(spaceId: string) {
                 columnas: space.columnas,
                 tiposActividad: space.tiposActividad
             },
+            spaces: spaces.map(s => ({
+                id: s.id,
+                nombre: s.nombre,
+                clave: s.clave,
+                columnas: s.columnas,
+                tiposActividad: s.tiposActividad
+            })),
             tasks: space.tasks.map(t => ({
                 id: t.id,
                 codigo: t.codigo,
@@ -156,10 +172,20 @@ export async function getSpaceDetails(spaceId: string) {
                 type: t.type,
                 priority: t.priority,
                 dueDate: t.dueDate ? t.dueDate.toISOString() : null,
+                startDate: t.startDate ? t.startDate.toISOString() : null,
+                etiquetas: t.etiquetas,
+                team: t.team || '',
+                parentId: t.parentId || null,
                 asignado: t.asignado ? {
                     id: t.asignado.id,
-                    nombre: `${t.asignado.nombre || ''} ${t.asignado.apellido || ''}`.trim() || t.asignado.email
+                    nombre: `${t.asignado.nombre || ''} ${t.asignado.apellido || ''}`.trim() || t.asignado.email,
+                    avatarUrl: t.asignado.avatarUrl || null
                 } : null,
+                asignados: t.asignados.map(u => ({
+                    id: u.id,
+                    nombre: `${u.nombre || ''} ${u.apellido || ''}`.trim() || u.email,
+                    avatarUrl: u.avatarUrl || null
+                })),
                 createdAt: t.createdAt.toISOString()
             })),
             activities: space.activities.map(act => ({
@@ -172,7 +198,8 @@ export async function getSpaceDetails(spaceId: string) {
             })),
             members: members.map(m => ({
                 id: m.id,
-                nombre: `${m.nombre || ''} ${m.apellido || ''}`.trim() || m.email
+                nombre: `${m.nombre || ''} ${m.apellido || ''}`.trim() || m.email,
+                avatarUrl: m.avatarUrl || null
             }))
         };
     } catch (e) {
@@ -190,7 +217,12 @@ export async function createKanbanTask(data: {
     type: string;
     priority: string;
     asignadoId?: string;
+    asignadoIds?: string[];
     dueDate?: string;
+    startDate?: string;
+    parentId?: string;
+    etiquetas?: string[];
+    team?: string;
 }) {
     try {
         const { user, org } = await getCurrentUserAndOrg();
@@ -212,6 +244,11 @@ export async function createKanbanTask(data: {
                 data: { lastTaskNumber: nextNumber }
             });
 
+            // Determinar responsable primario para compatibilidad
+            const primaryAsignadoId = data.asignadoIds && data.asignadoIds.length > 0
+                ? data.asignadoIds[0]
+                : data.asignadoId || null;
+
             // Crear la tarea
             return tx.kanbanTask.create({
                 data: {
@@ -223,7 +260,17 @@ export async function createKanbanTask(data: {
                     status: data.status,
                     type: data.type,
                     priority: data.priority,
-                    asignadoId: data.asignadoId || null,
+                    asignadoId: primaryAsignadoId,
+                    asignados: data.asignadoIds && data.asignadoIds.length > 0 ? {
+                        connect: data.asignadoIds.map(id => ({ id }))
+                    } : data.asignadoId ? {
+                        connect: [{ id: data.asignadoId }]
+                    } : undefined,
+                    dueDate: data.dueDate ? new Date(data.dueDate) : null,
+                    startDate: data.startDate ? new Date(data.startDate) : null,
+                    parentId: data.parentId || null,
+                    etiquetas: data.etiquetas || [],
+                    team: data.team?.trim() || null,
                     creadoPorId: user.id
                 }
             });
@@ -297,14 +344,19 @@ export async function updateTaskFields(taskId: string, data: {
     type?: string;
     priority?: string;
     asignadoId?: string;
+    asignadoIds?: string[];
     dueDate?: string | null;
+    startDate?: string | null;
+    parentId?: string | null;
+    etiquetas?: string[];
+    team?: string | null;
 }) {
     try {
         const { user } = await getCurrentUserAndOrg();
 
         const oldTask = await prisma.kanbanTask.findUnique({
             where: { id: taskId },
-            include: { asignado: true }
+            include: { asignado: true, asignados: true }
         });
 
         if (!oldTask) throw new Error('Tarea no encontrada');
@@ -337,14 +389,48 @@ export async function updateTaskFields(taskId: string, data: {
             if (data.asignadoId) {
                 const targetUser = await prisma.user.findUnique({ where: { id: data.asignadoId } });
                 logs.push(`Asignó la tarea a ${targetUser ? `${targetUser.nombre || ''} ${targetUser.apellido || ''}`.trim() || targetUser.email : 'Miembro'}`);
+                if (data.asignadoIds === undefined) {
+                    updates.asignados = {
+                        set: [{ id: data.asignadoId }]
+                    };
+                }
             } else {
                 logs.push(`Removió el responsable asignado`);
+                if (data.asignadoIds === undefined) {
+                    updates.asignados = {
+                        set: []
+                    };
+                }
             }
+        }
+        if (data.asignadoIds !== undefined) {
+            updates.asignados = {
+                set: data.asignadoIds.map(id => ({ id }))
+            };
+            updates.asignadoId = data.asignadoIds.length > 0 ? data.asignadoIds[0] : null;
+            logs.push(`Actualizó los responsables asignados (${data.asignadoIds.length} personas)`);
         }
         if (data.dueDate !== undefined) {
             updates.dueDate = data.dueDate ? new Date(data.dueDate) : null;
             const formattedDate = data.dueDate ? new Date(data.dueDate).toLocaleDateString() : 'Sin fecha';
             logs.push(`Cambió la fecha límite a ${formattedDate}`);
+        }
+        if (data.startDate !== undefined) {
+            updates.startDate = data.startDate ? new Date(data.startDate) : null;
+            const formattedDate = data.startDate ? new Date(data.startDate).toLocaleDateString() : 'Sin fecha';
+            logs.push(`Cambió la fecha de inicio a ${formattedDate}`);
+        }
+        if (data.parentId !== undefined) {
+            updates.parentId = data.parentId || null;
+            logs.push(data.parentId ? `Asoció a tarea principal` : `Removió tarea principal`);
+        }
+        if (data.etiquetas !== undefined) {
+            updates.etiquetas = data.etiquetas;
+            logs.push(`Actualizó etiquetas a: ${data.etiquetas.join(', ')}`);
+        }
+        if (data.team !== undefined) {
+            updates.team = data.team || null;
+            logs.push(`Cambió el equipo a "${data.team || 'Ninguno'}"`);
         }
 
         if (Object.keys(updates).length === 0) return { success: true };
@@ -805,6 +891,84 @@ export async function deleteKanbanAttachment(attachmentId: string) {
     } catch (e: any) {
         console.error("deleteKanbanAttachment Error:", e);
         return { success: false, error: e.message || 'Error al eliminar adjunto' };
+    }
+}
+
+// 16. Mover tarea a otro espacio (tablero)
+export async function moveTaskToSpace(taskId: string, targetSpaceId: string) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        const task = await prisma.kanbanTask.findUnique({
+            where: { id: taskId },
+            include: { space: true }
+        });
+
+        if (!task) throw new Error('Tarea no encontrada');
+        if (task.spaceId === targetSpaceId) return { success: true, task };
+
+        // Transacción para obtener correlativo de forma segura y actualizar
+        const updatedTask = await prisma.$transaction(async (tx) => {
+            const targetSpace = await tx.kanbanSpace.findUnique({
+                where: { id: targetSpaceId }
+            });
+
+            if (!targetSpace) throw new Error('Espacio de destino no encontrado');
+
+            const nextNumber = targetSpace.lastTaskNumber + 1;
+            const codigo = `${targetSpace.clave}-${nextNumber}`;
+
+            // Actualizar correlativo en el espacio de destino
+            await tx.kanbanSpace.update({
+                where: { id: targetSpaceId },
+                data: { lastTaskNumber: nextNumber }
+            });
+
+            // Si el estado actual de la tarea no existe en el espacio destino, mover a la primera columna
+            const targetStatus = targetSpace.columnas.includes(task.status)
+                ? task.status
+                : targetSpace.columnas[0] || 'Por hacer';
+
+            // Actualizar la tarea
+            return tx.kanbanTask.update({
+                where: { id: taskId },
+                data: {
+                    spaceId: targetSpaceId,
+                    codigo,
+                    status: targetStatus,
+                    modificadoPorId: user.id
+                }
+            });
+        });
+
+        // Registrar actividad en ambos espacios
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId: task.spaceId,
+                taskId,
+                usuarioId: user.id,
+                accion: 'MOVIMIENTO',
+                detalles: `Movió la tarea ${task.codigo} al espacio "${updatedTask.codigo}"`
+            }
+        });
+
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId: targetSpaceId,
+                taskId,
+                usuarioId: user.id,
+                accion: 'MOVIMIENTO',
+                detalles: `Recibió la tarea trasladada de "${task.space.nombre}" como ${updatedTask.codigo}`
+            }
+        });
+
+        revalidatePath(`/kanban/${task.spaceId}`);
+        revalidatePath(`/kanban/${targetSpaceId}`);
+        
+        return { success: true, task: updatedTask };
+    } catch (e: any) {
+        console.error("moveTaskToSpace Error:", e);
+        return { success: false, error: e.message || 'Error al trasladar de espacio' };
     }
 }
 

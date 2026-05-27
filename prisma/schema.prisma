@@ -111,10 +111,12 @@ model User {
   cortesModificados     CorteCajaSession[]     @relation("UpdatedCortes")
   cortesCerrados        CorteCajaSession[]     @relation("ClosedCortes")
   
+  avatarUrl             String?
   kanbanSpacesCreados   KanbanSpace[]          @relation("CreatedKanbanSpaces")
   kanbanTasksAsignadas  KanbanTask[]           @relation("AssignedKanbanTasks")
   kanbanTasksCreadas    KanbanTask[]           @relation("CreatedKanbanTasks")
   kanbanTasksModificadas KanbanTask[]          @relation("ModifiedKanbanTasks")
+  kanbanTasksAsignadasMulti KanbanTask[]       @relation("KanbanTaskAssignees")
   kanbanActivities      KanbanActivity[]
   kanbanComments        KanbanComment[]
   kanbanAttachments     KanbanAttachment[]
@@ -992,18 +994,25 @@ model KanbanTask {
   type            String               // Ej: "Task", "Bug"
   priority        String               @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
   dueDate         DateTime?
+  startDate       DateTime?
+  etiquetas       String[]             @default([])
+  team            String?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
   asignadoId      String?              @db.Uuid
   creadoPorId     String?              @db.Uuid
   modificadoPorId String?              @db.Uuid
+  parentId        String?              @db.Uuid
 
   space           KanbanSpace          @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   asignado        User?                @relation("AssignedKanbanTasks", fields: [asignadoId], references: [id])
   creadoPor       User?                @relation("CreatedKanbanTasks", fields: [creadoPorId], references: [id])
   modificadoPor   User?                @relation("ModifiedKanbanTasks", fields: [modificadoPorId], references: [id])
+  asignados       User[]               @relation("KanbanTaskAssignees")
+  parent          KanbanTask?          @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  subtasks        KanbanTask[]         @relation("TaskHierarchy")
   activities      KanbanActivity[]
   comments        KanbanComment[]
   attachments     KanbanAttachment[]

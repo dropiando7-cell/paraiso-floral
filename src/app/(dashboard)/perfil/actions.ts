@@ -26,11 +26,17 @@ export async function updateProfile(data: { fullName: string; phone: string }) {
             return { success: false, error: 'Error al actualizar nombre en sesión.' };
         }
 
-        // 2. Update Prisma Database (for the phone)
+        // 2. Update Prisma Database (for the name & phone)
+        const parts = data.fullName.trim().split(/\s+/);
+        const nombre = parts[0] || null;
+        const apellido = parts.slice(1).join(" ") || null;
+
         await prisma.user.update({
             where: { email: user.email },
             data: {
-                phoneNumber: data.phone
+                phoneNumber: data.phone,
+                nombre,
+                apellido
             }
         });
 
@@ -39,5 +45,29 @@ export async function updateProfile(data: { fullName: string; phone: string }) {
     } catch (error) {
         console.error('Error in updateProfile:', error);
         return { success: false, error: 'Error interno del servidor al actualizar perfil.' };
+    }
+}
+
+export async function updateAvatarInDb(url: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !user || !user.email) {
+            return { success: false, error: 'No autorizado' };
+        }
+
+        await prisma.user.update({
+            where: { email: user.email },
+            data: {
+                avatarUrl: url
+            }
+        });
+
+        revalidatePath('/perfil');
+        return { success: true };
+    } catch (error) {
+        console.error('Error in updateAvatarInDb:', error);
+        return { success: false, error: 'Error interno del servidor al actualizar foto en DB.' };
     }
 }

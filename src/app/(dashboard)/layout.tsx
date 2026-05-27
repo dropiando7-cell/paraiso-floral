@@ -31,11 +31,41 @@ export default async function AuthenticatedLayout({
     }
 
     // Combine Prisma DB user with Supabase Auth Metadata (from Google)
+    const supabaseAvatar = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+    
+    // Sync to Prisma DB if out of sync
+    const updateData: any = {};
+    if (dbUser.avatarUrl !== supabaseAvatar) {
+        updateData.avatarUrl = supabaseAvatar;
+    }
+    
+    // If name is not populated in DB, try to extract it from Supabase metadata
+    if (!dbUser.nombre && !dbUser.apellido) {
+        const fullName = user.user_metadata?.full_name || user.user_metadata?.name || "";
+        if (fullName) {
+            const parts = fullName.trim().split(/\s+/);
+            updateData.nombre = parts[0] || null;
+            updateData.apellido = parts.slice(1).join(" ") || null;
+        }
+    }
+    
+    if (Object.keys(updateData).length > 0) {
+        try {
+            await prisma.user.update({
+                where: { id: dbUser.id },
+                data: updateData
+            });
+            Object.assign(dbUser, updateData);
+        } catch (syncErr) {
+            console.error("Error syncing user data to Prisma in layout.tsx:", syncErr);
+        }
+    }
+
     const combinedUser = {
         ...dbUser,
-        fullName: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0],
-        avatarUrl: user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
-        authProvider: user.app_metadata?.providers?.[0] || 'email',
+        fullName: `${dbUser.nombre || ""} ${dbUser.apellido || ""}`.trim() || user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0],
+        avatarUrl: dbUser.avatarUrl || supabaseAvatar,
+        authProvider: user.app_metadata?.providers?.[0] || "email",
     };
 
     return (
