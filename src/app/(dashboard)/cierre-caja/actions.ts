@@ -317,10 +317,26 @@ export async function getCajaSessionSummary(sessionId: string) {
             modificadoPor: true,
             cerradoPor: true,
             facturas: {
-                where: { estado: { not: 'ANULADA' } }
+                where: { estado: { not: 'ANULADA' } },
+                include: {
+                    cliente: true
+                }
             },
-            rentasPagos: true,
-            ordenesTrabajo: true
+            rentasPagos: {
+                include: {
+                    renta: {
+                        include: {
+                            cliente: true,
+                            activoFijo: true
+                        }
+                    }
+                }
+            },
+            ordenesTrabajo: {
+                include: {
+                    cliente: true
+                }
+            }
         }
     });
 
@@ -413,20 +429,26 @@ export async function getCajaSessionSummary(sessionId: string) {
             correlativo: f.correlativo,
             total: Number(f.total),
             metodoPago: f.metodoPago,
-            fechaEmision: f.fechaEmision.toISOString()
+            fechaEmision: f.fechaEmision.toISOString(),
+            clienteNombre: f.cliente?.nombre || 'Cliente General'
         })),
         rentasPagos: session.rentasPagos.map(p => ({
             id: p.id,
             monto: Number(p.monto),
             metodoPago: p.metodoPago,
-            fechaPago: p.fechaPago.toISOString()
+            fechaPago: p.fechaPago.toISOString(),
+            clienteNombre: p.renta?.cliente?.nombre || 'Cliente General',
+            equipoNombre: p.renta?.activoFijo?.descripcionCorta || 'Equipo',
+            notas: p.notas || ''
         })),
         ordenesTrabajo: session.ordenesTrabajo.map(o => ({
             id: o.id,
             codigoSeguridad: o.codigoSeguridad,
             total: Number(o.costoRevision),
             metodoPago: o.metodoPagoRevision,
-            fechaRecibido: o.fechaRecibido.toISOString()
+            fechaRecibido: o.fechaRecibido.toISOString(),
+            clienteNombre: o.cliente?.nombre || 'Cliente General',
+            equipoDano: o.equipoDano || 'Equipo'
         }))
     };
 

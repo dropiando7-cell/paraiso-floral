@@ -19,6 +19,7 @@ import {
     HelpCircle,
     ChevronDown,
     ChevronUp,
+    ChevronRight,
     Pencil
 } from 'lucide-react';
 import { abrirCaja, cerrarCaja, getCajaSessionSummary, getProductRotationReport, actualizarSaldoInicial, getActiveCajaSession } from './actions';
@@ -62,6 +63,10 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
     const [selectedPastSession, setSelectedPastSession] = useState<any>(null);
     const [pastSummaryData, setPastSummaryData] = useState<any>(null);
     const [isLoadingPastDetails, setIsLoadingPastDetails] = useState(false);
+
+    // Expandable methods for active and past sessions desglose
+    const [expandedMethods, setExpandedMethods] = useState<Record<string, boolean>>({});
+    const [expandedPastMethods, setExpandedPastMethods] = useState<Record<string, boolean>>({});
 
     // Fetch active session summary and product rotation if session exists
     const fetchActiveSessionDetails = async (sessionId: string) => {
@@ -226,6 +231,122 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
             minute: '2-digit'
         });
         return formatted.replace(/\s+/g, ' ');
+    };
+
+    // Unified transactional history search for a payment method
+    const getMethodTransactions = (metodo: string, session: any) => {
+        if (!session) return [];
+        const txList: Array<{
+            id: string;
+            fechaStr: string;
+            concepto: string;
+            cliente: string;
+            monto: number;
+        }> = [];
+
+        // Add invoices
+        const facturas = session.facturas || [];
+        facturas.filter((f: any) => (f.metodoPago || 'Efectivo') === metodo)
+            .forEach((f: any) => {
+                txList.push({
+                    id: f.id,
+                    fechaStr: f.fechaEmision,
+                    concepto: `Facturación POS (${f.correlativo})`,
+                    cliente: f.clienteNombre || 'Cliente General',
+                    monto: f.total
+                });
+            });
+
+        // Add rent payments
+        const rentasPagos = session.rentasPagos || [];
+        rentasPagos.filter((p: any) => (p.metodoPago || 'Efectivo') === metodo)
+            .forEach((p: any) => {
+                txList.push({
+                    id: p.id,
+                    fechaStr: p.fechaPago,
+                    concepto: p.notas || `Pago de Renta (${p.equipoNombre})`,
+                    cliente: p.clienteNombre || 'Cliente General',
+                    monto: p.monto
+                });
+            });
+
+        // Add support revisions
+        const ordenesTrabajo = session.ordenesTrabajo || [];
+        ordenesTrabajo.filter((o: any) => (o.metodoPago || 'Efectivo') === metodo)
+            .forEach((o: any) => {
+                txList.push({
+                    id: o.id,
+                    fechaStr: o.fechaRecibido,
+                    concepto: `Revisión Soporte #${o.codigoSeguridad} (${o.equipoDano})`,
+                    cliente: o.clienteNombre || 'Cliente General',
+                    monto: o.total
+                });
+            });
+
+        // Sort by date descending
+        return txList.sort((a, b) => new Date(b.fechaStr).getTime() - new Date(a.fechaStr).getTime());
+    };
+
+    const renderBreakdownRow = (metodo: string, session: any, isExpanded: boolean, colSpan: number = 5) => {
+        const txs = getMethodTransactions(metodo, session);
+
+        if (!isExpanded) return null;
+
+        return (
+            <tr className="bg-slate-50/30">
+                <td colSpan={colSpan} className="px-6 py-3 border-t border-b border-slate-100">
+                    <div className="bg-white/95 rounded-xl border border-slate-200 shadow-inner p-3 space-y-2">
+                        <div className="flex justify-between items-center pb-1.5 border-b border-slate-100">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                                Desglose de Transacciones
+                            </span>
+                            <span className="text-[10px] bg-slate-100 text-slate-600 font-bold px-2 py-0.5 rounded-full">
+                                {txs.length} item{txs.length !== 1 ? 's' : ''}
+                            </span>
+                        </div>
+                        {txs.length === 0 ? (
+                            <p className="text-xs text-slate-400 italic text-center py-2">
+                                No se encontraron transacciones registradas para este método de pago.
+                            </p>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left text-[11px] text-slate-600">
+                                    <thead>
+                                        <tr className="text-slate-400 font-bold uppercase border-b border-slate-100 bg-slate-50/50">
+                                            <th className="px-2 py-1">Hora</th>
+                                            <th className="px-2 py-1">Concepto</th>
+                                            <th className="px-2 py-1">Cliente</th>
+                                            <th className="px-2 py-1 text-right">Monto</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50 font-medium">
+                                        {txs.map((tx) => {
+                                            const isNegative = tx.monto < 0;
+                                            return (
+                                                <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
+                                                    <td className="px-2 py-1.5 text-slate-500 font-normal">
+                                                        {new Date(tx.fechaStr).toLocaleTimeString('es-HN', {
+                                                            hour: '2-digit',
+                                                            minute: '2-digit',
+                                                            hour12: true
+                                                        })}
+                                                    </td>
+                                                    <td className="px-2 py-1.5 text-slate-900 font-semibold">{tx.concepto}</td>
+                                                    <td className="px-2 py-1.5 text-slate-600">{tx.cliente}</td>
+                                                    <td className={`px-2 py-1.5 text-right font-bold ${isNegative ? 'text-rose-600' : 'text-slate-800'}`}>
+                                                        {isNegative ? '-' : '+'} {formatCurrency(Math.abs(tx.monto))}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        )}
+                    </div>
+                </td>
+            </tr>
+        );
     };
 
     return (
@@ -474,14 +595,26 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                     const r = summaryData?.summary?.rentas?.[metodo] || 0;
                                                     const s = summaryData?.summary?.soporte?.[metodo] || 0;
                                                     const total = v + r + s;
+                                                    const isExpanded = !!expandedMethods[metodo];
                                                     return (
-                                                        <tr key={metodo} className="hover:bg-slate-50 transition bg-white">
-                                                            <td className="px-6 py-3.5 font-bold text-slate-900">{metodo}</td>
-                                                            <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(v)}</td>
-                                                            <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(r)}</td>
-                                                            <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(s)}</td>
-                                                            <td className={`px-6 py-3.5 text-right font-bold ${metodo === 'Efectivo' ? 'text-emerald-700 bg-emerald-50/40' : 'text-slate-900'}`}>{formatCurrency(total)}</td>
-                                                        </tr>
+                                                        <React.Fragment key={metodo}>
+                                                            <tr 
+                                                                onClick={() => setExpandedMethods(prev => ({ ...prev, [metodo]: !prev[metodo] }))}
+                                                                className="hover:bg-slate-50/80 transition bg-white cursor-pointer select-none"
+                                                            >
+                                                                <td className="px-6 py-3.5 font-bold text-slate-900">
+                                                                    <div className="flex items-center gap-2">
+                                                                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />}
+                                                                        <span>{metodo}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(v)}</td>
+                                                                <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(r)}</td>
+                                                                <td className="px-6 py-3.5 text-right text-slate-800">{formatCurrency(s)}</td>
+                                                                <td className={`px-6 py-3.5 text-right font-bold ${metodo === 'Efectivo' ? 'text-emerald-700 bg-emerald-50/40' : 'text-slate-900'}`}>{formatCurrency(total)}</td>
+                                                            </tr>
+                                                            {renderBreakdownRow(metodo, summaryData?.session, isExpanded, 5)}
+                                                        </React.Fragment>
                                                     );
                                                 })}
                                                 <tr className="bg-slate-900 text-white font-bold text-sm">
@@ -831,14 +964,26 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                     const r = pastSummaryData?.summary?.rentas?.[metodo] || 0;
                                                     const s = pastSummaryData?.summary?.soporte?.[metodo] || 0;
                                                     const total = v + r + s;
+                                                    const isExpanded = !!expandedPastMethods[metodo];
                                                     return (
-                                                        <tr key={metodo} className="hover:bg-slate-50">
-                                                            <td className="px-4 py-2.5 font-bold text-slate-900">{metodo}</td>
-                                                            <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(v)}</td>
-                                                            <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(r)}</td>
-                                                            <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(s)}</td>
-                                                            <td className={`px-4 py-2.5 text-right font-bold ${metodo === 'Efectivo' ? 'text-emerald-700 bg-emerald-50/20' : 'text-slate-900'}`}>{formatCurrency(total)}</td>
-                                                        </tr>
+                                                        <React.Fragment key={metodo}>
+                                                            <tr 
+                                                                onClick={() => setExpandedPastMethods(prev => ({ ...prev, [metodo]: !prev[metodo] }))}
+                                                                className="hover:bg-slate-50 transition cursor-pointer select-none"
+                                                            >
+                                                                <td className="px-4 py-2.5 font-bold text-slate-900">
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        {isExpanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />}
+                                                                        <span>{metodo}</span>
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(v)}</td>
+                                                                <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(r)}</td>
+                                                                <td className="px-4 py-2.5 text-right text-slate-700">{formatCurrency(s)}</td>
+                                                                <td className={`px-4 py-2.5 text-right font-bold ${metodo === 'Efectivo' ? 'text-emerald-700 bg-emerald-50/20' : 'text-slate-900'}`}>{formatCurrency(total)}</td>
+                                                            </tr>
+                                                            {renderBreakdownRow(metodo, pastSummaryData?.session, isExpanded, 5)}
+                                                        </React.Fragment>
                                                     );
                                                 })}
                                                 <tr className="bg-slate-900 text-white font-bold">

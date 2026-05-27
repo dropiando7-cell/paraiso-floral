@@ -265,6 +265,15 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
         const organizationId = user.organizationId;
         const userRole = user.role;
 
+        // Check for active caja session
+        const activeCaja = await prisma.corteCajaSession.findFirst({
+            where: {
+                organizationId,
+                estado: 'ABIERTA'
+            }
+        });
+        const activeCajaId = activeCaja?.id || null;
+
         // Verificar que el documento existe y pertenece a la organización
         const docExistente = await prisma.factura.findFirst({
             where: { id, organizationId }
@@ -309,6 +318,8 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
 
         if (!clienteId) throw new Error('Se requiere un cliente válido.');
 
+        const nuevoTipo = data.tipoDocumento || docExistente.tipoDocumento;
+
         const result = await prisma.$transaction(async (tx) => {
             // Eliminar los detalles anteriores
             await tx.detalleFactura.deleteMany({ where: { facturaId: id } });
@@ -331,9 +342,10 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     isv18: data.isv18 || 0,
                     total: data.total,
                     estado: 'EMITIDA', // Change state to EMITIDA officially
-                    tipoDocumento: data.tipoDocumento || docExistente.tipoDocumento,
+                    tipoDocumento: nuevoTipo,
                     templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : undefined,
                     metodoPago: data.metodoPago || docExistente.metodoPago || 'Efectivo',
+                    cajaSessionId: docExistente.cajaSessionId || (nuevoTipo === 'FACTURA' ? activeCajaId : null),
                     detalles: {
                         create: lineItems.map((item) => {
                             const basePrice = item.qty * item.unitPrice;
