@@ -18,10 +18,109 @@ export async function getAuthenticatedUser() {
     return { ...dbUser, fullName };
 }
 
+// Auto-close expired sessions JIT
+export async function autoCloseExpiredSessions(organizationId: string) {
+    try {
+        const activeSessions = await prisma.corteCajaSession.findMany({
+            where: {
+                organizationId,
+                estado: 'ABIERTA'
+            }
+        });
+
+        const now = new Date();
+
+        for (const active of activeSessions) {
+            // Honduras local time is UTC-6
+            const localApertura = new Date(active.aperturaAt.getTime() - 6 * 60 * 60 * 1000);
+            
+            // Threshold is 11:00 PM local time on the day of opening
+            const localThreshold = new Date(localApertura);
+            localThreshold.setHours(23, 0, 0, 0);
+
+            // Convert threshold back to UTC
+            const thresholdUtc = new Date(localThreshold.getTime() + 6 * 60 * 60 * 1000);
+
+            if (now > thresholdUtc) {
+                console.log(`[Auto-Close] Session ${active.id} is expired. aperturaAt: ${active.aperturaAt}, threshold: ${thresholdUtc}. Auto-closing now.`);
+
+                // Find all facturas and rent payments created BEFORE or AT the threshold
+                const facturasBefore = await prisma.factura.findMany({
+                    where: {
+                        cajaSessionId: active.id,
+                        fechaEmision: { lte: thresholdUtc },
+                        estado: { not: 'ANULADA' }
+                    }
+                });
+
+                const rentasBefore = await prisma.rentaPago.findMany({
+                    where: {
+                        cajaSessionId: active.id,
+                        fechaPago: { lte: thresholdUtc }
+                    }
+                });
+
+                const saldoInicial = Number(active.saldoInicial);
+                const ventasEfectivo = facturasBefore
+                    .filter(f => (f.metodoPago || 'Efectivo') === 'Efectivo')
+                    .reduce((sum, f) => sum + Number(f.total), 0);
+                const rentasEfectivo = rentasBefore
+                    .filter(r => (r.metodoPago || 'Efectivo') === 'Efectivo')
+                    .reduce((sum, r) => sum + Number(r.monto), 0);
+
+                const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo;
+
+                // Perform database updates in a transaction
+                await prisma.$transaction([
+                    // Unlink transactions created AFTER the 11:00 PM threshold
+                    prisma.factura.updateMany({
+                        where: {
+                            cajaSessionId: active.id,
+                            fechaEmision: { gt: thresholdUtc }
+                        },
+                        data: {
+                            cajaSessionId: null
+                        }
+                    }),
+                    prisma.rentaPago.updateMany({
+                        where: {
+                            cajaSessionId: active.id,
+                            fechaPago: { gt: thresholdUtc }
+                        },
+                        data: {
+                            cajaSessionId: null
+                        }
+                    }),
+                    // Close the session
+                    prisma.corteCajaSession.update({
+                        where: { id: active.id },
+                        data: {
+                            estado: 'CERRADA',
+                            saldoFinalEfectivo: new Prisma.Decimal(esperadoEfectivo),
+                            diferencia: new Prisma.Decimal(0),
+                            observaciones: "Cierre automático del sistema a las 11:00 PM por turno no cerrado por el operador.",
+                            cierreAt: thresholdUtc,
+                            cerradoPorId: active.creadoPorId,
+                            modificadoPorId: active.creadoPorId
+                        }
+                    })
+                ]);
+                console.log(`[Auto-Close] Session ${active.id} auto-closed successfully.`);
+            }
+        }
+    } catch (e) {
+        console.error("Error in autoCloseExpiredSessions:", e);
+    }
+}
+
 // Active Session Helper - Returns open session if any (fully serialized)
 export async function getActiveCajaSession() {
     try {
         const user = await getAuthenticatedUser();
+
+        // Auto-close expired sessions
+        await autoCloseExpiredSessions(user.organizationId);
+
         const active = await prisma.corteCajaSession.findFirst({
             where: {
                 organizationId: user.organizationId,
@@ -69,6 +168,9 @@ export async function getActiveCajaSession() {
 export async function abrirCaja(saldoInicial: number) {
     const user = await getAuthenticatedUser();
 
+    // Auto-close expired sessions first
+    await autoCloseExpiredSessions(user.organizationId);
+
     // Check if there is an active session already
     const existing = await prisma.corteCajaSession.findFirst({
         where: {
@@ -87,6 +189,34 @@ export async function abrirCaja(saldoInicial: number) {
             estado: 'ABIERTA',
             saldoInicial: new Prisma.Decimal(saldoInicial),
             creadoPorId: user.id
+        }
+    });
+
+    // Auto-link any transactions created today (since 00:00:00 local time / UTC-6) that are unlinked
+    const localNow = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const localStartOfToday = new Date(localNow);
+    localStartOfToday.setHours(0, 0, 0, 0);
+    const startOfTodayUtc = new Date(localStartOfToday.getTime() + 6 * 60 * 60 * 1000);
+
+    await prisma.factura.updateMany({
+        where: {
+            organizationId: user.organizationId,
+            cajaSessionId: null,
+            fechaEmision: { gte: startOfTodayUtc }
+        },
+        data: {
+            cajaSessionId: nuevaSesion.id
+        }
+    });
+
+    await prisma.rentaPago.updateMany({
+        where: {
+            organizationId: user.organizationId,
+            cajaSessionId: null,
+            fechaPago: { gte: startOfTodayUtc }
+        },
+        data: {
+            cajaSessionId: nuevaSesion.id
         }
     });
 
@@ -141,6 +271,9 @@ export async function actualizarSaldoInicial(sessionId: string, nuevoSaldoInicia
 // Summary Calculation Helper (fully serialized)
 export async function getCajaSessionSummary(sessionId: string) {
     const user = await getAuthenticatedUser();
+
+    // Auto-close expired sessions
+    await autoCloseExpiredSessions(user.organizationId);
 
     const session = await prisma.corteCajaSession.findUnique({
         where: {
