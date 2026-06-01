@@ -20,9 +20,14 @@ import {
     ChevronDown,
     ChevronUp,
     ChevronRight,
-    Pencil
+    Pencil,
+    Plus,
+    Trash2,
+    Search,
+    ArrowUpCircle,
+    ArrowDownCircle
 } from 'lucide-react';
-import { abrirCaja, cerrarCaja, getCajaSessionSummary, getProductRotationReport, actualizarSaldoInicial, getActiveCajaSession } from './actions';
+import { abrirCaja, cerrarCaja, getCajaSessionSummary, getProductRotationReport, actualizarSaldoInicial, getActiveCajaSession, getPendingDeposits, registrarCorteMovimiento, anularCorteMovimiento } from './actions';
 
 interface CierreCajaClientProps {
     initialActiveSession: any;
@@ -67,6 +72,24 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
     // Expandable methods for active and past sessions desglose
     const [expandedMethods, setExpandedMethods] = useState<Record<string, boolean>>({});
     const [expandedPastMethods, setExpandedPastMethods] = useState<Record<string, boolean>>({});
+
+    // States for extraordinary movements
+    const [showModalRetiro, setShowModalRetiro] = useState(false);
+    const [showModalReembolso, setShowModalReembolso] = useState(false);
+    const [montoRetiro, setMontoRetiro] = useState('');
+    const [descripcionRetiro, setDescripcionRetiro] = useState('');
+    const [referenciaRetiro, setReferenciaRetiro] = useState('');
+    const [metodoPagoRetiro, setMetodoPagoRetiro] = useState('Efectivo');
+    const [isSavingRetiro, setIsSavingRetiro] = useState(false);
+
+    const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
+    const [isLoadingDeposits, setIsLoadingDeposits] = useState(false);
+    const [selectedDeposit, setSelectedDeposit] = useState<any>(null);
+    const [montoReembolso, setMontoReembolso] = useState('');
+    const [descripcionReembolso, setDescripcionReembolso] = useState('');
+    const [metodoPagoReembolso, setMetodoPagoReembolso] = useState('Efectivo');
+    const [isSavingReembolso, setIsSavingReembolso] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Fetch active session summary and product rotation if session exists
     const fetchActiveSessionDetails = async (sessionId: string) => {
@@ -195,6 +218,108 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
         }
     };
 
+    const loadPendingDeposits = async () => {
+        setIsLoadingDeposits(true);
+        try {
+            const data = await getPendingDeposits();
+            setPendingDeposits(data);
+        } catch (e) {
+            toast.error("Error al cargar depósitos pendientes.");
+        } finally {
+            setIsLoadingDeposits(false);
+        }
+    };
+
+    const handleSaveRetiro = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const amt = parseFloat(montoRetiro);
+        if (isNaN(amt) || amt <= 0) {
+            toast.error("El monto del retiro debe ser un número válido mayor a 0");
+            return;
+        }
+        setIsSavingRetiro(true);
+        try {
+            await registrarCorteMovimiento({
+                sessionId: activeSession.id,
+                tipo: 'EGRESO',
+                concepto: 'RETIRO_BANCARIO',
+                descripcion: descripcionRetiro || 'Retiro Bancario / Remesa',
+                monto: amt,
+                metodoPago: metodoPagoRetiro,
+                referenciaId: referenciaRetiro || undefined
+            });
+            toast.success("Retiro registrado correctamente");
+            setShowModalRetiro(false);
+            setMontoRetiro('');
+            setDescripcionRetiro('');
+            setReferenciaRetiro('');
+            await fetchActiveSessionDetails(activeSession.id);
+            router.refresh();
+        } catch (err: any) {
+            toast.error(err.message || "Error al registrar retiro");
+        } finally {
+            setIsSavingRetiro(false);
+        }
+    };
+
+    const handleSaveReembolso = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedDeposit) {
+            toast.error("Por favor seleccione el equipo/renta original.");
+            return;
+        }
+        const amt = parseFloat(montoReembolso);
+        if (isNaN(amt) || amt <= 0) {
+            toast.error("El monto del reembolso debe ser un número válido mayor a 0");
+            return;
+        }
+        if (amt > selectedDeposit.saldoPendiente) {
+            toast.error(`El monto no puede superar el saldo pendiente de L. ${selectedDeposit.saldoPendiente.toFixed(2)}`);
+            return;
+        }
+        if (metodoPagoReembolso === 'Efectivo' && amt >= 2000) {
+            toast.error("Los reembolsos de L. 2,000.00 o más no se pueden realizar en Efectivo. Use Transferencia Bancaria.");
+            return;
+        }
+        setIsSavingReembolso(true);
+        try {
+            await registrarCorteMovimiento({
+                sessionId: activeSession.id,
+                tipo: 'EGRESO',
+                concepto: 'REEMBOLSO_GARANTIA',
+                descripcion: descripcionReembolso || `Reembolso de Garantía: ${selectedDeposit.equipoNombre} (Serie: ${selectedDeposit.equipoSerie})`,
+                monto: amt,
+                metodoPago: metodoPagoReembolso,
+                referenciaId: selectedDeposit.id
+            });
+            toast.success("Reembolso registrado correctamente");
+            setShowModalReembolso(false);
+            setSelectedDeposit(null);
+            setMontoReembolso('');
+            setDescripcionReembolso('');
+            await fetchActiveSessionDetails(activeSession.id);
+            router.refresh();
+        } catch (err: any) {
+            toast.error(err.message || "Error al registrar reembolso");
+        } finally {
+            setIsSavingReembolso(false);
+        }
+    };
+
+    const handleAnularMovimiento = async (movId: string) => {
+        if (!window.confirm("¿Está seguro de que desea anular este movimiento? Esta acción restaurará los saldos en el sistema.")) {
+            return;
+        }
+        try {
+            await anularCorteMovimiento(movId);
+            toast.success("Movimiento anulado correctamente");
+            await fetchActiveSessionDetails(activeSession.id);
+            router.refresh();
+        } catch (err: any) {
+            toast.error(err.message || "Error al anular movimiento");
+        }
+    };
+
     // View detailed past session
     const handleViewPastSession = async (session: any) => {
         setSelectedPastSession(session);
@@ -272,7 +397,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
 
         // Add support revisions
         const ordenesTrabajo = session.ordenesTrabajo || [];
-        ordenesTrabajo.filter((o: any) => (o.metodoPago || 'Efectivo') === metodo)
+        ordenesTrabajo.filter((o: any) => (o.metodoPagoRevision || 'Efectivo') === metodo)
             .forEach((o: any) => {
                 txList.push({
                     id: o.id,
@@ -280,6 +405,20 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                     concepto: `Revisión Soporte #${o.codigoSeguridad} (${o.equipoDano})`,
                     cliente: o.clienteNombre || 'Cliente General',
                     monto: o.total
+                });
+            });
+
+        // Add extra movements (except REEMBOLSO_GARANTIA which is already in rentasPagos as negative payments)
+        const movimientos = session.movimientos || [];
+        movimientos.filter((m: any) => m.metodoPago === metodo && m.concepto !== 'REEMBOLSO_GARANTIA')
+            .forEach((m: any) => {
+                const isNegative = m.tipo === 'EGRESO';
+                txList.push({
+                    id: m.id,
+                    fechaStr: m.createdAt,
+                    concepto: `${m.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : 'Movimiento de Caja'} ${m.anuladaAt ? '(ANULADO)' : ''}`,
+                    cliente: m.descripcion || 'Movimiento de Caja',
+                    monto: isNegative ? -m.monto : m.monto
                 });
             });
 
@@ -627,6 +766,113 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                             </tbody>
                                         </table>
                                     </div>
+                                </div>
+
+                                {/* MOVIMIENTOS EXTRAORDINARIOS */}
+                                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                                    <div className="px-6 py-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                        <div>
+                                            <h3 className="text-base font-bold text-slate-950">Movimientos Extraordinarios (Remesas y Reembolsos)</h3>
+                                            <p className="text-xs text-slate-500">Retiros de efectivo a bancos, reembolsos de depósitos en garantía y otros ajustes de caja</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setMontoRetiro('');
+                                                    setDescripcionRetiro('');
+                                                    setReferenciaRetiro('');
+                                                    setMetodoPagoRetiro('Efectivo');
+                                                    setShowModalRetiro(true);
+                                                }}
+                                                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition duration-200 cursor-pointer flex items-center gap-1.5"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" /> Registrar Retiro / Remesa
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setSelectedDeposit(null);
+                                                    setMontoReembolso('');
+                                                    setDescripcionReembolso('');
+                                                    setMetodoPagoReembolso('Efectivo');
+                                                    setSearchQuery('');
+                                                    setShowModalReembolso(true);
+                                                    loadPendingDeposits();
+                                                }}
+                                                className="px-3 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition duration-200 cursor-pointer flex items-center gap-1.5"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" /> Reembolsar Garantía
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    {!summaryData?.session?.movimientos || summaryData.session.movimientos.length === 0 ? (
+                                        <div className="p-8 text-center text-slate-500">
+                                            <Activity className="w-8 h-8 mx-auto text-slate-400 mb-2" />
+                                            <p className="font-semibold text-xs">No hay movimientos extraordinarios registrados en este turno.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="overflow-x-auto">
+                                            <table className="w-full text-left text-sm text-slate-600">
+                                                <thead className="bg-slate-50 text-xs text-slate-500 uppercase font-semibold">
+                                                    <tr>
+                                                        <th className="px-6 py-2.5">Fecha / Hora</th>
+                                                        <th className="px-6 py-2.5">Tipo</th>
+                                                        <th className="px-6 py-2.5">Concepto</th>
+                                                        <th className="px-6 py-2.5">Descripción / Referencia</th>
+                                                        <th className="px-6 py-2.5">Método</th>
+                                                        <th className="px-6 py-2.5 text-right">Monto</th>
+                                                        <th className="px-6 py-2.5 text-center">Acciones</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody className="divide-y divide-slate-100 font-medium">
+                                                    {summaryData.session.movimientos.map((mov: any) => {
+                                                        const isAnulado = !!mov.anuladaAt;
+                                                        return (
+                                                            <tr key={mov.id} className={`hover:bg-slate-50/80 transition ${isAnulado ? 'opacity-50 line-through bg-slate-50/20' : ''}`}>
+                                                                <td className="px-6 py-3 text-xs text-slate-500" suppressHydrationWarning>
+                                                                    {formatDate(mov.createdAt)}
+                                                                </td>
+                                                                <td className="px-6 py-3 text-xs">
+                                                                    <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${
+                                                                        mov.tipo === 'INGRESO' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                                                    }`}>
+                                                                        {mov.tipo}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="px-6 py-3 text-xs font-bold text-slate-900">
+                                                                    {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso de Garantía' : 'Otro Movimiento'}
+                                                                </td>
+                                                                <td className="px-6 py-3 text-xs">
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-slate-800 font-semibold">{mov.descripcion}</span>
+                                                                        <span className="text-[10px] text-slate-400">Creado por: {mov.creadoPor?.nombre || 'Usuario'}</span>
+                                                                        {isAnulado && <span className="text-[10px] text-rose-600 font-bold">Anulado por: {mov.anuladaPor?.nombre || 'Usuario'}</span>}
+                                                                    </div>
+                                                                </td>
+                                                                <td className="px-6 py-3 text-xs text-slate-700">
+                                                                    {mov.metodoPago}
+                                                                </td>
+                                                                <td className={`px-6 py-3 text-right font-black text-xs ${mov.tipo === 'INGRESO' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                                                    {mov.tipo === 'INGRESO' ? '+' : '-'} {formatCurrency(mov.monto)}
+                                                                </td>
+                                                                <td className="px-6 py-3 text-center">
+                                                                    {!isAnulado && (
+                                                                        <button
+                                                                            onClick={() => handleAnularMovimiento(mov.id)}
+                                                                            className="p-1 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded transition cursor-pointer"
+                                                                            title="Anular Movimiento"
+                                                                        >
+                                                                            <Trash2 className="w-4 h-4" />
+                                                                        </button>
+                                                                    )}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (
@@ -996,6 +1242,56 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                             </tbody>
                                         </table>
                                     </div>
+                                    {/* MOVIMIENTOS REGISTRADOS EN ESTA SESION PASADA */}
+                                    {pastSummaryData?.session?.movimientos?.length > 0 && (
+                                        <div className="space-y-4 mt-6">
+                                            <h4 className="text-xs font-bold text-slate-600 uppercase tracking-wider">Movimientos Extraordinarios del Turno</h4>
+                                            <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                                <table className="w-full text-left text-xs text-slate-600">
+                                                    <thead className="bg-slate-50 text-slate-500 uppercase font-semibold">
+                                                        <tr>
+                                                            <th className="px-4 py-2">Fecha</th>
+                                                            <th className="px-4 py-2">Tipo</th>
+                                                            <th className="px-4 py-2">Concepto</th>
+                                                            <th className="px-4 py-2">Descripción</th>
+                                                            <th className="px-4 py-2">Método</th>
+                                                            <th className="px-4 py-2 text-right">Monto</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-100 font-medium">
+                                                        {pastSummaryData.session.movimientos.map((mov: any) => {
+                                                            const isAnulado = !!mov.anuladaAt;
+                                                            return (
+                                                                <tr key={mov.id} className={`${isAnulado ? 'opacity-50 line-through bg-slate-50/20' : ''}`}>
+                                                                    <td className="px-4 py-2 text-slate-500" suppressHydrationWarning>{formatDate(mov.createdAt)}</td>
+                                                                    <td className="px-4 py-2">
+                                                                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                                                            mov.tipo === 'INGRESO' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                                                        }`}>
+                                                                            {mov.tipo}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td className="px-4 py-2 font-bold text-slate-800">
+                                                                        {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso Garantía' : 'Otro'}
+                                                                    </td>
+                                                                    <td className="px-4 py-2">
+                                                                        <div className="flex flex-col">
+                                                                            <span>{mov.descripcion}</span>
+                                                                            {isAnulado && <span className="text-[9px] text-rose-600 font-bold">ANULADO</span>}
+                                                                        </div>
+                                                                    </td>
+                                                                    <td className="px-4 py-2 text-slate-600">{mov.metodoPago}</td>
+                                                                    <td className={`px-4 py-2 text-right font-bold ${mov.tipo === 'INGRESO' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                                                        {mov.tipo === 'INGRESO' ? '+' : '-'} {formatCurrency(mov.monto)}
+                                                                    </td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : null}
                         </div>
@@ -1011,6 +1307,306 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                 Cerrar Ventana
                             </button>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL RETIRO / REMESA BANCARIA */}
+            {showModalRetiro && (
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-md w-full animate-scale-in">
+                        <div className="bg-slate-900 px-6 py-4 text-white flex justify-between items-center">
+                            <h3 className="font-bold text-base">Registrar Retiro / Remesa Bancaria</h3>
+                            <button
+                                onClick={() => setShowModalRetiro(false)}
+                                className="text-slate-400 hover:text-white transition"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                            </button>
+                        </div>
+                        <form onSubmit={handleSaveRetiro} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                    Método de Retiro
+                                </label>
+                                <select
+                                    className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                    value={metodoPagoRetiro}
+                                    onChange={(e) => setMetodoPagoRetiro(e.target.value)}
+                                >
+                                    <option value="Efectivo">Efectivo (Gaveta diaria)</option>
+                                    <option value="Transferencia">Transferencia Bancaria</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                    Monto del Retiro (Lempiras)
+                                </label>
+                                <div className="relative rounded-lg shadow-sm">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span className="text-slate-400 font-medium">L.</span>
+                                    </div>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        className="block w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                        placeholder="0.00"
+                                        value={montoRetiro}
+                                        onChange={(e) => setMontoRetiro(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                    Referencia Bancaria / Cuenta (Opcional)
+                                </label>
+                                <input
+                                    type="text"
+                                    className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                    placeholder="Ej. Depósito BAC #123456"
+                                    value={referenciaRetiro}
+                                    onChange={(e) => setReferenciaRetiro(e.target.value)}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                                    Notas / Observaciones
+                                </label>
+                                <textarea
+                                    className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                    rows={2}
+                                    placeholder="Detalles sobre el retiro de efectivo o remesa..."
+                                    value={descripcionRetiro}
+                                    onChange={(e) => setDescripcionRetiro(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="pt-2 flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModalRetiro(false)}
+                                    className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg text-xs transition duration-200 cursor-pointer text-center"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingRetiro}
+                                    className="w-1/2 bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 px-4 rounded-lg text-xs transition duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                                >
+                                    {isSavingRetiro && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                    Guardar Retiro
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL REEMBOLSO DE GARANTIA */}
+            {showModalReembolso && (
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-md w-full animate-scale-in">
+                        <div className="bg-brand-950 px-6 py-4 text-white flex justify-between items-center">
+                            <h3 className="font-bold text-base text-white">Reembolsar Depósito en Garantía</h3>
+                            <button
+                                onClick={() => setShowModalReembolso(false)}
+                                className="text-slate-400 hover:text-white transition"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                            </button>
+                        </div>
+                        <form onSubmit={handleSaveReembolso} className="p-6 space-y-4">
+                            <div className="space-y-2">
+                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider">
+                                    Buscar Alquiler Original (Serie / QR / Cliente / Equipo)
+                                </label>
+                                <div className="relative rounded-lg shadow-sm">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <Search className="w-4 h-4 text-slate-400" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        className="block w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                        placeholder="Escriba número de serie, QR..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            {!selectedDeposit ? (
+                                <div className="border border-slate-200 rounded-xl overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-100 bg-slate-50">
+                                    {isLoadingDeposits ? (
+                                        <div className="p-6 text-center text-xs text-slate-500 flex flex-col items-center justify-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-brand-600 border-t-transparent rounded-full animate-spin" />
+                                            <span>Buscando depósitos...</span>
+                                        </div>
+                                    ) : pendingDeposits.filter((d: any) => {
+                                        const query = searchQuery.toLowerCase();
+                                        return (
+                                            d.equipoSerie.toLowerCase().includes(query) ||
+                                            d.equipoIdQr.toLowerCase().includes(query) ||
+                                            d.equipoNombre.toLowerCase().includes(query) ||
+                                            d.clienteNombre.toLowerCase().includes(query)
+                                        );
+                                    }).length === 0 ? (
+                                        <div className="p-6 text-center text-xs text-slate-500">
+                                            No se encontraron alquileres activos con saldo pendiente.
+                                        </div>
+                                    ) : (
+                                        pendingDeposits.filter((d: any) => {
+                                            const query = searchQuery.toLowerCase();
+                                            return (
+                                                d.equipoSerie.toLowerCase().includes(query) ||
+                                                d.equipoIdQr.toLowerCase().includes(query) ||
+                                                d.equipoNombre.toLowerCase().includes(query) ||
+                                                d.clienteNombre.toLowerCase().includes(query)
+                                            );
+                                        }).map((d: any) => (
+                                            <button
+                                                key={d.id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setSelectedDeposit(d);
+                                                    setMontoReembolso(d.saldoPendiente.toFixed(2));
+                                                }}
+                                                className="w-full text-left p-3 hover:bg-slate-100 flex justify-between items-center transition bg-white"
+                                            >
+                                                <div>
+                                                    <p className="text-xs font-bold text-slate-900 truncate max-w-[200px]">{d.equipoNombre}</p>
+                                                    <p className="text-[10px] text-slate-500 mt-0.5">
+                                                        Serie: <strong className="text-slate-800">{d.equipoSerie}</strong> | QR: <strong className="text-slate-800">{d.equipoIdQr}</strong>
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[200px]">Cliente: {d.clienteNombre}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <span className="text-xs font-black text-brand-700 block">{formatCurrency(d.saldoPendiente)}</span>
+                                                    <span className="text-[9px] text-slate-400 block">Depósito: {formatCurrency(d.deposito)}</span>
+                                                </div>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="bg-emerald-50/50 border border-emerald-200 rounded-xl p-4 relative">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedDeposit(null)}
+                                        className="absolute top-3 right-3 text-slate-500 hover:text-slate-950 font-bold text-xs"
+                                    >
+                                        Cambiar
+                                    </button>
+                                    <h4 className="text-xs font-bold text-slate-900 pr-12">{selectedDeposit.equipoNombre}</h4>
+                                    <div className="grid grid-cols-2 gap-3 mt-3 text-[11px] text-slate-700">
+                                        <div>
+                                            <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px]">Número de Serie</span>
+                                            <strong className="text-slate-950">{selectedDeposit.equipoSerie}</strong>
+                                        </div>
+                                        <div>
+                                            <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px]">Código QR</span>
+                                            <strong className="text-slate-950">{selectedDeposit.equipoIdQr}</strong>
+                                        </div>
+                                        <div className="col-span-2">
+                                            <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px]">Cliente original</span>
+                                            <span className="text-slate-950 font-bold block truncate">{selectedDeposit.clienteNombre}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px]">Depósito Total</span>
+                                            <span className="text-slate-950 block">{formatCurrency(selectedDeposit.deposito)}</span>
+                                        </div>
+                                        <div>
+                                            <span className="text-slate-400 block font-semibold uppercase tracking-wider text-[9px]">Saldo Devolución</span>
+                                            <strong className="text-emerald-700 block text-xs">{formatCurrency(selectedDeposit.saldoPendiente)}</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedDeposit && (
+                                <div className="space-y-4 pt-2">
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                            Método de Reembolso
+                                        </label>
+                                        <select
+                                            className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                            value={metodoPagoReembolso}
+                                            onChange={(e) => setMetodoPagoReembolso(e.target.value)}
+                                        >
+                                            <option value="Efectivo">Efectivo (Gaveta diaria)</option>
+                                            <option value="Transferencia">Transferencia Bancaria</option>
+                                        </select>
+                                        {metodoPagoReembolso === 'Efectivo' && (
+                                            <p className="text-[10px] text-amber-600 mt-1 flex items-center gap-1 font-semibold">
+                                                <AlertCircle className="w-3.5 h-3.5" /> Límite en efectivo: Menor a L. 2,000.00
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                            Monto a Reembolsar
+                                        </label>
+                                        <div className="relative rounded-lg shadow-sm">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <span className="text-slate-400 font-medium">L.</span>
+                                            </div>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                max={selectedDeposit.saldoPendiente}
+                                                className="block w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                                value={montoReembolso}
+                                                onChange={(e) => setMontoReembolso(e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        {metodoPagoReembolso === 'Efectivo' && parseFloat(montoReembolso) >= 2000 && (
+                                            <p className="text-rose-600 font-bold text-[10px] mt-1 flex items-center gap-1">
+                                                <AlertCircle className="w-3.5 h-3.5" /> Reembolsos ≥ L. 2,000.00 requieren Transferencia Bancaria.
+                                            </p>
+                                        )}
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                                            Notas / Observaciones del Reembolso
+                                        </label>
+                                        <textarea
+                                            className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                                            rows={2}
+                                            placeholder="Detalles de la entrega del equipo y devolución..."
+                                            value={descripcionReembolso}
+                                            onChange={(e) => setDescripcionReembolso(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="pt-2 flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModalReembolso(false)}
+                                    className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg text-xs transition duration-200 cursor-pointer text-center"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingReembolso || (metodoPagoReembolso === 'Efectivo' && parseFloat(montoReembolso) >= 2000)}
+                                    className="w-1/2 bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 px-4 rounded-lg text-xs transition duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                                >
+                                    {isSavingReembolso && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                    Guardar Reembolso
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}

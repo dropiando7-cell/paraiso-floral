@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
@@ -38,6 +38,19 @@ export default function DocumentListTable({ data, type }: Props) {
   const [docToAnul, setDocToAnul] = useState<DocumentRecord | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
+  // Sorting state
+  const [sortField, setSortField] = useState<'fechaEmision' | 'total' | 'correlativo' | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Reset page when criteria changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, showAnuladas, type]);
+
   const confirmAnular = async () => {
     if (!docToAnul) return;
     const id = docToAnul.id;
@@ -58,8 +71,18 @@ export default function DocumentListTable({ data, type }: Props) {
     }
   };
 
+  const handleSort = (field: 'fechaEmision' | 'total' | 'correlativo') => {
+    if (sortField === field) {
+      setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
   const filteredData = useMemo(() => {
-    return data.filter(doc => {
+    // 1. Filter
+    const filtered = data.filter(doc => {
       // Filter out anuladas if the toggle is off
       if (!showAnuladas && doc.estado === 'ANULADA') return false;
       
@@ -75,7 +98,39 @@ export default function DocumentListTable({ data, type }: Props) {
              doc.clienteNombre.toLowerCase().includes(q) ||
              (doc.clienteRtn && doc.clienteRtn.toLowerCase().includes(q));
     });
-  }, [data, type, search, showAnuladas]);
+
+    // 2. Sort
+    if (sortField) {
+      filtered.sort((a, b) => {
+        let valA = a[sortField];
+        let valB = b[sortField];
+
+        if (sortField === 'fechaEmision') {
+          valA = new Date(a.fechaEmision).getTime();
+          valB = new Date(b.fechaEmision).getTime();
+        }
+
+        if (valA === null || valA === undefined) return 1;
+        if (valB === null || valB === undefined) return -1;
+
+        if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+        if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    } else {
+      // Default: sort by date descending
+      filtered.sort((a, b) => new Date(b.fechaEmision).getTime() - new Date(a.fechaEmision).getTime());
+    }
+
+    return filtered;
+  }, [data, type, search, showAnuladas, sortField, sortDirection]);
+
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredData.slice(start, start + itemsPerPage);
+  }, [filteredData, currentPage]);
+
+  const totalPages = Math.ceil(filteredData.length / itemsPerPage);
 
   const getStatusBadge = (estado: string) => {
     switch (estado) {
@@ -126,16 +181,40 @@ export default function DocumentListTable({ data, type }: Props) {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-sm">
-              <th className="p-4 border-b border-slate-200">Documento</th>
+              <th 
+                onClick={() => handleSort('correlativo')}
+                className="p-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Documento
+                  {sortField === 'correlativo' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                </div>
+              </th>
               <th className="p-4 border-b border-slate-200">Cliente / Entidad</th>
-              <th className="p-4 border-b border-slate-200">Emisión</th>
-              <th className="p-4 border-b border-slate-200 text-right">Monto Total</th>
+              <th 
+                onClick={() => handleSort('fechaEmision')}
+                className="p-4 border-b border-slate-200 cursor-pointer select-none hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center gap-1">
+                  Emisión
+                  {sortField === 'fechaEmision' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                </div>
+              </th>
+              <th 
+                onClick={() => handleSort('total')}
+                className="p-4 border-b border-slate-200 text-right cursor-pointer select-none hover:bg-slate-100 transition-colors"
+              >
+                <div className="flex items-center justify-end gap-1">
+                  Monto Total
+                  {sortField === 'total' && (sortDirection === 'asc' ? ' ▲' : ' ▼')}
+                </div>
+              </th>
               <th className="p-4 border-b border-slate-200 text-center">Estado</th>
               <th className="p-4 border-b border-slate-200 text-right">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredData.length === 0 ? (
+            {paginatedData.length === 0 ? (
               <tr>
                 <td colSpan={6} className="p-16 text-center text-slate-400 h-64">
                    <FileText size={48} className="mx-auto text-slate-200 mb-4" />
@@ -143,7 +222,7 @@ export default function DocumentListTable({ data, type }: Props) {
                    <p className="text-sm mt-1">No se encontraron documentos {search && 'con esa búsqueda'}.</p>
                 </td>
               </tr>
-            ) : filteredData.map(doc => (
+            ) : paginatedData.map(doc => (
               <React.Fragment key={doc.id}>
                 <tr 
                   onClick={() => setExpandedId(expandedId === doc.id ? null : doc.id)}
@@ -267,6 +346,50 @@ export default function DocumentListTable({ data, type }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="px-5 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
+          <p className="text-xs text-slate-500 font-semibold">
+            Mostrando <span className="font-bold text-slate-700">{((currentPage - 1) * itemsPerPage) + 1}</span> a{' '}
+            <span className="font-bold text-slate-700">
+              {Math.min(currentPage * itemsPerPage, filteredData.length)}
+            </span>{' '}
+            de <span className="font-bold text-slate-700">{filteredData.length}</span> resultados
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            >
+              Anterior
+            </button>
+            <div className="flex items-center gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <button
+                  key={page}
+                  onClick={() => setCurrentPage(page)}
+                  className={`w-7 h-7 flex items-center justify-center text-xs font-black rounded-lg transition ${
+                    currentPage === page
+                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                      : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {docToAnul && (

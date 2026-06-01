@@ -336,6 +336,15 @@ export async function getCajaSessionSummary(sessionId: string) {
                 include: {
                     cliente: true
                 }
+            },
+            movimientos: {
+                include: {
+                    creadoPor: true,
+                    anuladaPor: true
+                },
+                orderBy: {
+                    createdAt: 'desc'
+                }
             }
         }
     });
@@ -395,8 +404,23 @@ export async function getCajaSessionSummary(sessionId: string) {
     const rentasEfectivo = summary.rentas['Efectivo'] || 0;
     const soporteEfectivo = summary.soporte['Efectivo'] || 0;
 
-    // Expected cash in register
-    const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo + soporteEfectivo;
+    let ingresosMovimientosEfectivo = 0;
+    let egresosMovimientosEfectivo = 0;
+    session.movimientos.forEach(m => {
+        if (m.anuladaAt) return;
+        if (m.metodoPago === 'Efectivo') {
+            if (m.tipo === 'INGRESO') {
+                ingresosMovimientosEfectivo += Number(m.monto);
+            } else if (m.tipo === 'EGRESO') {
+                if (m.concepto !== 'REEMBOLSO_GARANTIA') {
+                    egresosMovimientosEfectivo += Number(m.monto);
+                }
+            }
+        }
+    });
+
+    // Expected cash in register (adjusted for bank drops/withdrawals)
+    const esperadoEfectivo = saldoInicial + ventasEfectivo + rentasEfectivo + soporteEfectivo + ingresosMovimientosEfectivo - egresosMovimientosEfectivo;
 
     const serializedSession = {
         id: session.id,
@@ -449,6 +473,19 @@ export async function getCajaSessionSummary(sessionId: string) {
             fechaRecibido: o.fechaRecibido.toISOString(),
             clienteNombre: o.cliente?.nombre || 'Cliente General',
             equipoDano: o.equipoDano || 'Equipo'
+        })),
+        movimientos: session.movimientos.map(m => ({
+            id: m.id,
+            tipo: m.tipo,
+            concepto: m.concepto,
+            descripcion: m.descripcion,
+            monto: Number(m.monto),
+            metodoPago: m.metodoPago,
+            referenciaId: m.referenciaId,
+            createdAt: m.createdAt.toISOString(),
+            anuladaAt: m.anuladaAt ? m.anuladaAt.toISOString() : null,
+            creadoPor: m.creadoPor ? { nombre: m.creadoPor.nombre, email: m.creadoPor.email } : null,
+            anuladaPor: m.anuladaPor ? { nombre: m.anuladaPor.nombre, email: m.anuladaPor.email } : null
         }))
     };
 
@@ -583,4 +620,229 @@ export async function getHistorialCortes() {
         console.error("Error en getHistorialCortes:", e);
         return [];
     }
+}
+
+// Get rent contracts with pending guarantees
+export async function getPendingDeposits() {
+    try {
+        const user = await getAuthenticatedUser();
+        const rentas = await prisma.rentaEquipo.findMany({
+            where: {
+                organizationId: user.organizationId,
+                deposito: { gt: 0 }
+            },
+            include: {
+                cliente: true,
+                activoFijo: true
+            }
+        });
+        
+        return rentas.filter(r => {
+            const dep = Number(r.deposito);
+            const dev = r.depositoDevuelto ? Number(r.depositoDevuelto) : 0;
+            return dev < dep;
+        }).map(r => ({
+            id: r.id,
+            clienteNombre: r.cliente?.nombre || 'Cliente General',
+            equipoNombre: r.activoFijo?.descripcionCorta || 'Equipo',
+            equipoSerie: r.activoFijo?.serie || 'S/N',
+            equipoIdQr: r.activoFijo?.idQr || 'Sin QR',
+            deposito: Number(r.deposito),
+            depositoDevuelto: r.depositoDevuelto ? Number(r.depositoDevuelto) : 0,
+            saldoPendiente: Number(r.deposito) - (r.depositoDevuelto ? Number(r.depositoDevuelto) : 0)
+        }));
+    } catch (e) {
+        console.error("Error en getPendingDeposits:", e);
+        return [];
+    }
+}
+
+// Register a cash register movement (Withdrawal/Remittance or Guarantee Refund)
+export async function registrarCorteMovimiento(payload: {
+    sessionId: string;
+    tipo: 'INGRESO' | 'EGRESO';
+    concepto: 'RETIRO_BANCARIO' | 'REEMBOLSO_GARANTIA' | 'OTRO';
+    descripcion: string;
+    monto: number;
+    metodoPago: string;
+    referenciaId?: string;
+}) {
+    const user = await getAuthenticatedUser();
+
+    const session = await prisma.corteCajaSession.findUnique({
+        where: {
+            id: payload.sessionId,
+            organizationId: user.organizationId,
+            estado: 'ABIERTA'
+        }
+    });
+
+    if (!session) {
+        throw new Error("No se encontró una sesión de caja abierta.");
+    }
+
+    if (payload.monto <= 0) {
+        throw new Error("El monto debe ser mayor a 0.");
+    }
+
+    // Business rules for Refund
+    if (payload.concepto === 'REEMBOLSO_GARANTIA') {
+        if (!payload.referenciaId) {
+            throw new Error("Se requiere la referencia del contrato de renta original.");
+        }
+
+        const renta = await prisma.rentaEquipo.findUnique({
+            where: {
+                id: payload.referenciaId,
+                organizationId: user.organizationId
+            }
+        });
+
+        if (!renta) {
+            throw new Error("No se encontró el contrato de renta especificado.");
+        }
+
+        const dep = Number(renta.deposito);
+        const dev = renta.depositoDevuelto ? Number(renta.depositoDevuelto) : 0;
+        const maxReembolso = dep - dev;
+
+        if (payload.monto > maxReembolso) {
+            throw new Error(`El monto a reembolsar (L. ${payload.monto.toFixed(2)}) supera el saldo de garantía pendiente (L. ${maxReembolso.toFixed(2)}).`);
+        }
+
+        if (payload.metodoPago === 'Efectivo' && payload.monto >= 2000) {
+            throw new Error("Los reembolsos mayores o iguales a L. 2,000.00 deben realizarse mediante Transferencia Bancaria para evitar descapitalizar la caja.");
+        }
+
+        // Perform updates inside a transaction
+        await prisma.$transaction(async (tx) => {
+            await tx.rentaEquipo.update({
+                where: { id: renta.id },
+                data: {
+                    depositoDevuelto: new Prisma.Decimal(dev + payload.monto)
+                }
+            });
+
+            // Create negative RentaPago
+            await tx.rentaPago.create({
+                data: {
+                    organizationId: user.organizationId,
+                    rentaId: renta.id,
+                    monto: new Prisma.Decimal(-payload.monto),
+                    metodoPago: payload.metodoPago,
+                    notas: `Reembolso de Garantía (${payload.descripcion || 'Caja Diario'})`,
+                    creadoPorId: user.id,
+                    cajaSessionId: session.id
+                }
+            });
+
+            // Create CorteCajaMovimiento
+            await tx.corteCajaMovimiento.create({
+                data: {
+                    organizationId: user.organizationId,
+                    sessionId: session.id,
+                    tipo: payload.tipo,
+                    concepto: payload.concepto,
+                    descripcion: payload.descripcion,
+                    monto: new Prisma.Decimal(payload.monto),
+                    metodoPago: payload.metodoPago,
+                    referenciaId: renta.id,
+                    creadoPorId: user.id
+                }
+            });
+        });
+    } else {
+        // Register standard movement (e.g. Bank withdrawal/drop)
+        await prisma.corteCajaMovimiento.create({
+            data: {
+                organizationId: user.organizationId,
+                sessionId: session.id,
+                tipo: payload.tipo,
+                concepto: payload.concepto,
+                descripcion: payload.descripcion,
+                monto: new Prisma.Decimal(payload.monto),
+                metodoPago: payload.metodoPago,
+                referenciaId: payload.referenciaId || null,
+                creadoPorId: user.id
+            }
+        });
+    }
+
+    revalidatePath('/cierre-caja');
+    return { success: true };
+}
+
+// Annul a cash register movement
+export async function anularCorteMovimiento(movimientoId: string) {
+    const user = await getAuthenticatedUser();
+
+    const mov = await prisma.corteCajaMovimiento.findUnique({
+        where: {
+            id: movimientoId,
+            organizationId: user.organizationId
+        }
+    });
+
+    if (!mov) {
+        throw new Error("No se encontró el movimiento de caja.");
+    }
+
+    if (mov.anuladaAt) {
+        throw new Error("El movimiento ya está anulado.");
+    }
+
+    // Check if session is closed
+    const session = await prisma.corteCajaSession.findUnique({
+        where: { id: mov.sessionId }
+    });
+
+    if (session?.estado === 'CERRADA') {
+        throw new Error("No se pueden anular movimientos de un turno de caja cerrado.");
+    }
+
+    await prisma.$transaction(async (tx) => {
+        if (mov.concepto === 'REEMBOLSO_GARANTIA' && mov.referenciaId) {
+            const renta = await tx.rentaEquipo.findUnique({
+                where: { id: mov.referenciaId }
+            });
+
+            if (renta) {
+                const dev = renta.depositoDevuelto ? Number(renta.depositoDevuelto) : 0;
+                const nuevoDev = Math.max(0, dev - Number(mov.monto));
+                await tx.rentaEquipo.update({
+                    where: { id: renta.id },
+                    data: {
+                        depositoDevuelto: new Prisma.Decimal(nuevoDev)
+                    }
+                });
+            }
+
+            // Find and delete the negative RentaPago
+            const pagoNegativo = await tx.rentaPago.findFirst({
+                where: {
+                    rentaId: mov.referenciaId,
+                    cajaSessionId: mov.sessionId,
+                    monto: new Prisma.Decimal(-Number(mov.monto))
+                }
+            });
+
+            if (pagoNegativo) {
+                await tx.rentaPago.delete({
+                    where: { id: pagoNegativo.id }
+                });
+            }
+        }
+
+        // Logical delete of the movement
+        await tx.corteCajaMovimiento.update({
+            where: { id: mov.id },
+            data: {
+                anuladaAt: new Date(),
+                anuladaPorId: user.id
+            }
+        });
+    });
+
+    revalidatePath('/cierre-caja');
+    return { success: true };
 }
