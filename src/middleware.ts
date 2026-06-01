@@ -6,6 +6,15 @@ export async function middleware(request: NextRequest) {
     const host = request.headers.get('host') || ''
     const isMainDomain = host === 'bioelectronicahn.com' || host === 'www.bioelectronicahn.com'
 
+    const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1')
+    const isPublicPath =
+        url.pathname === '/' ||
+        url.pathname.startsWith('/landing') ||
+        url.pathname.startsWith('/productos') ||
+        url.pathname === '/servicios' ||
+        url.pathname === '/contacto' ||
+        url.pathname === '/nosotros';
+
     if (isMainDomain) {
         // Redirect ERP system routes to the operational subdomain
         const isSystemPath = 
@@ -28,17 +37,66 @@ export async function middleware(request: NextRequest) {
         if (isSystemPath) {
             return NextResponse.redirect(`https://sistema.bioelectronicahn.com${url.pathname}${url.search}`)
         }
+    }
 
-        // Internal rewrite to the landing under-construction page
-        if (url.pathname !== '/landing') {
-            url.pathname = '/landing'
-            return NextResponse.rewrite(url)
+    if (isMainDomain || (isLocalhost && isPublicPath)) {
+        // Query maintenance mode dynamically using Supabase (compatible with Edge runtime)
+        let isMaintenance = true;
+        let isSuperAdmin = false;
+        try {
+            const { supabase } = await updateSession(request);
+            
+            // Get maintenance mode
+            const { data: settingData } = await supabase
+                .from('system_settings')
+                .select('value')
+                .eq('key', 'maintenance_mode')
+                .single();
+            if (settingData) {
+                isMaintenance = settingData.value === 'true';
+            }
+
+            // Get logged in user role to bypass maintenance (if cookies/session exists)
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                const { data: profile } = await supabase
+                    .from('users')
+                    .select('role')
+                    .eq('email', user.email)
+                    .single();
+                if (profile) {
+                    isSuperAdmin = profile.role === 'SUPER_ADMIN' || profile.role === 'ORG_ADMIN';
+                }
+            }
+        } catch (e) {
+            console.error('Error querying maintenance_mode in middleware:', e);
         }
-        
-        return NextResponse.next()
+
+        if (isMaintenance && !isSuperAdmin) {
+            // Internal rewrite to the landing under-construction page
+            if (url.pathname !== '/landing') {
+                url.pathname = '/landing'
+                return NextResponse.rewrite(url)
+            }
+            return NextResponse.next()
+        } else {
+            // Rewrite public paths to their respective /landing endpoints
+            if (isPublicPath) {
+                const rewritePath = url.pathname === '/' ? '/landing' : (url.pathname.startsWith('/landing') ? url.pathname : `/landing${url.pathname}`);
+                if (url.pathname !== rewritePath) {
+                    url.pathname = rewritePath;
+                    return NextResponse.rewrite(url);
+                }
+            } else if (isMainDomain) {
+                // If it is not a system path and not a known public path, redirect to root
+                url.pathname = '/';
+                return NextResponse.redirect(url);
+            }
+            return NextResponse.next()
+        }
     } else {
-        // Redirect operational system requests to main domain if they hit /landing
-        if (url.pathname === '/landing') {
+        // Redirect operational system requests to main domain if they hit /landing (except local testing)
+        if (url.pathname === '/landing' && !isLocalhost) {
             return NextResponse.redirect('https://bioelectronicahn.com')
         }
     }

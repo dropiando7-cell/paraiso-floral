@@ -1100,3 +1100,14 @@ model HistorialActivo {
   @@index([organizationId])
   @@map("historial_activos")
 }
+
+model SystemSetting {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  key       String   @unique
+  value     String   @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+

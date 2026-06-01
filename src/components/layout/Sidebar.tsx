@@ -21,7 +21,8 @@ import {
   ChevronRight,
   ChevronDown,
   Wrench,
-  Trello
+  Trello,
+  Globe
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -100,6 +101,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         href: '/admin/users',
         icon: Users,
         roles: ['SUPER_ADMIN', 'CHECKIN_KIDS_ADMIN'],
+      },
+      {
+        name: 'Gestión Web / Tienda',
+        href: '/admin/gestion-web',
+        icon: Globe,
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
       }
     ]
   }

@@ -6,6 +6,10 @@ export async function updateSession(request: NextRequest) {
         request,
     })
 
+    const host = request.headers.get('host') || ''
+    const isProd = host.endsWith('bioelectronicahn.com')
+    const cookieOptions = isProd ? { domain: '.bioelectronicahn.com', path: '/' } : undefined
+
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -20,10 +24,11 @@ export async function updateSession(request: NextRequest) {
                         request,
                     })
                     cookiesToSet.forEach(({ name, value, options }) =>
-                        supabaseResponse.cookies.set(name, value, options)
+                        supabaseResponse.cookies.set(name, value, { ...options, ...cookieOptions })
                     )
                 },
             },
+            cookieOptions,
         }
     )
 
