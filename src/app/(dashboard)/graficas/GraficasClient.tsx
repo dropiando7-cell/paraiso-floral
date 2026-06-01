@@ -35,6 +35,8 @@ export default function GraficasClient({ initialData, initialMonth, initialYear 
     const [activeModal, setActiveModal] = useState<'ventas' | 'rentas' | 'soporte' | 'cajachica' | 'cotizaciones' | null>(null);
     const [modalSearch, setModalSearch] = useState('');
     const [actionPending, setActionPending] = useState(false);
+    const [previewDocId, setPreviewDocId] = useState<string | null>(null);
+    const [previewDocCorrelativo, setPreviewDocCorrelativo] = useState<string>('');
 
     const formatCurrency = (val: number) => {
         return new Intl.NumberFormat('es-HN', {
@@ -751,6 +753,16 @@ export default function GraficasClient({ initialData, initialMonth, initialYear 
                                                     <span className={`font-black text-sm ${c.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-950'}`}>
                                                         {formatCurrency(c.total)}
                                                     </span>
+                                                    <button
+                                                        onClick={() => {
+                                                            setPreviewDocId(c.id);
+                                                            setPreviewDocCorrelativo(c.correlativo);
+                                                        }}
+                                                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer flex items-center gap-1"
+                                                    >
+                                                        <FileText className="w-3.5 h-3.5 text-slate-500" />
+                                                        <span>Ver / Imprimir</span>
+                                                    </button>
                                                     {c.estado !== 'ANULADA' && c.estado !== 'CONVERTIDA' && (
                                                         <button
                                                             disabled={actionPending}
@@ -815,6 +827,16 @@ export default function GraficasClient({ initialData, initialMonth, initialYear 
                                                     <span className={`font-black text-sm ${f.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-950'}`}>
                                                         {formatCurrency(f.total)}
                                                     </span>
+                                                    <button
+                                                        onClick={() => {
+                                                            setPreviewDocId(f.id);
+                                                            setPreviewDocCorrelativo(f.correlativo);
+                                                        }}
+                                                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer flex items-center gap-1"
+                                                    >
+                                                        <FileText className="w-3.5 h-3.5 text-slate-500" />
+                                                        <span>Ver / Imprimir</span>
+                                                    </button>
                                                     {f.estado !== 'ANULADA' && (
                                                         <button
                                                             disabled={actionPending}
@@ -1000,6 +1022,61 @@ export default function GraficasClient({ initialData, initialMonth, initialYear 
                                     }
                                 </div>
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal de Vista Previa de Factura/Cotización */}
+            {previewDocId && (
+                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+                    <div className="bg-slate-100 rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="px-6 py-4 bg-white border-b border-slate-200 flex items-center justify-between shadow-sm">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center">
+                                    <FileText className="w-4 h-4 text-blue-600" />
+                                </div>
+                                <div>
+                                    <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
+                                        <span>Desglose y Vista Previa de Documento</span>
+                                        <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded border">
+                                            {previewDocCorrelativo}
+                                        </span>
+                                    </h3>
+                                    <p className="text-[10px] text-slate-500">
+                                        Consulta rápida del detalle e impresión para presentar a Gerencia.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <a 
+                                    href={`/facturas/ver/${previewDocId}`} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border"
+                                >
+                                    <ArrowUpRight className="w-3.5 h-3.5" />
+                                    <span>Pantalla Completa</span>
+                                </a>
+                                <button 
+                                    onClick={() => {
+                                        setPreviewDocId(null);
+                                        setPreviewDocCorrelativo('');
+                                    }}
+                                    className="text-slate-400 hover:text-slate-600 font-extrabold text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition cursor-pointer"
+                                >
+                                    ✕ Cerrar
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Content Area (Iframe) */}
+                        <div className="flex-1 bg-white relative">
+                            <iframe 
+                                src={`/facturas/ver/${previewDocId}`} 
+                                className="w-full h-full border-none"
+                                title={`Factura ${previewDocCorrelativo}`}
+                            />
                         </div>
                     </div>
                 </div>

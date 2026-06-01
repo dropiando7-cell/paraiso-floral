@@ -11,7 +11,7 @@ export default function ContactFormClient() {
     const [message, setMessage] = useState('');
     const [sending, setSending] = useState(false);
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!name || !phone || !email || !message) {
             toast.error('Por favor, completa todos los campos requeridos.');
@@ -19,14 +19,30 @@ export default function ContactFormClient() {
         }
 
         setSending(true);
-        setTimeout(() => {
+        try {
+            const response = await fetch('/api/web/contact', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name, phone, email, message })
+            });
+            const data = await response.json();
+            if (data.success) {
+                toast.success('¡Mensaje enviado con éxito! Nos pondremos en contacto a la brevedad.');
+                setName('');
+                setPhone('');
+                setEmail('');
+                setMessage('');
+            } else {
+                toast.error(data.error || 'Error al enviar el mensaje.');
+            }
+        } catch (error) {
+            console.error('Error submitting form:', error);
+            toast.error('Error de red. Intenta nuevamente.');
+        } finally {
             setSending(false);
-            toast.success('¡Mensaje enviado con éxito! Nos pondremos en contacto a la brevedad.');
-            setName('');
-            setPhone('');
-            setEmail('');
-            setMessage('');
-        }, 1500);
+        }
     };
 
     return (

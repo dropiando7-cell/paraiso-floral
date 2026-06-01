@@ -232,3 +232,168 @@ export async function updateItemImage(id: string, type: 'activo' | 'producto', i
         return { success: false, error: error.message };
     }
 }
+
+// Web Contacts actions
+export async function getWebContacts() {
+    try {
+        await checkAdminAuth();
+
+        const contacts = await prisma.webContact.findMany({
+            orderBy: { createdAt: 'desc' }
+        });
+
+        return {
+            success: true,
+            contacts: contacts.map(c => ({
+                id: c.id,
+                nombre: c.nombre,
+                telefono: c.telefono,
+                correo: c.correo,
+                mensaje: c.mensaje,
+                estado: c.estado,
+                createdAt: c.createdAt.toISOString(),
+                updatedAt: c.updatedAt.toISOString(),
+            }))
+        };
+    } catch (error: any) {
+        console.error('Error fetching web contacts:', error);
+        return { success: false, error: error.message || 'Error al obtener contactos web' };
+    }
+}
+
+export async function updateContactStatus(id: string, estado: string) {
+    try {
+        await checkAdminAuth();
+
+        const updated = await prisma.webContact.update({
+            where: { id },
+            data: { estado }
+        });
+
+        revalidatePath('/admin/gestion-web');
+        return { 
+            success: true, 
+            contact: {
+                id: updated.id,
+                nombre: updated.nombre,
+                telefono: updated.telefono,
+                correo: updated.correo,
+                mensaje: updated.mensaje,
+                estado: updated.estado,
+                createdAt: updated.createdAt.toISOString(),
+                updatedAt: updated.updatedAt.toISOString(),
+            }
+        };
+    } catch (error: any) {
+        console.error('Error updating contact status:', error);
+        return { success: false, error: error.message || 'Error al actualizar el estado' };
+    }
+}
+
+export async function deleteWebContact(id: string) {
+    try {
+        await checkAdminAuth();
+
+        await prisma.webContact.delete({
+            where: { id }
+        });
+
+        revalidatePath('/admin/gestion-web');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error deleting web contact:', error);
+        return { success: false, error: error.message || 'Error al eliminar contacto web' };
+    }
+}
+
+// Web Traffic / Live Activity actions
+export async function getWebTraffic(minutesLimit: number = 15) {
+    try {
+        await checkAdminAuth();
+
+        // 1. Get recent logs (e.g., last 200 logs)
+        const logs = await prisma.webTraffic.findMany({
+            orderBy: { timestamp: 'desc' },
+            take: 200
+        });
+
+        // 2. Calculate active visitors (visitors who logged traffic in the last N minutes)
+        const timeThreshold = new Date(Date.now() - minutesLimit * 60 * 1000);
+        
+        const activeVisitorsLogs = await prisma.webTraffic.findMany({
+            where: {
+                timestamp: {
+                    gte: timeThreshold
+                }
+            },
+            select: {
+                ip: true,
+                pais: true,
+                ciudad: true,
+                dispositivo: true,
+                browser: true,
+                so: true,
+                pagina: true,
+                timestamp: true
+            },
+            orderBy: { timestamp: 'desc' }
+        });
+
+        // Group by IP to count unique online visitors
+        const uniqueVisitorsMap = new Map<string, any>();
+        activeVisitorsLogs.forEach(log => {
+            if (!uniqueVisitorsMap.has(log.ip)) {
+                uniqueVisitorsMap.set(log.ip, {
+                    ip: log.ip,
+                    pais: log.pais || 'Desconocido',
+                    ciudad: log.ciudad || 'Desconocido',
+                    dispositivo: log.dispositivo || 'Desktop',
+                    browser: log.browser || 'Chrome',
+                    so: log.so || 'Windows',
+                    lastPage: log.pagina,
+                    lastActive: log.timestamp.toISOString(),
+                    pagesVisited: [log.pagina]
+                });
+            } else {
+                const existing = uniqueVisitorsMap.get(log.ip);
+                if (!existing.pagesVisited.includes(log.pagina)) {
+                    existing.pagesVisited.push(log.pagina);
+                }
+            }
+        });
+
+        const activeVisitors = Array.from(uniqueVisitorsMap.values());
+
+        // 3. Page views breakdown (top pages from all logs)
+        const pagesMap: Record<string, number> = {};
+        logs.forEach(log => {
+            pagesMap[log.pagina] = (pagesMap[log.pagina] || 0) + 1;
+        });
+        const topPages = Object.entries(pagesMap)
+            .map(([page, count]) => ({ page, count }))
+            .sort((a, b) => b.count - a.count)
+            .slice(0, 10);
+
+        return {
+            success: true,
+            logs: logs.map(l => ({
+                id: l.id,
+                ip: l.ip,
+                pais: l.pais,
+                ciudad: l.ciudad,
+                dispositivo: l.dispositivo,
+                browser: l.browser,
+                so: l.so,
+                userAgent: l.userAgent,
+                pagina: l.pagina,
+                timestamp: l.timestamp.toISOString()
+            })),
+            activeCount: activeVisitors.length,
+            activeVisitors,
+            topPages
+        };
+    } catch (error: any) {
+        console.error('Error fetching web traffic:', error);
+        return { success: false, error: error.message || 'Error al obtener tráfico web' };
+    }
+}

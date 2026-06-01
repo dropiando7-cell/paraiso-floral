@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { Phone, Mail, MapPin, Clock } from 'lucide-react';
 import PublicHeader from './components/PublicHeader';
+import VisitorTracker from './components/VisitorTracker';
 import type { Metadata } from 'next';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -104,6 +105,7 @@ export default async function PublicLayout({
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-cyan-500/10">
+            <VisitorTracker />
             {/* Top Info Bar */}
             <div className="bg-[#030d1a] border-b border-slate-900 text-[11px] font-semibold text-slate-400 py-2.5 px-4 sm:px-8">
                 <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">

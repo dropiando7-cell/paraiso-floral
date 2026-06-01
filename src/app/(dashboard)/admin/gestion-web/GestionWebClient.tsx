@@ -1,13 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
     saveMaintenanceMode, 
     saveLandingSections, 
     saveGoogleReviews, 
     saveLandingSettings, 
     searchInventoryItems, 
-    updateItemImage 
+    updateItemImage,
+    getWebContacts,
+    updateContactStatus,
+    deleteWebContact,
+    getWebTraffic
 } from './actions';
 import { 
     Settings, 
@@ -29,7 +33,17 @@ import {
     Clock, 
     HelpCircle,
     Eye,
-    EyeOff
+    EyeOff,
+    Users,
+    Activity,
+    User,
+    Laptop,
+    Globe,
+    MessageCircle,
+    Send,
+    Check,
+    RefreshCw,
+    X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -76,7 +90,7 @@ export default function GestionWebClient({
     initialSections,
     initialLandingSettings
 }: GestionWebClientProps) {
-    const [activeTab, setActiveTab] = useState<'status' | 'sections' | 'reviews' | 'inventory' | 'general' | 'seo'>('status');
+    const [activeTab, setActiveTab] = useState<'status' | 'sections' | 'reviews' | 'inventory' | 'general' | 'seo' | 'contacts' | 'activity'>('status');
     const [maintenanceMode, setMaintenanceMode] = useState(initialMaintenanceMode);
     const [sections, setSections] = useState<Section[]>(initialSections);
     const [reviews, setReviews] = useState<Review[]>(initialReviews);
@@ -98,6 +112,111 @@ export default function GestionWebClient({
 
     // Saving indicators
     const [saving, setSaving] = useState(false);
+
+    // Web Contacts states
+    const [contacts, setContacts] = useState<any[]>([]);
+    const [loadingContacts, setLoadingContacts] = useState(false);
+    const [contactSearch, setContactSearch] = useState('');
+    const [contactFilter, setContactFilter] = useState<'ALL' | 'PENDIENTE' | 'LEIDO' | 'CONTACTADO' | 'ARCHIVADO'>('ALL');
+    const [selectedContact, setSelectedContact] = useState<any | null>(null);
+
+    // Live Traffic states
+    const [trafficLogs, setTrafficLogs] = useState<any[]>([]);
+    const [activeCount, setActiveCount] = useState(0);
+    const [activeVisitors, setActiveVisitors] = useState<any[]>([]);
+    const [topPages, setTopPages] = useState<any[]>([]);
+    const [loadingTraffic, setLoadingTraffic] = useState(false);
+    const [simulatingChat, setSimulatingChat] = useState<any | null>(null);
+    const [chatMsgText, setChatMsgText] = useState('¡Hola! Vemos que estás buscando soluciones médicas en nuestro portal. ¿Te gustaría chatear con un asesor especializado ahora mismo?');
+
+    // Load contacts when tab active
+    useEffect(() => {
+        if (activeTab === 'contacts') {
+            fetchContacts();
+        }
+    }, [activeTab]);
+
+    const fetchContacts = async () => {
+        setLoadingContacts(true);
+        try {
+            const res = await getWebContacts();
+            if (res.success && res.contacts) {
+                setContacts(res.contacts);
+            } else {
+                toast.error(res.error || 'Error al cargar contactos');
+            }
+        } catch (e: any) {
+            toast.error(e.message || 'Error de conexión');
+        } finally {
+            setLoadingContacts(false);
+        }
+    };
+
+    const handleUpdateContactStatus = async (id: string, newStatus: string) => {
+        try {
+            const res = await updateContactStatus(id, newStatus);
+            if (res.success && res.contact) {
+                setContacts(prev => prev.map(c => c.id === id ? res.contact : c));
+                if (selectedContact?.id === id) {
+                    setSelectedContact(res.contact);
+                }
+                toast.success(`Estado actualizado a ${newStatus}`);
+            } else {
+                toast.error(res.error || 'Error al actualizar estado');
+            }
+        } catch (e: any) {
+            toast.error(e.message || 'Error de conexión');
+        }
+    };
+
+    const handleDeleteContact = async (id: string) => {
+        if (!confirm('¿Estás seguro de eliminar permanentemente este contacto?')) return;
+        try {
+            const res = await deleteWebContact(id);
+            if (res.success) {
+                setContacts(prev => prev.filter(c => c.id !== id));
+                if (selectedContact?.id === id) {
+                    setSelectedContact(null);
+                }
+                toast.success('Contacto eliminado con éxito');
+            } else {
+                toast.error(res.error || 'Error al eliminar contacto');
+            }
+        } catch (e: any) {
+            toast.error(e.message || 'Error de conexión');
+        }
+    };
+
+    // Live Traffic polling
+    useEffect(() => {
+        let interval: any;
+        if (activeTab === 'activity') {
+            fetchTraffic();
+            interval = setInterval(() => {
+                fetchTraffic(true); // silent fetch in background
+            }, 10000); // every 10 seconds
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [activeTab]);
+
+    const fetchTraffic = async (silent = false) => {
+        if (!silent) setLoadingTraffic(true);
+        try {
+            const res = await getWebTraffic(15);
+            if (res.success) {
+                setTrafficLogs(res.logs || []);
+                setActiveCount(res.activeCount || 0);
+                setActiveVisitors(res.activeVisitors || []);
+                setTopPages(res.topPages || []);
+            }
+        } catch (e) {
+            console.error('Error fetching traffic:', e);
+        } finally {
+            if (!silent) setLoadingTraffic(false);
+        }
+    };
 
     // --- Tab 1: Maintenance Switcher ---
     const handleToggleMaintenance = async () => {
@@ -368,6 +487,37 @@ export default function GestionWebClient({
                 >
                     <Search size={18} />
                     <span>Configuración SEO</span>
+                </button>
+                <div className="h-px bg-slate-100 my-1" />
+                <button
+                    onClick={() => setActiveTab('contacts')}
+                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-left text-sm font-medium transition-all ${
+                        activeTab === 'contacts' 
+                            ? 'bg-brand-600 text-white shadow-sm' 
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                >
+                    <div className="flex items-center gap-3">
+                        <Users size={18} />
+                        <span>Contactos de Cotización</span>
+                    </div>
+                </button>
+                <button
+                    onClick={() => setActiveTab('activity')}
+                    className={`flex items-center justify-between px-4 py-2.5 rounded-xl text-left text-sm font-medium transition-all ${
+                        activeTab === 'activity' 
+                            ? 'bg-brand-600 text-white shadow-sm' 
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                >
+                    <div className="flex items-center gap-3">
+                        <Activity size={18} />
+                        <span>Actividad en Vivo</span>
+                    </div>
+                    <span className="flex h-2 w-2 relative">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
                 </button>
             </div>
 
@@ -995,7 +1145,405 @@ export default function GestionWebClient({
                         </div>
                     </form>
                 )}
+
+                {/* TAB: Web Contacts */}
+                {activeTab === 'contacts' && (
+                    <div className="p-6 space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-900">Mensajes y Solicitudes de Cotización Web</h2>
+                                <p className="text-xs text-slate-500 mt-0.5">Consulta la lista de personas que solicitaron información o presupuestos desde la web pública.</p>
+                            </div>
+                            <button
+                                onClick={fetchContacts}
+                                disabled={loadingContacts}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all border border-slate-200"
+                            >
+                                <RefreshCw size={14} className={loadingContacts ? 'animate-spin' : ''} />
+                                <span>Refrescar</span>
+                            </button>
+                        </div>
+
+                        {/* Search and Filters */}
+                        <div className="flex flex-col sm:flex-row gap-3 items-center">
+                            <div className="relative w-full sm:flex-1">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                                <input
+                                    type="text"
+                                    value={contactSearch}
+                                    onChange={(e) => setContactSearch(e.target.value)}
+                                    placeholder="Buscar por nombre, correo, teléfono o mensaje..."
+                                    className="pl-9 pr-4 py-2 w-full text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500"
+                                />
+                                {contactSearch && (
+                                    <button 
+                                        onClick={() => setContactSearch('')}
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-xs font-bold"
+                                    >
+                                        Limpiar
+                                    </button>
+                                )}
+                            </div>
+                            
+                            <div className="flex gap-1.5 self-start sm:self-auto overflow-x-auto pb-1 sm:pb-0 w-full sm:w-auto">
+                                {(['ALL', 'PENDIENTE', 'LEIDO', 'CONTACTADO', 'ARCHIVADO'] as const).map((filter) => (
+                                    <button
+                                        key={filter}
+                                        onClick={() => setContactFilter(filter)}
+                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all shrink-0 ${
+                                            contactFilter === filter
+                                                ? 'bg-slate-900 text-white'
+                                                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                                        }`}
+                                    >
+                                        {filter === 'ALL' ? 'Todos' : filter}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Contacts List Grid */}
+                        {loadingContacts ? (
+                            <div className="py-12 text-center text-xs text-slate-400 font-medium">
+                                Cargando contactos...
+                            </div>
+                        ) : (
+                            (() => {
+                                const filtered = contacts.filter(c => {
+                                    const matchSearch = 
+                                        c.nombre.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                                        c.correo.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                                        c.telefono.toLowerCase().includes(contactSearch.toLowerCase()) ||
+                                        c.mensaje.toLowerCase().includes(contactSearch.toLowerCase());
+                                    const matchFilter = contactFilter === 'ALL' || c.estado === contactFilter;
+                                    return matchSearch && matchFilter;
+                                });
+
+                                if (filtered.length === 0) {
+                                    return (
+                                        <div className="py-12 text-center border border-dashed rounded-2xl bg-slate-50/50 space-y-2">
+                                            <p className="text-xs font-semibold text-slate-450">No se encontraron contactos web</p>
+                                            <p className="text-[10px] text-slate-400">Prueba cambiando los filtros de búsqueda.</p>
+                                        </div>
+                                    );
+                                }
+
+                                return (
+                                    <div className="grid grid-cols-1 gap-4">
+                                        {filtered.map((c) => {
+                                            const isSelected = selectedContact?.id === c.id;
+                                            return (
+                                                <div 
+                                                    key={c.id} 
+                                                    className={`border rounded-2xl p-5 transition-all bg-white relative overflow-hidden ${
+                                                        isSelected ? 'ring-2 ring-brand-500 border-transparent shadow-sm' : 'hover:border-slate-350 shadow-sm'
+                                                    }`}
+                                                >
+                                                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b border-slate-100">
+                                                        <div className="space-y-1">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-extrabold text-sm text-slate-900">{c.nombre}</span>
+                                                                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold tracking-wider uppercase ${
+                                                                    c.estado === 'PENDIENTE' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                                                                    c.estado === 'LEIDO' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                                                                    c.estado === 'CONTACTADO' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                                                                    'bg-slate-100 text-slate-600 border border-slate-200'
+                                                                }`}>
+                                                                    {c.estado}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-500">
+                                                                <a href={`mailto:${c.correo}`} className="hover:text-brand-600 transition-colors flex items-center gap-1">
+                                                                    <Mail size={12} />
+                                                                    {c.correo}
+                                                                </a>
+                                                                <a href={`https://wa.me/${c.telefono.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="hover:text-brand-600 transition-colors flex items-center gap-1 font-mono">
+                                                                    <Smartphone size={12} />
+                                                                    {c.telefono}
+                                                                </a>
+                                                                <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                                                                    <Clock size={12} />
+                                                                    {new Date(c.createdAt).toLocaleDateString('es-HN', {
+                                                                        day: '2-digit',
+                                                                        month: 'short',
+                                                                        year: 'numeric',
+                                                                        hour: '2-digit',
+                                                                        minute: '2-digit'
+                                                                    })}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Actions */}
+                                                        <div className="flex items-center gap-1.5 self-end sm:self-auto shrink-0">
+                                                            <select
+                                                                value={c.estado}
+                                                                onChange={(e) => handleUpdateContactStatus(c.id, e.target.value)}
+                                                                className="text-[10px] font-bold uppercase tracking-wider bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-slate-700 focus:outline-none focus:border-brand-500"
+                                                            >
+                                                                <option value="PENDIENTE">Pendiente</option>
+                                                                <option value="LEIDO">Leído</option>
+                                                                <option value="CONTACTADO">Contactado</option>
+                                                                <option value="ARCHIVADO">Archivado</option>
+                                                            </select>
+                                                            <button
+                                                                onClick={() => handleDeleteContact(c.id)}
+                                                                className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors border border-transparent hover:border-red-100"
+                                                                title="Eliminar contacto"
+                                                            >
+                                                                <Trash2 size={14} />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="pt-4 space-y-1">
+                                                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Mensaje / Detalle:</span>
+                                                        <p className="text-xs text-slate-700 leading-relaxed bg-slate-50 border border-slate-100 rounded-xl p-3 whitespace-pre-wrap">
+                                                            {c.mensaje}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()
+                        )}
+                    </div>
+                )}
+
+                {/* TAB: Web Live Traffic */}
+                {activeTab === 'activity' && (
+                    <div className="p-6 space-y-6">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div>
+                                <div className="flex items-center gap-2">
+                                    <h2 className="text-lg font-bold text-slate-900">Actividad en Vivo en la Web</h2>
+                                    <span className="flex h-2.5 w-2.5 relative">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                                    </span>
+                                </div>
+                                <p className="text-xs text-slate-500 mt-0.5">Visualiza en tiempo real quién está navegando por el sitio web de Bioelectrónica y motívalos a chatear.</p>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 shrink-0">
+                                <span className="text-[10px] font-bold text-emerald-600 uppercase bg-emerald-50 border border-emerald-100 px-2 py-1 rounded-lg">
+                                    En Vivo - Actualiza cada 10s
+                                </span>
+                                <button
+                                    onClick={() => fetchTraffic()}
+                                    disabled={loadingTraffic}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all border border-slate-200"
+                                >
+                                    <RefreshCw size={14} className={loadingTraffic ? 'animate-spin' : ''} />
+                                    <span>Refrescar</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Top KPI row */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="p-4 border rounded-2xl bg-white shadow-sm flex items-center justify-between gap-4 relative overflow-hidden">
+                                <div className="space-y-0.5">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Usuarios Online</span>
+                                    <h3 className="text-2xl font-black text-slate-950 tracking-tight flex items-baseline gap-1">
+                                        {activeCount}
+                                        <span className="text-xs text-slate-400 font-semibold">visitas activas</span>
+                                    </h3>
+                                </div>
+                                <div className="p-2.5 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600">
+                                    <Activity size={20} className="animate-pulse" />
+                                </div>
+                                <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-50/20 rounded-full blur-xl pointer-events-none" />
+                            </div>
+
+                            <div className="p-4 border rounded-2xl bg-white shadow-sm flex items-center justify-between gap-4 relative col-span-2">
+                                <div className="space-y-1.5 w-full">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Top Páginas Visitadas</span>
+                                    {topPages.length === 0 ? (
+                                        <p className="text-[10px] text-slate-400 font-medium">Sin datos de tráfico en este período.</p>
+                                    ) : (
+                                        <div className="flex flex-wrap gap-2">
+                                            {topPages.map((tp, idx) => (
+                                                <span key={idx} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-semibold text-slate-700 font-mono">
+                                                    <span className="text-slate-400">{tp.page}</span>
+                                                    <span className="font-bold text-brand-700 bg-brand-50 px-1 rounded">{tp.count}</span>
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Split view: Active visitors & logs */}
+                        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                            
+                            {/* Column 1: Online Profiles (3 cols) */}
+                            <div className="lg:col-span-3 space-y-4">
+                                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Users size={14} className="text-brand-600" />
+                                    <span>Usuarios Conectados Actualmente ({activeVisitors.length})</span>
+                                </h3>
+                                
+                                {loadingTraffic ? (
+                                    <div className="py-12 text-center text-xs text-slate-400 font-medium">
+                                        Analizando conexiones...
+                                    </div>
+                                ) : activeVisitors.length === 0 ? (
+                                    <div className="p-6 border border-dashed rounded-2xl bg-slate-50/50 text-center space-y-1">
+                                        <p className="text-xs font-semibold text-slate-400">Ningún usuario navegando actualmente</p>
+                                        <p className="text-[10px] text-slate-400">Las sesiones inactivas por más de 15 minutos expiran automáticamente.</p>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col gap-3">
+                                        {activeVisitors.map((visitor, idx) => (
+                                            <div key={idx} className="p-4 border border-slate-200 rounded-xl bg-white shadow-sm space-y-3 hover:border-slate-300 transition-colors">
+                                                <div className="flex items-start justify-between gap-3">
+                                                    <div className="space-y-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse" />
+                                                            <span className="font-bold text-xs text-slate-800 font-mono">{visitor.ip}</span>
+                                                            <span className="text-[10px] text-slate-500 font-semibold flex items-center gap-1">
+                                                                <Globe size={11} />
+                                                                {visitor.ciudad}, {visitor.pais}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2 text-[10px] font-semibold text-slate-500">
+                                                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">{visitor.dispositivo}</span>
+                                                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">{visitor.so}</span>
+                                                            <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-700">{visitor.browser}</span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    {/* Motivate to chat button */}
+                                                    <button
+                                                        onClick={() => setSimulatingChat(visitor)}
+                                                        className="flex items-center gap-1 px-2.5 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 hover:border-brand-300 text-[10px] font-bold rounded-lg transition-all"
+                                                    >
+                                                        <MessageCircle size={12} />
+                                                        <span>Motivar Chat</span>
+                                                    </button>
+                                                </div>
+
+                                                <div className="pt-2 border-t border-slate-100 flex flex-col gap-1 text-[10px]">
+                                                    <div className="flex justify-between text-slate-400">
+                                                        <span>Página Actual:</span>
+                                                        <span className="font-semibold text-slate-600 font-mono">{visitor.lastPage}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-slate-400">
+                                                        <span>Última Actividad:</span>
+                                                        <span>{new Date(visitor.lastActive).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Column 2: Raw Recent Activity Logs (2 cols) */}
+                            <div className="lg:col-span-2 space-y-4">
+                                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Activity size={14} className="text-slate-500" />
+                                    <span>Registro de Accesos Recientes</span>
+                                </h3>
+
+                                <div className="border border-slate-200 rounded-xl bg-white shadow-sm overflow-hidden">
+                                    <div className="max-h-[350px] overflow-y-auto divide-y divide-slate-100">
+                                        {loadingTraffic && trafficLogs.length === 0 ? (
+                                            <div className="py-6 text-center text-xs text-slate-400">
+                                                Cargando registros...
+                                            </div>
+                                        ) : trafficLogs.length === 0 ? (
+                                            <div className="py-6 text-center text-xs text-slate-400">
+                                                No hay logs disponibles.
+                                            </div>
+                                        ) : (
+                                            trafficLogs.map((log) => (
+                                                <div key={log.id} className="p-3 text-[11px] hover:bg-slate-50 transition-colors space-y-1">
+                                                    <div className="flex justify-between items-center gap-2">
+                                                        <span className="font-bold text-slate-700 font-mono">{log.ip}</span>
+                                                        <span className="text-[9px] text-slate-400 font-semibold font-mono">
+                                                            {new Date(log.timestamp).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between gap-2 text-slate-500 font-medium">
+                                                        <span className="truncate font-mono text-brand-650" title={log.pagina}>{log.pagina}</span>
+                                                        <span className="shrink-0 text-slate-400 text-[9px]">{log.ciudad || 'HN'}</span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Simulated Chat Invitation Modal */}
+                {simulatingChat && (
+                    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-[2px] flex items-center justify-center p-4 z-50">
+                        <div className="bg-white border rounded-2xl shadow-xl max-w-md w-full overflow-hidden p-6 space-y-4">
+                            <div className="flex justify-between items-start gap-4">
+                                <div className="space-y-1">
+                                    <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-1.5">
+                                        <MessageCircle size={16} className="text-brand-600" />
+                                        <span>Enviar Invitación de Chat Directo</span>
+                                    </h3>
+                                    <p className="text-[10px] text-slate-500">Envía un mensaje proactivo a la sesión activa IP <span className="font-mono font-bold text-slate-700">{simulatingChat.ip}</span> ({simulatingChat.ciudad}, {simulatingChat.pais})</p>
+                                </div>
+                                <button 
+                                    onClick={() => setSimulatingChat(null)}
+                                    className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+                                >
+                                    <X size={16} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Mensaje de Bienvenida/Motivación</label>
+                                    <textarea
+                                        value={chatMsgText}
+                                        onChange={(e) => setChatMsgText(e.target.value)}
+                                        rows={4}
+                                        placeholder="Escribe el mensaje que verá el usuario en su pantalla..."
+                                        className="text-xs p-3 w-full bg-slate-50 border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:border-brand-500 leading-relaxed"
+                                    />
+                                </div>
+
+                                <div className="p-3 bg-brand-50 border border-brand-100 rounded-xl flex gap-2 text-[10px] text-brand-850 leading-relaxed">
+                                    <Check className="shrink-0 text-brand-650" size={14} />
+                                    <span>Esta invitación activará una ventana de chat flotante emergente en el navegador del visitante, permitiéndole interactuar directamente con tu terminal ERP.</span>
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end gap-2 pt-2">
+                                <button
+                                    onClick={() => setSimulatingChat(null)}
+                                    className="px-4 py-2 border rounded-xl text-slate-700 text-xs font-bold hover:bg-slate-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        toast.success('¡Invitación de chat enviada con éxito!');
+                                        setSimulatingChat(null);
+                                    }}
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/10"
+                                >
+                                    <Send size={12} />
+                                    <span>Enviar Invitación</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
 }
+
