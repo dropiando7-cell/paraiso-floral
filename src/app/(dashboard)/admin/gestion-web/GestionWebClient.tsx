@@ -55,6 +55,12 @@ interface LandingSettings {
     workingHours?: string;
     heroTitle?: string;
     heroSubtitle?: string;
+    quoteWhatsappNumber?: string;
+    quoteEmail?: string;
+    seoTitle?: string;
+    seoDescription?: string;
+    seoKeywords?: string;
+    seoImage?: string;
 }
 
 interface GestionWebClientProps {
@@ -70,7 +76,7 @@ export default function GestionWebClient({
     initialSections,
     initialLandingSettings
 }: GestionWebClientProps) {
-    const [activeTab, setActiveTab] = useState<'status' | 'sections' | 'reviews' | 'inventory' | 'general'>('status');
+    const [activeTab, setActiveTab] = useState<'status' | 'sections' | 'reviews' | 'inventory' | 'general' | 'seo'>('status');
     const [maintenanceMode, setMaintenanceMode] = useState(initialMaintenanceMode);
     const [sections, setSections] = useState<Section[]>(initialSections);
     const [reviews, setReviews] = useState<Review[]>(initialReviews);
@@ -351,6 +357,17 @@ export default function GestionWebClient({
                 >
                     <Smartphone size={18} />
                     <span>Configuración General</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('seo')}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-left text-sm font-medium transition-all ${
+                        activeTab === 'seo' 
+                            ? 'bg-brand-600 text-white shadow-sm' 
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                >
+                    <Search size={18} />
+                    <span>Configuración SEO</span>
                 </button>
             </div>
 
@@ -781,6 +798,42 @@ export default function GestionWebClient({
                             </div>
                         </div>
 
+                        {/* Destinatarios de Cotizaciones */}
+                        <div className="space-y-4 border-t pt-4">
+                            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Destinatarios de Cotizaciones</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                                        <Smartphone size={12} className="text-brand-500" />
+                                        WhatsApp para recibir Mensajes de Cotización
+                                    </label>
+                                    <input 
+                                        type="text" 
+                                        value={landingSettings.quoteWhatsappNumber || ''}
+                                        onChange={(e) => handleGeneralFieldChange('quoteWhatsappNumber', e.target.value.trim())}
+                                        placeholder="Ej: 50431782368"
+                                        className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white"
+                                    />
+                                    <span className="text-[10px] text-slate-400 block mt-0.5">Si se deja vacío, las cotizaciones por WhatsApp se enviarán al primer número de la lista superior.</span>
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                                        <Mail size={12} className="text-brand-500" />
+                                        Correo para recibir Solicitudes de Cotización
+                                    </label>
+                                    <input 
+                                        type="email" 
+                                        value={landingSettings.quoteEmail || ''}
+                                        onChange={(e) => handleGeneralFieldChange('quoteEmail', e.target.value.trim())}
+                                        placeholder="Ej: cotizaciones@bioelectronica.hn"
+                                        className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white"
+                                    />
+                                    <span className="text-[10px] text-slate-400 block mt-0.5">Si se deja vacío, las cotizaciones por correo se enviarán al primer correo de la lista superior.</span>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Title and subtitle */}
                         <div className="space-y-4 border-t pt-4">
                             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Portada (Hero Banner)</h3>
@@ -804,6 +857,140 @@ export default function GestionWebClient({
                                     rows={2}
                                     className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white leading-relaxed"
                                 />
+                            </div>
+                        </div>
+                    </form>
+                )}
+
+                {/* TAB 6: SEO and Meta Tags Settings */}
+                {activeTab === 'seo' && (
+                    <form onSubmit={handleSaveGeneralSettings} className="p-6 space-y-6 animate-fade-in">
+                        <div className="flex justify-between items-start gap-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-900 font-sans">Configuración SEO y Meta Tags</h2>
+                                <p className="text-xs text-slate-500 mt-0.5 font-sans">Optimiza cómo aparece tu página web pública en los buscadores de Google y al compartir enlaces en redes sociales.</p>
+                            </div>
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-300 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md shadow-brand-500/10 cursor-pointer"
+                            >
+                                <Save size={14} />
+                                {saving ? 'Guardando...' : 'Guardar Cambios'}
+                            </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                            {/* Inputs Column */}
+                            <div className="space-y-4">
+                                <div className="space-y-1">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-sans">Título SEO (Meta Title)</label>
+                                        <span className={`text-[10px] font-bold font-sans ${
+                                            (landingSettings.seoTitle?.length || 0) > 60 ? 'text-amber-500 font-semibold' : 'text-slate-400'
+                                        }`}>
+                                            {landingSettings.seoTitle?.length || 0}/60 carac. recomendados
+                                        </span>
+                                    </div>
+                                    <input 
+                                        type="text" 
+                                        value={landingSettings.seoTitle || ''}
+                                        onChange={(e) => handleGeneralFieldChange('seoTitle', e.target.value)}
+                                        placeholder="Ej: Bioelectrónica Honduras | Equipamiento Médico y Soporte Técnico"
+                                        className="w-full text-xs p-2.5 border border-slate-200 rounded-lg bg-white font-semibold"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-sans">Descripción SEO (Meta Description)</label>
+                                        <span className={`text-[10px] font-bold font-sans ${
+                                            (landingSettings.seoDescription?.length || 0) > 160 ? 'text-amber-500 font-semibold' : 'text-slate-400'
+                                        }`}>
+                                            {landingSettings.seoDescription?.length || 0}/160 carac. recomendados
+                                        </span>
+                                    </div>
+                                    <textarea 
+                                        value={landingSettings.seoDescription || ''}
+                                        onChange={(e) => handleGeneralFieldChange('seoDescription', e.target.value)}
+                                        placeholder="Ej: Líderes en venta, distribución y mantenimiento técnico de equipo biomédico en Honduras. Más de 20 años de experiencia técnica respaldan nuestras soluciones."
+                                        rows={4}
+                                        className="w-full text-xs p-2.5 border border-slate-200 rounded-lg bg-white leading-relaxed"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-sans">Palabras Clave (Keywords, separadas por coma)</label>
+                                    <input 
+                                        type="text" 
+                                        value={landingSettings.seoKeywords || ''}
+                                        onChange={(e) => handleGeneralFieldChange('seoKeywords', e.target.value)}
+                                        placeholder="Ej: equipo medico, biomedica honduras, soporte tecnico de equipos medicos"
+                                        className="w-full text-xs p-2.5 border border-slate-200 rounded-lg bg-white"
+                                    />
+                                </div>
+
+                                <div className="space-y-1">
+                                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-sans">URL de Imagen Miniatura (OG Image / Preview)</label>
+                                    <input 
+                                        type="text" 
+                                        value={landingSettings.seoImage || ''}
+                                        onChange={(e) => handleGeneralFieldChange('seoImage', e.target.value)}
+                                        placeholder="Ej: https://bioelectronicahn.com/images/default-thumbnail.jpg"
+                                        className="w-full text-xs p-2.5 border border-slate-200 rounded-lg bg-white font-mono"
+                                    />
+                                    <span className="text-[10px] text-slate-400 block mt-0.5 font-sans">Se recomienda una resolución de 1200x630px para visualización óptima en redes sociales.</span>
+                                </div>
+                            </div>
+
+                            {/* Previews Column */}
+                            <div className="space-y-6">
+                                {/* Google Search Preview */}
+                                <div className="p-4 border border-slate-200 rounded-2xl bg-slate-50/50 space-y-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Vista Previa en Buscadores (Google)</span>
+                                    <div className="bg-white border rounded-xl p-4 shadow-sm font-sans max-w-xl">
+                                        <div className="flex items-center gap-2 text-xs text-slate-600 mb-1">
+                                            <div className="w-4 h-4 rounded-full bg-slate-100 flex items-center justify-center font-bold text-[9px] text-slate-500">B</div>
+                                            <div className="flex flex-col">
+                                                <span className="text-[11px] font-medium leading-none text-slate-800">bioelectronicahn.com</span>
+                                                <span className="text-[9px] leading-none text-slate-400">https://www.bioelectronicahn.com</span>
+                                            </div>
+                                        </div>
+                                        <h4 className="text-[#1a0dab] hover:underline text-lg font-normal leading-tight cursor-pointer">
+                                            {landingSettings.seoTitle || "Bioelectrónica Honduras - Enterprise Platform"}
+                                        </h4>
+                                        <p className="text-xs text-[#4d5156] mt-1 leading-relaxed line-clamp-2">
+                                            {landingSettings.seoDescription || "Estamos diseñando nuestro nuevo sitio corporativo y catálogo médico en línea. Muy pronto podrás explorar todas nuestras soluciones y productos médicos."}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                {/* Social Media Card Preview */}
+                                <div className="p-4 border border-slate-200 rounded-2xl bg-slate-50/50 space-y-2">
+                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block font-sans">Vista Previa en Redes Sociales (Facebook/WhatsApp/X)</span>
+                                    <div className="bg-white border rounded-xl overflow-hidden shadow-sm font-sans max-w-sm">
+                                        <div className="aspect-video bg-slate-100 relative flex items-center justify-center overflow-hidden border-b">
+                                            {landingSettings.seoImage ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img src={landingSettings.seoImage} alt="Vista previa SEO" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
+                                                    <ImageIcon size={32} strokeWidth={1.5} />
+                                                    <span className="text-[10px] font-semibold">Sin imagen de vista previa</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="p-3 bg-slate-50 space-y-1">
+                                            <span className="text-[9px] text-slate-400 uppercase font-bold tracking-wider font-mono">BIOELECTRONICAHN.COM</span>
+                                            <h5 className="text-xs font-bold text-slate-800 line-clamp-1">
+                                                {landingSettings.seoTitle || "Bioelectrónica Honduras - Enterprise Platform"}
+                                            </h5>
+                                            <p className="text-[10px] text-slate-500 line-clamp-2 leading-relaxed">
+                                                {landingSettings.seoDescription || "Estamos diseñando nuestro nuevo sitio corporativo y catálogo médico en línea. Muy pronto podrás explorar todas nuestras soluciones."}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </form>

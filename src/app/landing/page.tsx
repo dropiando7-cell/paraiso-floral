@@ -10,48 +10,72 @@ import {
     Search, 
     CheckCircle2, 
     Star, 
-    ArrowRight,
     Wrench,
     Activity,
-    Layers,
-    HeartPulse
+    Package,
+    ShieldCheck,
+    ChevronRight,
+    Settings,
+    Users
 } from 'lucide-react';
 import Link from 'next/link';
 import { createClient } from '@/utils/supabase/server';
+import FinderTool from './components/FinderTool';
 
-// Mock/Fallback Featured Products
+// Fallback Featured Products (Activos Fijos)
 const mockAssets = [
     {
         id: 'mock-1',
         descripcionCorta: 'Ultrasonido General Electric Logiq E9',
         marca: 'General Electric',
         modelo: 'Logiq E9',
-        idQr: 'BE-US-001',
-        imagenUrl: '',
+        imagenUrl: 'https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&w=600&q=80',
     },
     {
         id: 'mock-2',
-        descripcionCorta: 'Defibrilador Zoll M Series CCT',
+        descripcionCorta: 'Desfibrilador Zoll M Series CCT',
         marca: 'Zoll Medical',
         modelo: 'M Series CCT',
-        idQr: 'BE-DF-002',
-        imagenUrl: '',
+        imagenUrl: 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=600&q=80',
     },
     {
         id: 'mock-3',
         descripcionCorta: 'Monitor de Signos Vitales Mindray BeneView T5',
         marca: 'Mindray',
         modelo: 'BeneView T5',
-        idQr: 'BE-MON-003',
-        imagenUrl: '',
+        imagenUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80',
     },
     {
         id: 'mock-4',
         descripcionCorta: 'Máquina de Anestesia Dräger Fabius GS Premium',
         marca: 'Dräger',
         modelo: 'Fabius GS',
-        idQr: 'BE-AN-004',
-        imagenUrl: '',
+        imagenUrl: 'https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=600&q=80',
+    }
+];
+
+// Fallback Reviews
+const defaultReviews = [
+    {
+        id: 'rev-1',
+        author: 'Dr. Carlos Mendoza',
+        date: 'Director Médico · San Pedro Sula',
+        rating: 5,
+        text: 'El nivel de profesionalismo de Bioelectrónica Honduras es excepcional. Remodelamos nuestro bloque quirúrgico con sus máquinas de anestesia y monitores, la relación calidad-precio y el respaldo técnico no tienen comparación.'
+    },
+    {
+        id: 'rev-2',
+        author: 'Dra. Ana Flores',
+        date: 'Clínica de Especialidades · Tegucigalpa',
+        rating: 5,
+        text: 'Como clínica en expansión, necesitábamos un proveedor que no solo vendiera el equipo, sino que nos capacitara. Los ecógrafos que adquirimos llegaron impecables y la calibración fue precisa.'
+    },
+    {
+        id: 'rev-3',
+        author: 'Ing. Luis Castillo',
+        date: 'Jefe de Mantenimiento Hospitalario',
+        rating: 5,
+        text: 'El soporte técnico es su mayor fortaleza. Se nos dañó el electrobisturí un sábado por la noche y el técnico estuvo a primera hora del domingo resolviendo el problema en la tarjeta principal. Totalmente recomendados.'
     }
 ];
 
@@ -64,9 +88,6 @@ async function getLandingData() {
         const reviewsRaw = settings.find(s => s.key === 'google_reviews')?.value || '[]';
         const reviews = JSON.parse(reviewsRaw);
 
-        const sectionsRaw = settings.find(s => s.key === 'landing_sections')?.value || '[]';
-        const sections = JSON.parse(sectionsRaw);
-
         const landingSettingsRaw = settings.find(s => s.key === 'landing_settings')?.value || '{}';
         const landingSettings = JSON.parse(landingSettingsRaw);
 
@@ -77,7 +98,7 @@ async function getLandingData() {
                 where: {
                     estatusContable: 'VIGENTE'
                 },
-                take: 8,
+                take: 4,
                 select: {
                     id: true,
                     descripcionCorta: true,
@@ -93,17 +114,15 @@ async function getLandingData() {
 
         return {
             maintenanceMode,
-            reviews,
-            sections,
+            reviews: reviews.length > 0 ? reviews : defaultReviews,
             landingSettings,
             assets: realAssets.length > 0 ? realAssets : mockAssets
         };
     } catch (e) {
         console.error('Error fetching landing data:', e);
         return {
-            maintenanceMode: true,
-            reviews: [],
-            sections: [],
+            maintenanceMode: false,
+            reviews: defaultReviews,
             landingSettings: {},
             assets: mockAssets
         };
@@ -154,7 +173,7 @@ export default async function LandingPage() {
                         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
                             Sitio Web en <span className="text-blue-600">Construcción</span>
                         </h1>
-                        <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                        <p className="text-xs text-slate-550 max-w-md mx-auto leading-relaxed">
                             Estamos diseñando una nueva experiencia digital y catálogo de equipos médicos para brindarte el mejor servicio.
                         </p>
                     </div>
@@ -266,356 +285,395 @@ export default async function LandingPage() {
         );
     }
 
-    // Otherwise, render public-facing premium landing homepage with white theme
-    const heroTitle = data.landingSettings?.heroTitle || 'Equipamiento Médico y Soporte Biomédico Lider en Honduras';
-    const heroSubtitle = data.landingSettings?.heroSubtitle || 'Diseñando soluciones integrales en venta, distribución y soporte técnico especializado para hospitales y clínicas a nivel nacional.';
+    const categorias = [
+        { id: 1, titulo: "Máquinas de Anestesia", subtitulo: "Sistemas Completos", img: "https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=600" },
+        { id: 2, titulo: "Monitores de Pacientes", subtitulo: "Signos Vitales y UCI", img: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=600" },
+        { id: 3, titulo: "Mesas Quirúrgicas", subtitulo: "Hidráulicas y Eléctricas", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=600" },
+        { id: 4, titulo: "Lámparas Quirúrgicas", subtitulo: "LED de alta intensidad", img: "https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&q=80&w=600" },
+        { id: 5, titulo: "Electrobisturís", subtitulo: "Corte y Coagulación", img: "https://images.unsplash.com/photo-1583324113626-70df0f4deaab?auto=format&fit=crop&q=80&w=600" },
+        { id: 6, titulo: "Ultrasonidos", subtitulo: "Imágenes Diagnósticas", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&q=80&w=600" },
+        { id: 7, titulo: "Desfibriladores", subtitulo: "DEA y Clínicos", img: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=600" },
+        { id: 8, titulo: "Terapia Respiratoria", subtitulo: "Ventiladores y CPAP", img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=600" }
+    ];
 
-    const renderSection = (sectionId: string) => {
-        switch (sectionId) {
-            case 'hero':
-                return (
-                    <section key="hero" className="relative min-h-[60vh] flex flex-col items-center justify-center text-center px-4 sm:px-6 py-20 overflow-hidden bg-slate-50">
-                        {/* Glow patches */}
-                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-100/50 rounded-full blur-[140px] pointer-events-none" />
-                        <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-indigo-50 rounded-full blur-[120px] pointer-events-none" />
-
-                        <div className="max-w-4xl w-full space-y-8 relative z-10">
-                            {/* Tag */}
-                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200/50 text-[10px] font-extrabold text-blue-600 uppercase tracking-widest">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-                                Especialistas en Biomedicina
-                            </div>
-
-                            {/* Headline */}
-                            <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-slate-900 leading-none">
-                                {heroTitle.split(' ').slice(0, -2).join(' ')} <br/>
-                                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-650 font-black">
-                                    {heroTitle.split(' ').slice(-2).join(' ')}
-                                </span>
-                            </h1>
-
-                            <p className="text-xs sm:text-sm text-slate-500 max-w-2xl mx-auto leading-relaxed">
-                                {heroSubtitle}
-                            </p>
-
-                            {/* Center Search Bar */}
-                            <div className="max-w-2xl mx-auto w-full">
-                                <form action="/productos" method="GET" className="flex flex-col sm:flex-row items-center gap-2.5 bg-white border border-slate-200 p-2 rounded-2xl sm:rounded-full shadow-lg focus-within:border-blue-500/50 transition-colors">
-                                    <div className="flex items-center gap-3 flex-1 w-full pl-3 py-2 sm:py-0">
-                                        <Search className="text-slate-400 shrink-0" size={18} />
-                                        <input 
-                                            type="text" 
-                                            name="q"
-                                            placeholder="Buscar ultrasonidos, desfibriladores, monitores, repuestos..." 
-                                            className="bg-transparent text-xs w-full text-slate-800 placeholder-slate-450 focus:outline-none"
-                                        />
-                                    </div>
-                                    <button 
-                                        type="submit"
-                                        className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-8 py-3 rounded-xl sm:rounded-full transition-all shadow-lg shadow-blue-500/25 active:scale-[0.98]"
-                                    >
-                                        Buscar Catálogo
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                    </section>
-                );
-
-            case 'reviews':
-                return (
-                    <section key="reviews" className="bg-white border-y border-slate-100 py-12 overflow-hidden relative">
-                        {/* Transparent side fade overlays (light mode) */}
-                        <div className="absolute left-0 top-0 bottom-0 w-24 sm:w-48 bg-gradient-to-r from-white to-transparent pointer-events-none z-10" />
-                        <div className="absolute right-0 top-0 bottom-0 w-24 sm:w-48 bg-gradient-to-l from-white to-transparent pointer-events-none z-10" />
-
-                        <div className="max-w-7xl mx-auto px-4 mb-6 flex flex-col items-center">
-                            <div className="flex items-center gap-2">
-                                <div className="flex text-amber-500 text-sm">
-                                    <Star size={12} className="fill-amber-500" />
-                                    <Star size={12} className="fill-amber-500" />
-                                    <Star size={12} className="fill-amber-500" />
-                                    <Star size={12} className="fill-amber-500" />
-                                    <Star size={12} className="fill-amber-500" />
-                                </div>
-                                <span className="text-[11px] text-slate-500 font-bold uppercase tracking-wider">
-                                    Calificación de 4.9 estrellas en Google
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* Scrolling Review Marquee */}
-                        <div className="w-full relative overflow-hidden flex py-2">
-                            <div className="flex gap-6 animate-marquee shrink-0">
-                                {data.reviews.concat(data.reviews).map((review: any, idx: number) => (
-                                    <div 
-                                        key={`${review.id}-${idx}`}
-                                        className="w-85 bg-slate-50 border border-slate-100 rounded-2xl p-5 shadow-sm shrink-0 hover:border-slate-200 transition-colors"
-                                    >
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center font-bold text-slate-500 text-xs shrink-0 border border-slate-100">
-                                                {review.author.charAt(0)}
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-xs text-slate-800 leading-tight">{review.author}</h4>
-                                                <span className="text-[9px] text-slate-400">{review.date}</span>
-                                            </div>
-                                            <div className="ml-auto flex text-amber-500 text-[10px]">
-                                                {'★'.repeat(review.rating)}
-                                            </div>
-                                        </div>
-                                        <p className="text-[11px] text-slate-500 leading-relaxed italic">
-                                            "{review.text}"
-                                        </p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                );
-
-            case 'categories':
-                return (
-                    <section key="categories" className="py-20 px-4 sm:px-8 max-w-7xl mx-auto space-y-12 bg-white">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Equipos Biomédicos Especializados</h2>
-                            <p className="text-xs text-slate-500 max-w-lg mx-auto">Soluciones de alto nivel estructuradas para atender las necesidades críticas de tu centro de salud.</p>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {/* Card 1 */}
-                            <div className="group relative p-6 bg-slate-50 border border-slate-100 hover:border-blue-500/20 rounded-3xl transition-all hover:bg-white overflow-hidden shadow-sm hover:shadow-md">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-blue-500/10 transition-all" />
-                                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-500 flex items-center justify-center mb-4">
-                                    <HeartPulse size={20} />
-                                </div>
-                                <h3 className="font-bold text-sm text-slate-900 group-hover:text-blue-600 transition-colors">Monitoreo de Pacientes</h3>
-                                <p className="text-xs text-slate-500 mt-2 leading-relaxed">Monitores multiparámetros, ECG, oxímetros y sensores biomédicos certificados.</p>
-                            </div>
-
-                            {/* Card 2 */}
-                            <div className="group relative p-6 bg-slate-50 border border-slate-100 hover:border-blue-500/20 rounded-3xl transition-all hover:bg-white overflow-hidden shadow-sm hover:shadow-md">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-indigo-500/10 transition-all" />
-                                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-500 flex items-center justify-center mb-4">
-                                    <Activity size={20} />
-                                </div>
-                                <h3 className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">Imagenología y Diagnóstico</h3>
-                                <p className="text-xs text-slate-500 mt-2 leading-relaxed">Sistemas de ultrasonido portátiles y estacionarios, transductores y repuestos.</p>
-                            </div>
-
-                            {/* Card 3 */}
-                            <div className="group relative p-6 bg-slate-50 border border-slate-100 hover:border-blue-500/20 rounded-3xl transition-all hover:bg-white overflow-hidden shadow-sm hover:shadow-md">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-cyan-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-cyan-500/10 transition-all" />
-                                <div className="w-10 h-10 rounded-xl bg-cyan-50 border border-cyan-100 text-cyan-500 flex items-center justify-center mb-4">
-                                    <Layers size={20} />
-                                </div>
-                                <h3 className="font-bold text-sm text-slate-900 group-hover:text-cyan-600 transition-colors">Soporte de Vida</h3>
-                                <p className="text-xs text-slate-500 mt-2 leading-relaxed">Máquinas de anestesia, desfibriladores y ventiladores mecánicos.</p>
-                            </div>
-
-                            {/* Card 4 */}
-                            <div className="group relative p-6 bg-slate-50 border border-slate-100 hover:border-blue-500/20 rounded-3xl transition-all hover:bg-white overflow-hidden shadow-sm hover:shadow-md">
-                                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl pointer-events-none group-hover:bg-emerald-500/10 transition-all" />
-                                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-500 flex items-center justify-center mb-4">
-                                    <Wrench size={20} />
-                                </div>
-                                <h3 className="font-bold text-sm text-slate-900 group-hover:text-emerald-600 transition-colors">Servicio Técnico</h3>
-                                <p className="text-xs text-slate-500 mt-2 leading-relaxed">Contratos anuales, calibración con equipos patrones y repuestos originales.</p>
-                            </div>
-                        </div>
-                    </section>
-                );
-
-            case 'products':
-                return (
-                    <section key="products" className="py-20 bg-slate-50 border-y border-slate-100 px-4 sm:px-8">
-                        <div className="max-w-7xl mx-auto space-y-12">
-                            <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-                                <div className="space-y-1 text-center sm:text-left">
-                                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Equipos Destacados en Inventario</h2>
-                                    <p className="text-xs text-slate-500">Equipamiento disponible de entrega inmediata o bajo pedido cotizable.</p>
-                                </div>
-                                <Link 
-                                    href="/productos"
-                                    className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-500 transition-colors group"
-                                >
-                                    <span>Ver Todo el Catálogo</span>
-                                    <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-                                </Link>
-                            </div>
-
-                            {/* Product grid */}
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                {data.assets.slice(0, 4).map((item: any) => (
-                                    <div key={item.id} className="group flex flex-col bg-white border border-slate-200 rounded-3xl overflow-hidden hover:border-slate-350 hover:shadow-md transition-all relative">
-                                        
-                                        {/* Image preview */}
-                                        <div className="aspect-[4/3] w-full bg-slate-50 border-b border-slate-100 flex items-center justify-center relative overflow-hidden">
-                                            {item.imagenUrl ? (
-                                                <img 
-                                                    src={item.imagenUrl} 
-                                                    alt={item.descripcionCorta} 
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                />
-                                            ) : (
-                                                <HeartPulse className="text-slate-300 w-12 h-12 stroke-[1.2]" />
-                                            )}
-                                        </div>
-
-                                        {/* Info */}
-                                        <div className="p-5 flex-1 flex flex-col gap-4">
-                                            <div className="space-y-1.5 flex-1">
-                                                <span className="text-[9px] font-extrabold bg-blue-550/10 border border-blue-500/20 text-blue-600 px-2 py-0.5 rounded-full uppercase tracking-wider inline-block">
-                                                    {item.marca || 'Genérico'}
-                                                </span>
-                                                <h3 className="font-bold text-xs text-slate-800 line-clamp-2 leading-tight">
-                                                    {item.descripcionCorta}
-                                                </h3>
-                                                {item.modelo && (
-                                                    <p className="text-[10px] text-slate-400 font-mono">Mod: {item.modelo}</p>
-                                                )}
-                                            </div>
-
-                                            <div className="flex gap-2">
-                                                <Link
-                                                    href={`/productos/${item.id}`}
-                                                    className="flex-1 text-center bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold py-2 rounded-xl border border-slate-200 transition-colors"
-                                                >
-                                                    Ficha
-                                                </Link>
-                                                <Link
-                                                    href={`/productos/${item.id}?cotizar=true`}
-                                                    className="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-2 rounded-xl transition-colors shadow-sm shadow-blue-500/15"
-                                                >
-                                                    Cotizar
-                                                </Link>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                );
-
-            case 'services':
-                return (
-                    <section key="services" className="py-20 px-4 sm:px-8 max-w-7xl mx-auto space-y-12 bg-white">
-                        <div className="text-center space-y-2">
-                            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Servicio Técnico Biomédico Certificado</h2>
-                            <p className="text-xs text-slate-500 max-w-lg mx-auto">Garantizamos la operatividad continua de tus equipos médicos con calibración patronada y soporte de emergencia.</p>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                            {/* Service 1 */}
-                            <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl space-y-4 shadow-sm">
-                                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-500 flex items-center justify-center">
-                                    <CheckCircle2 size={20} />
-                                </div>
-                                <h3 className="font-bold text-sm text-slate-900">Mantenimiento Preventivo</h3>
-                                <p className="text-xs text-slate-500 leading-relaxed">Inspecciones de seguridad, limpieza interna profunda, pruebas funcionales y lubricación según parámetros del fabricante para extender la vida útil del equipo.</p>
-                            </div>
-
-                            {/* Service 2 */}
-                            <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl space-y-4 shadow-sm">
-                                <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-550 flex items-center justify-center">
-                                    <Wrench size={20} />
-                                </div>
-                                <h3 className="font-bold text-sm text-slate-900">Reparación Correctiva</h3>
-                                <p className="text-xs text-slate-500 leading-relaxed">Diagnóstico y corrección inmediata de fallas por ingenieros electrónicos calificados. Disponibilidad de repuestos originales importados en tiempo récord.</p>
-                            </div>
-
-                            {/* Service 3 */}
-                            <div className="p-6 bg-slate-50 border border-slate-100 rounded-3xl space-y-4 shadow-sm">
-                                <div className="w-10 h-10 rounded-xl bg-cyan-50 border border-cyan-100 text-cyan-550 flex items-center justify-center">
-                                    <Activity size={20} />
-                                </div>
-                                <h3 className="font-bold text-sm text-slate-900">Calibración y Certificación</h3>
-                                <p className="text-xs text-slate-500 leading-relaxed">Verificación de rangos y entrega de reportes de calibración con analizadores biomédicos patrones para auditorías de salud y licencias de operación.</p>
-                            </div>
-                        </div>
-                    </section>
-                );
-
-            case 'contact':
-                return (
-                    <section key="contact" className="py-20 bg-slate-50 border-t border-slate-100 px-4 sm:px-8">
-                        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                            
-                            {/* Contact text */}
-                            <div className="space-y-6">
-                                <div className="space-y-2">
-                                    <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-widest block">Contacto Directo</span>
-                                    <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">¿Tienes dudas o necesitas un presupuesto formal?</h2>
-                                    <p className="text-xs text-slate-505 leading-relaxed">Estamos a tu disposición para asesorarte. Contáctanos por cualquiera de nuestros medios autorizados y un ingeniero biomédico te atenderá.</p>
-                                </div>
-
-                                <div className="space-y-3 font-semibold text-xs text-slate-600">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-500 flex items-center justify-center shrink-0">
-                                            <MapPin size={16} />
-                                        </div>
-                                        <span>{data.landingSettings?.physicalAddress}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-500 flex items-center justify-center shrink-0">
-                                            <Clock size={16} />
-                                        </div>
-                                        <span>{data.landingSettings?.workingHours}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-500 flex items-center justify-center shrink-0">
-                                            <Mail size={16} />
-                                        </div>
-                                        <a href={`mailto:${data.landingSettings?.contactEmails?.[0]}`} className="hover:underline text-blue-600">{data.landingSettings?.contactEmails?.[0]}</a>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Contact Form card (light) */}
-                            <div className="p-6 sm:p-8 bg-white border border-slate-200 rounded-3xl shadow-lg space-y-4">
-                                <h3 className="font-bold text-sm text-slate-900">Envíanos un mensaje rápido</h3>
-                                
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <input 
-                                        type="text" 
-                                        placeholder="Nombre completo" 
-                                        className="text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-blue-500"
-                                    />
-                                    <input 
-                                        type="text" 
-                                        placeholder="Teléfono (ej: 9988-7766)" 
-                                        className="text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-blue-500"
-                                    />
-                                </div>
-                                <input 
-                                    type="email" 
-                                    placeholder="Correo electrónico" 
-                                    className="text-xs p-3 w-full bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-blue-500"
-                                />
-                                <textarea 
-                                    placeholder="Detalla qué equipo necesitas cotizar o el soporte técnico que buscas..." 
-                                    rows={4}
-                                    className="text-xs p-3 w-full bg-slate-50 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:border-blue-500 leading-relaxed"
-                                />
-
-                                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold py-3 rounded-xl transition-all shadow-sm shadow-blue-500/15">
-                                    Enviar Solicitud
-                                </button>
-                            </div>
-                        </div>
-                    </section>
-                );
-
-            default:
-                return null;
-        }
-    };
+    const servicios = [
+        { icon: <Settings className="w-8 h-8 text-[#00A8CC]" />, title: "Planificación de Equipos", desc: "Nuestros expertos le ayudan a diseñar y seleccionar la mejor configuración para su clínica o quirófano." },
+        { icon: <Wrench className="w-8 h-8 text-[#00A8CC]" />, title: "Instalación", desc: "Técnicos certificados realizan la instalación completa y pruebas de calibración bajo normativas médicas." },
+        { icon: <Users className="w-8 h-8 text-[#00A8CC]" />, title: "Entrenamiento", desc: "Brindamos capacitación técnica y operativa a su personal médico para el uso adecuado de los equipos." },
+        { icon: <Package className="w-8 h-8 text-[#00A8CC]" />, title: "Partes y Accesorios", desc: "Contamos con un amplio inventario de repuestos originales y sensores para mantener sus equipos funcionando." }
+    ];
 
     return (
-        <div className="relative">
-            {/* Render sections in the precise order specified by the user's Drag and Drop */}
-            {data.sections.filter((s: any) => s.visible).map((s: any) => renderSection(s.id))}
+        <div className="relative bg-gray-50 min-h-screen text-slate-800">
+            {/* Hero Section */}
+            <section className="relative bg-[#0B1E36] overflow-hidden">
+                {/* Background Image with Overlay */}
+                <div className="absolute inset-0 z-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                        src="https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=2000"
+                        alt="Doctores Quirófano"
+                        className="w-full h-full object-cover opacity-20"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#0B1E36] via-[#0B1E36]/90 to-transparent"></div>
+                </div>
+
+                <div className="container mx-auto px-4 max-w-7xl relative z-10 py-24 md:py-32">
+                    <div className="max-w-3xl">
+                        <div className="inline-block bg-[#00A8CC]/20 border border-[#00A8CC]/50 text-[#00A8CC] text-xs font-bold px-3 py-1 rounded-full mb-6 uppercase tracking-wide">
+                            Tu Socio Tecnológico en Salud
+                        </div>
+                        <h2 className="text-4xl md:text-6xl font-black text-white leading-tight mb-6">
+                            Equipos Médicos Nuevos y <span className="text-[#00A8CC]">Remanufacturados</span>.
+                            <br /> Una Sola Fuente. Opciones Ilimitadas.
+                        </h2>
+                        <p className="text-gray-300 text-lg mb-10 max-w-2xl leading-relaxed">
+                            El proveedor de confianza para hospitales, clínicas de cirugía y centros de atención en Honduras. Equipos certificados, calibrados y listos para salvar vidas.
+                        </p>
+
+                        <div className="flex flex-wrap gap-4 mb-16">
+                            <Link href="/productos" className="bg-[#00A8CC] text-white px-8 py-3.5 rounded-full font-bold hover:bg-[#008ba8] transition-colors flex items-center gap-2">
+                                Ver Catálogo de Equipos <ChevronRight className="w-5 h-5" />
+                            </Link>
+                            <Link href="/contacto" className="bg-white/10 text-white backdrop-blur-sm border border-white/20 px-8 py-3.5 rounded-full font-bold hover:bg-white/20 transition-colors">
+                                Solicitar Cotización
+                            </Link>
+                        </div>
+
+                        {/* Stats */}
+                        <div className="grid grid-cols-3 gap-8 border-t border-white/10 pt-8">
+                            <div>
+                                <h4 className="text-3xl font-extrabold text-white mb-1">15+</h4>
+                                <p className="text-gray-400 text-sm uppercase tracking-wider font-semibold">Años de Experiencia</p>
+                            </div>
+                            <div>
+                                <h4 className="text-3xl font-extrabold text-white mb-1">100+</h4>
+                                <p className="text-gray-400 text-sm uppercase tracking-wider font-semibold">Hospitales Equipados</p>
+                            </div>
+                            <div>
+                                <h4 className="text-3xl font-extrabold text-white mb-1">12</h4>
+                                <p className="text-gray-400 text-sm uppercase tracking-wider font-semibold">Meses de Garantía</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Trust Badges / Features Bar */}
+            <div className="bg-white border-b py-6 hidden md:block">
+                <div className="container mx-auto px-4 max-w-7xl flex justify-between items-center text-sm font-semibold text-[#0B1E36]">
+                    <div className="flex items-center gap-2"><CheckCircle2 className="w-5 h-5 text-[#00A8CC]" /> Nuevos y Remanufacturados</div>
+                    <div className="flex items-center gap-2"><ShieldCheck className="w-5 h-5 text-[#00A8CC]" /> Calidad Certificada</div>
+                    <div className="flex items-center gap-2"><Clock className="w-5 h-5 text-[#00A8CC]" /> Soporte Técnico 24/7</div>
+                    <div className="flex items-center gap-2"><Package className="w-5 h-5 text-[#00A8CC]" /> Envío a Nivel Nacional</div>
+                    <div className="flex items-center gap-2"><Wrench className="w-5 h-5 text-[#00A8CC]" /> Mantenimiento Preventivo</div>
+                </div>
+            </div>
+
+            {/* Popular Categories */}
+            <section className="py-20 container mx-auto px-4 max-w-7xl">
+                <div className="flex justify-between items-end mb-10">
+                    <div>
+                        <h3 className="text-3xl font-extrabold text-[#0B1E36]">Categorías Populares</h3>
+                        <p className="text-gray-500 mt-2">Explora nuestra amplia gama de equipos por especialidad.</p>
+                    </div>
+                    <Link href="/productos" className="hidden md:flex items-center gap-2 text-[#00A8CC] font-bold hover:underline">
+                        Ver todas las categorías <ChevronRight className="w-4 h-4" />
+                    </Link>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {categorias.map((cat) => (
+                        <Link 
+                            href={`/productos?q=${cat.titulo}`}
+                            key={cat.id} 
+                            className="group relative h-72 rounded-2xl overflow-hidden cursor-pointer shadow-md block"
+                        >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                                src={cat.img}
+                                alt={cat.titulo}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                            />
+                            {/* GRADIENTE AZUL ESTILO IMAGEN ORIGINAL */}
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#0B1E36] via-[#0B1E36]/60 to-transparent opacity-90 transition-opacity group-hover:opacity-100"></div>
+
+                            <div className="absolute bottom-0 left-0 w-full p-6">
+                                <h4 className="text-white font-bold text-xl mb-1">{cat.titulo}</h4>
+                                <p className="text-[#00A8CC] text-sm font-semibold flex items-center gap-1 opacity-0 translate-y-4 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
+                                    Explorar Equipos <ChevronRight className="w-4 h-4" />
+                                </p>
+                            </div>
+                        </Link>
+                    ))}
+                </div>
+            </section>
+
+            {/* Find Right Equipment (60 Seconds) */}
+            <section className="bg-[#0B1E36] py-20 relative overflow-hidden text-white">
+                <div className="absolute right-0 top-0 w-1/2 h-full bg-[#00A8CC]/5 skew-x-12 translate-x-32 hidden lg:block"></div>
+                <div className="container mx-auto px-4 max-w-7xl relative z-10">
+                    <div className="flex flex-col lg:flex-row items-center gap-16">
+                        <div className="lg:w-1/2">
+                            <h2 className="text-4xl font-extrabold mb-6 leading-tight">Encuentra el Equipo Adecuado en 60 Segundos</h2>
+                            <p className="text-gray-300 mb-8 text-lg">
+                                ¿No estás seguro de qué equipo se adapta a tus necesidades? Utiliza nuestra herramienta de recomendación para encontrar la solución perfecta para tu centro médico y presupuesto.
+                            </p>
+                            <ul className="space-y-4">
+                                <li className="flex items-center gap-3 font-semibold"><CheckCircle2 className="text-[#00A8CC]" /> Selección basada en tu especialidad</li>
+                                <li className="flex items-center gap-3 font-semibold"><CheckCircle2 className="text-[#00A8CC]" /> Opciones nuevas y reacondicionadas</li>
+                                <li className="flex items-center gap-3 font-semibold"><CheckCircle2 className="text-[#00A8CC]" /> Asistencia de expertos en Honduras</li>
+                                <li className="flex items-center gap-3 font-semibold"><CheckCircle2 className="text-[#00A8CC]" /> Presupuestos rápidos y sin compromiso</li>
+                            </ul>
+                        </div>
+
+                        <div className="lg:w-1/2 w-full text-slate-800">
+                            <FinderTool />
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Flexible Rental / Mantenimiento */}
+            <section className="py-24 bg-white">
+                <div className="container mx-auto px-4 max-w-7xl">
+                    <div className="flex flex-col md:flex-row items-center gap-16">
+                        <div className="md:w-1/2">
+                            <div className="relative rounded-2xl overflow-hidden shadow-xl">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src="https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?auto=format&fit=crop&q=80&w=800"
+                                    alt="Técnico Biomédico"
+                                    className="w-full h-auto object-cover"
+                                />
+                                <div className="absolute inset-0 bg-[#00A8CC]/10 mix-blend-multiply"></div>
+                            </div>
+                        </div>
+
+                        <div className="md:w-1/2">
+                            <span className="text-[#00A8CC] font-bold text-sm tracking-wider uppercase mb-2 block">Servicio Técnico Especializado</span>
+                            <h2 className="text-3xl md:text-4xl font-extrabold text-[#0B1E36] mb-6 leading-tight">
+                                Soluciones de Mantenimiento Preventivo y Correctivo
+                            </h2>
+                            <p className="text-gray-600 mb-8 text-lg">
+                                La vida útil y precisión de sus equipos médicos son cruciales. Nuestro equipo de ingenieros biomédicos en Bioelectrónica Honduras ofrece pólizas de mantenimiento que garantizan cero tiempo de inactividad.
+                            </p>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8 text-slate-650">
+                                <div className="flex gap-4">
+                                    <Clock className="w-8 h-8 text-[#00A8CC] shrink-0" />
+                                    <div>
+                                        <h4 className="font-bold text-[#0B1E36]">Respuesta Rápida</h4>
+                                        <p className="text-sm text-gray-500 font-medium">Atención a emergencias en todo el territorio nacional.</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-4">
+                                    <ShieldCheck className="w-8 h-8 text-[#00A8CC] shrink-0" />
+                                    <div>
+                                        <h4 className="font-bold text-[#0B1E36]">Calidad Certificada</h4>
+                                        <p className="text-sm text-gray-500 font-medium">Calibración con analizadores de grado médico.</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-4">
+                                    <Wrench className="w-8 h-8 text-[#00A8CC] shrink-0" />
+                                    <div>
+                                        <h4 className="font-bold text-[#0B1E36]">Reparación de Tarjetas</h4>
+                                        <p className="text-sm text-gray-500 font-medium">Especialistas en microelectrónica de equipos.</p>
+                                    </div>
+                                </div>
+                                <div className="flex gap-4">
+                                    <Package className="w-8 h-8 text-[#00A8CC] shrink-0" />
+                                    <div>
+                                        <h4 className="font-bold text-[#0B1E36]">Stock de Repuestos</h4>
+                                        <p className="text-sm text-gray-500 font-medium">Inventario local para evitar largas esperas de importación.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <Link href="/contacto" className="inline-block bg-[#00A8CC] text-white px-8 py-3.5 rounded-full font-bold hover:bg-[#008ba8] transition-colors">
+                                Contactar Servicio Técnico
+                            </Link>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Complete Service Solutions */}
+            <section className="py-20 bg-gray-50 border-t border-b">
+                <div className="container mx-auto px-4 max-w-7xl">
+                    <div className="text-center max-w-3xl mx-auto mb-16">
+                        <span className="text-[#00A8CC] font-bold text-sm tracking-wider uppercase mb-2 block">Más Que Solo Equipos</span>
+                        <h2 className="text-3xl md:text-4xl font-extrabold text-[#0B1E36] mb-4">
+                            Más Allá del Equipo: Soluciones Integrales
+                        </h2>
+                        <p className="text-gray-600 text-lg font-medium">
+                            Desde la conceptualización de su quirófano hasta el mantenimiento post-venta. Somos su aliado estratégico en cada paso del proceso médico-hospitalario.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                        {servicios.map((srv, idx) => (
+                            <div key={idx} className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg transition-shadow text-center group">
+                                <div className="w-16 h-16 mx-auto bg-gray-50 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-[#00A8CC]/10 transition-colors">
+                                    {srv.icon}
+                                </div>
+                                <h3 className="text-xl font-bold text-[#0B1E36] mb-3">{srv.title}</h3>
+                                <p className="text-gray-500 text-sm leading-relaxed font-medium">{srv.desc}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Active Products in Catalog Section (Dynamic DB data) */}
+            <section className="py-20 container mx-auto px-4 max-w-7xl bg-white">
+                <div className="flex justify-between items-end mb-10 border-l-4 border-[#00A8CC] pl-4">
+                    <div>
+                        <h3 className="text-3xl font-extrabold text-[#0B1E36]">Catálogo de Equipos Destacados</h3>
+                        <p className="text-gray-500 mt-2">Equipamiento biomédico disponible para entrega inmediata.</p>
+                    </div>
+                    <Link href="/productos" className="hidden md:flex items-center gap-2 text-[#00A8CC] font-bold hover:underline">
+                        Ver Catálogo Completo <ChevronRight className="w-4 h-4" />
+                    </Link>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {data.assets.map((item: any) => (
+                        <div key={item.id} className="group flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden hover:shadow-lg hover:border-[#00A8CC] transition-all relative duration-300">
+                            <div className="aspect-[4/3] w-full bg-slate-50 border-b flex items-center justify-center relative overflow-hidden">
+                                {item.imagenUrl ? (
+                                    // eslint-disable-next-line @next/next/no-img-element
+                                    <img 
+                                        src={item.imagenUrl} 
+                                        alt={item.descripcionCorta} 
+                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                    />
+                                ) : (
+                                    <Activity className="text-slate-300 w-12 h-12 stroke-[1.2]" />
+                                )}
+                            </div>
+                            <div className="p-5 flex-1 flex flex-col gap-4 text-xs font-semibold">
+                                <div className="space-y-1.5 flex-1">
+                                    <span className="text-[9px] font-black bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block">
+                                        {item.marca || 'GENÉRICO'}
+                                    </span>
+                                    <h3 className="font-extrabold text-slate-800 line-clamp-2 leading-tight">
+                                        {item.descripcionCorta}
+                                    </h3>
+                                    {item.modelo && (
+                                        <p className="text-[10px] text-slate-400 font-mono font-medium">Mod: {item.modelo}</p>
+                                    )}
+                                </div>
+                                <div className="flex gap-2">
+                                    <Link
+                                        href={`/productos/${item.id}`}
+                                        className="flex-1 text-center bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl transition-colors font-bold"
+                                    >
+                                        Ficha
+                                    </Link>
+                                    <Link
+                                        href={`/productos/${item.id}?cotizar=true`}
+                                        className="flex-1 text-center bg-[#00A8CC] hover:bg-[#008ba8] text-white py-2.5 rounded-xl transition-colors font-bold shadow-sm shadow-cyan-500/15"
+                                    >
+                                        Cotizar
+                                    </Link>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            {/* Testimonials (Dynamic DB data) */}
+            <section className="py-24 bg-[#0B1E36] text-white relative">
+                <div className="container mx-auto px-4 max-w-7xl">
+                    <div className="text-center mb-16">
+                        <span className="text-[#00A8CC] font-bold text-sm tracking-wider uppercase mb-2 block">Nuestra Reputación</span>
+                        <h2 className="text-3xl md:text-4xl font-extrabold mb-4">Confiados por Profesionales en Honduras</h2>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        {data.reviews.map((review: any) => (
+                            <div key={review.id} className="bg-[#112a4a] p-8 rounded-2xl border border-white/5 space-y-4">
+                                <div className="flex gap-1 text-[#00A8CC] mb-2">
+                                    {Array.from({ length: review.rating || 5 }).map((_, i) => (
+                                        <Star key={i} className="w-5 h-5 fill-current" />
+                                    ))}
+                                </div>
+                                <p className="text-gray-300 leading-relaxed italic font-medium">
+                                    "{review.text}"
+                                </p>
+                                <div className="flex items-center gap-4 pt-2">
+                                    <div className="w-10 h-10 rounded-full bg-[#0B1E36] flex items-center justify-center font-bold text-[#00A8CC] text-sm shrink-0 border border-slate-700">
+                                        {review.author.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-white text-xs">{review.author}</h4>
+                                        <p className="text-[#00A8CC] text-[10px] font-medium">{review.date}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* Serving Healthcare Worldwide / Local */}
+            <section className="py-24 bg-white">
+                <div className="container mx-auto px-4 max-w-7xl flex flex-col md:flex-row items-center gap-16">
+                    <div className="md:w-1/2">
+                        <span className="text-[#00A8CC] font-bold text-sm tracking-wider uppercase mb-2 block">Alcance Nacional</span>
+                        <h2 className="text-3xl md:text-4xl font-extrabold text-[#0B1E36] mb-6 leading-tight">
+                            Sirviendo a Instalaciones Médicas en Todo Honduras
+                        </h2>
+                        <p className="text-gray-600 mb-8 text-lg font-medium">
+                            Desde grandes hospitales metropolitanos en Tegucigalpa y San Pedro Sula, hasta clínicas rurales y centros de atención primaria. Nuestro compromiso es democratizar el acceso a tecnología médica de punta, sin importar dónde se encuentre su facilidad.
+                        </p>
+
+                        <div className="flex gap-8">
+                            <div className="bg-gray-50 p-6 rounded-xl border w-1/3 text-center">
+                                <h4 className="text-3xl font-extrabold text-[#0B1E36]">18</h4>
+                                <p className="text-gray-500 text-xs font-semibold mt-1">Departamentos Atendidos</p>
+                            </div>
+                            <div className="bg-gray-50 p-6 rounded-xl border w-1/3 text-center">
+                                <h4 className="text-3xl font-extrabold text-[#0B1E36]">15+</h4>
+                                <p className="text-gray-500 text-xs font-semibold mt-1">Años de Servicio</p>
+                            </div>
+                            <div className="bg-gray-50 p-6 rounded-xl border w-1/3 text-center">
+                                <h4 className="text-3xl font-extrabold text-[#0B1E36]">500+</h4>
+                                <p className="text-gray-500 text-xs font-semibold mt-1">Equipos Instalados</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="md:w-1/2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                            src="https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80&w=800"
+                            alt="Healthcare Technology"
+                            className="rounded-2xl shadow-xl w-full"
+                        />
+                    </div>
+                </div>
+            </section>
+
+            {/* CTA Bottom */}
+            <section className="bg-[#00A8CC] py-16">
+                <div className="container mx-auto px-4 max-w-4xl text-center text-white">
+                    <h2 className="text-3xl md:text-4xl font-extrabold mb-4">¿Listo para Equipar su Instalación Médica?</h2>
+                    <p className="text-white/90 text-lg mb-8 font-medium">
+                        Contáctenos hoy mismo. Nuestro equipo de asesores médicos e ingenieros está listo para brindarle la mejor solución tecnológica adaptada a su presupuesto.
+                    </p>
+                    <div className="flex flex-col sm:flex-row justify-center gap-4">
+                        <Link href="/contacto" className="bg-white text-[#0B1E36] px-8 py-3.5 rounded-full font-bold hover:bg-gray-100 transition-colors shadow-lg text-center">
+                            Llamar a Ventas
+                        </Link>
+                        <Link href="/contacto" className="bg-[#0B1E36] text-white px-8 py-3.5 rounded-full font-bold hover:bg-[#112a4a] transition-colors shadow-lg text-center">
+                            Solicitar Cotización Online
+                        </Link>
+                    </div>
+                </div>
+            </section>
         </div>
     );
 }

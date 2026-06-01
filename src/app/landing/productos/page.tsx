@@ -207,13 +207,11 @@ export default async function ProductosPage({
     const { items, brands } = await getInventory(resolvedParams);
     const query = resolvedParams.q || '';
     const activeBrand = resolvedParams.brand || '';
-    const activeType = resolvedParams.type || '';
-
-    return (
+    const activeType = resolvedParams.type || '';    return (
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 space-y-8 bg-white text-slate-800">
             {/* Header */}
-            <div>
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">Catálogo de Equipos y Consumibles</h1>
+            <div className="border-l-4 border-cyan-500 pl-4">
+                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Catálogo de Equipos y Consumibles</h1>
                 <p className="text-xs text-slate-500 mt-1">Busca, filtra y solicita cotizaciones formales para equipos y repuestos médicos.</p>
             </div>
 
@@ -223,11 +221,11 @@ export default async function ProductosPage({
                 <div className="bg-slate-50 border border-slate-200/80 rounded-3xl p-6 space-y-6 lg:sticky lg:top-24 h-fit">
                     <div className="flex items-center justify-between border-b border-slate-200 pb-3">
                         <span className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                            <SlidersHorizontal size={14} className="text-blue-600" />
+                            <SlidersHorizontal size={14} className="text-cyan-500" />
                             Filtros
                         </span>
                         {(query || activeBrand || activeType) && (
-                            <Link href="/productos" className="text-[10px] text-blue-600 font-bold hover:underline">
+                            <Link href="/productos" className="text-[10px] text-cyan-600 font-bold hover:underline">
                                 Limpiar todo
                             </Link>
                         )}
@@ -241,17 +239,17 @@ export default async function ProductosPage({
                                 href={{ query: { ...resolvedParams, type: undefined } }}
                                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                     !activeType 
-                                        ? 'bg-blue-50/70 text-blue-600 font-bold' 
+                                        ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
                                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-905'
                                 }`}
                             >
                                 <div className={`w-3.5 h-3.5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
                                     !activeType 
-                                        ? 'bg-blue-600 border-blue-600 text-white' 
+                                        ? 'bg-[#00a8cc] border-[#00a8cc] text-white' 
                                         : 'border-slate-300 bg-white'
                                 }`}>
                                     {!activeType && (
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+                                        <svg xmlns="http://www.w3.org/2050/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
                                             <polyline points="20 6 9 17 4 12" />
                                         </svg>
                                     )}
@@ -262,13 +260,13 @@ export default async function ProductosPage({
                                 href={{ query: { ...resolvedParams, type: 'activo' } }}
                                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                     activeType === 'activo' 
-                                        ? 'bg-blue-50/70 text-blue-600 font-bold' 
+                                        ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
                                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-905'
                                 }`}
                             >
                                 <div className={`w-3.5 h-3.5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
                                     activeType === 'activo' 
-                                        ? 'bg-blue-600 border-blue-600 text-white' 
+                                        ? 'bg-[#00a8cc] border-[#00a8cc] text-white' 
                                         : 'border-slate-300 bg-white'
                                 }`}>
                                     {activeType === 'activo' && (
@@ -283,13 +281,13 @@ export default async function ProductosPage({
                                 href={{ query: { ...resolvedParams, type: 'producto' } }}
                                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                     activeType === 'producto' 
-                                        ? 'bg-blue-50/70 text-blue-600 font-bold' 
+                                        ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
                                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-905'
                                 }`}
                             >
                                 <div className={`w-3.5 h-3.5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
                                     activeType === 'producto' 
-                                        ? 'bg-blue-600 border-blue-600 text-white' 
+                                        ? 'bg-[#00a8cc] border-[#00a8cc] text-white' 
                                         : 'border-slate-300 bg-white'
                                 }`}>
                                     {activeType === 'producto' && (
@@ -312,13 +310,13 @@ export default async function ProductosPage({
                                     href={{ query: { ...resolvedParams, brand: undefined } }}
                                     className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                         !activeBrand 
-                                            ? 'bg-blue-50/70 text-blue-600 font-bold' 
+                                            ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
                                             : 'text-slate-600 hover:bg-slate-100 hover:text-slate-905'
                                     }`}
                                 >
                                     <div className={`w-3.5 h-3.5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
                                         !activeBrand 
-                                            ? 'bg-blue-600 border-blue-600 text-white' 
+                                            ? 'bg-[#00a8cc] border-[#00a8cc] text-white' 
                                             : 'border-slate-300 bg-white'
                                     }`}>
                                         {!activeBrand && (
@@ -337,13 +335,13 @@ export default async function ProductosPage({
                                             href={{ query: { ...resolvedParams, brand } }}
                                             className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all truncate ${
                                                 isBrandActive 
-                                                    ? 'bg-blue-50/70 text-blue-600 font-bold' 
+                                                    ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
                                                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-905'
                                             }`}
                                         >
                                             <div className={`w-3.5 h-3.5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
                                                 isBrandActive 
-                                                    ? 'bg-blue-600 border-blue-600 text-white' 
+                                                    ? 'bg-[#00a8cc] border-[#00a8cc] text-white' 
                                                     : 'border-slate-300 bg-white'
                                             }`}>
                                                 {isBrandActive && (
@@ -365,21 +363,21 @@ export default async function ProductosPage({
                 <div className="lg:col-span-3 space-y-6">
                     {/* Search Field */}
                     <form action="/productos" method="GET" className="flex gap-2">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-3.5 text-slate-450" size={16} />
+                        <div className="relative flex-1 text-xs">
+                            <Search className="absolute left-3.5 top-3.5 text-slate-450" size={16} />
                             <input 
                                 type="text"
                                 name="q"
                                 defaultValue={query}
                                 placeholder="Buscar por nombre, marca, modelo o código..."
-                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-10 pr-4 text-xs text-slate-800 focus:outline-none focus:border-blue-500 transition-colors"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 pl-11 pr-4 text-slate-800 focus:outline-none focus:border-cyan-500 transition-colors font-medium placeholder-slate-400"
                             />
                             {activeType && <input type="hidden" name="type" value={activeType} />}
                             {activeBrand && <input type="hidden" name="brand" value={activeBrand} />}
                         </div>
                         <button 
                             type="submit"
-                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-6 py-3 rounded-2xl transition-colors shadow-sm shadow-blue-500/15"
+                            className="bg-[#00a8cc] hover:bg-[#00b4d8] text-white text-xs font-bold px-8 py-3 rounded-2xl transition-colors shadow-sm shadow-cyan-500/15 cursor-pointer uppercase tracking-wider"
                         >
                             Buscar
                         </button>
@@ -399,9 +397,9 @@ export default async function ProductosPage({
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {items.map(item => (
-                                <div key={item.id} className="group bg-white border border-slate-200/80 hover:border-slate-300 rounded-3xl overflow-hidden hover:shadow-md transition-all flex flex-col relative">
+                                <div key={item.id} className="group bg-white border border-slate-200/80 hover:border-slate-300 hover:border-[#00a8cc] rounded-3xl overflow-hidden hover:shadow-lg transition-all flex flex-col relative duration-300">
                                     {/* Type badge */}
-                                    <div className="absolute top-3 left-3 bg-slate-100/90 backdrop-blur text-[8px] font-extrabold text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-wider border border-slate-200 z-10">
+                                    <div className="absolute top-3 left-3 bg-slate-100/90 backdrop-blur text-[8px] font-extrabold text-slate-550 px-2 py-0.5 rounded-full uppercase tracking-wider border border-slate-200 z-10">
                                         {item.typeName}
                                     </div>
 
@@ -419,25 +417,28 @@ export default async function ProductosPage({
                                     </div>
 
                                     {/* Body */}
-                                    <div className="p-5 flex-1 flex flex-col gap-4">
+                                    <div className="p-5 flex-1 flex flex-col gap-4 text-xs font-semibold">
                                         <div className="space-y-1.5 flex-1">
-                                            <span className="text-[9px] font-extrabold text-blue-600 uppercase tracking-widest block">{item.brand}</span>
-                                            <h3 className="font-bold text-xs text-slate-800 leading-snug line-clamp-2">{item.name}</h3>
+                                            {/* Badges degradados tal como pidió el usuario */}
+                                            <span className="text-[8px] font-black bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block">
+                                                {item.brand}
+                                            </span>
+                                            <h3 className="font-extrabold text-slate-850 leading-snug line-clamp-2">{item.name}</h3>
                                             {item.model && (
-                                                <p className="text-[10px] text-slate-400 font-mono">Modelo: {item.model}</p>
+                                                <p className="text-[10px] text-slate-400 font-mono font-medium">Modelo: {item.model}</p>
                                             )}
                                         </div>
 
-                                        <div className="flex gap-2">
+                                        <div className="flex gap-2 text-[10px] font-bold">
                                             <Link
                                                 href={`/productos/${item.id}`}
-                                                className="flex-1 text-center bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold py-2 rounded-xl border border-slate-200 transition-colors"
+                                                className="flex-1 text-center bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl border border-slate-200 transition-colors"
                                             >
                                                 Ver Ficha
                                             </Link>
                                             <Link
                                                 href={`/productos/${item.id}?cotizar=true`}
-                                                className="flex-1 text-center bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-bold py-2 rounded-xl transition-colors shadow-sm shadow-blue-500/10"
+                                                className="flex-1 text-center bg-[#00a8cc] hover:bg-[#00b4d8] text-white py-2.5 rounded-xl transition-colors shadow-sm shadow-cyan-500/10 cursor-pointer"
                                             >
                                                 Cotizar
                                             </Link>
