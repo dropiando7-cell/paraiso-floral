@@ -90,28 +90,15 @@ export default function PublicHeader({
         <header className="sticky top-0 z-50 bg-white text-slate-800 border-b border-slate-200/80 px-4 sm:px-8 py-3.5 shadow-sm relative font-sans">
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
                 
-                {/* Logo Area */}
                 <Link href="/" className="flex items-center gap-3 shrink-0">
-                    {logoUrl ? (
-                        <div className="h-11 flex items-center justify-center overflow-hidden">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={logoUrl} alt={companyName} className="h-10 max-w-[200px] object-contain" />
-                        </div>
-                    ) : (
-                        <div className="flex items-center gap-2">
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-white shadow-md shadow-cyan-500/20 text-sm">
-                                BE
-                            </div>
-                            <div className="flex flex-col">
-                                <span className="font-extrabold text-base text-slate-900 leading-tight tracking-tight uppercase">
-                                    Bioelectrónica
-                                </span>
-                                <span className="text-[9px] font-black text-cyan-600 tracking-wider uppercase -mt-0.5">
-                                    Honduras
-                                </span>
-                            </div>
-                        </div>
-                    )}
+                    <div className="h-11 flex items-center justify-center overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                            src={logoUrl || '/logo-bioelectronica.jpg'} 
+                            alt={companyName} 
+                            className="h-10 max-w-[200px] object-contain" 
+                        />
+                    </div>
                 </Link>
 
                 {/* Desktop Navigation Links */}

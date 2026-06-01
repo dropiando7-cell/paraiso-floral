@@ -162,10 +162,14 @@ export default async function LandingPage() {
         return (
             <div className="min-h-[85vh] bg-white text-slate-800 flex flex-col items-center justify-center p-6 font-sans select-none">
                 <div className="max-w-xl w-full flex flex-col items-center text-center space-y-6">
-                    {/* Brand Badge */}
-                    <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-50 border border-slate-200 text-[10px] font-bold text-slate-600 uppercase tracking-widest">
-                        <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
-                        Bioelectrónica Honduras
+                    {/* Brand Logo */}
+                    <div className="h-16 flex items-center justify-center overflow-hidden mb-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                            src="/logo-bioelectronica.jpg" 
+                            alt="Bioelectrónica Honduras" 
+                            className="h-14 object-contain" 
+                        />
                     </div>
 
                     {/* Main Heading */}
