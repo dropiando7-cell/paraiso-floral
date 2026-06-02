@@ -19,7 +19,7 @@ async function getItemData(id: string) {
             include: { categoria: true }
         });
 
-        if (asset) {
+        if (asset && asset.area?.toUpperCase() !== 'SERVICIOS') {
             // Compile technical details properties
             const details: Record<string, string> = {
                 'Categoría': asset.categoria?.nombre || 'General',

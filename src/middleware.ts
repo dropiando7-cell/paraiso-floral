@@ -5,10 +5,16 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
     const host = request.headers.get('host') || ''
     const isMainDomain = host === 'bioelectronicahn.com' || host === 'www.bioelectronicahn.com'
-
     const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1')
+
+    // Update the Supabase session first to know auth status
+    const { supabase, supabaseResponse } = await updateSession(request)
+    const { data: { user } } = await supabase.auth.getUser()
+
+    // Determine if the path is a public landing path.
+    // On localhost, the root path '/' is only public if the user is not authenticated.
     const isPublicPath =
-        url.pathname === '/' ||
+        (url.pathname === '/' && (isMainDomain || !user)) ||
         url.pathname.startsWith('/landing') ||
         url.pathname.startsWith('/productos') ||
         url.pathname === '/servicios' ||
@@ -44,8 +50,6 @@ export async function middleware(request: NextRequest) {
         let isMaintenance = true;
         let isSuperAdmin = false;
         try {
-            const { supabase } = await updateSession(request);
-            
             // Get maintenance mode
             const { data: settingData } = await supabase
                 .from('system_settings')
@@ -57,7 +61,6 @@ export async function middleware(request: NextRequest) {
             }
 
             // Get logged in user role to bypass maintenance (if cookies/session exists)
-            const { data: { user } } = await supabase.auth.getUser();
             if (user) {
                 const { data: profile } = await supabase
                     .from('users')
@@ -101,12 +104,7 @@ export async function middleware(request: NextRequest) {
         }
     }
 
-    // Update the Supabase session
-    const { supabase, supabaseResponse } = await updateSession(request)
-
-    const {
-        data: { user },
-    } = await supabase.auth.getUser()
+    // Session is already updated at the top of the middleware
 
     // 1. Redirect unauthenticated users to /login if they attempt to access protected routes
     // For now, everything except /login and static assets is protected.

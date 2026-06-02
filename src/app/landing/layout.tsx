@@ -126,7 +126,7 @@ export default async function PublicLayout({
                         </a>
                         <a href={`https://wa.me/${cleanPhone}`} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors flex items-center gap-1 font-mono">
                             <Phone size={12} className="text-cyan-400" />
-                            +{primaryPhone}
+                            {primaryPhone.startsWith('+') ? primaryPhone : `+${primaryPhone}`}
                         </a>
                     </div>
                 </div>

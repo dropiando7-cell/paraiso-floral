@@ -21,7 +21,8 @@ import {
     Image as ImageIcon,
     Loader2,
     Camera,
-    Users
+    Users,
+    SlidersHorizontal
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { 
@@ -102,6 +103,7 @@ export default function TaskDetailModal({
     const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.split('T')[0] : '');
     const [isEditingDesc, setIsEditingDesc] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [showSidebar, setShowSidebar] = useState(true);
 
     // Advanced fields
     const [startDate, setStartDate] = useState(task.startDate ? task.startDate.split('T')[0] : '');
@@ -145,6 +147,7 @@ export default function TaskDetailModal({
         setIsEditingDesc(false);
         setShowDeleteConfirm(false);
         setActiveTab('comentarios');
+        setShowSidebar(true);
 
         // Detener la cámara si cambia la tarea o se cierra el modal
         if (cameraStream) {
@@ -464,9 +467,21 @@ export default function TaskDetailModal({
                         
                         {/* Cabecera: Código de la tarea y Botón de Cerrar */}
                         <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold font-mono text-brand-600 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-200">
-                                {task.codigo}
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs font-bold font-mono text-brand-600 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-200">
+                                    {task.codigo}
+                                </span>
+                                
+                                {/* Botón para ocultar/mostrar panel lateral en móvil */}
+                                <button
+                                    type="button"
+                                    onClick={() => setShowSidebar(!showSidebar)}
+                                    className="md:hidden flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-brand-600 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-brand-50 transition border border-slate-200"
+                                >
+                                    <SlidersHorizontal className="h-3 w-3 text-slate-500" />
+                                    {showSidebar ? 'Ocultar Opciones' : 'Ver Opciones'}
+                                </button>
+                            </div>
                             <button 
                                 onClick={onClose}
                                 className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition md:hidden"
@@ -690,19 +705,19 @@ export default function TaskDetailModal({
                                     {/* Editor de comentarios */}
                                     <div className="space-y-2">
                                         <form onSubmit={handleAddComment} className="flex gap-2 items-end pt-2">
-                                            <div className="flex-1 bg-slate-50 hover:bg-slate-100/75 border border-slate-200 focus-within:border-brand-500 focus-within:bg-white rounded-xl px-3 py-1.5 transition flex items-center gap-2">
+                                            <div className="flex-1 bg-slate-50 hover:bg-slate-100/75 border border-slate-200 focus-within:border-brand-500 focus-within:bg-white rounded-xl px-3 py-1.5 transition flex items-end gap-2">
                                                 <textarea
                                                     value={newComment}
                                                     onChange={(e) => setNewComment(e.target.value)}
-                                                    placeholder="Escribe un comentario y presiona Enter..."
-                                                    rows={1}
+                                                    placeholder="Escribe los hallazgos o comentarios aquí..."
+                                                    rows={3}
                                                     onKeyDown={(e) => {
                                                         if (e.key === 'Enter' && !e.shiftKey) {
                                                             e.preventDefault();
                                                             handleAddComment(e);
                                                         }
                                                     }}
-                                                    className="flex-1 bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none resize-none min-h-[22px] max-h-[80px] py-1"
+                                                    className="flex-1 bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none resize-none min-h-[75px] max-h-[200px] py-1"
                                                 />
                                                 
                                                 <input 
@@ -752,6 +767,18 @@ export default function TaskDetailModal({
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Solapa flotante inferior para volver a ver el panel de opciones si está oculto en móvil */}
+                                    {!showSidebar && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowSidebar(true)}
+                                            className="md:hidden w-full text-center py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-800 text-xs font-bold rounded-xl border border-slate-200 transition mt-3 flex items-center justify-center gap-1.5"
+                                        >
+                                            <SlidersHorizontal className="h-3.5 w-3.5 text-brand-600" />
+                                            Mostrar Opciones (Estado, Asignados, etc.) ↓
+                                        </button>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -760,10 +787,24 @@ export default function TaskDetailModal({
                 </div>
 
                 {/* Lado Derecho: Panel de Metadatos y Acciones */}
-                <div className="w-full md:w-[320px] bg-slate-50 p-6 md:p-8 flex flex-col justify-between overflow-y-auto border-t md:border-t-0 border-slate-100">
+                <div className={`w-full md:w-[320px] bg-slate-50 p-6 md:p-8 flex-col justify-between overflow-y-auto border-t md:border-t-0 border-slate-100 ${
+                    showSidebar ? 'flex' : 'hidden md:flex'
+                }`}>
                     
                     {/* Controles de Metadatos */}
                     <div className="space-y-5">
+                        {/* Cabecera del Panel lateral para Móviles para colapsarlo */}
+                        <div className="flex md:hidden items-center justify-between pb-3 border-b border-slate-200">
+                            <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Opciones & Detalles</span>
+                            <button
+                                type="button"
+                                onClick={() => setShowSidebar(false)}
+                                className="text-[10px] font-black text-brand-600 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-md border border-brand-200 transition uppercase tracking-wider"
+                            >
+                                Ocultar panel ↑
+                            </button>
+                        </div>
+
                         <div className="hidden md:flex justify-end pb-2 border-b border-slate-200">
                             <button 
                                 onClick={onClose}

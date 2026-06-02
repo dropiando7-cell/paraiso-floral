@@ -134,7 +134,9 @@ export default function PublicHeader({
                         </div>
                         <div className="flex flex-col text-[10px] leading-tight">
                             <span className="text-slate-400 font-bold uppercase tracking-wider">Soporte</span>
-                            <span className="font-mono font-bold text-slate-800 text-xs">+{primaryPhone}</span>
+                            <span className="font-mono font-bold text-slate-800 text-xs">
+                                {primaryPhone.startsWith('+') ? primaryPhone : `+${primaryPhone}`}
+                            </span>
                         </div>
                     </a>
 
@@ -283,7 +285,7 @@ export default function PublicHeader({
                             className="flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs"
                         >
                             <Phone size={14} className="fill-white" />
-                            Soporte WhatsApp: +{primaryPhone}
+                            Soporte WhatsApp: {primaryPhone.startsWith('+') ? primaryPhone : `+${primaryPhone}`}
                         </a>
                         <Link 
                             href="/contacto"

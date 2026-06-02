@@ -15,7 +15,6 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, setIsPending] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const supabase = createClient();
     const router = useRouter();
 
     // Close dropdown on outside click
@@ -35,6 +34,7 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
         setIsOpen(false);
         
         try {
+            const supabase = createClient();
             // Wait max 800ms for Supabase to sign out
             await Promise.race([
                 supabase.auth.signOut(),
@@ -62,10 +62,11 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
     return (
         <div className="relative" ref={dropdownRef}>
             <button
+                type="button"
                 onClick={() => setIsOpen(!isOpen)}
-                className="flex items-center gap-3 pl-6 border-l border-slate-200 focus:outline-none"
+                className="flex items-center gap-3 pl-6 border-l border-slate-200 focus:outline-none cursor-pointer"
             >
-                <div className="flex flex-col items-end hidden md:flex text-right">
+                <span className="flex flex-col items-end hidden md:flex text-right">
                     <span className="text-sm font-semibold text-slate-700 leading-tight">
                         {displayName}
                     </span>
@@ -79,8 +80,8 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
                                                 'Usuario Limitado'
                         )}
                     </span>
-                </div>
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-100 shrink-0 relative transition-transform hover:scale-105 bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm">
+                </span>
+                <span className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-100 shrink-0 relative transition-transform hover:scale-105 bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm">
                     {isPending ? (
                         <Loader2 className="w-5 h-5 text-red-500 animate-spin" />
                     ) : dbUser?.avatarUrl ? (
@@ -95,7 +96,7 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
                     ) : (
                         <span>{initials}</span>
                     )}
-                </div>
+                </span>
             </button>
 
             {/* Dropdown Menu */}

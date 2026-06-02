@@ -96,7 +96,10 @@ async function getLandingData() {
         try {
             realAssets = await prisma.activoFijo.findMany({
                 where: {
-                    estatusContable: 'VIGENTE'
+                    estatusContable: 'VIGENTE',
+                    NOT: [
+                        { area: { equals: 'SERVICIOS', mode: 'insensitive' } }
+                    ]
                 },
                 take: 4,
                 select: {
@@ -290,14 +293,14 @@ export default async function LandingPage() {
     }
 
     const categorias = [
-        { id: 1, titulo: "Máquinas de Anestesia", subtitulo: "Sistemas Completos", img: "https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=600" },
-        { id: 2, titulo: "Monitores de Pacientes", subtitulo: "Signos Vitales y UCI", img: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=600" },
-        { id: 3, titulo: "Mesas Quirúrgicas", subtitulo: "Hidráulicas y Eléctricas", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=600" },
-        { id: 4, titulo: "Lámparas Quirúrgicas", subtitulo: "LED de alta intensidad", img: "https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&q=80&w=600" },
-        { id: 5, titulo: "Electrobisturís", subtitulo: "Corte y Coagulación", img: "https://images.unsplash.com/photo-1583324113626-70df0f4deaab?auto=format&fit=crop&q=80&w=600" },
-        { id: 6, titulo: "Ultrasonidos", subtitulo: "Imágenes Diagnósticas", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&q=80&w=600" },
-        { id: 7, titulo: "Desfibriladores", subtitulo: "DEA y Clínicos", img: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&q=80&w=600" },
-        { id: 8, titulo: "Terapia Respiratoria", subtitulo: "Ventiladores y CPAP", img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=600" }
+        { id: 1, titulo: "Máquinas de Anestesia", subtitulo: "Sistemas Completos", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=600" },
+        { id: 2, titulo: "Monitores de Pacientes", subtitulo: "Signos Vitales y UCI", img: "/categorias/monitores.png" },
+        { id: 3, titulo: "Mesas Quirúrgicas", subtitulo: "Hidráulicas y Eléctricas", img: "/categorias/mesas.png" },
+        { id: 4, titulo: "Lámparas Quirúrgicas", subtitulo: "LED de alta intensidad", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=600" },
+        { id: 5, titulo: "Electrobisturís", subtitulo: "Corte y Coagulación", img: "/categorias/electrobisturi.png" },
+        { id: 6, titulo: "Ultrasonidos", subtitulo: "Imágenes Diagnósticas", img: "/categorias/ultrasonidos.png" },
+        { id: 7, titulo: "Desfibriladores", subtitulo: "DEA y Clínicos", img: "/categorias/desfibriladores.png" },
+        { id: 8, titulo: "Terapia Respiratoria", subtitulo: "Ventiladores y CPAP", img: "/categorias/respiratoria.png" }
     ];
 
     const servicios = [
@@ -446,7 +449,7 @@ export default async function LandingPage() {
                             <div className="relative rounded-2xl overflow-hidden shadow-xl">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
-                                    src="https://images.unsplash.com/photo-1581093458791-9f3c3900df4b?auto=format&fit=crop&q=80&w=800"
+                                    src="/tecnico_biomedico.png"
                                     alt="Técnico Biomédico"
                                     className="w-full h-auto object-cover"
                                 />

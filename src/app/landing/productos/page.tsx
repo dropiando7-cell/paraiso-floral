@@ -57,7 +57,10 @@ async function getInventory(searchParams: SearchParams) {
             assets = await prisma.activoFijo.findMany({
                 where: {
                     estatusContable: 'VIGENTE',
-                    marca: selectedBrand ? { equals: selectedBrand, mode: 'insensitive' } : undefined
+                    marca: selectedBrand ? { equals: selectedBrand, mode: 'insensitive' } : undefined,
+                    NOT: [
+                        { area: { equals: 'SERVICIOS', mode: 'insensitive' } }
+                    ]
                 },
                 select: {
                     id: true,
