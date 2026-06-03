@@ -31,7 +31,7 @@ TAMANOS = {
         "ALTO_MAXIMO": 198,
         "QR_MARGEN": 16,
         "QR_ESCALA": 1.0,
-        "CB_MARGEN_INF": 10,
+        "CB_MARGEN_INF": 16,
         "FONT_ID": 20,
         "FONT_DESC_LONG": 14,
         "FONT_DESC_SHORT": 16,
@@ -40,7 +40,7 @@ TAMANOS = {
         "FONT_BIO": 13,
         "WRAP_MAX_PX": 260,
         "X_TEXT": 12,
-        "Y_TEXT": 8,
+        "Y_TEXT": 14,
         "Y_OFFSET_2_LINES": 68,
         "Y_OFFSET_1_LINE": 50,
         "MARCA_Y_OFFSET": 14,
@@ -53,7 +53,7 @@ TAMANOS = {
         "ALTO_MAXIMO": 240,
         "QR_MARGEN": 20,
         "QR_ESCALA": 1.2,
-        "CB_MARGEN_INF": 16,
+        "CB_MARGEN_INF": 24,
         "FONT_ID": 24,
         "FONT_DESC_LONG": 16,
         "FONT_DESC_SHORT": 18,
@@ -62,7 +62,7 @@ TAMANOS = {
         "FONT_BIO": 14,
         "WRAP_MAX_PX": 250,
         "X_TEXT": 14,
-        "Y_TEXT": 10,
+        "Y_TEXT": 18,
         "Y_OFFSET_2_LINES": 72,
         "Y_OFFSET_1_LINE": 54,
         "MARCA_Y_OFFSET": 18,
@@ -75,7 +75,7 @@ TAMANOS = {
         "ALTO_MAXIMO": 245,
         "QR_MARGEN": 22,
         "QR_ESCALA": 1.2,
-        "CB_MARGEN_INF": 18,
+        "CB_MARGEN_INF": 26,
         "FONT_ID": 24,
         "FONT_DESC_LONG": 17,
         "FONT_DESC_SHORT": 20,
@@ -84,7 +84,7 @@ TAMANOS = {
         "FONT_BIO": 15,
         "WRAP_MAX_PX": 250,
         "X_TEXT": 14,
-        "Y_TEXT": 12,
+        "Y_TEXT": 20,
         "Y_OFFSET_2_LINES": 74,
         "Y_OFFSET_1_LINE": 56,
         "MARCA_Y_OFFSET": 20,
@@ -97,7 +97,7 @@ TAMANOS = {
         "ALTO_MAXIMO": 300,
         "QR_MARGEN": 28,
         "QR_ESCALA": 1.5,
-        "CB_MARGEN_INF": 24,
+        "CB_MARGEN_INF": 28,
         "FONT_ID": 30,
         "FONT_DESC_LONG": 20,
         "FONT_DESC_SHORT": 24,
@@ -106,7 +106,7 @@ TAMANOS = {
         "FONT_BIO": 17,
         "WRAP_MAX_PX": 360,
         "X_TEXT": 20,
-        "Y_TEXT": 18,
+        "Y_TEXT": 22,
         "Y_OFFSET_2_LINES": 95,
         "Y_OFFSET_1_LINE": 75,
         "MARCA_Y_OFFSET": 24,
@@ -236,7 +236,7 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
             qr_text = urllib.parse.quote(f"{HOST}/ficha-tecnica/{id_qr}")
             qr_url  = (
                 f"https://bwipjs-api.metafloor.com/?bcid=qrcode"
-                f"&text={qr_text}&scale=1&eclevel=L&includetext=false"
+                f"&text={qr_text}&scale=1&eclevel=M&includetext=false"
             )
             try:
                 req_qr = requests.get(qr_url, timeout=5)

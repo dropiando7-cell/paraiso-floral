@@ -26,25 +26,24 @@ export async function GET(req: NextRequest) {
     
     // Configuraciones de estilo dinámicas para encajar todo
     const cfg = {
-        padding: is70x40 ? '16px 20px 10px 20px' : (is50x25 ? '8px 10px 6px 10px' : '12px 14px 8px 14px'),
-        titleSize: is70x40 ? 16 : (is50x25 ? 12 : 14),
-        idSize: is70x40 ? 24 : (is50x25 ? 16 : 20),
-        descSize: is70x40 ? 20 : (is50x25 ? 14 : 16),
-        metaSize: is70x40 ? 15 : (is50x25 ? 11 : 12),
-        qrSize: is70x40 ? 110 : (is50x25 ? 80 : 90),
-        qrImgSize: is70x40 ? 105 : (is50x25 ? 75 : 85),
-        bioSize: is70x40 ? 16 : (is50x25 ? 11 : 13),
+        padding: is70x40 ? '22px 20px 22px 20px' : (is50x25 ? '16px 12px 16px 12px' : '20px 14px 20px 14px'),
+        titleSize: is70x40 ? 16 : (is50x25 ? 11 : 14),
+        idSize: is70x40 ? 24 : (is50x25 ? 15 : 20),
+        descSize: is70x40 ? 20 : (is50x25 ? 13 : 16),
+        metaSize: is70x40 ? 15 : (is50x25 ? 10 : 12),
+        qrSize: is70x40 ? 110 : (is50x25 ? 75 : 90),
+        qrImgSize: is70x40 ? 105 : (is50x25 ? 70 : 85),
+        bioSize: is70x40 ? 16 : (is50x25 ? 10 : 13),
         barcodeWidth: is70x40 ? 500 : (is50x25 ? 350 : 370),
-        barcodeHeight: is70x40 ? 45 : (is50x25 ? 25 : 35),
+        barcodeHeight: is70x40 ? 40 : (is50x25 ? 18 : 26),
         barcodeTextSize: is70x40 ? 14 : (is50x25 ? 10 : 11),
     };
 
     const host = req.headers.get('host') || 'bioelectronicahn.vercel.app';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     
-    // URL para el QR (trazabilidad pública/privada)
     const qrText = encodeURIComponent(`${protocol}://${host}/trazabilidad/${ordenId}`);
-    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=L&includetext=false`;
+    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=M&includetext=false`;
 
     const barcodeHeightAPI = is50x25 ? 6 : 8;
     const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(ordenId)}&height=${barcodeHeightAPI}&scale=4&includetext=false`;
@@ -90,9 +89,9 @@ export async function GET(req: NextRequest) {
                     </div>
 
                     {/* RIGHT COLUMN: QR Code */}
-                    <div style={{ display: 'flex', width: cfg.qrSize, height: cfg.qrSize, flexShrink: 0, alignItems: 'center', justifyContent: 'center', border: '2px solid #000', borderRadius: '4px', padding: '2px' }}>
+                    <div style={{ display: 'flex', width: cfg.qrSize, height: cfg.qrSize, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={qrUrl} alt="QR" width={cfg.qrImgSize - 4} height={cfg.qrImgSize - 4} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
+                        <img src={qrUrl} alt="QR" width={cfg.qrImgSize} height={cfg.qrImgSize} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
                     </div>
 
                 </div>

@@ -47,21 +47,21 @@ export async function GET(req: NextRequest) {
     
     // Configuraciones de estilo dinámicas
     const cfg = {
-        padding: is70x40 ? '16px 20px 10px 20px' : (is50x25 ? '8px 10px 6px 10px' : '12px 14px 8px 14px'),
-        idSize: is70x40 ? 22 : (is50x25 ? 15 : 17),
-        descSizeLong: is70x40 ? 18 : (is50x25 ? 12 : 14),
-        descSizeShort: is70x40 ? 22 : (is50x25 ? 15 : 18),
-        metaSize: is70x40 ? 15 : (is50x25 ? 11 : 12),
-        qrSize: is70x40 ? 110 : (is50x25 ? 80 : 90),
-        qrImgSize: is70x40 ? 105 : (is50x25 ? 75 : 85),
-        bioSize: is70x40 ? 16 : (is50x25 ? 11 : 13),
+        padding: is70x40 ? '22px 20px 22px 20px' : (is50x25 ? '16px 12px 16px 12px' : '20px 14px 20px 14px'),
+        idSize: is70x40 ? 22 : (is50x25 ? 14 : 17),
+        descSizeLong: is70x40 ? 18 : (is50x25 ? 11 : 14),
+        descSizeShort: is70x40 ? 22 : (is50x25 ? 14 : 18),
+        metaSize: is70x40 ? 15 : (is50x25 ? 10 : 12),
+        qrSize: is70x40 ? 110 : (is50x25 ? 75 : 90),
+        qrImgSize: is70x40 ? 105 : (is50x25 ? 70 : 85),
+        bioSize: is70x40 ? 16 : (is50x25 ? 10 : 13),
         barcodeWidth: is70x40 ? 500 : (is50x25 ? 350 : 370),
-        barcodeHeight: is70x40 ? 50 : (is50x25 ? 30 : 38),
+        barcodeHeight: is70x40 ? 40 : (is50x25 ? 18 : 26),
         barcodeTextSize: is70x40 ? 14 : (is50x25 ? 10 : 11),
     };
 
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
-    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=L&includetext=false`;
+    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=M&includetext=false`;
 
     // Barcode height=8 para que quepa sin desbordarse fuera de los 264px de alto
     const barcodeHeightAPI = is50x25 ? 6 : 8;
