@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { User, Organization, Role, RoleTemplate } from '@prisma/client';
-import { createUser, deleteUser, editUser, createRoleTemplate, updateRoleTemplate, deleteRoleTemplate, sendManualWelcomeEmail } from './actions';
+import { createUser, deleteUser, editUser, createRoleTemplate, updateRoleTemplate, deleteRoleTemplate, sendManualWelcomeEmail, createOrganization } from './actions';
 import { Plus, Trash2, Pencil, ShieldAlert, Check, X, Building2, Shield, User as UserIcon, Tag, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Mail, Loader2, Key } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 
 type UserWithOrg = User & { organization: Organization };
 
@@ -43,12 +44,20 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     const [accessibleModules, setAccessibleModules] = useState<string[]>([]);
     const [puedeAsignarEspacios, setPuedeAsignarEspacios] = useState(false);
     const [puesto, setPuesto] = useState('');
+    const [deletingUser, setDeletingUser] = useState<{ id: string; email: string } | null>(null);
 
     // Form State for Role Template
     const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
     const [newRoleName, setNewRoleName] = useState('');
     const [newRoleBase, setNewRoleBase] = useState<Role>('USER');
     const [newRoleModules, setNewRoleModules] = useState<string[]>(['/']);
+
+    // Form State for Organization
+    const [isOrgModalOpen, setIsOrgModalOpen] = useState(false);
+    const [newOrgName, setNewOrgName] = useState('');
+    const [newOrgSlug, setNewOrgSlug] = useState('');
+    const [newOrgEmail, setNewOrgEmail] = useState('');
+    const [newOrgPhone, setNewOrgPhone] = useState('');
 
     const roles = Object.keys({
         SUPER_ADMIN: 'SUPER_ADMIN',
@@ -211,10 +220,13 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         if (editingUserId) {
             const res = await editUser(editingUserId, { role, customRoleName, organizationId, accessibleModules, puedeAsignarEspacios, puesto });
             if (!res.success) {
-                setError(res.error || 'Ocurrió un error al editar');
+                const errMsg = res.error || 'Ocurrió un error al editar';
+                setError(errMsg);
+                toast.error(errMsg);
                 setLoading(false);
                 return;
             }
+            toast.success('Usuario actualizado exitosamente');
         } else {
             const res = await createUser({
                 email,
@@ -229,10 +241,13 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 puesto
             });
             if (!res.success) {
-                setError(res.error || 'Ocurrió un error al crear');
+                const errMsg = res.error || 'Ocurrió un error al crear';
+                setError(errMsg);
+                toast.error(errMsg);
                 setLoading(false);
                 return;
             }
+            toast.success('Usuario creado y autorizado exitosamente');
         }
 
         // Refresh data via Server Component to get the nested Org easily, or manually append
@@ -308,14 +323,76 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         router.refresh();
     };
 
-    const handleDelete = async (id: string, userEmail: string) => {
-        if (!confirm(`¿Estás seguro de que deseas eliminar el usuario ${userEmail}?`)) return;
+    const handleOpenCreateOrg = () => {
+        setNewOrgName('');
+        setNewOrgSlug('');
+        setNewOrgEmail('');
+        setNewOrgPhone('');
+        setError(null);
+        setIsOrgModalOpen(true);
+    };
 
-        // Optimistic UI could be done here, but let's keep it simple
-        const res = await deleteUser(id);
-        if (!res.success) {
-            alert(res.error || 'Error al eliminar');
+    const handleOrgNameChange = (val: string) => {
+        setNewOrgName(val);
+        const slug = val
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "") // Remove accents
+            .replace(/[^a-z0-9\s-]/g, "") // Keep alphanumeric, spaces, and hyphens
+            .trim()
+            .replace(/\s+/g, "-") // Replace spaces with hyphens
+            .replace(/-+/g, "-"); // Collapse multiple hyphens
+        setNewOrgSlug(slug);
+    };
+
+    const handleSaveOrganization = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newOrgName || !newOrgSlug) {
+            toast.error('Nombre y Slug son requeridos');
             return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        const res = await createOrganization({
+            name: newOrgName,
+            slug: newOrgSlug,
+            correoContacto: newOrgEmail || undefined,
+            telefono: newOrgPhone || undefined
+        });
+
+        setLoading(false);
+
+        if (!res.success) {
+            toast.error(res.error || 'Error al crear la organización');
+            return;
+        }
+
+        toast.success('Organización creada exitosamente');
+        setIsOrgModalOpen(false);
+        router.refresh();
+    };
+
+    const handleDeleteClick = (id: string, email: string) => {
+        setDeletingUser({ id, email });
+    };
+
+    const confirmDelete = async () => {
+        if (!deletingUser) return;
+        setLoading(true);
+        const res = await deleteUser(deletingUser.id);
+        setLoading(false);
+        setDeletingUser(null);
+        if (!res.success) {
+            toast.error(res.error || 'Ocurrió un error al eliminar');
+            return;
+        }
+        if (res.warning) {
+            toast.success('Usuario eliminado de la base de datos');
+            toast.error(res.warning, { duration: 6000 });
+        } else {
+            toast.success('Usuario eliminado exitosamente');
         }
         router.refresh();
     };
@@ -350,13 +427,22 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
                     {currentUserRole === 'SUPER_ADMIN' && (
-                        <button
-                            onClick={handleOpenCreateRole}
-                            className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-sm"
-                        >
-                            <Tag className="w-4 h-4" />
-                            <span className="hidden sm:inline">Crear Rol</span>
-                        </button>
+                        <>
+                            <button
+                                onClick={handleOpenCreateOrg}
+                                className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-sm"
+                            >
+                                <Building2 className="w-4 h-4 text-slate-500" />
+                                <span className="hidden sm:inline">Crear Org</span>
+                            </button>
+                            <button
+                                onClick={handleOpenCreateRole}
+                                className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-sm"
+                            >
+                                <Tag className="w-4 h-4" />
+                                <span className="hidden sm:inline">Crear Rol</span>
+                            </button>
+                        </>
                     )}
                     <button
                         onClick={handleOpenCreate}
@@ -450,7 +536,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                                 <Pencil className="w-4 h-4" />
                                             </button>
                                             <button
-                                                onClick={() => handleDelete(u.id, u.email)}
+                                                onClick={() => handleDeleteClick(u.id, u.email)}
                                                 disabled={u.id === currentUserId}
                                                 className="text-slate-400 hover:text-red-600 transition-colors p-2 rounded-lg hover:bg-red-50 disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-400"
                                                 title={u.id === currentUserId ? "No puedes eliminarte a ti mismo" : "Eliminar usuario"}
@@ -881,6 +967,151 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {isOrgModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50 shrink-0">
+                            <h3 className="font-semibold text-slate-800">
+                                Crear Nueva Organización
+                            </h3>
+                            <button type="button" onClick={() => setIsOrgModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveOrganization} className="flex-1 overflow-y-auto p-6">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Nombre de la Organización
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newOrgName}
+                                        onChange={(e) => handleOrgNameChange(e.target.value)}
+                                        placeholder="Ej: Organización de Pruebas"
+                                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Slug de la Organización (Identificador único)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={newOrgSlug}
+                                        onChange={(e) => setNewOrgSlug(e.target.value)}
+                                        placeholder="ej-organizacion-de-pruebas"
+                                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 bg-slate-50 font-mono"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Correo de Contacto (Opcional)
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={newOrgEmail}
+                                        onChange={(e) => setNewOrgEmail(e.target.value)}
+                                        placeholder="contacto@pruebas.com"
+                                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Teléfono (Opcional)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={newOrgPhone}
+                                        onChange={(e) => setNewOrgPhone(e.target.value)}
+                                        placeholder="+504 9999-9999"
+                                        className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="mt-8 flex gap-3 justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsOrgModalOpen(false)}
+                                    className="px-4 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading || !newOrgName || !newOrgSlug}
+                                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] text-sm"
+                                >
+                                    {loading ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        'Crear Organización'
+                                    )}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {deletingUser && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="p-6 text-center animate-in fade-in duration-300">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-50 mb-4">
+                                <Trash2 className="h-6 w-6 text-red-600" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-slate-950 mb-2">
+                                ¿Eliminar Usuario Autorizado?
+                            </h3>
+                            <p className="text-sm text-slate-500 mb-4">
+                                Estás a punto de eliminar permanentemente a <span className="font-semibold text-slate-800">{deletingUser.email}</span>.
+                            </p>
+                            
+                            <div className="p-3.5 rounded-xl bg-red-50 border border-red-100 text-left mb-6">
+                                <div className="flex gap-2.5 items-start">
+                                    <ShieldAlert className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="text-xs font-bold text-red-800 uppercase tracking-wider">Atención</h4>
+                                        <p className="text-xs text-red-700 font-medium mt-0.5">
+                                            Esta acción es <strong>completamente irreversible</strong>. Se borrarán todos los permisos de acceso asignados a este usuario en el sistema.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 justify-end">
+                                <button
+                                    type="button"
+                                    onClick={() => setDeletingUser(null)}
+                                    className="px-4 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm border border-slate-200"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    disabled={loading}
+                                    className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px] text-sm"
+                                >
+                                    {loading ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        'Sí, eliminar'
+                                    )}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}

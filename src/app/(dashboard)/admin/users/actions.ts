@@ -56,6 +56,13 @@ export async function createUser(data: {
 
         // Create in Supabase Auth if a password was provided (Classic Email)
         if (data.password) {
+            const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+            if (!serviceKey) {
+                return {
+                    success: false,
+                    error: 'La variable de entorno SUPABASE_SERVICE_ROLE_KEY no está configurada en el servidor/entorno local. Por favor agrégala a tu archivo .env.'
+                };
+            }
             const fullName = `${data.firstName || ''} ${data.lastName || ''}`.trim();
             const adminAuthClient = createAdminClient();
             const { error: authError } = await adminAuthClient.auth.admin.createUser({
@@ -195,40 +202,47 @@ export async function deleteUser(id: string) {
             return { success: false, error: 'No puedes eliminar tu propia cuenta.' };
         }
 
-        const adminAuthClient = createAdminClient();
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        let warning = undefined;
 
-        // Buscamos el ID del usuario en Supabase Auth usando su email
-        let page = 1;
-        let authUserIdToDelete = null;
-        let hasMore = true;
+        if (serviceKey) {
+            const adminAuthClient = createAdminClient();
 
-        while (hasMore) {
-            const { data: { users }, error: listError } = await adminAuthClient.auth.admin.listUsers({ page, perPage: 100 });
-            if (listError || !users) break;
+            // Buscamos el ID del usuario en Supabase Auth usando su email
+            let page = 1;
+            let authUserIdToDelete = null;
+            let hasMore = true;
 
-            const found = users.find(u => u.email === targetUser.email);
-            if (found) {
-                authUserIdToDelete = found.id;
-                break;
+            while (hasMore) {
+                const { data: { users }, error: listError } = await adminAuthClient.auth.admin.listUsers({ page, perPage: 100 });
+                if (listError || !users) break;
+
+                const found = users.find(u => u.email === targetUser.email);
+                if (found) {
+                    authUserIdToDelete = found.id;
+                    break;
+                }
+                if (users.length < 100) hasMore = false;
+                page++;
             }
-            if (users.length < 100) hasMore = false;
-            page++;
-        }
 
-        // Si lo encontramos en Auth, lo eliminamos de ahí también
-        if (authUserIdToDelete) {
-            const { error: deleteAuthError } = await adminAuthClient.auth.admin.deleteUser(authUserIdToDelete);
-            if (deleteAuthError) {
-                console.error("Error eliminando perfil de Auth:", deleteAuthError);
-                return { success: false, error: 'Error al eliminar credencial de acceso: ' + deleteAuthError.message };
+            // Si lo encontramos en Auth, lo eliminamos de ahí también
+            if (authUserIdToDelete) {
+                const { error: deleteAuthError } = await adminAuthClient.auth.admin.deleteUser(authUserIdToDelete);
+                if (deleteAuthError) {
+                    console.error("Error eliminando perfil de Auth:", deleteAuthError);
+                    return { success: false, error: 'Error al eliminar credencial de acceso: ' + deleteAuthError.message };
+                }
             }
+        } else {
+            warning = 'Falta SUPABASE_SERVICE_ROLE_KEY. El usuario se eliminó de la base de datos local, pero no de Supabase Auth.';
         }
 
         // Luego eliminamos de la base de datos de Prisma
         await prisma.user.delete({ where: { id } });
 
         revalidatePath('/admin/users');
-        return { success: true };
+        return { success: true, warning };
     } catch (error: any) {
         console.error('Error deleting user:', error);
         return { success: false, error: 'Error interno del servidor al eliminar usuario.' };
@@ -573,3 +587,50 @@ export async function sendManualWelcomeEmail(userId: string) {
         return { success: false, error: 'Error interno del servidor al enviar correo.' };
     }
 }
+
+export async function createOrganization(data: {
+    name: string;
+    slug: string;
+    correoContacto?: string;
+    telefono?: string;
+}) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) return { success: false, error: 'No autenticado.' };
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email },
+        });
+
+        if (dbUser?.role !== 'SUPER_ADMIN') {
+            return { success: false, error: 'No autorizado. Se requiere rol SUPER_ADMIN.' };
+        }
+
+        // Validate unique slug
+        const existing = await prisma.organization.findUnique({
+            where: { slug: data.slug },
+        });
+
+        if (existing) {
+            return { success: false, error: 'Ya existe una organización con ese slug.' };
+        }
+
+        const newOrg = await prisma.organization.create({
+            data: {
+                name: data.name,
+                slug: data.slug,
+                correoContacto: data.correoContacto || null,
+                telefono: data.telefono || null,
+            },
+        });
+
+        revalidatePath('/admin/users');
+        return { success: true, organization: newOrg };
+    } catch (error: any) {
+        console.error('Error creating organization:', error);
+        return { success: false, error: 'Error interno del servidor al crear la organización.' };
+    }
+}
+
