@@ -258,6 +258,8 @@ export async function editUser(
         accessibleModules: string[];
         puedeAsignarEspacios?: boolean;
         puesto?: string;
+        nombre?: string;
+        apellido?: string;
     }
 ) {
     try {
@@ -297,8 +299,45 @@ export async function editUser(
                 accessibleModules: data.accessibleModules,
                 puedeAsignarEspacios: data.puedeAsignarEspacios ?? false,
                 puesto: data.puesto,
+                nombre: data.nombre,
+                apellido: data.apellido,
             },
         });
+
+        // Also update Supabase Auth if service key is configured
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (serviceKey) {
+            try {
+                const adminAuthClient = createAdminClient();
+                // Find user in auth using email
+                let page = 1;
+                let authUserIdToUpdate = null;
+                let hasMore = true;
+                while (hasMore) {
+                    const { data: { users }, error: listError } = await adminAuthClient.auth.admin.listUsers({ page, perPage: 100 });
+                    if (listError || !users) break;
+
+                    const found = users.find(u => u.email === updatedUser.email);
+                    if (found) {
+                        authUserIdToUpdate = found.id;
+                        break;
+                    }
+                    if (users.length < 100) hasMore = false;
+                    page++;
+                }
+
+                if (authUserIdToUpdate) {
+                    const fullName = `${data.nombre || ''} ${data.apellido || ''}`.trim();
+                    await adminAuthClient.auth.admin.updateUserById(authUserIdToUpdate, {
+                        user_metadata: {
+                            full_name: fullName || undefined
+                        }
+                    });
+                }
+            } catch (authErr) {
+                console.error('Error updating auth metadata in editUser server action:', authErr);
+            }
+        }
 
         revalidatePath('/admin/users');
         return { success: true, user: updatedUser };

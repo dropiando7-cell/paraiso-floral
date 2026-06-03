@@ -1,12 +1,9 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { cookies, headers } from 'next/headers'
+import { cookies } from 'next/headers'
 
 export async function createClient() {
     const cookieStore = await cookies()
-    const heads = await headers()
-    const host = heads.get('host') || ''
-    const isProd = host.endsWith('bioelectronicahn.com')
-    const cookieOptions = isProd ? { domain: '.bioelectronicahn.com', path: '/' } : undefined
+    const cookieOptions = { path: '/' }
 
     return createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,

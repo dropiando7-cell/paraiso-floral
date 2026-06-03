@@ -203,6 +203,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setAuthType('CLASSIC'); // Edit doesn't allow changing auth type or password easily here
         setEmail(user.email);
         setPassword('');
+        setFirstName(user.nombre || '');
+        setLastName(user.apellido || '');
         setRole(user.role);
         setCustomRoleName(user.customRoleName || null);
         setOrganizationId(user.organizationId);
@@ -219,7 +221,16 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setError(null);
 
         if (editingUserId) {
-            const res = await editUser(editingUserId, { role, customRoleName, organizationId, accessibleModules, puedeAsignarEspacios, puesto });
+            const res = await editUser(editingUserId, { 
+                role, 
+                customRoleName, 
+                organizationId, 
+                accessibleModules, 
+                puedeAsignarEspacios, 
+                puesto,
+                nombre: firstName,
+                apellido: lastName
+            });
             if (!res.success) {
                 const errMsg = res.error || 'Ocurrió un error al editar';
                 setError(errMsg);
@@ -756,30 +767,28 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                     </div>
                                 )}
 
-                                {!editingUserId && authType === 'CLASSIC' && (
+                                {(editingUserId || authType === 'CLASSIC') && (
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Nombre</label>
                                             <input
                                                 type="text"
-                                                disabled={!!editingUserId}
                                                 value={firstName}
                                                 onChange={e => setFirstName(e.target.value)}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-shadow bg-white disabled:bg-slate-50 disabled:text-slate-500"
                                                 placeholder="Ej. Juan"
-                                                required={!editingUserId}
+                                                required
                                             />
                                         </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-1">Apellido</label>
                                             <input
                                                 type="text"
-                                                disabled={!!editingUserId}
                                                 value={lastName}
                                                 onChange={e => setLastName(e.target.value)}
                                                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-shadow bg-white disabled:bg-slate-50 disabled:text-slate-500"
                                                 placeholder="Ej. Pérez"
-                                                required={!editingUserId}
+                                                required
                                             />
                                         </div>
                                     </div>
