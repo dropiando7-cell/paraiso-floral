@@ -71,10 +71,11 @@ export async function GET(req: NextRequest) {
 
                     {/* LEFT COLUMN: Data */}
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '10px' }}>
-                        <span style={{ fontSize: cfg.titleSize, fontWeight: 800, color: '#555', letterSpacing: 1, marginBottom: '2px' }}>ORDEN REPARACIÓN</span>
-                        <span style={{ fontSize: cfg.idSize, fontWeight: 900, color: '#000', marginBottom: '4px' }}>{ordenId}</span>
+                        <span style={{ fontSize: cfg.titleSize + 1, fontWeight: 900, color: '#000', marginBottom: '6px' }}>
+                            ORDEN REP.: {ordenId}
+                        </span>
                         
-                        <span style={{ fontSize: cfg.descSize, fontWeight: 900, color: '#000', lineHeight: 1.1, overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: cfg.descSize, fontWeight: 900, color: '#000', lineHeight: 1.1, overflow: 'hidden' }}>
                             {equipoStr}
                         </span>
                         

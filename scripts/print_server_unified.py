@@ -395,12 +395,15 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
 
             # Fuentes
             try:
-                font_title   = ImageFont.truetype("arialbd.ttf", cfg['FONT_SMALL'] - 1)
-                font_id      = ImageFont.truetype("arialbd.ttf", cfg['FONT_ID'])
-                font_desc    = ImageFont.truetype("arialbd.ttf", cfg['FONT_DESC_SHORT'])
-                font_small   = ImageFont.truetype("arialbd.ttf", cfg['FONT_SMALL'])
+                font_title   = ImageFont.truetype("arialbd.ttf", max(11, cfg['FONT_SMALL'] - 1)) # Ajustado para ORDEN REP.: DA2DC663
+                font_id      = ImageFont.truetype("arialbd.ttf", max(14, cfg['FONT_ID'] - 2))
+                
+                font_desc_sz = cfg['FONT_DESC_LONG'] if len(equipo) > 22 else cfg['FONT_DESC_SHORT']
+                font_desc    = ImageFont.truetype("arialbd.ttf", max(12, font_desc_sz - 1))
+                
+                font_small   = ImageFont.truetype("arialbd.ttf", max(11, cfg['FONT_SMALL'] - 1))
                 font_barcode = ImageFont.truetype("arialbd.ttf", cfg['FONT_BARCODE'])
-                font_bio     = ImageFont.truetype("arialbd.ttf", cfg['FONT_BIO'] - 1)
+                font_bio     = ImageFont.truetype("arialbd.ttf", max(11, cfg['FONT_BIO'] - 2))
             except IOError:
                 font_title = font_id = font_desc = font_small = font_barcode = font_bio = ImageFont.load_default()
 
@@ -448,28 +451,40 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
             y_text = cfg['Y_TEXT']
 
             y_title = y_text
-            y_id = y_title + cfg['FONT_SMALL'] + 2
-            y_desc = y_id + cfg['FONT_ID'] + 4
-            y_meta = y_desc + cfg['FONT_DESC_SHORT'] + 6
+            title_h = max(11, cfg['FONT_SMALL'] - 1)
+            desc_h = cfg['FONT_DESC_LONG'] - 1 if len(equipo) > 22 else cfg['FONT_DESC_SHORT'] - 1
+            desc_h = max(12, desc_h)
+            small_h = max(11, cfg['FONT_SMALL'] - 1)
 
-            draw.text((x_text, y_title), "ORDEN REPARACIÓN", font=font_title, fill=(0, 0, 0))
-            draw.text((x_text, y_id), orden_id, font=font_id, fill=(0, 0, 0))
-            draw.text((x_text, y_desc), equipo[:30], font=font_desc, fill=(0, 0, 0))
+            # Dibujamos el título y el número de orden en una sola línea
+            draw.text((x_text, y_title), f"ORDEN REP.: {orden_id}", font=font_title, fill=(0, 0, 0))
+            y_desc = y_title + title_h + 4
 
-            draw.text((x_text, y_meta), f"Cli: {cliente}", font=font_small, fill=(0, 0, 0))
+            # Envoltura de descripción del equipo para evitar solapamientos con el QR
+            lineas_equipo = wrap_descripcion(equipo, font=font_desc, max_px=cfg['WRAP_MAX_PX'])
+            y_curr = y_desc
+            for linea in lineas_equipo[:2]:  # Máximo 2 líneas
+                draw.text((x_text, y_curr), linea, font=font_desc, fill=(0, 0, 0))
+                y_curr += desc_h + 2
+
+            y_curr += 2
+
+            draw.text((x_text, y_curr), f"Cli: {cliente}", font=font_small, fill=(0, 0, 0))
+            y_curr += small_h + 1
             
-            y_offset = y_meta + cfg['FONT_SMALL'] + 1
             if marca_modelo:
-                draw.text((x_text, y_offset), f"Mod: {marca_modelo}", font=font_small, fill=(0, 0, 0))
-                y_offset += cfg['FONT_SMALL'] + 1
+                draw.text((x_text, y_curr), f"Mod: {marca_modelo}", font=font_small, fill=(0, 0, 0))
+                y_curr += small_h + 1
             
-            draw.text((x_text, y_offset), f"S/N: {serie}", font=font_small, fill=(0, 0, 0))
-            y_offset += cfg['FONT_SMALL'] + 1
-            draw.text((x_text, y_offset), f"Fec: {fecha}", font=font_small, fill=(0, 0, 0))
+            draw.text((x_text, y_curr), f"S/N: {serie}", font=font_small, fill=(0, 0, 0))
+            y_curr += small_h + 1
+            
+            draw.text((x_text, y_curr), f"Fec: {fecha}", font=font_small, fill=(0, 0, 0))
+            y_curr += small_h + 3
 
             # BIOELECTRONICA HONDURAS
-            bio_y = y_offset + cfg['FONT_SMALL'] + 6
-            draw.text((x_text, bio_y), "BIOELECTRONICA HONDURAS", font=font_bio, fill=(0, 0, 0))
+            draw.text((x_text, y_curr), "BIOELECTRONICA HONDURAS", font=font_bio, fill=(0, 0, 0))
+            bio_y = y_curr
 
             # ── Código de barras 1D ────────────────────────────────────────
             bc_text = urllib.parse.quote(orden_id)
