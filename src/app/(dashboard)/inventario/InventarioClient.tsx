@@ -1592,9 +1592,9 @@ function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas
                     onCancel={() => { setCropOpen(false); URL.revokeObjectURL(cropImgSrc); setCropImgSrc(''); }}
                 />
             )}
-            <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm overflow-y-auto">
+            <div className="fixed inset-0 z-[100] bg-black/60 md:backdrop-blur-sm overflow-y-auto">
                 <div className="min-h-full flex items-start justify-center p-0 sm:p-4 md:p-6">
-                    <div className="bg-white w-full sm:rounded-2xl shadow-2xl sm:max-w-2xl sm:my-4">
+                    <div className="bg-white w-full sm:rounded-2xl shadow-2xl sm:max-w-2xl sm:my-4 transform translate-z-0" style={{ transform: 'translate3d(0,0,0)', WebkitTransform: 'translate3d(0,0,0)' }}>
 
                         {/* ── Sticky Header ── */}
                         <div className="sticky top-0 z-10 bg-white flex items-center justify-between px-5 pt-5 pb-4 border-b border-slate-100 sm:rounded-t-2xl">
@@ -3445,9 +3445,9 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
 
             {/* View Activo Modal */}
             {viewActivo && (
-                <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm overflow-y-auto" onClick={() => setViewActivo(null)}>
+                <div className="fixed inset-0 z-[100] bg-black/60 md:backdrop-blur-sm overflow-y-auto" onClick={() => setViewActivo(null)}>
                     <div className="min-h-full flex items-center justify-center p-4">
-                        <div className="bg-white w-full rounded-2xl shadow-2xl max-w-xl overflow-hidden" onClick={e => e.stopPropagation()}>
+                        <div className="bg-white w-full rounded-2xl shadow-2xl max-w-xl overflow-hidden transform translate-z-0" style={{ transform: 'translate3d(0,0,0)', WebkitTransform: 'translate3d(0,0,0)' }} onClick={e => e.stopPropagation()}>
                             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
                                 <h3 className="text-lg font-bold text-[#0500A3]">Detalle del Activo</h3>
                                 <button onClick={() => setViewActivo(null)} className="p-2 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-400" /></button>
