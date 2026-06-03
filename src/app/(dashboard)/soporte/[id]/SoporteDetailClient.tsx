@@ -232,6 +232,7 @@ export default function SoporteDetailClient({
               serie={orden.serie || "N/A"} 
               cliente={orden.cliente?.nombre || ""} 
               equipo={orden.equipoDano}
+              marcaModelo={orden.marcaModelo || ""}
               fecha={new Date(orden.fechaRecibido || new Date()).toLocaleDateString("es-HN")}
             />
           )}

@@ -37,6 +37,7 @@ export default function NuevoSoporteClient({ userId, clientes = [], users = [] }
                             serie={result.serie || "N/A"} 
                             cliente={result.cliente?.nombre || result.cliente || ""} 
                             equipo={result.equipoDano}
+                            marcaModelo={result.marcaModelo || ""}
                             fecha={new Date().toLocaleDateString("es-HN")}
                         />
                     </div>

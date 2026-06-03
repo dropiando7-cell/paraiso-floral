@@ -41,26 +41,25 @@ export default function StatusStepper({ estadoActual, ordenId, equipoInfo }: Sta
   return (
     <div className="bg-white rounded-2xl p-4 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-5">
       <div className="flex items-center justify-between mb-8">
-        <div>
+        <div className="min-w-0 flex-1 pr-2">
           <h3 className="m-0 text-[15px] font-bold text-slate-900 tracking-tight">Estado del Servicio</h3>
-          <p className="mt-0.5 mb-0 text-xs text-slate-500 font-medium">
+          <p className="mt-0.5 mb-0 text-xs text-slate-500 font-medium break-words">
             Orden #{ordenId} · {equipoInfo}
           </p>
         </div>
-        <div className={`px-3 py-1.5 rounded-full text-xs font-bold ${
+        <div className={`px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap shrink-0 ${
           currentStep === 4 ? "bg-green-100 text-green-700" : "bg-indigo-50 text-indigo-700"
         }`}>
           {currentStep === 4 ? "✓ Completado" : `Paso ${currentStep + 1} de ${steps.length}`}
         </div>
       </div>
 
-      {/* Stepper Grid Layout */}
       <div className="overflow-x-auto pb-4 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
-        <div className="flex items-start bg-transparent relative min-w-[500px] md:min-w-full">
+        <div className="flex items-start bg-transparent relative min-w-[500px] md:min-w-full pt-3 pb-2">
           {/* Connectors Background (absolute) */}
-          <div className="absolute top-5 left-10 right-10 h-0.5 bg-slate-200 z-0" />
+          <div className="absolute top-8 left-10 right-10 h-0.5 bg-slate-200 z-0" />
         <div 
-          className="absolute top-5 left-10 h-0.5 bg-indigo-600 z-0 transition-all duration-300"
+          className="absolute top-8 left-10 h-0.5 bg-indigo-600 z-0 transition-all duration-300"
           style={{ width: `${(currentStep / (steps.length - 1)) * 100}%`, maxWidth: `calc(100% - 80px)` }}
         />
         

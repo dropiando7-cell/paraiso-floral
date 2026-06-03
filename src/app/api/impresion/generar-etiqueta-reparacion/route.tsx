@@ -14,6 +14,8 @@ export async function GET(req: NextRequest) {
     const equipo = searchParams.get('equipo') || 'Sin especificar';
     const fecha = searchParams.get('fecha') || new Date().toISOString().split('T')[0];
 
+    const marcaModelo = searchParams.get('marcaModelo') || '';
+
     const size = searchParams.get('size') || '50x30';
     const is70x40 = size === '70x40';
     const is50x25 = size === '50x25';
@@ -49,6 +51,7 @@ export async function GET(req: NextRequest) {
 
     const equipoStr = equipo.substring(0, 40).toUpperCase();
     const clienteStr = cliente.substring(0, 30).toUpperCase();
+    const marcaModeloStr = marcaModelo.substring(0, 30).toUpperCase();
 
     return new ImageResponse(
         (
@@ -78,6 +81,9 @@ export async function GET(req: NextRequest) {
                         
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', marginTop: '6px' }}>
                             <span style={{ fontSize: cfg.metaSize, color: '#333', fontWeight: 600 }}>Cli: {clienteStr}</span>
+                            {marcaModeloStr && (
+                                <span style={{ fontSize: cfg.metaSize, color: '#333', fontWeight: 600 }}>Mod: {marcaModeloStr}</span>
+                            )}
                             <span style={{ fontSize: cfg.metaSize, color: '#333', fontWeight: 600 }}>S/N: {serie}</span>
                             <span style={{ fontSize: cfg.metaSize, color: '#333', fontWeight: 600 }}>Fec: {fecha}</span>
                         </div>

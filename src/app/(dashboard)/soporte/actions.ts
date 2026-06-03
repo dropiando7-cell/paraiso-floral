@@ -47,6 +47,7 @@ export async function createOrdenTrabajo(data: {
     cliente: string;
     telefono?: string;
     equipo: string;
+    nombreEquipo?: string;
     modelo?: string;
     serie?: string;
     marca?: string;
@@ -108,7 +109,7 @@ export async function createOrdenTrabajo(data: {
         data: {
             organizationId: org.id,
             clienteId: clienteRecord.id,
-            equipoDano: data.equipo.toLowerCase() === 'medico' ? 'Equipo Médico' : data.equipo.toLowerCase() === 'aire' ? 'Aire Acondicionado' : 'Otro',
+            equipoDano: data.nombreEquipo?.trim() || (data.equipo.toLowerCase() === 'medico' ? 'Equipo Médico' : data.equipo.toLowerCase() === 'aire' ? 'Aire Acondicionado' : 'Otro'),
             tipoAparato: data.equipo.toUpperCase(),
             marcaModelo,
             serie: data.serie || null,

@@ -8,6 +8,7 @@ type QRGeneratorProps = {
   serie: string;
   cliente: string;
   equipo?: string;
+  marcaModelo?: string;
   fecha?: string;
 };
 
@@ -16,6 +17,7 @@ export default function QRGenerator({
   serie = "N/A", 
   cliente = "N/A",
   equipo = "Sin especificar",
+  marcaModelo = "",
   fecha = new Date().toLocaleDateString("es-HN")
 }: QRGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -99,6 +101,7 @@ export default function QRGenerator({
           serie={serie}
           cliente={cliente}
           equipo={equipo}
+          marcaModelo={marcaModelo}
           fecha={fecha}
           onClose={() => setShowModal(false)}
         />
@@ -113,6 +116,7 @@ type PreviewModalProps = {
   serie: string;
   cliente: string;
   equipo: string;
+  marcaModelo: string;
   fecha: string;
   onClose: () => void;
 };
@@ -122,6 +126,7 @@ function PreviewEtiquetaReparacionModal({
   serie, 
   cliente, 
   equipo, 
+  marcaModelo,
   fecha, 
   onClose 
 }: PreviewModalProps) {
@@ -148,6 +153,7 @@ function PreviewEtiquetaReparacionModal({
     serie,
     cliente,
     equipo,
+    marcaModelo,
     fecha,
     size
   });
