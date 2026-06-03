@@ -55,6 +55,7 @@ export async function createOrdenTrabajo(data: {
     usuarioRecepcionId?: string;
     costoRevision?: string | number;
     metodoPagoRevision?: string;
+    tecnicoIds?: string[];
 }) {
     const org = await prisma.organization.findFirst();
     if (!org) throw new Error('Organización no encontrada');
@@ -101,11 +102,13 @@ export async function createOrdenTrabajo(data: {
         cajaSessionId = activeCaja?.id || null;
     }
 
+    const firstTecnicoId = data.tecnicoIds?.[0] || null;
+
     const orden = await prisma.ordenTrabajo.create({
         data: {
             organizationId: org.id,
             clienteId: clienteRecord.id,
-            equipoDano: data.equipo === 'medico' ? 'Equipo Médico' : data.equipo === 'aire' ? 'Aire Acondicionado' : 'Otro',
+            equipoDano: data.equipo.toLowerCase() === 'medico' ? 'Equipo Médico' : data.equipo.toLowerCase() === 'aire' ? 'Aire Acondicionado' : 'Otro',
             tipoAparato: data.equipo.toUpperCase(),
             marcaModelo,
             serie: data.serie || null,
@@ -116,7 +119,11 @@ export async function createOrdenTrabajo(data: {
             metodoPagoRevision,
             cajaSessionId,
             estado: 'RECIBIDO',
-            usuarioRecepcionId: data.usuarioRecepcionId || null
+            usuarioRecepcionId: data.usuarioRecepcionId || null,
+            tecnicoReparacionId: firstTecnicoId,
+            tecnicosAsignados: {
+                connect: data.tecnicoIds?.map(id => ({ id })) || []
+            }
         },
         include: { cliente: true }
     });
@@ -461,6 +468,22 @@ export async function aprobarPresupuesto(
         }
     });
 
+    revalidatePath('/soporte');
+    revalidatePath(`/soporte/${ordenId}`);
+    return { success: true };
+}
+
+export async function asignarTecnicos(ordenId: string, tecnicoIds: string[]) {
+    const firstTecnicoId = tecnicoIds[0] || null;
+    await prisma.ordenTrabajo.update({
+        where: { id: ordenId },
+        data: {
+            tecnicoReparacionId: firstTecnicoId,
+            tecnicosAsignados: {
+                set: tecnicoIds.map(id => ({ id }))
+            }
+        }
+    });
     revalidatePath('/soporte');
     revalidatePath(`/soporte/${ordenId}`);
     return { success: true };

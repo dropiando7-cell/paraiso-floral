@@ -6,13 +6,15 @@ import { UploadCloud, Check, X, Wrench, Snowflake, Tags } from 'lucide-react';
 type ReceptionFormProps = {
   onSave: (data: any) => Promise<void>;
   clientes?: any[];
+  users?: any[];
 };
 
-export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormProps) {
+export default function ReceptionForm({ onSave, clientes = [], users = [] }: ReceptionFormProps) {
   const [form, setForm] = useState({
     cliente: "", telefono: "+504 ", equipo: "medico", modelo: "", serie: "",
-    marca: "", descripcionFalla: "", prioridad: "normal", tecnico: "",
-    costoRevision: "650", metodoPagoRevision: "Ninguno"
+    marca: "", descripcionFalla: "", prioridad: "normal",
+    costoRevision: "650", metodoPagoRevision: "Ninguno",
+    tecnicoIds: [] as string[]
   });
   const [photos, setPhotos] = useState<{name: string; file: File; url: string; size: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -114,9 +116,9 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
             marca: "", 
             descripcionFalla: "", 
             prioridad: "normal", 
-            tecnico: "",
             costoRevision: "650",
-            metodoPagoRevision: "Ninguno"
+            metodoPagoRevision: "Ninguno",
+            tecnicoIds: []
           });
           setPhotos([]);
       }, 3000);
@@ -129,7 +131,7 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
   };
 
   return (
-    <div className="bg-white rounded-2xl p-4 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] h-full flex flex-col">
+    <div className="bg-white rounded-2xl p-4 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] h-full flex flex-col border border-slate-200">
       <div className="flex items-center gap-3 mb-5">
         <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
           <Wrench className="w-5 h-5 text-indigo-600" />
@@ -242,6 +244,62 @@ export default function ReceptionForm({ onSave, clientes = [] }: ReceptionFormPr
             <option value="Cheque">Cheque</option>
           </select>
         </div>
+      </div>
+
+      {/* Asignación de Técnicos */}
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Asignar Técnicos</label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {form.tecnicoIds.map(id => {
+            const user = users.find(u => u.id === id);
+            if (!user) return null;
+            const displayName = [user.nombre, user.apellido].filter(Boolean).join(" ");
+            return (
+              <span key={id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold shadow-sm">
+                <span>{displayName.toUpperCase()}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm(prev => ({
+                      ...prev,
+                      tecnicoIds: prev.tecnicoIds.filter(tid => tid !== id)
+                    }));
+                  }}
+                  className="w-4 h-4 bg-indigo-200 hover:bg-indigo-300 text-indigo-800 rounded-full flex items-center justify-center text-[10px] font-bold transition-colors"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            );
+          })}
+          {form.tecnicoIds.length === 0 && (
+            <span className="text-xs text-slate-400 italic">Ningún técnico asignado (se puede asignar más tarde)</span>
+          )}
+        </div>
+        <select
+          className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+          value=""
+          onChange={e => {
+            const val = e.target.value;
+            if (val && !form.tecnicoIds.includes(val)) {
+              setForm(prev => ({
+                ...prev,
+                tecnicoIds: [...prev.tecnicoIds, val]
+              }));
+            }
+          }}
+        >
+          <option value="">-- Seleccionar Técnico para agregar --</option>
+          {users.map(u => {
+            const displayName = [u.nombre, u.apellido].filter(Boolean).join(" ");
+            const puestoText = u.puesto ? u.puesto.toUpperCase() : u.role;
+            return (
+              <option key={u.id} value={u.id} disabled={form.tecnicoIds.includes(u.id)}>
+                {displayName.toUpperCase()} ({puestoText})
+              </option>
+            );
+          })}
+        </select>
       </div>
 
       <div className="mb-5">

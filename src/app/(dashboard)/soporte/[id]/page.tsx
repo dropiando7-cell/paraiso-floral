@@ -18,6 +18,7 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
       cliente: true,
       usuarioRecepcion: true,
       tecnicoReparacion: true,
+      tecnicosAsignados: true,
       usuarioAprobacion: true,
       repuestos: { include: { producto: true, activoFijo: true } }
     }
@@ -26,6 +27,11 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
   if (!orden) {
     redirect('/soporte');
   }
+
+  const organizationUsers = await prisma.user.findMany({
+    where: { organizationId: orden.organizationId },
+    orderBy: { nombre: 'asc' }
+  });
 
   return <SoporteDetailClient 
     orden={{
@@ -51,5 +57,6 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
     }} 
     userRole={userRole}
     customRoleName={dbUser?.customRoleName || ''}
+    organizationUsers={organizationUsers}
   />;
 }

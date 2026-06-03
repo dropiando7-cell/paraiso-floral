@@ -28,6 +28,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
     // Pagination & Search State
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedOrgId, setSelectedOrgId] = useState('ALL');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
@@ -399,12 +400,17 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
     // --- Search & Pagination Logic ---
     const filteredUsers = initialUsers.filter(u => {
+        if (selectedOrgId !== 'ALL' && u.organizationId !== selectedOrgId) {
+            return false;
+        }
         const query = searchQuery.toLowerCase();
         const customRoleRaw = u.customRoleName || '';
+        const puestoRaw = u.puesto || '';
         return (
             u.email.toLowerCase().includes(query) ||
             u.role.toLowerCase().includes(query) ||
             customRoleRaw.toLowerCase().includes(query) ||
+            puestoRaw.toLowerCase().includes(query) ||
             u.organization.name.toLowerCase().includes(query)
         );
     });
@@ -454,13 +460,13 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 </div>
             </div>
 
-            {/* Search Bar */}
-            <div className="p-4 border-b border-slate-100 bg-white">
-                <div className="relative max-w-md">
+            {/* Search Bar & Filters */}
+            <div className="p-4 border-b border-slate-100 bg-white flex flex-col md:flex-row gap-4 items-center justify-between">
+                <div className="relative w-full md:max-w-md">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                         type="text"
-                        placeholder="Buscar por correo, rol u organización..."
+                        placeholder="Buscar por correo, rol u organización o cargo..."
                         value={searchQuery}
                         onChange={(e) => {
                             setSearchQuery(e.target.value);
@@ -468,6 +474,29 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                         }}
                         className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all placeholder:text-slate-400"
                     />
+                </div>
+                
+                <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
+                    <label htmlFor="org-filter" className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+                        <Building2 className="w-3.5 h-3.5 text-slate-400" />
+                        Organización:
+                    </label>
+                    <select
+                        id="org-filter"
+                        value={selectedOrgId}
+                        onChange={(e) => {
+                            setSelectedOrgId(e.target.value);
+                            setCurrentPage(1);
+                        }}
+                        className="bg-slate-50 border border-slate-200 text-slate-700 py-2 px-3.5 pr-8 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer"
+                    >
+                        <option value="ALL">Todas las Organizaciones</option>
+                        {organizations.map((org) => (
+                            <option key={org.id} value={org.id}>
+                                {org.name}
+                            </option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
@@ -477,7 +506,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                         <tr>
                             <th className="px-6 py-4">Correo Electrónico</th>
                             <th className="px-6 py-4">Rol en el Sistema</th>
-                            <th className="px-6 py-4">Puesto / Cargo</th>
+                            <th className="px-6 py-4">PUESTO / CARGO</th>
                             <th className="px-6 py-4">Organización</th>
                             <th className="px-6 py-4">Fecha de Alta</th>
                             <th className="px-6 py-4 text-right">Acciones</th>
@@ -508,8 +537,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                             </div>
                                         )}
                                     </td>
-                                    <td className="px-6 py-4 text-slate-600 font-semibold text-xs">
-                                        {u.puesto || <span className="text-slate-400 font-normal italic">No especificado</span>}
+                                    <td className="px-6 py-4 text-slate-600 font-semibold text-xs tracking-wider">
+                                        {u.puesto ? u.puesto.toUpperCase() : <span className="text-slate-400 font-normal italic">NO ESPECIFICADO</span>}
                                     </td>
                                     <td className="px-6 py-4 text-slate-600 flex items-center gap-2">
                                         <Building2 className="w-4 h-4 text-slate-400" />

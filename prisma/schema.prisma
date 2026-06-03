@@ -126,6 +126,7 @@ model User {
   kanbanComments        KanbanComment[]
   kanbanAttachments     KanbanAttachment[]
   kanbanSpacesMiembro   KanbanSpace[]          @relation("KanbanSpaceMembers")
+  ordenesAsignadasMulti OrdenTrabajo[]         @relation("TecnicoOrdenesMulti")
 
   @@map("users")
 }
@@ -755,6 +756,7 @@ model OrdenTrabajo {
   usuarioRecepcion  User?                  @relation("RecepcionOrdenes", fields: [usuarioRecepcionId], references: [id])
   tecnicoReparacion User?                  @relation("TecnicoOrdenes", fields: [tecnicoReparacionId], references: [id])
   usuarioAprobacion User?                  @relation("AprobacionOrdenes", fields: [usuarioAprobacionId], references: [id])
+  tecnicosAsignados User[]                 @relation("TecnicoOrdenesMulti")
   repuestos         OrdenTrabajoRepuesto[]
 
   @@index([organizationId])

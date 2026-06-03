@@ -22,5 +22,10 @@ export default async function NuevoSoportePage() {
         orderBy: { nombre: 'asc' }
     });
 
-    return <NuevoSoporteClient userId={dbUser?.id || ''} clientes={clientes} />;
+    const users = await prisma.user.findMany({
+        where: { organizationId: org.id },
+        orderBy: { nombre: 'asc' }
+    });
+
+    return <NuevoSoporteClient userId={dbUser?.id || ''} clientes={clientes} users={users} />;
 }

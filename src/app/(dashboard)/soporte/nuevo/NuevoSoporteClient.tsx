@@ -7,7 +7,7 @@ import { createOrdenTrabajo } from '../actions';
 import ReceptionForm from '../components/ReceptionForm';
 import QRGenerator from '../components/QRGenerator';
 
-export default function NuevoSoporteClient({ userId, clientes = [] }: { userId: string, clientes?: any[] }) {
+export default function NuevoSoporteClient({ userId, clientes = [], users = [] }: { userId: string, clientes?: any[], users?: any[] }) {
     const router = useRouter();
     const [result, setResult] = useState<any>(null);
 
@@ -64,14 +64,14 @@ export default function NuevoSoporteClient({ userId, clientes = [] }: { userId: 
     }
 
     return (
-        <div className="p-8 max-w-4xl mx-auto">
+        <div className="px-0 py-4 md:p-8 max-w-4xl mx-auto">
             <button 
                 onClick={() => router.push('/soporte')}
                 className="text-slate-500 hover:text-slate-800 flex items-center gap-2 mb-6 font-medium transition-colors"
             >
                 <ArrowLeft className="w-4 h-4" /> Volver al Taller
             </button>
-            <ReceptionForm onSave={handleSave} clientes={clientes} />
+            <ReceptionForm onSave={handleSave} clientes={clientes} users={users} />
         </div>
     );
 }

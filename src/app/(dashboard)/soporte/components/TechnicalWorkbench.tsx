@@ -129,8 +129,9 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
 
   const tabBtn = (id: string, label: string) => (
     <button 
+      type="button"
       onClick={() => setActiveTab(id)} 
-      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+      className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all flex-1 md:flex-initial text-center ${
         activeTab === id ? "bg-indigo-600 text-white shadow-sm" : "bg-transparent text-slate-500 hover:bg-slate-200"
       }`}
     >
@@ -139,18 +140,18 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
   );
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] h-full box-border flex flex-col">
+    <div className="bg-white rounded-2xl p-4 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] h-full box-border flex flex-col border border-slate-200">
       <div className="flex items-center gap-3 mb-5">
-        <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center">
+        <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center shrink-0">
           <Settings className="w-5 h-5 text-red-500" />
         </div>
-        <div>
-          <h4 className="m-0 text-[15px] font-bold text-slate-900 tracking-tight">Mesa de Trabajo Técnico</h4>
-          <p className="m-0 text-xs text-slate-500 font-medium">
+        <div className="min-w-0 flex-1">
+          <h4 className="m-0 text-sm md:text-[15px] font-bold text-slate-900 tracking-tight truncate">Mesa de Trabajo Técnico</h4>
+          <p className="m-0 text-xs text-slate-500 font-medium truncate">
             {orderData?.tecnicoReparacion?.nombre || "Técnico Asignado"} · Orden #{orderData?.codigoSeguridad || "Nueva"}
           </p>
         </div>
-        <div className="ml-auto bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-[11px] font-bold">
+        <div className="shrink-0 bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-[10px] md:text-[11px] font-bold">
           ⚙ {orderData?.estado === 'ESPERANDO_APROBACION' ? 'Presupuesto Creado' : 'En Evaluación'}
         </div>
       </div>
@@ -164,13 +165,13 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
         />
       </div>
 
-      <div className="flex gap-1 mb-4 bg-slate-50 p-1 rounded-xl w-fit">
+      <div className="flex gap-1 mb-4 bg-slate-50 p-1 rounded-xl w-full md:w-fit">
         {tabBtn("repuestos", "🔩 Repuestos")}
         {tabBtn("mano", "⏱ Mano de Obra")}
         {tabBtn("fotos", "📷 Fotos Falla")}
       </div>
 
-      <div className="flex-grow">
+      <div className="flex-grow min-w-0">
         {activeTab === "repuestos" && (
           <div className="flex flex-col h-full">
             <div className="relative mb-3">
@@ -179,7 +180,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                 type="text" 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Buscar componente en inventario (Nombre o Código)..."
+                placeholder="Buscar componente en inventario..."
                 className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-100 outline-none"
               />
               {isSearching && <Loader2 className="absolute right-3 top-2.5 w-4 h-4 animate-spin text-slate-400" />}
@@ -192,11 +193,11 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                       onClick={() => handleAddRepuesto(prod)}
                       className="px-4 py-2 hover:bg-slate-50 cursor-pointer flex justify-between items-center border-b border-slate-50 last:border-0"
                     >
-                      <div>
-                        <div className="text-sm font-medium text-slate-800">{prod.nombre}</div>
-                        <div className="text-xs text-slate-500 font-mono">{prod.sku}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-medium text-slate-800 truncate">{prod.nombre}</div>
+                        <div className="text-xs text-slate-500 font-mono truncate">{prod.sku}</div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right shrink-0 ml-3">
                         <div className="text-sm font-bold text-slate-800">L {prod.precioVenta.toFixed(2)}</div>
                         <div className={`text-xs ${prod.stockActual > 0 ? 'text-green-600' : 'text-red-500'}`}>
                           Stock: {prod.stockActual}
@@ -208,59 +209,61 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
               )}
             </div>
 
-            <table className="w-full text-left border-collapse text-xs mb-3">
-              <thead>
-                <tr className="border-b-2 border-slate-100">
-                  {["Descripción","Código","Cant.","Precio Unit.","Subtotal",""].map(h => (
-                    <th key={h} className="py-2 px-2 text-slate-400 font-semibold">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {repuestos.map(r => (
-                  <tr key={r.id} className="border-b border-slate-50">
-                    <td className="py-2 px-2 text-slate-800 font-medium">{r.descripcion}</td>
-                    <td className="py-2 px-2 text-slate-500 font-mono">{r.codigo}</td>
-                    <td className="py-2 px-2 text-slate-800 font-medium text-center">
-                      <input 
-                        type="number" 
-                        min="1" 
-                        className="w-12 text-center border border-slate-200 rounded px-1 py-0.5 outline-none"
-                        value={r.cantidad}
-                        onChange={(e) => {
-                           const val = parseInt(e.target.value) || 1;
-                           setRepuestos(p => p.map(x => x.id === r.id ? {...x, cantidad: val} : x));
-                        }}
-                      />
-                    </td>
-                    <td className="py-2 px-2 text-slate-800 font-medium">
-                      <div className="flex items-center gap-1">
-                        <span className="text-slate-400">L</span>
+            <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+              <table className="w-full text-left border-collapse text-xs mb-3 min-w-[500px]">
+                <thead>
+                  <tr className="border-b-2 border-slate-100">
+                    {["Descripción","Código","Cant.","Precio Unit.","Subtotal",""].map(h => (
+                      <th key={h} className="py-2 px-2 text-slate-400 font-semibold">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {repuestos.map(r => (
+                    <tr key={r.id} className="border-b border-slate-50">
+                      <td className="py-2 px-2 text-slate-800 font-medium">{r.descripcion}</td>
+                      <td className="py-2 px-2 text-slate-500 font-mono">{r.codigo}</td>
+                      <td className="py-2 px-2 text-slate-800 font-medium text-center">
                         <input 
                           type="number" 
-                          min="0"
-                          step="0.01"
-                          className="w-20 border border-slate-200 rounded px-1 py-0.5 outline-none"
-                          value={r.precio}
+                          min="1" 
+                          className="w-12 text-center border border-slate-200 rounded px-1 py-0.5 outline-none"
+                          value={r.cantidad}
                           onChange={(e) => {
-                             const val = parseFloat(e.target.value) || 0;
-                             setRepuestos(p => p.map(x => x.id === r.id ? {...x, precio: val} : x));
+                             const val = parseInt(e.target.value) || 1;
+                             setRepuestos(p => p.map(x => x.id === r.id ? {...x, cantidad: val} : x));
                           }}
                         />
-                      </div>
-                    </td>
-                    <td className="py-2 px-2 text-slate-800 font-bold">L {(r.cantidad * r.precio).toFixed(2)}</td>
-                    <td className="py-2 px-2 text-right">
-                      <button onClick={() => setRepuestos(p => p.filter(x => x.id !== r.id))} className="text-red-500 hover:text-red-700 bg-transparent p-1 rounded">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </td>
+                      <td className="py-2 px-2 text-slate-800 font-medium">
+                        <div className="flex items-center gap-1">
+                          <span className="text-slate-400">L</span>
+                          <input 
+                            type="number" 
+                            min="0"
+                            step="0.01"
+                            className="w-20 border border-slate-200 rounded px-1 py-0.5 outline-none font-bold text-slate-800"
+                            value={r.precio}
+                            onChange={(e) => {
+                               const val = parseFloat(e.target.value) || 0;
+                               setRepuestos(p => p.map(x => x.id === r.id ? {...x, precio: val} : x));
+                            }}
+                          />
+                        </div>
+                      </td>
+                      <td className="py-2 px-2 text-slate-800 font-bold">L {(r.cantidad * r.precio).toFixed(2)}</td>
+                      <td className="py-2 px-2 text-right">
+                        <button onClick={() => setRepuestos(p => p.filter(x => x.id !== r.id))} className="text-red-500 hover:text-red-700 bg-transparent p-1 rounded">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             
-            <div className="mt-auto text-right text-xs text-slate-600 font-medium">
+            <div className="mt-auto text-right text-xs text-slate-600 font-medium pt-3">
               Total Repuestos: <strong className="text-indigo-600 text-sm ml-1">L {totalRepuestos.toFixed(2)}</strong>
             </div>
           </div>
@@ -268,38 +271,43 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
 
         {activeTab === "mano" && (
           <div className="flex flex-col h-full">
-            <table className="w-full text-left border-collapse text-xs mb-3">
-              <thead>
-                <tr className="border-b-2 border-slate-100">
-                  {["Actividad","Horas","Tarifa/Hr","Subtotal",""].map(h => (
-                    <th key={h} className="py-2 px-2 text-slate-400 font-semibold">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {horas.map(h => (
-                  <tr key={h.id} className="border-b border-slate-50">
-                    <td className="py-2 px-2 text-slate-800 font-medium">{h.descripcion}</td>
-                    <td className="py-2 px-2 text-slate-800 font-medium text-center">{h.horas}</td>
-                    <td className="py-2 px-2 text-slate-500 font-medium">L {h.tarifa}/hr</td>
-                    <td className="py-2 px-2 text-slate-800 font-bold">L {(h.horas * h.tarifa).toFixed(2)}</td>
-                    <td className="py-2 px-2 text-right">
-                      <button onClick={() => setHoras(p => p.filter(x => x.id !== h.id))} className="text-red-500 hover:text-red-700 bg-transparent p-1 rounded">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </td>
+            <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
+              <table className="w-full text-left border-collapse text-xs mb-3 min-w-[500px]">
+                <thead>
+                  <tr className="border-b-2 border-slate-100">
+                    {["Actividad","Horas","Tarifa/Hr","Subtotal",""].map(h => (
+                      <th key={h} className="py-2 px-2 text-slate-400 font-semibold">{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className="grid grid-cols-[2fr_0.8fr_1fr_auto] gap-2 items-center mb-4">
-              <input className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
+                </thead>
+                <tbody>
+                  {horas.map(h => (
+                    <tr key={h.id} className="border-b border-slate-50">
+                      <td className="py-2 px-2 text-slate-800 font-medium">{h.descripcion}</td>
+                      <td className="py-2 px-2 text-slate-800 font-medium text-center">{h.horas}</td>
+                      <td className="py-2 px-2 text-slate-500 font-medium">L {h.tarifa}/hr</td>
+                      <td className="py-2 px-2 text-slate-800 font-bold">L {(h.horas * h.tarifa).toFixed(2)}</td>
+                      <td className="py-2 px-2 text-right">
+                        <button onClick={() => setHoras(p => p.filter(x => x.id !== h.id))} className="text-red-500 hover:text-red-700 bg-transparent p-1 rounded">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-col md:grid md:grid-cols-[2fr_0.8fr_1fr_auto] gap-2 items-stretch md:items-center mb-4">
+              <input className="px-3 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
                 placeholder="Actividad realizada..." value={nuevaHora.descripcion} onChange={e => setNuevaHora(p => ({...p, descripcion: e.target.value}))}/>
-              <input className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
-                type="number" placeholder="Hrs" value={nuevaHora.horas} onChange={e => setNuevaHora(p => ({...p, horas: e.target.value}))}/>
-              <input className="px-2 py-1.5 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
-                type="number" placeholder="Tarifa L." value={nuevaHora.tarifa} onChange={e => setNuevaHora(p => ({...p, tarifa: parseFloat(e.target.value)||400}))}/>
-              <button onClick={addHora} className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors">+ Add</button>
+              <div className="flex gap-2">
+                <input className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
+                  type="number" placeholder="Hrs" value={nuevaHora.horas} onChange={e => setNuevaHora(p => ({...p, horas: e.target.value}))}/>
+                <input className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
+                  type="number" placeholder="Tarifa L." value={nuevaHora.tarifa} onChange={e => setNuevaHora(p => ({...p, tarifa: parseFloat(e.target.value)||400}))}/>
+              </div>
+              <button onClick={addHora} className="w-full md:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors">+ Agregar</button>
             </div>
             <div className="mt-auto text-right text-xs text-slate-600 font-medium">
               Total Mano de Obra: <strong className="text-indigo-600 text-sm ml-1">L {totalMano.toFixed(2)}</strong>
@@ -350,17 +358,18 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
       </div>
 
       <div className="mt-6 pt-4 border-t border-slate-100">
-          <div className="mb-4 p-3 bg-slate-50 rounded-xl flex justify-between items-center">
+          <div className="mb-4 p-3 bg-slate-50 rounded-xl flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
             <div className="text-xs text-slate-500 font-medium">
               Repuestos: <span className="text-slate-800 font-bold ml-1">L {totalRepuestos.toFixed(2)}</span>
-              <span className="mx-2 text-slate-300">|</span>
-              Mano Obra: <span className="text-slate-800 font-bold ml-1">L {totalMano.toFixed(2)}</span>
+              <span className="mx-2 text-slate-300 hidden sm:inline">|</span>
+              <span className="block sm:inline">Mano Obra: <span className="text-slate-800 font-bold ml-1">L {totalMano.toFixed(2)}</span></span>
             </div>
             <div className="text-[15px] font-bold text-indigo-600">
               Total Sugerido: L {totalGeneral.toFixed(2)}
             </div>
           </div>
           <button 
+            type="button"
             onClick={handleGuardarCotizacion}
             disabled={isSaving}
             className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors shadow-sm"

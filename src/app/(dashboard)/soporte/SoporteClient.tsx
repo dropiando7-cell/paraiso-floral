@@ -21,7 +21,7 @@ export default function SoporteClient({ initialData }: { initialData: Orden[] })
     const [ordenes, setOrdenes] = useState<Orden[]>(initialData);
 
     return (
-        <div className="p-8 max-w-[1600px] mx-auto relative min-h-screen">
+        <div className="px-0 py-4 md:p-8 max-w-[1600px] mx-auto relative min-h-screen">
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-3">
