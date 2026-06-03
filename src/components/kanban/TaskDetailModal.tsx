@@ -726,14 +726,14 @@ export default function TaskDetailModal({
                                                                         <textarea
                                                                             value={editingCommentText}
                                                                             onChange={(e) => setEditingCommentText(e.target.value)}
-                                                                            rows={2}
-                                                                            className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:border-brand-500 focus:outline-none shadow-sm"
+                                                                            rows={5}
+                                                                            className="w-full bg-white border border-slate-200 rounded-xl p-3 text-sm md:text-xs text-slate-800 focus:border-brand-500 focus:outline-none shadow-sm min-h-[120px]"
                                                                         />
                                                                         <div className="flex gap-2">
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => handleUpdateComment(comm.id)}
-                                                                                className="bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition shadow-sm active:scale-95"
+                                                                                className="bg-brand-600 hover:bg-brand-700 text-white text-xs md:text-[10px] font-bold px-4 py-2 md:px-3 md:py-1.5 rounded-lg transition shadow-sm active:scale-95"
                                                                             >
                                                                                 Guardar
                                                                             </button>
@@ -743,36 +743,36 @@ export default function TaskDetailModal({
                                                                                     setEditingCommentId(null);
                                                                                     setEditingCommentText("");
                                                                                 }}
-                                                                                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[10px] font-bold px-3 py-1.5 rounded-lg transition"
+                                                                                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-xs md:text-[10px] font-bold px-4 py-2 md:px-3 md:py-1.5 rounded-lg transition"
                                                                             >
                                                                                 Cancelar
                                                                             </button>
                                                                         </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed mt-1">{comm.contenido}</p>
+                                                                    <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed mt-1 pr-20 md:pr-0">{comm.contenido}</p>
                                                                 )}
                                                                 
                                                                 {editingCommentId !== comm.id && (
-                                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex gap-1 z-10">
+                                                                    <div className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition flex gap-1.5 md:gap-1 z-10">
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {
                                                                                 setEditingCommentId(comm.id);
                                                                                 setEditingCommentText(comm.contenido);
                                                                             }}
-                                                                            className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-brand-600 transition"
+                                                                            className="p-2 md:p-1 bg-white md:bg-transparent shadow-sm md:shadow-none border border-slate-100 md:border-0 rounded-lg md:rounded text-slate-500 hover:text-brand-600 md:text-slate-400 transition flex items-center justify-center"
                                                                             title="Editar comentario"
                                                                         >
-                                                                            <Pencil className="h-3 w-3" />
+                                                                            <Pencil className="h-4 w-4 md:h-3 md:w-3" />
                                                                         </button>
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => handleDeleteComment(comm.id)}
-                                                                            className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-red-600 transition"
+                                                                            className="p-2 md:p-1 bg-white md:bg-transparent shadow-sm md:shadow-none border border-slate-100 md:border-0 rounded-lg md:rounded text-slate-500 hover:text-red-600 md:text-slate-400 transition flex items-center justify-center"
                                                                             title="Eliminar comentario"
                                                                         >
-                                                                            <Trash2 className="h-3 w-3" />
+                                                                            <Trash2 className="h-4 w-4 md:h-3 md:w-3" />
                                                                         </button>
                                                                     </div>
                                                                 )}
