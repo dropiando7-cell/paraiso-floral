@@ -5,7 +5,7 @@ import StatusStepper from '../components/StatusStepper';
 import TechnicalWorkbench from '../components/TechnicalWorkbench';
 import ApprovalCard from '../components/ApprovalCard';
 import QRGenerator from '../components/QRGenerator';
-import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud } from 'lucide-react';
+import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon } from 'lucide-react';
 import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -63,6 +63,8 @@ export default function SoporteDetailClient({
   const [editPhotos, setEditPhotos] = React.useState<{name: string; file: File; url: string; size: string}[]>([]);
   const [savingDatos, setSavingDatos] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
+  const cameraRef = React.useRef<HTMLInputElement>(null);
+  const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
 
   const handleOpenEditModal = () => {
     const parsed = parseMarcaModelo(orden.marcaModelo || '');
@@ -78,6 +80,7 @@ export default function SoporteDetailClient({
     setEditMetodoPagoRevision(orden.metodoPagoRevision || 'Ninguno');
     setEditExistingPhotos(orden.fotosEstadoInicial || []);
     setEditPhotos([]);
+    setLightboxUrl(null);
     setIsEditModalOpen(true);
   };
 
@@ -374,23 +377,23 @@ export default function SoporteDetailClient({
 
       {/* Modal para Editar Datos de la Orden */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50 shrink-0">
-              <h3 className="font-bold text-slate-800">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col h-full sm:h-auto max-h-screen sm:max-h-[90vh] animate-in slide-in-from-bottom-56 sm:zoom-in-95 duration-300">
+            <div className="px-4 sm:px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50 shrink-0">
+              <h3 className="font-bold text-slate-800 text-sm sm:text-base">
                 Editar Datos de la Orden #{orden.codigoSeguridad}
               </h3>
               <button 
                 type="button" 
                 onClick={() => setIsEditModalOpen(false)} 
-                className="text-slate-400 hover:text-slate-600 transition-colors"
+                className="text-slate-400 hover:text-slate-600 p-1.5 transition-colors"
               >
-                <X className="w-5 h-5" />
+                <X className="w-5.5 h-5.5 sm:w-5 sm:h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveDatos} className="p-6 overflow-y-auto space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <form onSubmit={handleSaveDatos} className="p-4 sm:p-6 overflow-y-auto space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                     Cliente / Empresa *
@@ -401,7 +404,7 @@ export default function SoporteDetailClient({
                     value={editCliente}
                     onChange={(e) => setEditCliente(e.target.value)}
                     placeholder="Ej. Hospital Centro"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium shadow-sm"
                   />
                 </div>
                 <div>
@@ -413,12 +416,12 @@ export default function SoporteDetailClient({
                     value={editTelefono}
                     onChange={(e) => setEditTelefono(e.target.value)}
                     placeholder="+504 "
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white shadow-sm"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                     Tipo de Equipo
@@ -429,7 +432,7 @@ export default function SoporteDetailClient({
                         type="button" 
                         key={v} 
                         onClick={() => setEditTipoAparato(v)} 
-                        className={`flex-1 py-2 rounded-lg border-2 text-[11px] font-bold transition-all ${
+                        className={`flex-1 py-3 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${
                           editTipoAparato === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
                         }`}
                       >
@@ -448,12 +451,12 @@ export default function SoporteDetailClient({
                     value={editEquipoDano}
                     onChange={(e) => setEditEquipoDano(e.target.value)}
                     placeholder="Ej. Concentrador de Oxígeno"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium shadow-sm"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                     Marca
@@ -463,7 +466,7 @@ export default function SoporteDetailClient({
                     value={editMarca}
                     onChange={(e) => setEditMarca(e.target.value)}
                     placeholder="Ej. GE"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white shadow-sm"
                   />
                 </div>
                 <div>
@@ -475,7 +478,7 @@ export default function SoporteDetailClient({
                     value={editModelo}
                     onChange={(e) => setEditModelo(e.target.value)}
                     placeholder="Ej. Dash 4000"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white shadow-sm"
                   />
                 </div>
                 <div>
@@ -487,7 +490,7 @@ export default function SoporteDetailClient({
                     value={editSerie}
                     onChange={(e) => setEditSerie(e.target.value)}
                     placeholder="Ej. SN-123"
-                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium shadow-sm"
                   />
                 </div>
               </div>
@@ -501,11 +504,11 @@ export default function SoporteDetailClient({
                   value={editDescripcionFalla}
                   onChange={(e) => setEditDescripcionFalla(e.target.value)}
                   placeholder="¿Qué reporta el cliente?"
-                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors h-20 resize-none bg-white"
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors h-32 resize-none bg-white shadow-sm"
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                     Costo de Revisión / Diagnóstico (L.)
@@ -517,7 +520,7 @@ export default function SoporteDetailClient({
                     value={editCostoRevision}
                     onChange={(e) => setEditCostoRevision(e.target.value)}
                     placeholder="Ej. 650"
-                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors font-bold text-slate-800 bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors font-bold text-slate-800 bg-white shadow-sm"
                   />
                 </div>
                 <div>
@@ -527,7 +530,7 @@ export default function SoporteDetailClient({
                   <select
                     value={editMetodoPagoRevision}
                     onChange={(e) => setEditMetodoPagoRevision(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-semibold"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-semibold shadow-sm"
                   >
                     <option value="Ninguno">Ninguno / Pendiente</option>
                     <option value="Efectivo">Efectivo</option>
@@ -541,69 +544,96 @@ export default function SoporteDetailClient({
 
               {/* Fotos Estado Físico (R2) */}
               <div className="border-t border-slate-100 pt-4">
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
                   Fotos Estado Físico (Evidencia)
                 </label>
-                <div
-                  onDrop={handleDrop}
-                  onDragOver={(e) => e.preventDefault()}
-                  onClick={() => fileRef.current?.click()}
-                  className="border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 bg-slate-50 rounded-xl p-4 text-center cursor-pointer transition-colors"
-                >
-                  <input 
-                    ref={fileRef} 
-                    type="file" 
-                    multiple 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={(e) => handleFiles(e.target.files)}
-                  />
-                  <UploadCloud className="w-6 h-6 mx-auto mb-2 text-slate-400" />
-                  <p className="text-xs text-slate-500 font-medium m-0">
-                    Click o arrastra fotos. <span className="text-indigo-600 font-bold">Evidencia física.</span>
-                  </p>
+                
+                <input 
+                  ref={fileRef} 
+                  type="file" 
+                  multiple 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={(e) => handleFiles(e.target.files)}
+                />
+                
+                <input 
+                  ref={cameraRef} 
+                  type="file" 
+                  accept="image/*" 
+                  capture="environment" 
+                  className="hidden" 
+                  onChange={(e) => handleFiles(e.target.files)}
+                />
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="flex items-center justify-center gap-2.5 px-3 py-3.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-700 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-[0.98]"
+                  >
+                    <ImageIcon className="w-4 h-4 sm:w-5 h-5 text-slate-500" />
+                    <span>Subir de Galería</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => cameraRef.current?.click()}
+                    className="flex items-center justify-center gap-2.5 px-3 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md active:scale-[0.98]"
+                  >
+                    <Camera className="w-4 h-4 sm:w-5 h-5" />
+                    <span>Tomar Foto</span>
+                  </button>
                 </div>
 
                 {/* Previsualización de imágenes */}
                 {(editExistingPhotos.length > 0 || editPhotos.length > 0) && (
-                  <div className="flex flex-wrap gap-2 mt-3">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 mt-3">
                     {/* Fotos Existentes */}
                     {editExistingPhotos.map((url, i) => (
-                      <div key={`existing-${i}`} className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 relative group shrink-0">
-                        <img src={url} alt={`Evidencia existente ${i + 1}`} className="w-full h-full object-cover"/>
+                      <div 
+                        key={`existing-${i}`} 
+                        className="aspect-square rounded-xl overflow-hidden border border-slate-200 relative group cursor-pointer bg-slate-100 shadow-sm"
+                        onClick={() => setLightboxUrl(url)}
+                      >
+                        <img src={url} alt={`Evidencia existente ${i + 1}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"/>
                         <button 
                           type="button"
                           onClick={(e) => { 
                             e.stopPropagation(); 
                             setEditExistingPhotos(prev => prev.filter((_, j) => j !== i)); 
                           }}
-                          className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                          className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md z-10"
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
-                        <span className="absolute bottom-0 inset-x-0 bg-slate-900/60 text-white text-[8px] text-center font-bold py-0.5">
+                        <div className="absolute bottom-0 inset-x-0 bg-slate-900/60 text-white text-[9px] text-center font-bold py-1 pointer-events-none">
                           Guardada
-                        </span>
+                        </div>
                       </div>
                     ))}
 
                     {/* Fotos Nuevas */}
                     {editPhotos.map((p, i) => (
-                      <div key={`new-${i}`} className="w-16 h-16 rounded-lg overflow-hidden border border-indigo-200 relative group shrink-0">
-                        <img src={p.url} alt={p.name} className="w-full h-full object-cover"/>
+                      <div 
+                        key={`new-${i}`} 
+                        className="aspect-square rounded-xl overflow-hidden border border-indigo-200 relative group cursor-pointer bg-slate-100 shadow-sm"
+                        onClick={() => setLightboxUrl(p.url)}
+                      >
+                        <img src={p.url} alt={p.name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"/>
                         <button 
                           type="button"
                           onClick={(e) => { 
                             e.stopPropagation(); 
                             setEditPhotos(prev => prev.filter((_, j) => j !== i)); 
                           }}
-                          className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                          className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md z-10"
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
-                        <span className="absolute bottom-0 inset-x-0 bg-indigo-600/80 text-white text-[8px] text-center font-bold py-0.5">
+                        <div className="absolute bottom-0 inset-x-0 bg-indigo-600/80 text-white text-[9px] text-center font-bold py-1 pointer-events-none">
                           Nueva
-                        </span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -614,14 +644,14 @@ export default function SoporteDetailClient({
                 <button
                   type="button"
                   onClick={() => setIsEditModalOpen(false)}
-                  className="px-4 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm"
+                  className="px-5 py-3 text-slate-600 font-bold hover:bg-slate-100 rounded-xl transition-colors text-sm"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={savingDatos || !editCliente || !editEquipoDano || !editDescripcionFalla}
-                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px] text-sm"
+                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[140px] text-sm"
                 >
                   {savingDatos ? (
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -631,6 +661,29 @@ export default function SoporteDetailClient({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Lightbox Modal */}
+      {lightboxUrl && (
+        <div 
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <button 
+            type="button" 
+            onClick={() => setLightboxUrl(null)} 
+            className="absolute top-4 right-4 text-white/70 hover:text-white bg-white/10 hover:bg-white/20 p-2.5 rounded-full transition-colors z-30"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <div className="relative max-w-full max-h-full flex items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <img 
+              src={lightboxUrl} 
+              alt="Evidencia ampliada" 
+              className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
+            />
           </div>
         </div>
       )}
