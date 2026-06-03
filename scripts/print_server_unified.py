@@ -379,6 +379,168 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
             img_final = img_gris.point(lambda x: 0 if x < 128 else 255, "1")
             nuevo_alto = cfg['ALTO_MAXIMO']
 
+        elif 'ordenId' in query_params:
+            print("[*] Generando etiqueta de Reparación NATIVA...")
+
+            orden_id      = query_params.get('ordenId',     [''])[0]
+            cliente       = query_params.get('cliente',     [''])[0].upper()[:30]
+            equipo        = query_params.get('equipo',      [''])[0].upper()[:40]
+            fecha         = query_params.get('fecha',       [''])[0]
+            marca_modelo  = query_params.get('marcaModelo', [''])[0].upper()[:30]
+            serie         = query_params.get('serie',       [''])[0]
+
+            # Canvas blanco
+            img_canvas = Image.new("RGB", (cfg['ANCHO_FIJO'], cfg['ALTO_MAXIMO']), (255, 255, 255))
+            draw = ImageDraw.Draw(img_canvas)
+
+            # Fuentes
+            try:
+                font_title   = ImageFont.truetype("arialbd.ttf", cfg['FONT_SMALL'] - 1)
+                font_id      = ImageFont.truetype("arialbd.ttf", cfg['FONT_ID'])
+                font_desc    = ImageFont.truetype("arialbd.ttf", cfg['FONT_DESC_SHORT'])
+                font_small   = ImageFont.truetype("arialbd.ttf", cfg['FONT_SMALL'])
+                font_barcode = ImageFont.truetype("arialbd.ttf", cfg['FONT_BARCODE'])
+                font_bio     = ImageFont.truetype("arialbd.ttf", cfg['FONT_BIO'] - 1)
+            except IOError:
+                font_title = font_id = font_desc = font_small = font_barcode = font_bio = ImageFont.load_default()
+
+            # ── QR (scale=1, eclevel=M) ────────────
+            qr_text = urllib.parse.quote(f"{HOST}/trazabilidad/{orden_id}")
+            qr_url  = (
+                f"https://bwipjs-api.metafloor.com/?bcid=qrcode"
+                f"&text={qr_text}&scale=1&eclevel=M&includetext=false"
+            )
+            try:
+                req_qr = requests.get(qr_url, timeout=5)
+                if req_qr.status_code == 200:
+                    qr_img   = Image.open(io.BytesIO(req_qr.content)).convert("RGBA")
+                    fondo_qr = Image.new("RGBA", qr_img.size, (255, 255, 255, 255))
+                    try:
+                        fondo_qr.paste(qr_img, mask=qr_img.split()[3])
+                    except Exception:
+                        fondo_qr.paste(qr_img)
+                    qr_rgb = fondo_qr.convert("RGB")
+
+                    # Recortar quiet-zone
+                    diff = ImageChops.difference(qr_rgb, Image.new("RGB", qr_rgb.size, (255, 255, 255)))
+                    bbox = diff.getbbox()
+                    if bbox:
+                        qr_rgb = qr_rgb.crop(bbox)
+
+                    qr_w, qr_h = qr_rgb.size
+
+                    # Reducir QR con factor de escala + límite de área útil
+                    area_util_h = cfg['ALTO_MAXIMO'] - cfg['QR_MARGEN'] * 2
+                    factor = cfg['QR_ESCALA']
+                    if int(qr_h * factor) > area_util_h:
+                        factor = area_util_h / qr_h
+                    qr_rgb = qr_rgb.resize((max(1, int(qr_w * factor)), max(1, int(qr_h * factor))), Image.NEAREST)
+                    qr_w, qr_h = qr_rgb.size
+
+                    x_qr = cfg['ANCHO_FIJO'] - qr_w - cfg['QR_MARGEN']
+                    y_qr = cfg['QR_MARGEN']
+                    img_canvas.paste(qr_rgb, (x_qr, y_qr))
+            except Exception as e:
+                print(f"[-] Error obteniendo QR: {e}")
+
+            # ── Textos columna izquierda ───────────────────────────────────
+            x_text = cfg['X_TEXT']
+            y_text = cfg['Y_TEXT']
+
+            y_title = y_text
+            y_id = y_title + cfg['FONT_SMALL'] + 2
+            y_desc = y_id + cfg['FONT_ID'] + 4
+            y_meta = y_desc + cfg['FONT_DESC_SHORT'] + 6
+
+            draw.text((x_text, y_title), "ORDEN REPARACIÓN", font=font_title, fill=(0, 0, 0))
+            draw.text((x_text, y_id), orden_id, font=font_id, fill=(0, 0, 0))
+            draw.text((x_text, y_desc), equipo[:30], font=font_desc, fill=(0, 0, 0))
+
+            draw.text((x_text, y_meta), f"Cli: {cliente}", font=font_small, fill=(0, 0, 0))
+            
+            y_offset = y_meta + cfg['FONT_SMALL'] + 1
+            if marca_modelo:
+                draw.text((x_text, y_offset), f"Mod: {marca_modelo}", font=font_small, fill=(0, 0, 0))
+                y_offset += cfg['FONT_SMALL'] + 1
+            
+            draw.text((x_text, y_offset), f"S/N: {serie}", font=font_small, fill=(0, 0, 0))
+            y_offset += cfg['FONT_SMALL'] + 1
+            draw.text((x_text, y_offset), f"Fec: {fecha}", font=font_small, fill=(0, 0, 0))
+
+            # BIOELECTRONICA HONDURAS
+            bio_y = y_offset + cfg['FONT_SMALL'] + 6
+            draw.text((x_text, bio_y), "BIOELECTRONICA HONDURAS", font=font_bio, fill=(0, 0, 0))
+
+            # ── Código de barras 1D ────────────────────────────────────────
+            bc_text = urllib.parse.quote(orden_id)
+            bc_url  = (
+                f"https://bwipjs-api.metafloor.com/?bcid=code128"
+                f"&text={bc_text}&height=6&scale=2&includetext=false"
+            )
+            try:
+                req_bc = requests.get(bc_url, timeout=5)
+                if req_bc.status_code == 200:
+                    bc_img   = Image.open(io.BytesIO(req_bc.content)).convert("RGBA")
+                    fondo_bc = Image.new("RGBA", bc_img.size, (255, 255, 255, 255))
+                    try:
+                        fondo_bc.paste(bc_img, mask=bc_img.split()[3])
+                    except Exception:
+                        fondo_bc.paste(bc_img)
+                    bc_rgb = fondo_bc.convert("RGB")
+
+                    bc_w, bc_h = bc_rgb.size
+                    if bc_w > cfg['ANCHO_FIJO'] - 32:
+                        bc_rgb = bc_rgb.resize((cfg['ANCHO_FIJO'] - 32, bc_h), Image.NEAREST)
+                        bc_w, bc_h = bc_rgb.size
+
+                    # Medir texto del CB
+                    try:
+                        t_bbox = font_barcode.getbbox(orden_id)
+                        text_w = t_bbox[2] - t_bbox[0]
+                        text_h = t_bbox[3] - t_bbox[1]
+                    except AttributeError:
+                        text_w = len(orden_id) * 10
+                        text_h = 16
+
+                    gap_texto  = 3
+                    
+                    # Calcular el borde inferior de BIOELECTRONICA HONDURAS
+                    try:
+                        bio_bbox = font_bio.getbbox("BIOELECTRONICA HONDURAS")
+                        bio_h = bio_bbox[3] - bio_bbox[1]
+                    except AttributeError:
+                        bio_h = cfg['FONT_BIO']
+                    
+                    bottom_of_bio = bio_y + bio_h
+
+                    # Posiciones desde abajo
+                    y_texto_cb = cfg['ALTO_MAXIMO'] - cfg['CB_MARGEN_INF'] - text_h
+                    y_bc       = y_texto_cb - gap_texto - bc_h
+
+                    # Lógica de colisión dinámica
+                    margen_seguridad = 4
+                    if y_bc < bottom_of_bio + margen_seguridad:
+                        y_bc = bottom_of_bio + margen_seguridad
+                        y_texto_cb = y_bc + bc_h + gap_texto
+
+                    if y_bc < 0:
+                        y_bc = 2
+
+                    x_bc = (cfg['ANCHO_FIJO'] - bc_w) // 2
+                    img_canvas.paste(bc_rgb, (x_bc, y_bc))
+
+                    x_t = (cfg['ANCHO_FIJO'] - text_w) // 2
+                    draw.text((x_t, y_texto_cb), orden_id, font=font_barcode, fill=(0, 0, 0))
+
+                    print(f"[*] CB: y={y_bc}  texto: y={y_texto_cb}  fin={y_texto_cb + text_h}  max={cfg['ALTO_MAXIMO']}")
+            except Exception as e:
+                print(f"[-] Error obteniendo Código de Barras: {e}")
+
+            # Binarizar — umbral 128
+            img_gris  = img_canvas.convert("L")
+            img_final = img_gris.point(lambda x: 0 if x < 128 else 255, "1")
+            nuevo_alto = cfg['ALTO_MAXIMO']
+
         else:
             print("[*] Modo legacy: imagen pre-renderizada...")
             respuesta = requests.get(url_imagen, timeout=15)
