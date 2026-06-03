@@ -4,9 +4,12 @@ import { Inbox, CheckCircle2, Receipt, SearchCheck, Wrench } from 'lucide-react'
 const STATE_MAP: Record<string, number> = {
   'RECIBIDO': 0,
   'EN_DIAGNOSTICO': 1,
+  'EN_EVALUACION': 1,
   'ESPERANDO_APROBACION': 2,
   'EN_REPARACION': 3,
+  'REPARACION': 3,
   'LISTO_ENTREGA': 4,
+  'ENTREGADO': 4,
 };
 
 type StatusStepperProps = {

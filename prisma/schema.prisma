@@ -758,6 +758,7 @@ model OrdenTrabajo {
   usuarioAprobacion User?                  @relation("AprobacionOrdenes", fields: [usuarioAprobacionId], references: [id])
   tecnicosAsignados User[]                 @relation("TecnicoOrdenesMulti")
   repuestos         OrdenTrabajoRepuesto[]
+  kanbanTasks       KanbanTask[]
 
   @@index([organizationId])
   @@index([clienteId])
@@ -1048,6 +1049,9 @@ model KanbanTask {
   creadoPorId     String?              @db.Uuid
   modificadoPorId String?              @db.Uuid
   parentId        String?              @db.Uuid
+
+  ordenTrabajoId  String?              @db.Uuid
+  ordenTrabajo    OrdenTrabajo?        @relation(fields: [ordenTrabajoId], references: [id], onDelete: SetNull)
 
   space           KanbanSpace          @relation(fields: [spaceId], references: [id], onDelete: Cascade)
   organization    Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)

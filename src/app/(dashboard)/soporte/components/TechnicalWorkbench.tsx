@@ -89,7 +89,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
 
   const handleGuardarCotizacion = async () => {
     if (!diagnostico.trim()) {
-        alert("El diagnóstico es requerido para generar la cotización.");
+        alert("El diagnóstico es requerido para enviar a aprobación de presupuesto.");
         return;
     }
     setIsSaving(true);
@@ -130,7 +130,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
         router.refresh();
     } catch (e) {
         console.error("Error al guardar", e);
-        alert("Ocurrió un error al guardar la cotización.");
+        alert("Ocurrió un error al enviar a aprobación de presupuesto.");
     } finally {
         setIsSaving(false);
     }
@@ -384,7 +384,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
             className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors shadow-sm"
           >
              {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-             {isSaving ? "Guardando..." : "Guardar Cotización"}
+             {isSaving ? "Enviando..." : "Enviar a Aprobación de Presupuesto"}
           </button>
       </div>
     </div>

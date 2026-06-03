@@ -70,6 +70,18 @@ export default async function TrazabilidadPage({ params }: { params: Promise<{ i
     );
   }
 
+  // Cargar tarea de Kanban, comentarios y adjuntos vinculados a esta OrdenTrabajo
+  const kanbanTask = await prisma.kanbanTask.findFirst({
+    where: { ordenTrabajoId: orden.id },
+    include: {
+      comments: {
+        include: { usuario: true },
+        orderBy: { createdAt: 'asc' }
+      },
+      attachments: true
+    }
+  });
+
   // Fetch authentication status
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -289,6 +301,115 @@ export default async function TrazabilidadPage({ params }: { params: Promise<{ i
               </div>
             </div>
           )}
+
+          {/* Workshop Interventions Card */}
+          <div className="backdrop-blur-md bg-slate-900/60 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl flex flex-col gap-6 animate-in fade-in duration-300">
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-indigo-400" />
+                <span>Evidencias y Notas del Taller</span>
+              </h3>
+              <p className="text-xs text-slate-400 font-medium mt-1">
+                Bitácora de intervenciones técnicas e imágenes de soporte registradas durante el mantenimiento.
+              </p>
+            </div>
+
+            {/* Kanban Task comments list */}
+            {kanbanTask && (kanbanTask.comments.length > 0 || kanbanTask.attachments.length > 0) ? (
+              <div className="space-y-6">
+                
+                {/* Images / Attachments section */}
+                {kanbanTask.attachments.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">Imágenes y Evidencias de Soporte:</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {kanbanTask.attachments.map((att: any) => {
+                        const isImage = att.tipo.startsWith('image/');
+                        return (
+                          <div key={att.id} className="relative group rounded-xl overflow-hidden border border-slate-850 bg-slate-950/50 aspect-video flex flex-col items-center justify-center">
+                            {isImage ? (
+                              <>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                  src={att.url}
+                                  alt={att.nombre}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
+                                />
+                                <a
+                                  href={att.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 flex items-center justify-center text-xs font-bold text-white transition-opacity gap-1"
+                                >
+                                  Ver Imagen
+                                </a>
+                              </>
+                            ) : (
+                              <div className="p-3 text-center flex flex-col items-center gap-1.5 w-full">
+                                <FileText className="w-8 h-8 text-indigo-455" />
+                                <span className="text-[10px] text-slate-350 truncate w-full px-1">{att.nombre}</span>
+                                <a
+                                  href={att.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-[10px] text-indigo-400 hover:underline font-bold"
+                                >
+                                  Descargar
+                                </a>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Comments section */}
+                {kanbanTask.comments.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <span className="text-xs text-slate-400 font-bold block uppercase tracking-wider">Historial de Comentarios Técnicos:</span>
+                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                      {kanbanTask.comments.map((comm: any) => {
+                        const initials = comm.usuario.nombre
+                          ? comm.usuario.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+                          : '?';
+                        const dateText = comm.createdAt
+                          ? new Date(comm.createdAt).toLocaleDateString("es-HN") + ' ' + new Date(comm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                          : '';
+
+                        return (
+                          <div key={comm.id} className="flex gap-3 items-start bg-slate-950/40 border border-slate-850 rounded-2xl p-4.5">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-white flex items-center justify-center text-xs font-black shrink-0 shadow-md">
+                              {initials}
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-bold text-slate-100 uppercase">{comm.usuario.nombre}</span>
+                                <span className="text-[9px] text-slate-505 font-mono">{dateText}</span>
+                              </div>
+                              <p className="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed">
+                                {comm.contenido}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center py-8 bg-slate-950/20 rounded-2xl border border-dashed border-slate-800">
+                <MessageSquare className="h-8 w-8 text-slate-700 mb-2" />
+                <p className="text-xs text-slate-500 font-bold">Sin intervenciones registradas</p>
+                <p className="text-[10px] text-slate-400 max-w-[250px] mt-0.5 leading-relaxed">
+                  Una vez que el técnico registre comentarios o fotos de evidencia en el tablero Kanban, se sincronizarán aquí automáticamente.
+                </p>
+              </div>
+            )}
+          </div>
 
         </div>
 

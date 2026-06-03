@@ -145,6 +145,147 @@ export async function createOrdenTrabajo(data: {
         }
     }
 
+    // ----------------------------------------------------
+    // SINCRONIZACIÓN AUTOMÁTICA CON KANBAN (Desarrollo Bio)
+    // ----------------------------------------------------
+    try {
+        // 1. Buscar o crear el espacio "Desarrollo Bio"
+        let space = await prisma.kanbanSpace.findFirst({
+            where: {
+                nombre: {
+                    equals: 'Desarrollo Bio',
+                    mode: 'insensitive'
+                },
+                organizationId: org.id
+            }
+        });
+
+        if (!space) {
+            // Generar clave única para el espacio
+            const baseClave = 'DB';
+            let spaceClave = baseClave;
+            let counter = 1;
+            
+            // Asegurarnos de que la clave de espacio sea única
+            while (true) {
+                const dup = await prisma.kanbanSpace.findFirst({
+                    where: {
+                        organizationId: org.id,
+                        clave: spaceClave
+                    }
+                });
+                if (!dup) break;
+                spaceClave = `${baseClave}${counter}`;
+                counter++;
+            }
+
+            space = await prisma.kanbanSpace.create({
+                data: {
+                    organizationId: org.id,
+                    nombre: 'Desarrollo Bio',
+                    clave: spaceClave,
+                    tiposActividad: ["Task", "Story", "Feature", "Bug", "Orden de Trabajo"],
+                    columnas: ["Por hacer", "En curso", "En revisión", "Listo"],
+                    acceso: 'Abierto'
+                }
+            });
+        }
+
+        if (space) {
+            // Transacción para incrementar correlativo y crear la tarea de Kanban
+            const nextNumber = space.lastTaskNumber + 1;
+            const taskCodigo = `${space.clave}-${nextNumber}`;
+
+            // Actualizar el correlativo
+            await prisma.kanbanSpace.update({
+                where: { id: space.id },
+                data: { lastTaskNumber: nextNumber }
+            });
+
+            // Determinar descripción para la tarea
+            const descLines = [
+                `**Equipo:** ${orden.equipoDano}`,
+                orden.marcaModelo ? `**Marca/Modelo:** ${orden.marcaModelo}` : null,
+                orden.serie ? `**Serie:** ${orden.serie}` : null,
+                `**Cliente:** ${clienteRecord.nombre}`,
+                data.descripcionFalla ? `\n**Falla Reportada:**\n${data.descripcionFalla}` : null
+            ].filter(Boolean).join('\n');
+
+            // Determinar responsable primario para compatibilidad
+            const primaryAsignadoId = firstTecnicoId || null;
+
+            // Crear la tarea en Kanban asociada a esta orden de trabajo
+            const task = await prisma.kanbanTask.create({
+                data: {
+                    spaceId: space.id,
+                    organizationId: org.id,
+                    codigo: taskCodigo,
+                    title: `Orden #${orden.codigoSeguridad} - ${orden.equipoDano}`,
+                    description: descLines,
+                    status: space.columnas[0] || 'Por hacer',
+                    type: 'Orden de Trabajo',
+                    priority: 'MEDIUM',
+                    creadoPorId: data.usuarioRecepcionId || null,
+                    asignadoId: primaryAsignadoId,
+                    ordenTrabajoId: orden.id,
+                    asignados: data.tecnicoIds && data.tecnicoIds.length > 0 ? {
+                        connect: data.tecnicoIds.map(id => ({ id }))
+                    } : undefined
+                }
+            });
+
+            // Registrar actividad del Kanban
+            let fallbackUserId = '';
+            if (data.usuarioRecepcionId) {
+                fallbackUserId = data.usuarioRecepcionId;
+            } else if (firstTecnicoId) {
+                fallbackUserId = firstTecnicoId;
+            } else {
+                const firstUser = await prisma.user.findFirst({ where: { organizationId: org.id } });
+                fallbackUserId = firstUser?.id || '';
+            }
+
+            if (fallbackUserId) {
+                await prisma.kanbanActivity.create({
+                    data: {
+                        spaceId: space.id,
+                        taskId: task.id,
+                        usuarioId: fallbackUserId,
+                        accion: 'CREACION_TAREA',
+                        detalles: `Creó automáticamente la tarea ${task.codigo} vinculada a la Orden #${orden.codigoSeguridad}`
+                    }
+                });
+            }
+
+            // Sincronizar fotos iniciales como adjuntos del Kanban
+            if (data.fotosEstadoInicial && data.fotosEstadoInicial.length > 0) {
+                for (let i = 0; i < data.fotosEstadoInicial.length; i++) {
+                    const url = data.fotosEstadoInicial[i];
+                    // Obtener nombre simple a partir de URL
+                    let nombre = `foto_inicial_${i + 1}.jpg`;
+                    try {
+                        const parts = url.split('/');
+                        const lastPart = parts[parts.length - 1];
+                        if (lastPart) nombre = decodeURIComponent(lastPart);
+                    } catch (err) {}
+
+                    await prisma.kanbanAttachment.create({
+                        data: {
+                            taskId: task.id,
+                            nombre: nombre,
+                            url: url,
+                            tipo: 'image/jpeg',
+                            tamano: 0,
+                            subidoPorId: fallbackUserId
+                        }
+                    });
+                }
+            }
+        }
+    } catch (kanbanErr) {
+        console.error("[Kanban Sync Error]: No se pudo auto-crear la tarea en Kanban:", kanbanErr);
+    }
+
     revalidatePath('/soporte');
     return {
         ...orden,

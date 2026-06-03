@@ -203,6 +203,32 @@ export default function SoporteDetailClient({
     router.refresh();
   };
 
+  const getEstadoAnterior = (estado: string): string | null => {
+    switch (estado) {
+      case 'EN_EVALUACION':
+        return 'RECIBIDO';
+      case 'ESPERANDO_APROBACION':
+        return 'EN_EVALUACION';
+      case 'REPARACION':
+        return 'ESPERANDO_APROBACION';
+      case 'LISTO_ENTREGA':
+        return 'REPARACION';
+      case 'ENTREGADO':
+        return 'LISTO_ENTREGA';
+      default:
+        return null;
+    }
+  };
+
+  const handleRetroceder = async (estadoAnterior: string) => {
+    if (confirm(`¿Estás seguro de que deseas regresar esta orden al estado anterior (${estadoAnterior})?`)) {
+      setLoading(true);
+      await updateEstadoOrden(orden.id, estadoAnterior);
+      setLoading(false);
+      router.refresh();
+    }
+  };
+
   return (
     <div className="px-0 py-4 md:p-8 max-w-[1600px] mx-auto min-h-screen bg-slate-50">
       <button 
@@ -226,14 +252,30 @@ export default function SoporteDetailClient({
             </p>
           </div>
         </div>
-        {(isGlobal || isRecepcion) && (
-          <button
-            onClick={() => handleOpenEditModal()}
-            className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs md:text-sm font-semibold rounded-xl transition-all shadow-sm shrink-0"
-          >
-            <Pencil className="w-3.5 h-3.5" /> Editar Datos
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {orden.estado !== 'RECIBIDO' && (isGlobal || isRecepcion || isTecnico) && (
+            <button
+              type="button"
+              onClick={() => {
+                const prev = getEstadoAnterior(orden.estado);
+                if (prev) handleRetroceder(prev);
+              }}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs md:text-sm font-semibold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 disabled:opacity-50"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" /> Estado Anterior
+            </button>
+          )}
+          {(isGlobal || isRecepcion) && (
+            <button
+              type="button"
+              onClick={() => handleOpenEditModal()}
+              className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs md:text-sm font-semibold rounded-xl transition-all shadow-sm shrink-0"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Editar Datos
+            </button>
+          )}
+        </div>
       </div>
 
       <StatusStepper 
