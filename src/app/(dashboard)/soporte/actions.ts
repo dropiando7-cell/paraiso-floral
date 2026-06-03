@@ -489,3 +489,53 @@ export async function asignarTecnicos(ordenId: string, tecnicoIds: string[]) {
     revalidatePath(`/soporte/${ordenId}`);
     return { success: true };
 }
+
+export async function updateDatosOrden(
+    id: string,
+    data: {
+        tipoAparato: string;
+        equipoDano: string;
+        marcaModelo?: string | null;
+        serie?: string | null;
+        clienteNombre?: string;
+        clienteTelefono?: string | null;
+        descripcionFalla?: string | null;
+        costoRevision?: number;
+        metodoPagoRevision?: string;
+        fotosEstadoInicial?: string[];
+    }
+) {
+    const org = await prisma.organization.findFirst();
+    if (!org) throw new Error('Organización no encontrada');
+
+    const updated = await prisma.ordenTrabajo.update({
+        where: { id },
+        data: {
+            tipoAparato: data.tipoAparato.toUpperCase(),
+            equipoDano: data.equipoDano,
+            marcaModelo: data.marcaModelo || null,
+            serie: data.serie || null,
+            descripcionFalla: data.descripcionFalla || null,
+            costoRevision: data.costoRevision !== undefined ? parseFloat(data.costoRevision.toString()) : undefined,
+            metodoPagoRevision: data.metodoPagoRevision || undefined,
+            fotosEstadoInicial: data.fotosEstadoInicial || undefined,
+        },
+        include: {
+            cliente: true
+        }
+    });
+
+    if (updated.clienteId && (data.clienteNombre || data.clienteTelefono !== undefined)) {
+        await prisma.cliente.update({
+            where: { id: updated.clienteId },
+            data: {
+                nombre: data.clienteNombre ? data.clienteNombre.trim() : undefined,
+                telefono: data.clienteTelefono !== undefined ? (data.clienteTelefono ? data.clienteTelefono.trim() : null) : undefined,
+            }
+        });
+    }
+
+    revalidatePath('/soporte');
+    revalidatePath(`/soporte/${id}`);
+    return { success: true };
+}

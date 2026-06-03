@@ -5,9 +5,10 @@ import StatusStepper from '../components/StatusStepper';
 import TechnicalWorkbench from '../components/TechnicalWorkbench';
 import ApprovalCard from '../components/ApprovalCard';
 import QRGenerator from '../components/QRGenerator';
-import { Wrench, ArrowRight, CheckCircle2, ArrowLeft } from 'lucide-react';
-import { updateEstadoOrden, finalizarReparacion, asignarTecnicos } from '../actions';
+import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud } from 'lucide-react';
+import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden } from '../actions';
 import { useRouter } from 'next/navigation';
+import { toast } from 'react-hot-toast';
 
 type Orden = any;
 
@@ -35,6 +36,129 @@ export default function SoporteDetailClient({
   const [loading, setLoading] = React.useState(false);
   const [assignedTecnicos, setAssignedTecnicos] = React.useState<any[]>(orden.tecnicosAsignados || []);
   const [updatingTecnicos, setUpdatingTecnicos] = React.useState(false);
+
+  // helper to parse marca and modelo
+  const parseMarcaModelo = (val: string) => {
+    if (!val) return { marca: '', modelo: '' };
+    const parts = val.trim().split(/\s+/);
+    return {
+      marca: parts[0] || '',
+      modelo: parts.slice(1).join(' ') || ''
+    };
+  };
+
+  // Edit states for Work Order Datos
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
+  const [editCliente, setEditCliente] = React.useState('');
+  const [editTelefono, setEditTelefono] = React.useState('');
+  const [editTipoAparato, setEditTipoAparato] = React.useState('MEDICO');
+  const [editEquipoDano, setEditEquipoDano] = React.useState('');
+  const [editMarca, setEditMarca] = React.useState('');
+  const [editModelo, setEditModelo] = React.useState('');
+  const [editSerie, setEditSerie] = React.useState('');
+  const [editDescripcionFalla, setEditDescripcionFalla] = React.useState('');
+  const [editCostoRevision, setEditCostoRevision] = React.useState('650');
+  const [editMetodoPagoRevision, setEditMetodoPagoRevision] = React.useState('Ninguno');
+  const [editExistingPhotos, setEditExistingPhotos] = React.useState<string[]>([]);
+  const [editPhotos, setEditPhotos] = React.useState<{name: string; file: File; url: string; size: string}[]>([]);
+  const [savingDatos, setSavingDatos] = React.useState(false);
+  const fileRef = React.useRef<HTMLInputElement>(null);
+
+  const handleOpenEditModal = () => {
+    const parsed = parseMarcaModelo(orden.marcaModelo || '');
+    setEditCliente(orden.cliente?.nombre || '');
+    setEditTelefono(orden.cliente?.telefono || '');
+    setEditTipoAparato(orden.tipoAparato || 'MEDICO');
+    setEditEquipoDano(orden.equipoDano || '');
+    setEditMarca(parsed.marca);
+    setEditModelo(parsed.modelo);
+    setEditSerie(orden.serie || '');
+    setEditDescripcionFalla(orden.descripcionFalla || '');
+    setEditCostoRevision(orden.costoRevision?.toString() || '650');
+    setEditMetodoPagoRevision(orden.metodoPagoRevision || 'Ninguno');
+    setEditExistingPhotos(orden.fotosEstadoInicial || []);
+    setEditPhotos([]);
+    setIsEditModalOpen(true);
+  };
+
+  const handleFiles = (files: FileList | null) => {
+    if (!files) return;
+    const newPhotos = Array.from(files).map(f => ({
+      name: f.name, file: f, url: URL.createObjectURL(f), size: (f.size / 1024).toFixed(0)
+    }));
+    setEditPhotos(p => [...p, ...newPhotos]);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer.files) handleFiles(e.dataTransfer.files);
+  };
+
+  const handleSaveDatos = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingDatos(true);
+    try {
+      // Upload new photos to R2 first
+      const uploadedUrls: string[] = [];
+      for (const photo of editPhotos) {
+        try {
+          const contentType = photo.file.type || 'application/octet-stream';
+          const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: photo.name, contentType })
+          });
+          if (!res.ok) {
+            const errData = await res.json().catch(()=>({}));
+            throw new Error(`Error del servidor al obtener URL: ${res.status} ${errData.error || ''}`);
+          }
+          const { uploadUrl, publicUrl } = await res.json();
+          
+          const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: photo.file,
+            headers: { 'Content-Type': contentType }
+          });
+          
+          if (!uploadRes.ok) {
+            throw new Error(`Error de Cloudflare R2: ${uploadRes.status} ${uploadRes.statusText}`);
+          }
+          
+          uploadedUrls.push(publicUrl);
+        } catch (uploadError: any) {
+          console.error("Upload error detail:", uploadError);
+          throw new Error(`Fallo al subir la imagen ${photo.name}. Detalles: ${uploadError.message}`);
+        }
+      }
+
+      const combinedPhotos = [...editExistingPhotos, ...uploadedUrls];
+      const combinedMarcaModelo = [editMarca.trim(), editModelo.trim()].filter(Boolean).join(" ") || null;
+      const res = await updateDatosOrden(orden.id, {
+        tipoAparato: editTipoAparato,
+        equipoDano: editEquipoDano,
+        marcaModelo: combinedMarcaModelo,
+        serie: editSerie,
+        clienteNombre: editCliente,
+        clienteTelefono: editTelefono,
+        descripcionFalla: editDescripcionFalla,
+        costoRevision: parseFloat(editCostoRevision) || 650,
+        metodoPagoRevision: editMetodoPagoRevision,
+        fotosEstadoInicial: combinedPhotos,
+      });
+      if (res.success) {
+        toast.success("Datos de la orden actualizados con éxito");
+        setIsEditModalOpen(false);
+        router.refresh();
+      } else {
+        toast.error("Error al actualizar la orden");
+      }
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || "Error al actualizar la orden");
+    } finally {
+      setSavingDatos(false);
+    }
+  };
 
   const handleToggleTecnico = async (tecnicoId: string) => {
     setUpdatingTecnicos(true);
@@ -90,6 +214,14 @@ export default function SoporteDetailClient({
             </p>
           </div>
         </div>
+        {(isGlobal || isRecepcion) && (
+          <button
+            onClick={() => handleOpenEditModal()}
+            className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs md:text-sm font-semibold rounded-xl transition-all shadow-sm shrink-0"
+          >
+            <Pencil className="w-3.5 h-3.5" /> Editar Datos
+          </button>
+        )}
       </div>
 
       <StatusStepper 
@@ -239,6 +371,269 @@ export default function SoporteDetailClient({
         </div>
 
       </div>
+
+      {/* Modal para Editar Datos de la Orden */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50 shrink-0">
+              <h3 className="font-bold text-slate-800">
+                Editar Datos de la Orden #{orden.codigoSeguridad}
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setIsEditModalOpen(false)} 
+                className="text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDatos} className="p-6 overflow-y-auto space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Cliente / Empresa *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editCliente}
+                    onChange={(e) => setEditCliente(e.target.value)}
+                    placeholder="Ej. Hospital Centro"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Teléfono / WhatsApp
+                  </label>
+                  <input
+                    type="text"
+                    value={editTelefono}
+                    onChange={(e) => setEditTelefono(e.target.value)}
+                    placeholder="+504 "
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Tipo de Equipo
+                  </label>
+                  <div className="flex gap-2">
+                    {[["MEDICO","🏥 Médico"],["AIRE","❄️ Aire Acond."],["OTRO","🔧 Otro"]].map(([v,l]) => (
+                      <button 
+                        type="button" 
+                        key={v} 
+                        onClick={() => setEditTipoAparato(v)} 
+                        className={`flex-1 py-2 rounded-lg border-2 text-[11px] font-bold transition-all ${
+                          editTipoAparato === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
+                        }`}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Nombre del Equipo *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editEquipoDano}
+                    onChange={(e) => setEditEquipoDano(e.target.value)}
+                    placeholder="Ej. Concentrador de Oxígeno"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Marca
+                  </label>
+                  <input
+                    type="text"
+                    value={editMarca}
+                    onChange={(e) => setEditMarca(e.target.value)}
+                    placeholder="Ej. GE"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Modelo
+                  </label>
+                  <input
+                    type="text"
+                    value={editModelo}
+                    onChange={(e) => setEditModelo(e.target.value)}
+                    placeholder="Ej. Dash 4000"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Número de Serie (S/N)
+                  </label>
+                  <input
+                    type="text"
+                    value={editSerie}
+                    onChange={(e) => setEditSerie(e.target.value)}
+                    placeholder="Ej. SN-123"
+                    className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  Descripción de Falla (Recibido) *
+                </label>
+                <textarea
+                  required
+                  value={editDescripcionFalla}
+                  onChange={(e) => setEditDescripcionFalla(e.target.value)}
+                  placeholder="¿Qué reporta el cliente?"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors h-20 resize-none bg-white"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Costo de Revisión / Diagnóstico (L.)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={editCostoRevision}
+                    onChange={(e) => setEditCostoRevision(e.target.value)}
+                    placeholder="Ej. 650"
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors font-bold text-slate-800 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Método de Pago (Revisión)
+                  </label>
+                  <select
+                    value={editMetodoPagoRevision}
+                    onChange={(e) => setEditMetodoPagoRevision(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-semibold"
+                  >
+                    <option value="Ninguno">Ninguno / Pendiente</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Link de pago de Occidente">Link de pago de Occidente</option>
+                    <option value="Cheque">Cheque</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Fotos Estado Físico (R2) */}
+              <div className="border-t border-slate-100 pt-4">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  Fotos Estado Físico (Evidencia)
+                </label>
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                  onClick={() => fileRef.current?.click()}
+                  className="border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 bg-slate-50 rounded-xl p-4 text-center cursor-pointer transition-colors"
+                >
+                  <input 
+                    ref={fileRef} 
+                    type="file" 
+                    multiple 
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={(e) => handleFiles(e.target.files)}
+                  />
+                  <UploadCloud className="w-6 h-6 mx-auto mb-2 text-slate-400" />
+                  <p className="text-xs text-slate-500 font-medium m-0">
+                    Click o arrastra fotos. <span className="text-indigo-600 font-bold">Evidencia física.</span>
+                  </p>
+                </div>
+
+                {/* Previsualización de imágenes */}
+                {(editExistingPhotos.length > 0 || editPhotos.length > 0) && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {/* Fotos Existentes */}
+                    {editExistingPhotos.map((url, i) => (
+                      <div key={`existing-${i}`} className="w-16 h-16 rounded-lg overflow-hidden border border-slate-200 relative group shrink-0">
+                        <img src={url} alt={`Evidencia existente ${i + 1}`} className="w-full h-full object-cover"/>
+                        <button 
+                          type="button"
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setEditExistingPhotos(prev => prev.filter((_, j) => j !== i)); 
+                          }}
+                          className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <span className="absolute bottom-0 inset-x-0 bg-slate-900/60 text-white text-[8px] text-center font-bold py-0.5">
+                          Guardada
+                        </span>
+                      </div>
+                    ))}
+
+                    {/* Fotos Nuevas */}
+                    {editPhotos.map((p, i) => (
+                      <div key={`new-${i}`} className="w-16 h-16 rounded-lg overflow-hidden border border-indigo-200 relative group shrink-0">
+                        <img src={p.url} alt={p.name} className="w-full h-full object-cover"/>
+                        <button 
+                          type="button"
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            setEditPhotos(prev => prev.filter((_, j) => j !== i)); 
+                          }}
+                          className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                        <span className="absolute bottom-0 inset-x-0 bg-indigo-600/80 text-white text-[8px] text-center font-bold py-0.5">
+                          Nueva
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-4 flex gap-3 justify-end border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  className="px-4 py-2.5 text-slate-600 font-medium hover:bg-slate-100 rounded-xl transition-colors text-sm"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingDatos || !editCliente || !editEquipoDano || !editDescripcionFalla}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[120px] text-sm"
+                >
+                  {savingDatos ? (
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    'Guardar Cambios'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
