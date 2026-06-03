@@ -154,27 +154,27 @@ function CardContextMenu({
         <div 
             ref={menuRef}
             onClick={(e) => e.stopPropagation()} 
-            className="absolute right-0 mt-1 w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-30 text-left animate-in fade-in duration-100"
+            className="absolute right-0 mt-1 w-52 sm:w-48 bg-white border border-slate-200 rounded-xl shadow-lg py-1.5 z-30 text-left animate-in fade-in duration-100"
         >
             {activeSubmenu === 'main' && (
                 <>
                     <button
                         onClick={() => setActiveSubmenu('status')}
-                        className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition flex items-center justify-between"
+                        className="w-full text-left px-4 py-2.5 sm:px-3 sm:py-1.5 text-sm sm:text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition flex items-center justify-between cursor-pointer"
                     >
                         <span>Cambiar estado</span>
-                        <ChevronRight className="h-3 w-3" />
+                        <ChevronRight className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
                     </button>
                     <button
                         onClick={() => setActiveSubmenu('space')}
-                        className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition flex items-center justify-between"
+                        className="w-full text-left px-4 py-2.5 sm:px-3 sm:py-1.5 text-sm sm:text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition flex items-center justify-between cursor-pointer"
                     >
                         <span>Mover actividad</span>
-                        <ChevronRight className="h-3 w-3" />
+                        <ChevronRight className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
                     </button>
                     <button
                         onClick={onDeleteClick}
-                        className="w-full text-left px-3 py-1.5 text-xs text-red-650 hover:bg-red-50 hover:text-red-750 transition"
+                        className="w-full text-left px-4 py-2.5 sm:px-3 sm:py-1.5 text-sm sm:text-xs text-red-650 hover:bg-red-50 hover:text-red-750 transition cursor-pointer"
                     >
                         Eliminar tarea
                     </button>
@@ -185,7 +185,7 @@ function CardContextMenu({
                 <>
                     <button
                         onClick={() => setActiveSubmenu('main')}
-                        className="w-full text-left px-3 py-1 text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-1 mb-1 hover:text-slate-600"
+                        className="w-full text-left px-4 py-2 sm:px-3 sm:py-1 text-xs sm:text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-1.5 mb-1 hover:text-slate-600 cursor-pointer"
                     >
                         ← Volver
                     </button>
@@ -196,7 +196,7 @@ function CardContextMenu({
                                 onStatusChange(col);
                                 onClose();
                             }}
-                            className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition truncate"
+                            className="w-full text-left px-4 py-2.5 sm:px-3 sm:py-1.5 text-sm sm:text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition truncate cursor-pointer"
                         >
                             {col}
                         </button>
@@ -208,7 +208,7 @@ function CardContextMenu({
                 <>
                     <button
                         onClick={() => setActiveSubmenu('main')}
-                        className="w-full text-left px-3 py-1 text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-1 mb-1 hover:text-slate-600"
+                        className="w-full text-left px-4 py-2 sm:px-3 sm:py-1 text-xs sm:text-[10px] font-bold text-slate-400 border-b border-slate-100 pb-1.5 mb-1 hover:text-slate-600 cursor-pointer"
                     >
                         ← Volver
                     </button>
@@ -219,14 +219,14 @@ function CardContextMenu({
                                 onSpaceChange(s.id);
                                 onClose();
                             }}
-                            className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition truncate"
+                            className="w-full text-left px-4 py-2.5 sm:px-3 sm:py-1.5 text-sm sm:text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition truncate cursor-pointer"
                             title={s.nombre}
                         >
                             {s.nombre} ({s.clave})
                         </button>
                     ))}
                     {spaces.filter(s => s.id !== currentSpaceId).length === 0 && (
-                        <p className="px-3 py-1.5 text-xs text-slate-400 italic">No hay otros espacios</p>
+                        <p className="px-4 py-2.5 sm:px-3 sm:py-1.5 text-sm sm:text-xs text-slate-400 italic">No hay otros espacios</p>
                     )}
                 </>
             )}
@@ -745,7 +745,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
     return (
         <div className="flex-1 flex flex-col min-h-screen bg-slate-50">
             {/* Cabecera del Espacio */}
-            <div className="bg-white border-b border-slate-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
+            <div className="bg-white border-b border-slate-200 px-4 py-3 md:px-6 md:py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
                 <div className="flex items-center gap-4">
                     <Link 
                         href="/kanban"
@@ -755,7 +755,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     </Link>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                            <h1 className="text-lg md:text-xl font-extrabold text-slate-900 flex items-center gap-2">
                                 {space.nombre}
                                 {space.acceso === 'Restringido' && (
                                     <span className="text-[10px] bg-red-50 border border-red-200 text-red-600 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5" title="Espacio Restringido">
@@ -772,7 +772,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 self-start md:self-center">
+                <div className="flex items-center gap-3 self-start md:self-center w-full md:w-auto">
                     {/* Botón "Gestionar Acceso" (solo si tiene permisos) */}
                     {initialData.currentUserCanManageAccess && (
                         <button
@@ -782,9 +782,9 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                 setSelectedMiembros(space.miembros?.map(m => m.id) || []);
                                 setIsAccessModalOpen(true);
                             }}
-                            className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-xs shadow-sm hover:shadow transition duration-200 cursor-pointer"
+                            className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold px-4 py-2.5 md:py-2 rounded-xl text-sm md:text-xs shadow-sm hover:shadow transition duration-200 cursor-pointer"
                         >
-                            <Users className="h-4 w-4 text-slate-500" />
+                            <Users className="h-4.5 w-4.5 md:h-4 md:w-4 text-slate-500" />
                             Gestionar Acceso
                         </button>
                     )}
@@ -792,29 +792,11 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     {/* Botón "+ Crear Tarea" */}
                     <button
                         onClick={() => setIsCreateModalOpen(true)}
-                        className="flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold px-4 py-2 rounded-xl text-xs shadow-sm hover:shadow transition duration-200 cursor-pointer"
+                        className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-4 py-2.5 md:py-2 rounded-xl text-sm md:text-xs shadow-sm hover:shadow transition duration-200 cursor-pointer"
                     >
-                        <Plus className="h-4 w-4" />
+                        <Plus className="h-4.5 w-4.5 md:h-4 md:w-4" />
                         Crear Tarea
                     </button>
-
-                    {/* Alternador de Pestañas */}
-                    <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
-                        <button
-                            onClick={() => setActiveTab('tablero')}
-                            className={`flex items-center gap-2 text-xs font-semibold px-4.5 py-1.5 rounded-lg transition ${activeTab === 'tablero' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                        >
-                            <Layout className="h-3.5 w-3.5" />
-                            Tablero
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('resumen')}
-                            className={`flex items-center gap-2 text-xs font-semibold px-4.5 py-1.5 rounded-lg transition ${activeTab === 'resumen' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
-                        >
-                            <BarChart2 className="h-3.5 w-3.5" />
-                            Resumen
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -822,16 +804,16 @@ export default function KanbanSpaceClient({ initialData }: Props) {
             {activeTab === 'tablero' && (
                 <div className="flex-1 flex flex-col overflow-hidden">
                     {/* Barra de Filtros */}
-                    <div className="bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-center gap-3 shrink-0">
+                    <div className="bg-white border-b border-slate-200 px-4 py-2.5 md:px-6 md:py-3 flex flex-wrap items-center gap-3 shrink-0">
                         {/* Buscador */}
                         <div className="relative w-full md:w-64">
-                            <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-3.5 md:w-3.5 text-slate-400" />
                             <input
                                 type="text"
                                 placeholder="Buscar por título o código..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:border-brand-500 focus:outline-none"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 md:py-2 text-sm md:text-xs text-slate-850 placeholder-slate-400 focus:border-brand-500 focus:outline-none"
                             />
                         </div>
 
@@ -839,7 +821,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                         <select
                             value={selectedType}
                             onChange={(e) => setSelectedType(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-brand-500"
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 md:py-2 text-sm md:text-xs text-slate-705 focus:outline-none focus:border-brand-500 cursor-pointer"
                         >
                             <option value="">Todos los Tipos</option>
                             {space.tiposActividad.map(t => (
@@ -851,7 +833,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                         <select
                             value={selectedPriority}
                             onChange={(e) => setSelectedPriority(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-brand-500"
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 md:py-2 text-sm md:text-xs text-slate-705 focus:outline-none focus:border-brand-500 cursor-pointer"
                         >
                             <option value="">Todas las Prioridades</option>
                             <option value="LOW">Baja</option>
@@ -864,7 +846,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                         <select
                             value={selectedAssignee}
                             onChange={(e) => setSelectedAssignee(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-700 focus:outline-none focus:border-brand-500"
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 md:py-2 text-sm md:text-xs text-slate-705 focus:outline-none focus:border-brand-500 cursor-pointer"
                         >
                             <option value="">Todos los Responsables</option>
                             <option value="unassigned">Sin asignar</option>
@@ -891,7 +873,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     </div>
 
                     {/* Columnas del Tablero Kanban */}
-                    <div className="flex-1 overflow-x-auto p-6 flex gap-6 items-start">
+                    <div className="flex-1 overflow-x-auto p-3.5 sm:p-6 flex gap-3.5 sm:gap-6 items-start">
                         {columnas.map((columna) => {
                             const columnTasks = filteredTasks.filter(t => t.status === columna);
 
@@ -918,13 +900,13 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                     key={columna}
                                     onDragOver={handleDragOver}
                                     onDrop={(e) => handleDrop(e, columna)}
-                                    className="w-80 shrink-0 bg-slate-100/60 border border-slate-200 rounded-2xl p-4 flex flex-col max-h-[calc(100vh-190px)]"
+                                    className="w-[86vw] xs:w-[325px] sm:w-80 shrink-0 bg-slate-100/60 border border-slate-200 rounded-2xl p-3.5 sm:p-4 flex flex-col max-h-[calc(100vh-170px)] sm:max-h-[calc(100vh-190px)]"
                                 >
                                     {/* Cabecera Columna */}
                                     <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 group/header">
                                         <div className="flex items-center gap-2">
-                                            <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">{columna}</span>
-                                            <span className="text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-full font-bold">
+                                            <span className="text-sm sm:text-xs font-extrabold text-slate-800 uppercase tracking-wider">{columna}</span>
+                                            <span className="text-xs sm:text-[10px] bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded-full font-bold">
                                                 {columnTasks.length}
                                             </span>
                                             {isDoneColumn(columna) && (
@@ -939,7 +921,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                     setColumnToDelete(columna);
                                                 }}
                                                 title="Eliminar Columna"
-                                                className="opacity-0 group-hover/header:opacity-100 p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md transition duration-150"
+                                                className="opacity-0 group-hover/header:opacity-100 p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md transition duration-150 cursor-pointer"
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
                                             </button>
@@ -959,21 +941,28 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                     draggable
                                                     onDragStart={(e) => handleDragStart(e, task.id)}
                                                     onClick={() => setSelectedTask(task)}
-                                                    className="bg-white border border-slate-200 hover:border-brand-500/40 hover:shadow-md rounded-xl p-3.5 shadow-sm cursor-grab active:cursor-grabbing transition duration-150 group"
+                                                    className="relative bg-white border border-slate-200 hover:border-brand-500/30 hover:shadow-md rounded-xl p-4 sm:p-3.5 pl-5.5 sm:pl-4.5 shadow-sm cursor-grab active:cursor-grabbing transition duration-150 group"
                                                 >
-                                                    <div className="space-y-2.5">
-                                                        <div className="flex items-start justify-between gap-2">
+                                                    {/* Indicador de Prioridad Lateral */}
+                                                    <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${
+                                                        task.priority === 'URGENT' ? 'bg-red-500' :
+                                                        task.priority === 'HIGH' ? 'bg-amber-500' :
+                                                        task.priority === 'MEDIUM' ? 'bg-brand-500' :
+                                                        'bg-slate-300'
+                                                    }`} />
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between gap-2">
                                                             {/* Tipo de Tarea */}
                                                             <div className="flex items-center gap-1.5">
                                                                 {getTypeIcon(task.type)}
-                                                                <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider ${getTypeBadgeClass(task.type)}`}>
+                                                                <span className={`text-[9.5px] sm:text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${getTypeBadgeClass(task.type)}`}>
                                                                     {task.type}
                                                                 </span>
                                                             </div>
 
                                                             {/* Código Tarea y Menú de Tres Puntos */}
                                                             <div className="flex items-center gap-1">
-                                                                <span className="text-[9px] font-bold font-mono text-slate-400 group-hover:text-brand-600 transition">
+                                                                <span className="text-xs sm:text-[9px] font-bold font-mono text-slate-400 group-hover:text-brand-600 transition-colors">
                                                                     {task.codigo}
                                                                 </span>
                                                                 <div className="relative">
@@ -982,9 +971,9 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                             e.stopPropagation();
                                                                             setActiveCardMenuTaskId(activeCardMenuTaskId === task.id ? null : task.id);
                                                                         }}
-                                                                        className="p-1 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-700 transition cursor-pointer"
+                                                                        className="p-2 sm:p-1 hover:bg-slate-100 active:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition cursor-pointer"
                                                                     >
-                                                                        <MoreHorizontal className="h-3.5 w-3.5" />
+                                                                        <MoreHorizontal className="h-4.5 w-4.5 sm:h-3.5 sm:w-3.5" />
                                                                     </button>
 
                                                                     {/* Menú Popup Contextual */}
@@ -1013,7 +1002,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                         </div>
 
                                                         {/* Título */}
-                                                        <h4 className="text-xs font-bold text-slate-800 line-clamp-2 leading-relaxed">
+                                                        <h4 className="text-sm sm:text-xs font-bold text-slate-800 line-clamp-2 leading-relaxed group-hover:text-brand-900 transition-colors">
                                                             {task.title}
                                                         </h4>
 
@@ -1030,7 +1019,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                             return (
                                                                                 <div
                                                                                     key={u.id}
-                                                                                    className="inline-block h-5 w-5 rounded-full ring-2 ring-white bg-brand-50 border border-brand-100 flex items-center justify-center text-[8px] font-bold text-brand-700 uppercase overflow-hidden relative shrink-0"
+                                                                                    className="inline-block h-6 w-6 sm:h-5 sm:w-5 rounded-full ring-2 ring-white bg-brand-50 border border-brand-100 flex items-center justify-center text-[9px] sm:text-[8px] font-bold text-brand-700 uppercase overflow-hidden relative shrink-0"
                                                                                     title={u.nombre}
                                                                                 >
                                                                                     {u.avatarUrl ? (
@@ -1042,12 +1031,12 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                             );
                                                                         })
                                                                     ) : (
-                                                                        <div className="h-5 w-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[8px] text-slate-400 font-bold" title="Sin asignar">
+                                                                        <div className="h-6 w-6 sm:h-5 sm:w-5 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] sm:text-[8px] text-slate-400 font-bold" title="Sin asignar">
                                                                             ?
                                                                         </div>
                                                                     )}
                                                                 </div>
-                                                                <span className="truncate max-w-[85px] text-[10px] font-medium">
+                                                                <span className="truncate max-w-[110px] sm:max-w-[85px] text-xs sm:text-[10px] font-medium text-slate-650">
                                                                     {task.asignados && task.asignados.length > 0
                                                                         ? (task.asignados.length === 1 ? task.asignados[0].nombre : `${task.asignados.length} asignados`)
                                                                         : 'Sin asignar'}
@@ -1055,13 +1044,13 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                             </div>
 
                                                             {/* Prioridad y Check si es LISTO */}
-                                                            <div className="flex items-center gap-1.5">
+                                                            <div className="flex items-center gap-1.5 shrink-0">
                                                                 {isDoneColumn(columna) && (
-                                                                    <div className="h-4.5 w-4.5 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center text-emerald-600" title="Completado">
-                                                                        <Check className="h-3 w-3 stroke-[3]" />
+                                                                    <div className="h-5 w-5 sm:h-4.5 sm:w-4.5 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center text-emerald-600" title="Completado">
+                                                                        <Check className="h-3.5 w-3.5 sm:h-3 sm:w-3 stroke-[3]" />
                                                                     </div>
                                                                 )}
-                                                                <span className={`border px-1.5 py-0.5 rounded text-[8px] font-extrabold ${getPriorityBadgeClass(task.priority)}`}>
+                                                                <span className={`border px-2 py-0.5 rounded text-[9.5px] sm:text-[8px] font-extrabold uppercase tracking-wider ${getPriorityBadgeClass(task.priority)}`}>
                                                                     {task.priority === 'URGENT' ? 'Urgente' : 
                                                                      task.priority === 'HIGH' ? 'Alta' : 
                                                                      task.priority === 'MEDIUM' ? 'Media' : 'Baja'}
@@ -1133,9 +1122,9 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                     setNewType('Task');
                                                     setNewPriority('MEDIUM');
                                                 }}
-                                                className="w-full flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-600 hover:text-slate-800 font-semibold py-1.5 rounded-xl text-xs transition shadow-sm"
+                                                className="w-full flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-650 hover:text-slate-850 font-bold py-2.5 sm:py-1.5 rounded-xl text-sm sm:text-xs transition shadow-sm cursor-pointer"
                                             >
-                                                <Plus className="h-3.5 w-3.5" />
+                                                <Plus className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
                                                 Crear tarea
                                             </button>
                                         )}
@@ -1184,9 +1173,9 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                         setNewColumnName('');
                                     }}
                                     title="Agregar Columna"
-                                    className="h-10 w-10 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 hover:border-brand-500/40 rounded-xl text-slate-500 hover:text-brand-600 transition shadow-sm"
+                                    className="h-11 w-11 sm:h-10 sm:w-10 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-200 hover:border-brand-500/40 rounded-xl text-slate-500 hover:text-brand-600 transition shadow-sm cursor-pointer"
                                 >
-                                    <Plus className="h-5 w-5" />
+                                    <Plus className="h-5.5 w-5.5 sm:h-5 sm:w-5" />
                                 </button>
                             )}
                         </div>
