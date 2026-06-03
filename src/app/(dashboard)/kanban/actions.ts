@@ -832,11 +832,76 @@ export async function deleteKanbanComment(commentId: string) {
             where: { id: commentId }
         });
 
+        // Registrar auditoría
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId: comment.task.spaceId,
+                taskId: comment.taskId,
+                usuarioId: user.id,
+                accion: 'ELIMINACION',
+                detalles: `Eliminó un comentario (contenido anterior: "${comment.contenido.substring(0, 100)}")`
+            }
+        });
+
         revalidatePath(`/kanban/${comment.task.spaceId}`);
         return { success: true };
     } catch (e: any) {
         console.error("deleteKanbanComment Error:", e);
         return { success: false, error: e.message || 'Error al eliminar comentario' };
+    }
+}
+
+// 13b. Editar un comentario
+export async function updateKanbanComment(commentId: string, nuevoContenido: string) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        const comment = await prisma.kanbanComment.findUnique({
+            where: { id: commentId },
+            include: { task: true }
+        });
+
+        if (!comment) throw new Error('Comentario no encontrado');
+        if (comment.task.organizationId !== org.id) throw new Error('No autorizado');
+
+        const isAuthor = comment.usuarioId === user.id;
+        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+
+        if (!isAuthor && !isAdmin) {
+            throw new Error('No tienes permiso para editar este comentario');
+        }
+
+        const oldContenido = comment.contenido;
+        const updated = await prisma.kanbanComment.update({
+            where: { id: commentId },
+            data: {
+                contenido: nuevoContenido.trim()
+            }
+        });
+
+        // Registrar auditoría
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId: comment.task.spaceId,
+                taskId: comment.taskId,
+                usuarioId: user.id,
+                accion: 'ACTUALIZACION',
+                detalles: `Editó un comentario (antes: "${oldContenido.substring(0, 100)}")`
+            }
+        });
+
+        revalidatePath(`/kanban/${comment.task.spaceId}`);
+        return { 
+            success: true, 
+            comment: {
+                id: updated.id,
+                contenido: updated.contenido,
+                createdAt: updated.createdAt.toISOString()
+            }
+        };
+    } catch (e: any) {
+        console.error("updateKanbanComment Error:", e);
+        return { success: false, error: e.message || 'Error al editar comentario' };
     }
 }
 

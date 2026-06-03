@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { UploadCloud, Check, X, Wrench, Snowflake, Tags } from 'lucide-react';
+import { compressImage } from '@/utils/image';
 
 type ReceptionFormProps = {
   onSave: (data: any) => Promise<void>;
@@ -71,12 +72,20 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
       const uploadedUrls = [];
       for (const photo of photos) {
         try {
+            let fileToUpload = photo.file;
+            if (photo.file.type.startsWith('image/')) {
+                try {
+                    fileToUpload = await compressImage(photo.file);
+                } catch (compErr) {
+                    console.error("Compression error:", compErr);
+                }
+            }
             // Fetch pre-signed URL from our endpoint
-            const contentType = photo.file.type || 'application/octet-stream';
+            const contentType = fileToUpload.type || 'application/octet-stream';
             const res = await fetch('/api/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: photo.name, contentType })
+                body: JSON.stringify({ fileName: fileToUpload.name, contentType })
             });
             if (!res.ok) {
                 const errData = await res.json().catch(()=>({}));
@@ -87,7 +96,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
             // Upload file to R2
             const uploadRes = await fetch(uploadUrl, {
                 method: 'PUT',
-                body: photo.file,
+                body: fileToUpload,
                 headers: { 'Content-Type': contentType }
             });
             

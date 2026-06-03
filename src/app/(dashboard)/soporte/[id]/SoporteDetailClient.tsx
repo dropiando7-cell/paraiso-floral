@@ -9,6 +9,7 @@ import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Ca
 import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import { compressImage } from '@/utils/image';
 
 type Orden = any;
 
@@ -105,11 +106,19 @@ export default function SoporteDetailClient({
       const uploadedUrls: string[] = [];
       for (const photo of editPhotos) {
         try {
-          const contentType = photo.file.type || 'application/octet-stream';
+          let fileToUpload = photo.file;
+          if (photo.file.type.startsWith('image/')) {
+            try {
+              fileToUpload = await compressImage(photo.file);
+            } catch (compErr) {
+              console.error("Compression error:", compErr);
+            }
+          }
+          const contentType = fileToUpload.type || 'application/octet-stream';
           const res = await fetch('/api/upload', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fileName: photo.name, contentType })
+            body: JSON.stringify({ fileName: fileToUpload.name, contentType })
           });
           if (!res.ok) {
             const errData = await res.json().catch(()=>({}));
@@ -119,7 +128,7 @@ export default function SoporteDetailClient({
           
           const uploadRes = await fetch(uploadUrl, {
             method: 'PUT',
-            body: photo.file,
+            body: fileToUpload,
             headers: { 'Content-Type': contentType }
           });
           

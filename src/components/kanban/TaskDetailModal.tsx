@@ -22,13 +22,16 @@ import {
     Loader2,
     Camera,
     Users,
-    SlidersHorizontal
+    SlidersHorizontal,
+    Pencil
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { compressImage } from '@/utils/image';
 import { 
     getTaskCommentsAndAttachments, 
     createKanbanComment, 
     deleteKanbanComment, 
+    updateKanbanComment,
     createKanbanAttachment, 
     deleteKanbanAttachment 
 } from '@/app/(dashboard)/kanban/actions';
@@ -122,6 +125,8 @@ export default function TaskDetailModal({
     const [newComment, setNewComment] = useState("");
     const [isUploading, setIsUploading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
+    const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+    const [editingCommentText, setEditingCommentText] = useState("");
 
     // Estados para cámara web
     const [showCameraModal, setShowCameraModal] = useState(false);
@@ -242,13 +247,22 @@ export default function TaskDetailModal({
 
         setIsUploading(true);
         try {
+            let fileToUpload = file;
+            if (file.type.startsWith('image/')) {
+                try {
+                    fileToUpload = await compressImage(file);
+                } catch (compErr) {
+                    console.error("Compression error:", compErr);
+                }
+            }
+
             // 1. Obtener URL pre-firmada de subida
             const response = await fetch('/api/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    fileName: file.name,
-                    contentType: file.type,
+                    fileName: fileToUpload.name,
+                    contentType: fileToUpload.type,
                 }),
             });
 
@@ -259,9 +273,9 @@ export default function TaskDetailModal({
             const uploadResponse = await fetch(uploadUrl, {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': file.type,
+                    'Content-Type': fileToUpload.type,
                 },
-                body: file,
+                body: fileToUpload,
             });
 
             if (!uploadResponse.ok) throw new Error('Error al subir el archivo');
@@ -269,10 +283,10 @@ export default function TaskDetailModal({
             // 3. Guardar registro en la base de datos
             const dbRes = await createKanbanAttachment({
                 taskId: task.id,
-                nombre: file.name,
+                nombre: fileToUpload.name,
                 url: publicUrl,
-                tipo: file.type,
-                tamano: file.size
+                tipo: fileToUpload.type,
+                tamano: fileToUpload.size
             });
 
             if (dbRes.success && dbRes.attachment) {
@@ -334,18 +348,40 @@ export default function TaskDetailModal({
     };
 
     const handleDeleteComment = async (commentId: string) => {
-        if (!window.confirm('¿Confirmas que deseas eliminar este comentario?')) return;
+        if (!window.confirm('¿Estás seguro de que deseas eliminar este comentario? Esta acción es irreversible.')) return;
         try {
             const res = await deleteKanbanComment(commentId);
             if (res.success) {
                 setComments(prev => prev.filter(c => c.id !== commentId));
                 toast.success('Comentario eliminado');
+                // Recargar adjuntos y comentarios (incluyendo historial de actividades)
+                loadCommentsAndAttachments();
             } else {
                 toast.error(res.error || 'Error al eliminar comentario');
             }
         } catch (error) {
             console.error("Error al eliminar comentario:", error);
             toast.error('Error al eliminar comentario');
+        }
+    };
+
+    const handleUpdateComment = async (commentId: string) => {
+        if (!editingCommentText.trim()) return;
+        try {
+            const res = await updateKanbanComment(commentId, editingCommentText);
+            if (res.success && res.comment) {
+                setComments(prev => prev.map(c => c.id === commentId ? { ...c, contenido: res.comment.contenido } : c));
+                setEditingCommentId(null);
+                setEditingCommentText("");
+                toast.success('Comentario actualizado');
+                // Recargar adjuntos y comentarios (incluyendo historial de actividades)
+                loadCommentsAndAttachments();
+            } else {
+                toast.error(res.error || 'Error al actualizar comentario');
+            }
+        } catch (error) {
+            console.error("Error al actualizar comentario:", error);
+            toast.error('Error al actualizar comentario');
         }
     };
 
@@ -673,27 +709,73 @@ export default function TaskDetailModal({
                                                         ? comm.usuario.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
                                                         : '?';
                                                     return (
-                                                        <div key={comm.id} className="flex gap-2.5 items-start group">
+                                                        <div key={comm.id} className="flex gap-2.5 items-start group animate-in fade-in duration-200">
                                                             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-500 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm">
                                                                 {initials}
                                                             </div>
                                                             <div className="flex-1 bg-slate-50/60 border border-slate-100 rounded-xl px-3.5 py-2 hover:bg-slate-50 transition relative">
                                                                 <div className="flex items-center justify-between gap-2 mb-1">
                                                                     <span className="text-[10px] font-bold text-slate-800">{comm.usuario.nombre}</span>
-                                                                    <span className="text-[9px] text-slate-400">
+                                                                    <span className="text-[9px] text-slate-400 font-mono">
                                                                         {new Date(comm.createdAt).toLocaleDateString()} {new Date(comm.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                                     </span>
                                                                 </div>
-                                                                <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">{comm.contenido}</p>
                                                                 
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleDeleteComment(comm.id)}
-                                                                    className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition p-1 hover:bg-slate-150 rounded text-slate-400 hover:text-red-600"
-                                                                    title="Eliminar comentario"
-                                                                >
-                                                                    <Trash2 className="h-3 w-3" />
-                                                                </button>
+                                                                {editingCommentId === comm.id ? (
+                                                                    <div className="mt-2 space-y-2">
+                                                                        <textarea
+                                                                            value={editingCommentText}
+                                                                            onChange={(e) => setEditingCommentText(e.target.value)}
+                                                                            rows={2}
+                                                                            className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 focus:border-brand-500 focus:outline-none shadow-sm"
+                                                                        />
+                                                                        <div className="flex gap-2">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleUpdateComment(comm.id)}
+                                                                                className="bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg transition shadow-sm active:scale-95"
+                                                                            >
+                                                                                Guardar
+                                                                            </button>
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setEditingCommentId(null);
+                                                                                    setEditingCommentText("");
+                                                                                }}
+                                                                                className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 text-[10px] font-bold px-3 py-1.5 rounded-lg transition"
+                                                                            >
+                                                                                Cancelar
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed mt-1">{comm.contenido}</p>
+                                                                )}
+                                                                
+                                                                {editingCommentId !== comm.id && (
+                                                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition flex gap-1 z-10">
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                setEditingCommentId(comm.id);
+                                                                                setEditingCommentText(comm.contenido);
+                                                                            }}
+                                                                            className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-brand-600 transition"
+                                                                            title="Editar comentario"
+                                                                        >
+                                                                            <Pencil className="h-3 w-3" />
+                                                                        </button>
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleDeleteComment(comm.id)}
+                                                                            className="p-1 hover:bg-slate-200 rounded text-slate-400 hover:text-red-600 transition"
+                                                                            title="Eliminar comentario"
+                                                                        >
+                                                                            <Trash2 className="h-3 w-3" />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     );

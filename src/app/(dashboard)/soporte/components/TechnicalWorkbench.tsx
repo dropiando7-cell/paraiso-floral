@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Settings, X, UploadCloud, Save, Search, Loader2 } from 'lucide-react';
 import { searchRepuestos, guardarDiagnostico } from '../actions';
 import { useRouter } from 'next/navigation';
+import { compressImage } from '@/utils/image';
 
 type TechnicalWorkbenchProps = {
   orderData: any;
@@ -99,18 +100,26 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                 uploadedUrls.push(photo.url);
                 continue;
             }
-            const contentType = photo.file.type || 'application/octet-stream';
+            let fileToUpload = photo.file;
+            if (photo.file.type.startsWith('image/')) {
+                try {
+                    fileToUpload = await compressImage(photo.file);
+                } catch (compErr) {
+                    console.error("Compression error:", compErr);
+                }
+            }
+            const contentType = fileToUpload.type || 'application/octet-stream';
             const res = await fetch('/api/upload', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ fileName: photo.name, contentType })
+                body: JSON.stringify({ fileName: fileToUpload.name, contentType })
             });
             if (!res.ok) throw new Error("Error servidor URL");
             const { uploadUrl, publicUrl } = await res.json();
             
             const uploadRes = await fetch(uploadUrl, {
                 method: 'PUT',
-                body: photo.file,
+                body: fileToUpload,
                 headers: { 'Content-Type': contentType }
             });
             if (!uploadRes.ok) throw new Error("Error Cloudflare R2");
