@@ -18,7 +18,9 @@ import {
     Check,
     MoreHorizontal,
     ChevronRight,
-    Trash2
+    Trash2,
+    Lock,
+    Users
 } from 'lucide-react';
 import { 
     createKanbanTask, 
@@ -27,11 +29,13 @@ import {
     deleteKanbanTask,
     addColumnToSpace,
     deleteColumnFromSpace,
-    moveTaskToSpace
+    moveTaskToSpace,
+    updateSpaceMembers
 } from '../actions';
 import TaskDetailModal from '@/components/kanban/TaskDetailModal';
 import CreateTaskModal from '@/components/kanban/CreateTaskModal';
 import { toast } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 interface Task {
     id: string;
@@ -71,6 +75,7 @@ interface Activity {
 interface Member {
     id: string;
     nombre: string;
+    email?: string;
     avatarUrl: string | null;
 }
 
@@ -80,6 +85,14 @@ interface Space {
     clave: string;
     columnas: string[];
     tiposActividad: string[];
+    acceso?: string;
+    miembros?: {
+        id: string;
+        nombre: string;
+        email: string;
+        avatarUrl: string | null;
+    }[];
+    creadoPorId?: string | null;
 }
 
 interface Props {
@@ -90,6 +103,7 @@ interface Props {
         activities: Activity[];
         members: Member[];
         currentUserRole?: string;
+        currentUserCanManageAccess?: boolean;
     };
 }
 
@@ -222,6 +236,7 @@ function CardContextMenu({
 
 export default function KanbanSpaceClient({ initialData }: Props) {
     const space = initialData.space;
+    const router = useRouter();
     const [tasks, setTasks] = useState<Task[]>(initialData.tasks);
     const [activities, setActivities] = useState<Activity[]>(initialData.activities);
     const [members] = useState<Member[]>(initialData.members);
@@ -234,6 +249,31 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
     const [activeTab, setActiveTab] = useState<'tablero' | 'resumen'>('tablero');
     const [isPending, startTransition] = useTransition();
+
+    // Modal de Gestión de Accesos
+    const [isAccessModalOpen, setIsAccessModalOpen] = useState(false);
+    const [accessType, setAccessType] = useState(space.acceso || 'Abierto');
+    const [selectedMiembros, setSelectedMiembros] = useState<string[]>(
+        space.miembros?.map(m => m.id) || []
+    );
+    const [accessSearchTerm, setAccessSearchTerm] = useState('');
+
+    const handleSaveAccess = () => {
+        startTransition(async () => {
+            const res = await updateSpaceMembers(
+                space.id,
+                accessType,
+                accessType === 'Restringido' ? selectedMiembros : []
+            );
+            if (res.success) {
+                toast.success('Accesos actualizados correctamente.');
+                setIsAccessModalOpen(false);
+                router.refresh();
+            } else {
+                toast.error(res.error || 'Error al actualizar accesos.');
+            }
+        });
+    };
 
     // Filtros
     const [search, setSearch] = useState('');
@@ -715,8 +755,16 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     </Link>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h1 className="text-xl font-extrabold text-slate-900">{space.nombre}</h1>
-                            <span className="text-[10px] bg-brand-50 border border-brand-200 text-brand-600 font-mono font-bold px-2 py-0.5 rounded">
+                            <h1 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                                {space.nombre}
+                                {space.acceso === 'Restringido' && (
+                                    <span className="text-[10px] bg-red-50 border border-red-200 text-red-600 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5" title="Espacio Restringido">
+                                        <Lock className="h-2.5 w-2.5" />
+                                        Restringido
+                                    </span>
+                                )}
+                            </h1>
+                            <span className="text-[10px] bg-brand-50 border border-brand-200 text-brand-600 font-mono font-bold px-2 py-0.5 rounded shrink-0">
                                 {space.clave}
                             </span>
                         </div>
@@ -725,6 +773,22 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                 </div>
 
                 <div className="flex items-center gap-3 self-start md:self-center">
+                    {/* Botón "Gestionar Acceso" (solo si tiene permisos) */}
+                    {initialData.currentUserCanManageAccess && (
+                        <button
+                            onClick={() => {
+                                // Sincronizar estado inicial al abrir modal
+                                setAccessType(space.acceso || 'Abierto');
+                                setSelectedMiembros(space.miembros?.map(m => m.id) || []);
+                                setIsAccessModalOpen(true);
+                            }}
+                            className="flex items-center justify-center gap-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-xl text-xs shadow-sm hover:shadow transition duration-200 cursor-pointer"
+                        >
+                            <Users className="h-4 w-4 text-slate-500" />
+                            Gestionar Acceso
+                        </button>
+                    )}
+
                     {/* Botón "+ Crear Tarea" */}
                     <button
                         onClick={() => setIsCreateModalOpen(true)}
@@ -1317,6 +1381,156 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                 className="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-4 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5"
                             >
                                 {isPending ? 'Eliminando...' : 'Eliminar Columna'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Modal de Gestión de Accesos */}
+            {isAccessModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-xl overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                        {/* Cabecera */}
+                        <div className="px-6 py-5 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 rounded-xl bg-brand-50 text-brand-600">
+                                    <Users className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-slate-900">Gestionar Accesos del Espacio</h3>
+                                    <p className="text-[11px] text-slate-400">Controla quién puede visualizar e interactuar en este tablero.</p>
+                                </div>
+                            </div>
+                            <button 
+                                onClick={() => setIsAccessModalOpen(false)}
+                                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition"
+                            >
+                                <X className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Contenido */}
+                        <div className="p-6 space-y-5 overflow-y-auto max-h-[60vh]">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">Tipo de Acceso</label>
+                                <select
+                                    value={accessType}
+                                    onChange={(e) => setAccessType(e.target.value)}
+                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:border-brand-500 focus:outline-none text-sm"
+                                >
+                                    <option value="Abierto">Abierto (Toda la Org)</option>
+                                    <option value="Restringido">Restringido</option>
+                                </select>
+                            </div>
+
+                            {accessType === 'Restringido' && (
+                                <div className="space-y-3 pt-1 animate-in fade-in duration-200">
+                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
+                                        Miembros con Acceso Autorizado
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={accessSearchTerm}
+                                            onChange={(e) => setAccessSearchTerm(e.target.value)}
+                                            placeholder="Buscar por nombre o correo..."
+                                            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-xs text-slate-800 placeholder-slate-400 focus:bg-white focus:border-brand-500 focus:outline-none transition"
+                                        />
+                                        <Search className="absolute left-3.5 top-2.5 h-4 w-4 text-slate-400" />
+                                    </div>
+
+                                    {/* Miembros Seleccionados como Tags */}
+                                    {selectedMiembros.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded-xl max-h-24 overflow-y-auto animate-in fade-in duration-200">
+                                            {selectedMiembros.map(id => {
+                                                const m = members.find(u => u.id === id);
+                                                if (!m) return null;
+                                                return (
+                                                    <span 
+                                                        key={id}
+                                                        className="inline-flex items-center gap-1 bg-brand-50 border border-brand-200 text-brand-700 text-[11px] font-semibold px-2 py-0.5 rounded-lg"
+                                                    >
+                                                        <div className="h-4 w-4 rounded-full bg-brand-100 text-brand-850 flex items-center justify-center text-[9px] uppercase overflow-hidden shrink-0">
+                                                            {m.avatarUrl ? (
+                                                                <img src={m.avatarUrl} alt={m.nombre} className="h-full w-full object-cover" />
+                                                            ) : (
+                                                                m.nombre.substring(0, 2)
+                                                            )}
+                                                        </div>
+                                                        <span className="truncate max-w-[120px]">{m.nombre}</span>
+                                                        <button 
+                                                            type="button"
+                                                            onClick={() => setSelectedMiembros(selectedMiembros.filter(uid => uid !== id))}
+                                                            className="hover:bg-brand-200/80 rounded p-0.5 text-brand-500 hover:text-brand-800 transition"
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </button>
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+
+                                    <div className="border border-slate-200 rounded-xl max-h-56 overflow-y-auto divide-y divide-slate-100 bg-white">
+                                        {members
+                                            .filter(m => m.id !== space.creadoPorId && (m.nombre.toLowerCase().includes(accessSearchTerm.toLowerCase()) || m.email?.toLowerCase().includes(accessSearchTerm.toLowerCase())))
+                                            .map(m => {
+                                                const isSelected = selectedMiembros.includes(m.id);
+                                                return (
+                                                    <div 
+                                                        key={m.id}
+                                                        onClick={() => {
+                                                            if (isSelected) {
+                                                                setSelectedMiembros(selectedMiembros.filter(id => id !== m.id));
+                                                            } else {
+                                                                setSelectedMiembros([...selectedMiembros, m.id]);
+                                                            }
+                                                        }}
+                                                        className={`flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition ${isSelected ? 'bg-brand-50/30' : ''}`}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="h-8 w-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold border border-slate-200 uppercase overflow-hidden shrink-0">
+                                                                {m.avatarUrl ? (
+                                                                    <img src={m.avatarUrl} alt={m.nombre} className="h-full w-full object-cover" />
+                                                                ) : (
+                                                                    m.nombre.substring(0, 2)
+                                                                )}
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-xs font-semibold text-slate-800 block leading-tight">{m.nombre}</span>
+                                                                {m.email && <span className="text-[10px] text-slate-400">{m.email}</span>}
+                                                            </div>
+                                                        </div>
+                                                        <div className={`h-4.5 w-4.5 rounded border flex items-center justify-center transition-all shrink-0 ${isSelected ? 'bg-brand-600 border-brand-600 text-white font-bold' : 'border-slate-300'}`}>
+                                                            {isSelected && <span className="text-[10px]">✓</span>}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                    </div>
+                                    <p className="text-[10px] text-slate-400">
+                                        * Super administradores, Ing. Emilia Zapata y el creador del espacio tienen acceso total garantizado por defecto.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Botones de Acción */}
+                        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setIsAccessModalOpen(false)}
+                                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-xs transition"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleSaveAccess}
+                                disabled={isPending}
+                                className="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-xs transition disabled:opacity-50 flex items-center justify-center min-w-[100px]"
+                            >
+                                {isPending ? 'Guardando...' : 'Guardar Cambios'}
                             </button>
                         </div>
                     </div>

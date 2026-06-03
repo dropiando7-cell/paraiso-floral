@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { User, Organization, Role, RoleTemplate } from '@prisma/client';
 import { createUser, deleteUser, editUser, createRoleTemplate, updateRoleTemplate, deleteRoleTemplate, sendManualWelcomeEmail } from './actions';
-import { Plus, Trash2, Pencil, ShieldAlert, Check, X, Building2, Shield, User as UserIcon, Tag, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Mail, Loader2 } from 'lucide-react';
+import { Plus, Trash2, Pencil, ShieldAlert, Check, X, Building2, Shield, User as UserIcon, Tag, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Mail, Loader2, Key } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 type UserWithOrg = User & { organization: Organization };
@@ -41,6 +41,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     const [customRoleName, setCustomRoleName] = useState<string | null>(null);
     const [organizationId, setOrganizationId] = useState(organizations[0]?.id || '');
     const [accessibleModules, setAccessibleModules] = useState<string[]>([]);
+    const [puedeAsignarEspacios, setPuedeAsignarEspacios] = useState(false);
 
     // Form State for Role Template
     const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
@@ -181,6 +182,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setCustomRoleName(null);
         setOrganizationId(organizations[0]?.id || '');
         setError(null);
+        setPuedeAsignarEspacios(false);
         setIsModalOpen(true);
     };
 
@@ -193,6 +195,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setCustomRoleName(user.customRoleName || null);
         setOrganizationId(user.organizationId);
         setAccessibleModules(user.accessibleModules || []);
+        setPuedeAsignarEspacios(user.puedeAsignarEspacios || false);
         setError(null);
         setIsModalOpen(true);
     };
@@ -203,7 +206,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setError(null);
 
         if (editingUserId) {
-            const res = await editUser(editingUserId, { role, customRoleName, organizationId, accessibleModules });
+            const res = await editUser(editingUserId, { role, customRoleName, organizationId, accessibleModules, puedeAsignarEspacios });
             if (!res.success) {
                 setError(res.error || 'Ocurrió un error al editar');
                 setLoading(false);
@@ -218,7 +221,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 role,
                 customRoleName,
                 organizationId,
-                accessibleModules
+                accessibleModules,
+                puedeAsignarEspacios
             });
             if (!res.success) {
                 setError(res.error || 'Ocurrió un error al crear');
@@ -404,6 +408,14 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                             <Shield className="w-3 h-3" />
                                             {u.customRoleName || roleTextMapping[u.role] || u.role}
                                         </span>
+                                        {(u.puedeAsignarEspacios || u.role === 'SUPER_ADMIN' || u.email === 'emilia.zapata@bioelectronicahn.com') && (
+                                            <div className="mt-1">
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Puede gestionar accesos a espacios restringidos en Kanban">
+                                                    <Key className="w-2.5 h-2.5" />
+                                                    Acceso Kanban
+                                                </span>
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 text-slate-600 flex items-center gap-2">
                                         <Building2 className="w-4 h-4 text-slate-400" />
@@ -725,6 +737,21 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                             </option>
                                         ))}
                                     </select>
+                                </div>
+
+                                <div>
+                                    <label className="flex items-start gap-3 cursor-pointer p-3 hover:bg-slate-50 rounded-xl transition-colors border border-slate-200 bg-white">
+                                        <input
+                                            type="checkbox"
+                                            checked={puedeAsignarEspacios}
+                                            onChange={(e) => setPuedeAsignarEspacios(e.target.checked)}
+                                            className="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                                        />
+                                        <div>
+                                            <span className="text-sm font-semibold text-slate-700 leading-tight">Gestionar Accesos Kanban</span>
+                                            <p className="text-xs text-slate-500 mt-0.5">Permite crear espacios restringidos y seleccionar qué usuarios tienen acceso.</p>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
 

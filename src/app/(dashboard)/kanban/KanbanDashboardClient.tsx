@@ -16,7 +16,8 @@ import {
     Trello as KanbanIcon,
     Archive,
     ArchiveRestore,
-    AlertTriangle
+    AlertTriangle,
+    Search
 } from 'lucide-react';
 import { createSpace, archiveSpace } from './actions';
 import { toast } from 'react-hot-toast';
@@ -30,13 +31,28 @@ interface Space {
     taskCount: number;
     createdAt: string;
     archivado: boolean;
+    acceso?: string;
+}
+
+interface OrganizationMember {
+    id: string;
+    nombre: string;
+    email: string;
+    avatarUrl: string | null;
 }
 
 interface Props {
     initialSpaces: Space[];
+    currentUser: {
+        id: string;
+        email: string;
+        role: string;
+        puedeAsignarEspacios: boolean;
+    };
+    organizationMembers: OrganizationMember[];
 }
 
-export default function KanbanDashboardClient({ initialSpaces }: Props) {
+export default function KanbanDashboardClient({ initialSpaces, currentUser, organizationMembers }: Props) {
     const router = useRouter();
     const [spaces, setSpaces] = useState<Space[]>(initialSpaces);
     const [isPending, startTransition] = useTransition();
@@ -55,6 +71,8 @@ export default function KanbanDashboardClient({ initialSpaces }: Props) {
     const [acceso, setAcceso] = useState('Abierto');
     const [tiposActividad, setTiposActividad] = useState<string[]>(["Task", "Story", "Feature", "Bug"]);
     const [columnas, setColumnas] = useState<string[]>(["Por hacer", "En curso", "En revisión", "Listo"]);
+    const [selectedMiembroIds, setSelectedMiembroIds] = useState<string[]>([]);
+    const [searchTerm, setSearchTerm] = useState('');
 
     // Campos temporales para agregar dinámicamente
     const [nuevaColumna, setNuevaColumna] = useState('');
@@ -107,6 +125,8 @@ export default function KanbanDashboardClient({ initialSpaces }: Props) {
         setAcceso('Abierto');
         setTiposActividad(["Task", "Story", "Feature", "Bug"]);
         setColumnas(["Por hacer", "En curso", "En revisión", "Listo"]);
+        setSelectedMiembroIds([]);
+        setSearchTerm('');
         setStep(1);
         setIsModalOpen(false);
     };
@@ -127,7 +147,9 @@ export default function KanbanDashboardClient({ initialSpaces }: Props) {
                 nombre,
                 clave,
                 tiposActividad,
-                columnas
+                columnas,
+                acceso,
+                miembroIds: acceso === 'Restringido' ? selectedMiembroIds : []
             });
 
             if (res.success && res.spaceId) {
@@ -286,8 +308,13 @@ export default function KanbanDashboardClient({ initialSpaces }: Props) {
                                                 </div>
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <h3 className="text-md font-bold text-slate-900 group-hover:text-brand-600 transition">
+                                                        <h3 className="text-md font-bold text-slate-900 group-hover:text-brand-600 transition flex items-center gap-1.5">
                                                             {space.nombre}
+                                                            {space.acceso === 'Restringido' && (
+                                                                <span title="Espacio Restringido">
+                                                                    <Lock className="h-3.5 w-3.5 text-red-500 shrink-0" />
+                                                                </span>
+                                                            )}
                                                         </h3>
                                                         {space.archivado && (
                                                             <span className="bg-amber-100 border border-amber-200 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded">
@@ -386,18 +413,115 @@ export default function KanbanDashboardClient({ initialSpaces }: Props) {
                                             />
                                         </div>
 
-                                        <div className="space-y-1.5">
-                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Acceso</label>
-                                            <select
-                                                value={acceso}
-                                                onChange={(e) => setAcceso(e.target.value)}
-                                                className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:border-brand-500 focus:outline-none"
-                                            >
-                                                <option value="Abierto">Abierto (Toda la Org)</option>
-                                                <option value="Restringido">Restringido</option>
-                                            </select>
-                                        </div>
+                                        {(() => {
+                                            const canRestrict = currentUser.role === 'SUPER_ADMIN' || currentUser.email === 'emilia.zapata@bioelectronicahn.com' || currentUser.puedeAsignarEspacios === true;
+                                            return (
+                                                <div className="space-y-1.5">
+                                                    <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Acceso</label>
+                                                    <select
+                                                        value={acceso}
+                                                        onChange={(e) => setAcceso(e.target.value)}
+                                                        disabled={!canRestrict}
+                                                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-slate-800 focus:border-brand-500 focus:outline-none disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed"
+                                                    >
+                                                        <option value="Abierto">Abierto (Toda la Org)</option>
+                                                        {canRestrict && <option value="Restringido">Restringido</option>}
+                                                    </select>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
+
+                                    {acceso === 'Restringido' && (
+                                        <div className="space-y-3 pt-2 animate-in fade-in duration-200">
+                                            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider block">
+                                                Asignar Miembros con Acceso
+                                            </label>
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    value={searchTerm}
+                                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                                    placeholder="Buscar miembros por nombre o correo..."
+                                                    className="w-full bg-white border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm text-slate-800 placeholder-slate-400 focus:border-brand-500 focus:outline-none"
+                                                />
+                                                <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+                                            </div>
+
+                                            {/* Miembros Seleccionados como Tags */}
+                                            {selectedMiembroIds.length > 0 && (
+                                                <div className="flex flex-wrap gap-1.5 p-2 bg-slate-50 border border-slate-200 rounded-xl max-h-24 overflow-y-auto animate-in fade-in duration-200">
+                                                    {selectedMiembroIds.map(id => {
+                                                        const m = organizationMembers.find(u => u.id === id);
+                                                        if (!m) return null;
+                                                        return (
+                                                            <span 
+                                                                key={id}
+                                                                className="inline-flex items-center gap-1 bg-brand-50 border border-brand-200 text-brand-700 text-[11px] font-semibold px-2 py-0.5 rounded-lg"
+                                                            >
+                                                                <div className="h-4 w-4 rounded-full bg-brand-100 text-brand-850 flex items-center justify-center text-[9px] uppercase overflow-hidden shrink-0">
+                                                                    {m.avatarUrl ? (
+                                                                        <img src={m.avatarUrl} alt={m.nombre} className="h-full w-full object-cover" />
+                                                                    ) : (
+                                                                        m.nombre.substring(0, 2)
+                                                                    )}
+                                                                </div>
+                                                                <span className="truncate max-w-[120px]">{m.nombre}</span>
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={() => setSelectedMiembroIds(selectedMiembroIds.filter(uid => uid !== id))}
+                                                                    className="hover:bg-brand-200/80 rounded p-0.5 text-brand-500 hover:text-brand-800 transition"
+                                                                >
+                                                                    <X className="h-3 w-3" />
+                                                                </button>
+                                                            </span>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+
+                                            <div className="border border-slate-200 rounded-xl max-h-48 overflow-y-auto divide-y divide-slate-100 bg-white shadow-sm">
+                                                {organizationMembers
+                                                    .filter(m => m.id !== currentUser.id && (m.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || m.email.toLowerCase().includes(searchTerm.toLowerCase())))
+                                                    .map(m => {
+                                                        const isSelected = selectedMiembroIds.includes(m.id);
+                                                        return (
+                                                            <div 
+                                                                key={m.id}
+                                                                onClick={() => {
+                                                                    if (isSelected) {
+                                                                        setSelectedMiembroIds(selectedMiembroIds.filter(id => id !== m.id));
+                                                                    } else {
+                                                                        setSelectedMiembroIds([...selectedMiembroIds, m.id]);
+                                                                    }
+                                                                }}
+                                                                className={`flex items-center justify-between px-4 py-2.5 hover:bg-slate-50 cursor-pointer transition ${isSelected ? 'bg-brand-50/40' : ''}`}
+                                                            >
+                                                                <div className="flex items-center gap-3">
+                                                                    <div className="h-8 w-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center text-xs font-bold border border-slate-200 uppercase overflow-hidden shrink-0">
+                                                                        {m.avatarUrl ? (
+                                                                            <img src={m.avatarUrl} alt={m.nombre} className="h-full w-full object-cover" />
+                                                                        ) : (
+                                                                            m.nombre.substring(0, 2)
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="min-w-0">
+                                                                        <span className="text-xs font-semibold text-slate-800 block truncate leading-tight">{m.nombre}</span>
+                                                                        <span className="text-[10px] text-slate-400 block truncate">{m.email}</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div className={`h-4.5 w-4.5 rounded border flex items-center justify-center transition-all shrink-0 ${isSelected ? 'bg-brand-600 border-brand-600 text-white font-bold' : 'border-slate-300'}`}>
+                                                                    {isSelected && <span className="text-[10px]">✓</span>}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                            </div>
+                                            <p className="text-[10px] text-slate-400">
+                                                * El creador ({currentUser.email}) y administradores tienen acceso automático.
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -510,6 +634,26 @@ export default function KanbanDashboardClient({ initialSpaces }: Props) {
                                             <span className="text-slate-500">Tipos de Tareas:</span>
                                             <span className="text-slate-700">{tiposActividad.join(', ')}</span>
                                         </div>
+                                        <div className="p-4 grid grid-cols-2 text-sm">
+                                            <span className="text-slate-500">Acceso:</span>
+                                            <span className="font-bold flex items-center gap-1">
+                                                {acceso === 'Restringido' ? (
+                                                    <>
+                                                        <span className="text-red-600 flex items-center gap-1 bg-red-50 border border-red-200 px-2 py-0.5 rounded text-xs">
+                                                            <Lock className="h-3 w-3" />
+                                                            Restringido
+                                                        </span>
+                                                        <span className="text-slate-400 text-xs font-normal">
+                                                            ({selectedMiembroIds.length} miembros)
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <span className="text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded text-xs">
+                                                        Abierto (Todo el ERP)
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -560,9 +704,17 @@ export default function KanbanDashboardClient({ initialSpaces }: Props) {
                             <div className="border border-slate-200 rounded-xl bg-white p-5 shadow-sm space-y-4">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-bold text-slate-800">{nombre || 'Desarrollo Bioelectronica'}</span>
-                                    <span className="text-[10px] bg-brand-50 border border-brand-200 text-brand-600 font-bold px-2 py-0.5 rounded">
-                                        {clave || 'DB'}
-                                    </span>
+                                    <div className="flex items-center gap-1.5 font-sans">
+                                        {acceso === 'Restringido' && (
+                                            <span className="text-[10px] bg-red-50 border border-red-200 text-red-600 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5 animate-in fade-in duration-200">
+                                                <Lock className="h-2.5 w-2.5" />
+                                                Restringido
+                                            </span>
+                                        )}
+                                        <span className="text-[10px] bg-brand-50 border border-brand-200 text-brand-600 font-bold px-2 py-0.5 rounded">
+                                            {clave || 'DB'}
+                                        </span>
+                                    </div>
                                 </div>
 
                                 <div className="grid grid-cols-3 gap-2">

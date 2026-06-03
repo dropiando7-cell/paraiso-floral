@@ -22,10 +22,20 @@ async function getCurrentUserAndOrg() {
 // 1. Obtener todos los espacios
 export async function getSpaces() {
     try {
-        const { org } = await getCurrentUserAndOrg();
+        const { user, org } = await getCurrentUserAndOrg();
+        const isPrivileged = user.role === 'SUPER_ADMIN' || user.email === 'emilia.zapata@bioelectronicahn.com';
 
         const spaces = await prisma.kanbanSpace.findMany({
-            where: { organizationId: org.id },
+            where: { 
+                organizationId: org.id,
+                ...(isPrivileged ? {} : {
+                    OR: [
+                        { acceso: 'Abierto' },
+                        { creadoPorId: user.id },
+                        { miembros: { some: { id: user.id } } }
+                    ]
+                })
+            },
             include: {
                 _count: {
                     select: { tasks: true }
@@ -42,7 +52,8 @@ export async function getSpaces() {
             tiposActividad: s.tiposActividad,
             taskCount: s._count.tasks,
             createdAt: s.createdAt.toISOString(),
-            archivado: s.archivado
+            archivado: s.archivado,
+            acceso: s.acceso
         }));
     } catch (e) {
         console.error("getSpaces Error:", e);
@@ -56,6 +67,8 @@ export async function createSpace(data: {
     clave: string;
     tiposActividad?: string[];
     columnas?: string[];
+    acceso?: string;
+    miembroIds?: string[];
 }) {
     try {
         const { user, org } = await getCurrentUserAndOrg();
@@ -73,6 +86,9 @@ export async function createSpace(data: {
             throw new Error(`La clave de espacio "${normalizedClave}" ya está en uso.`);
         }
 
+        const canRestrict = user.role === 'SUPER_ADMIN' || user.email === 'emilia.zapata@bioelectronicahn.com' || user.puedeAsignarEspacios === true;
+        const accessType = data.acceso === 'Restringido' && canRestrict ? 'Restringido' : 'Abierto';
+
         const space = await prisma.kanbanSpace.create({
             data: {
                 organizationId: org.id,
@@ -80,7 +96,13 @@ export async function createSpace(data: {
                 clave: normalizedClave,
                 tiposActividad: data.tiposActividad || ["Task", "Story", "Feature", "Bug"],
                 columnas: data.columnas || ["Por hacer", "En curso", "En revisión", "Listo"],
-                creadoPorId: user.id
+                creadoPorId: user.id,
+                acceso: accessType,
+                ...(accessType === 'Restringido' && data.miembroIds && data.miembroIds.length > 0 ? {
+                    miembros: {
+                        connect: data.miembroIds.map(id => ({ id }))
+                    }
+                } : {})
             }
         });
 
@@ -110,6 +132,9 @@ export async function getSpaceDetails(spaceId: string) {
         const space = await prisma.kanbanSpace.findFirst({
             where: { id: spaceId, organizationId: org.id },
             include: {
+                miembros: {
+                    select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
+                },
                 tasks: {
                     include: {
                         asignado: {
@@ -135,26 +160,56 @@ export async function getSpaceDetails(spaceId: string) {
 
         if (!space) throw new Error('Espacio no encontrado');
 
+        const isPrivileged = user.role === 'SUPER_ADMIN' || user.email === 'emilia.zapata@bioelectronicahn.com';
+        
+        if (space.acceso === 'Restringido') {
+            const isMember = space.miembros.some(m => m.id === user.id);
+            const isCreator = space.creadoPorId === user.id;
+            
+            if (!isPrivileged && !isMember && !isCreator) {
+                throw new Error('No tienes acceso a este espacio de trabajo restringido');
+            }
+        }
+
         // Obtener miembros del equipo para asignación de tareas
         const members = await prisma.user.findMany({
             where: { organizationId: org.id },
-            select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
+            select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true, puedeAsignarEspacios: true, role: true }
         });
 
-        // Obtener todos los espacios de la organización
+        // Obtener todos los espacios de la organización (filtrados por acceso)
         const spaces = await prisma.kanbanSpace.findMany({
-            where: { organizationId: org.id, archivado: false },
+            where: { 
+                organizationId: org.id, 
+                archivado: false,
+                ...(isPrivileged ? {} : {
+                    OR: [
+                        { acceso: 'Abierto' },
+                        { creadoPorId: user.id },
+                        { miembros: { some: { id: user.id } } }
+                    ]
+                })
+            },
             select: { id: true, nombre: true, clave: true, columnas: true, tiposActividad: true }
         });
 
         return {
             currentUserRole: user.role,
+            currentUserCanManageAccess: isPrivileged || user.puedeAsignarEspacios === true || space.creadoPorId === user.id,
             space: {
                 id: space.id,
                 nombre: space.nombre,
                 clave: space.clave,
                 columnas: space.columnas,
-                tiposActividad: space.tiposActividad
+                tiposActividad: space.tiposActividad,
+                acceso: space.acceso,
+                miembros: space.miembros.map(m => ({
+                    id: m.id,
+                    nombre: `${m.nombre || ''} ${m.apellido || ''}`.trim() || m.email,
+                    email: m.email,
+                    avatarUrl: m.avatarUrl || null
+                })),
+                creadoPorId: space.creadoPorId
             },
             spaces: spaces.map(s => ({
                 id: s.id,
@@ -971,6 +1026,104 @@ export async function moveTaskToSpace(taskId: string, targetSpaceId: string) {
         return { success: false, error: e.message || 'Error al trasladar de espacio' };
     }
 }
+
+// 22. Actualizar los miembros y acceso de un espacio
+export async function updateSpaceMembers(spaceId: string, acceso: string, miembroIds: string[]) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+        
+        const space = await prisma.kanbanSpace.findFirst({
+            where: { id: spaceId, organizationId: org.id }
+        });
+        
+        if (!space) throw new Error('Espacio no encontrado');
+        
+        // Verificar si el usuario tiene privilegios para gestionar este espacio
+        const isPrivileged = user.role === 'SUPER_ADMIN' || user.email === 'emilia.zapata@bioelectronicahn.com';
+        const canManage = isPrivileged || user.puedeAsignarEspacios === true || space.creadoPorId === user.id;
+        
+        if (!canManage) {
+            throw new Error('No tienes permisos para gestionar los accesos de este espacio');
+        }
+        
+        // Si el acceso pasa a "Abierto", podemos limpiar la relación de miembros
+        // Si es "Restringido", conectamos los miembros pasados
+        await prisma.$transaction(async (tx) => {
+            // Desconectar todos los miembros actuales
+            await tx.kanbanSpace.update({
+                where: { id: spaceId },
+                data: {
+                    acceso: acceso,
+                    miembros: {
+                        set: [] // Limpiar miembros anteriores
+                    }
+                }
+            });
+            
+            if (acceso === 'Restringido' && miembroIds.length > 0) {
+                await tx.kanbanSpace.update({
+                    where: { id: spaceId },
+                    data: {
+                        miembros: {
+                            connect: miembroIds.map(id => ({ id }))
+                        }
+                    }
+                });
+            }
+        });
+        
+        // Registrar actividad
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId: spaceId,
+                usuarioId: user.id,
+                accion: 'ACTUALIZACION',
+                detalles: `Actualizó los accesos del espacio. Tipo de acceso: "${acceso}"`
+            }
+        });
+        
+        revalidatePath(`/kanban/${spaceId}`);
+        revalidatePath('/kanban');
+        return { success: true };
+    } catch (e: any) {
+        console.error("updateSpaceMembers Error:", e);
+        return { success: false, error: e.message || 'Error al actualizar accesos' };
+    }
+}
+
+// 23. Obtener datos iniciales del Dashboard Kanban
+export async function getKanbanInitData() {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+        const spaces = await getSpaces();
+        
+        const members = await prisma.user.findMany({
+            where: { organizationId: org.id },
+            select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
+        });
+        
+        return {
+            spaces,
+            currentUser: {
+                id: user.id,
+                email: user.email,
+                role: user.role,
+                puedeAsignarEspacios: user.puedeAsignarEspacios
+            },
+            organizationMembers: members.map(m => ({
+                id: m.id,
+                nombre: `${m.nombre || ''} ${m.apellido || ''}`.trim() || m.email,
+                email: m.email,
+                avatarUrl: m.avatarUrl || null
+            }))
+        };
+    } catch (e) {
+        console.error("getKanbanInitData Error:", e);
+        throw e;
+    }
+}
+
+
 
 
 

@@ -20,6 +20,7 @@ export async function createUser(data: {
     customRoleName?: string | null;
     organizationId: string;
     accessibleModules: string[];
+    puedeAsignarEspacios?: boolean;
 }) {
     try {
         const supabase = await createClient();
@@ -79,6 +80,7 @@ export async function createUser(data: {
                 customRoleName: data.customRoleName,
                 organizationId: data.organizationId,
                 accessibleModules: data.accessibleModules,
+                puedeAsignarEspacios: data.puedeAsignarEspacios ?? false,
             },
         });
 
@@ -238,6 +240,7 @@ export async function editUser(
         customRoleName?: string | null;
         organizationId: string;
         accessibleModules: string[];
+        puedeAsignarEspacios?: boolean;
     }
 ) {
     try {
@@ -275,6 +278,7 @@ export async function editUser(
                 customRoleName: data.customRoleName,
                 organizationId: data.organizationId,
                 accessibleModules: data.accessibleModules,
+                puedeAsignarEspacios: data.puedeAsignarEspacios ?? false,
             },
         });
 

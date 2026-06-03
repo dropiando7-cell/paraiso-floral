@@ -76,6 +76,7 @@ model User {
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   accessibleModules     String[]               @default([])
+  puedeAsignarEspacios  Boolean                @default(false)
   customRoleName        String?
   defaultModule         String?
   timezone              String?                @default("America/Tegucigalpa")
@@ -123,6 +124,7 @@ model User {
   kanbanActivities      KanbanActivity[]
   kanbanComments        KanbanComment[]
   kanbanAttachments     KanbanAttachment[]
+  kanbanSpacesMiembro   KanbanSpace[]          @relation("KanbanSpaceMembers")
 
   @@map("users")
 }
@@ -1009,6 +1011,8 @@ model KanbanSpace {
   archivado       Boolean              @default(false)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
+  acceso          String               @default("Abierto") // "Abierto" o "Restringido"
+  miembros        User[]               @relation("KanbanSpaceMembers")
 
   creadoPorId     String?              @db.Uuid
   creadoPor       User?                @relation("CreatedKanbanSpaces", fields: [creadoPorId], references: [id])
