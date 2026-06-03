@@ -30,7 +30,7 @@ TAMANOS = {
         "ANCHO_FIJO": 399,
         "ALTO_MAXIMO": 198,
         "QR_MARGEN": 16,
-        "QR_ESCALA": 1.0,
+        "QR_SCALE": 3,
         "CB_MARGEN_INF": 16,
         "FONT_ID": 20,
         "FONT_DESC_LONG": 14,
@@ -52,7 +52,7 @@ TAMANOS = {
         "ANCHO_FIJO": 399,
         "ALTO_MAXIMO": 240,
         "QR_MARGEN": 20,
-        "QR_ESCALA": 1.2,
+        "QR_SCALE": 3,
         "CB_MARGEN_INF": 24,
         "FONT_ID": 24,
         "FONT_DESC_LONG": 16,
@@ -74,7 +74,7 @@ TAMANOS = {
         "ANCHO_FIJO": 399,
         "ALTO_MAXIMO": 245,
         "QR_MARGEN": 22,
-        "QR_ESCALA": 1.2,
+        "QR_SCALE": 3,
         "CB_MARGEN_INF": 26,
         "FONT_ID": 24,
         "FONT_DESC_LONG": 17,
@@ -96,7 +96,7 @@ TAMANOS = {
         "ANCHO_FIJO": 559,
         "ALTO_MAXIMO": 300,
         "QR_MARGEN": 28,
-        "QR_ESCALA": 1.5,
+        "QR_SCALE": 4,
         "CB_MARGEN_INF": 28,
         "FONT_ID": 30,
         "FONT_DESC_LONG": 20,
@@ -232,11 +232,12 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
             except IOError:
                 font_id = font_desc = font_small = font_barcode = ImageFont.load_default()
 
-            # ── QR (scale=1, tamaño natural sin resize forzado) ────────────
+            # ── QR (con escala entera nativa sin distorsión por resize) ────
             qr_text = urllib.parse.quote(f"{HOST}/ficha-tecnica/{id_qr}")
+            qr_scale = cfg.get('QR_SCALE', 3)
             qr_url  = (
                 f"https://bwipjs-api.metafloor.com/?bcid=qrcode"
-                f"&text={qr_text}&scale=1&eclevel=M&includetext=false"
+                f"&text={qr_text}&scale={qr_scale}&eclevel=M&includetext=false"
             )
             try:
                 req_qr = requests.get(qr_url, timeout=5)
@@ -255,14 +256,6 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
                     if bbox:
                         qr_rgb = qr_rgb.crop(bbox)
 
-                    qr_w, qr_h = qr_rgb.size
-
-                    # Reducir QR con factor de escala + límite de área útil
-                    area_util_h = cfg['ALTO_MAXIMO'] - cfg['QR_MARGEN'] * 2
-                    factor = cfg['QR_ESCALA']
-                    if int(qr_h * factor) > area_util_h:
-                        factor = area_util_h / qr_h
-                    qr_rgb = qr_rgb.resize((max(1, int(qr_w * factor)), max(1, int(qr_h * factor))), Image.NEAREST)
                     qr_w, qr_h = qr_rgb.size
 
                     x_qr = cfg['ANCHO_FIJO'] - qr_w - cfg['QR_MARGEN']
@@ -407,11 +400,12 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
             except IOError:
                 font_title = font_id = font_desc = font_small = font_barcode = font_bio = ImageFont.load_default()
 
-            # ── QR (scale=1, eclevel=M) ────────────
+            # ── QR (con escala entera nativa sin distorsión por resize) ────
             qr_text = urllib.parse.quote(f"{HOST}/trazabilidad/{orden_id}")
+            qr_scale = cfg.get('QR_SCALE', 3)
             qr_url  = (
                 f"https://bwipjs-api.metafloor.com/?bcid=qrcode"
-                f"&text={qr_text}&scale=1&eclevel=M&includetext=false"
+                f"&text={qr_text}&scale={qr_scale}&eclevel=M&includetext=false"
             )
             try:
                 req_qr = requests.get(qr_url, timeout=5)
@@ -430,14 +424,6 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
                     if bbox:
                         qr_rgb = qr_rgb.crop(bbox)
 
-                    qr_w, qr_h = qr_rgb.size
-
-                    # Reducir QR con factor de escala + límite de área útil
-                    area_util_h = cfg['ALTO_MAXIMO'] - cfg['QR_MARGEN'] * 2
-                    factor = cfg['QR_ESCALA']
-                    if int(qr_h * factor) > area_util_h:
-                        factor = area_util_h / qr_h
-                    qr_rgb = qr_rgb.resize((max(1, int(qr_w * factor)), max(1, int(qr_h * factor))), Image.NEAREST)
                     qr_w, qr_h = qr_rgb.size
 
                     x_qr = cfg['ANCHO_FIJO'] - qr_w - cfg['QR_MARGEN']
