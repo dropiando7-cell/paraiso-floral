@@ -476,12 +476,12 @@ export default function TaskDetailModal({
     const taskActivities = activities.filter(act => act.taskId === task.id);
 
     return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4">
-            <div className="relative w-full max-w-5xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[500px] max-h-[90vh]">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4">
+            <div className="relative w-full h-full md:h-auto max-h-screen md:max-h-[90vh] md:min-h-[500px] max-w-none md:max-w-5xl rounded-none md:rounded-2xl border-0 md:border border-slate-200 bg-white shadow-none md:shadow-2xl overflow-hidden flex flex-col md:flex-row">
                 
                 {/* Lado Izquierdo: Contenido Editable de Tarea */}
                 <div 
-                    className="relative flex-1 p-6 md:p-8 flex flex-col justify-between overflow-y-auto border-r border-slate-100 bg-white"
+                    className="relative flex-1 p-4 md:p-8 flex flex-col justify-between overflow-y-auto border-r border-slate-100 bg-white"
                     onDragOver={handleDragOver}
                 >
                     {isDragging && (
@@ -869,7 +869,7 @@ export default function TaskDetailModal({
                 </div>
 
                 {/* Lado Derecho: Panel de Metadatos y Acciones */}
-                <div className={`w-full md:w-[320px] bg-slate-50 p-6 md:p-8 flex-col justify-between overflow-y-auto border-t md:border-t-0 border-slate-100 ${
+                <div className={`w-full md:w-[320px] bg-slate-50 p-4 md:p-8 flex-col justify-between overflow-y-auto border-t md:border-t-0 border-slate-100 ${
                     showSidebar ? 'flex' : 'hidden md:flex'
                 }`}>
                     
