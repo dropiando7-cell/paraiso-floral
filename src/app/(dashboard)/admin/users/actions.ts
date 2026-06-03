@@ -21,6 +21,7 @@ export async function createUser(data: {
     organizationId: string;
     accessibleModules: string[];
     puedeAsignarEspacios?: boolean;
+    puesto?: string;
 }) {
     try {
         const supabase = await createClient();
@@ -81,6 +82,7 @@ export async function createUser(data: {
                 organizationId: data.organizationId,
                 accessibleModules: data.accessibleModules,
                 puedeAsignarEspacios: data.puedeAsignarEspacios ?? false,
+                puesto: data.puesto,
             },
         });
 
@@ -241,6 +243,7 @@ export async function editUser(
         organizationId: string;
         accessibleModules: string[];
         puedeAsignarEspacios?: boolean;
+        puesto?: string;
     }
 ) {
     try {
@@ -279,6 +282,7 @@ export async function editUser(
                 organizationId: data.organizationId,
                 accessibleModules: data.accessibleModules,
                 puedeAsignarEspacios: data.puedeAsignarEspacios ?? false,
+                puesto: data.puesto,
             },
         });
 
