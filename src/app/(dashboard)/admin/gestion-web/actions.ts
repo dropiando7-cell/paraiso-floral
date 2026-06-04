@@ -15,10 +15,16 @@ async function checkAdminAuth() {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
-        select: { role: true, organizationId: true }
+        select: { role: true, organizationId: true, accessibleModules: true }
     });
 
-    if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN')) {
+    if (!dbUser) {
+        throw new Error('Permisos insuficientes');
+    }
+
+    const hasWebAccess = dbUser.accessibleModules.includes('/admin/gestion-web');
+
+    if (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && !hasWebAccess) {
         throw new Error('Permisos insuficientes');
     }
 

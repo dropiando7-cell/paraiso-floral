@@ -106,7 +106,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/soporte', label: 'Soporte y Reparaciones' },
         { id: '/cotizaciones', label: 'Cotizaciones' },
         { id: '/facturas', label: 'Facturación' },
-        { id: '/caja-chica', label: 'Caja Chica' }
+        { id: '/caja-chica', label: 'Caja Chica' },
+        { id: '/admin/gestion-web', label: 'Gestión Web / Tienda' }
     ];
 
 
@@ -130,7 +131,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
             return;
         }
 
-        if (newRole === 'SUPER_ADMIN') {
+        if (newRole === 'SUPER_ADMIN' || newRole === 'ORG_ADMIN') {
             setAccessibleModules(availableModules.map(m => m.id));
         } else if (newRole === 'CHECKIN_KIDS') {
             setAccessibleModules(['/checkin']);
@@ -138,8 +139,10 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
             setAccessibleModules(['/', '/medico']);
         } else if (newRole === 'INVENTARIO_EDITOR') {
             setAccessibleModules(['/', '/inventario/historico']);
-        } else if (newRole === 'RECEPCION' || newRole === 'TECNICO' || newRole === 'GERENTE') {
+        } else if (newRole === 'RECEPCION' || newRole === 'TECNICO') {
             setAccessibleModules(['/', '/soporte', '/inventario']);
+        } else if (newRole === 'GERENTE') {
+            setAccessibleModules(['/', '/soporte', '/inventario', '/graficas']);
         } else {
             setAccessibleModules(['/']);
         }

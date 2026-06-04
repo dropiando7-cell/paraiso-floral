@@ -17,11 +17,13 @@ export default function SoporteDetailClient({
   orden, 
   userRole, 
   customRoleName,
+  userEmail = '',
   organizationUsers = []
 }: { 
   orden: Orden; 
   userRole: string; 
   customRoleName?: string;
+  userEmail?: string;
   organizationUsers?: any[];
 }) {
   const role = userRole;
@@ -29,9 +31,21 @@ export default function SoporteDetailClient({
 
   // Determine visible blocks based on role (for demo they used isGlobal/isYensi, we use real roles)
   const isGlobal = role === 'SUPER_ADMIN' || role === 'ORG_ADMIN';
-  const isRecepcion = isGlobal || role === 'RECEPCION' || cRole === 'RECEPCION' || cRole.includes('RECEPCION');
-  const isTecnico = isGlobal || role === 'TECNICO' || role === 'INVENTARIO_EDITOR' || cRole === 'TECNICO' || cRole.includes('TECNICO');
-  const isGerente = isGlobal || role === 'GERENTE' || cRole === 'GERENTE' || cRole.includes('GERENTE');
+  
+  // Custom support admin check: super/org admin, emilia.zapata, or custom role names matching support admin keywords
+  const isSoporteAdmin = isGlobal || 
+                         userEmail === 'emilia.zapata@bioelectronicahn.com' || 
+                         cRole.includes('SOPORTE_GLOBAL') || 
+                         cRole.includes('SOPORTE COMPLETO') || 
+                         cRole.includes('SOPORTE_ADMIN') || 
+                         cRole.includes('COORDINADOR') || 
+                         cRole.includes('SOPORTE TOTAL') ||
+                         cRole.includes('ADMINISTRADOR DE SOPORTE') ||
+                         cRole.includes('ADMINISTRADOR SOPORTE');
+
+  const isRecepcion = isSoporteAdmin || role === 'RECEPCION' || cRole === 'RECEPCION' || cRole.includes('RECEPCION');
+  const isTecnico = isSoporteAdmin || role === 'TECNICO' || role === 'INVENTARIO_EDITOR' || cRole === 'TECNICO' || cRole.includes('TECNICO');
+  const isGerente = isSoporteAdmin || role === 'GERENTE' || cRole === 'GERENTE' || cRole.includes('GERENTE');
 
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);

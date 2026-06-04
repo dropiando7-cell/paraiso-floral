@@ -57,6 +57,7 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
     }} 
     userRole={userRole}
     customRoleName={dbUser?.customRoleName || ''}
+    userEmail={dbUser?.email || ''}
     organizationUsers={organizationUsers}
   />;
 }
