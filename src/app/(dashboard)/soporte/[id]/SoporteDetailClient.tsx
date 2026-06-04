@@ -304,7 +304,7 @@ export default function SoporteDetailClient({
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-4">
           
           {/* A. Current state content card */}
-          {isRecepcion && orden.estado === 'RECIBIDO' && (
+          {(isRecepcion || isTecnico) && orden.estado === 'RECIBIDO' && (
             <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
               <h2 className="text-lg font-bold text-slate-800 mb-2">Recepción completada</h2>
               <p className="text-slate-600 text-sm mb-4">La orden ya fue recibida. Entrega la etiqueta al cliente y avísale al técnico.</p>
