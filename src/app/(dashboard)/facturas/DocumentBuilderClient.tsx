@@ -79,6 +79,8 @@ import LegacyTemplate from '@/components/facturas/templates/LegacyTemplate';
 import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
 import { convertirDocumento } from './actions';
+import { ActivoModal } from '../inventario/InventarioClient';
+import { getAreas } from '../admin/areas/actions';
 
 
 
@@ -431,10 +433,11 @@ function LineItemRow({
   };
 
   const renderDropdown = () => {
-    if (!showAutocomplete || !focusedField || filteredProducts.length === 0) return null;
+    if (!showAutocomplete || !focusedField) return null;
+    if (query.trim().length < 2) return null;
     return (
       <div className="absolute top-[calc(100%+4px)] left-0 w-[500px] md:w-[540px] z-[60] bg-white border border-slate-200 rounded-xl shadow-2xl max-h-72 overflow-y-auto print:hidden">
-        <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0">
+        <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0 z-[65]">
           <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coincidencias en catálogo</span>
           <span className="text-[10px] font-medium text-slate-400">{filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'}</span>
         </div>
@@ -503,6 +506,24 @@ function LineItemRow({
               </div>
             </button>
           ))}
+          
+          {filteredProducts.length === 0 && (
+            <div className="px-4 py-3.5 text-xs text-slate-400 text-center font-medium">
+              No se encontraron coincidencias para "{query}"
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              setShowAutocomplete(false);
+              window.dispatchEvent(new CustomEvent('open-activo-modal', { detail: { lineId: item.id } }));
+            }}
+            className="w-full text-left px-3 py-2.5 border-t border-slate-100 bg-blue-50/50 hover:bg-blue-50 text-blue-700 font-bold text-xs flex items-center gap-2 transition-colors sticky bottom-0 z-10"
+          >
+            <Plus size={14} className="shrink-0" />
+            Registrar nuevo producto o activo en Inventario
+          </button>
         </div>
       </div>
     );
@@ -510,7 +531,7 @@ function LineItemRow({
 
   return (
     <div 
-      className={`group relative ${isDragOver ? 'border-t-[3px] border-blue-500' : ''} ${showAutocomplete ? 'z-[70]' : ''}`} 
+      className={`group relative hover:z-50 ${isDragOver ? 'border-t-[3px] border-blue-500' : ''} ${showAutocomplete ? 'z-[70]' : ''}`} 
       ref={containerRef} 
       data-line-id={item.id}
       draggable={isDraggable && !viewMode}
@@ -829,39 +850,41 @@ function LineItemRow({
 
         {/* Actions */}
         <div className={`relative w-[24px] shrink-0 print:hidden flex items-center justify-center ${padClass}`} data-pdf-hide>
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-row gap-0.5 items-center justify-end opacity-0 group-hover:opacity-100 transition-all bg-white/95 backdrop-blur-sm px-1 py-0.5 rounded-md shadow-sm border border-slate-200 z-[60]">
-            {item.isSection ? (
+          {!viewMode && (
+            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-row gap-0.5 items-center justify-end opacity-0 group-hover:opacity-100 transition-all bg-white/95 backdrop-blur-sm px-1 py-0.5 rounded-md shadow-sm border border-slate-200 z-[60]">
+              {item.isSection ? (
+                <button
+                  onClick={() => onToggleLongDesc(item.id)}
+                  title="Personalizar diseño"
+                  className={`p-1 rounded transition-all ${item.showLongDesc ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                >
+                  <Palette size={11} />
+                </button>
+              ) : (
+                <button
+                  onClick={() => onToggleLongDesc(item.id)}
+                  title="Descripción técnica"
+                  className={`p-1 rounded transition-all ${item.showLongDesc ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`}
+                >
+                  <Info size={11} />
+                </button>
+              )}
               <button
-                onClick={() => onToggleLongDesc(item.id)}
-                title="Personalizar diseño"
-                className={`p-1 rounded transition-all ${item.showLongDesc ? 'bg-indigo-100 text-indigo-600' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50'}`}
+                onClick={() => onDuplicate(item.id)}
+                title="Duplicar fila"
+                className="p-1 rounded transition-all text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
               >
-                <Palette size={11} />
+                <Copy size={11} />
               </button>
-            ) : (
               <button
-                onClick={() => onToggleLongDesc(item.id)}
-                title="Descripción técnica"
-                className={`p-1 rounded transition-all ${item.showLongDesc ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`}
+                onClick={() => onDelete(item.id)}
+                title="Eliminar fila"
+                className="p-1 rounded transition-all text-slate-400 hover:text-red-600 hover:bg-red-50"
               >
-                <Info size={11} />
+                <Trash2 size={11} />
               </button>
-            )}
-            <button
-              onClick={() => onDuplicate(item.id)}
-              title="Duplicar fila"
-              className="p-1 rounded transition-all text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
-            >
-              <Copy size={11} />
-            </button>
-            <button
-              onClick={() => onDelete(item.id)}
-              title="Eliminar fila"
-              className="p-1 rounded transition-all text-slate-400 hover:text-red-600 hover:bg-red-50"
-            >
-              <Trash2 size={11} />
-            </button>
-          </div>
+            </div>
+          )}
         </div>
         </div>
         
@@ -970,6 +993,12 @@ export default function DocumentBuilderClient({
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [isForcePrinting, setIsForcePrinting] = useState(false);
   const [showExpiredOnly, setShowExpiredOnly] = useState(false);
+  
+  // States for registering new product directly
+  const [registeringLineId, setRegisteringLineId] = useState<string | null>(null);
+  const [isActivoModalOpen, setIsActivoModalOpen] = useState(false);
+  const [dbAreas, setDbAreas] = useState<any[]>([]);
+
   const templateContainerRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<InvoiceSettings>(() => {
     // Always merge organization settings (available on both server and client as a prop).
@@ -1120,6 +1149,80 @@ export default function DocumentBuilderClient({
     return () => window.removeEventListener('reorder-lines', handleReorder);
   }, []);
   // ------------------------------
+
+  // --- Register New Product from Dropdown ---
+  useEffect(() => {
+    const handleOpenRegister = (e: any) => {
+      const { lineId } = e.detail;
+      setRegisteringLineId(lineId);
+      setIsActivoModalOpen(true);
+    };
+    window.addEventListener('open-activo-modal', handleOpenRegister);
+    return () => window.removeEventListener('open-activo-modal', handleOpenRegister);
+  }, []);
+
+  // Fetch areas for the ActivoModal
+  useEffect(() => {
+    getAreas()
+      .then(res => setDbAreas(res))
+      .catch(e => console.error("Error fetching areas for ActivoModal:", e));
+  }, []);
+
+  const handleRegisterSuccess = async () => {
+    try {
+      // 1. Reload the products list
+      const prd = await searchProductos('');
+      
+      const newProductsList = prd.map((p: any) => ({
+        id: p.id,
+        code: p.sku || '',
+        name: p.nombre,
+        description: p.descripcion || '',
+        price: Number(p.precioVenta) || 0,
+        category: p.marca || 'General',
+        stock: p.stockActual || 0,
+        brand: p.marca || '',
+        type: p.type || 'producto',
+        imageUrl: p.imageUrl || p.imagenUrl || null,
+        fechaVencimiento: p.fechaVencimiento || null,
+        serie: p.serie || null,
+      }));
+
+      // Find the new product by comparing the new list with allProducts (by id)
+      const existingIds = new Set(allProducts.map(p => p.id));
+      const newlyCreatedProduct = newProductsList.find(p => !existingIds.has(p.id));
+
+      // Update the allProducts state with the new list
+      setAllProducts(newProductsList);
+
+      // 2. If we have a registering line ID and a new product was found, automatically select it!
+      if (registeringLineId && newlyCreatedProduct) {
+        setLineItems(prev => prev.map(item => {
+          if (item.id === registeringLineId) {
+            return {
+              ...item,
+              code: newlyCreatedProduct.code,
+              shortDesc: newlyCreatedProduct.name,
+              imageUrl: newlyCreatedProduct.imageUrl || item.imageUrl,
+              longDesc: newlyCreatedProduct.description,
+              unitPrice: (Number(item.unitPrice) === 0 || !item.unitPrice) ? newlyCreatedProduct.price : item.unitPrice,
+              productoId: newlyCreatedProduct.type === 'producto' ? newlyCreatedProduct.id : undefined,
+              activoId: newlyCreatedProduct.type === 'activo' ? newlyCreatedProduct.id : undefined,
+            };
+          }
+          return item;
+        }));
+        toast.success(`Producto "${newlyCreatedProduct.name}" registrado e insertado.`);
+      } else {
+        toast.success("Producto registrado exitosamente en catálogo.");
+      }
+    } catch (e) {
+      console.error("Error reloading products after registration:", e);
+      toast.error("Error al actualizar catálogo de productos.");
+    } finally {
+      setRegisteringLineId(null);
+    }
+  };
 
   // Load preferences from localStorage 
   useEffect(() => {
@@ -2497,6 +2600,16 @@ export default function DocumentBuilderClient({
             onClick={(e) => e.stopPropagation()}
           />
         </div>
+      )}
+
+      {/* ActivoModal for registering a new product/asset */}
+      {isActivoModalOpen && (
+        <ActivoModal
+          open={isActivoModalOpen}
+          onClose={() => setIsActivoModalOpen(false)}
+          dbAreas={dbAreas}
+          onSuccess={handleRegisterSuccess}
+        />
       )}
     </div>
   );

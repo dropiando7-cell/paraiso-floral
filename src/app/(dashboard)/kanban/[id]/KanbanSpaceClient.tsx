@@ -742,6 +742,44 @@ export default function KanbanSpaceClient({ initialData }: Props) {
         }
     };
 
+    // Formatear fecha para la tarjeta
+    const formatDate = (dateStr: string | null) => {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('es-HN', { day: '2-digit', month: 'short' });
+    };
+
+    // Alertas de vencimiento
+    const getDueDateAlert = (dueDateStr: string | null) => {
+        if (!dueDateStr) return null;
+        const dueDate = new Date(dueDateStr);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const compareDate = new Date(dueDate);
+        compareDate.setHours(0, 0, 0, 0);
+
+        const diffTime = compareDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+            return {
+                text: 'Vencida',
+                className: 'bg-red-50 text-red-700 border-red-200'
+            };
+        } else if (diffDays === 0) {
+            return {
+                text: 'Vence hoy',
+                className: 'bg-orange-50 text-orange-700 border-orange-200'
+            };
+        } else if (diffDays <= 2) {
+            return {
+                text: `Vence en ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`,
+                className: 'bg-amber-50 text-amber-700 border-amber-200'
+            };
+        }
+        return null;
+    };
+
     return (
         <div className="flex-1 flex flex-col min-h-screen bg-slate-50">
             {/* Cabecera del Espacio */}
@@ -941,7 +979,11 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                     draggable
                                                     onDragStart={(e) => handleDragStart(e, task.id)}
                                                     onClick={() => setSelectedTask(task)}
-                                                    className="relative bg-white border border-slate-200 hover:border-brand-500/30 hover:shadow-md rounded-xl p-4 sm:p-3.5 pl-5.5 sm:pl-4.5 shadow-sm cursor-grab active:cursor-grabbing transition duration-150 group"
+                                                    className={`relative border hover:border-brand-500/30 hover:shadow-md rounded-xl p-4 sm:p-3.5 pl-5.5 sm:pl-4.5 shadow-sm cursor-grab active:cursor-grabbing transition duration-150 group ${
+                                                        task.type === 'Orden de Trabajo' 
+                                                            ? 'bg-blue-50/40 border-blue-200/70' 
+                                                            : 'bg-white border-slate-200'
+                                                    }`}
                                                 >
                                                     {/* Indicador de Prioridad Lateral */}
                                                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${
@@ -949,7 +991,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                         task.priority === 'HIGH' ? 'bg-amber-500' :
                                                         task.priority === 'MEDIUM' ? 'bg-brand-500' :
                                                         'bg-slate-300'
-                                                    }`} />
+                                                     }`} />
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between gap-2">
                                                             {/* Tipo de Tarea */}
@@ -959,7 +1001,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                     {task.type}
                                                                 </span>
                                                             </div>
-
+ 
                                                             {/* Código Tarea y Menú de Tres Puntos */}
                                                             <div className="flex items-center gap-1">
                                                                 <span className="text-xs sm:text-[9px] font-bold font-mono text-slate-400 group-hover:text-brand-600 transition-colors">
@@ -975,7 +1017,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                     >
                                                                         <MoreHorizontal className="h-4.5 w-4.5 sm:h-3.5 sm:w-3.5" />
                                                                     </button>
-
+ 
                                                                     {/* Menú Popup Contextual */}
                                                                     {activeCardMenuTaskId === task.id && (
                                                                         <CardContextMenu
@@ -1000,11 +1042,42 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                 </div>
                                                             </div>
                                                         </div>
-
+ 
                                                         {/* Título */}
                                                         <h4 className="text-sm sm:text-xs font-bold text-slate-800 line-clamp-2 leading-relaxed group-hover:text-brand-900 transition-colors">
                                                             {task.title}
                                                         </h4>
+ 
+                                                        {/* Fechas de Inicio y Vencimiento */}
+                                                        {(task.startDate || task.dueDate) && (
+                                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] sm:text-[9px] text-slate-500 bg-slate-50/50 border border-slate-100 rounded-lg p-1.5">
+                                                                {task.startDate && (
+                                                                    <div className="flex items-center gap-1 shrink-0">
+                                                                        <Calendar className="h-3.5 w-3.5 sm:h-3 sm:w-3 text-slate-400" />
+                                                                        <span>{formatDate(task.startDate)}</span>
+                                                                    </div>
+                                                                )}
+                                                                {task.startDate && task.dueDate && <ChevronRight className="h-2.5 w-2.5 text-slate-350 shrink-0" />}
+                                                                {task.dueDate && (
+                                                                    <div className="flex items-center gap-1 shrink-0">
+                                                                        <Clock className="h-3.5 w-3.5 sm:h-3 sm:w-3 text-slate-400" />
+                                                                        <span className={getDueDateAlert(task.dueDate) ? 'font-bold' : ''}>
+                                                                            {formatDate(task.dueDate)}
+                                                                        </span>
+                                                                    </div>
+                                                                )}
+                                                                {/* Alerta de Vencimiento */}
+                                                                {(() => {
+                                                                    const alert = getDueDateAlert(task.dueDate);
+                                                                    if (!alert) return null;
+                                                                    return (
+                                                                        <span className={`text-[9px] sm:text-[7.5px] font-extrabold px-1 py-0.5 rounded border leading-none ml-auto shrink-0 ${alert.className}`}>
+                                                                            {alert.text}
+                                                                        </span>
+                                                                    );
+                                                                })()}
+                                                            </div>
+                                                        )}
 
                                                         {/* Detalle Inferior: Responsable + Prioridad */}
                                                         <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-[10px]">

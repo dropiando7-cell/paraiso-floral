@@ -14,16 +14,16 @@ export default async function NuevoSoportePage() {
     if (!user || !user.email) redirect('/login');
 
     const dbUser = await prisma.user.findUnique({ where: { email: user.email } });
-    const org = await prisma.organization.findFirst();
-    if (!org) return <div>Org no encontrada</div>;
+    if (!dbUser) return <div>Usuario no encontrado</div>;
+    const orgId = dbUser.organizationId;
 
     const clientes = await prisma.cliente.findMany({
-        where: { organizationId: org.id },
+        where: { organizationId: orgId },
         orderBy: { nombre: 'asc' }
     });
 
     const users = await prisma.user.findMany({
-        where: { organizationId: org.id },
+        where: { organizationId: orgId },
         orderBy: { nombre: 'asc' }
     });
 

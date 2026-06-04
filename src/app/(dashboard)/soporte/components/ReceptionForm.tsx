@@ -275,7 +275,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
           {form.tecnicoIds.map(id => {
             const user = users.find(u => u.id === id);
             if (!user) return null;
-            const displayName = [user.nombre, user.apellido].filter(Boolean).join(" ");
+            const displayName = [user.nombre, user.apellido].filter(Boolean).join(" ") || user.email;
             return (
               <span key={id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold shadow-sm">
                 <span>{displayName.toUpperCase()}</span>
@@ -313,7 +313,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
         >
           <option value="">-- Seleccionar Técnico para agregar --</option>
           {users.map(u => {
-            const displayName = [u.nombre, u.apellido].filter(Boolean).join(" ");
+            const displayName = [u.nombre, u.apellido].filter(Boolean).join(" ") || u.email;
             const puestoText = u.puesto ? u.puesto.toUpperCase() : u.role;
             return (
               <option key={u.id} value={u.id} disabled={form.tecnicoIds.includes(u.id)}>

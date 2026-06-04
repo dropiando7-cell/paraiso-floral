@@ -497,6 +497,34 @@ export async function updateTaskFields(taskId: string, data: {
             data: updates
         });
 
+        // Sync back to OrdenTrabajo if it is associated with a support order
+        if (oldTask.ordenTrabajoId && (data.asignadoIds !== undefined || data.asignadoId !== undefined)) {
+            try {
+                let finalTecnicoIds: string[] = [];
+                if (data.asignadoIds !== undefined) {
+                    finalTecnicoIds = data.asignadoIds;
+                } else if (data.asignadoId !== undefined) {
+                    finalTecnicoIds = data.asignadoId ? [data.asignadoId] : [];
+                }
+
+                const firstTecnicoId = finalTecnicoIds[0] || null;
+
+                await prisma.ordenTrabajo.update({
+                    where: { id: oldTask.ordenTrabajoId },
+                    data: {
+                        tecnicoReparacionId: firstTecnicoId,
+                        tecnicosAsignados: {
+                            set: finalTecnicoIds.map(id => ({ id }))
+                        }
+                    }
+                });
+                revalidatePath('/soporte');
+                revalidatePath(`/soporte/${oldTask.ordenTrabajoId}`);
+            } catch (syncErr) {
+                console.error("[Support Sync Error in updateTaskFields]:", syncErr);
+            }
+        }
+
         // Registrar múltiples actividades de auditoría consolidadas
         await prisma.kanbanActivity.create({
             data: {

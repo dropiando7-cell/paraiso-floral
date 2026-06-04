@@ -12,13 +12,25 @@ import {
 } from '@/lib/checkin-notifications';
 import { createClient } from '@/utils/supabase/server';
 
+async function getOrgId() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuario no autenticado');
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { organizationId: true }
+    });
+    if (!dbUser) throw new Error('Organización no encontrada');
+    return dbUser.organizationId;
+}
+
 export async function getOrdenesActivas() {
-    const org = await prisma.organization.findFirst();
-    if (!org) throw new Error('Organización no encontrada');
+    const orgId = await getOrgId();
 
     return prisma.ordenTrabajo.findMany({
         where: {
-            organizationId: org.id,
+            organizationId: orgId,
             estado: { not: 'ENTREGADO' }
         },
         include: {
@@ -29,12 +41,11 @@ export async function getOrdenesActivas() {
 }
 
 export async function getOrdenByQR(codigoSeguridad: string) {
-    const org = await prisma.organization.findFirst();
-    if (!org) throw new Error('Organización no encontrada');
+    const orgId = await getOrgId();
 
     return prisma.ordenTrabajo.findFirst({
         where: {
-            organizationId: org.id,
+            organizationId: orgId,
             codigoSeguridad
         },
         include: {
@@ -58,14 +69,13 @@ export async function createOrdenTrabajo(data: {
     metodoPagoRevision?: string;
     tecnicoIds?: string[];
 }) {
-    const org = await prisma.organization.findFirst();
-    if (!org) throw new Error('Organización no encontrada');
+    const orgId = await getOrgId();
 
     const cleanNombre = data.cliente.trim();
     // Find or create cliente
     let clienteRecord = await prisma.cliente.findFirst({
         where: { 
-            organizationId: org.id,
+            organizationId: orgId,
             nombre: {
                 equals: cleanNombre,
                 mode: 'insensitive'
@@ -78,7 +88,7 @@ export async function createOrdenTrabajo(data: {
             data: {
                 nombre: cleanNombre,
                 telefono: data.telefono?.trim() || null,
-                organizationId: org.id
+                organizationId: orgId
             }
         });
     }
@@ -96,7 +106,7 @@ export async function createOrdenTrabajo(data: {
     if (metodoPagoRevision !== 'Ninguno') {
         const activeCaja = await prisma.corteCajaSession.findFirst({
             where: {
-                organizationId: org.id,
+                organizationId: orgId,
                 estado: 'ABIERTA'
             }
         });
@@ -107,7 +117,7 @@ export async function createOrdenTrabajo(data: {
 
     const orden = await prisma.ordenTrabajo.create({
         data: {
-            organizationId: org.id,
+            organizationId: orgId,
             clienteId: clienteRecord.id,
             equipoDano: data.nombreEquipo?.trim() || (data.equipo.toLowerCase() === 'medico' ? 'Equipo Médico' : data.equipo.toLowerCase() === 'aire' ? 'Aire Acondicionado' : 'Otro'),
             tipoAparato: data.equipo.toUpperCase(),
@@ -156,7 +166,7 @@ export async function createOrdenTrabajo(data: {
                     equals: 'Desarrollo Bio',
                     mode: 'insensitive'
                 },
-                organizationId: org.id
+                organizationId: orgId
             }
         });
 
@@ -170,7 +180,7 @@ export async function createOrdenTrabajo(data: {
             while (true) {
                 const dup = await prisma.kanbanSpace.findFirst({
                     where: {
-                        organizationId: org.id,
+                        organizationId: orgId,
                         clave: spaceClave
                     }
                 });
@@ -181,7 +191,7 @@ export async function createOrdenTrabajo(data: {
 
             space = await prisma.kanbanSpace.create({
                 data: {
-                    organizationId: org.id,
+                    organizationId: orgId,
                     nombre: 'Desarrollo Bio',
                     clave: spaceClave,
                     tiposActividad: ["Task", "Story", "Feature", "Bug", "Orden de Trabajo"],
@@ -218,7 +228,7 @@ export async function createOrdenTrabajo(data: {
             const task = await prisma.kanbanTask.create({
                 data: {
                     spaceId: space.id,
-                    organizationId: org.id,
+                    organizationId: orgId,
                     codigo: taskCodigo,
                     title: `Orden #${orden.codigoSeguridad} - ${orden.equipoDano}`,
                     description: descLines,
@@ -241,7 +251,7 @@ export async function createOrdenTrabajo(data: {
             } else if (firstTecnicoId) {
                 fallbackUserId = firstTecnicoId;
             } else {
-                const firstUser = await prisma.user.findFirst({ where: { organizationId: org.id } });
+                const firstUser = await prisma.user.findFirst({ where: { organizationId: orgId } });
                 fallbackUserId = firstUser?.id || '';
             }
 
@@ -449,12 +459,11 @@ export async function finalizarReparacion(id: string) {
 
 export async function searchRepuestos(query: string) {
     if (!query) return [];
-    const org = await prisma.organization.findFirst();
-    if (!org) return [];
+    const orgId = await getOrgId();
 
     return prisma.activoFijo.findMany({
         where: {
-            organizationId: org.id,
+            organizationId: orgId,
             OR: [
                 { descripcionCorta: { contains: query, mode: 'insensitive' } },
                 { codigoBarras: { contains: query, mode: 'insensitive' } },
@@ -487,8 +496,7 @@ export async function guardarDiagnostico(
     costoSugerido: number,
     fotosTecnico: string[] = []
 ) {
-    const org = await prisma.organization.findFirst();
-    if (!org) throw new Error("Organización no encontrada");
+    const orgId = await getOrgId();
 
     await prisma.$transaction(async (tx) => {
         // Borrar repuestos anteriores si existen (para evitar duplicados al re-guardar)
@@ -626,6 +634,27 @@ export async function asignarTecnicos(ordenId: string, tecnicoIds: string[]) {
             }
         }
     });
+
+    try {
+        const task = await prisma.kanbanTask.findFirst({
+            where: { ordenTrabajoId: ordenId }
+        });
+        if (task) {
+            await prisma.kanbanTask.update({
+                where: { id: task.id },
+                data: {
+                    asignadoId: firstTecnicoId,
+                    asignados: {
+                        set: tecnicoIds.map(id => ({ id }))
+                    }
+                }
+            });
+            revalidatePath(`/kanban/${task.spaceId}`);
+        }
+    } catch (kanbanErr) {
+        console.error("[Kanban Sync Error in asignarTecnicos]:", kanbanErr);
+    }
+
     revalidatePath('/soporte');
     revalidatePath(`/soporte/${ordenId}`);
     return { success: true };
@@ -646,8 +675,7 @@ export async function updateDatosOrden(
         fotosEstadoInicial?: string[];
     }
 ) {
-    const org = await prisma.organization.findFirst();
-    if (!org) throw new Error('Organización no encontrada');
+    const orgId = await getOrgId();
 
     const updated = await prisma.ordenTrabajo.update({
         where: { id },

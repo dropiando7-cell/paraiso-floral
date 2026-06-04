@@ -57,7 +57,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }
     });
 
-    const org = await prisma.organization.findFirst();
+    const org = doc
+      ? await prisma.organization.findUnique({
+          where: { id: doc.organizationId }
+        })
+      : null;
 
     if (!doc || !org) {
       return new Response('Document or Organization not found', { status: 404 });

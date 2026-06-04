@@ -376,11 +376,11 @@ export default function SoporteDetailClient({
 
             <div className="flex flex-wrap gap-1.5">
               {assignedTecnicos.map(t => {
-                const displayName = [t.nombre, t.apellido].filter(Boolean).join(" ");
+                const displayName = [t.nombre, t.apellido].filter(Boolean).join(" ") || t.email;
                 return (
                   <span key={t.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 text-[11px] font-bold shadow-sm">
                     <span>{displayName.toUpperCase()}</span>
-                    {isGlobal || isGerente || isRecepcion ? (
+                    {isGlobal || isGerente || isRecepcion || isTecnico ? (
                       <button
                         disabled={updatingTecnicos}
                         onClick={() => handleToggleTecnico(t.id)}
@@ -397,7 +397,7 @@ export default function SoporteDetailClient({
               )}
             </div>
 
-            {(isGlobal || isGerente || isRecepcion) && (
+            {(isGlobal || isGerente || isRecepcion || isTecnico) && (
               <div>
                 <select
                   disabled={updatingTecnicos}
@@ -410,7 +410,7 @@ export default function SoporteDetailClient({
                 >
                   <option value="">+ Agregar Técnico...</option>
                   {organizationUsers.map(u => {
-                    const displayName = [u.nombre, u.apellido].filter(Boolean).join(" ");
+                    const displayName = [u.nombre, u.apellido].filter(Boolean).join(" ") || u.email;
                     const puestoText = u.puesto ? u.puesto.toUpperCase() : u.role;
                     return (
                       <option key={u.id} value={u.id} disabled={assignedTecnicos.some(t => t.id === u.id)}>

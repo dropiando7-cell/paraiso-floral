@@ -12,16 +12,13 @@ export default async function PurePrintPage({ params }: { params: Promise<{ id: 
     let doc = null;
     
     try {
-        // This relies on the cookie still being present from the Puppeteer context
-        // In an ideal system, a signed jwt token would verify auth for serverless puppeteer.
-        // Since puppeteer accesses the url natively, if it doesn't get auth cookies, getOrganizationId will fail.
-        // If we are passing ?token, we can bypass or inject the token logic. For simplicity, 
-        // we fetch using a pure Prisma call if token exists, or we expect cookies to carry over.
-        org = await prisma.organization.findFirst(); // Fallback for print context auth
-        if (org) {
-            doc = await prisma.factura.findUnique({
-                where: { id },
-                include: { detalles: true, cliente: true }
+        doc = await prisma.factura.findUnique({
+            where: { id },
+            include: { detalles: true, cliente: true }
+        });
+        if (doc) {
+            org = await prisma.organization.findUnique({
+                where: { id: doc.organizationId }
             });
         }
     } catch (e) {

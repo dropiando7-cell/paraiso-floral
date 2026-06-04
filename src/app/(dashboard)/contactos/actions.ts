@@ -2,16 +2,29 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { createClient } from '@/utils/supabase/server';
+
+async function getOrgId() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('Usuario no autenticado');
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { organizationId: true }
+    });
+    if (!dbUser) throw new Error('Organización no encontrada');
+    return dbUser.organizationId;
+}
 
 export async function fetchContactos(query: string, page: number = 1) {
-    const org = await prisma.organization.findFirst();
-    if (!org) throw new Error('Org no encontrada');
+    const orgId = await getOrgId();
 
     const pageSize = 10;
     const skip = (page - 1) * pageSize;
 
     const where = {
-        organizationId: org.id,
+        organizationId: orgId,
         ...(query ? {
             OR: [
                 { nombre: { contains: query, mode: 'insensitive' as any } },
@@ -34,13 +47,12 @@ export async function fetchContactos(query: string, page: number = 1) {
 }
 
 export async function createContacto(data: { nombre: string; email?: string; telefono?: string; rtn?: string; direccion?: string }) {
-    const org = await prisma.organization.findFirst();
-    if (!org) throw new Error('Org no encontrada');
+    const orgId = await getOrgId();
 
     const cleanNombre = data.nombre.trim();
     const existe = await prisma.cliente.findFirst({
         where: {
-            organizationId: org.id,
+            organizationId: orgId,
             nombre: {
                 equals: cleanNombre,
                 mode: 'insensitive'
@@ -56,7 +68,7 @@ export async function createContacto(data: { nombre: string; email?: string; tel
         data: {
             ...data,
             nombre: cleanNombre,
-            organizationId: org.id,
+            organizationId: orgId,
         },
     });
 
