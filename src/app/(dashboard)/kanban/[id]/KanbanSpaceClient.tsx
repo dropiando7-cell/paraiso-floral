@@ -1068,6 +1068,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                 )}
                                                                 {/* Alerta de Vencimiento */}
                                                                 {(() => {
+                                                                    if (isDoneColumn(columna)) return null;
                                                                     const alert = getDueDateAlert(task.dueDate);
                                                                     if (!alert) return null;
                                                                     return (
@@ -1118,16 +1119,17 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
                                                             {/* Prioridad y Check si es LISTO */}
                                                             <div className="flex items-center gap-1.5 shrink-0">
-                                                                {isDoneColumn(columna) && (
-                                                                    <div className="h-5 w-5 sm:h-4.5 sm:w-4.5 bg-emerald-50 border border-emerald-200 rounded-full flex items-center justify-center text-emerald-600" title="Completado">
-                                                                        <Check className="h-3.5 w-3.5 sm:h-3 sm:w-3 stroke-[3]" />
-                                                                    </div>
+                                                                {isDoneColumn(columna) ? (
+                                                                    <span className="border px-2 py-0.5 rounded text-[9.5px] sm:text-[8px] font-extrabold uppercase tracking-wider bg-emerald-50 border-emerald-250 text-emerald-700 animate-fade-in">
+                                                                        Completado
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className={`border px-2 py-0.5 rounded text-[9.5px] sm:text-[8px] font-extrabold uppercase tracking-wider ${getPriorityBadgeClass(task.priority)}`}>
+                                                                        {task.priority === 'URGENT' ? 'Urgente' : 
+                                                                         task.priority === 'HIGH' ? 'Alta' : 
+                                                                         task.priority === 'MEDIUM' ? 'Media' : 'Baja'}
+                                                                    </span>
                                                                 )}
-                                                                <span className={`border px-2 py-0.5 rounded text-[9.5px] sm:text-[8px] font-extrabold uppercase tracking-wider ${getPriorityBadgeClass(task.priority)}`}>
-                                                                    {task.priority === 'URGENT' ? 'Urgente' : 
-                                                                     task.priority === 'HIGH' ? 'Alta' : 
-                                                                     task.priority === 'MEDIUM' ? 'Media' : 'Baja'}
-                                                                </span>
                                                             </div>
                                                         </div>
                                                     </div>
