@@ -337,6 +337,10 @@ export async function updateEstadoOrden(id: string, nuevoEstado: string) {
     }
 
     revalidatePath('/soporte');
+    
+    // Sync with Kanban
+    await syncKanbanStatus(id, nuevoEstado);
+
     return {
         ...updated,
         costoRevision: updated.costoRevision ? Number(updated.costoRevision) : null,
@@ -368,6 +372,9 @@ export async function entregarOrden(id: string) {
         }
     });
     revalidatePath('/soporte');
+    
+    await syncKanbanStatus(id, 'ENTREGADO');
+
     return {
         ...updated,
         costoRevision: updated.costoRevision ? Number(updated.costoRevision) : null,
@@ -450,6 +457,9 @@ export async function finalizarReparacion(id: string) {
 
     revalidatePath('/soporte');
     revalidatePath(`/soporte/${id}`);
+    
+    await syncKanbanStatus(id, 'LISTO_ENTREGA', userId || undefined);
+
     return {
         ...orden,
         costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
@@ -556,6 +566,31 @@ export async function guardarDiagnostico(
         }
     });
 
+    await syncKanbanStatus(ordenId, 'ESPERANDO_APROBACION');
+
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+            const dbUser = await prisma.user.findUnique({ where: { email: user.email }});
+            if (dbUser) {
+                const task = await prisma.kanbanTask.findFirst({ where: { ordenTrabajoId: ordenId } });
+                if (task) {
+                    const repuestosText = repuestos.length > 0 ? `\n\n**Repuestos Sugeridos:**\n` + repuestos.map(r => `- ${r.cantidad}x ${r.nombre}`).join('\n') : '';
+                    await prisma.kanbanComment.create({
+                        data: {
+                            taskId: task.id,
+                            usuarioId: dbUser.id,
+                            contenido: `**Diagnóstico Técnico:**\n${diagnostico}${repuestosText}`
+                        }
+                    });
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error adding kanban comment for diagnosis:", e);
+    }
+
     revalidatePath('/soporte');
     revalidatePath(`/soporte/${ordenId}`);
     return { success: true };
@@ -565,7 +600,8 @@ export async function aprobarPresupuesto(
     ordenId: string, 
     repuestosAprobados: any[], 
     costoFinalLabor: number,
-    costoFinalReparacion: number
+    costoFinalReparacion: number,
+    detalleManoObraModificado?: any[]
 ) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -592,7 +628,8 @@ export async function aprobarPresupuesto(
                 estado: 'REPARACION',
                 fechaAprobado: new Date(),
                 usuarioAprobacionId: userId || undefined,
-                costoReparacion: costoFinalReparacion
+                costoReparacion: costoFinalReparacion,
+                ...(detalleManoObraModificado ? { detalleManoObra: detalleManoObraModificado as any } : {})
             },
             include: { cliente: true, tecnicoReparacion: true }
         });
@@ -617,6 +654,27 @@ export async function aprobarPresupuesto(
             }
         }
     });
+
+    await syncKanbanStatus(ordenId, 'REPARACION', userId || undefined);
+
+    if (userId) {
+        try {
+            const task = await prisma.kanbanTask.findFirst({ where: { ordenTrabajoId: ordenId } });
+            if (task) {
+                await prisma.kanbanActivity.create({
+                    data: {
+                        spaceId: task.spaceId,
+                        taskId: task.id,
+                        usuarioId: userId,
+                        accion: 'COMENTARIO',
+                        detalles: `Gerencia ha aprobado el presupuesto. La reparación puede iniciar.`
+                    }
+                });
+            }
+        } catch (e) {
+            console.error("Error logging approval kanban activity", e);
+        }
+    }
 
     revalidatePath('/soporte');
     revalidatePath(`/soporte/${ordenId}`);
@@ -707,4 +765,128 @@ export async function updateDatosOrden(
     revalidatePath('/soporte');
     revalidatePath(`/soporte/${id}`);
     return { success: true };
+}
+
+export async function syncKanbanStatus(ordenId: string, nuevoEstado: string, userIdArg?: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        let userId = userIdArg;
+        if (!userId && user?.email) {
+            const dbUser = await prisma.user.findUnique({ where: { email: user.email }});
+            userId = dbUser?.id;
+        }
+
+        const task = await prisma.kanbanTask.findFirst({
+            where: { ordenTrabajoId: ordenId },
+            include: { space: true }
+        });
+
+        if (!task || !task.space) return;
+
+        let targetColumn = '';
+        if (['RECIBIDO', 'EN_EVALUACION', 'ESPERANDO_APROBACION'].includes(nuevoEstado)) {
+            targetColumn = 'POR HACER';
+        } else if (nuevoEstado === 'REPARACION') {
+            targetColumn = 'EN CURSO';
+        } else if (['LISTO_ENTREGA', 'ENTREGADO'].includes(nuevoEstado)) {
+            targetColumn = 'LISTO';
+        }
+
+        if (!targetColumn) return;
+
+        // Auto-healing: Ensure column exists
+        let currentColumns = [...task.space.columnas];
+        if (!currentColumns.includes(targetColumn)) {
+            currentColumns.push(targetColumn);
+            await prisma.kanbanSpace.update({
+                where: { id: task.space.id },
+                data: { columnas: currentColumns }
+            });
+        }
+
+        if (task.status !== targetColumn) {
+            await prisma.kanbanTask.update({
+                where: { id: task.id },
+                data: { status: targetColumn }
+            });
+
+            if (userId) {
+                await prisma.kanbanActivity.create({
+                    data: {
+                        spaceId: task.spaceId,
+                        taskId: task.id,
+                        usuarioId: userId,
+                        accion: 'MOVIMIENTO',
+                        detalles: `Movió la tarjeta de '${task.status}' a '${targetColumn}' (Sincronización automática)`
+                    }
+                });
+            }
+            revalidatePath(`/kanban/${task.spaceId}`);
+        }
+    } catch (e) {
+        console.error("Error syncing Kanban status:", e);
+    }
+}
+
+import { guardarDocumentoBuilder } from '../facturas/actions';
+
+export async function generarPresupuestoReparacion(ordenId: string, facturacionItems: any[]) {
+    try {
+        const orden = await prisma.ordenTrabajo.findUnique({
+            where: { id: ordenId },
+            include: { cliente: true, tecnicosAsignados: true }
+        });
+        if (!orden) throw new Error("Orden no encontrada");
+
+        // 1. Calculate totals
+        const subTotal = facturacionItems.reduce((acc, item) => acc + (Number(item.qty) * Number(item.unitPrice)), 0);
+        const total = subTotal; // Assuming no tax/discount logic here, or we can just sum
+
+        // 2. Prepare Factura Document Data
+        const documentData = {
+            tipoDocumento: 'PRESUPUESTO_REPARACION',
+            clienteId: orden.clienteId,
+            subTotal: subTotal,
+            total: total,
+            totalExento: 0,
+            totalExonerado: 0,
+            totalGravado15: total, // or 0 depending on their standard
+            documentoOrigenId: ordenId,
+            validezDias: 15,
+            metodoPago: 'Transferencia/Efectivo'
+        };
+
+        // 3. Create Factura using builder logic
+        const result = await guardarDocumentoBuilder(documentData, facturacionItems);
+        if (!result.success) {
+            throw new Error(result.error);
+        }
+
+        const facturaId = result.docId;
+        const correlativo = result.correlativo;
+
+        // 4. Send Twilio notification with the URL to the portal
+        const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
+        const portalUrl = `${domain}/c/${facturaId}/presupuesto`;
+
+        // We inject the URL in the 'fallaEncontrada' or 'trabajoARealizar' variable.
+        const trabajoText = `Para ver el detalle completo y FIRMAR, ingresa aquí: ${portalUrl}`;
+
+        await sendSoportePresupuesto(
+            orden.cliente?.nombre || '',
+            orden.cliente?.telefono || '',
+            `${orden.equipoDano} - ${orden.marcaModelo || ''}`,
+            orden.codigoSeguridad,
+            orden.descripcionFalla || 'Mantenimiento Correctivo',
+            trabajoText,
+            total,
+            '3 a 5 días hábiles'
+        );
+
+        return { success: true, facturaId, correlativo, portalUrl };
+    } catch (e: any) {
+        console.error("Error generando presupuesto:", e);
+        return { success: false, error: e.message || "Error al generar presupuesto" };
+    }
 }

@@ -45,6 +45,7 @@ export interface TemplateProps {
   handleSave: () => void;
   isSaving: boolean;
   viewMode?: boolean;
+  clienteSignature?: { url: string; date: string; name: string } | null;
   fmt: (n: number) => string;
   LineItemRowComponent: React.FC<any>;
 }

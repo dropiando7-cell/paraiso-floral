@@ -3,9 +3,10 @@ import { InvoiceSettings } from '@/types/invoice';
 
 interface InvoiceSignaturesAndSealsProps {
   settings: InvoiceSettings;
+  clienteSignature?: { url: string; date: string; name: string } | null;
 }
 
-export default function InvoiceSignaturesAndSeals({ settings }: InvoiceSignaturesAndSealsProps) {
+export default function InvoiceSignaturesAndSeals({ settings, clienteSignature }: InvoiceSignaturesAndSealsProps) {
   const showSignatures = settings.showSignatures ?? false;
   
   const showSeals = settings.showSeals ?? false;
@@ -137,6 +138,26 @@ export default function InvoiceSignaturesAndSeals({ settings }: InvoiceSignature
             );
           })}
         </div>
+      )}
+
+      {/* Client Signature Area */}
+      {clienteSignature && (
+          <div className="flex justify-start items-end mt-12 w-full">
+            <div className="flex flex-col items-center text-center relative w-[40%]">
+              <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: '64px' }}>
+                  <img 
+                    src={clienteSignature.url} 
+                    alt={`Firma de Cliente`} 
+                    className="object-contain relative mix-blend-multiply" 
+                    style={{ height: `${signatureHeight}px` }}
+                  />
+              </div>
+              <div className="w-full border-t border-slate-400 my-1"></div>
+              <p className="font-bold text-slate-800 text-xs">Firma Aprobada por: {clienteSignature.name}</p>
+              <p className="text-slate-500 text-[10px]">Cliente / Solicitante</p>
+              <p className="text-slate-400 text-[8px] mt-1">Fecha: {new Date(clienteSignature.date).toLocaleString()}</p>
+            </div>
+          </div>
       )}
 
       {/* Caso especial: Sólo sellos activados, sin firmas y en el centro */}

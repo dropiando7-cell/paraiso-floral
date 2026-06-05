@@ -267,7 +267,7 @@ export default function SoporteDetailClient({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {orden.estado !== 'RECIBIDO' && (isGlobal || isRecepcion || isTecnico) && (
+          {orden.estado !== 'RECIBIDO' && (isGlobal || isRecepcion || isTecnico || isGerente) && (
             <button
               type="button"
               onClick={() => {
@@ -321,15 +321,24 @@ export default function SoporteDetailClient({
           {isTecnico && ['EN_EVALUACION', 'REPARACION'].includes(orden.estado) && (
             <div>
               <TechnicalWorkbench orderData={orden} />
-              <div className="mt-4 flex justify-end gap-3">
+              <div className="mt-4 flex flex-col sm:flex-row justify-end gap-3">
                 {orden.estado === 'REPARACION' && (
-                  <button 
-                    onClick={() => handleAvanzar('LISTO_ENTREGA')}
-                    disabled={loading}
-                    className="w-full sm:w-auto bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition"
-                  >
-                    Marcar como REPARADO / LISTO <CheckCircle2 className="w-4 h-4" />
-                  </button>
+                  <>
+                    <button 
+                      onClick={() => handleRetroceder('ESPERANDO_APROBACION')}
+                      disabled={loading}
+                      className="w-full sm:w-auto bg-white border border-red-200 text-red-600 hover:bg-red-50 px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-sm"
+                    >
+                      <ArrowLeft className="w-4 h-4" /> Devolver a Presupuesto
+                    </button>
+                    <button 
+                      onClick={() => handleAvanzar('LISTO_ENTREGA')}
+                      disabled={loading}
+                      className="w-full sm:w-auto bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition"
+                    >
+                      Marcar como REPARADO / LISTO <CheckCircle2 className="w-4 h-4" />
+                    </button>
+                  </>
                 )}
               </div>
             </div>
@@ -358,6 +367,9 @@ export default function SoporteDetailClient({
               orderData={orden} 
               onApprove={() => {
                 handleAvanzar('REPARACION');
+              }}
+              onReject={() => {
+                handleRetroceder('EN_EVALUACION');
               }}
             />
           )}

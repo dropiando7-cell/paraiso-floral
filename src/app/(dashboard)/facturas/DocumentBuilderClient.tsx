@@ -2015,6 +2015,13 @@ export default function DocumentBuilderClient({
     factura: { badge: 'bg-emerald-50 text-emerald-600 border border-emerald-200', label: 'FACTURA OFICIAL' },
     nota_credito: { badge: 'bg-purple-50 text-purple-600 border border-purple-200', label: 'NOTA DE CRÉDITO' },
   };
+  const clienteSignaturePayload = (initialData?.firmaClienteBase64 && initialData?.firmaClienteAt) 
+    ? {
+        url: initialData.firmaClienteBase64,
+        date: initialData.firmaClienteAt,
+        name: selectedClient?.name || 'Cliente'
+    } 
+    : null;
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans print:!bg-white overflow-x-hidden print:overflow-visible print:min-h-0 print:block">
@@ -2094,7 +2101,7 @@ export default function DocumentBuilderClient({
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-            LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
+            LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
           />}
           {settings.template === 'classic' && <ClassicTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -2109,7 +2116,7 @@ export default function DocumentBuilderClient({
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
+             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
           />}
           {settings.template === 'minimalist' && <MinimalistTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -2124,7 +2131,7 @@ export default function DocumentBuilderClient({
             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
+             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
           />}
           {settings.template === 'legacy' && <LegacyTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -2139,7 +2146,7 @@ export default function DocumentBuilderClient({
              handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
-             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode}
+             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
           />}
 
           </div>

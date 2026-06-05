@@ -689,6 +689,8 @@ model Factura {
   metodoPago               String?
   cajaSessionId            String?          @db.Uuid
   cajaSession              CorteCajaSession? @relation(fields: [cajaSessionId], references: [id])
+  firmaClienteBase64       String?          @db.Text
+  firmaClienteAt           DateTime?
 
   @@unique([organizationId, correlativo])
   @@index([organizationId])

@@ -30,7 +30,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
   );
   
   const [diagnostico, setDiagnostico] = useState(orderData?.diagnosticoTecnico || "");
-  const [nuevaHora, setNuevaHora] = useState({ descripcion: "", horas: "", tarifa: "400" });
+  const [nuevaHora, setNuevaHora] = useState({ descripcion: "", horas: "", tarifa: "0" });
   const [fotoFalla, setFotoFalla] = useState<{name: string; url: string; file?: File}[]>(
     orderData?.fotosTecnico?.map((url: string, i: number) => ({ name: `foto-${i}`, url })) || []
   );
@@ -93,8 +93,8 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
 
   const addHora = () => {
     if (!nuevaHora.descripcion) return;
-    setHoras(p => [...p, { ...nuevaHora, id: Date.now().toString(), horas: parseFloat(nuevaHora.horas) || 0, tarifa: parseFloat(nuevaHora.tarifa as string) || 0 }]);
-    setNuevaHora({ descripcion: "", horas: "", tarifa: "400" });
+    setHoras(p => [...p, { ...nuevaHora, id: Date.now().toString(), horas: parseFloat(nuevaHora.horas) || 0, tarifa: 0 }]);
+    setNuevaHora({ descripcion: "", horas: "", tarifa: "0" });
   };
 
   const handleGuardarCotizacion = async () => {
@@ -309,7 +309,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
               <table className="w-full text-left border-collapse text-xs mb-3 min-w-[500px]">
                 <thead>
                   <tr className="border-b-2 border-slate-100">
-                    {["Actividad","Horas","Tarifa/Hr","Subtotal",""].map(h => (
+                    {["Actividad","Horas",""].map(h => (
                       <th key={h} className="py-2 px-2 text-slate-400 font-semibold">{h}</th>
                     ))}
                   </tr>
@@ -319,8 +319,6 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                     <tr key={h.id} className="border-b border-slate-50">
                       <td className="py-2 px-2 text-slate-800 font-medium">{h.descripcion}</td>
                       <td className="py-2 px-2 text-slate-800 font-medium text-center">{h.horas}</td>
-                      <td className="py-2 px-2 text-slate-500 font-medium">L {h.tarifa}/hr</td>
-                      <td className="py-2 px-2 text-slate-800 font-bold">L {(h.horas * h.tarifa).toFixed(2)}</td>
                       <td className="py-2 px-2 text-right">
                         <button onClick={() => setHoras(p => p.filter(x => x.id !== h.id))} className="text-red-500 hover:text-red-700 bg-transparent p-1 rounded">
                           <X className="w-4 h-4" />
@@ -332,19 +330,12 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
               </table>
             </div>
 
-            <div className="flex flex-col md:grid md:grid-cols-[2fr_0.8fr_1fr_auto] gap-2 items-stretch md:items-center mb-4">
+            <div className="flex flex-col md:grid md:grid-cols-[2fr_0.8fr_auto] gap-2 items-stretch md:items-center mb-4">
               <input className="px-3 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
                 placeholder="Actividad realizada..." value={nuevaHora.descripcion} onChange={e => setNuevaHora(p => ({...p, descripcion: e.target.value}))}/>
-              <div className="flex gap-2">
-                <input className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
-                  type="number" placeholder="Hrs" value={nuevaHora.horas} onChange={e => setNuevaHora(p => ({...p, horas: e.target.value}))}/>
-                <input className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
-                  type="number" placeholder="Tarifa L." value={nuevaHora.tarifa} onChange={e => setNuevaHora(p => ({...p, tarifa: e.target.value}))}/>
-              </div>
+              <input className="px-3 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
+                  type="number" placeholder="Horas estimadas" value={nuevaHora.horas} onChange={e => setNuevaHora(p => ({...p, horas: e.target.value}))}/>
               <button onClick={addHora} className="w-full md:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors">+ Agregar</button>
-            </div>
-            <div className="mt-auto text-right text-xs text-slate-600 font-medium">
-              Total Mano de Obra: <strong className="text-indigo-600 text-sm ml-1">L {totalMano.toFixed(2)}</strong>
             </div>
           </div>
         )}
@@ -392,14 +383,9 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
       </div>
 
       <div className="mt-6 pt-4 border-t border-slate-100">
-          <div className="mb-4 p-3 bg-slate-50 rounded-xl flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-            <div className="text-xs text-slate-500 font-medium">
-              Repuestos: <span className="text-slate-800 font-bold ml-1">L {totalRepuestos.toFixed(2)}</span>
-              <span className="mx-2 text-slate-300 hidden sm:inline">|</span>
-              <span className="block sm:inline">Mano Obra: <span className="text-slate-800 font-bold ml-1">L {totalMano.toFixed(2)}</span></span>
-            </div>
+          <div className="mb-4 p-3 bg-slate-50 rounded-xl flex flex-col sm:flex-row sm:justify-end sm:items-center gap-2">
             <div className="text-[15px] font-bold text-indigo-600">
-              Total Sugerido: L {totalGeneral.toFixed(2)}
+              Total Repuestos: L {totalRepuestos.toFixed(2)}
             </div>
           </div>
           <button 

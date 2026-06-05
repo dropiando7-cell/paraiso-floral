@@ -282,7 +282,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <div className="flex-1 print:hidden" />
 
  {/* Signatures and Seals */}
- <InvoiceSignaturesAndSeals settings={settings} />
+ <InvoiceSignaturesAndSeals settings={settings} clienteSignature={props.clienteSignature} />
 
  {/* Footer */}
  <InvoiceFooter settings={settings} organization={organization} className="print:mt-auto print:mb-0 print:px-12" />

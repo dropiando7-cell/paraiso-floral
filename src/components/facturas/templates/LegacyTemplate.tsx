@@ -341,7 +341,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  <div className="flex-1" />
 
  {/* Signatures and Seals */}
- <InvoiceSignaturesAndSeals settings={settings} />
+ <InvoiceSignaturesAndSeals settings={settings} clienteSignature={props.clienteSignature} />
 
  {/* Footer */}
  <InvoiceFooter

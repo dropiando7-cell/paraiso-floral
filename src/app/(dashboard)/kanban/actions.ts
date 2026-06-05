@@ -647,6 +647,13 @@ export async function deleteColumnFromSpace(spaceId: string, columnName: string)
             throw new Error('Debe haber al menos una columna en el tablero');
         }
 
+        if ((space.clave === 'DB' || space.nombre.toUpperCase() === 'DESARROLLO BIO') && 
+            ['POR HACER', 'EN CURSO', 'LISTO'].includes(columnName.toUpperCase())) {
+            if (user.role !== 'SUPER_ADMIN') {
+                throw new Error('Solo un Super Admin puede eliminar las columnas base del espacio Desarrollo Bio.');
+            }
+        }
+
         const remainingColumns = space.columnas.filter(col => col !== columnName);
         const fallbackColumn = remainingColumns[0]; // Mover tareas a la primera columna disponible
 

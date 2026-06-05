@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Send, Loader2 } from 'lucide-react';
-import { aprobarPresupuesto } from '../actions';
+import { Check, Send, Loader2, ArrowLeft, FileText, Smartphone } from 'lucide-react';
+import { aprobarPresupuesto, generarPresupuestoReparacion } from '../actions';
 import { useRouter } from 'next/navigation';
 
 type ApprovalCardProps = {
   orderData: any;
   onApprove: () => void;
+  onReject?: () => void;
 };
 
-export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps) {
+export default function ApprovalCard({ orderData, onApprove, onReject }: ApprovalCardProps) {
   const router = useRouter();
-  const [margen, setMargen] = useState(30);
   const [approved, setApproved] = useState(
     orderData?.estado === 'REPARACION' || 
     orderData?.estado === 'LISTO_ENTREGA' || 
@@ -30,31 +30,80 @@ export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps
     })) || []
   );
 
-  const costoManoObra = orderData?.detalleManoObra?.reduce((s: number, h: any) => s + (h.horas * h.tarifa), 0) || 0;
+  const [manoObra, setManoObra] = useState<any[]>(
+    orderData?.detalleManoObra || []
+  );
+
+  const costoManoObra = manoObra.reduce((s: number, h: any) => s + (h.horas * h.tarifa), 0) || 0;
   
   const totalRepuestosAprobados = repuestos.reduce((s, r) => s + (r.cantidad * Number(r.precioAprobado)), 0);
   const costoTotalBase = totalRepuestosAprobados + costoManoObra; 
 
-  const precioVenta = (costoTotalBase * (1 + margen / 100));
-  const ganancia = precioVenta - costoTotalBase;
-  const itv = precioVenta * 0.15;
-  const totalFinal = precioVenta + itv;
+  const subtotal = costoTotalBase;
+  const itv = subtotal * 0.15;
+  const totalFinal = subtotal + itv;
 
-  const sendWhatsApp = () => {
+  const [facturaGeneradaId, setFacturaGeneradaId] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [portalUrl, setPortalUrl] = useState<string | null>(null);
+
+  const getFacturacionItems = () => {
+    const items: any[] = [];
+    repuestos.forEach(r => {
+      items.push({
+        productoId: r.productoId,
+        qty: r.cantidad,
+        unitPrice: Number(r.precioAprobado),
+        shortDesc: r.producto?.nombre,
+        longDesc: 'Repuesto sugerido por técnico',
+        tax: 'isv15'
+      });
+    });
+    manoObra.forEach(h => {
+      items.push({
+        qty: h.horas,
+        unitPrice: Number(h.tarifa),
+        shortDesc: h.descripcion,
+        longDesc: 'Mano de obra (horas)',
+        tax: 'isv15' // or exento depending on policy, assuming 15
+      });
+    });
+    return items;
+  };
+
+  const sendWhatsApp = (url: string | null = null) => {
+    const linkFirma = url || portalUrl || "Por favor solicite el link de firma.";
     const msg = encodeURIComponent(
       `*Bioelectrónica Honduras*\n\n` +
       `📋 Orden: ${orderData?.codigoSeguridad || "SVC-0000"}\n` +
       `🏥 Equipo: ${orderData?.equipoDano || "Equipo"}\n` +
       `🔧 Falla: ${orderData?.descripcionFalla || "Evaluación"}\n\n` +
       `💰 *Presupuesto de Reparación*\n` +
-      `Costo de repuestos + mano de obra: L ${costoTotalBase.toFixed(2)}\n` +
-      `Precio de venta: L ${precioVenta.toFixed(2)}\n` +
-      `ITV (15%): L ${itv.toFixed(2)}\n` +
       `*Total a Pagar: L ${totalFinal.toFixed(2)}*\n\n` +
-      `Para aprobar el presupuesto responda con "APRUEBO".\n\nBioelectrónica Honduras · +504 2234-5678`
+      `Para ver el detalle completo y FIRMAR su aprobación, ingrese aquí:\n` +
+      `${linkFirma}\n\nBioelectrónica Honduras`
     );
     window.open(`https://wa.me/?text=${msg}`, "_blank");
     setWhatsappSent(true);
+  };
+
+  const handleGenerarPresupuesto = async () => {
+    setIsGenerating(true);
+    try {
+        const items = getFacturacionItems();
+        const res = await generarPresupuestoReparacion(orderData.id, items);
+        if (res.success) {
+            setFacturaGeneradaId(res.facturaId);
+            setPortalUrl(res.portalUrl);
+            alert(`Presupuesto ${res.correlativo} generado exitosamente y notificado vía Twilio.`);
+        } else {
+            alert(res.error || "Error al generar presupuesto.");
+        }
+    } catch (e) {
+        alert("Error de conexión al generar presupuesto.");
+    } finally {
+        setIsGenerating(false);
+    }
   };
 
   const handleApprove = async () => {
@@ -67,7 +116,7 @@ export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps
             subtotalAprobado: r.cantidad * Number(r.precioAprobado)
         }));
         
-        await aprobarPresupuesto(orderData.id, repuestosModificados, costoManoObra, totalFinal);
+        await aprobarPresupuesto(orderData.id, repuestosModificados, costoManoObra, totalFinal, manoObra);
         setApproved(true);
         onApprove && onApprove();
         router.refresh();
@@ -179,11 +228,33 @@ export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps
                           </tr>
                       </thead>
                       <tbody>
-                          {orderData.detalleManoObra.map((h: any) => (
+                          {manoObra.map((h: any) => (
                               <tr key={h.id} className="border-b border-slate-100 last:border-0">
                                   <td className="py-1 text-slate-700">{h.descripcion}</td>
-                                  <td className="py-1 text-slate-700 text-center">{h.horas}</td>
-                                  <td className="py-1 text-slate-700 text-right">{(h.horas * h.tarifa).toFixed(2)}</td>
+                                  <td className="py-1 text-center">
+                                    <input 
+                                      type="number" 
+                                      disabled={approved}
+                                      className="w-16 text-center border border-slate-200 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-transparent disabled:border-transparent font-medium"
+                                      value={h.horas}
+                                      onChange={e => {
+                                         const val = parseFloat(e.target.value) || 0;
+                                         setManoObra(p => p.map(x => x.id === h.id ? {...x, horas: val} : x));
+                                      }}
+                                    />
+                                  </td>
+                                  <td className="py-1 text-right">
+                                    <input 
+                                      type="number" 
+                                      disabled={approved}
+                                      className="w-20 text-right border border-slate-200 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-transparent disabled:border-transparent font-bold"
+                                      value={h.tarifa}
+                                      onChange={e => {
+                                         const val = parseFloat(e.target.value) || 0;
+                                         setManoObra(p => p.map(x => x.id === h.id ? {...x, tarifa: val} : x));
+                                      }}
+                                    />
+                                  </td>
                               </tr>
                           ))}
                       </tbody>
@@ -202,27 +273,13 @@ export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps
         </div>
       </div>
 
-      <div className="mb-5">
-        <div className="flex justify-between items-center mb-2">
-          <label className="text-xs font-bold text-slate-700">Margen de Ganancia</label>
-          <span className="text-[13px] font-bold text-indigo-600">{margen}%</span>
-        </div>
-        <input 
-          type="range" min="0" max="100" step="5" 
-          disabled={approved}
-          value={margen} onChange={e => setMargen(Number(e.target.value))}
-          className="w-full accent-indigo-600 disabled:opacity-50"
-        />
-      </div>
-
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-2 gap-2 mb-4 mt-2">
         {[
-          ["Precio Venta", `L ${precioVenta.toFixed(2)}`, "bg-indigo-50", "text-indigo-600"],
-          ["Ganancia", `L ${ganancia.toFixed(2)}`, "bg-green-50", "text-green-700"],
+          ["Subtotal (Costo Base)", `L ${subtotal.toFixed(2)}`, "bg-indigo-50", "text-indigo-600"],
           ["Total + ITV", `L ${totalFinal.toFixed(2)}`, "bg-orange-50", "text-orange-600"],
         ].map(([label, value, bg, color]) => (
           <div key={label} className={`${bg} rounded-xl p-3.5 text-center flex flex-col justify-between`}>
-            <div className={`text-[9px] md:text-[10px] ${color} font-bold mb-1 leading-tight`}>{label}</div>
+            <div className={`text-[9px] md:text-[10px] ${color} font-bold mb-1 leading-tight uppercase`}>{label}</div>
             <div className={`text-[11px] md:text-xs ${color} font-black truncate`}>{value}</div>
           </div>
         ))}
@@ -237,25 +294,62 @@ export default function ApprovalCard({ orderData, onApprove }: ApprovalCardProps
         />
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2 mt-auto">
+      <div className="flex flex-col gap-2 mt-auto">
+        {!facturaGeneradaId && !approved && (
+            <button 
+              type="button"
+              onClick={handleGenerarPresupuesto}
+              disabled={isGenerating || isSaving}
+              className="w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center transition-colors bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 shadow-md shadow-indigo-500/20"
+            >
+              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <FileText className="w-4 h-4 mr-1.5" />} 
+              Generar Presupuesto y Enviar por Twilio
+            </button>
+        )}
+
+        {facturaGeneradaId && !approved && (
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold text-emerald-800">Presupuesto Generado</span>
+                </div>
+                <a href={`/facturas/${facturaGeneradaId}`} target="_blank" className="text-[10px] bg-white border border-emerald-200 px-2 py-1 rounded shadow-sm text-emerald-700 font-bold hover:bg-emerald-50">Ver Documento</a>
+            </div>
+        )}
+
+        <div className="flex gap-2">
+            {onReject && !approved && (
+              <button 
+                type="button"
+                onClick={onReject}
+                disabled={isSaving || isGenerating}
+                className="w-full sm:flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center transition-colors bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 disabled:opacity-50"
+              >
+                <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Devolver
+              </button>
+            )}
+
+            <button 
+              type="button"
+              onClick={() => sendWhatsApp()} 
+              disabled={!facturaGeneradaId && !approved}
+              className={`w-full sm:flex-1 py-3 border-none rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${
+                 (!facturaGeneradaId && !approved) ? "bg-slate-100 text-slate-400" : (whatsappSent ? "bg-green-100 text-green-700" : "bg-[#25D366] hover:bg-[#20bd5a] text-white")
+              }`}
+            >
+              {whatsappSent ? "Enviado ✓" : <><Smartphone className="w-3.5 h-3.5"/> Enviar WhatsApp (Manual)</>}
+            </button>
+        </div>
+
         <button 
           type="button"
           onClick={handleApprove}
-          disabled={approved || isSaving}
-          className={`w-full sm:flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center transition-colors ${
-            approved ? "bg-green-100 text-green-700 border border-green-200" : "bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
+          disabled={approved || isSaving || isGenerating}
+          className={`w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center transition-colors ${
+            approved ? "bg-green-100 text-green-700 border border-green-200" : "bg-white border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 disabled:border-slate-300 disabled:text-slate-400"
           }`}
         >
-          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : (approved ? "✓ Presupuesto Aprobado" : "Aprobar Presupuesto")}
-        </button>
-        <button 
-          type="button"
-          onClick={sendWhatsApp} 
-          className={`w-full sm:flex-1 py-3 border-none rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${
-             whatsappSent ? "bg-green-100 text-green-700" : "bg-[#25D366] hover:bg-[#20bd5a] text-white"
-          }`}
-        >
-          {whatsappSent ? "Enviado ✓" : <><Send className="w-3.5 h-3.5"/> Whatsapp</>}
+          {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : (approved ? "✓ Presupuesto Aprobado" : "Aprobar Manualmente (El cliente aceptó)")}
         </button>
       </div>
       {selectedImage && (
