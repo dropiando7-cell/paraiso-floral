@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, X, UploadCloud, Save, Search, Loader2 } from 'lucide-react';
+import { Settings, X, UploadCloud, Save, Search, Loader2, Plus } from 'lucide-react';
 import { searchRepuestos, guardarDiagnostico } from '../actions';
 import { useRouter } from 'next/navigation';
 import { compressImage } from '@/utils/image';
+import { ActivoModal } from '../../inventario/InventarioClient';
 
 type TechnicalWorkbenchProps = {
   orderData: any;
@@ -29,7 +30,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
   );
   
   const [diagnostico, setDiagnostico] = useState(orderData?.diagnosticoTecnico || "");
-  const [nuevaHora, setNuevaHora] = useState({ descripcion: "", horas: "", tarifa: 400 });
+  const [nuevaHora, setNuevaHora] = useState({ descripcion: "", horas: "", tarifa: "400" });
   const [fotoFalla, setFotoFalla] = useState<{name: string; url: string; file?: File}[]>(
     orderData?.fotosTecnico?.map((url: string, i: number) => ({ name: `foto-${i}`, url })) || []
   );
@@ -41,6 +42,15 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
   const [isSearching, setIsSearching] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isActivoModalOpen, setIsActivoModalOpen] = useState(false);
+  const [dbAreas, setDbAreas] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/areas')
+      .then(r => r.json())
+      .then(res => setDbAreas(res))
+      .catch(e => console.error("Error fetching areas for ActivoModal:", e));
+  }, []);
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(async () => {
@@ -83,8 +93,8 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
 
   const addHora = () => {
     if (!nuevaHora.descripcion) return;
-    setHoras(p => [...p, { ...nuevaHora, id: Date.now().toString(), horas: parseFloat(nuevaHora.horas) || 0 }]);
-    setNuevaHora({ descripcion: "", horas: "", tarifa: 400 });
+    setHoras(p => [...p, { ...nuevaHora, id: Date.now().toString(), horas: parseFloat(nuevaHora.horas) || 0, tarifa: parseFloat(nuevaHora.tarifa as string) || 0 }]);
+    setNuevaHora({ descripcion: "", horas: "", tarifa: "400" });
   };
 
   const handleGuardarCotizacion = async () => {
@@ -194,9 +204,9 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
               />
               {isSearching && <Loader2 className="absolute right-3 top-2.5 w-4 h-4 animate-spin text-slate-400" />}
               
-              {showDropdown && searchResults.length > 0 && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                  {searchResults.map(prod => (
+              {showDropdown && (
+                <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-y-auto flex flex-col">
+                  {searchResults.length > 0 ? searchResults.map(prod => (
                     <div 
                       key={prod.id} 
                       onClick={() => handleAddRepuesto(prod)}
@@ -213,7 +223,22 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                         </div>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="px-4 py-3.5 text-xs text-slate-400 text-center font-medium">
+                      No se encontraron coincidencias para "{searchQuery}"
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDropdown(false);
+                      setIsActivoModalOpen(true);
+                    }}
+                    className="w-full text-left px-3 py-2.5 border-t border-slate-100 bg-blue-50/50 hover:bg-blue-50 text-blue-700 font-bold text-xs flex items-center gap-2 transition-colors sticky bottom-0 z-10 shrink-0"
+                  >
+                    <Plus size={14} className="shrink-0" />
+                    Registrar nuevo producto o activo en Inventario
+                  </button>
                 </div>
               )}
             </div>
@@ -314,7 +339,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                 <input className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
                   type="number" placeholder="Hrs" value={nuevaHora.horas} onChange={e => setNuevaHora(p => ({...p, horas: e.target.value}))}/>
                 <input className="flex-1 px-3 py-2 rounded-lg border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none" 
-                  type="number" placeholder="Tarifa L." value={nuevaHora.tarifa} onChange={e => setNuevaHora(p => ({...p, tarifa: parseFloat(e.target.value)||400}))}/>
+                  type="number" placeholder="Tarifa L." value={nuevaHora.tarifa} onChange={e => setNuevaHora(p => ({...p, tarifa: e.target.value}))}/>
               </div>
               <button onClick={addHora} className="w-full md:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-colors">+ Agregar</button>
             </div>
@@ -387,6 +412,24 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
              {isSaving ? "Enviando..." : "Enviar a Aprobación de Presupuesto"}
           </button>
       </div>
+
+      {isActivoModalOpen && (
+        <ActivoModal
+          open={isActivoModalOpen}
+          onClose={() => setIsActivoModalOpen(false)}
+          dbAreas={dbAreas}
+          onSuccess={() => {
+            if (searchQuery.trim().length >= 2) {
+               setIsSearching(true);
+               searchRepuestos(searchQuery).then(res => {
+                 setSearchResults(res);
+                 setIsSearching(false);
+                 setShowDropdown(true);
+               });
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
