@@ -93,8 +93,8 @@ export default function ApprovalCard({ orderData, onApprove, onReject }: Approva
         const items = getFacturacionItems();
         const res = await generarPresupuestoReparacion(orderData.id, items);
         if (res.success) {
-            setFacturaGeneradaId(res.facturaId);
-            setPortalUrl(res.portalUrl);
+            setFacturaGeneradaId(res.facturaId || null);
+            setPortalUrl(res.portalUrl || null);
             alert(`Presupuesto ${res.correlativo} generado exitosamente y notificado vía Twilio.`);
         } else {
             alert(res.error || "Error al generar presupuesto.");
