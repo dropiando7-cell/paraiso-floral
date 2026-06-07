@@ -23,7 +23,13 @@ import {
     Camera,
     Users,
     SlidersHorizontal,
-    Pencil
+    Pencil,
+    Video,
+    Mic,
+    Play,
+    Square,
+    RefreshCw,
+    Volume2
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
@@ -133,6 +139,29 @@ export default function TaskDetailModal({
     const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
 
+    // Estados para grabación de video
+    const [showVideoRecordModal, setShowVideoRecordModal] = useState(false);
+    const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+    const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+    const [recordedVideoChunks, setRecordedVideoChunks] = useState<Blob[]>([]);
+    const [videoRecordingTimer, setVideoRecordingTimer] = useState(0);
+    const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
+    const [recordedVideoBlob, setRecordedVideoBlob] = useState<Blob | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const videoStreamRef = useRef<HTMLVideoElement>(null);
+    const timerIntervalRef = useRef<any>(null);
+
+    // Estados para grabación de audio
+    const [showAudioRecordModal, setShowAudioRecordModal] = useState(false);
+    const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+    const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+    const [recordedAudioChunks, setRecordedAudioChunks] = useState<Blob[]>([]);
+    const [audioRecordingTimer, setAudioRecordingTimer] = useState(0);
+    const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+    const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
+    const audioMediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioTimerIntervalRef = useRef<any>(null);
+
     // Cargar comentarios y adjuntos al montar o cuando cambia la tarea/apertura
     useEffect(() => {
         setTitle(task.title);
@@ -160,6 +189,16 @@ export default function TaskDetailModal({
             setCameraStream(null);
             setShowCameraModal(false);
         }
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            setVideoStream(null);
+            setShowVideoRecordModal(false);
+        }
+        if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            setAudioStream(null);
+            setShowAudioRecordModal(false);
+        }
 
         if (isOpen && task.id) {
             loadCommentsAndAttachments();
@@ -169,11 +208,13 @@ export default function TaskDetailModal({
     // Limpieza al desmontar
     useEffect(() => {
         return () => {
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-            }
+            if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
+            if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            if (audioTimerIntervalRef.current) clearInterval(audioTimerIntervalRef.current);
         };
-    }, [cameraStream]);
+    }, [cameraStream, videoStream, audioStream]);
 
     const openCamera = async () => {
         setShowCameraModal(true);
@@ -219,6 +260,278 @@ export default function TaskDetailModal({
                 }, 'image/jpeg', 0.9);
             }
         }
+    };
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    // --- GRABACIÓN DE VIDEO ---
+    const openVideoRecorder = async () => {
+        setShowVideoRecordModal(true);
+        setRecordedVideoUrl(null);
+        setRecordedVideoBlob(null);
+        setRecordedVideoChunks([]);
+        setVideoRecordingTimer(0);
+        
+        setTimeout(async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user' },
+                    audio: true
+                });
+                setVideoStream(stream);
+                if (videoStreamRef.current) {
+                    videoStreamRef.current.srcObject = stream;
+                }
+            } catch (err) {
+                console.error("Video recorder camera/mic access error:", err);
+                toast.error("No se pudo acceder a la cámara y/o micrófono.");
+            }
+        }, 300);
+    };
+
+    const startVideoRecording = () => {
+        if (!videoStream) return;
+        
+        const chunks: Blob[] = [];
+        setRecordedVideoChunks([]);
+        
+        let mimeType = 'video/webm';
+        const types = [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm',
+            'video/mp4',
+            'video/quicktime'
+        ];
+        for (const type of types) {
+            if (MediaRecorder.isTypeSupported(type)) {
+                mimeType = type;
+                break;
+            }
+        }
+
+        try {
+            const options = mimeType ? { mimeType } : undefined;
+            const recorder = new MediaRecorder(videoStream, options);
+            
+            recorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    chunks.push(e.data);
+                }
+            };
+
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                setRecordedVideoBlob(blob);
+                setRecordedVideoUrl(url);
+                
+                if (videoStream) {
+                    videoStream.getTracks().forEach(track => track.stop());
+                    setVideoStream(null);
+                }
+            };
+
+            mediaRecorderRef.current = recorder;
+            recorder.start(1000);
+            setIsRecordingVideo(true);
+            setVideoRecordingTimer(0);
+
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = setInterval(() => {
+                setVideoRecordingTimer(prev => prev + 1);
+            }, 1000);
+        } catch (err) {
+            console.error("Error starting video recorder:", err);
+            toast.error("No se pudo iniciar la grabación de video.");
+        }
+    };
+
+    const stopVideoRecording = () => {
+        if (mediaRecorderRef.current && isRecordingVideo) {
+            mediaRecorderRef.current.stop();
+            setIsRecordingVideo(false);
+            if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+                timerIntervalRef.current = null;
+            }
+        }
+    };
+
+    const saveRecordedVideo = async () => {
+        if (!recordedVideoBlob) return;
+        
+        let extension = '.webm';
+        if (recordedVideoBlob.type.includes('mp4')) extension = '.mp4';
+        else if (recordedVideoBlob.type.includes('quicktime')) extension = '.mov';
+
+        const file = new File(
+            [recordedVideoBlob], 
+            `grabacion_video_${Date.now()}${extension}`, 
+            { type: recordedVideoBlob.type || 'video/webm' }
+        );
+        
+        await handleFileUpload(file);
+        closeVideoRecorder();
+    };
+
+    const closeVideoRecorder = () => {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            setVideoStream(null);
+        }
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+        }
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+        }
+        if (recordedVideoUrl) {
+            URL.revokeObjectURL(recordedVideoUrl);
+        }
+        
+        setShowVideoRecordModal(false);
+        setRecordedVideoUrl(null);
+        setRecordedVideoBlob(null);
+        setRecordedVideoChunks([]);
+        setIsRecordingVideo(false);
+    };
+
+    // --- GRABACIÓN DE AUDIO ---
+    const openAudioRecorder = async () => {
+        setShowAudioRecordModal(true);
+        setRecordedAudioUrl(null);
+        setRecordedAudioBlob(null);
+        setRecordedAudioChunks([]);
+        setAudioRecordingTimer(0);
+        
+        setTimeout(async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setAudioStream(stream);
+            } catch (err) {
+                console.error("Audio recorder mic access error:", err);
+                toast.error("No se pudo acceder al micrófono.");
+            }
+        }, 300);
+    };
+
+    const startAudioRecording = () => {
+        if (!audioStream) return;
+        
+        const chunks: Blob[] = [];
+        setRecordedAudioChunks([]);
+        
+        let mimeType = 'audio/webm';
+        const types = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/ogg;codecs=opus',
+            'audio/ogg',
+            'audio/mp4',
+            'audio/mpeg',
+            'audio/wav'
+        ];
+        for (const type of types) {
+            if (MediaRecorder.isTypeSupported(type)) {
+                mimeType = type;
+                break;
+            }
+        }
+
+        try {
+            const options = mimeType ? { mimeType } : undefined;
+            const recorder = new MediaRecorder(audioStream, options);
+            
+            recorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    chunks.push(e.data);
+                }
+            };
+
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                setRecordedAudioBlob(blob);
+                setRecordedAudioUrl(url);
+                
+                if (audioStream) {
+                    audioStream.getTracks().forEach(track => track.stop());
+                    setAudioStream(null);
+                }
+            };
+
+            audioMediaRecorderRef.current = recorder;
+            recorder.start(1000);
+            setIsRecordingAudio(true);
+            setAudioRecordingTimer(0);
+
+            if (audioTimerIntervalRef.current) clearInterval(audioTimerIntervalRef.current);
+            audioTimerIntervalRef.current = setInterval(() => {
+                setAudioRecordingTimer(prev => prev + 1);
+            }, 1000);
+        } catch (err) {
+            console.error("Error starting audio recorder:", err);
+            toast.error("No se pudo iniciar la grabación de audio.");
+        }
+    };
+
+    const stopAudioRecording = () => {
+        if (audioMediaRecorderRef.current && isRecordingAudio) {
+            audioMediaRecorderRef.current.stop();
+            setIsRecordingAudio(false);
+            if (audioTimerIntervalRef.current) {
+                clearInterval(audioTimerIntervalRef.current);
+                audioTimerIntervalRef.current = null;
+            }
+        }
+    };
+
+    const saveRecordedAudio = async () => {
+        if (!recordedAudioBlob) return;
+        
+        let extension = '.webm';
+        if (recordedAudioBlob.type.includes('ogg')) extension = '.ogg';
+        else if (recordedAudioBlob.type.includes('mp4') || recordedAudioBlob.type.includes('m4a')) extension = '.m4a';
+        else if (recordedAudioBlob.type.includes('wav')) extension = '.wav';
+        else if (recordedAudioBlob.type.includes('mpeg')) extension = '.mp3';
+
+        const file = new File(
+            [recordedAudioBlob], 
+            `grabacion_audio_${Date.now()}${extension}`, 
+            { type: recordedAudioBlob.type || 'audio/webm' }
+        );
+        
+        await handleFileUpload(file);
+        closeAudioRecorder();
+    };
+
+    const closeAudioRecorder = () => {
+        if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            setAudioStream(null);
+        }
+        if (audioMediaRecorderRef.current && audioMediaRecorderRef.current.state !== 'inactive') {
+            audioMediaRecorderRef.current.stop();
+        }
+        if (audioTimerIntervalRef.current) {
+            clearInterval(audioTimerIntervalRef.current);
+            audioTimerIntervalRef.current = null;
+        }
+        if (recordedAudioUrl) {
+            URL.revokeObjectURL(recordedAudioUrl);
+        }
+        
+        setShowAudioRecordModal(false);
+        setRecordedAudioUrl(null);
+        setRecordedAudioBlob(null);
+        setRecordedAudioChunks([]);
+        setIsRecordingAudio(false);
     };
 
     const loadCommentsAndAttachments = async () => {
@@ -641,6 +954,8 @@ export default function TaskDetailModal({
                                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                                                 {attachments.map((att) => {
                                                     const isImg = att.tipo.startsWith('image/');
+                                                    const isVideo = att.tipo.startsWith('video/');
+                                                    const isAudio = att.tipo.startsWith('audio/');
                                                     return (
                                                         <div key={att.id} className="group relative rounded-xl border border-slate-100 bg-slate-50 hover:bg-white p-2 transition flex flex-col gap-1.5 shadow-sm hover:shadow">
                                                             {isImg ? (
@@ -652,6 +967,23 @@ export default function TaskDetailModal({
                                                                 >
                                                                     <img src={att.url} alt={att.nombre} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
                                                                 </a>
+                                                            ) : isVideo ? (
+                                                                <a 
+                                                                    href={att.url} 
+                                                                    target="_blank" 
+                                                                    rel="noopener noreferrer" 
+                                                                    className="relative block aspect-video rounded-lg overflow-hidden border border-slate-200/50 bg-black"
+                                                                >
+                                                                    <video src={att.url} className="w-full h-full object-cover opacity-85" preload="metadata" />
+                                                                    <div className="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/10 transition">
+                                                                        <Play className="h-8 w-8 text-white drop-shadow-md opacity-90 group-hover:scale-110 transition duration-300" />
+                                                                    </div>
+                                                                </a>
+                                                            ) : isAudio ? (
+                                                                <div className="aspect-video rounded-lg border border-slate-200/50 bg-indigo-50/50 flex flex-col items-center justify-center p-1.5 gap-1 select-none">
+                                                                    <Mic className="h-4.5 w-4.5 text-indigo-600 shrink-0" />
+                                                                    <audio src={att.url} controls className="w-full max-h-6 scale-90" preload="metadata" />
+                                                                </div>
                                                             ) : (
                                                                 <div className="aspect-video rounded-lg border border-slate-200/50 bg-slate-100 flex items-center justify-center">
                                                                     {getFileIcon(att.tipo)}
@@ -816,6 +1148,24 @@ export default function TaskDetailModal({
                                                         }
                                                     }}
                                                 />
+                                                <button
+                                                    type="button"
+                                                    onClick={openVideoRecorder}
+                                                    className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
+                                                    title="Grabar video"
+                                                >
+                                                    <Video className="h-3.5 w-3.5" />
+                                                </button>
+
+                                                <button
+                                                    type="button"
+                                                    onClick={openAudioRecorder}
+                                                    className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
+                                                    title="Grabar audio"
+                                                >
+                                                    <Mic className="h-3.5 w-3.5" />
+                                                </button>
+
                                                 <button
                                                     type="button"
                                                     onClick={openCamera}
@@ -1214,7 +1564,6 @@ export default function TaskDetailModal({
                                 Capturar
                             </button>
                             
-                            {/* Mobile camera fallback */}
                             <input
                                 type="file"
                                 accept="image/*"
@@ -1233,8 +1582,236 @@ export default function TaskDetailModal({
                                 htmlFor="mobile-camera-input"
                                 className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl cursor-pointer shadow-sm transition flex items-center gap-1.5"
                             >
+                                <Camera className="h-3.5 w-3.5" />
                                 Cámara de Dispositivo
                             </label>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Grabación de Video */}
+            {showVideoRecordModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                            <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                <Video className="h-4.5 w-4.5 text-red-600 animate-pulse" />
+                                Grabar Video
+                            </h3>
+                            <button 
+                                type="button"
+                                onClick={closeVideoRecorder}
+                                className="p-1 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        
+                        <div className="relative aspect-video bg-black flex flex-col items-center justify-center overflow-hidden">
+                            {recordedVideoUrl ? (
+                                <video 
+                                    src={recordedVideoUrl} 
+                                    controls 
+                                    className="w-full h-full object-contain"
+                                />
+                            ) : (
+                                <video 
+                                    ref={videoStreamRef} 
+                                    autoPlay 
+                                    muted 
+                                    playsInline 
+                                    className="w-full h-full object-cover scale-x-[-1]"
+                                />
+                            )}
+
+                            {isRecordingVideo && (
+                                <div className="absolute top-4 left-4 bg-red-600/90 text-white text-[10px] font-black px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow animate-pulse">
+                                    <span className="h-2 w-2 rounded-full bg-white block animate-ping" />
+                                    GRABANDO • {formatTime(videoRecordingTimer)}
+                                </div>
+                            )}
+                            
+                            {!videoStream && !recordedVideoUrl && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-xs bg-slate-900 gap-2">
+                                    <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+                                    <span>Iniciando cámara y micrófono...</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 bg-slate-50 flex gap-3 justify-center">
+                            {!recordedVideoUrl ? (
+                                !isRecordingVideo ? (
+                                    <button
+                                        type="button"
+                                        onClick={startVideoRecording}
+                                        disabled={!videoStream}
+                                        className="bg-red-600 hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                    >
+                                        <div className="h-3.5 w-3.5 rounded-full bg-white shrink-0 animate-pulse" />
+                                        Iniciar Grabación
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={stopVideoRecording}
+                                        className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                    >
+                                        <Square className="h-3.5 w-3.5 text-white fill-white shrink-0" />
+                                        Detener
+                                    </button>
+                                )
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={saveRecordedVideo}
+                                        className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                    >
+                                        <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                                        Adjuntar Video
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setRecordedVideoUrl(null);
+                                            setRecordedVideoBlob(null);
+                                            setRecordedVideoChunks([]);
+                                            setTimeout(async () => {
+                                                try {
+                                                    const stream = await navigator.mediaDevices.getUserMedia({
+                                                        video: { facingMode: 'user' },
+                                                        audio: true
+                                                    });
+                                                    setVideoStream(stream);
+                                                    if (videoStreamRef.current) {
+                                                        videoStreamRef.current.srcObject = stream;
+                                                    }
+                                                } catch (err) {
+                                                    console.error("Camera access error:", err);
+                                                    toast.error("No se pudo iniciar la cámara.");
+                                                }
+                                            }, 100);
+                                        }}
+                                        className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                    >
+                                        <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+                                        Grabar de Nuevo
+                                    </button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Grabación de Audio */}
+            {showAudioRecordModal && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-100 flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                            <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                <Mic className="h-4.5 w-4.5 text-brand-600 animate-pulse" />
+                                Grabar Audio
+                            </h3>
+                            <button 
+                                type="button"
+                                onClick={closeAudioRecorder}
+                                className="p-1 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 bg-slate-900 flex flex-col items-center justify-center gap-4 min-h-[160px] relative">
+                            {recordedAudioUrl ? (
+                                <audio 
+                                    src={recordedAudioUrl} 
+                                    controls 
+                                    className="w-full mt-4"
+                                />
+                            ) : (
+                                <div className="flex flex-col items-center gap-3">
+                                    <div className={`h-16 w-16 rounded-full bg-brand-500/10 border-2 border-brand-500 flex items-center justify-center transition-all duration-300 ${isRecordingAudio ? 'animate-pulse scale-110 bg-brand-500/20 border-red-500' : ''}`}>
+                                        <Mic className={`h-8 w-8 ${isRecordingAudio ? 'text-red-500' : 'text-brand-500'}`} />
+                                    </div>
+                                    <span className="text-white text-xs font-semibold">
+                                        {isRecordingAudio ? 'Grabando audio...' : 'Listo para grabar'}
+                                    </span>
+                                </div>
+                            )}
+
+                            {isRecordingAudio && (
+                                <div className="absolute top-4 left-4 bg-red-600/90 text-white text-[10px] font-black px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow animate-pulse">
+                                    <span className="h-2 w-2 rounded-full bg-white block animate-ping" />
+                                    {formatTime(audioRecordingTimer)}
+                                </div>
+                            )}
+                            
+                            {!audioStream && !recordedAudioUrl && (
+                                <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-xs bg-slate-900 gap-2">
+                                    <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+                                    <span>Iniciando micrófono...</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 bg-slate-50 flex gap-3 justify-center">
+                            {!recordedAudioUrl ? (
+                                !isRecordingAudio ? (
+                                    <button
+                                        type="button"
+                                        onClick={startAudioRecording}
+                                        disabled={!audioStream}
+                                        className="bg-brand-600 hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                    >
+                                        <Mic className="h-3.5 w-3.5 shrink-0" />
+                                        Iniciar Grabación
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={stopAudioRecording}
+                                        className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                    >
+                                        <Square className="h-3.5 w-3.5 text-white fill-white shrink-0" />
+                                        Detener
+                                    </button>
+                                )
+                            ) : (
+                                <>
+                                    <button
+                                        type="button"
+                                        onClick={saveRecordedAudio}
+                                        className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                    >
+                                        <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                                        Adjuntar Audio
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setRecordedAudioUrl(null);
+                                            setRecordedAudioBlob(null);
+                                            setRecordedAudioChunks([]);
+                                            setTimeout(async () => {
+                                                try {
+                                                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                                                    setAudioStream(stream);
+                                                } catch (err) {
+                                                    console.error("Audio access error:", err);
+                                                    toast.error("No se pudo iniciar el micrófono.");
+                                                }
+                                            }, 100);
+                                        }}
+                                        className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                    >
+                                        <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+                                        Grabar de Nuevo
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
