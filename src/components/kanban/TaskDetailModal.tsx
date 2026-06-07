@@ -1042,8 +1042,12 @@ export default function TaskDetailModal({
                                                         : '?';
                                                     return (
                                                         <div key={comm.id} className="flex gap-2.5 items-start group animate-in fade-in duration-200">
-                                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-500 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm">
-                                                                {initials}
+                                                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-500 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm overflow-hidden relative">
+                                                                {comm.usuario.avatarUrl ? (
+                                                                    <img src={comm.usuario.avatarUrl} alt={comm.usuario.nombre} className="w-full h-full object-cover" />
+                                                                ) : (
+                                                                    initials
+                                                                )}
                                                             </div>
                                                             <div className="flex-1 bg-slate-50/60 border border-slate-100 rounded-xl px-3.5 py-2 hover:bg-slate-50 transition relative">
                                                                 <div className="flex items-center justify-between gap-2 mb-1">
@@ -1082,11 +1086,11 @@ export default function TaskDetailModal({
                                                                         </div>
                                                                     </div>
                                                                 ) : (
-                                                                    <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed mt-1 pr-20 md:pr-0">{comm.contenido}</p>
+                                                                    <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed mt-1 pr-14 pb-1.5">{comm.contenido}</p>
                                                                 )}
                                                                 
                                                                 {editingCommentId !== comm.id && (
-                                                                    <div className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition flex gap-1.5 md:gap-1 z-10">
+                                                                    <div className="absolute bottom-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition flex gap-1.5 md:gap-1 z-10">
                                                                         <button
                                                                             type="button"
                                                                             onClick={() => {

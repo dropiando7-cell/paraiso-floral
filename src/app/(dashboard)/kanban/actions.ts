@@ -743,7 +743,7 @@ export async function getTaskCommentsAndAttachments(taskId: string) {
             where: { taskId },
             include: {
                 usuario: {
-                    select: { id: true, nombre: true, apellido: true, email: true }
+                    select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
                 }
             },
             orderBy: { createdAt: 'asc' }
@@ -767,7 +767,8 @@ export async function getTaskCommentsAndAttachments(taskId: string) {
                 createdAt: c.createdAt.toISOString(),
                 usuario: {
                     id: c.usuario.id,
-                    nombre: `${c.usuario.nombre || ''} ${c.usuario.apellido || ''}`.trim() || c.usuario.email
+                    nombre: `${c.usuario.nombre || ''} ${c.usuario.apellido || ''}`.trim() || c.usuario.email,
+                    avatarUrl: c.usuario.avatarUrl || null
                 }
             })),
             attachments: attachments.map(a => ({
@@ -808,7 +809,7 @@ export async function createKanbanComment(taskId: string, contenido: string) {
             },
             include: {
                 usuario: {
-                    select: { id: true, nombre: true, apellido: true, email: true }
+                    select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
                 }
             }
         });
@@ -833,7 +834,8 @@ export async function createKanbanComment(taskId: string, contenido: string) {
                 createdAt: comment.createdAt.toISOString(),
                 usuario: {
                     id: comment.usuario.id,
-                    nombre: `${comment.usuario.nombre || ''} ${comment.usuario.apellido || ''}`.trim() || comment.usuario.email
+                    nombre: `${comment.usuario.nombre || ''} ${comment.usuario.apellido || ''}`.trim() || comment.usuario.email,
+                    avatarUrl: comment.usuario.avatarUrl || null
                 }
             }
         };
