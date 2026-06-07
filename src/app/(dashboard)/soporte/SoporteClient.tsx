@@ -12,7 +12,9 @@ type Orden = any; // Tipado parcial
 const COLUMNAS = [
     { id: 'RECIBIDO', title: 'Recibidos', color: 'border-slate-500', bg: 'bg-slate-50 text-slate-700' },
     { id: 'EN_EVALUACION', title: 'En Evaluación', color: 'border-yellow-500', bg: 'bg-yellow-50 text-yellow-700' },
-    { id: 'ESPERANDO_APROBACION', title: 'Aprobación Pendiente', color: 'border-orange-500', bg: 'bg-orange-50 text-orange-700' },
+    { id: 'ESPERANDO_APROBACION', title: 'Presupuesto', color: 'border-orange-500', bg: 'bg-orange-50 text-orange-700' },
+    { id: 'APROBACION_PRESUPUESTO', title: 'Aprobación Cliente', color: 'border-pink-500', bg: 'bg-pink-50 text-pink-700' },
+    { id: 'REPARACION', title: 'En Reparación', color: 'border-blue-500', bg: 'bg-blue-50 text-blue-700' },
     { id: 'LISTO_ENTREGA', title: 'Reparado / Listo', color: 'border-green-500', bg: 'bg-green-50 text-green-700' },
 ];
 
@@ -54,7 +56,15 @@ export default function SoporteClient({ initialData }: { initialData: Orden[] })
             <div className="overflow-x-auto pb-4">
                 <div className="flex gap-4 min-w-[1200px]">
                     {COLUMNAS.map(col => {
-                        const items = ordenes.filter(o => o.estado === col.id);
+                        const items = ordenes.filter(o => {
+                            if (col.id === 'EN_EVALUACION') {
+                                return o.estado === 'EN_EVALUACION' || o.estado === 'EN_DIAGNOSTICO';
+                            }
+                            if (col.id === 'REPARACION') {
+                                return o.estado === 'REPARACION' || o.estado === 'EN_REPARACION';
+                            }
+                            return o.estado === col.id;
+                        });
                         return (
                             <div key={col.id} className="flex-1 min-w-[300px] bg-slate-50/50 rounded-2xl p-4 border border-slate-200 flex flex-col">
                                 <div className="flex items-center justify-between mb-4">

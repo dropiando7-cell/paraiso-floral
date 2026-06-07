@@ -4,6 +4,7 @@ import React from 'react';
 import StatusStepper from '../components/StatusStepper';
 import TechnicalWorkbench from '../components/TechnicalWorkbench';
 import ApprovalCard from '../components/ApprovalCard';
+import AprobacionClienteCard from '../components/AprobacionClienteCard';
 import QRGenerator from '../components/QRGenerator';
 import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon } from 'lucide-react';
 import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden } from '../actions';
@@ -18,13 +19,15 @@ export default function SoporteDetailClient({
   userRole, 
   customRoleName,
   userEmail = '',
-  organizationUsers = []
+  organizationUsers = [],
+  budgetFactura
 }: { 
   orden: Orden; 
   userRole: string; 
   customRoleName?: string;
   userEmail?: string;
   organizationUsers?: any[];
+  budgetFactura?: { id: string; correlativo: string; total: number; estado: string } | null;
 }) {
   const role = userRole;
   const cRole = customRoleName?.toUpperCase() || '';
@@ -121,12 +124,10 @@ export default function SoporteDetailClient({
       for (const photo of editPhotos) {
         try {
           let fileToUpload = photo.file;
-          if (photo.file.type.startsWith('image/')) {
-            try {
-              fileToUpload = await compressImage(photo.file);
-            } catch (compErr) {
-              console.error("Compression error:", compErr);
-            }
+          try {
+            fileToUpload = await compressImage(photo.file);
+          } catch (compErr) {
+            console.error("Compression error:", compErr);
           }
           const contentType = fileToUpload.type || 'application/octet-stream';
           const res = await fetch('/api/upload', {
@@ -223,8 +224,10 @@ export default function SoporteDetailClient({
         return 'RECIBIDO';
       case 'ESPERANDO_APROBACION':
         return 'EN_EVALUACION';
-      case 'REPARACION':
+      case 'APROBACION_PRESUPUESTO':
         return 'ESPERANDO_APROBACION';
+      case 'REPARACION':
+        return 'APROBACION_PRESUPUESTO';
       case 'LISTO_ENTREGA':
         return 'REPARACION';
       case 'ENTREGADO':
@@ -370,6 +373,19 @@ export default function SoporteDetailClient({
               }}
               onReject={() => {
                 handleRetroceder('EN_EVALUACION');
+              }}
+            />
+          )}
+
+          {orden.estado === 'APROBACION_PRESUPUESTO' && (
+            <AprobacionClienteCard
+              orderData={orden}
+              budgetFactura={budgetFactura}
+              onApprove={() => {
+                router.refresh();
+              }}
+              onReject={() => {
+                handleRetroceder('ESPERANDO_APROBACION');
               }}
             />
           )}

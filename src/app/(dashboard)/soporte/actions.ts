@@ -787,6 +787,8 @@ export async function syncKanbanStatus(ordenId: string, nuevoEstado: string, use
         let targetColumn = '';
         if (['RECIBIDO', 'EN_EVALUACION', 'ESPERANDO_APROBACION'].includes(nuevoEstado)) {
             targetColumn = 'POR HACER';
+        } else if (nuevoEstado === 'APROBACION_PRESUPUESTO') {
+            targetColumn = 'EN REVISIÓN';
         } else if (nuevoEstado === 'REPARACION') {
             targetColumn = 'EN CURSO';
         } else if (['LISTO_ENTREGA', 'ENTREGADO'].includes(nuevoEstado)) {
@@ -831,7 +833,13 @@ export async function syncKanbanStatus(ordenId: string, nuevoEstado: string, use
 
 import { guardarDocumentoBuilder } from '../facturas/actions';
 
-export async function generarPresupuestoReparacion(ordenId: string, facturacionItems: any[]) {
+export async function generarPresupuestoReparacion(
+    ordenId: string, 
+    facturacionItems: any[],
+    repuestosAprobados: any[],
+    costoFinalReparacion: number,
+    detalleManoObraModificado: any[]
+) {
     try {
         const orden = await prisma.ordenTrabajo.findUnique({
             where: { id: ordenId },
@@ -866,7 +874,29 @@ export async function generarPresupuestoReparacion(ordenId: string, facturacionI
         const facturaId = result.docId;
         const correlativo = result.correlativo;
 
-        // 4. Send Twilio notification with the URL to the portal
+        // 4. Update the database within transaction: repuestos, mano de obra, and order state
+        await prisma.$transaction(async (tx) => {
+            for (const rep of repuestosAprobados) {
+                await tx.ordenTrabajoRepuesto.update({
+                    where: { id: rep.id },
+                    data: {
+                        precioAprobado: rep.precioAprobado,
+                        subtotalAprobado: rep.subtotalAprobado
+                    }
+                });
+            }
+
+            await tx.ordenTrabajo.update({
+                where: { id: ordenId },
+                data: {
+                    estado: 'APROBACION_PRESUPUESTO',
+                    costoReparacion: costoFinalReparacion,
+                    detalleManoObra: detalleManoObraModificado as any
+                }
+            });
+        });
+
+        // 5. Send Twilio notification with the URL to the portal
         const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
         const portalUrl = `${domain}/c/${facturaId}/presupuesto`;
 
@@ -884,9 +914,103 @@ export async function generarPresupuestoReparacion(ordenId: string, facturacionI
             '3 a 5 días hábiles'
         );
 
+        // 6. Sync status in Kanban
+        await syncKanbanStatus(ordenId, 'APROBACION_PRESUPUESTO');
+
+        revalidatePath('/soporte');
+        revalidatePath(`/soporte/${ordenId}`);
+
         return { success: true, facturaId, correlativo, portalUrl };
     } catch (e: any) {
         console.error("Error generando presupuesto:", e);
         return { success: false, error: e.message || "Error al generar presupuesto" };
     }
+}
+
+export async function aprobarPresupuestoManualmente(ordenId: string) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    let userId = null;
+    if (user?.email) {
+        const dbUser = await prisma.user.findUnique({ where: { email: user.email }});
+        userId = dbUser?.id;
+    }
+
+    await prisma.$transaction(async (tx) => {
+        // Find the active budget factura
+        const factura = await tx.factura.findFirst({
+            where: {
+                documentoOrigenId: ordenId,
+                tipoDocumento: 'PRESUPUESTO_REPARACION',
+                estado: { not: 'APROBADA' }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        if (factura) {
+            await tx.factura.update({
+                where: { id: factura.id },
+                data: {
+                    estado: 'APROBADA',
+                    firmaClienteBase64: 'APROBADO_MANUALMENTE',
+                    firmaClienteAt: new Date()
+                }
+            });
+        }
+
+        const orden = await tx.ordenTrabajo.update({
+            where: { id: ordenId },
+            data: {
+                estado: 'REPARACION',
+                fechaAprobado: new Date(),
+                usuarioAprobacionId: userId || undefined,
+            },
+            include: { cliente: true, tecnicoReparacion: true }
+        });
+
+        if (orden.cliente?.telefono) {
+            const phoneWithCountryCode = orden.cliente.telefono.startsWith('+') ? orden.cliente.telefono : `+504${orden.cliente.telefono}`;
+            const entregaEst = new Date();
+            entregaEst.setDate(entregaEst.getDate() + 5);
+            
+            try {
+                await sendSoporteReparacionIniciada(
+                    orden.cliente.nombre,
+                    phoneWithCountryCode,
+                    orden.equipoDano,
+                    orden.codigoSeguridad,
+                    orden.tecnicoReparacion?.nombre || "Equipo Técnico",
+                    entregaEst.toLocaleDateString(),
+                    "Reparación autorizada"
+                );
+            } catch (e) {
+                console.error("Twilio Reparacion Iniciada Error:", e);
+            }
+        }
+    });
+
+    await syncKanbanStatus(ordenId, 'REPARACION', userId || undefined);
+
+    if (userId) {
+        try {
+            const task = await prisma.kanbanTask.findFirst({ where: { ordenTrabajoId: ordenId } });
+            if (task) {
+                await prisma.kanbanActivity.create({
+                    data: {
+                        spaceId: task.spaceId,
+                        taskId: task.id,
+                        usuarioId: userId,
+                        accion: 'COMENTARIO',
+                        detalles: `Gerencia ha aprobado el presupuesto manualmente. La reparación puede iniciar.`
+                    }
+                });
+            }
+        } catch (e) {
+            console.error("Error logging approval kanban activity", e);
+        }
+    }
+
+    revalidatePath('/soporte');
+    revalidatePath(`/soporte/${ordenId}`);
+    return { success: true };
 }

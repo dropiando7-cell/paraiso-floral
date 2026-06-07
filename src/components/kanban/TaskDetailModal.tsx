@@ -561,12 +561,10 @@ export default function TaskDetailModal({
         setIsUploading(true);
         try {
             let fileToUpload = file;
-            if (file.type.startsWith('image/')) {
-                try {
-                    fileToUpload = await compressImage(file);
-                } catch (compErr) {
-                    console.error("Compression error:", compErr);
-                }
+            try {
+                fileToUpload = await compressImage(file);
+            } catch (compErr) {
+                console.error("Compression error:", compErr);
             }
 
             // 1. Obtener URL pre-firmada de subida

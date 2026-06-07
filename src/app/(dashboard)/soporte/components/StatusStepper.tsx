@@ -1,15 +1,16 @@
 import React from 'react';
-import { Inbox, CheckCircle2, Receipt, SearchCheck, Wrench } from 'lucide-react';
+import { Inbox, CheckCircle2, Receipt, SearchCheck, Wrench, UserCheck } from 'lucide-react';
 
 const STATE_MAP: Record<string, number> = {
   'RECIBIDO': 0,
   'EN_DIAGNOSTICO': 1,
   'EN_EVALUACION': 1,
   'ESPERANDO_APROBACION': 2,
-  'EN_REPARACION': 3,
-  'REPARACION': 3,
-  'LISTO_ENTREGA': 4,
-  'ENTREGADO': 4,
+  'APROBACION_PRESUPUESTO': 3,
+  'EN_REPARACION': 4,
+  'REPARACION': 4,
+  'LISTO_ENTREGA': 5,
+  'ENTREGADO': 5,
 };
 
 type StatusStepperProps = {
@@ -24,9 +25,10 @@ export default function StatusStepper({ estadoActual, ordenId, equipoInfo }: Sta
   const steps = [
     { id: 0, key: "recepcion",    label: "Recepción",    sublabel: "Ingreso del equipo",   icon: Inbox },
     { id: 1, key: "diagnostico",  label: "Diagnóstico",  sublabel: "Evaluación técnica",   icon: SearchCheck },
-    { id: 2, key: "presupuesto",  label: "Presupuesto",  sublabel: "Aprobación del costo", icon: Receipt },
-    { id: 3, key: "reparacion",   label: "Reparación",   sublabel: "Trabajo en progreso",  icon: Wrench },
-    { id: 4, key: "listo",        label: "Listo",        sublabel: "Entrega al cliente",   icon: CheckCircle2 },
+    { id: 2, key: "presupuesto",  label: "Presupuesto",  sublabel: "Costo y repuestos",    icon: Receipt },
+    { id: 3, key: "aprobacion_cliente", label: "Aprobación Cliente", sublabel: "Pendiente firma", icon: UserCheck },
+    { id: 4, key: "reparacion",   label: "Reparación",   sublabel: "Trabajo en progreso",  icon: Wrench },
+    { id: 5, key: "listo",        label: "Listo",        sublabel: "Entrega al cliente",   icon: CheckCircle2 },
   ];
 
   const getStepState = (stepId: number) => {

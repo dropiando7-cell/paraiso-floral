@@ -73,12 +73,10 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
       for (const photo of photos) {
         try {
             let fileToUpload = photo.file;
-            if (photo.file.type.startsWith('image/')) {
-                try {
-                    fileToUpload = await compressImage(photo.file);
-                } catch (compErr) {
-                    console.error("Compression error:", compErr);
-                }
+            try {
+                fileToUpload = await compressImage(photo.file);
+            } catch (compErr) {
+                console.error("Compression error:", compErr);
             }
             // Fetch pre-signed URL from our endpoint
             const contentType = fileToUpload.type || 'application/octet-stream';

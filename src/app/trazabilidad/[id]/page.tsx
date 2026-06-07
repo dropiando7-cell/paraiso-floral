@@ -120,8 +120,9 @@ export default async function TrazabilidadPage({ params }: { params: Promise<{ i
   const statusConfig = {
     RECIBIDO: { label: 'RECIBIDO', color: 'text-blue-500', bg: 'bg-blue-500/10', border: 'border-blue-500/20', desc: 'Equipo recepcionado en taller. Pendiente de evaluación.' },
     EN_EVALUACION: { label: 'EN EVALUACIÓN', color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/20', desc: 'Técnicos realizando diagnóstico de hardware y software.' },
-    ESPERANDO_APROBACION: { label: 'ESPERANDO APROBACIÓN', color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20', desc: 'Presupuesto y repuestos listos. Pendiente de aprobación del cliente.' },
-    REPARACION: { label: 'EN REPARACIÓN', color: 'text-indigo-500', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', desc: 'Diagnóstico aprobado. Procediendo con el reemplazo de componentes.' },
+    ESPERANDO_APROBACION: { label: 'REVISIÓN DE PRESUPUESTO', color: 'text-orange-500', bg: 'bg-orange-500/10', border: 'border-orange-500/20', desc: 'Diagnóstico realizado. Preparando y revisando presupuesto de reparación.' },
+    APROBACION_PRESUPUESTO: { label: 'PENDIENTE APROBACIÓN CLIENTE', color: 'text-pink-500', bg: 'bg-pink-500/10', border: 'border-pink-500/20', desc: 'Presupuesto enviado al cliente. Esperando confirmación de aceptación.' },
+    REPARACION: { label: 'EN REPARACIÓN', color: 'text-indigo-500', bg: 'bg-indigo-500/10', border: 'border-indigo-500/20', desc: 'Presupuesto aprobado. Procediendo con la reparación del equipo.' },
     LISTO_ENTREGA: { label: 'LISTO PARA ENTREGA', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', desc: 'Reparación y pruebas de control de calidad completadas exitosamente.' },
     ENTREGADO: { label: 'ENTREGADO', color: 'text-slate-500', bg: 'bg-slate-500/10', border: 'border-slate-500/20', desc: 'Equipo retirado por el cliente de forma conforme.' }
   }[est] || { label: est, color: 'text-slate-500', bg: 'bg-slate-500/10', border: 'border-slate-500/20', desc: 'Estado desconocido.' };

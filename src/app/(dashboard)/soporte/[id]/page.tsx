@@ -33,6 +33,29 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
     orderBy: { nombre: 'asc' }
   });
 
+  const budgetFactura = await prisma.factura.findFirst({
+    where: {
+      documentoOrigenId: resolvedParams.id,
+      tipoDocumento: 'PRESUPUESTO_REPARACION',
+    },
+    orderBy: {
+      createdAt: 'desc'
+    },
+    select: {
+      id: true,
+      correlativo: true,
+      total: true,
+      estado: true,
+    }
+  });
+
+  const serializedBudget = budgetFactura ? {
+    id: budgetFactura.id,
+    correlativo: budgetFactura.correlativo,
+    total: Number(budgetFactura.total),
+    estado: budgetFactura.estado,
+  } : null;
+
   return <SoporteDetailClient 
     orden={{
         ...orden, 
@@ -59,5 +82,6 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
     customRoleName={dbUser?.customRoleName || ''}
     userEmail={dbUser?.email || ''}
     organizationUsers={organizationUsers}
+    budgetFactura={serializedBudget}
   />;
 }

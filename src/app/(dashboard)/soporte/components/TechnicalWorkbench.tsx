@@ -6,6 +6,7 @@ import { searchRepuestos, guardarDiagnostico } from '../actions';
 import { useRouter } from 'next/navigation';
 import { compressImage } from '@/utils/image';
 import { ActivoModal } from '../../inventario/InventarioClient';
+import SafeImage from '@/components/SafeImage';
 
 type TechnicalWorkbenchProps = {
   orderData: any;
@@ -111,12 +112,10 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                 continue;
             }
             let fileToUpload = photo.file;
-            if (photo.file.type.startsWith('image/')) {
-                try {
-                    fileToUpload = await compressImage(photo.file);
-                } catch (compErr) {
-                    console.error("Compression error:", compErr);
-                }
+            try {
+                fileToUpload = await compressImage(photo.file);
+            } catch (compErr) {
+                console.error("Compression error:", compErr);
             }
             const contentType = fileToUpload.type || 'application/octet-stream';
             const res = await fetch('/api/upload', {
@@ -370,7 +369,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
               )}
               {fotoFalla.map((p, i) => (
                 <div key={i} className="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 relative group">
-                  <img src={p.url} alt="" className="w-full h-full object-cover"/>
+                  <SafeImage src={p.url} alt="" className="w-full h-full object-cover"/>
                   <button onClick={() => setFotoFalla(pp => pp.filter((_,j)=>j!==i))}
                     className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                       <X className="w-3 h-3" />

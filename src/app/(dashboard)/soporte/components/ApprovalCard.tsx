@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Check, Send, Loader2, ArrowLeft, FileText, Smartphone } from 'lucide-react';
 import { aprobarPresupuesto, generarPresupuestoReparacion } from '../actions';
 import { useRouter } from 'next/navigation';
+import SafeImage from '@/components/SafeImage';
 
 type ApprovalCardProps = {
   orderData: any;
@@ -91,11 +92,24 @@ export default function ApprovalCard({ orderData, onApprove, onReject }: Approva
     setIsGenerating(true);
     try {
         const items = getFacturacionItems();
-        const res = await generarPresupuestoReparacion(orderData.id, items);
+        const repuestosModificados = repuestos.map(r => ({
+            id: r.id,
+            precioAprobado: Number(r.precioAprobado),
+            subtotalAprobado: r.cantidad * Number(r.precioAprobado)
+        }));
+        
+        const res = await generarPresupuestoReparacion(
+            orderData.id, 
+            items, 
+            repuestosModificados, 
+            totalFinal, 
+            manoObra
+        );
         if (res.success) {
             setFacturaGeneradaId(res.facturaId || null);
             setPortalUrl(res.portalUrl || null);
             alert(`Presupuesto ${res.correlativo} generado exitosamente y notificado vía Twilio.`);
+            router.refresh();
         } else {
             alert(res.error || "Error al generar presupuesto.");
         }
@@ -163,13 +177,13 @@ export default function ApprovalCard({ orderData, onApprove, onReject }: Approva
                 {orderData?.fotosEstadoInicial?.map((url: string, i: number) => (
                     <div key={`rec-${i}`} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-200 relative cursor-pointer" onClick={() => setSelectedImage(url)}>
                         <span className="absolute top-0 left-0 bg-slate-900/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-br-lg">Recepción</span>
-                        <img src={url} alt="Recepción" className="w-full h-full object-cover hover:scale-105 transition-transform" />
+                        <SafeImage src={url} alt="Recepción" className="w-full h-full object-cover hover:scale-105 transition-transform" />
                     </div>
                 ))}
                 {orderData?.fotosTecnico?.map((url: string, i: number) => (
                     <div key={`tec-${i}`} className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border border-slate-200 relative cursor-pointer" onClick={() => setSelectedImage(url)}>
                         <span className="absolute top-0 left-0 bg-indigo-600/80 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-br-lg">Técnico</span>
-                        <img src={url} alt="Técnico" className="w-full h-full object-cover hover:scale-105 transition-transform" />
+                        <SafeImage src={url} alt="Técnico" className="w-full h-full object-cover hover:scale-105 transition-transform" />
                     </div>
                 ))}
             </div>
@@ -364,7 +378,7 @@ export default function ApprovalCard({ orderData, onApprove, onReject }: Approva
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
             </button>
-            <img 
+            <SafeImage 
               src={selectedImage} 
               alt="Evidencia a pantalla completa" 
               className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl" 
