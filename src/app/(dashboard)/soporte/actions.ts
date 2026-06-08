@@ -1040,3 +1040,38 @@ export async function aprobarPresupuestoManualmente(ordenId: string) {
     revalidatePath(`/soporte/${ordenId}`);
     return { success: true };
 }
+
+export async function eliminarOrdenTrabajo(ordenId: string) {
+    const orgId = await getOrgId();
+    
+    await prisma.$transaction(async (tx) => {
+        // 1. Delete associated facturas (budget invoices) and their details will cascade delete
+        const facturas = await tx.factura.findMany({
+            where: { ordenTrabajoId: ordenId }
+        });
+        for (const f of facturas) {
+            await tx.factura.delete({ where: { id: f.id } });
+        }
+        
+        // 2. Delete associated Kanban tasks (comments, attachments, activities will cascade delete)
+        const kanbanTasks = await tx.kanbanTask.findMany({
+            where: { ordenTrabajoId: ordenId }
+        });
+        for (const t of kanbanTasks) {
+            await tx.kanbanTask.delete({ where: { id: t.id } });
+        }
+        
+        // 3. Delete repuestos associated with the order
+        await tx.ordenTrabajoRepuesto.deleteMany({
+            where: { ordenTrabajoId: ordenId }
+        });
+        
+        // 4. Finally, delete the OrdenTrabajo
+        await tx.ordenTrabajo.delete({
+            where: { id: ordenId, organizationId: orgId }
+        });
+    });
+    
+    revalidatePath('/soporte');
+    return { success: true };
+}

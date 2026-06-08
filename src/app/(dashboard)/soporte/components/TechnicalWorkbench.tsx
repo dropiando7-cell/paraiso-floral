@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, X, UploadCloud, Save, Search, Loader2, Plus } from 'lucide-react';
+import { Settings, X, UploadCloud, Save, Search, Loader2, Plus, Layout } from 'lucide-react';
 import { searchRepuestos, guardarDiagnostico } from '../actions';
 import { useRouter } from 'next/navigation';
 import { compressImage } from '@/utils/image';
@@ -173,6 +173,29 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
           ⚙ {orderData?.estado === 'ESPERANDO_APROBACION' ? 'Presupuesto Creado' : 'En Evaluación'}
         </div>
       </div>
+
+      {orderData?.kanbanTasks && orderData.kanbanTasks.length > 0 && (
+        <div className="mb-5 p-3.5 bg-indigo-50/50 border border-indigo-100 rounded-xl flex items-center justify-between gap-3 text-xs animate-fade-in">
+          <div className="min-w-0 flex-1">
+            <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-wider block">Tarjeta Kanban Asociada</span>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <span className="font-mono font-black text-indigo-600 bg-white border border-indigo-200 px-2 py-0.5 rounded text-[10px]">
+                {orderData.kanbanTasks[0].codigo}
+              </span>
+              <span className="px-2 py-0.5 bg-indigo-600/10 text-indigo-700 font-extrabold rounded-full text-[9px] uppercase border border-indigo-200/55">
+                VINCULADO
+              </span>
+            </div>
+          </div>
+          <a
+            href={`/kanban/${orderData.kanbanTasks[0].spaceId}?task=${orderData.kanbanTasks[0].id}`}
+            className="shrink-0 flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg transition active:scale-95 shadow-sm text-xs cursor-pointer"
+          >
+            <Layout className="w-3.5 h-3.5" />
+            <span>Ver en Tablero</span>
+          </a>
+        </div>
+      )}
 
       <div className="mb-5">
         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Diagnóstico Técnico</label>

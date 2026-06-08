@@ -20,7 +20,8 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
       tecnicoReparacion: true,
       tecnicosAsignados: true,
       usuarioAprobacion: true,
-      repuestos: { include: { producto: true, activoFijo: true } }
+      repuestos: { include: { producto: true, activoFijo: true } },
+      kanbanTasks: true
     }
   });
 
@@ -78,12 +79,18 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
                 ...r.producto,
                 precioVenta: Number(r.producto.precioVenta)
             } : null
-        }))
+        })),
+        kanbanTasks: orden.kanbanTasks?.map((t: any) => ({
+            id: t.id,
+            spaceId: t.spaceId,
+            codigo: t.codigo
+        })) || []
     }} 
     userRole={userRole}
     customRoleName={dbUser?.customRoleName || ''}
     userEmail={dbUser?.email || ''}
     organizationUsers={organizationUsers}
     budgetFactura={serializedBudget}
+    accessibleModules={dbUser?.accessibleModules || []}
   />;
 }

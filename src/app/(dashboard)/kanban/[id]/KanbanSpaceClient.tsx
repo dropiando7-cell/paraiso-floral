@@ -35,7 +35,7 @@ import {
 import TaskDetailModal from '@/components/kanban/TaskDetailModal';
 import CreateTaskModal from '@/components/kanban/CreateTaskModal';
 import { toast } from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 interface Task {
     id: string;
@@ -283,6 +283,18 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
     // Tarea activa en modal
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+
+    const searchParams = useSearchParams();
+    const taskIdParam = searchParams.get('task');
+
+    useEffect(() => {
+        if (taskIdParam && tasks.length > 0) {
+            const foundTask = tasks.find(t => t.id === taskIdParam || t.codigo === taskIdParam);
+            if (foundTask) {
+                setSelectedTask(foundTask);
+            }
+        }
+    }, [taskIdParam, tasks]);
 
     // Modal de Creación Avanzada
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);

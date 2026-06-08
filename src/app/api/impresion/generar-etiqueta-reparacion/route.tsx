@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
     const fecha = searchParams.get('fecha') || new Date().toISOString().split('T')[0];
 
     const marcaModelo = searchParams.get('marcaModelo') || '';
+    const kanbanCodigo = searchParams.get('kanbanCodigo') || '';
 
     const size = searchParams.get('size') || '50x30';
     const is70x40 = size === '70x40';
@@ -72,7 +73,7 @@ export async function GET(req: NextRequest) {
                     {/* LEFT COLUMN: Data */}
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '10px' }}>
                         <span style={{ fontSize: cfg.titleSize + 1, fontWeight: 900, color: '#000', marginBottom: '6px' }}>
-                            ORDEN REP.: {ordenId}
+                            ORDEN REP.: {ordenId} {kanbanCodigo ? `(${kanbanCodigo})` : ''}
                         </span>
                         
                         <span style={{ fontSize: cfg.descSize, fontWeight: 900, color: '#000', lineHeight: 1.1, overflow: 'hidden' }}>

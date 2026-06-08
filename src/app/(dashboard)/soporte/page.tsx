@@ -1,3 +1,6 @@
+import { prisma } from '@/lib/prisma';
+import { createClient } from '@/utils/supabase/server';
+import { redirect } from 'next/navigation';
 import { getOrdenesActivas } from './actions';
 import SoporteClient from './SoporteClient';
 
@@ -7,6 +10,15 @@ export const metadata = {
 };
 
 export default async function SoportePage() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !user.email) redirect('/login');
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { role: true, customRoleName: true, accessibleModules: true }
+    });
+
     const ordenes = await getOrdenesActivas();
     
     const safeOrdenes = ordenes.map((orden: any) => ({
@@ -15,5 +27,13 @@ export default async function SoportePage() {
         costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
     }));
 
-    return <SoporteClient initialData={safeOrdenes} />;
+    return (
+        <SoporteClient 
+            initialData={safeOrdenes} 
+            userRole={dbUser?.role || 'USER'}
+            customRoleName={dbUser?.customRoleName || ''}
+            accessibleModules={dbUser?.accessibleModules || []}
+        />
+    );
 }
+

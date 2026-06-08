@@ -10,6 +10,7 @@ type QRGeneratorProps = {
   equipo?: string;
   marcaModelo?: string;
   fecha?: string;
+  kanbanCodigo?: string;
 };
 
 export default function QRGenerator({ 
@@ -18,7 +19,8 @@ export default function QRGenerator({
   cliente = "N/A",
   equipo = "Sin especificar",
   marcaModelo = "",
-  fecha = new Date().toLocaleDateString("es-HN")
+  fecha = new Date().toLocaleDateString("es-HN"),
+  kanbanCodigo = ""
 }: QRGeneratorProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [showModal, setShowModal] = useState(false);
@@ -75,15 +77,19 @@ export default function QRGenerator({
         <div className="flex-1 min-w-0">
           {[
             ["Orden", orderId],
+            kanbanCodigo ? ["Tarea Kanban", kanbanCodigo] : null,
             ["Serie", serie],
             ["Cliente", cliente],
             ["Fecha", fecha],
-          ].map(([k, v]) => (
-            <div key={k} className="mb-1.5 truncate">
-              <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">{k}</div>
-              <div className="text-xs text-slate-900 font-mono font-bold truncate">{v}</div>
-            </div>
-          ))}
+          ].filter(Boolean).map((item) => {
+            const [k, v] = item!;
+            return (
+              <div key={k} className="mb-1.5 truncate">
+                <div className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">{k}</div>
+                <div className="text-xs text-slate-900 font-mono font-bold truncate">{v}</div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -103,6 +109,7 @@ export default function QRGenerator({
           equipo={equipo}
           marcaModelo={marcaModelo}
           fecha={fecha}
+          kanbanCodigo={kanbanCodigo}
           onClose={() => setShowModal(false)}
         />
       )}
@@ -118,6 +125,7 @@ type PreviewModalProps = {
   equipo: string;
   marcaModelo: string;
   fecha: string;
+  kanbanCodigo?: string;
   onClose: () => void;
 };
 
@@ -128,6 +136,7 @@ function PreviewEtiquetaReparacionModal({
   equipo, 
   marcaModelo,
   fecha, 
+  kanbanCodigo = "",
   onClose 
 }: PreviewModalProps) {
   const [cantidad, setCantidad] = useState(1);
@@ -155,7 +164,8 @@ function PreviewEtiquetaReparacionModal({
     equipo,
     marcaModelo,
     fecha,
-    size
+    size,
+    kanbanCodigo
   });
   const urlImagen = `/api/impresion/generar-etiqueta-reparacion?${params.toString()}`;
 

@@ -4,8 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
     Wrench, Plus, MoveRight, Receipt, 
-    CheckCircle2, QrCode, Phone, Clock, AlertTriangle, MonitorSmartphone
+    CheckCircle2, QrCode, Phone, Clock, AlertTriangle, MonitorSmartphone,
+    Trash2, AlertCircle
 } from 'lucide-react';
+import { eliminarOrdenTrabajo } from './actions';
+import { toast } from 'react-hot-toast';
 
 type Orden = any; // Tipado parcial
 
@@ -18,9 +21,90 @@ const COLUMNAS = [
     { id: 'LISTO_ENTREGA', title: 'Reparado / Listo', color: 'border-green-500', bg: 'bg-green-50 text-green-700' },
 ];
 
-export default function SoporteClient({ initialData }: { initialData: Orden[] }) {
+export default function SoporteClient({ 
+    initialData,
+    userRole = 'USER',
+    customRoleName = '',
+    accessibleModules = []
+}: { 
+    initialData: Orden[],
+    userRole?: string,
+    customRoleName?: string,
+    accessibleModules?: string[]
+}) {
     const router = useRouter();
     const [ordenes, setOrdenes] = useState<Orden[]>(initialData);
+
+    const role = userRole;
+    const cRole = customRoleName?.toUpperCase() || '';
+    const isGlobal = role === 'SUPER_ADMIN' || role === 'ORG_ADMIN';
+    const canDeleteOrder = isGlobal || accessibleModules.includes('eliminar_ordenes');
+
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        title: string;
+        description: string;
+        confirmText: string;
+        cancelText: string;
+        onConfirm: () => void;
+        type: 'danger' | 'warning' | 'info';
+    }>({
+        isOpen: false,
+        title: '',
+        description: '',
+        confirmText: 'Confirmar',
+        cancelText: 'Cancelar',
+        onConfirm: () => {},
+        type: 'info'
+    });
+
+    const [loading, setLoading] = useState(false);
+
+    const showConfirm = (options: {
+        title: string;
+        description: string;
+        confirmText?: string;
+        cancelText?: string;
+        onConfirm: () => void;
+        type?: 'danger' | 'warning' | 'info';
+    }) => {
+        setConfirmModal({
+            isOpen: true,
+            title: options.title,
+            description: options.description,
+            confirmText: options.confirmText || 'Confirmar',
+            cancelText: options.cancelText || 'Cancelar',
+            onConfirm: options.onConfirm,
+            type: options.type || 'info'
+        });
+    };
+
+    const handleEliminarOrden = (ordenId: string, codigoSeguridad: string) => {
+        showConfirm({
+            title: '¿Eliminar orden permanentemente?',
+            description: `¿Estás absolutamente seguro de que deseas ELIMINAR permanentemente la orden de trabajo #${codigoSeguridad}? Esta acción borrará la orden, todos sus repuestos, las tareas/comentarios en Kanban y el presupuesto generado, y NO se puede deshacer.`,
+            confirmText: 'Sí, Eliminar permanentemente',
+            cancelText: 'Cancelar',
+            type: 'danger',
+            onConfirm: async () => {
+                setLoading(true);
+                try {
+                    const res = await eliminarOrdenTrabajo(ordenId);
+                    if (res.success) {
+                        toast.success("Orden de trabajo eliminada exitosamente.");
+                        setOrdenes(prev => prev.filter(o => o.id !== ordenId));
+                    } else {
+                        toast.error("Error al eliminar la orden de trabajo.");
+                    }
+                } catch (e) {
+                    console.error(e);
+                    toast.error("Error de conexión al eliminar la orden.");
+                } finally {
+                    setLoading(false);
+                }
+            }
+        });
+    };
 
     return (
         <div className="px-0 py-4 md:p-8 max-w-[1600px] mx-auto relative min-h-screen">
@@ -84,10 +168,25 @@ export default function SoporteClient({ initialData }: { initialData: Orden[] })
                                                     <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase">
                                                         #{orden.codigoSeguridad}
                                                     </span>
-                                                    <span suppressHydrationWarning className="text-xs font-semibold text-slate-500 flex items-center gap-1">
-                                                        <Clock className="w-3 h-3" />
-                                                        {new Date(orden.fechaRecibido).toLocaleDateString()}
-                                                    </span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span suppressHydrationWarning className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                                                            <Clock className="w-3 h-3" />
+                                                            {new Date(orden.fechaRecibido).toLocaleDateString()}
+                                                        </span>
+                                                        {canDeleteOrder && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleEliminarOrden(orden.id, orden.codigoSeguridad);
+                                                                }}
+                                                                className="p-1 text-red-500 hover:text-white hover:bg-red-600 rounded-lg transition-all border border-transparent hover:border-red-600 cursor-pointer active:scale-95"
+                                                                title="Eliminar Orden"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 <div className="font-bold text-slate-800 text-sm flex items-center gap-2 mt-1">
                                                     <MonitorSmartphone className="w-4 h-4 text-blue-500 shrink-0" />
@@ -119,6 +218,64 @@ export default function SoporteClient({ initialData }: { initialData: Orden[] })
                     })}
                 </div>
             </div>
+
+            {/* Modal de Confirmación */}
+            {confirmModal.isOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="p-6 space-y-4">
+                            <div className="flex items-start gap-4">
+                                <div className={`p-3 rounded-xl shrink-0 ${
+                                    confirmModal.type === 'danger' ? 'bg-red-50 text-red-600 border border-red-200/50' :
+                                    confirmModal.type === 'warning' ? 'bg-amber-50 text-amber-600 border border-amber-200/50' :
+                                    'bg-indigo-50 text-indigo-600 border border-indigo-200/50'
+                                }`}>
+                                    {confirmModal.type === 'danger' ? (
+                                        <Trash2 className="h-6 w-6 stroke-[2.2]" />
+                                    ) : confirmModal.type === 'warning' ? (
+                                        <AlertCircle className="h-6 w-6 stroke-[2.2]" />
+                                    ) : (
+                                        <Wrench className="h-6 w-6 stroke-[2.2]" />
+                                    )}
+                                </div>
+                                <div className="space-y-1.5 min-w-0 flex-1">
+                                    <h3 className="font-extrabold text-slate-900 text-base leading-tight">
+                                        {confirmModal.title}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 leading-relaxed">
+                                        {confirmModal.description}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-xs transition active:scale-95 cursor-pointer"
+                            >
+                                {confirmModal.cancelText}
+                            </button>
+                            <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => {
+                                    confirmModal.onConfirm();
+                                    setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                }}
+                                className={`px-5 py-2 font-bold rounded-xl text-xs transition active:scale-95 shadow-sm hover:shadow flex items-center justify-center cursor-pointer ${
+                                    confirmModal.type === 'danger' ? 'bg-red-600 hover:bg-red-700 text-white' :
+                                    confirmModal.type === 'warning' ? 'bg-amber-600 hover:bg-amber-700 text-white' :
+                                    'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                }`}
+                            >
+                                {confirmModal.confirmText}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

@@ -104,6 +104,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/inventario/historico', label: 'Inventario Histórico (Odoo)' },
         { id: '/contactos', label: 'Directorio de Contactos' },
         { id: '/soporte', label: 'Soporte y Reparaciones' },
+        { id: 'eliminar_ordenes', label: 'Soporte - Eliminar Órdenes' },
         { id: '/cotizaciones', label: 'Cotizaciones' },
         { id: '/facturas', label: 'Facturación' },
         { id: '/caja-chica', label: 'Caja Chica' },

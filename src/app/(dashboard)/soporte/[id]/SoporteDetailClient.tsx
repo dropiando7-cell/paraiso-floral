@@ -6,8 +6,8 @@ import TechnicalWorkbench from '../components/TechnicalWorkbench';
 import ApprovalCard from '../components/ApprovalCard';
 import AprobacionClienteCard from '../components/AprobacionClienteCard';
 import QRGenerator from '../components/QRGenerator';
-import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon } from 'lucide-react';
-import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden } from '../actions';
+import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle } from 'lucide-react';
+import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden, eliminarOrdenTrabajo } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
@@ -20,7 +20,8 @@ export default function SoporteDetailClient({
   customRoleName,
   userEmail = '',
   organizationUsers = [],
-  budgetFactura
+  budgetFactura,
+  accessibleModules = []
 }: { 
   orden: Orden; 
   userRole: string; 
@@ -28,12 +29,14 @@ export default function SoporteDetailClient({
   userEmail?: string;
   organizationUsers?: any[];
   budgetFactura?: { id: string; correlativo: string; total: number; estado: string } | null;
+  accessibleModules?: string[];
 }) {
   const role = userRole;
   const cRole = customRoleName?.toUpperCase() || '';
 
   // Determine visible blocks based on role (for demo they used isGlobal/isYensi, we use real roles)
   const isGlobal = role === 'SUPER_ADMIN' || role === 'ORG_ADMIN';
+  const canDeleteOrder = isGlobal || accessibleModules.includes('eliminar_ordenes');
   
   // Custom support admin check: super/org admin, emilia.zapata, or custom role names matching support admin keywords
   const isSoporteAdmin = isGlobal || 
@@ -83,6 +86,43 @@ export default function SoporteDetailClient({
   const fileRef = React.useRef<HTMLInputElement>(null);
   const cameraRef = React.useRef<HTMLInputElement>(null);
   const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
+
+  const [confirmModal, setConfirmModal] = React.useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    confirmText: string;
+    cancelText: string;
+    onConfirm: () => void;
+    type: 'danger' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    description: '',
+    confirmText: 'Confirmar',
+    cancelText: 'Cancelar',
+    onConfirm: () => {},
+    type: 'info'
+  });
+
+  const showConfirm = (options: {
+    title: string;
+    description: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => void;
+    type?: 'danger' | 'warning' | 'info';
+  }) => {
+    setConfirmModal({
+      isOpen: true,
+      title: options.title,
+      description: options.description,
+      confirmText: options.confirmText || 'Confirmar',
+      cancelText: options.cancelText || 'Cancelar',
+      onConfirm: options.onConfirm,
+      type: options.type || 'info'
+    });
+  };
 
   const handleOpenEditModal = () => {
     const parsed = parseMarcaModelo(orden.marcaModelo || '');
@@ -238,12 +278,46 @@ export default function SoporteDetailClient({
   };
 
   const handleRetroceder = async (estadoAnterior: string) => {
-    if (confirm(`¿Estás seguro de que deseas regresar esta orden al estado anterior (${estadoAnterior})?`)) {
-      setLoading(true);
-      await updateEstadoOrden(orden.id, estadoAnterior);
-      setLoading(false);
-      window.location.reload();
-    }
+    showConfirm({
+      title: `¿Regresar al estado anterior?`,
+      description: `¿Estás seguro de que deseas regresar esta orden al estado anterior (${estadoAnterior})?`,
+      confirmText: 'Regresar Estado',
+      cancelText: 'Cancelar',
+      type: 'warning',
+      onConfirm: async () => {
+        setLoading(true);
+        await updateEstadoOrden(orden.id, estadoAnterior);
+        setLoading(false);
+        window.location.reload();
+      }
+    });
+  };
+
+  const handleEliminarOrden = async () => {
+    showConfirm({
+      title: '¿Eliminar orden permanentemente?',
+      description: '¿Estás absolutamente seguro de que deseas ELIMINAR permanentemente esta orden de trabajo? Esta acción borrará la orden, todos sus repuestos, las tareas/comentarios en Kanban y el presupuesto generado, y NO se puede deshacer.',
+      confirmText: 'Sí, Eliminar permanentemente',
+      cancelText: 'Cancelar',
+      type: 'danger',
+      onConfirm: async () => {
+        setLoading(true);
+        try {
+          const res = await eliminarOrdenTrabajo(orden.id);
+          if (res.success) {
+            toast.success("Orden de trabajo eliminada exitosamente.");
+            router.push('/soporte');
+          } else {
+            toast.error("Error al eliminar la orden de trabajo.");
+          }
+        } catch (e) {
+          console.error(e);
+          toast.error("Error de conexión al eliminar la orden.");
+        } finally {
+          setLoading(false);
+        }
+      }
+    });
   };
 
   return (
@@ -290,6 +364,24 @@ export default function SoporteDetailClient({
               className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs md:text-sm font-semibold rounded-xl transition-all shadow-sm shrink-0"
             >
               <Pencil className="w-3.5 h-3.5" /> Editar Datos
+            </button>
+          )}
+          {orden.kanbanTasks && orden.kanbanTasks.length > 0 && (
+            <a
+              href={`/kanban/${orden.kanbanTasks[0].spaceId}?task=${orden.kanbanTasks[0].id}`}
+              className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs md:text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95"
+            >
+              <Layout className="w-3.5 h-3.5 text-indigo-500" /> Tarjeta Kanban ({orden.kanbanTasks[0].codigo})
+            </a>
+          )}
+          {canDeleteOrder && (
+            <button
+              type="button"
+              onClick={() => handleEliminarOrden()}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 text-xs md:text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 disabled:opacity-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" /> Eliminar Orden
             </button>
           )}
         </div>
@@ -465,6 +557,7 @@ export default function SoporteDetailClient({
               equipo={orden.equipoDano}
               marcaModelo={orden.marcaModelo || ""}
               fecha={new Date(orden.fechaRecibido || new Date()).toLocaleDateString("es-HN")}
+              kanbanCodigo={orden.kanbanTasks?.[0]?.codigo}
             />
           )}
         </div>
@@ -780,6 +873,62 @@ export default function SoporteDetailClient({
               alt="Evidencia ampliada" 
               className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
             />
+          </div>
+        </div>
+      )}
+
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className={`p-3 rounded-xl shrink-0 ${
+                  confirmModal.type === 'danger' ? 'bg-red-50 text-red-600 border border-red-200/50' :
+                  confirmModal.type === 'warning' ? 'bg-amber-50 text-amber-600 border border-amber-200/50' :
+                  'bg-indigo-50 text-indigo-600 border border-indigo-200/50'
+                }`}>
+                  {confirmModal.type === 'danger' ? (
+                    <Trash2 className="h-6 w-6 stroke-[2.2]" />
+                  ) : confirmModal.type === 'warning' ? (
+                    <AlertCircle className="h-6 w-6 stroke-[2.2]" />
+                  ) : (
+                    <Layout className="h-6 w-6 stroke-[2.2]" />
+                  )}
+                </div>
+                <div className="space-y-1.5 min-w-0 flex-1">
+                  <h3 className="font-extrabold text-slate-900 text-base leading-tight">
+                    {confirmModal.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {confirmModal.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-xs transition active:scale-95 cursor-pointer"
+              >
+                {confirmModal.cancelText}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  confirmModal.onConfirm();
+                  setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                }}
+                className={`px-5 py-2 font-bold rounded-xl text-xs transition active:scale-95 shadow-sm hover:shadow flex items-center justify-center cursor-pointer ${
+                  confirmModal.type === 'danger' ? 'bg-red-600 hover:bg-red-700 text-white' :
+                  confirmModal.type === 'warning' ? 'bg-amber-600 hover:bg-amber-700 text-white' :
+                  'bg-indigo-600 hover:bg-indigo-700 text-white'
+                }`}
+              >
+                {confirmModal.confirmText}
+              </button>
+            </div>
           </div>
         </div>
       )}

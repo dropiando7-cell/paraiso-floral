@@ -173,6 +173,12 @@ export default async function TrazabilidadPage({ params }: { params: Promise<{ i
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-800 text-[10px] font-bold text-slate-450 tracking-wide mb-3 border border-slate-700/50 uppercase">
                 <Tag className="w-3 h-3 text-indigo-400" />
                 <span>ID: {orden.codigoSeguridad}</span>
+                {kanbanTask?.codigo && (
+                  <>
+                    <span className="text-slate-600 font-normal">|</span>
+                    <span className="text-indigo-400 font-black">TAREA: {kanbanTask.codigo}</span>
+                  </>
+                )}
               </div>
               <h2 className="text-2xl md:text-3xl font-black text-white leading-tight">
                 {orden.equipoDano.toUpperCase()}
