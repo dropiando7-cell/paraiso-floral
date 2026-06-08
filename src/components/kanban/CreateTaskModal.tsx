@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition } from 'react';
+import { useState, useEffect, useTransition, useRef } from 'react';
 import { 
     X, 
     Check, 
@@ -10,9 +10,45 @@ import {
     Users, 
     AlignLeft, 
     Briefcase,
-    Loader2
+    Loader2,
+    Camera,
+    Video,
+    Mic,
+    Play,
+    Square,
+    RefreshCw,
+    Volume2,
+    Paperclip,
+    Trash2,
+    Image as ImageIcon
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import { compressImage } from '@/utils/image';
+
+const SIDEBAR_MODULES = [
+    "Portal Bioelectrónica",
+    "Proyectos & Kanban",
+    "Mantenimiento y Reparaciones",
+    "Inventario IA",
+    "Rentas de Equipos",
+    "Control de Caja Chica",
+    "Gráficas e Informes",
+    "Control de Inventario",
+    "Garantías y Reemplazos",
+    "Catálogo de Modelos",
+    "Entradas / Compras",
+    "Salidas / Descargas",
+    "Kardex de Movimientos",
+    "Gestor de Precios",
+    "Ubicaciones y Sucursales",
+    "Inventario (Odoo)",
+    "Directorio de Contactos",
+    "Cotizaciones",
+    "Facturación",
+    "Cierre de Caja",
+    "Usuarios y Roles",
+    "Gestión Web / Tienda"
+];
 
 interface Space {
     id: string;
@@ -41,6 +77,7 @@ interface CreateTaskModalProps {
     spaces: Space[];
     members: Member[];
     tasks: Task[]; // Para asociar a tarea principal
+    defaultStatus?: string;
     onCreate: (taskData: any) => Promise<boolean>;
 }
 
@@ -51,6 +88,7 @@ export default function CreateTaskModal({
     spaces,
     members,
     tasks,
+    defaultStatus,
     onCreate
 }: CreateTaskModalProps) {
     const [isPending, startTransition] = useTransition();
@@ -75,6 +113,41 @@ export default function CreateTaskModal({
     const [etiquetasInput, setEtiquetasInput] = useState('');
     const [team, setTeam] = useState('');
 
+    // Módulo / Área states
+    const [selectedModulo, setSelectedModulo] = useState('');
+    
+    // Attachments & Upload states
+    const [attachments, setAttachments] = useState<{ nombre: string; url: string; tipo: string; tamano: number; descripcion: string }[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+
+    // Estados para cámara web
+    const [showCameraModal, setShowCameraModal] = useState(false);
+    const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+    const videoRef = useRef<HTMLVideoElement>(null);
+
+    // Estados para grabación de video
+    const [showVideoRecordModal, setShowVideoRecordModal] = useState(false);
+    const [videoStream, setVideoStream] = useState<MediaStream | null>(null);
+    const [isRecordingVideo, setIsRecordingVideo] = useState(false);
+    const [recordedVideoChunks, setRecordedVideoChunks] = useState<Blob[]>([]);
+    const [videoRecordingTimer, setVideoRecordingTimer] = useState(0);
+    const [recordedVideoUrl, setRecordedVideoUrl] = useState<string | null>(null);
+    const [recordedVideoBlob, setRecordedVideoBlob] = useState<Blob | null>(null);
+    const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const videoStreamRef = useRef<HTMLVideoElement>(null);
+    const timerIntervalRef = useRef<any>(null);
+
+    // Estados para grabación de audio
+    const [showAudioRecordModal, setShowAudioRecordModal] = useState(false);
+    const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+    const [isRecordingAudio, setIsRecordingAudio] = useState(false);
+    const [recordedAudioChunks, setRecordedAudioChunks] = useState<Blob[]>([]);
+    const [audioRecordingTimer, setAudioRecordingTimer] = useState(0);
+    const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(null);
+    const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
+    const audioMediaRecorderRef = useRef<MediaRecorder | null>(null);
+    const audioTimerIntervalRef = useRef<any>(null);
+
     const activeSpace = spaces.find(s => s.id === selectedSpaceId) || spaces[0];
 
     // Reset or update state when space changes
@@ -83,9 +156,11 @@ export default function CreateTaskModal({
             if (!activeSpace.tiposActividad.includes(type)) {
                 setType(activeSpace.tiposActividad[0] || 'Task');
             }
-            setStatus(activeSpace.columnas[0] || 'Por hacer');
+            if (!defaultStatus) {
+                setStatus(activeSpace.columnas[0] || 'Por hacer');
+            }
         }
-    }, [selectedSpaceId, activeSpace]);
+    }, [selectedSpaceId, activeSpace, defaultStatus]);
 
     // Initialize/Reset form on open
     useEffect(() => {
@@ -100,10 +175,467 @@ export default function CreateTaskModal({
             setStartDate('');
             setEtiquetasInput('');
             setTeam('');
+            setSelectedModulo('');
+            setAttachments([]);
             setShowAssigneeDropdown(false);
             setAssigneeSearch('');
+
+            if (defaultStatus) {
+                setStatus(defaultStatus);
+            } else if (activeSpace) {
+                setStatus(activeSpace.columnas[0] || 'Por hacer');
+            }
+
+            // Clean up media streams if open
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                setCameraStream(null);
+            }
+            setShowCameraModal(false);
+            if (videoStream) {
+                videoStream.getTracks().forEach(track => track.stop());
+                setVideoStream(null);
+            }
+            setShowVideoRecordModal(false);
+            if (audioStream) {
+                audioStream.getTracks().forEach(track => track.stop());
+                setAudioStream(null);
+            }
+            setShowAudioRecordModal(false);
         }
-    }, [isOpen, currentSpaceId]);
+    }, [isOpen, currentSpaceId, defaultStatus]);
+
+    // Cleanup media on unmount
+    useEffect(() => {
+        return () => {
+            if (cameraStream) cameraStream.getTracks().forEach(track => track.stop());
+            if (videoStream) videoStream.getTracks().forEach(track => track.stop());
+            if (audioStream) audioStream.getTracks().forEach(track => track.stop());
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            if (audioTimerIntervalRef.current) clearInterval(audioTimerIntervalRef.current);
+        };
+    }, [cameraStream, videoStream, audioStream]);
+
+    const handleFileUploadLocal = async (file: File) => {
+        if (!file) return;
+
+        if (file.size > 20 * 1024 * 1024) { // 20MB limit
+            toast.error(`El archivo "${file.name}" supera el límite de 20MB`);
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            let fileToUpload = file;
+            try {
+                fileToUpload = await compressImage(file);
+            } catch (compErr) {
+                console.error("Compression error:", compErr);
+            }
+
+            // 1. Obtener URL pre-firmada de subida
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fileName: fileToUpload.name,
+                    contentType: fileToUpload.type,
+                }),
+            });
+
+            if (!response.ok) throw new Error('Error solicitando URL de subida');
+            const { uploadUrl, publicUrl } = await response.json();
+
+            // 2. Subir directamente a R2
+            const uploadResponse = await fetch(uploadUrl, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': fileToUpload.type,
+                },
+                body: fileToUpload,
+            });
+
+            if (!uploadResponse.ok) throw new Error('Error al subir el archivo');
+
+            // 3. Agregar a adjuntos locales
+            const newAttachment = {
+                nombre: fileToUpload.name,
+                url: publicUrl,
+                tipo: fileToUpload.type,
+                tamano: fileToUpload.size,
+                descripcion: ''
+            };
+
+            setAttachments(prev => [newAttachment, ...prev]);
+            toast.success(`Archivo "${file.name}" cargado`);
+        } catch (err: any) {
+            console.error('[Upload Error]:', err);
+            toast.error(`Error al subir "${file.name}": ${err.message || err}`);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    // Paste handler for Ctrl+V screenshots
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handlePaste = async (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        toast.loading('Subiendo captura de pantalla...', { id: 'paste-upload' });
+                        try {
+                            const renamedFile = new File([file], `captura_${Date.now()}.png`, { type: 'image/png' });
+                            await handleFileUploadLocal(renamedFile);
+                            toast.success('Captura de pantalla subida', { id: 'paste-upload' });
+                        } catch (err) {
+                            toast.error('Error al subir captura', { id: 'paste-upload' });
+                        }
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, [isOpen]);
+
+    const handleUpdateAttachmentDescription = (index: number, desc: string) => {
+        setAttachments(prev => {
+            const updated = [...prev];
+            updated[index] = { ...updated[index], descripcion: desc };
+            return updated;
+        });
+    };
+
+    const handleRemoveAttachment = (index: number) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Camera Web handlers
+    const openCamera = async () => {
+        setShowCameraModal(true);
+        setTimeout(async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' },
+                    audio: false
+                });
+                setCameraStream(stream);
+                if (videoRef.current) {
+                    videoRef.current.srcObject = stream;
+                }
+            } catch (err) {
+                console.error("Camera access error:", err);
+                toast.error("No se pudo iniciar la cámara web. Puedes usar la cámara nativa.");
+            }
+        }, 300);
+    };
+
+    const closeCamera = () => {
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            setCameraStream(null);
+        }
+        setShowCameraModal(false);
+    };
+
+    const capturePhoto = () => {
+        if (videoRef.current) {
+            const canvas = document.createElement('canvas');
+            canvas.width = videoRef.current.videoWidth || 1280;
+            canvas.height = videoRef.current.videoHeight || 720;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+                ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                canvas.toBlob(async (blob) => {
+                    if (blob) {
+                        const file = new File([blob], `foto_${Date.now()}.jpg`, { type: 'image/jpeg' });
+                        await handleFileUploadLocal(file);
+                        closeCamera();
+                    }
+                }, 'image/jpeg', 0.9);
+            }
+        }
+    };
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
+
+    // Video recording handlers
+    const openVideoRecorder = async () => {
+        setShowVideoRecordModal(true);
+        setRecordedVideoUrl(null);
+        setRecordedVideoBlob(null);
+        setRecordedVideoChunks([]);
+        setVideoRecordingTimer(0);
+        
+        setTimeout(async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'user' },
+                    audio: true
+                });
+                setVideoStream(stream);
+                if (videoStreamRef.current) {
+                    videoStreamRef.current.srcObject = stream;
+                }
+            } catch (err) {
+                console.error("Video recorder camera/mic access error:", err);
+                toast.error("No se pudo acceder a la cámara y/o micrófono.");
+            }
+        }, 300);
+    };
+
+    const startVideoRecording = () => {
+        if (!videoStream) return;
+        
+        const chunks: Blob[] = [];
+        setRecordedVideoChunks([]);
+        
+        let mimeType = 'video/webm';
+        const types = [
+            'video/webm;codecs=vp9,opus',
+            'video/webm;codecs=vp8,opus',
+            'video/webm',
+            'video/mp4',
+            'video/quicktime'
+        ];
+        for (const type of types) {
+            if (MediaRecorder.isTypeSupported(type)) {
+                mimeType = type;
+                break;
+            }
+        }
+
+        try {
+            const options = mimeType ? { mimeType } : undefined;
+            const recorder = new MediaRecorder(videoStream, options);
+            
+            recorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    chunks.push(e.data);
+                }
+            };
+
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                setRecordedVideoBlob(blob);
+                setRecordedVideoUrl(url);
+                
+                if (videoStream) {
+                    videoStream.getTracks().forEach(track => track.stop());
+                    setVideoStream(null);
+                }
+            };
+
+            mediaRecorderRef.current = recorder;
+            recorder.start(1000);
+            setIsRecordingVideo(true);
+            setVideoRecordingTimer(0);
+
+            if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = setInterval(() => {
+                setVideoRecordingTimer(prev => prev + 1);
+            }, 1000);
+        } catch (err) {
+            console.error("Error starting video recorder:", err);
+            toast.error("No se pudo iniciar la grabación de video.");
+        }
+    };
+
+    const stopVideoRecording = () => {
+        if (mediaRecorderRef.current && isRecordingVideo) {
+            mediaRecorderRef.current.stop();
+            setIsRecordingVideo(false);
+            if (timerIntervalRef.current) {
+                clearInterval(timerIntervalRef.current);
+                timerIntervalRef.current = null;
+            }
+        }
+    };
+
+    const saveRecordedVideo = async () => {
+        if (!recordedVideoBlob) return;
+        
+        let extension = '.webm';
+        if (recordedVideoBlob.type.includes('mp4')) extension = '.mp4';
+        else if (recordedVideoBlob.type.includes('quicktime')) extension = '.mov';
+
+        const file = new File(
+            [recordedVideoBlob], 
+            `grabacion_video_${Date.now()}${extension}`, 
+            { type: recordedVideoBlob.type || 'video/webm' }
+        );
+        
+        await handleFileUploadLocal(file);
+        closeVideoRecorder();
+    };
+
+    const closeVideoRecorder = () => {
+        if (videoStream) {
+            videoStream.getTracks().forEach(track => track.stop());
+            setVideoStream(null);
+        }
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop();
+        }
+        if (timerIntervalRef.current) {
+            clearInterval(timerIntervalRef.current);
+            timerIntervalRef.current = null;
+        }
+        if (recordedVideoUrl) {
+            URL.revokeObjectURL(recordedVideoUrl);
+        }
+        
+        setShowVideoRecordModal(false);
+        setRecordedVideoUrl(null);
+        setRecordedVideoBlob(null);
+        setRecordedVideoChunks([]);
+        setIsRecordingVideo(false);
+    };
+
+    // Audio recording handlers
+    const openAudioRecorder = async () => {
+        setShowAudioRecordModal(true);
+        setRecordedAudioUrl(null);
+        setRecordedAudioBlob(null);
+        setRecordedAudioChunks([]);
+        setAudioRecordingTimer(0);
+        
+        setTimeout(async () => {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                setAudioStream(stream);
+            } catch (err) {
+                console.error("Audio recorder mic access error:", err);
+                toast.error("No se pudo acceder al micrófono.");
+            }
+        }, 300);
+    };
+
+    const startAudioRecording = () => {
+        if (!audioStream) return;
+        
+        const chunks: Blob[] = [];
+        setRecordedAudioChunks([]);
+        
+        let mimeType = 'audio/webm';
+        const types = [
+            'audio/webm;codecs=opus',
+            'audio/webm',
+            'audio/ogg;codecs=opus',
+            'audio/ogg',
+            'audio/mp4',
+            'audio/mpeg',
+            'audio/wav'
+        ];
+        for (const type of types) {
+            if (MediaRecorder.isTypeSupported(type)) {
+                mimeType = type;
+                break;
+            }
+        }
+
+        try {
+            const options = mimeType ? { mimeType } : undefined;
+            const recorder = new MediaRecorder(audioStream, options);
+            
+            recorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) {
+                    chunks.push(e.data);
+                }
+            };
+
+            recorder.onstop = () => {
+                const blob = new Blob(chunks, { type: mimeType });
+                const url = URL.createObjectURL(blob);
+                setRecordedAudioBlob(blob);
+                setRecordedAudioUrl(url);
+                
+                if (audioStream) {
+                    audioStream.getTracks().forEach(track => track.stop());
+                    setAudioStream(null);
+                }
+            };
+
+            audioMediaRecorderRef.current = recorder;
+            recorder.start(1000);
+            setIsRecordingAudio(true);
+            setAudioRecordingTimer(0);
+
+            if (audioTimerIntervalRef.current) clearInterval(audioTimerIntervalRef.current);
+            audioTimerIntervalRef.current = setInterval(() => {
+                setAudioRecordingTimer(prev => prev + 1);
+            }, 1000);
+        } catch (err) {
+            console.error("Error starting audio recorder:", err);
+            toast.error("No se pudo iniciar la grabación de audio.");
+        }
+    };
+
+    const stopAudioRecording = () => {
+        if (audioMediaRecorderRef.current && isRecordingAudio) {
+            audioMediaRecorderRef.current.stop();
+            setIsRecordingAudio(false);
+            if (audioTimerIntervalRef.current) {
+                clearInterval(audioTimerIntervalRef.current);
+                audioTimerIntervalRef.current = null;
+            }
+        }
+    };
+
+    const saveRecordedAudio = async () => {
+        if (!recordedAudioBlob) return;
+        
+        let extension = '.webm';
+        if (recordedAudioBlob.type.includes('ogg')) extension = '.ogg';
+        else if (recordedAudioBlob.type.includes('mp4') || recordedAudioBlob.type.includes('m4a')) extension = '.m4a';
+        else if (recordedAudioBlob.type.includes('wav')) extension = '.wav';
+        else if (recordedAudioBlob.type.includes('mpeg')) extension = '.mp3';
+
+        const file = new File(
+            [recordedAudioBlob], 
+            `grabacion_audio_${Date.now()}${extension}`, 
+            { type: recordedAudioBlob.type || 'audio/webm' }
+        );
+        
+        await handleFileUploadLocal(file);
+        closeAudioRecorder();
+    };
+
+    const closeAudioRecorder = () => {
+        if (audioStream) {
+            audioStream.getTracks().forEach(track => track.stop());
+            setAudioStream(null);
+        }
+        if (audioMediaRecorderRef.current && audioMediaRecorderRef.current.state !== 'inactive') {
+            audioMediaRecorderRef.current.stop();
+        }
+        if (audioTimerIntervalRef.current) {
+            clearInterval(audioTimerIntervalRef.current);
+            audioTimerIntervalRef.current = null;
+        }
+        if (recordedAudioUrl) {
+            URL.revokeObjectURL(recordedAudioUrl);
+        }
+        
+        setShowAudioRecordModal(false);
+        setRecordedAudioUrl(null);
+        setRecordedAudioBlob(null);
+        setRecordedAudioChunks([]);
+        setIsRecordingAudio(false);
+    };
 
     if (!isOpen) return null;
 
@@ -142,7 +674,9 @@ export default function CreateTaskModal({
             startDate: startDate || undefined,
             parentId: parentId || undefined,
             etiquetas,
-            team: team.trim() || undefined
+            team: team.trim() || undefined,
+            modulo: selectedModulo || undefined,
+            attachments: attachments.length > 0 ? attachments : undefined
         };
 
         startTransition(async () => {
@@ -173,6 +707,107 @@ export default function CreateTaskModal({
 
                 {/* Formulario */}
                 <form onSubmit={handleFormSubmit} className="flex-1 overflow-y-auto p-6 space-y-5">
+                    {/* Multimedia Actions */}
+                    <div className="space-y-3 pb-4 border-b border-slate-100">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Agregar Multimedia / Capturas (Pegar Ctrl+V)</label>
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                onClick={openCamera}
+                                className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition active:scale-95"
+                            >
+                                <Camera className="h-3.5 w-3.5 text-brand-605" />
+                                Tomar Foto
+                            </button>
+                            <button
+                                type="button"
+                                onClick={openVideoRecorder}
+                                className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition active:scale-95"
+                            >
+                                <Video className="h-3.5 w-3.5 text-red-650" />
+                                Grabar Video
+                            </button>
+                            <button
+                                type="button"
+                                onClick={openAudioRecorder}
+                                className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-sm transition active:scale-95"
+                            >
+                                <Mic className="h-3.5 w-3.5 text-blue-650" />
+                                Grabar Audio
+                            </button>
+                            <label className="flex items-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold text-xs px-3.5 py-2.5 rounded-xl shadow-sm cursor-pointer transition active:scale-95">
+                                <Paperclip className="h-3.5 w-3.5 text-slate-500" />
+                                Subir Archivos
+                                <input
+                                    type="file"
+                                    multiple
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                        const files = e.target.files;
+                                        if (files && files.length > 0) {
+                                            for (let i = 0; i < files.length; i++) {
+                                                await handleFileUploadLocal(files[i]);
+                                            }
+                                        }
+                                    }}
+                                />
+                            </label>
+                        </div>
+                        {isUploading && (
+                            <div className="flex items-center gap-2 text-xs text-brand-600 font-semibold animate-pulse mt-1">
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                Subiendo archivo a Cloudflare R2...
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Local Attachments List */}
+                    {attachments.length > 0 && (
+                        <div className="space-y-2.5 pb-4 border-b border-slate-100">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">
+                                Archivos Adjuntos / Capturas ({attachments.length})
+                            </label>
+                            <div className="border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-2 max-h-60 overflow-y-auto">
+                                {attachments.map((att, index) => {
+                                    const isImage = att.tipo.startsWith('image/');
+                                    return (
+                                        <div key={index} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-white p-2.5 rounded-lg border border-slate-150 shadow-sm relative group">
+                                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                                {isImage ? (
+                                                    <img src={att.url} alt={att.nombre} className="h-10 w-10 rounded object-cover border border-slate-200 shrink-0" />
+                                                ) : (
+                                                    <div className="h-10 w-10 bg-slate-100 rounded flex items-center justify-center border border-slate-200 shrink-0">
+                                                        <Paperclip className="h-5 w-5 text-slate-500" />
+                                                    </div>
+                                                )}
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-medium text-slate-700 truncate" title={att.nombre}>{att.nombre}</p>
+                                                    <p className="text-[10px] text-slate-400">{(att.tamano / 1024).toFixed(1)} KB</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                                                <input
+                                                    type="text"
+                                                    value={att.descripcion}
+                                                    onChange={(e) => handleUpdateAttachmentDescription(index, e.target.value)}
+                                                    placeholder="Añadir descripción..."
+                                                    className="flex-1 sm:w-64 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1 text-xs text-slate-800 focus:outline-none focus:border-brand-500 focus:bg-white transition"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleRemoveAttachment(index)}
+                                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition shrink-0"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Fila 1: Espacio de Trabajo & Tipo de Actividad */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
@@ -368,6 +1003,20 @@ export default function CreateTaskModal({
                         </div>
 
                         <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Módulo / Área Afectada</label>
+                            <select
+                                value={selectedModulo}
+                                onChange={(e) => setSelectedModulo(e.target.value)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none transition shadow-sm"
+                            >
+                                <option value="">Ninguno (General / Otro)</option>
+                                {SIDEBAR_MODULES.map(mod => (
+                                    <option key={mod} value={mod}>{mod}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Equipo (Team)</label>
                             <input
                                 type="text"
@@ -419,6 +1068,8 @@ export default function CreateTaskModal({
                             className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-brand-500 focus:outline-none transition shadow-sm"
                         />
                     </div>
+
+
                 </form>
 
                 {/* Acciones de Footer */}
@@ -447,6 +1098,303 @@ export default function CreateTaskModal({
                         )}
                     </button>
                 </div>
+
+                {/* Modal de Cámara */}
+                {showCameraModal && (
+                    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/85 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-100 flex flex-col animate-in zoom-in-95 duration-200">
+                            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                    <Camera className="h-4 w-4 text-brand-600 animate-pulse" />
+                                    Tomar Fotografía
+                                </h3>
+                                <button 
+                                    type="button"
+                                    onClick={closeCamera}
+                                    className="p-1 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                            
+                            <div className="relative aspect-video bg-black flex flex-col items-center justify-center overflow-hidden">
+                                <video 
+                                    ref={videoRef} 
+                                    autoPlay 
+                                    playsInline 
+                                    className="w-full h-full object-cover"
+                                />
+                                {!cameraStream && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-xs bg-slate-900 gap-2">
+                                        <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+                                        <span>Iniciando cámara...</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4 bg-slate-50 flex gap-2 justify-center">
+                                <button
+                                    type="button"
+                                    onClick={capturePhoto}
+                                    disabled={!cameraStream}
+                                    className="bg-brand-600 hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-1.5"
+                                >
+                                    <Camera className="h-3.5 w-3.5" />
+                                    Capturar
+                                </button>
+                                
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    capture="environment"
+                                    id="mobile-camera-input-create"
+                                    className="hidden"
+                                    onChange={async (e) => {
+                                        const files = e.target.files;
+                                        if (files && files.length > 0) {
+                                            await handleFileUploadLocal(files[0]);
+                                            closeCamera();
+                                        }
+                                    }}
+                                />
+                                <label
+                                    htmlFor="mobile-camera-input-create"
+                                    className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl cursor-pointer shadow-sm transition flex items-center gap-1.5"
+                                >
+                                    <Camera className="h-3.5 w-3.5" />
+                                    Cámara de Dispositivo
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal de Grabación de Video */}
+                {showVideoRecordModal && (
+                    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/85 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl border border-slate-100 flex flex-col animate-in zoom-in-95 duration-200">
+                            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                    <Video className="h-4.5 w-4.5 text-red-600 animate-pulse" />
+                                    Grabar Video
+                                </h3>
+                                <button 
+                                    type="button"
+                                    onClick={closeVideoRecorder}
+                                    className="p-1 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                            
+                            <div className="relative aspect-video bg-black flex flex-col items-center justify-center overflow-hidden">
+                                {recordedVideoUrl ? (
+                                    <video 
+                                        src={recordedVideoUrl} 
+                                        controls 
+                                        className="w-full h-full object-contain"
+                                    />
+                                ) : (
+                                    <video 
+                                        ref={videoStreamRef} 
+                                        autoPlay 
+                                        muted 
+                                        playsInline 
+                                        className="w-full h-full object-cover scale-x-[-1]"
+                                    />
+                                )}
+
+                                {isRecordingVideo && (
+                                    <div className="absolute top-4 left-4 bg-red-600/90 text-white text-[10px] font-black px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow animate-pulse">
+                                        <span className="h-2 w-2 rounded-full bg-white block animate-ping" />
+                                        GRABANDO • {formatTime(videoRecordingTimer)}
+                                    </div>
+                                )}
+                                
+                                {!videoStream && !recordedVideoUrl && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-xs bg-slate-900 gap-2">
+                                        <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+                                        <span>Iniciando cámara...</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4 bg-slate-50 flex gap-3 justify-center">
+                                {!recordedVideoUrl ? (
+                                    !isRecordingVideo ? (
+                                        <button
+                                            type="button"
+                                            onClick={startVideoRecording}
+                                            disabled={!videoStream}
+                                            className="bg-red-600 hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                        >
+                                            <div className="h-3.5 w-3.5 rounded-full bg-white shrink-0 animate-pulse" />
+                                            Iniciar Grabación
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={stopVideoRecording}
+                                            className="bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                        >
+                                            <Square className="h-3.5 w-3.5 text-white fill-white shrink-0" />
+                                            Detener
+                                        </button>
+                                    )
+                                ) : (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={saveRecordedVideo}
+                                            className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                        >
+                                            <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                                            Adjuntar Video
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setRecordedVideoUrl(null);
+                                                setRecordedVideoBlob(null);
+                                                setRecordedVideoChunks([]);
+                                                setTimeout(async () => {
+                                                    try {
+                                                        const stream = await navigator.mediaDevices.getUserMedia({
+                                                            video: { facingMode: 'user' },
+                                                            audio: true
+                                                        });
+                                                        setVideoStream(stream);
+                                                        if (videoStreamRef.current) {
+                                                            videoStreamRef.current.srcObject = stream;
+                                                        }
+                                                    } catch (err) {
+                                                        console.error("Camera access error:", err);
+                                                        toast.error("No se pudo iniciar la cámara.");
+                                                    }
+                                                }, 100);
+                                            }}
+                                            className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                        >
+                                            <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+                                            Grabar de Nuevo
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Modal de Grabación de Audio */}
+                {showAudioRecordModal && (
+                    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/85 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl max-w-sm w-full overflow-hidden shadow-2xl border border-slate-100 flex flex-col animate-in zoom-in-95 duration-200">
+                            <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                                    <Mic className="h-4.5 w-4.5 text-brand-600 animate-pulse" />
+                                    Grabar Audio
+                                </h3>
+                                <button 
+                                    type="button"
+                                    onClick={closeAudioRecorder}
+                                    className="p-1 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                                >
+                                    <X className="h-4 w-4" />
+                                </button>
+                            </div>
+                            
+                            <div className="p-6 bg-slate-900 flex flex-col items-center justify-center gap-4 min-h-[160px] relative">
+                                {recordedAudioUrl ? (
+                                    <audio 
+                                        src={recordedAudioUrl} 
+                                        controls 
+                                        className="w-full mt-4"
+                                    />
+                                ) : (
+                                    <div className="flex flex-col items-center gap-3">
+                                        <div className={`h-16 w-16 rounded-full bg-brand-500/10 border-2 border-brand-500 flex items-center justify-center transition-all duration-300 ${isRecordingAudio ? 'animate-pulse scale-110 bg-brand-500/20 border-red-500' : ''}`}>
+                                            <Mic className={`h-8 w-8 ${isRecordingAudio ? 'text-red-500' : 'text-brand-500'}`} />
+                                        </div>
+                                        <span className="text-white text-xs font-semibold">
+                                            {isRecordingAudio ? 'Grabando audio...' : 'Listo para grabar'}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {isRecordingAudio && (
+                                    <div className="absolute top-4 left-4 bg-red-600/90 text-white text-[10px] font-black px-2.5 py-1 rounded-md flex items-center gap-1.5 shadow animate-pulse">
+                                        <span className="h-2 w-2 rounded-full bg-white block animate-ping" />
+                                        {formatTime(audioRecordingTimer)}
+                                    </div>
+                                )}
+                                
+                                {!audioStream && !recordedAudioUrl && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-400 text-xs bg-slate-900 gap-2">
+                                        <Loader2 className="h-6 w-6 animate-spin text-brand-500" />
+                                        <span>Iniciando micrófono...</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="p-4 bg-slate-50 flex gap-3 justify-center">
+                                {!recordedAudioUrl ? (
+                                    !isRecordingAudio ? (
+                                        <button
+                                            type="button"
+                                            onClick={startAudioRecording}
+                                            disabled={!audioStream}
+                                            className="bg-brand-600 hover:bg-brand-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                        >
+                                            <Mic className="h-3.5 w-3.5 shrink-0" />
+                                            Iniciar Grabación
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="button"
+                                            onClick={stopAudioRecording}
+                                            className="bg-red-650 hover:bg-red-755 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                        >
+                                            <Square className="h-3.5 w-3.5 text-white fill-white shrink-0" />
+                                            Detener
+                                        </button>
+                                    )
+                                ) : (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={saveRecordedAudio}
+                                            className="bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                        >
+                                            <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                                            Adjuntar Audio
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setRecordedAudioUrl(null);
+                                                setRecordedAudioBlob(null);
+                                                setRecordedAudioChunks([]);
+                                                setTimeout(async () => {
+                                                    try {
+                                                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                                                        setAudioStream(stream);
+                                                    } catch (err) {
+                                                        console.error("Audio access error:", err);
+                                                        toast.error("No se pudo iniciar el micrófono.");
+                                                    }
+                                                }, 100);
+                                            }}
+                                            className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs px-4 py-2.5 rounded-xl shadow-sm transition flex items-center gap-2 active:scale-95"
+                                        >
+                                            <RefreshCw className="h-3.5 w-3.5 shrink-0" />
+                                            Grabar de Nuevo
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

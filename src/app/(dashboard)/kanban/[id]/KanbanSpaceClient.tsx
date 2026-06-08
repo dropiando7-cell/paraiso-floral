@@ -50,6 +50,7 @@ interface Task {
     etiquetas: string[];
     team: string;
     parentId: string | null;
+    modulo: string | null;
     asignado: {
         id: string;
         nombre: string;
@@ -298,6 +299,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
     // Modal de Creación Avanzada
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [createModalDefaultStatus, setCreateModalDefaultStatus] = useState<string | undefined>(undefined);
 
     // Menú de 3 puntos en tarjeta
     const [activeCardMenuTaskId, setActiveCardMenuTaskId] = useState<string | null>(null);
@@ -484,6 +486,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     etiquetas: res.task.etiquetas || [],
                     team: res.task.team || '',
                     parentId: res.task.parentId || null,
+                    modulo: res.task.modulo || null,
                     asignado: null,
                     asignados: [],
                     createdAt: res.task.createdAt.toISOString()
@@ -533,6 +536,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                         startDate: fields.startDate !== undefined ? fields.startDate : t.startDate,
                         etiquetas: fields.etiquetas !== undefined ? fields.etiquetas : t.etiquetas,
                         team: fields.team !== undefined ? fields.team : t.team,
+                        modulo: fields.modulo !== undefined ? fields.modulo : t.modulo,
                         parentId: fields.parentId !== undefined ? fields.parentId : t.parentId,
                         asignado: assignedUser ? { id: assignedUser.id, nombre: assignedUser.nombre, avatarUrl: assignedUser.avatarUrl || null } : null,
                         asignados: assignedUsers.map((u: any) => ({ id: u.id, nombre: u.nombre, avatarUrl: u.avatarUrl || null }))
@@ -657,6 +661,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                 etiquetas: res.task.etiquetas || [],
                 team: res.task.team || '',
                 parentId: res.task.parentId || null,
+                modulo: res.task.modulo || null,
                 asignado: primaryAssignee,
                 asignados: taskAssignees,
                 createdAt: res.task.createdAt.toISOString()
@@ -841,7 +846,10 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
                     {/* Botón "+ Crear Tarea" */}
                     <button
-                        onClick={() => setIsCreateModalOpen(true)}
+                        onClick={() => {
+                            setCreateModalDefaultStatus(undefined);
+                            setIsCreateModalOpen(true);
+                        }}
                         className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold px-4 py-2.5 md:py-2 rounded-xl text-sm md:text-xs shadow-sm hover:shadow transition duration-200 cursor-pointer"
                     >
                         <Plus className="h-4.5 w-4.5 md:h-4 md:w-4" />
@@ -1204,10 +1212,8 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                         ) : (
                                             <button
                                                 onClick={() => {
-                                                    setAddingInColumn(columna);
-                                                    setNewTitle('');
-                                                    setNewType('Task');
-                                                    setNewPriority('MEDIUM');
+                                                    setCreateModalDefaultStatus(columna);
+                                                    setIsCreateModalOpen(true);
                                                 }}
                                                 className="w-full flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-650 hover:text-slate-850 font-bold py-2.5 sm:py-1.5 rounded-xl text-sm sm:text-xs transition shadow-sm cursor-pointer"
                                             >
@@ -1424,6 +1430,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                 spaces={initialData.spaces || []}
                 members={members}
                 tasks={tasks.map(t => ({ id: t.id, codigo: t.codigo, title: t.title }))}
+                defaultStatus={createModalDefaultStatus}
                 onCreate={handleCreateTaskFromModal}
             />
             {/* Modal de confirmación para eliminar columna */}

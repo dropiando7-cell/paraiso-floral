@@ -231,6 +231,7 @@ export async function getSpaceDetails(spaceId: string) {
                 etiquetas: t.etiquetas,
                 team: t.team || '',
                 parentId: t.parentId || null,
+                modulo: t.modulo || null,
                 asignado: t.asignado ? {
                     id: t.asignado.id,
                     nombre: `${t.asignado.nombre || ''} ${t.asignado.apellido || ''}`.trim() || t.asignado.email,
@@ -278,6 +279,14 @@ export async function createKanbanTask(data: {
     parentId?: string;
     etiquetas?: string[];
     team?: string;
+    modulo?: string;
+    attachments?: {
+        nombre: string;
+        url: string;
+        tipo: string;
+        tamano: number;
+        descripcion?: string;
+    }[];
 }) {
     try {
         const { user, org } = await getCurrentUserAndOrg();
@@ -315,6 +324,7 @@ export async function createKanbanTask(data: {
                     status: data.status,
                     type: data.type,
                     priority: data.priority,
+                    modulo: data.modulo || null,
                     asignadoId: primaryAsignadoId,
                     asignados: data.asignadoIds && data.asignadoIds.length > 0 ? {
                         connect: data.asignadoIds.map(id => ({ id }))
@@ -326,7 +336,17 @@ export async function createKanbanTask(data: {
                     parentId: data.parentId || null,
                     etiquetas: data.etiquetas || [],
                     team: data.team?.trim() || null,
-                    creadoPorId: user.id
+                    creadoPorId: user.id,
+                    attachments: data.attachments && data.attachments.length > 0 ? {
+                        create: data.attachments.map(att => ({
+                            nombre: att.nombre,
+                            url: att.url,
+                            tipo: att.tipo,
+                            tamano: att.tamano,
+                            descripcion: att.descripcion || null,
+                            subidoPorId: user.id
+                        }))
+                    } : undefined
                 }
             });
         });
@@ -405,6 +425,7 @@ export async function updateTaskFields(taskId: string, data: {
     parentId?: string | null;
     etiquetas?: string[];
     team?: string | null;
+    modulo?: string | null;
 }) {
     try {
         const { user } = await getCurrentUserAndOrg();
@@ -486,6 +507,10 @@ export async function updateTaskFields(taskId: string, data: {
         if (data.team !== undefined) {
             updates.team = data.team || null;
             logs.push(`Cambió el equipo a "${data.team || 'Ninguno'}"`);
+        }
+        if (data.modulo !== undefined && data.modulo !== oldTask.modulo) {
+            updates.modulo = data.modulo || null;
+            logs.push(`Cambió el módulo a "${data.modulo || 'Ninguno'}"`);
         }
 
         if (Object.keys(updates).length === 0) return { success: true };
@@ -777,6 +802,7 @@ export async function getTaskCommentsAndAttachments(taskId: string) {
                 url: a.url,
                 tipo: a.tipo,
                 tamano: a.tamano,
+                descripcion: a.descripcion || null,
                 createdAt: a.createdAt.toISOString(),
                 subidoPor: {
                     id: a.subidoPor.id,
@@ -949,6 +975,7 @@ export async function createKanbanAttachment(data: {
     url: string;
     tipo: string;
     tamano: number;
+    descripcion?: string;
 }) {
     try {
         const { user, org } = await getCurrentUserAndOrg();
@@ -966,6 +993,7 @@ export async function createKanbanAttachment(data: {
                 url: data.url,
                 tipo: data.tipo,
                 tamano: data.tamano,
+                descripcion: data.descripcion || null,
                 subidoPorId: user.id
             },
             include: {

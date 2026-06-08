@@ -61,6 +61,7 @@ interface Task {
     etiquetas: string[];
     team: string;
     parentId: string | null;
+    modulo: string | null;
     asignado: {
         id: string;
         nombre: string;
@@ -73,6 +74,31 @@ interface Task {
     }[];
     createdAt: string;
 }
+
+const SIDEBAR_MODULES = [
+    "Portal Bioelectrónica",
+    "Proyectos & Kanban",
+    "Mantenimiento y Reparaciones",
+    "Inventario IA",
+    "Rentas de Equipos",
+    "Control de Caja Chica",
+    "Gráficas e Informes",
+    "Control de Inventario",
+    "Garantías y Reemplazos",
+    "Catálogo de Modelos",
+    "Entradas / Compras",
+    "Salidas / Descargas",
+    "Kardex de Movimientos",
+    "Gestor de Precios",
+    "Ubicaciones y Sucursales",
+    "Inventario (Odoo)",
+    "Directorio de Contactos",
+    "Cotizaciones",
+    "Facturación",
+    "Cierre de Caja",
+    "Usuarios y Roles",
+    "Gestión Web / Tienda"
+];
 
 interface Props {
     isOpen: boolean;
@@ -117,6 +143,7 @@ export default function TaskDetailModal({
     // Advanced fields
     const [startDate, setStartDate] = useState(task.startDate ? task.startDate.split('T')[0] : '');
     const [team, setTeam] = useState(task.team || '');
+    const [selectedModulo, setSelectedModulo] = useState(task.modulo || '');
     const [etiquetasInput, setEtiquetasInput] = useState(task.etiquetas ? task.etiquetas.join(', ') : '');
     const [parentId, setParentId] = useState(task.parentId || '');
     const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([]);
@@ -173,6 +200,7 @@ export default function TaskDetailModal({
         setDueDate(task.dueDate ? task.dueDate.split('T')[0] : '');
         setStartDate(task.startDate ? task.startDate.split('T')[0] : '');
         setTeam(task.team || '');
+        setSelectedModulo(task.modulo || '');
         setEtiquetasInput(task.etiquetas ? task.etiquetas.join(', ') : '');
         setParentId(task.parentId || '');
         setSelectedAssigneeIds(task.asignados ? task.asignados.map(a => a.id) : (task.asignado ? [task.asignado.id] : []));
@@ -734,6 +762,7 @@ export default function TaskDetailModal({
                 if (fieldName === 'dueDate') setDueDate(value);
                 if (fieldName === 'startDate') setStartDate(value);
                 if (fieldName === 'team') setTeam(value);
+                if (fieldName === 'modulo') setSelectedModulo(value);
                 if (fieldName === 'etiquetas') setEtiquetasInput(value ? value.join(', ') : '');
                 if (fieldName === 'parentId') setParentId(value);
             }
@@ -990,6 +1019,11 @@ export default function TaskDetailModal({
                                                             <div className="flex flex-col gap-0.5 min-w-0 px-1">
                                                                 <p className="text-[10px] font-bold text-slate-700 truncate" title={att.nombre}>{att.nombre}</p>
                                                                 <p className="text-[8px] text-slate-400">{(att.tamano / 1024).toFixed(1)} KB • {att.subidoPor.nombre}</p>
+                                                                {att.descripcion && (
+                                                                    <p className="text-[9px] text-slate-650 bg-white border border-slate-100 rounded px-1.5 py-1 mt-1.5 leading-normal italic text-wrap break-words" title={att.descripcion}>
+                                                                        {att.descripcion}
+                                                                    </p>
+                                                                )}
                                                             </div>
                                                             
                                                             {/* Acciones del Adjunto */}
@@ -1416,6 +1450,21 @@ export default function TaskDetailModal({
                                 placeholder="ej: Mantenimiento, Software"
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
                             />
+                        </div>
+
+                        {/* Módulo / Área Afectada */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Módulo / Área Afectada</label>
+                            <select
+                                value={selectedModulo}
+                                onChange={(e) => handleFieldChange('modulo', e.target.value || null)}
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                            >
+                                <option value="">Ninguno (General / Otro)</option>
+                                {SIDEBAR_MODULES.map(mod => (
+                                    <option key={mod} value={mod}>{mod}</option>
+                                ))}
+                            </select>
                         </div>
 
                         {/* Fecha de Inicio */}

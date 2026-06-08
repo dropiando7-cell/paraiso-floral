@@ -1048,6 +1048,7 @@ model KanbanTask {
   startDate       DateTime?
   etiquetas       String[]             @default([])
   team            String?
+  modulo          String?
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
 
@@ -1118,6 +1119,7 @@ model KanbanAttachment {
   url         String             @db.Text
   tipo        String             // Mime-type
   tamano      Int                // Bytes
+  descripcion String?
   subidoPorId String             @db.Uuid
   createdAt   DateTime           @default(now())
 
