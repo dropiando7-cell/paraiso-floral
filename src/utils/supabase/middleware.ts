@@ -37,5 +37,20 @@ export async function updateSession(request: NextRequest) {
     // refresh session if expired
     await supabase.auth.getUser()
 
+    // Migrate host-only cookies to cross-subdomain cookies (.bioelectronicahn.com)
+    if (host.endsWith('bioelectronicahn.com')) {
+        const allCookies = request.cookies.getAll();
+        allCookies.forEach(cookie => {
+            if (cookie.name.startsWith('sb-')) {
+                supabaseResponse.cookies.set(cookie.name, cookie.value, {
+                    path: '/',
+                    domain: '.bioelectronicahn.com',
+                    sameSite: 'lax',
+                    secure: true,
+                });
+            }
+        });
+    }
+
     return { supabase, supabaseResponse }
 }
