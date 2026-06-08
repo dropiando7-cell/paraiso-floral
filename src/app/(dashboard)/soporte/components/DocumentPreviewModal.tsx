@@ -12,6 +12,23 @@ type DocumentPreviewModalProps = {
 };
 
 export default function DocumentPreviewModal({ facturaId, isOpen, onClose, correlativo, editable = false }: DocumentPreviewModalProps) {
+  const handleClose = React.useCallback(() => {
+    onClose();
+    if (editable) {
+      window.location.reload();
+    }
+  }, [onClose, editable]);
+
+  React.useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === 'close-modal-reload') {
+        handleClose();
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [handleClose]);
+
   if (!isOpen) return null;
 
   const handlePrint = () => {
@@ -19,13 +36,6 @@ export default function DocumentPreviewModal({ facturaId, isOpen, onClose, corre
     if (iframe && iframe.contentWindow) {
       iframe.contentWindow.focus();
       iframe.contentWindow.print();
-    }
-  };
-
-  const handleClose = () => {
-    onClose();
-    if (editable) {
-      window.location.reload();
     }
   };
 

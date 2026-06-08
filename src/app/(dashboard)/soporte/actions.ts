@@ -506,9 +506,17 @@ export async function guardarDiagnostico(
     repuestos: any[], 
     manoObra: any[], 
     costoSugerido: number,
-    fotosTecnico: string[] = []
+    fotosTecnico: string[] = [],
+    targetEstado?: string
 ) {
     const orgId = await getOrgId();
+
+    const currentOrden = await prisma.ordenTrabajo.findUnique({
+        where: { id: ordenId },
+        select: { estado: true }
+    });
+
+    const nextEstado = targetEstado || (currentOrden?.estado === 'REPARACION' ? 'REPARACION' : 'ESPERANDO_APROBACION');
 
     await prisma.$transaction(async (tx) => {
         // Borrar repuestos anteriores si existen (para evitar duplicados al re-guardar)
@@ -530,22 +538,21 @@ export async function guardarDiagnostico(
         }
 
         // Actualizar orden
-        const orden = await tx.ordenTrabajo.update({
+        await tx.ordenTrabajo.update({
             where: { id: ordenId },
             data: {
-                estado: 'ESPERANDO_APROBACION',
+                estado: nextEstado,
                 fechaEvaluado: new Date(),
                 diagnosticoTecnico: diagnostico,
                 detalleManoObra: manoObra as any,
                 costoReparacion: costoSugerido,
                 fotosTecnico: fotosTecnico
-            },
-            include: { cliente: true }
+            }
         });
 
     });
 
-    await syncKanbanStatus(ordenId, 'ESPERANDO_APROBACION');
+    await syncKanbanStatus(ordenId, nextEstado);
 
     try {
         const supabase = await createClient();
@@ -1075,3 +1082,45 @@ export async function eliminarOrdenTrabajo(ordenId: string) {
     revalidatePath('/soporte');
     return { success: true };
 }
+
+export async function notificarClienteListo(ordenId: string) {
+    const orgId = await getOrgId();
+    
+    const orden = await prisma.ordenTrabajo.findUnique({
+        where: { id: ordenId },
+        include: {
+            cliente: true
+        }
+    });
+
+    if (!orden) {
+        return { success: false, error: 'Orden no encontrada.' };
+    }
+
+    if (!orden.cliente?.telefono) {
+        return { success: false, error: 'El cliente no tiene un número de teléfono registrado.' };
+    }
+
+    const montoAPagar = Number(orden.costoReparacion) || 0;
+
+    const res = await sendSoporteEquipoListo(
+        orden.cliente.nombre,
+        orden.cliente.telefono,
+        orden.equipoDano,
+        orden.codigoSeguridad,
+        montoAPagar
+    );
+
+    if (res.success) {
+        await prisma.ordenTrabajo.update({
+            where: { id: ordenId },
+            data: { notificadoWhatsApp: true }
+        });
+        revalidatePath(`/soporte/${ordenId}`);
+        revalidatePath('/soporte');
+        return { success: true };
+    } else {
+        return { success: false, error: res.error || 'Error al enviar la notificación por WhatsApp.' };
+    }
+}
+

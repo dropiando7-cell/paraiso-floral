@@ -6,8 +6,8 @@ import TechnicalWorkbench from '../components/TechnicalWorkbench';
 import ApprovalCard from '../components/ApprovalCard';
 import AprobacionClienteCard from '../components/AprobacionClienteCard';
 import QRGenerator from '../components/QRGenerator';
-import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle } from 'lucide-react';
-import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden, eliminarOrdenTrabajo } from '../actions';
+import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle, Loader2 } from 'lucide-react';
+import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden, eliminarOrdenTrabajo, notificarClienteListo } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
@@ -416,26 +416,6 @@ export default function SoporteDetailClient({
           {isTecnico && ['EN_EVALUACION', 'REPARACION'].includes(orden.estado) && (
             <div>
               <TechnicalWorkbench orderData={orden} />
-              <div className="mt-4 flex flex-col sm:flex-row justify-end gap-3">
-                {orden.estado === 'REPARACION' && (
-                  <>
-                    <button 
-                      onClick={() => handleRetroceder('ESPERANDO_APROBACION')}
-                      disabled={loading}
-                      className="w-full sm:w-auto bg-white border border-red-200 text-red-600 hover:bg-red-50 px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-sm"
-                    >
-                      <ArrowLeft className="w-4 h-4" /> Devolver a Presupuesto
-                    </button>
-                    <button 
-                      onClick={() => handleAvanzar('LISTO_ENTREGA')}
-                      disabled={loading}
-                      className="w-full sm:w-auto bg-green-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-green-700 transition"
-                    >
-                      Marcar como REPARADO / LISTO <CheckCircle2 className="w-4 h-4" />
-                    </button>
-                  </>
-                )}
-              </div>
             </div>
           )}
 
@@ -483,6 +463,102 @@ export default function SoporteDetailClient({
                 handleRetroceder('ESPERANDO_APROBACION');
               }}
             />
+          )}
+
+          {orden.estado === 'LISTO_ENTREGA' && (
+            <div className="bg-white rounded-2xl p-5 md:p-6 shadow-sm border border-slate-200 mb-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 animate-pulse" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="m-0 text-sm md:text-[15px] font-bold text-slate-900 tracking-tight">Notificación de Retiro de Equipo</h4>
+                  <p className="m-0 text-xs text-slate-500 font-medium">Notificación automatizada por WhatsApp Twilio</p>
+                </div>
+                {orden.notificadoWhatsApp && (
+                  <div className="shrink-0 bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold border border-green-200">
+                    Avisado ✓
+                  </div>
+                )}
+              </div>
+
+              <div className="mb-5 bg-slate-50 border border-slate-100 rounded-xl p-4 flex flex-col gap-2">
+                <div className="text-slate-600 text-xs md:text-sm leading-relaxed">
+                  El equipo <strong>{orden.equipoDano}</strong> ha sido reparado con éxito y se encuentra listo para que el cliente pase a recogerlo.
+                </div>
+                
+                {orden.notificadoWhatsApp ? (
+                  <div className="mt-2 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl p-3 flex items-start gap-2.5 shadow-sm">
+                    <CheckCircle2 className="w-4.5 h-4.5 shrink-0 text-emerald-600 mt-0.5" />
+                    <div>
+                      <span className="font-extrabold text-emerald-900 block mb-0.5">¡Cliente notificado exitosamente!</span>
+                      <p className="text-emerald-700 leading-normal">
+                        Se envió el mensaje con la plantilla de Twilio indicando que el equipo está listo para entrega. El cliente fue avisado para que lo vaya a recoger ya.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-2 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-xl p-3 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-amber-600 mt-0.5" />
+                    <span>
+                      El cliente aún no ha recibido la notificación. Pulse el botón inferior para enviarle una alerta por WhatsApp a su número registrado: <strong>{orden.cliente?.telefono || 'Sin teléfono'}</strong>.
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    setLoading(true);
+                    try {
+                      const res = await notificarClienteListo(orden.id);
+                      if (res.success) {
+                        toast.success("Notificación enviada por WhatsApp con éxito.");
+                        window.location.reload();
+                      } else {
+                        toast.error(res.error || "Error al enviar la notificación.");
+                      }
+                    } catch (err) {
+                      console.error(err);
+                      toast.error("Error de conexión al notificar al cliente.");
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading || !orden.cliente?.telefono}
+                  className={`flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border ${
+                    orden.notificadoWhatsApp
+                      ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200"
+                      : "bg-[#25D366] hover:bg-[#20bd5a] text-white border-transparent"
+                  }`}
+                >
+                  {loading ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.625 1.451 5.403.002 9.803-4.394 9.806-9.799.002-2.618-1.01-5.078-2.854-6.924C16.379 2.036 13.924 1.02 11.3 1.02 5.895 1.02 1.493 5.415 1.49 10.82c-.001 1.554.412 3.072 1.199 4.4l-.979 3.57 3.661-.96c1.288.703 2.656 1.077 4.276 1.079zM17.65 14.54c-.26-.13-1.54-.76-1.78-.85-.24-.09-.41-.13-.58.13-.17.26-.67.85-.82 1.02-.15.17-.3.2-.56.07-.26-.13-1.1-.41-2.1-1.3-.78-.7-1.3-1.56-1.45-1.82-.15-.26-.02-.4.11-.53.12-.11.26-.3.39-.46.13-.17.17-.28.26-.46.09-.17.04-.33-.02-.46-.07-.13-.58-1.4-.8-1.92-.22-.53-.45-.45-.61-.46h-.52c-.17 0-.46.07-.7.33-.24.26-.92.9-1.02 2.18-.09 1.27.83 2.5 1.02 2.75.19.25 1.83 2.8 4.43 3.93.62.27 1.1.43 1.48.55.62.2 1.19.17 1.64.1.5-.07 1.54-.63 1.76-1.24.22-.61.22-1.13.15-1.24-.07-.12-.26-.18-.52-.3z"/>
+                    </svg>
+                  )}
+                  <span>
+                    {orden.notificadoWhatsApp
+                      ? "Re-enviar Notificación de Retiro"
+                      : "Avisar al Cliente por WhatsApp (Twilio)"}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleAvanzar('ENTREGADO')}
+                  disabled={loading}
+                  className="flex-1 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Entregar Equipo al Cliente (Finalizar)
+                </button>
+              </div>
+            </div>
           )}
 
           {/* B. Tarjeta de Técnicos Asignados (Always directly below the action card) */}

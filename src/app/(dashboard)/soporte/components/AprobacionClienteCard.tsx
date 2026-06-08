@@ -20,6 +20,28 @@ export default function AprobacionClienteCard({ orderData, budgetFactura, onAppr
   const [whatsappSent, setWhatsappSent] = useState(false);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  } | null>(null);
+
+  const [alertDialog, setAlertDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onClose?: () => void;
+  } | null>(null);
+
+  const showConfirm = (title: string, description: string, onConfirm: () => void) => {
+    setConfirmDialog({ isOpen: true, title, description, onConfirm });
+  };
+
+  const showAlert = (title: string, description: string, onClose?: () => void) => {
+    setAlertDialog({ isOpen: true, title, description, onClose });
+  };
+
   const sendWhatsApp = () => {
     if (!budgetFactura) return;
     const domain = window.location.origin;
@@ -39,25 +61,34 @@ export default function AprobacionClienteCard({ orderData, budgetFactura, onAppr
     setWhatsappSent(true);
   };
 
-  const handleApproveManually = async () => {
-    if (confirm("¿Estás seguro de que deseas aprobar este presupuesto manualmente? El cliente debe haber dado su autorización verbal o por otro medio.")) {
-      setIsSaving(true);
-      try {
-        const res = await aprobarPresupuestoManualmente(orderData.id);
-        if (res.success) {
-          alert("Presupuesto aprobado manualmente con éxito.");
-          onApprove && onApprove();
-          window.location.reload();
-        } else {
-          alert("Error al aprobar el presupuesto.");
+  const handleApproveManually = () => {
+    showConfirm(
+      "Aprobar Presupuesto Manualmente",
+      "¿Estás seguro de que deseas aprobar este presupuesto manualmente? El cliente debe haber dado su autorización verbal o por otro medio.",
+      async () => {
+        setIsSaving(true);
+        try {
+          const res = await aprobarPresupuestoManualmente(orderData.id);
+          if (res.success) {
+            showAlert(
+              "¡Presupuesto Aprobado!",
+              "El presupuesto ha sido aprobado manualmente con éxito.",
+              () => {
+                onApprove && onApprove();
+                window.location.reload();
+              }
+            );
+          } else {
+            showAlert("Error al aprobar", "Ocurrió un error al aprobar el presupuesto.");
+          }
+        } catch (e) {
+          console.error(e);
+          showAlert("Error de conexión", "Error de conexión al aprobar el presupuesto.");
+        } finally {
+          setIsSaving(false);
         }
-      } catch (e) {
-        console.error(e);
-        alert("Error de conexión al aprobar presupuesto.");
-      } finally {
-        setIsSaving(false);
       }
-    }
+    );
   };
 
   return (
@@ -177,6 +208,84 @@ export default function AprobacionClienteCard({ orderData, budgetFactura, onAppr
           correlativo={budgetFactura.correlativo}
           editable={isGerente}
         />
+      )}
+
+      {confirmDialog && confirmDialog.isOpen && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-amber-50 text-amber-605 rounded-xl shrink-0 border border-amber-200/50">
+                  <AlertTriangle className="h-6 w-6 stroke-[2.2]" />
+                </div>
+                <div className="space-y-1.5 min-w-0 flex-1">
+                  <h3 className="font-extrabold text-slate-900 text-base leading-tight">
+                    {confirmDialog.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {confirmDialog.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition active:scale-95 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const onConf = confirmDialog.onConfirm;
+                  setConfirmDialog(null);
+                  onConf();
+                }}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition active:scale-95 shadow-sm hover:shadow flex items-center justify-center cursor-pointer"
+              >
+                Aprobar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {alertDialog && alertDialog.isOpen && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl shrink-0 border border-indigo-200/50">
+                  <CheckCircle2 className="h-6 w-6 stroke-[2.2]" />
+                </div>
+                <div className="space-y-1.5 min-w-0 flex-1">
+                  <h3 className="font-extrabold text-slate-900 text-base leading-tight">
+                    {alertDialog.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {alertDialog.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setAlertDialog(null);
+                  alertDialog.onClose && alertDialog.onClose();
+                }}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition active:scale-95 shadow-sm hover:shadow flex items-center justify-center cursor-pointer"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

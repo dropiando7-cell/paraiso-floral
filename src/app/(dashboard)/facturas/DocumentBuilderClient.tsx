@@ -1269,6 +1269,7 @@ export default function DocumentBuilderClient({
 
 
   const router = useRouter();
+  const isPrintIframe = typeof window !== 'undefined' && window.location.pathname.startsWith('/print');
   const searchParams = useSearchParams();
   const [isSaving, setIsSaving] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
@@ -2509,24 +2510,51 @@ export default function DocumentBuilderClient({
             </div>
 
             <div className="flex gap-3 w-full mt-4">
-              <button
-                onClick={() => {
-                  setShowSuccessModal(null);
-                  router.push('/facturas');
-                }}
-                className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all"
-              >
-                Hacer Nuevo
-              </button>
-              <button
-                onClick={() => {
-                  setShowSuccessModal(null);
-                  router.push(`/facturas/ver/${showSuccessModal.docId}`);
-                }}
-                className="flex-[1.5] py-3 px-4 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all"
-              >
-                Ver Documento
-              </button>
+              {isPrintIframe ? (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowSuccessModal(null);
+                      if (window.parent) {
+                        window.parent.postMessage({ type: 'close-modal-reload' }, '*');
+                      }
+                    }}
+                    className="flex-1 py-3 px-3 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all text-xs cursor-pointer"
+                  >
+                    Volver a la Orden
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSuccessModal(null);
+                      router.push(`/print/${showSuccessModal.docId}`);
+                    }}
+                    className="flex-[1.2] py-3 px-3 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all text-xs cursor-pointer"
+                  >
+                    Ver Vista Previa
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => {
+                      setShowSuccessModal(null);
+                      router.push('/facturas');
+                    }}
+                    className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
+                  >
+                    Hacer Nuevo
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSuccessModal(null);
+                      router.push(`/facturas/ver/${showSuccessModal.docId}`);
+                    }}
+                    className="flex-[1.5] py-3 px-4 bg-emerald-600 border-2 border-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 hover:border-emerald-700 hover:shadow-lg transition-all cursor-pointer"
+                  >
+                    Ver Documento
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

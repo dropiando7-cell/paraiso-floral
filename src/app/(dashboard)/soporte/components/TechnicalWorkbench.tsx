@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, X, UploadCloud, Save, Search, Loader2, Plus, Layout } from 'lucide-react';
+import { Settings, X, UploadCloud, Save, Search, Loader2, Plus, Layout, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { searchRepuestos, guardarDiagnostico } from '../actions';
 import { useRouter } from 'next/navigation';
 import { compressImage } from '@/utils/image';
@@ -45,6 +45,15 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
   const [isSaving, setIsSaving] = useState(false);
   const [isActivoModalOpen, setIsActivoModalOpen] = useState(false);
   const [dbAreas, setDbAreas] = useState<any[]>([]);
+  const [alertDialog, setAlertDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+  } | null>(null);
+
+  const showAlert = (title: string, description: string) => {
+    setAlertDialog({ isOpen: true, title, description });
+  };
 
   useEffect(() => {
     fetch('/api/areas')
@@ -98,9 +107,9 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
     setNuevaHora({ descripcion: "", horas: "", tarifa: "0" });
   };
 
-  const handleGuardarCotizacion = async () => {
+  const handleGuardarCotizacion = async (targetState?: string) => {
     if (!diagnostico.trim()) {
-        alert("El diagnóstico es requerido para enviar a aprobación de presupuesto.");
+        showAlert("Diagnóstico Requerido", "El diagnóstico es requerido para continuar.");
         return;
     }
     setIsSaving(true);
@@ -135,11 +144,11 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
             uploadedUrls.push(publicUrl);
         }
 
-        await guardarDiagnostico(orderData.id, diagnostico, repuestos, horas, totalGeneral, uploadedUrls);
+        await guardarDiagnostico(orderData.id, diagnostico, repuestos, horas, totalGeneral, uploadedUrls, targetState);
         router.refresh();
     } catch (e) {
         console.error("Error al guardar", e);
-        alert("Ocurrió un error al enviar a aprobación de presupuesto.");
+        showAlert("Error al Guardar", "Ocurrió un error al guardar la información en el servidor.");
     } finally {
         setIsSaving(false);
     }
@@ -169,8 +178,14 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
             {orderData?.tecnicoReparacion?.nombre || "Técnico Asignado"} · Orden #{orderData?.codigoSeguridad || "Nueva"}
           </p>
         </div>
-        <div className="shrink-0 bg-orange-50 text-orange-600 px-3 py-1 rounded-full text-[10px] md:text-[11px] font-bold">
-          ⚙ {orderData?.estado === 'ESPERANDO_APROBACION' ? 'Presupuesto Creado' : 'En Evaluación'}
+        <div className={`shrink-0 px-3 py-1 rounded-full text-[10px] md:text-[11px] font-bold ${
+          orderData?.estado === 'REPARACION' ? 'bg-emerald-50 text-emerald-600' :
+          orderData?.estado === 'ESPERANDO_APROBACION' ? 'bg-blue-50 text-blue-600' : 'bg-orange-50 text-orange-600'
+        }`}>
+          ⚙ {
+            orderData?.estado === 'REPARACION' ? 'En Reparación' :
+            orderData?.estado === 'ESPERANDO_APROBACION' ? 'Presupuesto Creado' : 'En Evaluación'
+          }
         </div>
       </div>
 
@@ -410,15 +425,38 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
               Total Repuestos: L {totalRepuestos.toFixed(2)}
             </div>
           </div>
-          <button 
-            type="button"
-            onClick={handleGuardarCotizacion}
-            disabled={isSaving}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors shadow-sm"
-          >
-             {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-             {isSaving ? "Enviando..." : "Enviar a Aprobación de Presupuesto"}
-          </button>
+          {orderData?.estado === 'REPARACION' ? (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <button 
+                type="button"
+                onClick={() => handleGuardarCotizacion('REPARACION')}
+                disabled={isSaving}
+                className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-sm transition-colors shadow-sm border border-slate-200 cursor-pointer"
+              >
+                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                 {isSaving ? "Guardando..." : "Guardar Progreso Técnico"}
+              </button>
+              <button 
+                type="button"
+                onClick={() => handleGuardarCotizacion('LISTO_ENTREGA')}
+                disabled={isSaving}
+                className="flex-1 flex items-center justify-center gap-2 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-sm transition-colors shadow-sm cursor-pointer"
+              >
+                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                 {isSaving ? "Procesando..." : "Terminar Reparación y Enviar a Listo"}
+              </button>
+            </div>
+          ) : (
+            <button 
+              type="button"
+              onClick={() => handleGuardarCotizacion('ESPERANDO_APROBACION')}
+              disabled={isSaving}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white font-bold rounded-xl text-sm transition-colors shadow-sm cursor-pointer"
+            >
+               {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+               {isSaving ? "Enviando..." : "Enviar a Aprobación de Presupuesto"}
+            </button>
+          )}
       </div>
 
       {isActivoModalOpen && (
@@ -437,6 +475,38 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
             }
           }}
         />
+      )}
+
+      {alertDialog && alertDialog.isOpen && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-indigo-50 text-indigo-650 rounded-xl shrink-0 border border-indigo-200/50">
+                  <CheckCircle2 className="h-6 w-6 stroke-[2.2]" />
+                </div>
+                <div className="space-y-1.5 min-w-0 flex-1">
+                  <h3 className="font-extrabold text-slate-900 text-base leading-tight">
+                    {alertDialog.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {alertDialog.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setAlertDialog(null)}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition active:scale-95 shadow-sm hover:shadow flex items-center justify-center cursor-pointer"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

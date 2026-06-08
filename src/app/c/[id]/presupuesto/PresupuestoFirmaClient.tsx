@@ -12,6 +12,29 @@ export default function PresupuestoFirmaClient({ factura }: { factura: any }) {
     const [isRejectedSuccess, setIsRejectedSuccess] = useState(false);
     const [hasDrawn, setHasDrawn] = useState(false);
 
+    const [confirmDialog, setConfirmDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        description: string;
+        onConfirm: () => void;
+    } | null>(null);
+
+    const [alertDialog, setAlertDialog] = useState<{
+        isOpen: boolean;
+        title: string;
+        description: string;
+        type?: 'info' | 'error' | 'success';
+        onClose?: () => void;
+    } | null>(null);
+
+    const showConfirm = (title: string, description: string, onConfirm: () => void) => {
+        setConfirmDialog({ isOpen: true, title, description, onConfirm });
+    };
+
+    const showAlert = (title: string, description: string, type: 'info' | 'error' | 'success' = 'info', onClose?: () => void) => {
+        setAlertDialog({ isOpen: true, title, description, type, onClose });
+    };
+
     // Resize canvas on mount and window resize to fit mobile screen
     const [canvasSize, setCanvasSize] = useState({ width: 300, height: 200 });
     const containerRef = useRef<HTMLDivElement>(null);
@@ -35,7 +58,11 @@ export default function PresupuestoFirmaClient({ factura }: { factura: any }) {
 
     const handleSave = async () => {
         if (!hasDrawn || sigCanvas.current?.isEmpty()) {
-            alert('Por favor dibuja tu firma antes de aceptar el presupuesto.');
+            showAlert(
+                'Firma Requerida',
+                'Por favor dibuja tu firma antes de aceptar el presupuesto.',
+                'error'
+            );
             return;
         }
 
@@ -55,37 +82,49 @@ export default function PresupuestoFirmaClient({ factura }: { factura: any }) {
                 setIsSuccess(true);
             } else {
                 const { error } = await res.json();
-                alert(error || 'Ocurrió un error al guardar tu firma.');
+                showAlert(
+                    'Error al guardar',
+                    error || 'Ocurrió un error al guardar tu firma.',
+                    'error'
+                );
             }
         } catch (e) {
-            alert('Error de conexión.');
+            showAlert('Error de conexión', 'Ocurrió un error de conexión al guardar tu firma.', 'error');
         } finally {
             setIsSaving(false);
         }
     };
 
-    const handleReject = async () => {
-        if (confirm('¿Estás seguro de que deseas rechazar este presupuesto? Se le notificará al taller para revisar los detalles.')) {
-            setIsRejecting(true);
-            try {
-                const res = await fetch('/api/soporte/firmar-presupuesto', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ facturaId: factura.id, action: 'reject' })
-                });
+    const handleReject = () => {
+        showConfirm(
+            'Rechazar Presupuesto',
+            '¿Estás seguro de que deseas rechazar este presupuesto? Se le notificará al taller para revisar los detalles.',
+            async () => {
+                setIsRejecting(true);
+                try {
+                    const res = await fetch('/api/soporte/firmar-presupuesto', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ facturaId: factura.id, action: 'reject' })
+                    });
 
-                if (res.ok) {
-                    setIsRejectedSuccess(true);
-                } else {
-                    const { error } = await res.json();
-                    alert(error || 'Ocurrió un error al procesar el rechazo.');
+                    if (res.ok) {
+                        setIsRejectedSuccess(true);
+                    } else {
+                        const { error } = await res.json();
+                        showAlert(
+                            'Error al rechazar',
+                            error || 'Ocurrió un error al procesar el rechazo.',
+                            'error'
+                        );
+                    }
+                } catch (e) {
+                    showAlert('Error de conexión', 'Ocurrió un error de conexión al procesar el rechazo.', 'error');
+                } finally {
+                    setIsRejecting(false);
                 }
-            } catch (e) {
-                alert('Error de conexión.');
-            } finally {
-                setIsRejecting(false);
             }
-        }
+        );
     };
 
     if (isSuccess) {
@@ -225,6 +264,92 @@ export default function PresupuestoFirmaClient({ factura }: { factura: any }) {
                     </button>
                 </div>
             </div>
+
+            {confirmDialog && confirmDialog.isOpen && (
+                <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="p-6 space-y-4 text-left">
+                            <div className="flex items-start gap-4">
+                                <div className="p-3 bg-red-50 text-red-650 rounded-xl shrink-0 border border-red-200/50">
+                                    <AlertTriangle className="h-6 w-6 stroke-[2.2]" />
+                                </div>
+                                <div className="space-y-1.5 min-w-0 flex-1">
+                                    <h3 className="font-extrabold text-slate-900 text-base leading-tight">
+                                        {confirmDialog.title}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 leading-relaxed">
+                                        {confirmDialog.description}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => setConfirmDialog(null)}
+                                className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs transition active:scale-95 cursor-pointer"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const onConf = confirmDialog.onConfirm;
+                                    setConfirmDialog(null);
+                                    onConf();
+                                }}
+                                className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition active:scale-95 shadow-sm hover:shadow flex items-center justify-center cursor-pointer"
+                            >
+                                Sí, Rechazar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {alertDialog && alertDialog.isOpen && (
+                <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                        <div className="p-6 space-y-4 text-left">
+                            <div className="flex items-start gap-4">
+                                <div className={`p-3 rounded-xl shrink-0 border ${
+                                    alertDialog.type === 'error' 
+                                        ? 'bg-red-50 text-red-500 border-red-200/50' 
+                                        : 'bg-indigo-50 text-indigo-650 border-indigo-200/50'
+                                }`}>
+                                    {alertDialog.type === 'error' ? (
+                                        <AlertTriangle className="h-6 w-6 stroke-[2.2]" />
+                                    ) : (
+                                        <CheckCircle2 className="h-6 w-6 stroke-[2.2]" />
+                                    )}
+                                </div>
+                                <div className="space-y-1.5 min-w-0 flex-1">
+                                    <h3 className="font-extrabold text-slate-900 text-base leading-tight">
+                                        {alertDialog.title}
+                                    </h3>
+                                    <p className="text-xs text-slate-500 leading-relaxed">
+                                        {alertDialog.description}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setAlertDialog(null);
+                                    alertDialog.onClose && alertDialog.onClose();
+                                }}
+                                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition active:scale-95 shadow-sm hover:shadow flex items-center justify-center cursor-pointer"
+                            >
+                                Aceptar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

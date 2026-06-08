@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Send, Loader2, ArrowLeft, FileText } from 'lucide-react';
+import { Check, Send, Loader2, ArrowLeft, FileText, CheckCircle2 } from 'lucide-react';
 import { aprobarPresupuesto, generarPresupuestoReparacion, enviarPresupuestoAlCliente } from '../actions';
 import { useRouter } from 'next/navigation';
 import SafeImage from '@/components/SafeImage';
@@ -53,6 +53,16 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
     budgetFactura ? `${typeof window !== 'undefined' ? window.location.origin : ''}/aprobar-presupuesto/${budgetFactura.id}` : null
   );
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [alertDialog, setAlertDialog] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onClose?: () => void;
+  } | null>(null);
+
+  const showAlert = (title: string, description: string, onClose?: () => void) => {
+    setAlertDialog({ isOpen: true, title, description, onClose });
+  };
 
   React.useEffect(() => {
     if (budgetFactura) {
@@ -107,13 +117,16 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
         if (res.success) {
             setFacturaGeneradaId(res.facturaId || null);
             setPortalUrl(res.portalUrl || null);
-            alert(`Presupuesto ${res.correlativo} generado exitosamente. Se abrirá la vista previa para editar.`);
-            window.location.reload();
+            showAlert(
+                "Presupuesto Generado",
+                `Presupuesto ${res.correlativo} generado exitosamente. Se abrirá la vista previa para editar.`,
+                () => { window.location.reload(); }
+            );
         } else {
-            alert(res.error || "Error al generar presupuesto.");
+            showAlert("Error al generar presupuesto", res.error || "Ocurrió un error.");
         }
     } catch (e) {
-        alert("Error de conexión al generar presupuesto.");
+        showAlert("Error de conexión", "Error de conexión al generar presupuesto.");
     } finally {
         setIsGenerating(false);
     }
@@ -124,14 +137,17 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
     try {
       const res = await enviarPresupuestoAlCliente(orderData.id);
       if (res.success) {
-        alert("El presupuesto ha sido enviado al cliente para su aprobación.");
-        window.location.reload();
+        showAlert(
+            "Enviado al Cliente",
+            "El presupuesto ha sido enviado al cliente para su aprobación.",
+            () => { window.location.reload(); }
+        );
       } else {
-        alert(res.error || "Error al enviar presupuesto.");
+        showAlert("Error al enviar presupuesto", res.error || "Ocurrió un error.");
       }
     } catch (e) {
       console.error(e);
-      alert("Error de conexión al enviar presupuesto.");
+      showAlert("Error de conexión", "Error de conexión al enviar presupuesto.");
     } finally {
       setIsSending(false);
     }
@@ -153,7 +169,7 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
         router.refresh();
     } catch (e) {
         console.error(e);
-        alert("Error al aprobar presupuesto");
+        showAlert("Error al aprobar presupuesto", "Ocurrió un error al aprobar el presupuesto.");
     } finally {
         setIsSaving(false);
     }
@@ -415,6 +431,41 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
         correlativo={orderData?.codigoSeguridad ? `Presupuesto para Orden #${orderData.codigoSeguridad}` : undefined}
         editable={isGerente}
       />
+
+      {alertDialog && alertDialog.isOpen && (
+        <div className="fixed inset-0 z-[250] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-sm overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="p-6 space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="p-3 bg-indigo-50 text-indigo-600 rounded-xl shrink-0 border border-indigo-200/50">
+                  <CheckCircle2 className="h-6 w-6 stroke-[2.2]" />
+                </div>
+                <div className="space-y-1.5 min-w-0 flex-1">
+                  <h3 className="font-extrabold text-slate-900 text-base leading-tight">
+                    {alertDialog.title}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {alertDialog.description}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  setAlertDialog(null);
+                  alertDialog.onClose && alertDialog.onClose();
+                }}
+                className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition active:scale-95 shadow-sm hover:shadow flex items-center justify-center cursor-pointer"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
