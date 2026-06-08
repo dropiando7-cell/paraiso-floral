@@ -225,6 +225,12 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setError(null);
 
         if (editingUserId) {
+            if (password && password.length < 6) {
+                setError('La contraseña debe tener al menos 6 caracteres.');
+                toast.error('La contraseña debe tener al menos 6 caracteres.');
+                setLoading(false);
+                return;
+            }
             const res = await editUser(editingUserId, { 
                 role, 
                 customRoleName, 
@@ -233,7 +239,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 puedeAsignarEspacios, 
                 puesto,
                 nombre: firstName,
-                apellido: lastName
+                apellido: lastName,
+                password: password || undefined
             });
             if (!res.success) {
                 const errMsg = res.error || 'Ocurrió un error al editar';
@@ -752,21 +759,23 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                     </p>
                                 </div>
 
-                                {!editingUserId && authType === 'CLASSIC' && (
+                                {(editingUserId || (!editingUserId && authType === 'CLASSIC')) && (
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                                            Contraseña Inicial
+                                            {editingUserId ? 'Nueva Contraseña (Dejar en blanco para mantener la actual)' : 'Contraseña Inicial'}
                                         </label>
                                         <input
                                             type="text"
-                                            required={authType === 'CLASSIC'}
+                                            required={!editingUserId && authType === 'CLASSIC'}
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            placeholder="ej. Segura2026*"
-                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm"
+                                            placeholder={editingUserId ? "ej. NuevaSegura2026*" : "ej. Segura2026*"}
+                                            className="w-full px-4 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all text-sm bg-white"
                                         />
                                         <div className="text-xs text-slate-500 mt-1">
-                                            Asegúrate de compartir esta contraseña con el usuario. Mínimo 6 caracteres.
+                                            {editingUserId 
+                                                ? "Si deseas cambiar la contraseña del usuario, escribe la nueva contraseña aquí (mínimo 6 caracteres). Si no, déjala en blanco." 
+                                                : "Asegúrate de compartir esta contraseña con el usuario. Mínimo 6 caracteres."}
                                         </div>
                                     </div>
                                 )}

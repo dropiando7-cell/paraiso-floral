@@ -86,12 +86,10 @@ import { getAreas } from '../admin/areas/actions';
 
 
 const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; color: string; bg: string; description: string }[] = [
-  { key: 'cotizacion', label: 'Cotización', icon: <FileText size={14} />, color: 'text-blue-600', bg: 'bg-blue-50', description: 'Propuesta comercial formal' },
+  { key: 'cotizacion', label: 'Cotización', icon: <FileText size={14} />, color: 'text-blue-600', bg: 'bg-blue-50', description: 'Propuesta comercial formal o presupuesto de soporte' },
   { key: 'proforma', label: 'Pro Forma', icon: <Receipt size={14} />, color: 'text-violet-600', bg: 'bg-violet-50', description: 'Factura preliminar de exportación' },
   { key: 'factura', label: 'Factura Oficial', icon: <CheckCircle2 size={14} />, color: 'text-emerald-600', bg: 'bg-emerald-50', description: 'Documento fiscal definitivo' },
   { key: 'nota_credito', label: 'Nota de Crédito', icon: <Undo size={14} />, color: 'text-purple-600', bg: 'bg-purple-50', description: 'Documento de devolución/descuento' },
-  { key: 'presupuesto_reparacion', label: 'Presupuesto de Reparación', icon: <ClipboardList size={14} />, color: 'text-pink-600', bg: 'bg-pink-50', description: 'Cotización para reparación o mantenimiento' },
-  { key: 'presupuesto_mantenimiento', label: 'Presupuesto de Mantenimiento', icon: <ClipboardList size={14} />, color: 'text-amber-600', bg: 'bg-amber-50', description: 'Cotización para mantenimiento preventivo o correctivo' },
 ];
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -155,8 +153,8 @@ const calcLine = (item: LineItem) => {
 
 function DocTypeSelector({ value, onChange }: { value: DocType; onChange: (v: DocType) => void }) {
   return (
-    <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl">
-      {DOC_TYPES.map((dt, i) => {
+    <div className="flex flex-wrap items-center gap-2">
+      {DOC_TYPES.map((dt) => {
         const active = value === dt.key;
         return (
           <button
@@ -164,16 +162,15 @@ function DocTypeSelector({ value, onChange }: { value: DocType; onChange: (v: Do
             onClick={() => onChange(dt.key)}
             title={dt.description}
             className={`
-              relative flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold
-              transition-all duration-200 whitespace-nowrap
-              ${active ? `bg-white shadow-md ${dt.color} shadow-slate-200` : 'text-slate-400 hover:text-slate-600 hover:bg-white/60'}
+              flex flex-col items-center justify-center w-28 h-16 rounded-xl border transition-all duration-200 shadow-sm
+              ${active 
+                ? `bg-white border-[currentColor] ${dt.color} shadow-md ring-4 ring-slate-100/30 font-bold scale-[1.02]` 
+                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-350 hover:bg-slate-50 font-medium'
+              }
             `}
           >
-            {dt.icon}
-            {dt.label}
-            {i < DOC_TYPES.length - 1 && !active && (
-              <ChevronRight size={10} className="ml-0.5 opacity-30" />
-            )}
+            <span className="mb-1">{dt.icon}</span>
+            <span className="text-[10px] uppercase tracking-wider font-bold">{dt.label}</span>
           </button>
         );
       })}
@@ -1014,7 +1011,10 @@ export default function DocumentBuilderClient({
   const effectiveViewMode = viewMode || isAnulada || isConvertida || isForcePrinting;
 
   const estaVencida = typeof window !== 'undefined' ? (function() {
-    if (!initialData?.fechaEmision || initialData?.tipoDocumento !== 'COTIZACION') return false;
+    if (!initialData?.fechaEmision || 
+        (initialData?.tipoDocumento !== 'COTIZACION' && 
+         initialData?.tipoDocumento !== 'PRESUPUESTO_REPARACION' && 
+         initialData?.tipoDocumento !== 'PRESUPUESTO_MANTENIMIENTO')) return false;
     const fecha = new Date(initialData.fechaEmision);
     const expiracion = new Date(fecha.setDate(fecha.getDate() + (initialData?.validezDias || 30)));
     return expiracion < new Date();
@@ -1088,7 +1088,13 @@ export default function DocumentBuilderClient({
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed.reservedDocId) setReservedDocId(parsed.reservedDocId);
-        if (parsed.docType) setDocType(parsed.docType);
+        if (parsed.docType) {
+          let restoredType = parsed.docType;
+          if (restoredType === 'presupuesto_reparacion' || restoredType === 'presupuesto_mantenimiento') {
+            restoredType = 'cotizacion';
+          }
+          setDocType(restoredType);
+        }
         if (parsed.docNumber) setDocNumber(parsed.docNumber);
         if (parsed.selectedClient) setSelectedClient(parsed.selectedClient);
         if (parsed.lineItems && parsed.lineItems.length > 0) setLineItems(parsed.lineItems);
@@ -1354,10 +1360,12 @@ export default function DocumentBuilderClient({
       }
       
       const blob = await res.blob();
-      const typeLabel = docType === 'cotizacion' ? 'Cotizacion' : 
+      const isRepair = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'REPARACION');
+      const isMaint = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'MANTENIMIENTO');
+      const typeLabel = isRepair ? 'PresupuestoReparacion' : 
+                        isMaint ? 'PresupuestoMantenimiento' :
+                        docType === 'cotizacion' ? 'Cotizacion' : 
                         docType === 'proforma' ? 'ProForma' : 
-                        docType === 'presupuesto_reparacion' ? 'PresupuestoReparacion' :
-                        docType === 'presupuesto_mantenimiento' ? 'PresupuestoMantenimiento' :
                         'Factura';
       const fileName = `${typeLabel}-${docNumber || 'documento'}.pdf`;
 
@@ -1501,10 +1509,12 @@ export default function DocumentBuilderClient({
           heightLeft -= pageHeight;
         }
 
-        const typeLabel = docType === 'cotizacion' ? 'Cotizacion' : 
+        const isRepair = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'REPARACION');
+        const isMaint = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'MANTENIMIENTO');
+        const typeLabel = isRepair ? 'PresupuestoReparacion' : 
+                          isMaint ? 'PresupuestoMantenimiento' :
+                          docType === 'cotizacion' ? 'Cotizacion' : 
                           docType === 'proforma' ? 'ProForma' : 
-                          docType === 'presupuesto_reparacion' ? 'PresupuestoReparacion' :
-                          docType === 'presupuesto_mantenimiento' ? 'PresupuestoMantenimiento' :
                           'Factura';
         const fileName = `${typeLabel}-${docNumber || 'documento'}(respaldo).pdf`;
         pdf.save(fileName);
@@ -1527,7 +1537,11 @@ export default function DocumentBuilderClient({
         setDocType('nota_credito');
         setNotes(`Aplica a Factura Oficial No. ${initialData.correlativo}\n`);
       } else {
-        setDocType(initialData.tipoDocumento.toLowerCase() as DocType);
+        let mappedType = initialData.tipoDocumento.toLowerCase();
+        if (mappedType === 'presupuesto_reparacion' || mappedType === 'presupuesto_mantenimiento') {
+          mappedType = 'cotizacion';
+        }
+        setDocType(mappedType as DocType);
         setNotes(initialData.notas || '');
       }
       
@@ -2023,7 +2037,22 @@ export default function DocumentBuilderClient({
     get total() { return this.subtotal - this.descuentos + this.isv15 + this.isv18; }
   };
 
-  const currentDocType = DOC_TYPES.find(d => d.key === docType)!;
+  const baseDocType = DOC_TYPES.find(d => d.key === docType) || DOC_TYPES.find(d => d.key === 'cotizacion')!;
+  let resolvedLabel = baseDocType.label;
+  
+  if (docType === 'cotizacion' && initialData?.ordenTrabajo?.tipoTrabajo) {
+    const tipoTrabajo = initialData.ordenTrabajo.tipoTrabajo;
+    if (tipoTrabajo === 'MANTENIMIENTO') {
+      resolvedLabel = 'Presupuesto de Mantenimiento';
+    } else if (tipoTrabajo === 'REPARACION') {
+      resolvedLabel = 'Presupuesto de Reparación';
+    }
+  }
+
+  const currentDocType = {
+    ...baseDocType,
+    label: resolvedLabel
+  };
 
   const docTypeStatusConfig: Record<DocType, { badge: string; label: string }> = {
     cotizacion: { badge: 'bg-blue-50 text-blue-600 border border-blue-200', label: 'COTIZACIÓN' },
@@ -2218,7 +2247,7 @@ export default function DocumentBuilderClient({
                   <p className="text-slate-500 mt-2 text-sm">Selecciona el tipo de documento que deseas crear para generar el correlativo oficial.</p>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-8">
                   {DOC_TYPES.map((dt) => {
                     const isSelected = docType === dt.key;
                     return (
@@ -2626,7 +2655,12 @@ export default function DocumentBuilderClient({
           onConvert={(!isLocked && !isAnulada && !isConvertida && effectiveViewMode && initialData?.id) ? handleConvert : undefined}
           isDownloadingPDF={isDownloadingPDF}
           isConverting={isConverting}
-          docType={initialData?.tipoDocumento?.toLowerCase() || docType}
+          docType={
+            (initialData?.tipoDocumento?.toLowerCase() === 'presupuesto_reparacion' || 
+             initialData?.tipoDocumento?.toLowerCase() === 'presupuesto_mantenimiento')
+              ? 'cotizacion'
+              : (initialData?.tipoDocumento?.toLowerCase() || docType)
+          }
           estaVencida={estaVencida}
         />
       )}

@@ -53,7 +53,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           include: { producto: true, activo: true }
         }, 
         cliente: true,
-        creadoPor: true
+        creadoPor: true,
+        ordenTrabajo: true
       }
     });
 
@@ -121,14 +122,24 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     };
 
     const DOC_TYPES = [
-      { key: 'cotizacion', label: 'COTIZACION' },
+      { key: 'cotizacion', label: 'COTIZACIÓN' },
       { key: 'proforma', label: 'PRO FORMA' },
       { key: 'factura', label: 'FACTURA OFICIAL' },
       { key: 'nota_credito', label: 'NOTA DE CRÉDITO' },
       { key: 'presupuesto_reparacion', label: 'PRESUPUESTO DE REPARACIÓN' },
       { key: 'presupuesto_mantenimiento', label: 'PRESUPUESTO DE MANTENIMIENTO' }
     ];
-    const currentDocType = DOC_TYPES.find(d => d.key === doc.tipoDocumento.toLowerCase()) || DOC_TYPES[0];
+    const resolvedDocType = doc.tipoDocumento.toLowerCase();
+    let currentDocType = DOC_TYPES.find(d => d.key === resolvedDocType) || DOC_TYPES[0];
+
+    // Si es una cotización vinculada a soporte, cambiar la etiqueta del PDF
+    if (resolvedDocType === 'cotizacion' && doc.ordenTrabajo) {
+      if (doc.ordenTrabajo.tipoTrabajo === 'MANTENIMIENTO') {
+        currentDocType = { key: 'cotizacion', label: 'PRESUPUESTO DE MANTENIMIENTO' };
+      } else {
+        currentDocType = { key: 'cotizacion', label: 'PRESUPUESTO DE REPARACIÓN' };
+      }
+    }
 
     const docSettings = (doc as any).templateSettings || {};
     const orgSettings = (org as any).invoiceSettings || {};

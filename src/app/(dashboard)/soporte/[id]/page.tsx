@@ -37,9 +37,7 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
   const budgetFactura = await prisma.factura.findFirst({
     where: {
       ordenTrabajoId: resolvedParams.id,
-      tipoDocumento: {
-        in: ['PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO']
-      },
+      tipoDocumento: 'COTIZACION',
     },
     orderBy: {
       createdAt: 'desc'

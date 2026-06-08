@@ -30,8 +30,8 @@ function formatCorrelativo(numeroInterno: number, tipoDocumento: string): string
     const prefix = tipoDocumento === 'COTIZACION' ? 'COT-SO' :
                    tipoDocumento === 'PROFORMA' ? 'PRO-SO' :
                    tipoDocumento === 'NOTA_CREDITO' ? 'NC-SO' :
-                   tipoDocumento === 'PRESUPUESTO_REPARACION' ? 'REP-SO' :
-                   tipoDocumento === 'PRESUPUESTO_MANTENIMIENTO' ? 'MTN-SO' :
+                   tipoDocumento === 'PRESUPUESTO_REPARACION' ? 'COT-SO' :
+                   tipoDocumento === 'PRESUPUESTO_MANTENIMIENTO' ? 'COT-SO' :
                    'FAC-SO';
     return `${prefix}${String(numeroInterno).padStart(8, '0')}`;
 }
@@ -321,6 +321,8 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
         if (!clienteId) throw new Error('Se requiere un cliente válido.');
 
         const nuevoTipo = data.tipoDocumento || docExistente.tipoDocumento;
+        const nuevoEstado = (nuevoTipo === 'FACTURA' || nuevoTipo === 'NOTA_CREDITO') ? 'EMITIDA' : 'PENDIENTE';
+        const nuevoCorrelativo = formatCorrelativo(docExistente.numeroInterno, nuevoTipo);
 
         const result = await prisma.$transaction(async (tx) => {
             // Eliminar los detalles anteriores
@@ -331,6 +333,7 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                 where: { id },
                 data: {
                     clienteId,
+                    correlativo: nuevoCorrelativo,
                     notas: data.notas || null,
                     terminosPago: data.terminosPago || null,
                     validezDias: Number(data.validezDias) || 30,
@@ -343,7 +346,7 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     totalGravado18: data.totalGravado18 || 0,
                     isv18: data.isv18 || 0,
                     total: data.total,
-                    estado: 'EMITIDA', // Change state to EMITIDA officially
+                    estado: nuevoEstado, 
                     tipoDocumento: nuevoTipo,
                     templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : undefined,
                     metodoPago: data.metodoPago || docExistente.metodoPago || 'Efectivo',
@@ -510,7 +513,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     clienteId,
                     correlativo: 'TEMP', // Temporal — se actualiza abajo con el numeroInterno real
                     tipoDocumento: data.tipoDocumento,
-                    estado: 'EMITIDA',
+                    estado: (data.tipoDocumento === 'FACTURA' || data.tipoDocumento === 'NOTA_CREDITO') ? 'EMITIDA' : 'PENDIENTE',
                     notas: data.notas || null,
                     terminosPago: data.terminosPago || null,
                     validezDias: Number(data.validezDias) || 30,
@@ -741,6 +744,11 @@ export async function getDocumentoById(id: string) {
             where: { id, organizationId },
             include: {
                 cliente: true,
+                ordenTrabajo: {
+                    select: {
+                        tipoTrabajo: true
+                    }
+                },
                 detalles: {
                     include: {
                         producto: true,

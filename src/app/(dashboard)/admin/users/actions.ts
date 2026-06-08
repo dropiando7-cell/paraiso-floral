@@ -260,6 +260,7 @@ export async function editUser(
         puesto?: string;
         nombre?: string;
         apellido?: string;
+        password?: string;
     }
 ) {
     try {
@@ -287,6 +288,10 @@ export async function editUser(
             if (targetUser?.role !== 'CHECKIN_KIDS') {
                 return { success: false, error: 'No autorizado. Solo puedes editar usuarios que ya tienen el rol CHECKIN_KIDS.' };
             }
+        }
+
+        if (data.password && data.password.length < 6) {
+            return { success: false, error: 'La nueva contraseña debe tener al menos 6 caracteres.' };
         }
 
         // Update user in Prisma (Email is intentionally omitted from the update to avoid Supabase auth mismatch)
@@ -328,15 +333,32 @@ export async function editUser(
 
                 if (authUserIdToUpdate) {
                     const fullName = `${data.nombre || ''} ${data.apellido || ''}`.trim();
-                    await adminAuthClient.auth.admin.updateUserById(authUserIdToUpdate, {
+                    const updateData: any = {
                         user_metadata: {
                             full_name: fullName || undefined
                         }
-                    });
+                    };
+                    if (data.password) {
+                        updateData.password = data.password;
+                    }
+                    const { error: updateAuthError } = await adminAuthClient.auth.admin.updateUserById(authUserIdToUpdate, updateData);
+                    if (updateAuthError && data.password) {
+                        return { success: false, error: 'Error al cambiar la contraseña en el sistema de seguridad: ' + updateAuthError.message };
+                    }
+                } else if (data.password) {
+                    return { success: false, error: 'No se encontró el perfil de seguridad del usuario para actualizar la contraseña.' };
                 }
-            } catch (authErr) {
-                console.error('Error updating auth metadata in editUser server action:', authErr);
+            } catch (authErr: any) {
+                console.error('Error updating auth metadata/password in editUser server action:', authErr);
+                if (data.password) {
+                    return { success: false, error: 'Error al cambiar la contraseña: ' + (authErr?.message || authErr) };
+                }
             }
+        } else if (data.password) {
+            return {
+                success: false,
+                error: 'La variable de entorno SUPABASE_SERVICE_ROLE_KEY no está configurada. No se puede cambiar la contraseña.'
+            };
         }
 
         revalidatePath('/admin/users');

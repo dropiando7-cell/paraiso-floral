@@ -48,6 +48,7 @@ export async function autoCloseExpiredSessions(organizationId: string) {
                 const facturasBefore = await prisma.factura.findMany({
                     where: {
                         cajaSessionId: active.id,
+                        tipoDocumento: 'FACTURA',
                         fechaEmision: { lte: thresholdUtc },
                         estado: { not: 'ANULADA' }
                     }
@@ -222,6 +223,7 @@ export async function abrirCaja(saldoInicial: number) {
         where: {
             organizationId: user.organizationId,
             cajaSessionId: null,
+            tipoDocumento: 'FACTURA',
             fechaEmision: { gte: startOfTodayUtc }
         },
         data: {
@@ -317,7 +319,10 @@ export async function getCajaSessionSummary(sessionId: string) {
             modificadoPor: true,
             cerradoPor: true,
             facturas: {
-                where: { estado: { not: 'ANULADA' } },
+                where: { 
+                    estado: { not: 'ANULADA' },
+                    tipoDocumento: 'FACTURA'
+                },
                 include: {
                     cliente: true
                 }

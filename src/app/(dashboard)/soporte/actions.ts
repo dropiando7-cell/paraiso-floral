@@ -839,7 +839,7 @@ export async function generarPresupuestoReparacion(
 
         // 2. Prepare Factura Document Data
         const documentData = {
-            tipoDocumento: orden.tipoTrabajo === 'MANTENIMIENTO' ? 'PRESUPUESTO_MANTENIMIENTO' : 'PRESUPUESTO_REPARACION',
+            tipoDocumento: 'COTIZACION',
             clienteId: orden.clienteId,
             subTotal: subTotal,
             total: total,
@@ -906,9 +906,7 @@ export async function enviarPresupuestoAlCliente(ordenId: string) {
         const factura = await prisma.factura.findFirst({
             where: {
                 ordenTrabajoId: ordenId,
-                tipoDocumento: {
-                    in: ['PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO']
-                }
+                tipoDocumento: 'COTIZACION'
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -972,9 +970,7 @@ export async function aprobarPresupuestoManualmente(ordenId: string) {
         const factura = await tx.factura.findFirst({
             where: {
                 ordenTrabajoId: ordenId,
-                tipoDocumento: {
-                    in: ['PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO']
-                },
+                tipoDocumento: 'COTIZACION',
                 estado: { not: 'APROBADA' }
             },
             orderBy: { createdAt: 'desc' }
