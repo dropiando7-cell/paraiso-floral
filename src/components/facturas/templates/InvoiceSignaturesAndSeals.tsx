@@ -142,14 +142,14 @@ export default function InvoiceSignaturesAndSeals({ settings, clienteSignature }
 
       {/* Client Signature Area */}
       {clienteSignature && (
-          <div className="flex justify-start items-end mt-12 w-full">
+          <div className="flex justify-center items-end mt-12 w-full">
             <div className="flex flex-col items-center text-center relative w-[40%]">
-              <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: '64px' }}>
+              <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: '48px' }}>
                   <img 
                     src={clienteSignature.url} 
                     alt={`Firma de Cliente`} 
                     className="object-contain relative mix-blend-multiply" 
-                    style={{ height: `${signatureHeight}px` }}
+                    style={{ height: `${signatureHeight * 0.7}px`, maxHeight: '45px' }}
                   />
               </div>
               <div className="w-full border-t border-slate-400 my-1"></div>

@@ -12,6 +12,15 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'Datos incompletos.' }, { status: 400 });
         }
 
+        const factura = await prisma.factura.findUnique({
+            where: { id: facturaId },
+            include: { organization: true }
+        });
+
+        if (!factura) {
+            return NextResponse.json({ error: 'Presupuesto no encontrado.' }, { status: 404 });
+        }
+
         if (action === 'reject') {
             await prisma.factura.update({
                 where: { id: facturaId },
@@ -20,22 +29,30 @@ export async function POST(req: NextRequest) {
                 }
             });
 
+            // Si este presupuesto está ligado a una orden de soporte, asegurar que esté en APROBACION_PRESUPUESTO
+            const targetOrdenId = factura.ordenTrabajoId || factura.documentoOrigenId;
+            if (targetOrdenId) {
+                await prisma.ordenTrabajo.update({
+                    where: { id: targetOrdenId },
+                    data: {
+                        estado: 'APROBACION_PRESUPUESTO'
+                    }
+                });
+                try {
+                    await syncKanbanStatus(targetOrdenId, 'APROBACION_PRESUPUESTO');
+                } catch (e) {
+                    console.error("Error syncing Kanban status on reject:", e);
+                }
+            }
+
             revalidatePath('/soporte');
             revalidatePath('/facturas');
+            revalidatePath('/kanban');
             return NextResponse.json({ success: true, rejected: true });
         }
 
         if (!firmaDataUrl) {
             return NextResponse.json({ error: 'Datos incompletos.' }, { status: 400 });
-        }
-
-        const factura = await prisma.factura.findUnique({
-            where: { id: facturaId },
-            include: { organization: true }
-        });
-
-        if (!factura) {
-            return NextResponse.json({ error: 'Presupuesto no encontrado.' }, { status: 404 });
         }
 
         if (factura.estado === 'APROBADA') {
@@ -59,7 +76,7 @@ export async function POST(req: NextRequest) {
                 where: { id: targetOrdenId }
             });
 
-            if (orden && orden.estado === 'APROBACION_PRESUPUESTO') {
+            if (orden && ['ESPERANDO_APROBACION', 'APROBACION_PRESUPUESTO'].includes(orden.estado)) {
                 // Mover la orden a REPARACION
                 await prisma.ordenTrabajo.update({
                     where: { id: orden.id },

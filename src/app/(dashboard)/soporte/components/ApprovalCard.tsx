@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, Send, Loader2, ArrowLeft, FileText, Smartphone } from 'lucide-react';
+import { Check, Send, Loader2, ArrowLeft, FileText } from 'lucide-react';
 import { aprobarPresupuesto, generarPresupuestoReparacion, enviarPresupuestoAlCliente } from '../actions';
 import { useRouter } from 'next/navigation';
 import SafeImage from '@/components/SafeImage';
@@ -22,7 +22,6 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
     orderData?.estado === 'LISTO_ENTREGA' || 
     orderData?.estado === 'ENTREGADO'
   );
-  const [whatsappSent, setWhatsappSent] = useState(false);
   const [nota, setNota] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -86,21 +85,7 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
     return items;
   };
 
-  const sendWhatsApp = (url: string | null = null) => {
-    const linkFirma = url || portalUrl || "Por favor solicite el link de firma.";
-    const msg = encodeURIComponent(
-      `*Bioelectrónica Honduras*\n\n` +
-      `📋 Orden: ${orderData?.codigoSeguridad || "SVC-0000"}\n` +
-      `🏥 Equipo: ${orderData?.equipoDano || "Equipo"}\n` +
-      `🔧 Falla: ${orderData?.descripcionFalla || "Evaluación"}\n\n` +
-      `💰 *Presupuesto de Reparación*\n` +
-      `*Total a Pagar: L ${totalFinal.toFixed(2)}*\n\n` +
-      `Para ver el detalle completo y FIRMAR su aprobación, ingrese aquí:\n` +
-      `${linkFirma}\n\nBioelectrónica Honduras`
-    );
-    window.open(`https://wa.me/?text=${msg}`, "_blank");
-    setWhatsappSent(true);
-  };
+
 
   const handleGenerarPresupuesto = async () => {
     setIsGenerating(true);
@@ -381,29 +366,16 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
             </button>
         )}
 
-        <div className="flex gap-2">
-            {onReject && !approved && (
-              <button 
-                type="button"
-                onClick={onReject}
-                disabled={isSaving || isGenerating}
-                className="w-full sm:flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center transition-colors bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 disabled:opacity-50"
-              >
-                <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Devolver
-              </button>
-            )}
-
-            <button 
-              type="button"
-              onClick={() => sendWhatsApp()} 
-              disabled={!facturaGeneradaId && !approved}
-              className={`w-full sm:flex-1 py-3 border-none rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors ${
-                 (!facturaGeneradaId && !approved) ? "bg-slate-100 text-slate-400" : (whatsappSent ? "bg-green-100 text-green-700" : "bg-[#25D366] hover:bg-[#20bd5a] text-white")
-              }`}
-            >
-              {whatsappSent ? "Enviado ✓" : <><Smartphone className="w-3.5 h-3.5"/> Enviar WhatsApp (Manual)</>}
-            </button>
-        </div>
+        {onReject && !approved && (
+          <button 
+            type="button"
+            onClick={onReject}
+            disabled={isSaving || isGenerating}
+            className="w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center transition-colors bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 disabled:opacity-50 mb-2"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Devolver
+          </button>
+        )}
 
         <button 
           type="button"
