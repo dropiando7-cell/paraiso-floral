@@ -1124,3 +1124,19 @@ export async function notificarClienteListo(ordenId: string) {
     }
 }
 
+export async function getHistorialEntregados() {
+    const orgId = await getOrgId();
+
+    return prisma.ordenTrabajo.findMany({
+        where: {
+            organizationId: orgId,
+            estado: 'ENTREGADO'
+        },
+        include: {
+            cliente: true
+        },
+        orderBy: { fechaEntregado: 'desc' }
+    });
+}
+
+

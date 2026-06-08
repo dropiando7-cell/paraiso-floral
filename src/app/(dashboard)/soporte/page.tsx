@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
-import { getOrdenesActivas } from './actions';
+import { getOrdenesActivas, getHistorialEntregados } from './actions';
 import SoporteClient from './SoporteClient';
 
 export const metadata = {
@@ -19,9 +19,18 @@ export default async function SoportePage() {
         select: { role: true, customRoleName: true, accessibleModules: true }
     });
 
-    const ordenes = await getOrdenesActivas();
+    const [ordenes, entregadas] = await Promise.all([
+        getOrdenesActivas(),
+        getHistorialEntregados()
+    ]);
     
     const safeOrdenes = ordenes.map((orden: any) => ({
+        ...orden,
+        costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
+        costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
+    }));
+
+    const safeEntregadas = entregadas.map((orden: any) => ({
         ...orden,
         costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
         costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
@@ -30,6 +39,7 @@ export default async function SoportePage() {
     return (
         <SoporteClient 
             initialData={safeOrdenes} 
+            deliveredData={safeEntregadas}
             userRole={dbUser?.role || 'USER'}
             customRoleName={dbUser?.customRoleName || ''}
             accessibleModules={dbUser?.accessibleModules || []}
