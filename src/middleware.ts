@@ -68,7 +68,8 @@ export async function middleware(request: NextRequest) {
                     .eq('email', user.email)
                     .single();
                 if (profile) {
-                    isSuperAdmin = profile.role === 'SUPER_ADMIN' || profile.role === 'ORG_ADMIN';
+                    // Allow any authenticated system user to bypass maintenance mode to preview the site
+                    isSuperAdmin = true;
                 }
             }
         } catch (e) {
@@ -98,8 +99,8 @@ export async function middleware(request: NextRequest) {
             return NextResponse.next()
         }
     } else {
-        // Redirect operational system requests to main domain if they hit /landing (except local testing)
-        if (url.pathname === '/landing' && !isLocalhost) {
+        // Redirect operational system requests to main domain if they hit /landing (except local testing and logged-in users)
+        if (url.pathname === '/landing' && !isLocalhost && !user) {
             return NextResponse.redirect('https://bioelectronicahn.com')
         }
     }

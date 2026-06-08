@@ -146,7 +146,8 @@ export default async function LandingPage() {
                 select: { role: true }
             });
             if (profile) {
-                isSuperAdmin = profile.role === 'SUPER_ADMIN' || profile.role === 'ORG_ADMIN';
+                // Allow any authenticated system user to bypass maintenance mode to preview the site
+                isSuperAdmin = true;
             }
         } catch (err) {
             console.error('Error checking user role in landing page:', err);
