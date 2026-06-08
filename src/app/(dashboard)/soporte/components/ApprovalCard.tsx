@@ -51,14 +51,14 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [portalUrl, setPortalUrl] = useState<string | null>(
-    budgetFactura ? `${typeof window !== 'undefined' ? window.location.origin : ''}/c/${budgetFactura.id}/presupuesto` : null
+    budgetFactura ? `${typeof window !== 'undefined' ? window.location.origin : ''}/aprobar-presupuesto/${budgetFactura.id}` : null
   );
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   React.useEffect(() => {
     if (budgetFactura) {
       setFacturaGeneradaId(budgetFactura.id);
-      setPortalUrl(`${window.location.origin}/c/${budgetFactura.id}/presupuesto`);
+      setPortalUrl(`${window.location.origin}/aprobar-presupuesto/${budgetFactura.id}`);
     }
   }, [budgetFactura]);
 
