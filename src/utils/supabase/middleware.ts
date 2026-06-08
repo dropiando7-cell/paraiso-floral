@@ -6,7 +6,11 @@ export async function updateSession(request: NextRequest) {
         request,
     })
 
-    const cookieOptions = { path: '/' }
+    const host = request.headers.get('host') || ''
+    const cookieOptions: any = { path: '/' }
+    if (host.endsWith('bioelectronicahn.com')) {
+        cookieOptions.domain = '.bioelectronicahn.com'
+    }
 
     const supabase = createServerClient(
         process.env.NEXT_PUBLIC_SUPABASE_URL!,

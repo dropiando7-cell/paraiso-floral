@@ -99,9 +99,10 @@ export async function middleware(request: NextRequest) {
             return NextResponse.next()
         }
     } else {
-        // Redirect operational system requests to main domain if they hit /landing (except local testing and logged-in users)
-        if (url.pathname === '/landing' && !isLocalhost && !user) {
-            return NextResponse.redirect('https://bioelectronicahn.com')
+        // Redirect public/landing requests on the operational domain to the main public domain (except local testing)
+        if (isPublicPath && !isLocalhost) {
+            const targetPath = url.pathname === '/landing' ? '/' : url.pathname;
+            return NextResponse.redirect(`https://bioelectronicahn.com${targetPath}${url.search}`);
         }
     }
 
