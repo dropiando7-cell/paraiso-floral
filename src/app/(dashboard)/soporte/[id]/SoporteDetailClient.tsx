@@ -175,7 +175,7 @@ export default function SoporteDetailClient({
       if (res.success) {
         toast.success("Datos de la orden actualizados con éxito");
         setIsEditModalOpen(false);
-        router.refresh();
+        window.location.reload();
       } else {
         toast.error("Error al actualizar la orden");
       }
@@ -215,7 +215,7 @@ export default function SoporteDetailClient({
         await updateEstadoOrden(orden.id, nuevoEstado);
     }
     setLoading(false);
-    router.refresh();
+    window.location.reload();
   };
 
   const getEstadoAnterior = (estado: string): string | null => {
@@ -242,7 +242,7 @@ export default function SoporteDetailClient({
       setLoading(true);
       await updateEstadoOrden(orden.id, estadoAnterior);
       setLoading(false);
-      router.refresh();
+      window.location.reload();
     }
   };
 
@@ -368,6 +368,8 @@ export default function SoporteDetailClient({
           {isGerente && orden.estado === 'ESPERANDO_APROBACION' && (
             <ApprovalCard 
               orderData={orden} 
+              isGerente={isGerente}
+              budgetFactura={budgetFactura}
               onApprove={() => {
                 handleAvanzar('REPARACION');
               }}
@@ -381,8 +383,9 @@ export default function SoporteDetailClient({
             <AprobacionClienteCard
               orderData={orden}
               budgetFactura={budgetFactura}
+              isGerente={isGerente}
               onApprove={() => {
-                router.refresh();
+                window.location.reload();
               }}
               onReject={() => {
                 handleRetroceder('ESPERANDO_APROBACION');

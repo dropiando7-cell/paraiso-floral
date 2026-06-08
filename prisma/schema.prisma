@@ -679,6 +679,8 @@ model Factura {
   inventarioDescontado     Boolean          @default(false)
   documentoOrigenId        String?          @db.Uuid
   referenciaOriginalId     String?          @db.Uuid
+  ordenTrabajoId           String?          @db.Uuid
+  ordenTrabajo             OrdenTrabajo?    @relation(fields: [ordenTrabajoId], references: [id])
   documentoOrigen          Factura?         @relation("HerenciaDocumentos", fields: [documentoOrigenId], references: [id])
   documentosDerivados      Factura[]        @relation("HerenciaDocumentos")
   referenciaOriginal       Factura?         @relation("ReferenciaDocumentos", fields: [referenciaOriginalId], references: [id])
@@ -725,6 +727,7 @@ model OrdenTrabajo {
   clienteId          String    @db.Uuid
   equipoDano         String
   tipoAparato        String?   @default("MEDICO")
+  tipoTrabajo        String    @default("REPARACION")
   marcaModelo        String?
   serie              String?
   descripcionFalla   String?
@@ -761,6 +764,7 @@ model OrdenTrabajo {
   tecnicosAsignados User[]                 @relation("TecnicoOrdenesMulti")
   repuestos         OrdenTrabajoRepuesto[]
   kanbanTasks       KanbanTask[]
+  facturas          Factura[]
 
   @@index([organizationId])
   @@index([clienteId])

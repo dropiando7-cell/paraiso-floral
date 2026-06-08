@@ -68,6 +68,7 @@ export async function createOrdenTrabajo(data: {
     costoRevision?: string | number;
     metodoPagoRevision?: string;
     tecnicoIds?: string[];
+    tipoTrabajo?: string;
 }) {
     const orgId = await getOrgId();
 
@@ -121,6 +122,7 @@ export async function createOrdenTrabajo(data: {
             clienteId: clienteRecord.id,
             equipoDano: data.nombreEquipo?.trim() || (data.equipo.toLowerCase() === 'medico' ? 'Equipo Médico' : data.equipo.toLowerCase() === 'aire' ? 'Aire Acondicionado' : 'Otro'),
             tipoAparato: data.equipo.toUpperCase(),
+            tipoTrabajo: data.tipoTrabajo || 'REPARACION',
             marcaModelo,
             serie: data.serie || null,
             descripcionFalla: data.descripcionFalla,
@@ -541,29 +543,6 @@ export async function guardarDiagnostico(
             include: { cliente: true }
         });
 
-        if (orden.cliente?.telefono) {
-            const phoneWithCountryCode = orden.cliente.telefono.startsWith('+') ? orden.cliente.telefono : `+504${orden.cliente.telefono}`;
-            // Tiempo estimado de reparacion (placeholder 3 a 5 días)
-            const tiempoEst = "3 a 5 días hábiles";
-            const falla = diagnostico.substring(0, 100) + (diagnostico.length > 100 ? "..." : "");
-            const trabajosArr = manoObra.map(m => m.descripcion);
-            const trabajosStr = trabajosArr.length > 0 ? trabajosArr.join(', ').substring(0, 50) : "Reparación General";
-            
-            try {
-                await sendSoportePresupuesto(
-                    orden.cliente.nombre,
-                    phoneWithCountryCode,
-                    orden.equipoDano,
-                    orden.codigoSeguridad,
-                    falla,
-                    trabajosStr,
-                    costoSugerido,
-                    tiempoEst
-                );
-            } catch (e) {
-                console.error("Twilio Presupuesto Error:", e);
-            }
-        }
     });
 
     await syncKanbanStatus(ordenId, 'ESPERANDO_APROBACION');
@@ -853,14 +832,14 @@ export async function generarPresupuestoReparacion(
 
         // 2. Prepare Factura Document Data
         const documentData = {
-            tipoDocumento: 'PRESUPUESTO_REPARACION',
+            tipoDocumento: orden.tipoTrabajo === 'MANTENIMIENTO' ? 'PRESUPUESTO_MANTENIMIENTO' : 'PRESUPUESTO_REPARACION',
             clienteId: orden.clienteId,
             subTotal: subTotal,
             total: total,
             totalExento: 0,
             totalExonerado: 0,
             totalGravado15: total, // or 0 depending on their standard
-            documentoOrigenId: ordenId,
+            ordenTrabajoId: ordenId,
             validezDias: 15,
             metodoPago: 'Transferencia/Efectivo'
         };
@@ -874,7 +853,7 @@ export async function generarPresupuestoReparacion(
         const facturaId = result.docId;
         const correlativo = result.correlativo;
 
-        // 4. Update the database within transaction: repuestos, mano de obra, and order state
+        // 4. Update the database within transaction: repuestos, mano de obra, and keep state as ESPERANDO_APROBACION
         await prisma.$transaction(async (tx) => {
             for (const rep of repuestosAprobados) {
                 await tx.ordenTrabajoRepuesto.update({
@@ -889,33 +868,15 @@ export async function generarPresupuestoReparacion(
             await tx.ordenTrabajo.update({
                 where: { id: ordenId },
                 data: {
-                    estado: 'APROBACION_PRESUPUESTO',
+                    estado: 'ESPERANDO_APROBACION',
                     costoReparacion: costoFinalReparacion,
                     detalleManoObra: detalleManoObraModificado as any
                 }
             });
         });
 
-        // 5. Send Twilio notification with the URL to the portal
         const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
-        const portalUrl = `${domain}/c/${facturaId}/presupuesto`;
-
-        // We inject the URL in the 'fallaEncontrada' or 'trabajoARealizar' variable.
-        const trabajoText = `Para ver el detalle completo y FIRMAR, ingresa aquí: ${portalUrl}`;
-
-        await sendSoportePresupuesto(
-            orden.cliente?.nombre || '',
-            orden.cliente?.telefono || '',
-            `${orden.equipoDano} - ${orden.marcaModelo || ''}`,
-            orden.codigoSeguridad,
-            orden.descripcionFalla || 'Mantenimiento Correctivo',
-            trabajoText,
-            total,
-            '3 a 5 días hábiles'
-        );
-
-        // 6. Sync status in Kanban
-        await syncKanbanStatus(ordenId, 'APROBACION_PRESUPUESTO');
+        const portalUrl = `${domain}/aprobar-presupuesto/${facturaId}`;
 
         revalidatePath('/soporte');
         revalidatePath(`/soporte/${ordenId}`);
@@ -924,6 +885,69 @@ export async function generarPresupuestoReparacion(
     } catch (e: any) {
         console.error("Error generando presupuesto:", e);
         return { success: false, error: e.message || "Error al generar presupuesto" };
+    }
+}
+
+export async function enviarPresupuestoAlCliente(ordenId: string) {
+    try {
+        const orden = await prisma.ordenTrabajo.findUnique({
+            where: { id: ordenId },
+            include: { cliente: true }
+        });
+        if (!orden) throw new Error("Orden no encontrada");
+
+        const factura = await prisma.factura.findFirst({
+            where: {
+                ordenTrabajoId: ordenId,
+                tipoDocumento: {
+                    in: ['PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO']
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        if (!factura) throw new Error("No se encontró presupuesto para esta orden. Por favor genere uno primero.");
+
+        const total = Number(factura.total);
+
+        // 1. Update order state to APROBACION_PRESUPUESTO
+        await prisma.ordenTrabajo.update({
+            where: { id: ordenId },
+            data: {
+                estado: 'APROBACION_PRESUPUESTO'
+            }
+        });
+
+        // 2. Send Twilio notification
+        const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
+        const portalUrl = `${domain}/aprobar-presupuesto/${factura.id}`;
+
+        if (orden.cliente?.telefono) {
+            const phoneWithCountryCode = orden.cliente.telefono.startsWith('+') ? orden.cliente.telefono : `+504${orden.cliente.telefono}`;
+            try {
+                await sendSoportePresupuesto(
+                    orden.cliente?.nombre || '',
+                    phoneWithCountryCode,
+                    `${orden.equipoDano} - ${orden.marcaModelo || ''}`,
+                    orden.codigoSeguridad,
+                    orden.descripcionFalla || 'Mantenimiento Correctivo',
+                    total,
+                    factura.id
+                );
+            } catch (twilioError) {
+                console.error("Twilio notification failed on send:", twilioError);
+            }
+        }
+
+        // 3. Sync status in Kanban
+        await syncKanbanStatus(ordenId, 'APROBACION_PRESUPUESTO');
+
+        revalidatePath('/soporte');
+        revalidatePath(`/soporte/${ordenId}`);
+
+        return { success: true, portalUrl };
+    } catch (e: any) {
+        console.error("Error al enviar presupuesto:", e);
+        return { success: false, error: e.message || "Error al enviar presupuesto" };
     }
 }
 
@@ -940,8 +964,10 @@ export async function aprobarPresupuestoManualmente(ordenId: string) {
         // Find the active budget factura
         const factura = await tx.factura.findFirst({
             where: {
-                documentoOrigenId: ordenId,
-                tipoDocumento: 'PRESUPUESTO_REPARACION',
+                ordenTrabajoId: ordenId,
+                tipoDocumento: {
+                    in: ['PRESUPUESTO_REPARACION', 'PRESUPUESTO_MANTENIMIENTO']
+                },
                 estado: { not: 'APROBADA' }
             },
             orderBy: { createdAt: 'desc' }

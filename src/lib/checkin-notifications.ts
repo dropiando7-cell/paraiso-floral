@@ -290,9 +290,8 @@ export async function sendSoportePresupuesto(
     equipoDescripcion: string,
     ordenCodigo: string,
     fallaEncontrada: string,
-    trabajoARealizar: string,
     costoTotal: number,
-    tiempoEstimado: string
+    facturaId: string
 ): Promise<NotificationResult> {
     if (!clienteTelefono) return { success: false, provider: "twilio_whatsapp", error: "Sin teléfono" };
     const cleanPhone = clienteTelefono.replace(/[\s\-()]/g, "");
@@ -304,9 +303,8 @@ export async function sendSoportePresupuesto(
         "2": equipoDescripcion,
         "3": ordenCodigo,
         "4": fallaEncontrada,
-        "5": trabajoARealizar,
-        "6": costoTotal.toFixed(2),
-        "7": tiempoEstimado
+        "5": costoTotal.toFixed(2),
+        "6": facturaId
     };
 
     return sendTwilioWhatsApp(cleanPhone, sid, variables);

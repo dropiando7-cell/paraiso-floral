@@ -123,7 +123,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const DOC_TYPES = [
       { key: 'cotizacion', label: 'COTIZACION' },
       { key: 'proforma', label: 'PRO FORMA' },
-      { key: 'factura', label: 'FACTURA OFICIAL' }
+      { key: 'factura', label: 'FACTURA OFICIAL' },
+      { key: 'nota_credito', label: 'NOTA DE CRÉDITO' },
+      { key: 'presupuesto_reparacion', label: 'PRESUPUESTO DE REPARACIÓN' },
+      { key: 'presupuesto_mantenimiento', label: 'PRESUPUESTO DE MANTENIMIENTO' }
     ];
     const currentDocType = DOC_TYPES.find(d => d.key === doc.tipoDocumento.toLowerCase()) || DOC_TYPES[0];
 

@@ -15,7 +15,8 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
     cliente: "", telefono: "+504 ", equipo: "medico", nombreEquipo: "", modelo: "", serie: "",
     marca: "", descripcionFalla: "", prioridad: "normal",
     costoRevision: "650", metodoPagoRevision: "Ninguno",
-    tecnicoIds: [] as string[]
+    tecnicoIds: [] as string[],
+    tipoTrabajo: "REPARACION"
   });
   const [photos, setPhotos] = useState<{name: string; file: File; url: string; size: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -126,7 +127,8 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
             prioridad: "normal", 
             costoRevision: "650",
             metodoPagoRevision: "Ninguno",
-            tecnicoIds: []
+            tecnicoIds: [],
+            tipoTrabajo: "REPARACION"
           });
           setPhotos([]);
       }, 3000);
@@ -193,25 +195,36 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Equipo</label>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Trabajo</label>
           <div className="flex gap-2">
-            {[["MEDICO","🏥 Médico"],["AIRE","❄️ Aire Acond."],["OTRO","🔧 Otro"]].map(([v,l]) => (
-              <button type="button" key={v} onClick={() => handleChange("equipo", v)} className={`flex-1 py-2 rounded-lg border-2 text-xs font-semibold transition-all ${
-                  form.equipo === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
+            {[["REPARACION","🔧 Reparación"],["MANTENIMIENTO","⚙️ Mantenimiento"]].map(([v,l]) => (
+              <button type="button" key={v} onClick={() => handleChange("tipoTrabajo", v)} className={`flex-1 py-2.5 rounded-lg border-2 text-xs font-semibold transition-all ${
+                  form.tipoTrabajo === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
               }`}>{l}</button>
             ))}
           </div>
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nombre del Equipo *</label>
-          <input 
-             className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
-             value={form.nombreEquipo} 
-             onChange={e => handleChange("nombreEquipo", e.target.value)} 
-             placeholder="Ej. Concentrador de Oxígeno"
-             required
-          />
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Equipo</label>
+          <div className="flex gap-2">
+            {[["MEDICO","🏥 Médico"],["AIRE","❄️ Aire Acond."],["OTRO","🔧 Otro"]].map(([v,l]) => (
+              <button type="button" key={v} onClick={() => handleChange("equipo", v)} className={`flex-1 py-2.5 rounded-lg border-2 text-xs font-semibold transition-all ${
+                  form.equipo === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
+              }`}>{l}</button>
+            ))}
+          </div>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nombre del Equipo *</label>
+        <input 
+           className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+           value={form.nombreEquipo} 
+           onChange={e => handleChange("nombreEquipo", e.target.value)} 
+           placeholder="Ej. Concentrador de Oxígeno"
+           required
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">

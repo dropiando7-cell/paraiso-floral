@@ -4,23 +4,26 @@ import React, { useState } from 'react';
 import { Smartphone, Loader2, ArrowLeft, FileText, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { aprobarPresupuestoManualmente } from '../actions';
 import { useRouter } from 'next/navigation';
+import DocumentPreviewModal from './DocumentPreviewModal';
 
 type AprobacionClienteCardProps = {
   orderData: any;
   budgetFactura: { id: string; correlativo: string; total: number; estado: string } | null | undefined;
   onApprove: () => void;
   onReject: () => void;
+  isGerente?: boolean;
 };
 
-export default function AprobacionClienteCard({ orderData, budgetFactura, onApprove, onReject }: AprobacionClienteCardProps) {
+export default function AprobacionClienteCard({ orderData, budgetFactura, onApprove, onReject, isGerente }: AprobacionClienteCardProps) {
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [whatsappSent, setWhatsappSent] = useState(false);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   const sendWhatsApp = () => {
     if (!budgetFactura) return;
     const domain = window.location.origin;
-    const portalUrl = `${domain}/c/${budgetFactura.id}/presupuesto`;
+    const portalUrl = `${domain}/aprobar-presupuesto/${budgetFactura.id}`;
     
     const msg = encodeURIComponent(
       `*Bioelectrónica Honduras*\n\n` +
@@ -44,7 +47,7 @@ export default function AprobacionClienteCard({ orderData, budgetFactura, onAppr
         if (res.success) {
           alert("Presupuesto aprobado manualmente con éxito.");
           onApprove && onApprove();
-          router.refresh();
+          window.location.reload();
         } else {
           alert("Error al aprobar el presupuesto.");
         }
@@ -73,7 +76,19 @@ export default function AprobacionClienteCard({ orderData, budgetFactura, onAppr
         </div>
       </div>
 
-      <div className="mb-5 bg-slate-550 border border-slate-100 rounded-xl p-4 flex flex-col gap-3">
+      {budgetFactura?.estado === 'RECHAZADA' && (
+        <div className="mb-5 bg-red-50 border border-red-200 text-red-800 text-xs md:text-sm rounded-xl p-4 flex items-start gap-2.5 shadow-sm">
+          <AlertTriangle className="w-5 h-5 shrink-0 text-red-600 mt-0.5" />
+          <div className="flex-1">
+            <h5 className="font-bold text-red-900 mb-1">¡El presupuesto fue rechazado por el cliente!</h5>
+            <p className="leading-relaxed text-red-700">
+              El cliente ha rechazado esta propuesta. Se recomienda hacer clic en <strong>"Devolver a Presupuesto"</strong> para poder editar la cotización existente (o crear una nueva de tipo <strong>REP</strong> o <strong>MTN</strong>) para ajustar los precios o añadir otras opciones y mejorar la propuesta comercial.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="mb-5 bg-slate-50 border border-slate-100 rounded-xl p-4 flex flex-col gap-3">
         <div className="text-slate-600 text-xs md:text-sm leading-relaxed">
           El presupuesto de reparación y la lista de repuestos requeridos han sido generados. La orden está pendiente de aprobación por parte del cliente.
         </div>
@@ -91,9 +106,11 @@ export default function AprobacionClienteCard({ orderData, budgetFactura, onAppr
             <div className="flex justify-between items-center text-xs">
               <span className="text-slate-500 font-medium">Estado del Documento:</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                budgetFactura.estado === 'APROBADA' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'
+                budgetFactura.estado === 'APROBADA' ? 'bg-green-100 text-green-700' :
+                budgetFactura.estado === 'RECHAZADA' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'
               }`}>
-                {budgetFactura.estado === 'APROBADA' ? 'APROBADO' : 'PENDIENTE FIRMA'}
+                {budgetFactura.estado === 'APROBADA' ? 'APROBADO' :
+                 budgetFactura.estado === 'RECHAZADA' ? 'RECHAZADO' : 'PENDIENTE FIRMA'}
               </span>
             </div>
           </div>
@@ -132,13 +149,13 @@ export default function AprobacionClienteCard({ orderData, budgetFactura, onAppr
           </button>
 
           {budgetFactura && (
-            <a 
-              href={`/facturas/${budgetFactura.id}`} 
-              target="_blank" 
-              className="w-full sm:flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center transition-colors bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 decoration-transparent"
+            <button 
+              type="button" 
+              onClick={() => setIsPreviewOpen(true)} 
+              className="w-full sm:flex-1 py-3 rounded-xl text-xs font-bold flex items-center justify-center transition-colors bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200"
             >
-              <FileText className="w-3.5 h-3.5 mr-1.5" /> Ver Documento
-            </a>
+              <FileText className="w-3.5 h-3.5 mr-1.5" /> Ver Vista Previa
+            </button>
           )}
         </div>
 
@@ -152,6 +169,15 @@ export default function AprobacionClienteCard({ orderData, budgetFactura, onAppr
           Aprobar Manualmente (El cliente aceptó)
         </button>
       </div>
+      {budgetFactura && (
+        <DocumentPreviewModal 
+          facturaId={budgetFactura.id} 
+          isOpen={isPreviewOpen} 
+          onClose={() => setIsPreviewOpen(false)} 
+          correlativo={budgetFactura.correlativo}
+          editable={isGerente}
+        />
+      )}
     </div>
   );
 }

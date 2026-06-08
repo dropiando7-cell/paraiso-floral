@@ -2,17 +2,20 @@
 
 import React, { useState } from 'react';
 import { Check, Send, Loader2, ArrowLeft, FileText, Smartphone } from 'lucide-react';
-import { aprobarPresupuesto, generarPresupuestoReparacion } from '../actions';
+import { aprobarPresupuesto, generarPresupuestoReparacion, enviarPresupuestoAlCliente } from '../actions';
 import { useRouter } from 'next/navigation';
 import SafeImage from '@/components/SafeImage';
+import DocumentPreviewModal from './DocumentPreviewModal';
 
 type ApprovalCardProps = {
   orderData: any;
   onApprove: () => void;
   onReject?: () => void;
+  isGerente?: boolean;
+  budgetFactura?: { id: string; correlativo: string; total: number; estado: string } | null;
 };
 
-export default function ApprovalCard({ orderData, onApprove, onReject }: ApprovalCardProps) {
+export default function ApprovalCard({ orderData, onApprove, onReject, isGerente, budgetFactura }: ApprovalCardProps) {
   const router = useRouter();
   const [approved, setApproved] = useState(
     orderData?.estado === 'REPARACION' || 
@@ -44,9 +47,20 @@ export default function ApprovalCard({ orderData, onApprove, onReject }: Approva
   const itv = subtotal * 0.15;
   const totalFinal = subtotal + itv;
 
-  const [facturaGeneradaId, setFacturaGeneradaId] = useState<string | null>(null);
+  const [facturaGeneradaId, setFacturaGeneradaId] = useState<string | null>(budgetFactura?.id || null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [portalUrl, setPortalUrl] = useState<string | null>(null);
+  const [isSending, setIsSending] = useState(false);
+  const [portalUrl, setPortalUrl] = useState<string | null>(
+    budgetFactura ? `${typeof window !== 'undefined' ? window.location.origin : ''}/c/${budgetFactura.id}/presupuesto` : null
+  );
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  React.useEffect(() => {
+    if (budgetFactura) {
+      setFacturaGeneradaId(budgetFactura.id);
+      setPortalUrl(`${window.location.origin}/c/${budgetFactura.id}/presupuesto`);
+    }
+  }, [budgetFactura]);
 
   const getFacturacionItems = () => {
     const items: any[] = [];
@@ -108,8 +122,8 @@ export default function ApprovalCard({ orderData, onApprove, onReject }: Approva
         if (res.success) {
             setFacturaGeneradaId(res.facturaId || null);
             setPortalUrl(res.portalUrl || null);
-            alert(`Presupuesto ${res.correlativo} generado exitosamente y notificado vía Twilio.`);
-            router.refresh();
+            alert(`Presupuesto ${res.correlativo} generado exitosamente. Se abrirá la vista previa para editar.`);
+            window.location.reload();
         } else {
             alert(res.error || "Error al generar presupuesto.");
         }
@@ -117,6 +131,24 @@ export default function ApprovalCard({ orderData, onApprove, onReject }: Approva
         alert("Error de conexión al generar presupuesto.");
     } finally {
         setIsGenerating(false);
+    }
+  };
+
+  const handleEnviarAprobacion = async () => {
+    setIsSending(true);
+    try {
+      const res = await enviarPresupuestoAlCliente(orderData.id);
+      if (res.success) {
+        alert("El presupuesto ha sido enviado al cliente para su aprobación.");
+        window.location.reload();
+      } else {
+        alert(res.error || "Error al enviar presupuesto.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error de conexión al enviar presupuesto.");
+    } finally {
+      setIsSending(false);
     }
   };
 
@@ -317,7 +349,7 @@ export default function ApprovalCard({ orderData, onApprove, onReject }: Approva
               className="w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center transition-colors bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 shadow-md shadow-indigo-500/20"
             >
               {isGenerating ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <FileText className="w-4 h-4 mr-1.5" />} 
-              Generar Presupuesto y Enviar por Twilio
+              Diseñar Presupuesto / Agregar Líneas
             </button>
         )}
 
@@ -327,8 +359,26 @@ export default function ApprovalCard({ orderData, onApprove, onReject }: Approva
                     <Check className="w-4 h-4 text-emerald-600" />
                     <span className="text-xs font-bold text-emerald-800">Presupuesto Generado</span>
                 </div>
-                <a href={`/facturas/${facturaGeneradaId}`} target="_blank" className="text-[10px] bg-white border border-emerald-200 px-2 py-1 rounded shadow-sm text-emerald-700 font-bold hover:bg-emerald-50">Ver Documento</a>
+                <button 
+                  type="button"
+                  onClick={() => setIsPreviewOpen(true)}
+                  className="text-[10px] bg-white border border-emerald-200 px-2 py-1 rounded shadow-sm text-emerald-700 font-bold hover:bg-emerald-50"
+                >
+                  Ver Vista Previa / Editar
+                </button>
             </div>
+        )}
+
+        {facturaGeneradaId && !approved && (
+            <button 
+              type="button"
+              onClick={handleEnviarAprobacion}
+              disabled={isSending || isSaving || isGenerating}
+              className="w-full py-3 rounded-xl text-xs font-bold flex items-center justify-center transition-colors bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 shadow-md shadow-indigo-500/20 mb-2"
+            >
+              {isSending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Send className="w-4 h-4 mr-1.5" />} 
+              Enviar a Aprobación del Cliente
+            </button>
         )}
 
         <div className="flex gap-2">
@@ -386,6 +436,13 @@ export default function ApprovalCard({ orderData, onApprove, onReject }: Approva
           </div>
         </div>
       )}
+      <DocumentPreviewModal 
+        facturaId={facturaGeneradaId || ""} 
+        isOpen={isPreviewOpen} 
+        onClose={() => setIsPreviewOpen(false)} 
+        correlativo={orderData?.codigoSeguridad ? `Presupuesto para Orden #${orderData.codigoSeguridad}` : undefined}
+        editable={isGerente}
+      />
     </div>
   );
 }

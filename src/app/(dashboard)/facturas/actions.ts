@@ -30,6 +30,8 @@ function formatCorrelativo(numeroInterno: number, tipoDocumento: string): string
     const prefix = tipoDocumento === 'COTIZACION' ? 'COT-SO' :
                    tipoDocumento === 'PROFORMA' ? 'PRO-SO' :
                    tipoDocumento === 'NOTA_CREDITO' ? 'NC-SO' :
+                   tipoDocumento === 'PRESUPUESTO_REPARACION' ? 'REP-SO' :
+                   tipoDocumento === 'PRESUPUESTO_MANTENIMIENTO' ? 'MTN-SO' :
                    'FAC-SO';
     return `${prefix}${String(numeroInterno).padStart(8, '0')}`;
 }
@@ -527,6 +529,7 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                     inventarioDescontado: debeDescontarInventario,
                     documentoOrigenId: data.documentoOrigenId || null,
                     referenciaOriginalId: data.referenciaOriginalId || null,
+                    ordenTrabajoId: data.ordenTrabajoId || null,
                     metodoPago: data.metodoPago || 'Efectivo',
                     cajaSessionId,
                     detalles: {

@@ -6,9 +6,26 @@ import { revalidatePath } from 'next/cache';
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { facturaId, firmaDataUrl } = body;
+        const { facturaId, firmaDataUrl, action } = body;
 
-        if (!facturaId || !firmaDataUrl) {
+        if (!facturaId) {
+            return NextResponse.json({ error: 'Datos incompletos.' }, { status: 400 });
+        }
+
+        if (action === 'reject') {
+            await prisma.factura.update({
+                where: { id: facturaId },
+                data: {
+                    estado: 'RECHAZADA'
+                }
+            });
+
+            revalidatePath('/soporte');
+            revalidatePath('/facturas');
+            return NextResponse.json({ success: true, rejected: true });
+        }
+
+        if (!firmaDataUrl) {
             return NextResponse.json({ error: 'Datos incompletos.' }, { status: 400 });
         }
 
@@ -36,9 +53,10 @@ export async function POST(req: NextRequest) {
         });
 
         // 2. Si este presupuesto está ligado a una orden de soporte, actualizarla y sincronizar Kanban
-        if (factura.documentoOrigenId) {
+        const targetOrdenId = factura.ordenTrabajoId || factura.documentoOrigenId;
+        if (targetOrdenId) {
             const orden = await prisma.ordenTrabajo.findUnique({
-                where: { id: factura.documentoOrigenId }
+                where: { id: targetOrdenId }
             });
 
             if (orden && orden.estado === 'APROBACION_PRESUPUESTO') {

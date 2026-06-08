@@ -14,7 +14,7 @@ import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
 
-type DocType = 'cotizacion' | 'proforma' | 'factura' | 'nota_credito';
+type DocType = 'cotizacion' | 'proforma' | 'factura' | 'nota_credito' | 'presupuesto_reparacion' | 'presupuesto_mantenimiento';
 type TaxType = 'isv15' | 'isv18' | 'exento' | 'exonerado';
 
 interface LineItem {
@@ -90,6 +90,8 @@ const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; color: st
   { key: 'proforma', label: 'Pro Forma', icon: <Receipt size={14} />, color: 'text-violet-600', bg: 'bg-violet-50', description: 'Factura preliminar de exportación' },
   { key: 'factura', label: 'Factura Oficial', icon: <CheckCircle2 size={14} />, color: 'text-emerald-600', bg: 'bg-emerald-50', description: 'Documento fiscal definitivo' },
   { key: 'nota_credito', label: 'Nota de Crédito', icon: <Undo size={14} />, color: 'text-purple-600', bg: 'bg-purple-50', description: 'Documento de devolución/descuento' },
+  { key: 'presupuesto_reparacion', label: 'Presupuesto de Reparación', icon: <ClipboardList size={14} />, color: 'text-pink-600', bg: 'bg-pink-50', description: 'Cotización para reparación o mantenimiento' },
+  { key: 'presupuesto_mantenimiento', label: 'Presupuesto de Mantenimiento', icon: <ClipboardList size={14} />, color: 'text-amber-600', bg: 'bg-amber-50', description: 'Cotización para mantenimiento preventivo o correctivo' },
 ];
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
@@ -1351,7 +1353,11 @@ export default function DocumentBuilderClient({
       }
       
       const blob = await res.blob();
-      const typeLabel = docType === 'cotizacion' ? 'Cotizacion' : docType === 'proforma' ? 'ProForma' : 'Factura';
+      const typeLabel = docType === 'cotizacion' ? 'Cotizacion' : 
+                        docType === 'proforma' ? 'ProForma' : 
+                        docType === 'presupuesto_reparacion' ? 'PresupuestoReparacion' :
+                        docType === 'presupuesto_mantenimiento' ? 'PresupuestoMantenimiento' :
+                        'Factura';
       const fileName = `${typeLabel}-${docNumber || 'documento'}.pdf`;
 
       const url = URL.createObjectURL(blob);
@@ -1494,7 +1500,11 @@ export default function DocumentBuilderClient({
           heightLeft -= pageHeight;
         }
 
-        const typeLabel = docType === 'cotizacion' ? 'Cotizacion' : docType === 'proforma' ? 'ProForma' : 'Factura';
+        const typeLabel = docType === 'cotizacion' ? 'Cotizacion' : 
+                          docType === 'proforma' ? 'ProForma' : 
+                          docType === 'presupuesto_reparacion' ? 'PresupuestoReparacion' :
+                          docType === 'presupuesto_mantenimiento' ? 'PresupuestoMantenimiento' :
+                          'Factura';
         const fileName = `${typeLabel}-${docNumber || 'documento'}(respaldo).pdf`;
         pdf.save(fileName);
         toast.success('PDF de Respaldo generado correctamente', { id: toastId });
@@ -1880,7 +1890,12 @@ export default function DocumentBuilderClient({
     try {
       const data = {
         clienteId: selectedClient.id,
-        tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : docType === 'proforma' ? 'PROFORMA' : docType === 'nota_credito' ? 'NOTA_CREDITO' : 'FACTURA',
+        tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : 
+                       docType === 'proforma' ? 'PROFORMA' : 
+                       docType === 'nota_credito' ? 'NOTA_CREDITO' : 
+                       docType === 'presupuesto_reparacion' ? 'PRESUPUESTO_REPARACION' :
+                       docType === 'presupuesto_mantenimiento' ? 'PRESUPUESTO_MANTENIMIENTO' :
+                       'FACTURA',
         notas: notes,
         terminosPago: paymentTerms,
         metodoPago: paymentMethod,
@@ -2014,6 +2029,8 @@ export default function DocumentBuilderClient({
     proforma: { badge: 'bg-violet-50 text-violet-600 border border-violet-200', label: 'PRO FORMA' },
     factura: { badge: 'bg-emerald-50 text-emerald-600 border border-emerald-200', label: 'FACTURA OFICIAL' },
     nota_credito: { badge: 'bg-purple-50 text-purple-600 border border-purple-200', label: 'NOTA DE CRÉDITO' },
+    presupuesto_reparacion: { badge: 'bg-pink-50 text-pink-600 border border-pink-200', label: 'PRESUPUESTO DE REPARACIÓN' },
+    presupuesto_mantenimiento: { badge: 'bg-amber-50 text-amber-600 border border-amber-200', label: 'PRESUPUESTO DE MANTENIMIENTO' },
   };
   const clienteSignaturePayload = (initialData?.firmaClienteBase64 && initialData?.firmaClienteAt) 
     ? {

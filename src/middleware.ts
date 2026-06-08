@@ -116,7 +116,10 @@ export async function middleware(request: NextRequest) {
         url.pathname.startsWith('/api/checkin/pendientes') ||
         url.pathname.startsWith('/api/checkin/completar') ||
         url.pathname.startsWith('/api/impresion') ||
-        url.pathname.startsWith('/print')
+        url.pathname.startsWith('/print') ||
+        url.pathname.startsWith('/c/') ||
+        url.pathname.startsWith('/aprobar-presupuesto') ||
+        url.pathname.startsWith('/api/soporte/firmar-presupuesto')
 
     if (!user && !isPublicRoute) {
         url.pathname = '/login'
