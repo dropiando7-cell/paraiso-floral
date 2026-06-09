@@ -57,6 +57,29 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
     estado: budgetFactura.estado,
   } : null;
 
+  const finalFactura = await prisma.factura.findFirst({
+    where: {
+      ordenTrabajoId: resolvedParams.id,
+      tipoDocumento: 'FACTURA',
+    },
+    orderBy: {
+      createdAt: 'desc'
+    },
+    select: {
+      id: true,
+      correlativo: true,
+      total: true,
+      estado: true,
+    }
+  });
+
+  const serializedFinalFactura = finalFactura ? {
+    id: finalFactura.id,
+    correlativo: finalFactura.correlativo,
+    total: Number(finalFactura.total),
+    estado: finalFactura.estado,
+  } : null;
+
   return <SoporteDetailClient 
     orden={{
         ...orden, 
@@ -89,6 +112,7 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
     userEmail={dbUser?.email || ''}
     organizationUsers={organizationUsers}
     budgetFactura={serializedBudget}
+    finalFactura={serializedFinalFactura}
     accessibleModules={dbUser?.accessibleModules || []}
   />;
 }

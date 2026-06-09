@@ -6,8 +6,8 @@ import TechnicalWorkbench from '../components/TechnicalWorkbench';
 import ApprovalCard from '../components/ApprovalCard';
 import AprobacionClienteCard from '../components/AprobacionClienteCard';
 import QRGenerator from '../components/QRGenerator';
-import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle, Loader2 } from 'lucide-react';
-import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden, eliminarOrdenTrabajo, notificarClienteListo } from '../actions';
+import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle, Loader2, Sparkles, Plus, Smartphone, Send } from 'lucide-react';
+import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden, eliminarOrdenTrabajo, notificarClienteListo, convertirCotizacionAServicioFactura, enviarNotificacionRecepcionTwilio } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
@@ -21,6 +21,7 @@ export default function SoporteDetailClient({
   userEmail = '',
   organizationUsers = [],
   budgetFactura,
+  finalFactura,
   accessibleModules = []
 }: { 
   orden: Orden; 
@@ -29,6 +30,7 @@ export default function SoporteDetailClient({
   userEmail?: string;
   organizationUsers?: any[];
   budgetFactura?: { id: string; correlativo: string; total: number; estado: string } | null;
+  finalFactura?: { id: string; correlativo: string; total: number; estado: string } | null;
   accessibleModules?: string[];
 }) {
   const role = userRole;
@@ -86,6 +88,9 @@ export default function SoporteDetailClient({
   const fileRef = React.useRef<HTMLInputElement>(null);
   const cameraRef = React.useRef<HTMLInputElement>(null);
   const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
+  const [isPreviewRecepcionTwilioOpen, setIsPreviewRecepcionTwilioOpen] = React.useState(false);
+  const [isSendingRecepcionTwilio, setIsSendingRecepcionTwilio] = React.useState(false);
+  const [recepcionTwilioSent, setRecepcionTwilioSent] = React.useState(false);
 
   const [confirmModal, setConfirmModal] = React.useState<{
     isOpen: boolean;
@@ -403,13 +408,30 @@ export default function SoporteDetailClient({
             <div className="bg-white rounded-2xl p-4 md:p-6 shadow-sm border border-slate-200">
               <h2 className="text-lg font-bold text-slate-800 mb-2">Recepción completada</h2>
               <p className="text-slate-600 text-sm mb-4">La orden ya fue recibida. Entrega la etiqueta al cliente y avísale al técnico.</p>
-              <button 
-                onClick={() => handleAvanzar('EN_EVALUACION')}
-                disabled={loading}
-                className="w-full sm:w-auto bg-indigo-600 text-white px-5 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition"
-              >
-                Pasar a Diagnóstico Técnico <ArrowRight className="w-4 h-4" />
-              </button>
+              
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsPreviewRecepcionTwilioOpen(true)}
+                  disabled={loading}
+                  className={`flex-1 py-3 px-5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer border ${
+                    recepcionTwilioSent
+                      ? "bg-green-50 hover:bg-green-100 text-green-800 border-green-200"
+                      : "bg-[#25D366] hover:bg-[#20bd5a] text-white border-transparent"
+                  }`}
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  {recepcionTwilioSent ? "Notificación de Recepción Enviada ✓" : "Avisar Recepción por Twilio WhatsApp"}
+                </button>
+                
+                <button 
+                  onClick={() => handleAvanzar('EN_EVALUACION')}
+                  disabled={loading}
+                  className="flex-1 bg-indigo-600 text-white px-5 py-3 rounded-xl text-xs font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition active:scale-95 cursor-pointer"
+                >
+                  Pasar a Diagnóstico Técnico <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           )}
 
@@ -503,6 +525,84 @@ export default function SoporteDetailClient({
                     <span>
                       El cliente aún no ha recibido la notificación. Pulse el botón inferior para enviarle una alerta por WhatsApp a su número registrado: <strong>{orden.cliente?.telefono || 'Sin teléfono'}</strong>.
                     </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Sección de Facturación Final */}
+              <div className="mb-5 border-t border-slate-100 pt-5">
+                <h5 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Facturación de Entrega</h5>
+                {finalFactura ? (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center text-emerald-600 shrink-0">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <span className="font-extrabold text-emerald-900 text-sm block">Factura Oficial Emitida</span>
+                        <p className="text-xs text-emerald-700 mt-0.5 font-semibold">
+                          Correlativo: <span className="font-mono text-emerald-800 font-bold">{finalFactura.correlativo}</span> · Total: <span className="font-bold">L {finalFactura.total.toFixed(2)}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/facturas/ver/${finalFactura.id}`)}
+                      className="px-4 py-2 bg-white hover:bg-slate-50 text-emerald-700 border border-emerald-300 font-bold rounded-xl text-xs shadow-sm transition active:scale-95 whitespace-nowrap cursor-pointer"
+                    >
+                      Ver Factura
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3.5">
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed m-0">
+                      Antes de entregar el equipo, por favor genere la factura final para el pago del cliente. Puede convertir la cotización previamente autorizada o crear una nueva factura enlazada con este servicio.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button
+                        type="button"
+                        disabled={loading || !budgetFactura}
+                        onClick={() => {
+                          if (!budgetFactura) return;
+                          showConfirm({
+                            title: `¿Convertir cotización a factura?`,
+                            description: `Se convertirá el presupuesto ${budgetFactura.correlativo} (por un total de L ${budgetFactura.total.toFixed(2)}) en una Factura Oficial emitida. Esta acción no se puede deshacer.`,
+                            confirmText: 'Convertir a Factura',
+                            cancelText: 'Cancelar',
+                            type: 'info',
+                            onConfirm: async () => {
+                              setLoading(true);
+                              try {
+                                const res = await convertirCotizacionAServicioFactura(budgetFactura.id);
+                                if (res.success && res.nuevoId) {
+                                  toast.success("Factura generada exitosamente.");
+                                  window.location.reload();
+                                } else {
+                                  toast.error(res.error || "Error al convertir la cotización.");
+                                }
+                              } catch (err) {
+                                console.error(err);
+                                toast.error("Error al conectar con el servidor.");
+                              } finally {
+                                setLoading(false);
+                              }
+                            }
+                          });
+                        }}
+                        className="flex-1 py-2.5 px-3 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-sm transition active:scale-95 disabled:opacity-50 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                        {budgetFactura ? `Convertir Cotización (${budgetFactura.correlativo})` : 'Sin Cotización'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/facturas/nuevo?ordenTrabajoId=${orden.id}`)}
+                        className="flex-1 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        Crear Nueva Factura
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -949,6 +1049,88 @@ export default function SoporteDetailClient({
               alt="Evidencia ampliada" 
               className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
             />
+          </div>
+        </div>
+      )}
+
+      {/* Modal Vista Previa Twilio WhatsApp Recepción */}
+      {isPreviewRecepcionTwilioOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="font-extrabold text-slate-800 text-xs md:text-sm flex items-center gap-2">
+                <Smartphone className="w-5 h-5 text-indigo-600" /> Vista Previa del Mensaje (Twilio)
+              </h3>
+              <button 
+                onClick={() => setIsPreviewRecepcionTwilioOpen(false)} 
+                className="text-slate-400 hover:text-slate-650 p-1.5 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 bg-slate-100 flex-1 overflow-y-auto space-y-4 text-left">
+              <p className="text-xs text-slate-500 font-medium m-0">
+                Este mensaje se enviará automáticamente al número de WhatsApp registrado: <strong className="text-slate-700">{orden.cliente?.telefono || 'Sin número'}</strong>
+              </p>
+              
+              {/* WhatsApp Chat Bubble */}
+              <div className="bg-emerald-50 rounded-2xl p-4 shadow-sm border border-emerald-100 max-w-sm ml-0 mr-auto relative">
+                {/* Mock media attachment */}
+                <div className="bg-white rounded-lg p-2 mb-3 border border-emerald-200 flex items-center gap-2">
+                  <div className="w-10 h-10 bg-slate-50 border rounded flex items-center justify-center text-slate-400 shrink-0">
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h.01M16 12h.01M8 12h.01M8 16h.01M16 16h.01M12 16h.01"></path></svg>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="font-bold text-slate-700 text-[11px] block truncate">Etiqueta_Soporte_{orden.codigoSeguridad}.png</span>
+                    <span className="text-[10px] text-slate-400">Imagen de trazabilidad</span>
+                  </div>
+                </div>
+
+                <div className="text-slate-800 text-xs md:text-sm whitespace-pre-wrap leading-relaxed">
+                  {`Hola ${orden.cliente?.nombre || 'Cliente'} 👋\n\nRecibimos tu equipo en el taller de *Bioelectrónica Honduras*.\n\n📋 *Orden:* ${orden.codigoSeguridad}\n🔧 *Equipo:* ${orden.equipoDano}\n🏷️ *N° Serie:* ${orden.serie || 'No especificado'}\n👨‍🔧 *Técnico asignado:* ${assignedTecnicos.map(t => [t.nombre, t.apellido].filter(Boolean).join(" ")).join(", ") || 'Por asignar'}\n\nGuarda la imagen de arriba — el *código QR* es tu comprobante para retirar el equipo cuando esté listo.\n\nTe avisaremos en cada etapa del proceso. ⚙️`}
+                </div>
+              </div>
+            </div>
+            
+            <div className="px-6 py-4 bg-slate-55 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsPreviewRecepcionTwilioOpen(false)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl text-xs transition active:scale-95 cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isSendingRecepcionTwilio || !orden.cliente?.telefono}
+                onClick={async () => {
+                  setIsSendingRecepcionTwilio(true);
+                  try {
+                    const res = await enviarNotificacionRecepcionTwilio(orden.id);
+                    if (res.success) {
+                      setRecepcionTwilioSent(true);
+                      setIsPreviewRecepcionTwilioOpen(false);
+                      toast.success("Notificación de recepción enviada con éxito.");
+                    } else {
+                      toast.error(res.error || "Error al enviar notificación de recepción.");
+                    }
+                  } catch (e) {
+                    console.error(e);
+                    toast.error("Error de conexión al enviar notificación de recepción.");
+                  } finally {
+                    setIsSendingRecepcionTwilio(false);
+                  }
+                }}
+                className="px-5 py-2.5 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl text-xs transition active:scale-95 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                {isSendingRecepcionTwilio ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Send className="w-3.5 h-3.5" />
+                )}
+                Enviar Mensaje Twilio
+              </button>
+            </div>
           </div>
         </div>
       )}

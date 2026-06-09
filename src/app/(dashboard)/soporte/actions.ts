@@ -817,7 +817,7 @@ export async function syncKanbanStatus(ordenId: string, nuevoEstado: string, use
     }
 }
 
-import { guardarDocumentoBuilder } from '../facturas/actions';
+import { guardarDocumentoBuilder, convertirDocumento } from '../facturas/actions';
 
 export async function generarPresupuestoReparacion(
     ordenId: string, 
@@ -1133,6 +1133,92 @@ export async function getHistorialEntregados() {
         },
         orderBy: { fechaEntregado: 'desc' }
     });
+}
+
+export async function convertirCotizacionAServicioFactura(cotizacionId: string) {
+    return convertirDocumento(cotizacionId, 'FACTURA');
+}
+
+export async function enviarNotificacionPresupuestoTwilio(ordenId: string) {
+    try {
+        const orden = await prisma.ordenTrabajo.findUnique({
+            where: { id: ordenId },
+            include: { cliente: true }
+        });
+        if (!orden) throw new Error("Orden no encontrada");
+
+        const factura = await prisma.factura.findFirst({
+            where: {
+                ordenTrabajoId: ordenId,
+                tipoDocumento: 'COTIZACION'
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        if (!factura) throw new Error("No se encontró presupuesto para esta orden. Por favor genere uno primero.");
+
+        if (!orden.cliente?.telefono) {
+            throw new Error("El cliente no tiene un número de teléfono registrado.");
+        }
+
+        const phoneWithCountryCode = orden.cliente.telefono.startsWith('+') ? orden.cliente.telefono : `+504${orden.cliente.telefono}`;
+        const total = Number(factura.total);
+
+        const res = await sendSoportePresupuesto(
+            orden.cliente.nombre,
+            phoneWithCountryCode,
+            `${orden.equipoDano} - ${orden.marcaModelo || ''}`,
+            orden.codigoSeguridad,
+            orden.descripcionFalla || 'Mantenimiento Correctivo',
+            total,
+            factura.id
+        );
+
+        if (res.success) {
+            revalidatePath(`/soporte/${ordenId}`);
+            return { success: true };
+        } else {
+            return { success: false, error: res.error || "Fallo al enviar por Twilio" };
+        }
+    } catch (e: any) {
+        console.error("Error al enviar presupuesto por Twilio:", e);
+        return { success: false, error: e.message || "Error al enviar presupuesto" };
+    }
+}
+
+export async function enviarNotificacionRecepcionTwilio(ordenId: string) {
+    try {
+        const orden = await prisma.ordenTrabajo.findUnique({
+            where: { id: ordenId },
+            include: { cliente: true, tecnicosAsignados: true }
+        });
+        if (!orden) throw new Error("Orden no encontrada");
+
+        if (!orden.cliente?.telefono) {
+            throw new Error("El cliente no tiene un número de teléfono registrado.");
+        }
+
+        const phoneWithCountryCode = orden.cliente.telefono.startsWith('+') ? orden.cliente.telefono : `+504${orden.cliente.telefono}`;
+        const tecnicoAsignado = orden.tecnicosAsignados.map(t => [t.nombre, t.apellido].filter(Boolean).join(" ")).join(", ") || 'Por asignar';
+
+        const res = await sendSoporteRecepcion(
+            orden.cliente.nombre,
+            phoneWithCountryCode,
+            orden.codigoSeguridad,
+            orden.equipoDano,
+            orden.serie || 'No especificado',
+            tecnicoAsignado
+        );
+
+        if (res.success) {
+            revalidatePath(`/soporte/${ordenId}`);
+            return { success: true };
+        } else {
+            return { success: false, error: res.error || "Fallo al enviar por Twilio" };
+        }
+    } catch (e: any) {
+        console.error("Error al enviar recepción por Twilio:", e);
+        return { success: false, error: e.message || "Error al enviar recepción" };
+    }
 }
 
 

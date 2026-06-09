@@ -43,8 +43,54 @@ export default async function EditDocumentPage({
             }
         });
         
+        const queryOrdenTrabajoId = resolvedSearchParams?.ordenTrabajoId as string | undefined;
         if (org && id !== 'nuevo') {
             doc = await getDocumentoById(id);
+        } else if (org && id === 'nuevo' && queryOrdenTrabajoId) {
+            const ordenTrabajo = await prisma.ordenTrabajo.findUnique({
+                where: { id: queryOrdenTrabajoId },
+                include: {
+                    cliente: true,
+                    repuestos: {
+                        include: {
+                            producto: true,
+                            activoFijo: true
+                        }
+                    }
+                }
+            });
+            if (ordenTrabajo) {
+                const manoObraArr = Array.isArray(ordenTrabajo.detalleManoObra) ? (ordenTrabajo.detalleManoObra as any[]) : [];
+                doc = {
+                    tipoDocumento: 'FACTURA',
+                    estado: 'BORRADOR',
+                    clienteId: ordenTrabajo.clienteId,
+                    cliente: ordenTrabajo.cliente,
+                    ordenTrabajoId: ordenTrabajo.id,
+                    subTotal: 0,
+                    total: 0,
+                    detalles: [
+                        ...ordenTrabajo.repuestos.map(r => ({
+                            porcentajeIsv: 15,
+                            descripcion: r.producto?.nombre || r.activoFijo?.descripcionCorta || 'Repuesto',
+                            cantidad: r.cantidad,
+                            precioUnitario: r.precioAprobado !== null ? Number(r.precioAprobado) : Number(r.precioSugerido || 0),
+                            totalDescuento: 0,
+                            totalLinea: r.cantidad * (r.precioAprobado !== null ? Number(r.precioAprobado) : Number(r.precioSugerido || 0)),
+                            productoId: r.productoId,
+                            activoId: r.activoFijoId
+                        })),
+                        ...manoObraArr.map(m => ({
+                            porcentajeIsv: 15,
+                            descripcion: m.descripcion || 'Mano de Obra',
+                            cantidad: m.horas || 1,
+                            precioUnitario: Number(m.tarifa || 0),
+                            totalDescuento: 0,
+                            totalLinea: (m.horas || 1) * Number(m.tarifa || 0)
+                        }))
+                    ]
+                };
+            }
         }
     } catch (e) {
         console.error("Error fetching data:", e);

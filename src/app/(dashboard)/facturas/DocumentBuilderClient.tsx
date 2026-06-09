@@ -1925,7 +1925,8 @@ export default function DocumentBuilderClient({
         isv18: totals.isv18,
         total: totals.total,
         templateSettings: settings,
-        documentoOrigenId: isNotaCredito ? initialData?.id : undefined
+        documentoOrigenId: isNotaCredito ? initialData?.id : undefined,
+        ordenTrabajoId: initialData?.ordenTrabajoId || searchParams.get('ordenTrabajoId') || undefined
       };
       
       let res;
@@ -2567,11 +2568,16 @@ export default function DocumentBuilderClient({
                   <button
                     onClick={() => {
                       setShowSuccessModal(null);
-                      router.push('/facturas');
+                      const otId = searchParams.get('ordenTrabajoId');
+                      if (otId) {
+                        router.push(`/soporte/${otId}`);
+                      } else {
+                        router.push('/facturas');
+                      }
                     }}
                     className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
                   >
-                    Hacer Nuevo
+                    {searchParams.get('ordenTrabajoId') ? 'Volver a la Orden' : 'Hacer Nuevo'}
                   </button>
                   <button
                     onClick={() => {

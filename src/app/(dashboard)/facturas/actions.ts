@@ -351,6 +351,7 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                     templateSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : undefined,
                     metodoPago: data.metodoPago || docExistente.metodoPago || 'Efectivo',
                     cajaSessionId: docExistente.cajaSessionId || (nuevoTipo === 'FACTURA' ? activeCajaId : null),
+                    ordenTrabajoId: data.ordenTrabajoId !== undefined ? data.ordenTrabajoId : docExistente.ordenTrabajoId,
                     detalles: {
                         create: lineItems.map((item) => {
                             const basePrice = item.qty * item.unitPrice;
@@ -943,6 +944,7 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
                     documentoOrigenId: doc.documentoOrigenId || doc.id,
                     metodoPago: doc.metodoPago || 'Efectivo',
                     cajaSessionId,
+                    ordenTrabajoId: doc.ordenTrabajoId || null,
                     detalles: {
                         create: doc.detalles.map((d) => ({
                             descripcion: d.descripcion,

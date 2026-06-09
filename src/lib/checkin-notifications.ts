@@ -297,7 +297,7 @@ export async function sendSoportePresupuesto(
     const cleanPhone = clienteTelefono.replace(/[\s\-()]/g, "");
     
     // SID: presupuesto_aprobacion
-    const sid = "HXc0be41cec35b484f162077113a970e04";
+    const sid = "HX47d341f9f67e88346b923f01be8c3b69";
     const variables: Record<string, string> = {
         "1": clienteNombre,
         "2": equipoDescripcion,
