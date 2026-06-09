@@ -1253,6 +1253,53 @@ export async function getKanbanInitData() {
     }
 }
 
+// 24. Actualizar descripción de archivo adjunto
+export async function updateKanbanAttachmentDescription(attachmentId: string, descripcion: string) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        const attachment = await prisma.kanbanAttachment.findUnique({
+            where: { id: attachmentId },
+            include: { task: true }
+        });
+
+        if (!attachment) throw new Error('Adjunto no encontrado');
+        if (attachment.task.organizationId !== org.id) throw new Error('No autorizado');
+
+        const isOwner = attachment.subidoPorId === user.id;
+        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+
+        if (!isOwner && !isAdmin) {
+            throw new Error('No tienes permiso para editar este adjunto');
+        }
+
+        const updated = await prisma.kanbanAttachment.update({
+            where: { id: attachmentId },
+            data: {
+                descripcion: descripcion.trim() || null
+            }
+        });
+
+        // Registrar auditoría
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId: attachment.task.spaceId,
+                taskId: attachment.taskId,
+                usuarioId: user.id,
+                accion: 'ACTUALIZACION',
+                detalles: `Actualizó la descripción del archivo adjunto "${attachment.nombre}"`
+            }
+        });
+
+        revalidatePath(`/kanban/${attachment.task.spaceId}`);
+        return { success: true, attachment: updated };
+    } catch (e: any) {
+        console.error("updateKanbanAttachmentDescription Error:", e);
+        return { success: false, error: e.message || 'Error al actualizar descripción de adjunto' };
+    }
+}
+
+
 
 
 
