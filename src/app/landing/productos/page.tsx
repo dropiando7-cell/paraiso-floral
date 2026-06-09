@@ -69,6 +69,8 @@ async function getInventory(searchParams: SearchParams) {
                     modelo: true,
                     idQr: true,
                     imagenUrl: true,
+                    imagenWeb: true,
+                    tituloWeb: true,
                     costoAdq: true
                 }
             });
@@ -87,7 +89,9 @@ async function getInventory(searchParams: SearchParams) {
                     marca: true,
                     modelo: true,
                     sku: true,
-                    precioVenta: true
+                    precioVenta: true,
+                    imagenWeb: true,
+                    tituloWeb: true
                 }
             });
         }
@@ -95,21 +99,21 @@ async function getInventory(searchParams: SearchParams) {
         const unifiedItems = [
             ...assets.map(a => ({
                 id: a.id,
-                name: a.descripcionCorta,
+                name: a.tituloWeb || a.descripcionCorta,
                 brand: a.marca || 'Genérico',
                 model: a.modelo || 'N/A',
                 code: a.idQr || '',
-                imageUrl: a.imagenUrl,
+                imageUrl: a.imagenWeb || a.imagenUrl,
                 type: 'activo' as const,
                 typeName: 'Equipo Médico / Activo',
             })),
             ...consumables.map(c => ({
                 id: c.id,
-                name: c.nombre,
+                name: c.tituloWeb || c.nombre,
                 brand: c.marca || 'Genérico',
                 model: c.modelo || 'N/A',
                 code: c.sku || '',
-                imageUrl: null,
+                imageUrl: c.imagenWeb || null,
                 type: 'producto' as const,
                 typeName: 'Consumible / Repuesto',
             }))

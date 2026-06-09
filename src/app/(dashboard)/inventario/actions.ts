@@ -362,7 +362,7 @@ export async function getActivoStats(area?: string) {
         WITH org_areas AS (
             SELECT COUNT(DISTINCT "area") as areas_count 
             FROM "activos_fijos" 
-            WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false AND "stock" < 9999
+            WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false AND "area" <> 'SERVICIOS'
             ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
         )
         SELECT 
@@ -373,7 +373,7 @@ export async function getActivoStats(area?: string) {
             COALESCE(SUM("stock") FILTER (WHERE "estadoDano" IS NOT NULL), 0) as con_dano,
             (SELECT areas_count FROM org_areas)
         FROM "activos_fijos"
-        WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false AND "stock" < 9999
+        WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false AND "area" <> 'SERVICIOS'
         ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
     `;
 

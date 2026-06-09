@@ -7,11 +7,13 @@ import {
     saveGoogleReviews, 
     saveLandingSettings, 
     searchInventoryItems, 
+    updateItemWebFields,
     updateItemImage,
     getWebContacts,
     updateContactStatus,
     deleteWebContact,
-    getWebTraffic
+    getWebTraffic,
+    getPaginatedInventoryItems
 } from './actions';
 import { 
     Settings, 
@@ -43,7 +45,8 @@ import {
     Send,
     Check,
     RefreshCw,
-    X
+    X,
+    List
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -102,6 +105,13 @@ export default function GestionWebClient({
     const [loadingSearch, setLoadingSearch] = useState(false);
     const [updatingImageId, setUpdatingImageId] = useState<string | null>(null);
     const [itemImageUrls, setItemImageUrls] = useState<Record<string, string>>({});
+    const [itemWebTitles, setItemWebTitles] = useState<Record<string, string>>({});
+    const [itemWebDescriptions, setItemWebDescriptions] = useState<Record<string, string>>({});
+    const [uploadingItemId, setUploadingItemId] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+    const [selectedItem, setSelectedItem] = useState<any | null>(null);
 
     // Review editing states
     const [editingReview, setEditingReview] = useState<Review | null>(null);
@@ -350,46 +360,115 @@ export default function GestionWebClient({
     };
 
     // --- Tab 4: Web Inventory Image Manager ---
-    const handleSearchInventory = async (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!searchQuery.trim()) return;
-
+    const loadInventory = async (page: number, query: string) => {
         setLoadingSearch(true);
         try {
-            const res = await searchInventoryItems(searchQuery);
-            if (res.success) {
-                setSearchResults(res.activos || []);
+            const res = await getPaginatedInventoryItems(page, 10, query);
+            if (res.success && res.items) {
+                setSearchResults(res.items);
+                setTotalPages(res.totalPages || 1);
+                
                 // Initialize text inputs
                 const urls: Record<string, string> = {};
-                res.activos?.forEach((a: any) => {
-                    urls[a.id] = a.imageUrl || '';
+                const titles: Record<string, string> = {};
+                const descriptions: Record<string, string> = {};
+                
+                res.items.forEach((item: any) => {
+                    urls[item.id] = item.imagenWeb || '';
+                    titles[item.id] = item.tituloWeb || '';
+                    descriptions[item.id] = item.descripcionWeb || '';
                 });
+                
                 setItemImageUrls(urls);
+                setItemWebTitles(titles);
+                setItemWebDescriptions(descriptions);
             } else {
-                toast.error(res.error || 'Error al buscar en el inventario');
+                toast.error(res.error || 'Error al cargar el catálogo');
             }
         } catch (e: any) {
-            toast.error(e.message);
+            toast.error(e.message || 'Error de conexión');
         } finally {
             setLoadingSearch(false);
         }
     };
 
-    const handleSaveItemImage = async (id: string, type: 'activo' | 'producto') => {
+    useEffect(() => {
+        if (activeTab === 'inventory') {
+            loadInventory(currentPage, searchQuery);
+        }
+    }, [activeTab, currentPage]);
+
+    const handleSearchInventory = (e: React.FormEvent) => {
+        e.preventDefault();
+        setCurrentPage(1);
+        loadInventory(1, searchQuery);
+    };
+
+    const handleClearInventorySearch = () => {
+        setSearchQuery('');
+        setCurrentPage(1);
+        loadInventory(1, '');
+    };
+
+    const handleSaveItemWebFields = async (id: string, type: 'activo' | 'producto') => {
         setUpdatingImageId(id);
-        const url = itemImageUrls[id] || '';
+        const imagenWeb = itemImageUrls[id] || '';
+        const tituloWeb = itemWebTitles[id] || '';
+        const descripcionWeb = itemWebDescriptions[id] || '';
+        
         try {
-            const res = await updateItemImage(id, type, url);
+            const res = await updateItemWebFields(id, type, { imagenWeb, tituloWeb, descripcionWeb });
             if (res.success) {
-                toast.success('Imagen del equipo actualizada');
-                setSearchResults(prev => prev.map(item => item.id === id ? { ...item, imageUrl: url } : item));
+                toast.success('Datos comerciales de la web guardados');
+                setSearchResults(prev => prev.map(item => 
+                    item.id === id 
+                        ? { ...item, imagenWeb, tituloWeb, descripcionWeb } 
+                        : item
+                ));
             } else {
-                toast.error(res.error || 'Error al actualizar imagen');
+                toast.error(res.error || 'Error al actualizar datos');
             }
         } catch (e: any) {
-            toast.error(e.message);
+            toast.error(e.message || 'Error de conexión');
         } finally {
             setUpdatingImageId(null);
+        }
+    };
+
+    const handleUploadFile = async (id: string, file: File) => {
+        if (!file) return;
+        setUploadingItemId(id);
+        const toastId = toast.loading('Subiendo imagen a R2...');
+        
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('fileName', file.name);
+            
+            const res = await fetch('/api/upload/inventario', {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!res.ok) {
+                const errData = await res.json();
+                throw new Error(errData.error || 'Error al subir archivo');
+            }
+            
+            const data = await res.json();
+            const url = data.publicUrl || data.url;
+            
+            if (url) {
+                setItemImageUrls(prev => ({ ...prev, [id]: url }));
+                toast.success('Imagen subida con éxito', { id: toastId });
+            } else {
+                throw new Error('No se recibió la URL pública de la imagen');
+            }
+        } catch (e: any) {
+            console.error('Error uploading file:', e);
+            toast.error(e.message || 'Error al subir la imagen', { id: toastId });
+        } finally {
+            setUploadingItemId(null);
         }
     };
 
@@ -788,85 +867,282 @@ export default function GestionWebClient({
                                     type="text" 
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Buscar por descripción, marca, modelo o código QR..."
-                                    className="w-full text-xs p-2.5 pl-10 border border-slate-200 rounded-xl"
+                                    placeholder="Buscar por descripción, marca, modelo o código..."
+                                    className="w-full text-xs p-2.5 pl-10 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500"
                                 />
                             </div>
+                            {searchQuery && (
+                                <button
+                                    type="button"
+                                    onClick={handleClearInventorySearch}
+                                    className="px-4 py-2.5 border rounded-xl text-xs font-bold bg-slate-50 text-slate-655 hover:bg-slate-100 transition-colors"
+                                >
+                                    Limpiar
+                                </button>
+                            )}
                             <button
                                 type="submit"
                                 disabled={loadingSearch}
-                                className="bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold px-5 py-2.5 rounded-xl flex items-center gap-1.5 shrink-0"
+                                className="bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold px-5 py-2.5 rounded-xl flex items-center gap-1.5 shrink-0 cursor-pointer"
                             >
                                 {loadingSearch ? 'Buscando...' : 'Buscar'}
                             </button>
                         </form>
 
                         {/* Search Results */}
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                             {searchResults.length > 0 && (
-                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Resultados de Búsqueda</h3>
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 pb-3">
+                                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                        Resultados de Búsqueda
+                                    </h3>
+                                    
+                                    {/* Layout Filter/Toggle */}
+                                    <div className="flex items-center gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/40 shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={() => setViewMode('list')}
+                                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                viewMode === 'list'
+                                                    ? 'bg-white text-slate-950 shadow-sm border border-slate-200/50'
+                                                    : 'text-slate-500 hover:text-slate-800'
+                                            }`}
+                                        >
+                                            <List size={13} />
+                                            <span>En línea</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setViewMode('grid')}
+                                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                                viewMode === 'grid'
+                                                    ? 'bg-white text-slate-950 shadow-sm border border-slate-200/50'
+                                                    : 'text-slate-500 hover:text-slate-800'
+                                            }`}
+                                        >
+                                            <LayoutGrid size={13} />
+                                            <span>Cuadrícula</span>
+                                        </button>
+                                    </div>
+                                </div>
                             )}
-                            
-                            <div className="grid grid-cols-1 gap-4">
-                                {searchResults.map((item) => (
-                                    <div key={item.id} className="flex flex-col sm:flex-row justify-between gap-4 p-4 border rounded-xl bg-slate-50/20">
-                                        <div className="flex gap-3">
-                                            {/* Preview current img */}
-                                            <div className="w-16 h-16 rounded-lg bg-slate-100 border overflow-hidden shrink-0 flex items-center justify-center relative">
-                                                {item.imageUrl ? (
-                                                    <img 
-                                                        src={item.imageUrl} 
-                                                        alt={item.name} 
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                ) : (
-                                                    <ImageIcon className="text-slate-300" size={24} />
-                                                )}
-                                                <div className="absolute bottom-0 right-0 bg-slate-800 text-[8px] text-white px-1 font-mono uppercase">
-                                                    {item.code}
+
+                            {searchResults.length > 0 && (
+                                <div className={viewMode === 'list' ? "flex flex-col gap-4" : "grid grid-cols-1 md:grid-cols-2 gap-4"}>
+                                    {searchResults.map((item) => {
+                                        const isSaving = updatingImageId === item.id;
+                                        const isUploading = uploadingItemId === item.id;
+                                        const isList = viewMode === 'list';
+                                        
+                                        return (
+                                            <div 
+                                                key={item.id} 
+                                                className={`bg-white border border-slate-200 hover:border-slate-350 rounded-2xl p-4 transition-all duration-300 shadow-sm flex flex-col justify-between gap-4 ${
+                                                    isList ? "xl:flex-row xl:items-center" : ""
+                                                }`}
+                                            >
+                                                {/* Left Side: Product Info & Dual Thumbnails */}
+                                                <div className={`flex flex-col sm:flex-row gap-4 items-start sm:items-center min-w-0 ${
+                                                    isList ? "xl:w-1/3 shrink-0" : ""
+                                                }`}>
+                                                    {/* Thumbnails Container */}
+                                                    <div 
+                                                        onClick={() => setSelectedItem(item)}
+                                                        className="flex gap-2 shrink-0 cursor-pointer hover:opacity-90 active:scale-[0.98] transition-all"
+                                                        title="Ver Ficha Completa de Imágenes"
+                                                    >
+                                                        {/* Original photo */}
+                                                        <div className="relative w-14 h-14 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner" title="Foto Interna original">
+                                                            {item.imageUrl ? (
+                                                                <img src={item.imageUrl} alt="Foto interna" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <ImageIcon className="text-slate-300" size={16} />
+                                                            )}
+                                                            <span className="absolute bottom-0 inset-x-0 bg-slate-900/70 text-[6px] text-white font-black text-center uppercase tracking-wider py-0.5">
+                                                                Interno
+                                                            </span>
+                                                        </div>
+                                                        
+                                                        {/* Web Custom photo */}
+                                                        <div className="relative w-14 h-14 rounded-xl bg-slate-50 border border-slate-200 overflow-hidden flex items-center justify-center shadow-inner" title="Imagen Pública Web">
+                                                            {itemImageUrls[item.id] ? (
+                                                                <img src={itemImageUrls[item.id]} alt="Imagen Web" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <ImageIcon className="text-slate-350" size={16} />
+                                                            )}
+                                                            <span className="absolute bottom-0 inset-x-0 bg-gradient-to-r from-cyan-500 to-blue-600 text-[6px] text-white font-black text-center uppercase tracking-wider py-0.5">
+                                                                Web
+                                                            </span>
+                                                            {itemImageUrls[item.id] && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setItemImageUrls(prev => ({ ...prev, [item.id]: '' }));
+                                                                    }}
+                                                                    className="absolute -top-1 -right-1 p-0.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow"
+                                                                >
+                                                                    <X size={8} />
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Meta Info */}
+                                                    <div className="min-w-0 space-y-1">
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className={`text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                                                item.type === 'activo' 
+                                                                    ? 'bg-cyan-50 text-cyan-600 border border-cyan-100' 
+                                                                    : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                                                            }`}>
+                                                                {item.type === 'activo' ? 'Equipo' : 'Consumible'}
+                                                            </span>
+                                                            <span className="text-[9px] font-mono font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                                                                {item.code}
+                                                            </span>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedItem(item)}
+                                                                className="text-[9px] font-bold text-slate-500 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 hover:border-slate-300 px-2 py-0.5 rounded-md flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+                                                                title="Ver Ficha de Detalles"
+                                                            >
+                                                                <Eye size={10} className="text-slate-450 shrink-0" />
+                                                                <span>Ficha</span>
+                                                            </button>
+                                                        </div>
+                                                        <h4 
+                                                            onClick={() => setSelectedItem(item)}
+                                                            className="font-extrabold text-xs text-slate-800 line-clamp-1 cursor-pointer hover:text-cyan-600 hover:underline transition-colors" 
+                                                            title={`Ver Ficha de Detalles de: ${item.name}`}
+                                                        >
+                                                            {item.name}
+                                                        </h4>
+                                                        <p className="text-[10px] text-slate-400 font-medium">
+                                                            Marca: {item.brand} | Modelo: {item.model}
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Middle: Custom fields inputs */}
+                                                <div className={isList ? "flex-1 min-w-0 grid grid-cols-1 md:grid-cols-3 gap-3 w-full" : "flex flex-col gap-3 w-full"}>
+                                                    {/* Input: Título Web */}
+                                                    <div className="space-y-1">
+                                                        <label className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Título en la Web</label>
+                                                        <input 
+                                                            type="text" 
+                                                            value={itemWebTitles[item.id] || ''}
+                                                            onChange={(e) => setItemWebTitles(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                                            placeholder={item.name}
+                                                            className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 font-semibold text-slate-800"
+                                                        />
+                                                    </div>
+
+                                                    {/* Input: Descripción Web */}
+                                                    <div className="space-y-1">
+                                                        <label className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Descripción en la Web</label>
+                                                        <textarea 
+                                                            value={itemWebDescriptions[item.id] || ''}
+                                                            onChange={(e) => setItemWebDescriptions(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                                            placeholder={item.internalDescription || "Descripción comercial..."}
+                                                            rows={1}
+                                                            className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:border-cyan-500 leading-normal font-medium text-slate-650 resize-y"
+                                                        />
+                                                    </div>
+
+                                                    {/* Input: Imagen Web URL/File */}
+                                                    <div className="space-y-1">
+                                                        <label className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">Cambiar Imagen Web</label>
+                                                        <div className="flex gap-1.5">
+                                                            <label className={`flex items-center justify-center gap-1 px-2.5 py-2 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 transition-colors shrink-0 ${
+                                                                isUploading ? 'opacity-50 pointer-events-none' : ''
+                                                            }`}>
+                                                                <input 
+                                                                    type="file" 
+                                                                    accept="image/*"
+                                                                    className="hidden"
+                                                                    onChange={(e) => {
+                                                                        const file = e.target.files?.[0];
+                                                                        if (file) handleUploadFile(item.id, file);
+                                                                    }}
+                                                                />
+                                                                <ImageIcon size={12} className="text-slate-550 shrink-0" />
+                                                                <span className="text-[9px] font-bold text-slate-650 uppercase tracking-wider shrink-0">
+                                                                    {isUploading ? '...' : 'Subir'}
+                                                                </span>
+                                                            </label>
+                                                            <input 
+                                                                type="text" 
+                                                                value={itemImageUrls[item.id] || ''}
+                                                                onChange={(e) => setItemImageUrls(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                                                placeholder="Pegar URL de imagen..."
+                                                                className="flex-1 min-w-0 text-xs px-2.5 py-2 border border-slate-200 rounded-xl font-mono focus:outline-none focus:border-cyan-500"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Right Side: Action Save Button */}
+                                                <div className={isList ? "flex xl:flex-col justify-end gap-2 xl:self-center shrink-0" : "w-full"}>
+                                                    <button
+                                                        onClick={() => handleSaveItemWebFields(item.id, item.type)}
+                                                        disabled={isSaving || isUploading}
+                                                        className="bg-slate-900 hover:bg-slate-850 disabled:bg-slate-350 text-white text-[9px] font-black px-4 py-3 rounded-xl uppercase tracking-wider transition-all hover:scale-[1.02] shadow cursor-pointer flex items-center justify-center gap-1.5 w-full xl:w-auto shrink-0"
+                                                    >
+                                                        {isSaving ? (
+                                                            <>
+                                                                <RefreshCw className="animate-spin" size={10} />
+                                                                <span>...</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Save size={10} />
+                                                                <span>Guardar</span>
+                                                            </>
+                                                        )}
+                                                    </button>
                                                 </div>
                                             </div>
-                                            
-                                            <div className="space-y-0.5">
-                                                <span className="text-xs font-bold text-slate-900 block leading-tight">{item.name}</span>
-                                                <span className="text-[10px] text-slate-500 block">Marca: {item.brand} | Modelo: {item.model}</span>
-                                                {item.cost && (
-                                                    <span className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded-md font-mono inline-block">
-                                                        Costo Adquisición: L. {item.cost.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
-                                        <div className="flex flex-col gap-1.5 sm:w-80 shrink-0">
-                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Enlace de Imagen Premium (Web)</label>
-                                            <div className="flex gap-1.5">
-                                                <input 
-                                                    type="text" 
-                                                    value={itemImageUrls[item.id] || ''}
-                                                    onChange={(e) => setItemImageUrls(prev => ({ ...prev, [item.id]: e.target.value }))}
-                                                    placeholder="URL de imagen comercial (https://...)"
-                                                    className="w-full text-xs p-1.5 border border-slate-200 rounded-lg bg-white font-mono"
-                                                />
-                                                <button
-                                                    onClick={() => handleSaveItemImage(item.id, item.type)}
-                                                    disabled={updatingImageId === item.id}
-                                                    className="bg-brand-600 hover:bg-brand-700 text-white text-[10px] font-bold px-3 py-1.5 rounded-lg shrink-0"
-                                                >
-                                                    {updatingImageId === item.id ? 'Guardando...' : 'Aplicar'}
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-
-                                {searchQuery && searchResults.length === 0 && !loadingSearch && (
-                                    <div className="text-center py-6 text-slate-400 text-xs">No se encontraron equipos para la búsqueda. Intenta con palabras clave como "incubadora", "monitor", etc.</div>
-                                )}
-                            </div>
+                            {searchResults.length === 0 && !loadingSearch && (
+                                <div className="text-center py-10 border border-dashed rounded-3xl text-slate-400 text-xs">
+                                    {searchQuery 
+                                        ? 'No se encontraron equipos ni repuestos para la búsqueda. Intenta con palabras clave como "incubadora", "monitor", "canula", etc.'
+                                        : 'No hay productos disponibles en el catálogo.'}
+                                </div>
+                            )}
                         </div>
-                    </div>
-                )}
+                            
+                            {/* Pagination Controls */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center gap-4 pt-6 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        disabled={currentPage <= 1 || loadingSearch}
+                                        onClick={() => setCurrentPage(p => p - 1)}
+                                        className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
+                                    >
+                                        Anterior
+                                    </button>
+                                    <span className="text-xs text-slate-500 font-medium">
+                                        Página <strong>{currentPage}</strong> de <strong>{totalPages}</strong>
+                                    </span>
+                                    <button
+                                        type="button"
+                                        disabled={currentPage >= totalPages || loadingSearch}
+                                        onClick={() => setCurrentPage(p => p + 1)}
+                                        className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
+                                    >
+                                        Siguiente
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                 {/* TAB 5: General Landing Info Settings */}
                 {activeTab === 'general' && (
@@ -1542,6 +1818,236 @@ export default function GestionWebClient({
                         </div>
                     </div>
                 )}
+
+                {/* Product Detailed Sheet Modal */}
+                {selectedItem && (() => {
+                    const isSaving = updatingImageId === selectedItem.id;
+                    const isUploading = uploadingItemId === selectedItem.id;
+                    
+                    return (
+                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in animate-duration-200">
+                            <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden relative animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+                                {/* Header / Top Ribbon */}
+                                <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex justify-between items-center shrink-0">
+                                    <div className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                                selectedItem.type === 'activo' 
+                                                    ? 'bg-cyan-50 text-cyan-600 border border-cyan-100' 
+                                                    : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                                            }`}>
+                                                {selectedItem.type === 'activo' ? 'Equipo Físico' : 'Consumible / Repuesto'}
+                                            </span>
+                                            <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-200/50 px-2 py-0.5 rounded-md">
+                                                {selectedItem.code}
+                                            </span>
+                                        </div>
+                                        <h3 className="font-extrabold text-base text-slate-900 leading-tight">
+                                            {selectedItem.name}
+                                        </h3>
+                                    </div>
+                                    <button 
+                                        onClick={() => setSelectedItem(null)}
+                                        className="p-1.5 hover:bg-slate-200 rounded-xl text-slate-400 hover:text-slate-700 transition-colors"
+                                    >
+                                        <X size={18} />
+                                    </button>
+                                </div>
+
+                                {/* Scrollable Body */}
+                                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                                    {/* Images Preview Section */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                        {/* Column 1: Original Inventory Photo */}
+                                        <div className="border border-slate-200 rounded-2xl p-4 bg-slate-50/50 space-y-2 flex flex-col items-center">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">
+                                                Foto de Inventario (Interna)
+                                            </span>
+                                            <div className="relative w-full aspect-video rounded-xl bg-slate-100 border overflow-hidden flex items-center justify-center shadow-inner">
+                                                {selectedItem.imageUrl ? (
+                                                    <img src={selectedItem.imageUrl} alt="Foto original" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <ImageIcon className="text-slate-350" size={32} />
+                                                )}
+                                                <span className="absolute bottom-2 left-2 bg-slate-900/80 text-[8px] text-white font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                                    Original IA Vision
+                                                </span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-400 text-center italic mt-1">
+                                                {selectedItem.imageUrl ? "Foto tomada en campo o taller." : "No se ha subido foto en el inventario interno."}
+                                            </p>
+                                        </div>
+
+                                        {/* Column 2: Web Public Photo */}
+                                        <div className="border border-slate-200 rounded-2xl p-4 bg-gradient-to-br from-cyan-50/20 to-blue-50/20 space-y-3 flex flex-col items-center">
+                                            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">
+                                                Imagen en la Web (Pública)
+                                            </span>
+                                            <div className="relative w-full aspect-video rounded-xl bg-slate-100 border overflow-hidden flex items-center justify-center shadow-inner">
+                                                {itemImageUrls[selectedItem.id] ? (
+                                                    <img src={itemImageUrls[selectedItem.id]} alt="Foto web" className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <ImageIcon className="text-slate-350" size={32} />
+                                                )}
+                                                <span className="absolute bottom-2 left-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-[8px] text-white font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                                    Vista en Catálogo
+                                                </span>
+                                                {itemImageUrls[selectedItem.id] && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setItemImageUrls(prev => ({ ...prev, [selectedItem.id]: '' }))}
+                                                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow shadow-red-500/25"
+                                                        title="Eliminar imagen personalizada"
+                                                    >
+                                                        <X size={12} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Edit Controls Directly inside the Photo Box! */}
+                                            <div className="w-full space-y-1.5 pt-1">
+                                                <div className="flex gap-1.5 w-full">
+                                                    <label className={`flex items-center justify-center gap-1.5 px-3 py-2 border border-slate-200 rounded-xl cursor-pointer hover:bg-slate-50 bg-white transition-all hover:border-slate-300 shrink-0 ${
+                                                        isUploading ? 'opacity-50 pointer-events-none' : ''
+                                                    }`}>
+                                                        <input 
+                                                            type="file" 
+                                                            accept="image/*"
+                                                            className="hidden"
+                                                            onChange={(e) => {
+                                                                const file = e.target.files?.[0];
+                                                                if (file) handleUploadFile(selectedItem.id, file);
+                                                            }}
+                                                        />
+                                                        <ImageIcon size={11} className="text-slate-550 shrink-0" />
+                                                        <span className="text-[10px] font-bold text-slate-650 uppercase tracking-wider shrink-0">
+                                                            {isUploading ? '...' : 'Subir'}
+                                                        </span>
+                                                    </label>
+                                                    <input 
+                                                        type="text" 
+                                                        value={itemImageUrls[selectedItem.id] || ''}
+                                                        onChange={(e) => setItemImageUrls(prev => ({ ...prev, [selectedItem.id]: e.target.value }))}
+                                                        placeholder="Pegar enlace de imagen..."
+                                                        className="flex-1 min-w-0 text-xs px-2.5 py-2 border border-slate-200 rounded-xl font-mono bg-white focus:outline-none focus:border-cyan-500 transition-all text-slate-700"
+                                                    />
+                                                </div>
+                                                <p className="text-[9px] text-slate-400 text-center font-medium leading-normal">
+                                                    {itemImageUrls[selectedItem.id] 
+                                                        ? "Imagen comercial activa. Haz clic en Guardar abajo para aplicar." 
+                                                        : "Actualmente usa la foto interna como fallback."}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Technical details Section */}
+                                    <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/30 space-y-3">
+                                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b pb-1">
+                                            Información y Atributos Técnicos
+                                        </h4>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase block">Marca</span>
+                                                <span className="text-xs font-bold text-slate-800">{selectedItem.brand}</span>
+                                            </div>
+                                            <div>
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase block">Modelo</span>
+                                                <span className="text-xs font-bold text-slate-800">{selectedItem.model}</span>
+                                            </div>
+                                            {selectedItem.type === 'activo' && selectedItem.cost !== null && (
+                                                <div>
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase block">Costo de Adquisición</span>
+                                                    <span className="text-xs font-mono font-bold text-slate-800">
+                                                        L {selectedItem.cost.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <div>
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase block">Identificador QR / SKU</span>
+                                                <span className="text-xs font-mono font-bold text-slate-750">{selectedItem.code}</span>
+                                            </div>
+                                        </div>
+
+                                        {selectedItem.internalDescription && (
+                                            <div className="pt-2">
+                                                <span className="text-[9px] font-bold text-slate-400 uppercase block">Descripción Interna (Inventario)</span>
+                                                <p className="text-xs text-slate-600 leading-relaxed bg-white border p-2.5 rounded-xl mt-1 whitespace-pre-line">
+                                                    {selectedItem.internalDescription}
+                                                </p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Web personalization details Section */}
+                                    <div className="border border-slate-100 rounded-2xl p-4 bg-slate-50/30 space-y-4">
+                                        <h4 className="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b pb-1">
+                                            Datos del Catálogo Comercial (Público)
+                                        </h4>
+                                        
+                                        <div className="space-y-3">
+                                            {/* Input: Título Web */}
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Título en la Web</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={itemWebTitles[selectedItem.id] || ''}
+                                                    onChange={(e) => setItemWebTitles(prev => ({ ...prev, [selectedItem.id]: e.target.value }))}
+                                                    placeholder={selectedItem.name}
+                                                    className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-cyan-500 font-semibold text-slate-800"
+                                                />
+                                            </div>
+
+                                            {/* Input: Descripción Web */}
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Descripción en la Web</label>
+                                                <textarea 
+                                                    value={itemWebDescriptions[selectedItem.id] || ''}
+                                                    onChange={(e) => setItemWebDescriptions(prev => ({ ...prev, [selectedItem.id]: e.target.value }))}
+                                                    placeholder={selectedItem.internalDescription || "Descripción comercial..."}
+                                                    rows={3}
+                                                    className="w-full text-xs px-3 py-2 border border-slate-200 rounded-xl bg-white focus:outline-none focus:border-cyan-500 leading-normal font-medium text-slate-600 resize-y"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Footer buttons */}
+                                <div className="bg-slate-50 border-t border-slate-100 px-6 py-4 flex justify-between gap-2 shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedItem(null)}
+                                        className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                                    >
+                                        Cerrar Ficha
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={async () => {
+                                            await handleSaveItemWebFields(selectedItem.id, selectedItem.type);
+                                        }}
+                                        disabled={isSaving || isUploading}
+                                        className="bg-slate-900 hover:bg-slate-850 disabled:bg-slate-350 text-white text-xs font-bold px-5 py-2 rounded-xl transition-all hover:scale-[1.02] shadow cursor-pointer flex items-center justify-center gap-1.5 shrink-0"
+                                    >
+                                        {isSaving ? (
+                                            <>
+                                                <RefreshCw className="animate-spin" size={12} />
+                                                <span>Guardando...</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Save size={12} />
+                                                <span>Guardar Cambios</span>
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
         </div>
     );

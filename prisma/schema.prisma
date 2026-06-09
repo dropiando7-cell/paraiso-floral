@@ -370,6 +370,9 @@ model ActivoFijo {
   costoAdq              Decimal?             @db.Decimal(12, 2)
   origenActivo          String?
   imagenUrl             String?
+  imagenWeb             String?
+  tituloWeb             String?
+  descripcionWeb        String?
   estadoDano            String?
   tipoIncidencia        String?
   accionRecomendada     String?
@@ -574,6 +577,9 @@ model Producto {
   sku                     String                 @unique
   nombre                  String
   descripcion             String?
+  imagenWeb               String?
+  tituloWeb               String?
+  descripcionWeb          String?
   marca                   String?
   modelo                  String?
   precioVenta             Decimal                @db.Decimal(12, 2)

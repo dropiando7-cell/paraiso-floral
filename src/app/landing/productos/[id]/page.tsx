@@ -31,14 +31,14 @@ async function getItemData(id: string) {
 
             return {
                 id: asset.id,
-                name: asset.descripcionCorta,
+                name: asset.tituloWeb || asset.descripcionCorta,
                 brand: asset.marca || 'Genérico',
                 model: asset.modelo || 'N/A',
                 code: asset.idQr,
-                imageUrl: asset.imagenUrl,
+                imageUrl: asset.imagenWeb || asset.imagenUrl,
                 type: 'activo' as const,
                 typeName: 'Equipo Médico / Activo',
-                description: asset.descripcionDetallada || '',
+                description: asset.descripcionWeb || asset.descripcionDetallada || '',
                 details
             };
         }
@@ -57,14 +57,14 @@ async function getItemData(id: string) {
 
             return {
                 id: product.id,
-                name: product.nombre,
+                name: product.tituloWeb || product.nombre,
                 brand: product.marca || 'Genérico',
                 model: product.modelo || 'N/A',
                 code: product.sku,
-                imageUrl: null,
+                imageUrl: product.imagenWeb || null,
                 type: 'producto' as const,
                 typeName: 'Consumible / Repuesto',
-                description: product.descripcion || '',
+                description: product.descripcionWeb || product.descripcion || '',
                 details
             };
         }

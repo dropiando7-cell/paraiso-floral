@@ -158,10 +158,14 @@ export async function searchInventoryItems(query: string) {
             select: {
                 id: true,
                 descripcionCorta: true,
+                descripcionDetallada: true,
                 marca: true,
                 modelo: true,
                 idQr: true,
                 imagenUrl: true,
+                imagenWeb: true,
+                tituloWeb: true,
+                descripcionWeb: true,
                 costoAdq: true
             }
         });
@@ -181,9 +185,13 @@ export async function searchInventoryItems(query: string) {
             select: {
                 id: true,
                 nombre: true,
+                descripcion: true,
                 marca: true,
                 modelo: true,
-                sku: true
+                sku: true,
+                imagenWeb: true,
+                tituloWeb: true,
+                descripcionWeb: true
             }
         });
 
@@ -192,20 +200,28 @@ export async function searchInventoryItems(query: string) {
             activos: activos.map(a => ({
                 id: a.id,
                 name: a.descripcionCorta,
+                internalDescription: a.descripcionDetallada || '',
                 brand: a.marca || 'N/A',
                 model: a.modelo || 'N/A',
                 code: a.idQr,
                 imageUrl: a.imagenUrl,
+                imagenWeb: a.imagenWeb || '',
+                tituloWeb: a.tituloWeb || '',
+                descripcionWeb: a.descripcionWeb || '',
                 type: 'activo' as const,
                 cost: a.costoAdq ? Number(a.costoAdq) : null
             })),
             productos: productos.map(p => ({
                 id: p.id,
                 name: p.nombre,
+                internalDescription: p.descripcion || '',
                 brand: p.marca || 'N/A',
                 model: p.modelo || 'N/A',
                 code: p.sku,
-                imageUrl: null, // No image field on Producto model
+                imageUrl: null, // No image field on original Producto model
+                imagenWeb: p.imagenWeb || '',
+                tituloWeb: p.tituloWeb || '',
+                descripcionWeb: p.descripcionWeb || '',
                 type: 'producto' as const,
                 cost: null
             }))
@@ -216,26 +232,215 @@ export async function searchInventoryItems(query: string) {
     }
 }
 
-export async function updateItemImage(id: string, type: 'activo' | 'producto', imageUrl: string) {
+export async function updateItemWebFields(
+    id: string,
+    type: 'activo' | 'producto',
+    fields: { imagenWeb?: string; tituloWeb?: string; descripcionWeb?: string }
+) {
     try {
         await checkAdminAuth();
+
+        const data: { imagenWeb?: string | null; tituloWeb?: string | null; descripcionWeb?: string | null } = {};
+
+        if (fields.imagenWeb !== undefined) data.imagenWeb = fields.imagenWeb.trim() || null;
+        if (fields.tituloWeb !== undefined) data.tituloWeb = fields.tituloWeb.trim() || null;
+        if (fields.descripcionWeb !== undefined) data.descripcionWeb = fields.descripcionWeb.trim() || null;
 
         if (type === 'activo') {
             await prisma.activoFijo.update({
                 where: { id },
-                data: { imagenUrl: imageUrl }
+                data
             });
         } else {
-            // Producto doesn't have an image field, but we can return success since we only do activos
-            throw new Error('Solo se puede actualizar la imagen para equipos físicos (Activos Fijos)');
+            await prisma.producto.update({
+                where: { id },
+                data
+            });
         }
 
         revalidatePath('/admin/gestion-web');
         revalidatePath('/landing');
         return { success: true };
     } catch (error: any) {
-        console.error('Error updating item image:', error);
-        return { success: false, error: error.message };
+        console.error('Error updating item web fields:', error);
+        return { success: false, error: error.message || 'Error al guardar los datos personalizados' };
+    }
+}
+
+export async function updateItemImage(id: string, type: 'activo' | 'producto', imageUrl: string) {
+    // Keep this as a wrapper for safety/backward compatibility, directing to updateItemWebFields
+    return updateItemWebFields(id, type, { imagenWeb: imageUrl });
+}
+
+export async function getPaginatedInventoryItems(page: number, limit: number, query = '') {
+    try {
+        const dbUser = await checkAdminAuth();
+        const search = query.trim();
+
+        // Asset filter
+        const assetsWhere: any = {
+            organizationId: dbUser.organizationId,
+            estatusContable: 'VIGENTE',
+            NOT: [
+                { area: { equals: 'SERVICIOS', mode: 'insensitive' } }
+            ]
+        };
+        if (search) {
+            assetsWhere.OR = [
+                { descripcionCorta: { contains: search, mode: 'insensitive' } },
+                { marca: { contains: search, mode: 'insensitive' } },
+                { modelo: { contains: search, mode: 'insensitive' } },
+                { idQr: { contains: search, mode: 'insensitive' } }
+            ];
+        }
+
+        // Product filter
+        const productsWhere: any = {
+            organizationId: dbUser.organizationId,
+            estado: 'ACTIVO',
+            esServicio: false
+        };
+        if (search) {
+            productsWhere.OR = [
+                { nombre: { contains: search, mode: 'insensitive' } },
+                { marca: { contains: search, mode: 'insensitive' } },
+                { modelo: { contains: search, mode: 'insensitive' } },
+                { sku: { contains: search, mode: 'insensitive' } }
+            ];
+        }
+
+        const assetsCount = await prisma.activoFijo.count({ where: assetsWhere });
+        const productsCount = await prisma.producto.count({ where: productsWhere });
+        const totalItems = assetsCount + productsCount;
+        const totalPages = Math.ceil(totalItems / limit);
+
+        const skip = (page - 1) * limit;
+        let items: any[] = [];
+
+        if (skip < assetsCount) {
+            // Fetch assets
+            const assets = await prisma.activoFijo.findMany({
+                where: assetsWhere,
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit,
+                select: {
+                    id: true,
+                    descripcionCorta: true,
+                    descripcionDetallada: true,
+                    marca: true,
+                    modelo: true,
+                    idQr: true,
+                    imagenUrl: true,
+                    imagenWeb: true,
+                    tituloWeb: true,
+                    descripcionWeb: true,
+                    costoAdq: true
+                }
+            });
+
+            items = assets.map(a => ({
+                id: a.id,
+                name: a.descripcionCorta,
+                internalDescription: a.descripcionDetallada || '',
+                brand: a.marca || 'N/A',
+                model: a.modelo || 'N/A',
+                code: a.idQr,
+                imageUrl: a.imagenUrl,
+                imagenWeb: a.imagenWeb || '',
+                tituloWeb: a.tituloWeb || '',
+                descripcionWeb: a.descripcionWeb || '',
+                type: 'activo' as const,
+                cost: a.costoAdq ? Number(a.costoAdq) : null
+            }));
+
+            // If we still have space in the page, fetch products
+            if (items.length < limit) {
+                const remaining = limit - items.length;
+                const products = await prisma.producto.findMany({
+                    where: productsWhere,
+                    orderBy: { createdAt: 'desc' },
+                    skip: 0,
+                    take: remaining,
+                    select: {
+                        id: true,
+                        nombre: true,
+                        descripcion: true,
+                        marca: true,
+                        modelo: true,
+                        sku: true,
+                        imagenWeb: true,
+                        tituloWeb: true,
+                        descripcionWeb: true
+                    }
+                });
+
+                items = [
+                    ...items,
+                    ...products.map(p => ({
+                        id: p.id,
+                        name: p.nombre,
+                        internalDescription: p.descripcion || '',
+                        brand: p.marca || 'N/A',
+                        model: p.modelo || 'N/A',
+                        code: p.sku,
+                        imageUrl: null,
+                        imagenWeb: p.imagenWeb || '',
+                        tituloWeb: p.tituloWeb || '',
+                        descripcionWeb: p.descripcionWeb || '',
+                        type: 'producto' as const,
+                        cost: null
+                    }))
+                ];
+            }
+        } else {
+            // Fetch only products
+            const productSkip = skip - assetsCount;
+            const products = await prisma.producto.findMany({
+                where: productsWhere,
+                orderBy: { createdAt: 'desc' },
+                skip: productSkip,
+                take: limit,
+                select: {
+                    id: true,
+                    nombre: true,
+                    descripcion: true,
+                    marca: true,
+                    modelo: true,
+                    sku: true,
+                    imagenWeb: true,
+                    tituloWeb: true,
+                    descripcionWeb: true
+                }
+            });
+
+            items = products.map(p => ({
+                id: p.id,
+                name: p.nombre,
+                internalDescription: p.descripcion || '',
+                brand: p.marca || 'N/A',
+                model: p.modelo || 'N/A',
+                code: p.sku,
+                imageUrl: null,
+                imagenWeb: p.imagenWeb || '',
+                tituloWeb: p.tituloWeb || '',
+                descripcionWeb: p.descripcionWeb || '',
+                type: 'producto' as const,
+                cost: null
+            }));
+        }
+
+        return {
+            success: true,
+            items,
+            totalItems,
+            totalPages,
+            currentPage: page
+        };
+
+    } catch (error: any) {
+        console.error('Error fetching paginated web inventory:', error);
+        return { success: false, error: error.message || 'Error al cargar catálogo' };
     }
 }
 
