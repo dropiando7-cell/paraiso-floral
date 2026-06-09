@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Settings, X, UploadCloud, Save, Search, Loader2, Plus, Layout, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Settings, X, UploadCloud, Save, Search, Loader2, Plus, Layout, CheckCircle2, AlertTriangle, Camera } from 'lucide-react';
 import { searchRepuestos, guardarDiagnostico } from '../actions';
+import { getAreas } from '../../admin/areas/actions';
 import { useRouter } from 'next/navigation';
 import { compressImage } from '@/utils/image';
 import { ActivoModal } from '../../inventario/InventarioClient';
@@ -18,7 +19,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
   const [repuestos, setRepuestos] = useState<any[]>(
     orderData?.repuestos?.map((r: any) => ({
       id: r.id,
-      productoId: r.productoId,
+      productoId: r.productoId || r.activoFijoId,
       descripcion: r.producto?.nombre || 'Producto Desconocido',
       codigo: r.producto?.sku || '-',
       cantidad: r.cantidad,
@@ -37,6 +38,8 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
   );
   const [activeTab, setActiveTab] = useState("repuestos");
   const fileRef2 = useRef<HTMLInputElement>(null);
+  const cameraFileRef = useRef<HTMLInputElement>(null);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
@@ -56,8 +59,7 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
   };
 
   useEffect(() => {
-    fetch('/api/areas')
-      .then(r => r.json())
+    getAreas()
       .then(res => setDbAreas(res))
       .catch(e => console.error("Error fetching areas for ActivoModal:", e));
   }, []);
@@ -379,26 +381,53 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
 
         {activeTab === "fotos" && (
           <div>
-            <div onClick={() => fileRef2.current?.click()} 
-              onDrop={e => { 
-                e.preventDefault(); 
-                if(e.dataTransfer.files) {
-                   const files = Array.from(e.dataTransfer.files).map(f => ({name:f.name,url:URL.createObjectURL(f), file: f})); 
-                   setFotoFalla(p=>[...p,...files]); 
-                }
-              }}
-              onDragOver={e => e.preventDefault()}
-              className="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-indigo-400 transition-colors mb-4">
-              <input ref={fileRef2} type="file" multiple accept="image/*" className="hidden" onChange={e => {
-                if(!e.target.files) return;
-                const files = Array.from(e.target.files).map(f => ({name:f.name,url:URL.createObjectURL(f), file: f}));
-                setFotoFalla(p=>[...p,...files]);
-              }}/>
-              <UploadCloud className="w-6 h-6 mx-auto mb-2 text-slate-400" />
-              <p className="m-0 text-[13px] text-slate-500 font-medium">
-                Arrastra fotos de la falla o <span className="text-indigo-600 font-bold">haz clic</span>
-              </p>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 mb-4">
+              <div 
+                onClick={() => fileRef2.current?.click()} 
+                onDrop={e => { 
+                  e.preventDefault(); 
+                  if(e.dataTransfer.files) {
+                     const files = Array.from(e.dataTransfer.files).map(f => ({name:f.name,url:URL.createObjectURL(f), file: f})); 
+                     setFotoFalla(p=>[...p,...files]); 
+                  }
+                }}
+                onDragOver={e => e.preventDefault()}
+                className="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-indigo-400 transition-colors flex flex-col items-center justify-center min-h-[96px]"
+              >
+                <input ref={fileRef2} type="file" multiple accept="image/*" className="hidden" onChange={e => {
+                  if(!e.target.files) return;
+                  const files = Array.from(e.target.files).map(f => ({name:f.name,url:URL.createObjectURL(f), file: f}));
+                  setFotoFalla(p=>[...p,...files]);
+                }}/>
+                <UploadCloud className="w-5 h-5 mb-1 text-slate-400" />
+                <p className="m-0 text-xs text-slate-500 font-medium">
+                  Arrastra fotos o <span className="text-indigo-600 font-bold">selecciona de la galería</span>
+                </p>
+              </div>
+
+              <div 
+                onClick={() => cameraFileRef.current?.click()} 
+                className="border-2 border-dashed border-slate-300 rounded-xl p-5 text-center cursor-pointer bg-slate-50 hover:bg-slate-100 hover:border-indigo-400 transition-colors flex flex-col items-center justify-center min-h-[96px] sm:w-44"
+              >
+                <input 
+                  ref={cameraFileRef} 
+                  type="file" 
+                  accept="image/*" 
+                  capture="environment" 
+                  className="hidden" 
+                  onChange={e => {
+                    if(!e.target.files) return;
+                    const files = Array.from(e.target.files).map(f => ({name:f.name,url:URL.createObjectURL(f), file: f}));
+                    setFotoFalla(p=>[...p,...files]);
+                  }}
+                />
+                <Camera className="w-5 h-5 mb-1.5 text-indigo-650" />
+                <p className="m-0 text-xs text-indigo-650 font-extrabold">
+                  Tomar Foto (Cámara)
+                </p>
+              </div>
             </div>
+            
             <div className="flex flex-wrap gap-2">
               {fotoFalla.length === 0 && (
                 <div className="w-full text-center py-6 text-slate-400 text-xs font-medium bg-slate-50/50 rounded-xl border border-slate-100">
@@ -406,11 +435,20 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                 </div>
               )}
               {fotoFalla.map((p, i) => (
-                <div key={i} className="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 relative group">
-                  <SafeImage src={p.url} alt="" className="w-full h-full object-cover"/>
-                  <button onClick={() => setFotoFalla(pp => pp.filter((_,j)=>j!==i))}
-                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <X className="w-3 h-3" />
+                <div 
+                  key={i} 
+                  className="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 relative group cursor-pointer"
+                  onClick={() => setLightboxUrl(p.url)}
+                >
+                  <SafeImage src={p.url} alt="" className="w-full h-full object-cover hover:scale-105 transition-transform"/>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFotoFalla(pp => pp.filter((_,j)=>j!==i));
+                    }}
+                    className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <X className="w-3 h-3" />
                   </button>
                 </div>
               ))}
@@ -505,6 +543,28 @@ export default function TechnicalWorkbench({ orderData }: TechnicalWorkbenchProp
                 Aceptar
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {lightboxUrl && (
+        <div 
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <div className="relative max-w-4xl max-h-[85vh] w-full h-full flex items-center justify-center animate-in zoom-in-95 duration-200">
+            <button 
+              type="button"
+              onClick={() => setLightboxUrl(null)}
+              className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2 backdrop-blur-md transition-colors"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+            <SafeImage 
+              src={lightboxUrl} 
+              alt="Evidencia técnica" 
+              className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl border border-slate-700/20" 
+            />
           </div>
         </div>
       )}

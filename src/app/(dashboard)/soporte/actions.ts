@@ -401,7 +401,9 @@ export async function finalizarReparacion(id: string) {
 
         if (!order) throw new Error('Orden no encontrada');
 
-        // Deduct inventory
+        // NOTE: Inventory deduction only happens upon final invoice/proforma emission, not here.
+        // The technical workbench is just register-only for the service history.
+        /*
         for (const rep of order.repuestos) {
             if (rep.activoFijoId) {
                 await tx.activoFijo.update({
@@ -428,6 +430,7 @@ export async function finalizarReparacion(id: string) {
                 });
             }
         }
+        */
 
         return tx.ordenTrabajo.update({
             where: { id },
@@ -615,7 +618,6 @@ export async function aprobarPresupuesto(
                 fechaAprobado: new Date(),
                 usuarioAprobacionId: userId || undefined,
                 costoReparacion: costoFinalReparacion,
-                ...(detalleManoObraModificado ? { detalleManoObra: detalleManoObraModificado as any } : {})
             },
             include: { cliente: true, tecnicoReparacion: true }
         });
@@ -877,7 +879,6 @@ export async function generarPresupuestoReparacion(
                 data: {
                     estado: 'ESPERANDO_APROBACION',
                     costoReparacion: costoFinalReparacion,
-                    detalleManoObra: detalleManoObraModificado as any
                 }
             });
         });

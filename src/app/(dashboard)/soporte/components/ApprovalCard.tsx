@@ -33,14 +33,12 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
     })) || []
   );
 
-  const [manoObra, setManoObra] = useState<any[]>(
-    orderData?.detalleManoObra || []
-  );
+  const [manoObra, setManoObra] = useState<any[]>([]);
 
-  const costoManoObra = manoObra.reduce((s: number, h: any) => s + (h.horas * h.tarifa), 0) || 0;
+  const costoManoObra = 0;
   
   const totalRepuestosAprobados = repuestos.reduce((s, r) => s + (r.cantidad * Number(r.precioAprobado)), 0);
-  const costoTotalBase = totalRepuestosAprobados + costoManoObra; 
+  const costoTotalBase = totalRepuestosAprobados; 
 
   const subtotal = costoTotalBase;
   const itv = subtotal * 0.15;
@@ -75,21 +73,13 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
     const items: any[] = [];
     repuestos.forEach(r => {
       items.push({
-        productoId: r.productoId,
+        productoId: r.productoId || null,
+        activoId: r.activoFijoId || null,
         qty: r.cantidad,
         unitPrice: Number(r.precioAprobado),
         shortDesc: r.producto?.nombre,
         longDesc: 'Repuesto sugerido por técnico',
         tax: 'isv15'
-      });
-    });
-    manoObra.forEach(h => {
-      items.push({
-        qty: h.horas,
-        unitPrice: Number(h.tarifa),
-        shortDesc: h.descripcion,
-        longDesc: 'Mano de obra (horas)',
-        tax: 'isv15' // or exento depending on policy, assuming 15
       });
     });
     return items;
@@ -223,114 +213,66 @@ export default function ApprovalCard({ orderData, onApprove, onReject, isGerente
           </div>
       )}
 
-      <div className="bg-slate-50 rounded-xl p-3 md:p-4 mb-4">
-        <div className="text-[10px] md:text-[11px] font-bold text-slate-400 tracking-wider mb-2.5">
-          DESGLOSE Y AJUSTE DE PRECIOS
-        </div>
-        
-        {repuestos.length > 0 && (
-            <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
-              <table className="w-full text-left text-xs mb-3 min-w-[320px]">
-                <thead>
-                  <tr className="border-b border-slate-200">
-                    <th className="py-1 font-semibold text-slate-500">Repuesto</th>
-                    <th className="py-1 font-semibold text-slate-500 text-center">Cant</th>
-                    <th className="py-1 font-semibold text-slate-500 text-right">Costo Unit. (L)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {repuestos.map(r => (
-                    <tr key={r.id} className="border-b border-slate-100 last:border-0">
-                      <td className="py-1.5 text-slate-700">{r.producto?.nombre}</td>
-                      <td className="py-1.5 text-slate-700 text-center">{r.cantidad}</td>
-                      <td className="py-1.5 text-right">
-                        <input 
-                          type="number" 
-                          disabled={approved}
-                          className="w-20 text-right border border-slate-200 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-transparent disabled:border-transparent font-bold"
-                          value={r.precioAprobado}
-                          onChange={e => {
-                             const val = parseFloat(e.target.value) || 0;
-                             setRepuestos(p => p.map(x => x.id === r.id ? {...x, precioAprobado: val} : x));
-                          }}
-                        />
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      {facturaGeneradaId && (
+        <>
+          <div className="bg-slate-50 rounded-xl p-3 md:p-4 mb-4">
+            <div className="text-[10px] md:text-[11px] font-bold text-slate-400 tracking-wider mb-2.5">
+              DESGLOSE Y AJUSTE DE PRECIOS
             </div>
-        )}
-
-        {orderData?.detalleManoObra && orderData.detalleManoObra.length > 0 && (
-            <div className="mb-3 mt-4 border-t border-slate-200 pt-3">
-                <div className="text-[10px] md:text-[11px] font-bold text-slate-400 tracking-wider mb-2">MANO DE OBRA SUGERIDA</div>
+            
+            {repuestos.length > 0 && (
                 <div className="overflow-x-auto -mx-3 px-3 md:mx-0 md:px-0">
-                  <table className="w-full text-left text-xs mb-2 min-w-[320px]">
-                      <thead>
-                          <tr className="border-b border-slate-200">
-                              <th className="py-1 font-semibold text-slate-500">Actividad</th>
-                              <th className="py-1 font-semibold text-slate-500 text-center">Horas</th>
-                              <th className="py-1 font-semibold text-slate-500 text-right">Tarifa (L)</th>
-                          </tr>
-                      </thead>
-                      <tbody>
-                          {manoObra.map((h: any) => (
-                              <tr key={h.id} className="border-b border-slate-100 last:border-0">
-                                  <td className="py-1 text-slate-700">{h.descripcion}</td>
-                                  <td className="py-1 text-center">
-                                    <input 
-                                      type="number" 
-                                      disabled={approved}
-                                      className="w-16 text-center border border-slate-200 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-transparent disabled:border-transparent font-medium"
-                                      value={h.horas}
-                                      onChange={e => {
-                                         const val = parseFloat(e.target.value) || 0;
-                                         setManoObra(p => p.map(x => x.id === h.id ? {...x, horas: val} : x));
-                                      }}
-                                    />
-                                  </td>
-                                  <td className="py-1 text-right">
-                                    <input 
-                                      type="number" 
-                                      disabled={approved}
-                                      className="w-20 text-right border border-slate-200 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-transparent disabled:border-transparent font-bold"
-                                      value={h.tarifa}
-                                      onChange={e => {
-                                         const val = parseFloat(e.target.value) || 0;
-                                         setManoObra(p => p.map(x => x.id === h.id ? {...x, tarifa: val} : x));
-                                      }}
-                                    />
-                                  </td>
-                              </tr>
-                          ))}
-                      </tbody>
+                  <table className="w-full text-left text-xs mb-3 min-w-[320px]">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="py-1 font-semibold text-slate-500">Repuesto</th>
+                        <th className="py-1 font-semibold text-slate-500 text-center">Cant</th>
+                        <th className="py-1 font-semibold text-slate-500 text-right">Costo Unit. (L)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {repuestos.map(r => (
+                        <tr key={r.id} className="border-b border-slate-100 last:border-0">
+                          <td className="py-1.5 text-slate-700">{r.producto?.nombre}</td>
+                          <td className="py-1.5 text-slate-700 text-center">{r.cantidad}</td>
+                          <td className="py-1.5 text-right">
+                            <input 
+                              type="number" 
+                              disabled={approved}
+                              className="w-20 text-right border border-slate-200 rounded px-1 py-0.5 outline-none focus:ring-1 focus:ring-indigo-500 disabled:bg-transparent disabled:border-transparent font-bold"
+                              value={r.precioAprobado}
+                              onChange={e => {
+                                 const val = parseFloat(e.target.value) || 0;
+                                 setRepuestos(p => p.map(x => x.id === r.id ? {...x, precioAprobado: val} : x));
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
                   </table>
                 </div>
+            )}
+
+            <div className="flex justify-between items-center pt-2 border-t border-slate-200 mt-3">
+                <span className="text-xs text-slate-900 font-bold">Costo Base Total</span>
+                <span className="text-xs text-slate-900 font-bold">L {costoTotalBase.toFixed(2)}</span>
             </div>
-        )}
-
-        <div className="flex justify-between items-center mb-1 mt-3">
-            <span className="text-xs text-slate-500 font-medium">Total Mano de Obra Sugerida</span>
-            <span className="text-xs text-slate-800 font-bold">L {costoManoObra.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between items-center pt-2 border-t border-slate-200">
-            <span className="text-xs text-slate-900 font-bold">Costo Base Total</span>
-            <span className="text-xs text-slate-900 font-bold">L {costoTotalBase.toFixed(2)}</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 mb-4 mt-2">
-        {[
-          ["Subtotal (Costo Base)", `L ${subtotal.toFixed(2)}`, "bg-indigo-50", "text-indigo-600"],
-          ["Total + ITV", `L ${totalFinal.toFixed(2)}`, "bg-orange-50", "text-orange-600"],
-        ].map(([label, value, bg, color]) => (
-          <div key={label} className={`${bg} rounded-xl p-3.5 text-center flex flex-col justify-between`}>
-            <div className={`text-[9px] md:text-[10px] ${color} font-bold mb-1 leading-tight uppercase`}>{label}</div>
-            <div className={`text-[11px] md:text-xs ${color} font-black truncate`}>{value}</div>
           </div>
-        ))}
-      </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-4 mt-2">
+            {[
+              ["Subtotal (Costo Base)", `L ${subtotal.toFixed(2)}`, "bg-indigo-50", "text-indigo-600"],
+              ["Total + ITV", `L ${totalFinal.toFixed(2)}`, "bg-orange-50", "text-orange-600"],
+            ].map(([label, value, bg, color]) => (
+              <div key={label} className={`${bg} rounded-xl p-3.5 text-center flex flex-col justify-between`}>
+                <div className={`text-[9px] md:text-[10px] ${color} font-bold mb-1 leading-tight uppercase`}>{label}</div>
+                <div className={`text-[11px] md:text-xs ${color} font-black truncate`}>{value}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="mb-4">
         <textarea 

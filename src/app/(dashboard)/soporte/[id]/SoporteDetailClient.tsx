@@ -421,7 +421,7 @@ export default function SoporteDetailClient({
                   }`}
                 >
                   <Smartphone className="w-3.5 h-3.5" />
-                  {recepcionTwilioSent ? "Notificación de Recepción Enviada ✓" : "Avisar Recepción por Twilio WhatsApp"}
+                  {recepcionTwilioSent ? "Notificación de Recepción Enviada ✓" : "Avisar Recepción por WhatsApp"}
                 </button>
                 
                 <button 
@@ -1059,7 +1059,7 @@ export default function SoporteDetailClient({
           <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <h3 className="font-extrabold text-slate-800 text-xs md:text-sm flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-indigo-600" /> Vista Previa del Mensaje (Twilio)
+                <Smartphone className="w-5 h-5 text-indigo-600" /> Vista Previa del Mensaje (WhatsApp)
               </h3>
               <button 
                 onClick={() => setIsPreviewRecepcionTwilioOpen(false)} 
@@ -1128,7 +1128,7 @@ export default function SoporteDetailClient({
                 ) : (
                   <Send className="w-3.5 h-3.5" />
                 )}
-                Enviar Mensaje Twilio
+                Enviar por WhatsApp
               </button>
             </div>
           </div>
