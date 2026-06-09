@@ -114,14 +114,47 @@ export function InactivityGuard({ children, enabled = true }: { children: React.
     /* ── Verificar validez de la sesión al enfocar ventana ────────────────── */
     useEffect(() => {
         const supabase = createClient();
+        let isChecking = false;
+        let lastCheckTime = 0;
+
         const checkSession = async () => {
+            const now = Date.now();
+            // Evitar validaciones concurrentes y espaciar consultas (mínimo 15 segundos entre comprobaciones)
+            if (isChecking || (now - lastCheckTime < 15000)) {
+                return;
+            }
+
+            isChecking = true;
+            lastCheckTime = now;
+
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    console.error("InactivityGuard: Error al verificar sesión en focus:", error);
+                    
+                    // Si es un error de red o de límite de solicitudes (rate limit), NO cerrar sesión
+                    const isTransientError = 
+                        error.status === 429 || 
+                        error.status === 500 || 
+                        error.status === 503 ||
+                        error.message?.toLowerCase().includes('fetch') ||
+                        error.message?.toLowerCase().includes('network') ||
+                        error.message?.toLowerCase().includes('rate limit') ||
+                        error.message?.toLowerCase().includes('rate_limit');
+
+                    if (isTransientError) {
+                        return; // Omitir redirección y mantener sesión activa
+                    }
+                }
+
                 if (!session) {
                     router.push('/login');
                 }
             } catch (e) {
-                console.error("InactivityGuard: Error al verificar sesión en focus:", e);
+                console.error("InactivityGuard: Error inesperado al verificar sesión en focus:", e);
+            } finally {
+                isChecking = false;
             }
         };
 

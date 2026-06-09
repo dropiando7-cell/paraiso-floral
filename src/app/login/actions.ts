@@ -30,7 +30,18 @@ export async function login(formData: FormData) {
     })
 
     if (error) {
-        return { error: error.message }
+        let errorMsg = error.message;
+        const lowerMsg = errorMsg.toLowerCase();
+        
+        if (error.status === 429 || lowerMsg.includes('rate limit') || lowerMsg.includes('rate_limit')) {
+            errorMsg = 'Se ha alcanzado el límite de solicitudes. Por favor, espera unos minutos e intenta de nuevo.';
+        } else if (lowerMsg.includes('invalid login credentials') || lowerMsg.includes('invalid credentials')) {
+            errorMsg = 'Correo o contraseña incorrectos. Por favor, verifica tus datos.';
+        } else if (lowerMsg.includes('email not confirmed')) {
+            errorMsg = 'El correo electrónico no ha sido verificado aún.';
+        }
+        
+        return { error: errorMsg }
     }
 
     revalidatePath('/', 'layout')

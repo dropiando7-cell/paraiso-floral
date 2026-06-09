@@ -813,6 +813,46 @@ export async function previewIdQr(area: string, codigoGrupo: string = '001'): Pr
     }
 }
 
+export async function generateNextServiceCode(prefix: string): Promise<string> {
+    try {
+        console.log('[SERVER_SERVICE] generateNextServiceCode called with prefix:', prefix);
+        const orgId = await getOrgId();
+        console.log('[SERVER_SERVICE] orgId:', orgId);
+        
+        // Buscar todos los activos fijos que empiecen con el prefijo + "-" en esa organización
+        const services = await prisma.activoFijo.findMany({
+            where: {
+                organizationId: orgId,
+                idQr: { startsWith: `${prefix}-` }
+            },
+            select: { idQr: true }
+        });
+        console.log('[SERVER_SERVICE] found services count:', services.length);
+
+        let maxCorrelativo = 0;
+        const regex = new RegExp(`^${prefix}-(\\d+)$`);
+        for (const s of services) {
+            const match = s.idQr.match(regex);
+            if (match) {
+                const num = Number(match[1]);
+                if (num > maxCorrelativo) {
+                    maxCorrelativo = num;
+                }
+            }
+        }
+        console.log('[SERVER_SERVICE] maxCorrelativo:', maxCorrelativo);
+
+        const nextNum = maxCorrelativo + 1;
+        const nextCode = `${prefix}-${String(nextNum).padStart(3, '0')}`;
+        console.log('[SERVER_SERVICE] generated code:', nextCode);
+        // Formatear como PREFIX-00X (rellenado con ceros a 3 dígitos)
+        return nextCode;
+    } catch (err) {
+        console.error("[SERVER_SERVICE] Error generating next service code:", err);
+        return `${prefix}-001`;
+    }
+}
+
 export async function checkGrupoExists(codigoGrupo: string): Promise<boolean> {
     const orgId = await getOrgId();
     const exists = await prisma.activoFijo.findFirst({

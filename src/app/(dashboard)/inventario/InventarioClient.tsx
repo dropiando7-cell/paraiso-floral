@@ -14,7 +14,7 @@ import {
     getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, 
     encolarCopiasNiimbot, getCategorias, createCategoria, updateCategoria, checkExistingByBarcode, 
     getActivosByGrupo, updateActivoQuick, checkGrupoExists, getActivosByIdQr, 
-    searchActivosGlobal
+    searchActivosGlobal, generateNextServiceCode
 } from './actions';
 import { completarReparacionActivo } from './garantias/actions';
 import toast from 'react-hot-toast';
@@ -862,6 +862,38 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setIsServiceMode(false);
         }
     }, [tipoRegistro]);
+
+    // Obtener el prefijo del código de servicio basado en el icono seleccionado
+    const getServicePrefix = (img: string) => {
+        if (img.includes('soporte')) return 'SOP';
+        if (img.includes('envio')) return 'ENV';
+        if (img.includes('garantia')) return 'GAR';
+        if (img.includes('software')) return 'SW';
+        return 'REP'; // Prefijo por defecto para Mantenimiento (MANT.)
+    };
+
+    // Auto-generar código correlativo de servicio cuando se entra en modo servicio o cambia el icono
+    useEffect(() => {
+        console.log('[DEBUG_SERVICE] useEffect triggered. isServiceMode:', isServiceMode, 'isEdit:', isEdit, 'imagenUrl:', imagenUrl);
+        if (isServiceMode && !isEdit) {
+            const activeIcon = imagenUrl || '/services/mantenimiento.svg';
+            const prefix = getServicePrefix(activeIcon);
+            console.log('[DEBUG_SERVICE] calculated prefix:', prefix);
+            
+            const fetchServiceCode = async () => {
+                try {
+                    console.log('[DEBUG_SERVICE] calling generateNextServiceCode with prefix:', prefix);
+                    const nextCode = await generateNextServiceCode(prefix);
+                    console.log('[DEBUG_SERVICE] generateNextServiceCode resolved:', nextCode);
+                    setCodigoBarras(nextCode);
+                } catch (err) {
+                    console.error('[DEBUG_SERVICE] Error al generar código correlativo de servicio:', err);
+                }
+            };
+            
+            fetchServiceCode();
+        }
+    }, [isServiceMode, imagenUrl, isEdit]);
     const [compatibilidad, setCompatibilidad] = useState<string[]>(isEdit && editActivo ? editActivo.compatibilidad || [] : []);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const [tagInput, setTagInput] = useState('');
