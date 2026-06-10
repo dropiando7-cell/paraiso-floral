@@ -1,14 +1,15 @@
 'use client';
 
-import { useState, useTransition, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Save, CheckCircle2, AlertTriangle, Camera, Upload, Trash2, Text, ShieldAlert, BadgeDollarSign, HeartPulse, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { processRecepcion } from '../../actions';
+import { toast } from 'react-hot-toast';
 
 export default function RecepcionClient({ renta }: { renta: any }) {
     const router = useRouter();
-    const [isPending, startTransition] = useTransition();
+    const [isSaving, setIsSaving] = useState(false);
 
     const [recepcionFotos, setRecepcionFotos] = useState<string[]>([]);
     const [uploadingFotos, setUploadingFotos] = useState(false);
@@ -92,15 +93,16 @@ export default function RecepcionClient({ renta }: { renta: any }) {
             fd.append('depositoDevuelto', depositoDevuelto.toString());
         }
 
-        startTransition(async () => {
-            try {
-                await processRecepcion(fd);
-                router.push('/rentas');
-                router.refresh();
-            } catch (err) {
-                alert('Error al procesar la recepción');
-            }
-        });
+        setIsSaving(true);
+        try {
+            await processRecepcion(fd);
+            toast.success('Recepción de equipo registrada correctamente');
+            router.push('/rentas');
+        } catch (err) {
+            console.error("Error al procesar recepción:", err);
+            toast.error('Error al procesar la recepción');
+            setIsSaving(false);
+        }
     }
 
     return (
@@ -282,11 +284,11 @@ export default function RecepcionClient({ renta }: { renta: any }) {
                         <div className="pt-6 mt-6 border-t border-slate-100">
                             <button 
                                 type="submit" 
-                                disabled={isPending}
+                                disabled={isSaving}
                                 className="w-full py-4 bg-[#0500A3] hover:bg-blue-800 text-white font-black text-lg rounded-xl shadow-lg transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2"
                             >
-                                {isPending ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
-                                {isPending ? 'Guardando Recepción...' : 'Completar Recepción del Equipo'}
+                                {isSaving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Save className="w-6 h-6" />}
+                                {isSaving ? 'Guardando Recepción...' : 'Completar Recepción del Equipo'}
                             </button>
                         </div>
                     </form>

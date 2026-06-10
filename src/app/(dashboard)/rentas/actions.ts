@@ -3,6 +3,8 @@
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
+import { revalidatePath } from 'next/cache';
+
 
 export async function getRentas() {
     const supabase = await createClient();
@@ -189,5 +191,6 @@ export async function processRecepcion(data: FormData) {
         }
     });
 
+    revalidatePath('/rentas');
     return true;
 }
