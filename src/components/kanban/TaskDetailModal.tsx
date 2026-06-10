@@ -674,6 +674,36 @@ export default function TaskDetailModal({
         }
     };
 
+    // Paste handler for Ctrl+V screenshots
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const handlePaste = async (e: ClipboardEvent) => {
+            const items = e.clipboardData?.items;
+            if (!items) return;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        toast.loading('Subiendo captura de pantalla...', { id: 'paste-upload' });
+                        try {
+                            const renamedFile = new File([file], `captura_${Date.now()}.png`, { type: 'image/png' });
+                            await handleFileUpload(renamedFile);
+                            toast.success('Captura de pantalla subida', { id: 'paste-upload' });
+                        } catch (err) {
+                            toast.error('Error al subir captura', { id: 'paste-upload' });
+                        }
+                    }
+                }
+            }
+        };
+
+        window.addEventListener('paste', handlePaste);
+        return () => {
+            window.removeEventListener('paste', handlePaste);
+        };
+    }, [isOpen, task.id]);
+
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(true);

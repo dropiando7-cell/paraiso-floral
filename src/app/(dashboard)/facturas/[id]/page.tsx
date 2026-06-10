@@ -61,6 +61,10 @@ export default async function EditDocumentPage({
             });
             if (ordenTrabajo) {
                 const manoObraArr = Array.isArray(ordenTrabajo.detalleManoObra) ? (ordenTrabajo.detalleManoObra as any[]) : [];
+                const esRevisionPagada = Number(ordenTrabajo.costoRevision) > 0 && 
+                                         ordenTrabajo.metodoPagoRevision && 
+                                         ordenTrabajo.metodoPagoRevision !== 'Ninguno';
+                
                 doc = {
                     tipoDocumento: 'FACTURA',
                     estado: 'BORRADOR',
@@ -87,7 +91,15 @@ export default async function EditDocumentPage({
                             precioUnitario: Number(m.tarifa || 0),
                             totalDescuento: 0,
                             totalLinea: (m.horas || 1) * Number(m.tarifa || 0)
-                        }))
+                        })),
+                        ...(esRevisionPagada ? [{
+                            porcentajeIsv: 0,
+                            descripcion: 'Abono/Crédito por Costo de Revisión Ya Pagado',
+                            cantidad: 1,
+                            precioUnitario: -Number(ordenTrabajo.costoRevision),
+                            totalDescuento: 0,
+                            totalLinea: -Number(ordenTrabajo.costoRevision)
+                        }] : [])
                     ]
                 };
             }
