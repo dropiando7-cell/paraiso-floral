@@ -36,9 +36,8 @@ export default function SoporteDetailClient({
   const role = userRole;
   const cRole = customRoleName?.toUpperCase() || '';
 
-  // Determine visible blocks based on role (for demo they used isGlobal/isYensi, we use real roles)
   const isGlobal = role === 'SUPER_ADMIN' || role === 'ORG_ADMIN';
-  const canDeleteOrder = isGlobal || accessibleModules.includes('eliminar_ordenes');
+  const canDeleteOrder = role === 'SUPER_ADMIN' || accessibleModules.includes('eliminar_ordenes');
   
   // Custom support admin check: super/org admin, emilia.zapata, or custom role names matching support admin keywords
   const isSoporteAdmin = isGlobal || 

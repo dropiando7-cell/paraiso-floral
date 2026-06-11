@@ -58,8 +58,7 @@ export default function SoporteClient({
 
     const role = userRole;
     const cRole = customRoleName?.toUpperCase() || '';
-    const isGlobal = role === 'SUPER_ADMIN' || role === 'ORG_ADMIN';
-    const canDeleteOrder = isGlobal || accessibleModules.includes('eliminar_ordenes');
+    const canDeleteOrder = role === 'SUPER_ADMIN' || accessibleModules.includes('eliminar_ordenes');
 
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
@@ -114,6 +113,7 @@ export default function SoporteClient({
                     if (res.success) {
                         toast.success("Orden de trabajo eliminada exitosamente.");
                         setOrdenes(prev => prev.filter(o => o.id !== ordenId));
+                        setEntregadas(prev => prev.filter(o => o.id !== ordenId));
                     } else {
                         toast.error("Error al eliminar la orden de trabajo.");
                     }
@@ -317,9 +317,24 @@ export default function SoporteClient({
                                             <span className="text-[10px] font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-2.5 py-0.5 rounded-full uppercase">
                                                 #{orden.codigoSeguridad}
                                             </span>
-                                            <span className="bg-green-100 text-green-800 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-green-200">
-                                                Entregado ✓
-                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-green-100 text-green-800 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-green-200">
+                                                    Entregado ✓
+                                                </span>
+                                                {canDeleteOrder && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleEliminarOrden(orden.id, orden.codigoSeguridad);
+                                                        }}
+                                                        className="p-1 text-red-500 hover:text-white hover:bg-red-600 rounded-lg transition-all border border-transparent hover:border-red-600 cursor-pointer active:scale-95"
+                                                        title="Eliminar Orden"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
 
                                         <h4 className="font-extrabold text-slate-850 text-[14px] flex items-center gap-2 mb-1.5">

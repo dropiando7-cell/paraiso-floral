@@ -23,22 +23,16 @@ export async function middleware(request: NextRequest) {
 
     if (isMainDomain) {
         // Redirect ERP system routes to the operational subdomain
-        const isSystemPath = 
-            url.pathname.startsWith('/login') ||
-            url.pathname.startsWith('/auth') ||
-            url.pathname.startsWith('/api') ||
-            url.pathname.startsWith('/print') ||
-            url.pathname.startsWith('/c/') ||
-            url.pathname.startsWith('/ficha-tecnica') ||
-            url.pathname.startsWith('/pos-kiosko') ||
-            url.pathname.startsWith('/nuevo-dash') ||
-            url.pathname.startsWith('/inventario') ||
-            url.pathname.startsWith('/rentas') ||
-            url.pathname.startsWith('/facturas') ||
-            url.pathname.startsWith('/cierre-caja') ||
-            url.pathname.startsWith('/contactos') ||
-            url.pathname.startsWith('/calendario') ||
-            url.pathname.startsWith('/graficas')
+        const systemPrefixes = [
+            '/login', '/auth', '/api', '/print', '/c/', '/ficha-tecnica',
+            '/pos-kiosko', '/nuevo-dash', '/inventario', '/rentas', '/facturas',
+            '/cierre-caja', '/contactos', '/calendario', '/graficas', '/admin',
+            '/boveda', '/caja-chica', '/checkin', '/conciliacion', '/configuracion',
+            '/cotizaciones', '/inventario-ia', '/kanban', '/medico', '/perfil',
+            '/precios', '/soporte', '/unauthorized', '/trazabilidad', '/debug-whatsapp',
+            '/diseno-v2', '/aprobar-presupuesto'
+        ]
+        const isSystemPath = systemPrefixes.some(prefix => url.pathname.startsWith(prefix))
 
         if (isSystemPath) {
             return NextResponse.redirect(`https://sistema.bioelectronicahn.com${url.pathname}${url.search}`)

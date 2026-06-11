@@ -1046,7 +1046,27 @@ export async function aprobarPresupuestoManualmente(ordenId: string) {
 }
 
 export async function eliminarOrdenTrabajo(ordenId: string) {
-    const orgId = await getOrgId();
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return { success: false, error: 'No autenticado.' };
+    }
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { role: true, accessibleModules: true, organizationId: true }
+    });
+
+    if (!dbUser) {
+        return { success: false, error: 'Usuario no encontrado.' };
+    }
+
+    const canDeleteOrder = dbUser.role === 'SUPER_ADMIN' || (dbUser.accessibleModules || []).includes('eliminar_ordenes');
+    if (!canDeleteOrder) {
+        return { success: false, error: 'No autorizado. Se requiere el privilegio "Soporte - Eliminar Órdenes".' };
+    }
+
+    const orgId = dbUser.organizationId;
     
     await prisma.$transaction(async (tx) => {
         // 1. Delete associated facturas (budget invoices) and their details will cascade delete
