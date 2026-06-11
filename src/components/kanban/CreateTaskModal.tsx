@@ -20,10 +20,14 @@ import {
     Volume2,
     Paperclip,
     Trash2,
-    Image as ImageIcon
+    Image as ImageIcon,
+    Plus
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
+import { useRouter } from 'next/navigation';
+import { addActivityTypeToSpace } from '@/app/(dashboard)/kanban/actions';
+
 
 const SIDEBAR_MODULES = [
     "Portal Bioelectrónica",
@@ -91,6 +95,7 @@ export default function CreateTaskModal({
     defaultStatus,
     onCreate
 }: CreateTaskModalProps) {
+    const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
     // Form states
@@ -148,7 +153,15 @@ export default function CreateTaskModal({
     const audioMediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioTimerIntervalRef = useRef<any>(null);
 
-    const activeSpace = spaces.find(s => s.id === selectedSpaceId) || spaces[0];
+    // Local spaces state to update dynamically when adding new activity types
+    const [localSpaces, setLocalSpaces] = useState<Space[]>(spaces);
+
+    useEffect(() => {
+        setLocalSpaces(spaces);
+    }, [spaces]);
+
+    const activeSpace = localSpaces.find(s => s.id === selectedSpaceId) || localSpaces[0];
+
 
     // Reset or update state when space changes
     useEffect(() => {
@@ -649,6 +662,29 @@ export default function CreateTaskModal({
         );
     };
 
+    const handleAddActivityTypePrompt = () => {
+        const name = prompt("Escribe el nombre del nuevo tipo de actividad (ej. Calibración):");
+        if (!name) return;
+        const trimmed = name.trim();
+        if (!trimmed) {
+            toast.error("El nombre no puede estar vacío");
+            return;
+        }
+
+        startTransition(async () => {
+            const res = await addActivityTypeToSpace(selectedSpaceId, trimmed);
+            if (res.success && res.tiposActividad) {
+                // Actualizar localSpaces
+                setLocalSpaces(prev => prev.map(s => s.id === selectedSpaceId ? { ...s, tiposActividad: res.tiposActividad! } : s));
+                setType(trimmed); // Seleccionar el nuevo tipo inmediatamente
+                toast.success(`Tipo de actividad "${trimmed}" agregado con éxito`);
+                router.refresh(); // Sincronizar servidor
+            } else {
+                toast.error(res.error || "Error al agregar tipo de actividad");
+            }
+        });
+    };
+
     const handleFormSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!title.trim()) {
@@ -820,17 +856,27 @@ export default function CreateTaskModal({
                                 onChange={(e) => setSelectedSpaceId(e.target.value)}
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none transition shadow-sm"
                             >
-                                {spaces.map(s => (
+                                {localSpaces.map(s => (
                                     <option key={s.id} value={s.id}>{s.nombre.toUpperCase()} ({s.clave})</option>
                                 ))}
                             </select>
                         </div>
 
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
-                                <Tag className="h-3 w-3 text-slate-400" />
-                                Tipo de Actividad *
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
+                                    <Tag className="h-3 w-3 text-slate-400" />
+                                    Tipo de Actividad *
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={handleAddActivityTypePrompt}
+                                    className="p-1 hover:bg-slate-100 rounded-lg text-brand-600 hover:text-brand-700 transition flex items-center justify-center cursor-pointer"
+                                    title="Agregar nuevo tipo de actividad"
+                                >
+                                    <Plus className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
                             <select
                                 value={type}
                                 onChange={(e) => setType(e.target.value)}

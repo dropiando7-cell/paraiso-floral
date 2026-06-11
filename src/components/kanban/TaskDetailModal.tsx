@@ -29,10 +29,12 @@ import {
     Play,
     Square,
     RefreshCw,
-    Volume2
+    Volume2,
+    Plus
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
+import { useRouter } from 'next/navigation';
 import { 
     getTaskCommentsAndAttachments, 
     createKanbanComment, 
@@ -40,8 +42,10 @@ import {
     updateKanbanComment,
     createKanbanAttachment, 
     deleteKanbanAttachment,
-    updateKanbanAttachmentDescription
+    updateKanbanAttachmentDescription,
+    addActivityTypeToSpace
 } from '@/app/(dashboard)/kanban/actions';
+
 
 interface Member {
     id: string;
@@ -113,6 +117,7 @@ interface Props {
     activities: any[];
     userRole?: string;
     tasks: { id: string; codigo: string; title: string }[];
+    spaceId: string;
 }
 
 export default function TaskDetailModal({
@@ -126,14 +131,23 @@ export default function TaskDetailModal({
     onDelete,
     activities,
     userRole,
-    tasks
+    tasks,
+    spaceId
 }: Props) {
+    const router = useRouter();
     const [isPending, startTransition] = useTransition();
     const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN';
     const [title, setTitle] = useState(task.title);
     const [description, setDescription] = useState(task.description);
     const [status, setStatus] = useState(task.status);
     const [type, setType] = useState(task.type);
+    
+    const [localTiposActividad, setLocalTiposActividad] = useState<string[]>(tiposActividad);
+
+    useEffect(() => {
+        setLocalTiposActividad(tiposActividad);
+    }, [tiposActividad]);
+
     const [priority, setPriority] = useState(task.priority);
     const [asignadoId, setAsignadoId] = useState(task.asignado?.id || '');
     const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.split('T')[0] : '');
@@ -811,6 +825,30 @@ export default function TaskDetailModal({
 
     if (!isOpen) return null;
 
+    const handleAddActivityTypePrompt = () => {
+        const name = prompt("Escribe el nombre del nuevo tipo de actividad (ej. Calibración):");
+        if (!name) return;
+        const trimmed = name.trim();
+        if (!trimmed) {
+            toast.error("El nombre no puede estar vacío");
+            return;
+        }
+
+        startTransition(async () => {
+            const res = await addActivityTypeToSpace(spaceId, trimmed);
+            if (res.success && res.tiposActividad) {
+                // Actualizar localTiposActividad
+                setLocalTiposActividad(res.tiposActividad);
+                // Cambiar el tipo de la tarea actual al nuevo tipo
+                handleFieldChange('type', trimmed);
+                toast.success(`Tipo de actividad "${trimmed}" agregado con éxito`);
+                router.refresh(); // Sincronizar servidor
+            } else {
+                toast.error(res.error || "Error al agregar tipo de actividad");
+            }
+        });
+    };
+
     // Actualizar campo individual de forma inmediata
     const handleFieldChange = (fieldName: string, value: any) => {
         startTransition(async () => {
@@ -1469,16 +1507,26 @@ export default function TaskDetailModal({
 
                         {/* Selector de Tipo */}
                         <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
-                                <Tag className="h-3 w-3" />
-                                Tipo de Actividad
-                            </label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
+                                    <Tag className="h-3 w-3" />
+                                    Tipo de Actividad
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={handleAddActivityTypePrompt}
+                                    className="p-1 hover:bg-slate-100 rounded-lg text-brand-600 hover:text-brand-700 transition flex items-center justify-center cursor-pointer"
+                                    title="Agregar nuevo tipo de actividad"
+                                >
+                                    <Plus className="h-3.5 w-3.5" />
+                                </button>
+                            </div>
                             <select
                                 value={type}
                                 onChange={(e) => handleFieldChange('type', e.target.value)}
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
                             >
-                                {tiposActividad.map((t) => {
+                                {localTiposActividad.map((t) => {
                                     const translateType = (typeStr: string) => {
                                         switch (typeStr) {
                                             case 'Task': return 'Tarea';

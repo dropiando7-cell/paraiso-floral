@@ -1507,6 +1507,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     activities={activities}
                     userRole={initialData.currentUserRole}
                     tasks={tasks.filter(t => t.id !== selectedTask.id).map(t => ({ id: t.id, codigo: t.codigo, title: t.title }))}
+                    spaceId={space.id}
                 />
             )}
 

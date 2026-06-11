@@ -1349,6 +1349,55 @@ export async function updateSpaceName(spaceId: string, nuevoNombre: string) {
     }
 }
 
+export async function addActivityTypeToSpace(spaceId: string, activityType: string) {
+    try {
+        const { user } = await getCurrentUserAndOrg();
+
+        const space = await prisma.kanbanSpace.findUnique({
+            where: { id: spaceId }
+        });
+
+        if (!space) throw new Error('Espacio de trabajo no encontrado');
+
+        const trimmedType = activityType.trim();
+        if (!trimmedType) throw new Error('El tipo de actividad no puede estar vacío');
+
+        // Validar duplicados (insensible a mayúsculas/minúsculas)
+        const isDuplicate = space.tiposActividad.some(
+            t => t.toLowerCase() === trimmedType.toLowerCase()
+        );
+
+        if (isDuplicate) {
+            throw new Error(`El tipo de actividad "${trimmedType}" ya existe en este tablero.`);
+        }
+
+        const updated = await prisma.kanbanSpace.update({
+            where: { id: spaceId },
+            data: {
+                tiposActividad: [...space.tiposActividad, trimmedType]
+            }
+        });
+
+        // Registrar actividad de actualización
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId,
+                usuarioId: user.id,
+                accion: 'ACTUALIZACION',
+                detalles: `Agregó el tipo de actividad "${trimmedType}" al tablero`
+            }
+        });
+
+        revalidatePath(`/kanban/${spaceId}`);
+        revalidatePath('/kanban');
+        return { success: true, tiposActividad: updated.tiposActividad };
+    } catch (e: any) {
+        console.error("addActivityTypeToSpace Error:", e);
+        return { success: false, error: e.message || 'Error al agregar tipo de actividad' };
+    }
+}
+
+
 
 
 
