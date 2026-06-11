@@ -759,17 +759,31 @@ export default function KanbanSpaceClient({ initialData }: Props) {
         }
     };
 
+    // Helper to parse date-only strings without timezone shifts
+    const parseLocalDate = (dateStr: string | null) => {
+        if (!dateStr) return null;
+        const datePart = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        const parts = datePart.split('-');
+        if (parts.length === 3) {
+            const [year, month, day] = parts.map(Number);
+            return new Date(year, month - 1, day);
+        }
+        return new Date(dateStr);
+    };
+
     // Formatear fecha para la tarjeta
     const formatDate = (dateStr: string | null) => {
         if (!dateStr) return '';
-        const date = new Date(dateStr);
+        const date = parseLocalDate(dateStr);
+        if (!date) return '';
         return date.toLocaleDateString('es-HN', { day: '2-digit', month: 'short' });
     };
 
     // Alertas de vencimiento
     const getDueDateAlert = (dueDateStr: string | null) => {
         if (!dueDateStr) return null;
-        const dueDate = new Date(dueDateStr);
+        const dueDate = parseLocalDate(dueDateStr);
+        if (!dueDate) return null;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const compareDate = new Date(dueDate);
