@@ -1397,6 +1397,75 @@ export async function addActivityTypeToSpace(spaceId: string, activityType: stri
     }
 }
 
+export async function renameColumnInSpace(spaceId: string, oldName: string, newName: string) {
+    try {
+        const { user } = await getCurrentUserAndOrg();
+
+        const space = await prisma.kanbanSpace.findUnique({
+            where: { id: spaceId }
+        });
+
+        if (!space) throw new Error('Espacio de trabajo no encontrado');
+
+        const trimmedOld = oldName.trim();
+        const trimmedNew = newName.trim();
+        if (!trimmedNew) throw new Error('El nombre de la columna no puede estar vacío');
+        if (trimmedOld === trimmedNew) return { success: true, columnas: space.columnas };
+
+        // Validar si el nuevo nombre ya existe en otras columnas
+        const isDuplicate = space.columnas.some(
+            col => col.toLowerCase() === trimmedNew.toLowerCase() && col.toLowerCase() !== trimmedOld.toLowerCase()
+        );
+
+        if (isDuplicate) {
+            throw new Error(`La columna "${trimmedNew}" ya existe en este tablero.`);
+        }
+
+        // Reemplazar el nombre en el array de columnas
+        const updatedColumnas = space.columnas.map(col => col === trimmedOld ? trimmedNew : col);
+
+        // Actualizar tanto el espacio como las tareas correspondientes
+        const updated = await prisma.$transaction(async (tx) => {
+            // 1. Actualizar el status de todas las tareas correspondientes
+            await tx.kanbanTask.updateMany({
+                where: {
+                    spaceId,
+                    status: trimmedOld
+                },
+                data: {
+                    status: trimmedNew
+                }
+            });
+
+            // 2. Actualizar las columnas en el espacio
+            return tx.kanbanSpace.update({
+                where: { id: spaceId },
+                data: {
+                    columnas: updatedColumnas
+                }
+            });
+        });
+
+        // 3. Registrar actividad de actualización
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId,
+                usuarioId: user.id,
+                accion: 'ACTUALIZACION',
+                detalles: `Renombró la columna "${trimmedOld}" a "${trimmedNew}"`
+            }
+        });
+
+        revalidatePath(`/kanban/${spaceId}`);
+        revalidatePath('/kanban');
+        return { success: true, columnas: updated.columnas };
+    } catch (e: any) {
+        console.error("renameColumnInSpace Error:", e);
+        return { success: false, error: e.message || 'Error al renombrar la columna' };
+    }
+}
+
+
 
 
 

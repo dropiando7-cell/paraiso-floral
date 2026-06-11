@@ -32,7 +32,8 @@ import {
     deleteColumnFromSpace,
     moveTaskToSpace,
     updateSpaceMembers,
-    updateSpaceName
+    updateSpaceName,
+    renameColumnInSpace
 } from '../actions';
 import TaskDetailModal from '@/components/kanban/TaskDetailModal';
 import CreateTaskModal from '@/components/kanban/CreateTaskModal';
@@ -426,7 +427,56 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                 toast.error(res.error || 'Error al eliminar la columna.');
             }
         });
-    };    // 1. Filtrar y ordenar tareas
+    };
+
+    // Renombrar columna
+    const handleRenameColumn = (oldName: string) => {
+        const newName = prompt(`Renombrar columna "${oldName}" a:`, oldName);
+        if (newName === null) return;
+        const trimmedNew = newName.trim();
+        if (!trimmedNew) {
+            toast.error("El nombre de la columna no puede estar vacío");
+            return;
+        }
+        if (trimmedNew === oldName) return;
+
+        // Validar duplicado localmente
+        const isDuplicate = columnas.some(
+            col => col.toLowerCase() === trimmedNew.toLowerCase() && col.toLowerCase() !== oldName.toLowerCase()
+        );
+        if (isDuplicate) {
+            toast.error(`La columna "${trimmedNew}" ya existe.`);
+            return;
+        }
+
+        startTransition(async () => {
+            const res = await renameColumnInSpace(space.id, oldName, trimmedNew);
+            if (res.success && res.columnas) {
+                setColumnas(res.columnas);
+                toast.success(`Columna renombrada a "${trimmedNew}"`);
+
+                // Actualizar el status de las tareas cargadas en memoria localmente
+                setTasks(prev => prev.map(t => t.status === oldName ? { ...t, status: trimmedNew } : t));
+
+                // Registrar actividad local
+                const newAct: Activity = {
+                    id: Math.random().toString(),
+                    taskId: null,
+                    usuario: 'Tú',
+                    accion: 'ACTUALIZACION',
+                    detalles: `Renombró la columna "${oldName}" a "${trimmedNew}"`,
+                    createdAt: new Date().toISOString()
+                };
+                setActivities(prev => [newAct, ...prev].slice(0, 30));
+
+                router.refresh();
+            } else {
+                toast.error(res.error || 'Error al renombrar la columna.');
+            }
+        });
+    };
+
+    // 1. Filtrar y ordenar tareas
     const filteredTasks = useMemo(() => {
         const query = search.trim().toLowerCase();
 
@@ -1059,19 +1109,31 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                 <Check className="h-3.5 w-3.5 text-emerald-600 stroke-[3]" />
                                             )}
                                         </div>
-                                        {/* Botón de eliminar columna */}
-                                        {columnas.length > 1 && (
+                                        {/* Acciones de columna */}
+                                        <div className="flex items-center gap-0.5 opacity-0 group-hover/header:opacity-100 transition duration-150">
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    setColumnToDelete(columna);
+                                                    handleRenameColumn(columna);
                                                 }}
-                                                title="Eliminar Columna"
-                                                className="opacity-0 group-hover/header:opacity-100 p-1 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-md transition duration-150 cursor-pointer"
+                                                title="Renombrar Columna"
+                                                className="p-1 hover:bg-slate-200 text-slate-450 hover:text-brand-650 rounded-md transition duration-150 cursor-pointer"
                                             >
-                                                <Trash2 className="h-3.5 w-3.5" />
+                                                <Pencil className="h-3.5 w-3.5" />
                                             </button>
-                                        )}
+                                            {columnas.length > 1 && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setColumnToDelete(columna);
+                                                    }}
+                                                    title="Eliminar Columna"
+                                                    className="p-1 hover:bg-red-50 text-slate-450 hover:text-red-500 rounded-md transition duration-150 cursor-pointer"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
 
                                     {/* Listado de Tarjetas */}
