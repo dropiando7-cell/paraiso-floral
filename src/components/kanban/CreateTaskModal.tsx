@@ -27,7 +27,7 @@ import { compressImage } from '@/utils/image';
 
 const SIDEBAR_MODULES = [
     "Portal Bioelectrónica",
-    "Proyectos & Kanban",
+    "Proyectos & Tareas",
     "Mantenimiento y Reparaciones",
     "Inventario IA",
     "Rentas de Equipos",
@@ -821,7 +821,7 @@ export default function CreateTaskModal({
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none transition shadow-sm"
                             >
                                 {spaces.map(s => (
-                                    <option key={s.id} value={s.id}>{s.nombre} ({s.clave})</option>
+                                    <option key={s.id} value={s.id}>{s.nombre.toUpperCase()} ({s.clave})</option>
                                 ))}
                             </select>
                         </div>
@@ -836,9 +836,20 @@ export default function CreateTaskModal({
                                 onChange={(e) => setType(e.target.value)}
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none transition shadow-sm"
                             >
-                                {activeSpace?.tiposActividad.map(t => (
-                                    <option key={t} value={t}>{t}</option>
-                                ))}
+                                {activeSpace?.tiposActividad.map(t => {
+                                    const translateType = (typeStr: string) => {
+                                        switch (typeStr) {
+                                            case 'Task': return 'Tarea';
+                                            case 'Story': return 'Historia';
+                                            case 'Feature': return 'Funcionalidad';
+                                            case 'Bug': return 'Error / Falla';
+                                            default: return typeStr;
+                                        }
+                                    };
+                                    return (
+                                        <option key={t} value={t}>{translateType(t)}</option>
+                                    );
+                                })}
                             </select>
                         </div>
                     </div>

@@ -412,7 +412,7 @@ export default async function TrazabilidadPage({ params }: { params: Promise<{ i
                 <MessageSquare className="h-8 w-8 text-slate-700 mb-2" />
                 <p className="text-xs text-slate-500 font-bold">Sin intervenciones registradas</p>
                 <p className="text-[10px] text-slate-400 max-w-[250px] mt-0.5 leading-relaxed">
-                  Una vez que el técnico registre comentarios o fotos de evidencia en el tablero Kanban, se sincronizarán aquí automáticamente.
+                  Una vez que el técnico registre comentarios o fotos de evidencia en el tablero de Tareas, se sincronizarán aquí automáticamente.
                 </p>
               </div>
             )}

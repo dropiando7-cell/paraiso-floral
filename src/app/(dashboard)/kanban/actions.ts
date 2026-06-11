@@ -94,7 +94,7 @@ export async function createSpace(data: {
                 organizationId: org.id,
                 nombre: data.nombre.trim(),
                 clave: normalizedClave,
-                tiposActividad: data.tiposActividad || ["Task", "Story", "Feature", "Bug"],
+                tiposActividad: data.tiposActividad || ["Tarea", "Historia", "Funcionalidad", "Error / Falla", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Calibración", "Instalación", "Diagnóstico", "Soporte Técnico"],
                 columnas: data.columnas || ["Por hacer", "En curso", "En revisión", "Listo"],
                 creadoPorId: user.id,
                 acceso: accessType,
@@ -672,10 +672,17 @@ export async function deleteColumnFromSpace(spaceId: string, columnName: string)
             throw new Error('Debe haber al menos una columna en el tablero');
         }
 
-        if ((space.clave === 'DB' || space.nombre.toUpperCase() === 'DESARROLLO BIO') && 
-            ['POR HACER', 'EN CURSO', 'LISTO'].includes(columnName.toUpperCase())) {
+        const isProtectedSpace = 
+            space.clave === 'DB' || 
+            space.clave === 'ODT' || 
+            space.clave === 'DBIO' ||
+            space.nombre.toUpperCase() === 'DESARROLLO BIO' ||
+            space.nombre.toUpperCase() === 'ORDENES DE TRABAJO' ||
+            space.nombre.toUpperCase() === 'TAREAS GENERALES';
+
+        if (isProtectedSpace && ['POR HACER', 'EN CURSO', 'LISTO'].includes(columnName.toUpperCase())) {
             if (user.role !== 'SUPER_ADMIN') {
-                throw new Error('Solo un Super Admin puede eliminar las columnas base del espacio Desarrollo Bio.');
+                throw new Error('Solo un Super Admin puede eliminar las columnas base de los espacios principales.');
             }
         }
 
@@ -1296,6 +1303,49 @@ export async function updateKanbanAttachmentDescription(attachmentId: string, de
     } catch (e: any) {
         console.error("updateKanbanAttachmentDescription Error:", e);
         return { success: false, error: e.message || 'Error al actualizar descripción de adjunto' };
+    }
+}
+
+export async function updateSpaceName(spaceId: string, nuevoNombre: string) {
+    try {
+        const { user } = await getCurrentUserAndOrg();
+
+        const space = await prisma.kanbanSpace.findUnique({
+            where: { id: spaceId }
+        });
+
+        if (!space) throw new Error('Espacio de trabajo no encontrado');
+
+        const isPrivileged = user.role === 'SUPER_ADMIN' || user.email === 'emilia.zapata@bioelectronicahn.com';
+        const isCreator = space.creadoPorId === user.id;
+
+        if (!isPrivileged && !isCreator && user.puedeAsignarEspacios !== true) {
+            throw new Error('No tienes permisos para renombrar este espacio de trabajo.');
+        }
+
+        const trimmed = nuevoNombre.trim();
+        if (!trimmed) throw new Error('El nombre del espacio no puede estar vacío.');
+
+        const updated = await prisma.kanbanSpace.update({
+            where: { id: spaceId },
+            data: { nombre: trimmed }
+        });
+
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId,
+                usuarioId: user.id,
+                accion: 'ACTUALIZACION',
+                detalles: `Renombró el espacio de trabajo a "${trimmed}"`
+            }
+        });
+
+        revalidatePath('/kanban');
+        revalidatePath(`/kanban/${spaceId}`);
+        return { success: true, space: updated };
+    } catch (e: any) {
+        console.error("updateSpaceName Error:", e);
+        return { success: false, error: e.message || 'Error al renombrar espacio' };
     }
 }
 

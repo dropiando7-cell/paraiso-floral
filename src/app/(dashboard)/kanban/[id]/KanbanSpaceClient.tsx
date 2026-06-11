@@ -20,7 +20,8 @@ import {
     ChevronRight,
     Trash2,
     Lock,
-    Users
+    Users,
+    Pencil
 } from 'lucide-react';
 import { 
     createKanbanTask, 
@@ -30,7 +31,8 @@ import {
     addColumnToSpace,
     deleteColumnFromSpace,
     moveTaskToSpace,
-    updateSpaceMembers
+    updateSpaceMembers,
+    updateSpaceName
 } from '../actions';
 import TaskDetailModal from '@/components/kanban/TaskDetailModal';
 import CreateTaskModal from '@/components/kanban/CreateTaskModal';
@@ -223,7 +225,7 @@ function CardContextMenu({
                             className="w-full text-left px-4 py-2.5 sm:px-3 sm:py-1.5 text-sm sm:text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition truncate cursor-pointer"
                             title={s.nombre}
                         >
-                            {s.nombre} ({s.clave})
+                            {s.nombre.toUpperCase()} ({s.clave})
                         </button>
                     ))}
                     {spaces.filter(s => s.id !== currentSpaceId).length === 0 && (
@@ -235,9 +237,20 @@ function CardContextMenu({
     );
 }
 
+const translateType = (type: string) => {
+    switch (type) {
+        case 'Task': return 'Tarea';
+        case 'Story': return 'Historia';
+        case 'Feature': return 'Funcionalidad';
+        case 'Bug': return 'Error / Falla';
+        default: return type;
+    }
+};
+
 export default function KanbanSpaceClient({ initialData }: Props) {
     const space = initialData.space;
     const router = useRouter();
+    const [spaceName, setSpaceName] = useState(space.nombre);
     const [tasks, setTasks] = useState<Task[]>(initialData.tasks);
     const [activities, setActivities] = useState<Activity[]>(initialData.activities);
     const [members] = useState<Member[]>(initialData.members);
@@ -272,6 +285,27 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                 router.refresh();
             } else {
                 toast.error(res.error || 'Error al actualizar accesos.');
+            }
+        });
+    };
+
+    const handleRenameSpace = () => {
+        const nuevoNombre = prompt("Editar nombre del espacio de trabajo:", spaceName);
+        if (nuevoNombre === null) return;
+        const trimmed = nuevoNombre.trim();
+        if (!trimmed) {
+            toast.error("El nombre no puede estar vacío");
+            return;
+        }
+
+        startTransition(async () => {
+            const res = await updateSpaceName(space.id, trimmed);
+            if (res.success && res.space) {
+                setSpaceName(res.space.nombre);
+                toast.success("Espacio de trabajo renombrado con éxito");
+                router.refresh();
+            } else {
+                toast.error(res.error || "Error al renombrar el espacio de trabajo");
             }
         });
     };
@@ -392,15 +426,17 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                 toast.error(res.error || 'Error al eliminar la columna.');
             }
         });
-    };
-
-
-    // 1. Filtrar tareas
+    };    // 1. Filtrar y ordenar tareas
     const filteredTasks = useMemo(() => {
-        return tasks.filter(task => {
-            const matchesSearch = 
-                task.title.toLowerCase().includes(search.toLowerCase()) ||
-                task.codigo.toLowerCase().includes(search.toLowerCase());
+        const query = search.trim().toLowerCase();
+
+        const filtered = tasks.filter(task => {
+            const matchesSearch = !query || 
+                task.title.toLowerCase().includes(query) ||
+                task.codigo.toLowerCase().includes(query) ||
+                (task.asignado && task.asignado.nombre.toLowerCase().includes(query)) ||
+                (task.asignados && task.asignados.some(m => m.nombre.toLowerCase().includes(query)));
+
             const matchesType = selectedType ? task.type === selectedType : true;
             const matchesPriority = selectedPriority ? task.priority === selectedPriority : true;
             const matchesAssignee = selectedAssignee ? 
@@ -409,6 +445,35 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
             return matchesSearch && matchesType && matchesPriority && matchesAssignee;
         });
+
+        if (query) {
+            filtered.sort((a, b) => {
+                const aName = a.asignado?.nombre.toLowerCase() || '';
+                const bName = b.asignado?.nombre.toLowerCase() || '';
+                
+                const aMatchesAssigneeOnly = aName.includes(query) && (a.asignados.length === 0 || (a.asignados.length === 1 && a.asignados[0].id === a.asignado?.id));
+                const bMatchesAssigneeOnly = bName.includes(query) && (b.asignados.length === 0 || (b.asignados.length === 1 && b.asignados[0].id === b.asignado?.id));
+                
+                if (aMatchesAssigneeOnly && !bMatchesAssigneeOnly) return -1;
+                if (!aMatchesAssigneeOnly && bMatchesAssigneeOnly) return 1;
+
+                const aMatchesAssignee = aName.includes(query);
+                const bMatchesAssignee = bName.includes(query);
+
+                if (aMatchesAssignee && !bMatchesAssignee) return -1;
+                if (!aMatchesAssignee && bMatchesAssignee) return 1;
+
+                const aMatchesParticipant = a.asignados ? a.asignados.some(m => m.nombre.toLowerCase().includes(query)) : false;
+                const bMatchesParticipant = b.asignados ? b.asignados.some(m => m.nombre.toLowerCase().includes(query)) : false;
+
+                if (aMatchesParticipant && !bMatchesParticipant) return -1;
+                if (!aMatchesParticipant && bMatchesParticipant) return 1;
+
+                return 0;
+            });
+        }
+
+        return filtered;
     }, [tasks, search, selectedType, selectedPriority, selectedAssignee]);
 
 
@@ -751,12 +816,11 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
     // Colores para tipos
     const getTypeBadgeClass = (type: string) => {
-        switch (type) {
-            case 'Bug': return 'bg-red-100 text-red-700 border border-red-200';
-            case 'Feature': return 'bg-purple-100 text-purple-700 border border-purple-200';
-            case 'Story': return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
-            default: return 'bg-blue-100 text-blue-700 border border-blue-200';
-        }
+        const t = type.toLowerCase();
+        if (t === 'bug' || t === 'error / falla') return 'bg-red-100 text-red-700 border border-red-200';
+        if (t === 'feature' || t === 'funcionalidad') return 'bg-purple-100 text-purple-700 border border-purple-200';
+        if (t === 'story' || t === 'historia') return 'bg-emerald-100 text-emerald-700 border border-emerald-200';
+        return 'bg-blue-100 text-blue-700 border border-blue-200';
     };
 
     // Helper to parse date-only strings without timezone shifts
@@ -825,7 +889,16 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     <div>
                         <div className="flex items-center gap-2">
                             <h1 className="text-lg md:text-xl font-extrabold text-slate-900 flex items-center gap-2">
-                                {space.nombre}
+                                {spaceName.toUpperCase()}
+                                {initialData.currentUserCanManageAccess && (
+                                    <button
+                                        onClick={handleRenameSpace}
+                                        title="Renombrar espacio de trabajo"
+                                        className="p-1 hover:bg-slate-105 rounded-lg text-slate-450 hover:text-slate-700 transition"
+                                    >
+                                        <Pencil className="h-3.5 w-3.5 text-slate-400 hover:text-slate-650" />
+                                    </button>
+                                )}
                                 {space.acceso === 'Restringido' && (
                                     <span className="text-[10px] bg-red-50 border border-red-200 text-red-600 font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5" title="Espacio Restringido">
                                         <Lock className="h-2.5 w-2.5" />
@@ -837,7 +910,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                 {space.clave}
                             </span>
                         </div>
-                        <p className="text-slate-400 text-[11px] mt-0.5">Espacio de Trabajo / Tablero Kanban</p>
+                        <p className="text-slate-400 text-[11px] mt-0.5">Espacio de Trabajo / Tablero de Tareas</p>
                     </div>
                 </div>
 
@@ -897,7 +970,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                         >
                             <option value="">Todos los Tipos</option>
                             {space.tiposActividad.map(t => (
-                                <option key={t} value={t}>{t}</option>
+                                <option key={t} value={t}>{translateType(t)}</option>
                             ))}
                         </select>
 
@@ -951,20 +1024,21 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
                             // Helper para icono del tipo de tarea
                             const getTypeIcon = (type: string) => {
-                                switch (type) {
-                                    case 'Bug':
-                                        return <AlertCircle className="h-3.5 w-3.5 text-red-500 fill-red-50 shrink-0" />;
-                                    case 'Feature':
-                                        return <div className="h-2.5 w-2.5 bg-purple-500 rotate-45 rounded-sm shrink-0 mt-0.5" />;
-                                    case 'Story':
-                                        return <div className="h-3 w-3 bg-emerald-500 rounded-full shrink-0" />;
-                                    default: // Task
-                                        return (
-                                            <div className="h-3.5 w-3.5 bg-blue-500 rounded flex items-center justify-center shrink-0">
-                                                <Check className="h-2.5 w-2.5 text-white stroke-[4]" />
-                                            </div>
-                                        );
+                                const t = type.toLowerCase();
+                                if (t === 'bug' || t === 'error / falla') {
+                                    return <AlertCircle className="h-3.5 w-3.5 text-red-500 fill-red-50 shrink-0" />;
                                 }
+                                if (t === 'feature' || t === 'funcionalidad') {
+                                    return <div className="h-2.5 w-2.5 bg-purple-500 rotate-45 rounded-sm shrink-0 mt-0.5" />;
+                                }
+                                if (t === 'story' || t === 'historia') {
+                                    return <div className="h-3 w-3 bg-emerald-500 rounded-full shrink-0" />;
+                                }
+                                return (
+                                    <div className="h-3.5 w-3.5 bg-blue-500 rounded flex items-center justify-center shrink-0">
+                                        <Check className="h-2.5 w-2.5 text-white stroke-[4]" />
+                                    </div>
+                                );
                             };
 
                             return (
@@ -1032,7 +1106,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                             <div className="flex items-center gap-1.5">
                                                                 {getTypeIcon(task.type)}
                                                                 <span className={`text-[9.5px] sm:text-[8px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${getTypeBadgeClass(task.type)}`}>
-                                                                    {task.type}
+                                                                    {translateType(task.type)}
                                                                 </span>
                                                             </div>
  
@@ -1192,7 +1266,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                             className="bg-white border border-slate-200 rounded-lg px-2 py-0.5 text-[9px] text-slate-700"
                                                         >
                                                             {space.tiposActividad.map(t => (
-                                                                <option key={t} value={t}>{t}</option>
+                                                                <option key={t} value={t}>{translateType(t)}</option>
                                                             ))}
                                                         </select>
                                                         <select

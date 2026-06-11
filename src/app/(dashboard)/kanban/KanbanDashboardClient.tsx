@@ -69,7 +69,7 @@ export default function KanbanDashboardClient({ initialSpaces, currentUser, orga
     const [nombre, setNombre] = useState('');
     const [clave, setClave] = useState('');
     const [acceso, setAcceso] = useState('Abierto');
-    const [tiposActividad, setTiposActividad] = useState<string[]>(["Task", "Story", "Feature", "Bug"]);
+    const [tiposActividad, setTiposActividad] = useState<string[]>(["Tarea", "Historia", "Funcionalidad", "Error / Falla", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Calibración", "Instalación", "Diagnóstico", "Soporte Técnico"]);
     const [columnas, setColumnas] = useState<string[]>(["Por hacer", "En curso", "En revisión", "Listo"]);
     const [selectedMiembroIds, setSelectedMiembroIds] = useState<string[]>([]);
     const [searchTerm, setSearchTerm] = useState('');
@@ -123,7 +123,7 @@ export default function KanbanDashboardClient({ initialSpaces, currentUser, orga
         setNombre('');
         setClave('');
         setAcceso('Abierto');
-        setTiposActividad(["Task", "Story", "Feature", "Bug"]);
+        setTiposActividad(["Tarea", "Historia", "Funcionalidad", "Error / Falla", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Calibración", "Instalación", "Diagnóstico", "Soporte Técnico"]);
         setColumnas(["Por hacer", "En curso", "En revisión", "Listo"]);
         setSelectedMiembroIds([]);
         setSearchTerm('');
@@ -225,7 +225,7 @@ export default function KanbanDashboardClient({ initialSpaces, currentUser, orga
                     </div>
                     <h3 className="text-lg font-bold text-slate-900">No hay espacios de trabajo</h3>
                     <p className="text-slate-500 text-sm mt-2 max-w-sm">
-                        Comienza creando tu primer espacio Kanban para gestionar actividades, bugs o solicitudes de clientes.
+                        Comienza creando tu primer espacio de Tareas para gestionar actividades, bugs o solicitudes de clientes.
                     </p>
                     <button
                         onClick={() => setIsModalOpen(true)}
@@ -309,7 +309,7 @@ export default function KanbanDashboardClient({ initialSpaces, currentUser, orga
                                                 <div>
                                                     <div className="flex items-center gap-2">
                                                         <h3 className="text-md font-bold text-slate-900 group-hover:text-brand-600 transition flex items-center gap-1.5">
-                                                            {space.nombre}
+                                                            {space.nombre.toUpperCase()}
                                                             {space.acceso === 'Restringido' && (
                                                                 <span title="Espacio Restringido">
                                                                     <Lock className="h-3.5 w-3.5 text-red-500 shrink-0" />
@@ -343,7 +343,7 @@ export default function KanbanDashboardClient({ initialSpaces, currentUser, orga
 
                                         {/* Flecha interactiva */}
                                         <div className="mt-5 flex items-center justify-between text-xs font-semibold text-brand-600 group-hover:text-brand-700 transition pt-2 border-t border-slate-100">
-                                            <span>Ver Tablero Kanban</span>
+                                            <span>Ver Tablero de Tareas</span>
                                             <ChevronRight className="h-4 w-4 transform group-hover:translate-x-1 transition duration-200" />
                                         </div>
                                     </Link>
@@ -746,7 +746,7 @@ export default function KanbanDashboardClient({ initialSpaces, currentUser, orga
                                 </div>
 
                                 <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-[10px] text-slate-400">
-                                    <span>Plantilla Kanban Jira</span>
+                                    <span>Plantilla de Tareas Jira</span>
                                     <span>3 Actividades</span>
                                 </div>
                             </div>
@@ -774,14 +774,14 @@ export default function KanbanDashboardClient({ initialSpaces, currentUser, orga
                             <p className="text-sm text-slate-600 leading-relaxed">
                                 {archiveTargetSpace.toArchive ? (
                                     <>
-                                        ¿Estás seguro de que deseas archivar el espacio de trabajo <strong className="text-slate-800 font-semibold">"{archiveTargetSpace.nombre}"</strong>?
+                                        ¿Estás seguro de que deseas archivar el espacio de trabajo <strong className="text-slate-800 font-semibold">"{archiveTargetSpace.nombre.toUpperCase()}"</strong>?
                                         <span className="block mt-2 text-slate-500">
                                             Las tareas se conservarán en el historial pero el tablero se ocultará del listado activo. Podrás restaurarlo en cualquier momento desde la pestaña de archivados.
                                         </span>
                                     </>
                                 ) : (
                                     <>
-                                        ¿Deseas restaurar el espacio de trabajo <strong className="text-slate-800 font-semibold">"{archiveTargetSpace.nombre}"</strong> al listado activo?
+                                        ¿Deseas restaurar el espacio de trabajo <strong className="text-slate-800 font-semibold">"{archiveTargetSpace.nombre.toUpperCase()}"</strong> al listado activo?
                                     </>
                                 )}
                             </p>

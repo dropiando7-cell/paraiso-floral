@@ -158,14 +158,14 @@ export async function createOrdenTrabajo(data: {
     }
 
     // ----------------------------------------------------
-    // SINCRONIZACIÓN AUTOMÁTICA CON KANBAN (Desarrollo Bio)
+    // SINCRONIZACIÓN AUTOMÁTICA CON KANBAN (ORDENES DE TRABAJO)
     // ----------------------------------------------------
     try {
-        // 1. Buscar o crear el espacio "Desarrollo Bio"
+        // 1. Buscar o crear el espacio "ORDENES DE TRABAJO"
         let space = await prisma.kanbanSpace.findFirst({
             where: {
                 nombre: {
-                    equals: 'Desarrollo Bio',
+                    equals: 'ORDENES DE TRABAJO',
                     mode: 'insensitive'
                 },
                 organizationId: orgId
@@ -174,7 +174,7 @@ export async function createOrdenTrabajo(data: {
 
         if (!space) {
             // Generar clave única para el espacio
-            const baseClave = 'DB';
+            const baseClave = 'ODT';
             let spaceClave = baseClave;
             let counter = 1;
             
@@ -194,9 +194,9 @@ export async function createOrdenTrabajo(data: {
             space = await prisma.kanbanSpace.create({
                 data: {
                     organizationId: orgId,
-                    nombre: 'Desarrollo Bio',
+                    nombre: 'ORDENES DE TRABAJO',
                     clave: spaceClave,
-                    tiposActividad: ["Task", "Story", "Feature", "Bug", "Orden de Trabajo"],
+                    tiposActividad: ["Tarea", "Historia", "Funcionalidad", "Error / Falla", "Orden de Trabajo", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Calibración", "Instalación", "Diagnóstico", "Soporte Técnico"],
                     columnas: ["Por hacer", "En curso", "En revisión", "Listo"],
                     acceso: 'Abierto'
                 }
@@ -785,14 +785,35 @@ export async function syncKanbanStatus(ordenId: string, nuevoEstado: string, use
 
         if (!targetColumn) return;
 
-        // Auto-healing: Ensure column exists
-        let currentColumns = [...task.space.columnas];
-        if (!currentColumns.includes(targetColumn)) {
-            currentColumns.push(targetColumn);
-            await prisma.kanbanSpace.update({
-                where: { id: task.space.id },
-                data: { columnas: currentColumns }
-            });
+        // Buscar una columna en el espacio que coincida de forma insensible a mayúsculas/minúsculas
+        const matchedColumn = task.space.columnas.find(
+            col => col.toLowerCase() === targetColumn.toLowerCase()
+        );
+
+        if (matchedColumn) {
+            targetColumn = matchedColumn;
+        } else {
+            // Auto-healing: Si no existe, usamos una versión legible
+            let userFriendlyColumn = targetColumn;
+            if (targetColumn === 'POR HACER') userFriendlyColumn = 'Por hacer';
+            else if (targetColumn === 'EN REVISIÓN') userFriendlyColumn = 'En revisión';
+            else if (targetColumn === 'EN CURSO') userFriendlyColumn = 'En curso';
+            else if (targetColumn === 'LISTO') userFriendlyColumn = 'Listo';
+
+            const matchedUserFriendly = task.space.columnas.find(
+                col => col.toLowerCase() === userFriendlyColumn.toLowerCase()
+            );
+
+            if (matchedUserFriendly) {
+                targetColumn = matchedUserFriendly;
+            } else {
+                targetColumn = userFriendlyColumn;
+                const currentColumns = [...task.space.columnas, targetColumn];
+                await prisma.kanbanSpace.update({
+                    where: { id: task.space.id },
+                    data: { columnas: currentColumns }
+                });
+            }
         }
 
         if (task.status !== targetColumn) {

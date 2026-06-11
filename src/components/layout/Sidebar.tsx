@@ -53,7 +53,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
     category: 'CORE',
     items: [
       { name: 'Portal Bioelectrónica', href: '/', icon: LayoutDashboard },
-      { name: 'Proyectos & Kanban', href: '/kanban', icon: Trello },
+      { name: 'Proyectos & Tareas', href: '/kanban', icon: Trello },
       { name: 'Mantenimiento y Reparaciones', href: '/soporte', icon: Wrench, roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
       { name: 'Inventario IA', href: '/inventario-ia', icon: Sparkles, badge: 'NUEVO', badgeColor: 'bg-green-500/20 text-green-700' },
       { name: 'Rentas de Equipos', href: '/rentas', icon: Box },

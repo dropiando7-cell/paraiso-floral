@@ -78,7 +78,7 @@ interface Task {
 
 const SIDEBAR_MODULES = [
     "Portal Bioelectrónica",
-    "Proyectos & Kanban",
+    "Proyectos & Tareas",
     "Mantenimiento y Reparaciones",
     "Inventario IA",
     "Rentas de Equipos",
@@ -1478,9 +1478,20 @@ export default function TaskDetailModal({
                                 onChange={(e) => handleFieldChange('type', e.target.value)}
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
                             >
-                                {tiposActividad.map((t) => (
-                                    <option key={t} value={t}>{t}</option>
-                                ))}
+                                {tiposActividad.map((t) => {
+                                    const translateType = (typeStr: string) => {
+                                        switch (typeStr) {
+                                            case 'Task': return 'Tarea';
+                                            case 'Story': return 'Historia';
+                                            case 'Feature': return 'Funcionalidad';
+                                            case 'Bug': return 'Error / Falla';
+                                            default: return typeStr;
+                                        }
+                                    };
+                                    return (
+                                        <option key={t} value={t}>{translateType(t)}</option>
+                                    );
+                                })}
                             </select>
                         </div>
 
