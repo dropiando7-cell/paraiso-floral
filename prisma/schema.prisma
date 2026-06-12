@@ -399,6 +399,8 @@ model ActivoFijo {
   compatibilidad        String[]             @default([])
   categoriaId           String?              @db.Uuid
   esConsumible          Boolean              @default(false)
+  garantia              String?
+  mantenimientosIncluidos Int?
   fechaVencimiento      DateTime?
   lote                  String?
   productoId            String?              @db.Uuid

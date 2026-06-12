@@ -377,6 +377,8 @@ type Activo = {
     categoriaId?: string | null;
     categoria?: { id: string; nombre: string; color?: string | null } | null;
     esConsumible?: boolean;
+    garantia?: string | null;
+    mantenimientosIncluidos?: number | null;
     stock?: number;
 };
 
@@ -850,6 +852,8 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     const [codigoBarras, setCodigoBarras] = useState(editActivo?.codigoBarras || '');
     const [cantidad, setCantidad] = useState(editActivo?.stock ? String(editActivo.stock) : '1');
     const [responsable, setResponsable] = useState(editActivo?.responsable || (lockedArea ? RESPONSABLES[lockedArea] : '') || '');
+    const [garantia, setGarantia] = useState(editActivo?.garantia || '');
+    const [mantenimientosIncluidos, setMantenimientosIncluidos] = useState(editActivo?.mantenimientosIncluidos ? String(editActivo.mantenimientosIncluidos) : '');
 
     // Pre-step Registration Type
     const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso' | 'servicio'>(editActivo ? 'reingreso' : 'seleccion');
@@ -1239,6 +1243,8 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setCostoAdq(editActivo.costoAdq ? Number(editActivo.costoAdq).toString() : '');
             setCategoriaId(editActivo.categoriaId || '');
             setEsConsumible(editActivo.esConsumible || false);
+            setGarantia(editActivo.garantia || '');
+            setMantenimientosIncluidos(editActivo.mantenimientosIncluidos ? String(editActivo.mantenimientosIncluidos) : '');
             setLote(editActivo.lote || '');
             setFechaVencimiento(editActivo.fechaVencimiento ? getLocalDateString(editActivo.fechaVencimiento) : '');
             setFechaFabricacion(editActivo.fechaFabricacion ? getLocalDateString(editActivo.fechaFabricacion) : '');
@@ -1249,7 +1255,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setReferencia(''); setCodigoGrupo(''); setCodigoBarras(''); setCantidad('1');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
-            setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
+            setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setGarantia(''); setMantenimientosIncluidos(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
             setTipoRegistro('seleccion');
         }
     }, [editActivo, open, lockedArea]);
@@ -2222,6 +2228,26 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     placeholder="Ej: LTA-2023..."
                                                     className={`${inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                             </div>
+                                            {!esConsumible && (
+                                                <>
+                                                    <div>
+                                                        <FieldLabel>Garantía <span className="text-slate-400 font-normal text-xs">(Tiempo o años)</span></FieldLabel>
+                                                        <input type="text" name="garantia"
+                                                            value={garantia || ''}
+                                                            onChange={e => setGarantia(e.target.value)}
+                                                            placeholder="Ej: 1 año, 18 meses, 2 años..."
+                                                            className={inputCls} />
+                                                    </div>
+                                                    <div>
+                                                        <FieldLabel>Mantenimientos Incluidos</FieldLabel>
+                                                        <input type="number" name="mantenimientosIncluidos"
+                                                            value={mantenimientosIncluidos || ''}
+                                                            onChange={e => setMantenimientosIncluidos(e.target.value)}
+                                                            placeholder="Ej: 2, 4..."
+                                                            className={inputCls} />
+                                                    </div>
+                                                </>
+                                            )}
                                         </div>
 
                                         {/* Compatibilidad Tags */}
@@ -3533,6 +3559,18 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                         <div>
                                             <div className="text-xs text-slate-400 mb-1">No. Serie</div>
                                             <div className="font-mono text-slate-800">{viewActivo.serie}</div>
+                                        </div>
+                                    )}
+                                    {viewActivo.garantia && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">Garantía</div>
+                                            <div className="font-medium text-slate-800">{viewActivo.garantia}</div>
+                                        </div>
+                                    )}
+                                    {viewActivo.mantenimientosIncluidos !== undefined && viewActivo.mantenimientosIncluidos !== null && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">Mantenimientos Incluidos</div>
+                                            <div className="font-medium text-slate-800">{viewActivo.mantenimientosIncluidos}</div>
                                         </div>
                                     )}
                                 </div>
