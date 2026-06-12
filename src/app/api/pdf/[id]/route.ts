@@ -379,7 +379,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="${downloadFileName}"`,
+        'Content-Disposition': `inline; filename="${downloadFileName}"`,
       }
     });
 

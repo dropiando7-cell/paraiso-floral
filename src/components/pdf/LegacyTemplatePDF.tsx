@@ -6,9 +6,9 @@ import { SignatureItem } from '@/types/invoice';
 Font.register({
   family: 'Inter',
   fonts: [
-    { src: 'https://cdn.jsdelivr.net/gh/rsms/inter@3.19/docs/font-files/Inter-Regular.ttf', fontWeight: 400 },
-    { src: 'https://cdn.jsdelivr.net/gh/rsms/inter@3.19/docs/font-files/Inter-Medium.ttf', fontWeight: 500 },
-    { src: 'https://cdn.jsdelivr.net/gh/rsms/inter@3.19/docs/font-files/Inter-Bold.ttf', fontWeight: 700 },
+    { src: 'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-400-normal.ttf', fontWeight: 400 },
+    { src: 'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-500-normal.ttf', fontWeight: 500 },
+    { src: 'https://cdn.jsdelivr.net/fontsource/fonts/inter@latest/latin-700-normal.ttf', fontWeight: 700 },
   ]
 });
 

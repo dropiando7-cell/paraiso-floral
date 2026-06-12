@@ -2,7 +2,7 @@ import React from 'react';
 import { 
   X, Download, Mail, MessageSquare, Link as LinkIcon, 
   FileText, ArrowRight, Sparkles, LayoutGrid, FileSpreadsheet,
-  Printer
+  Printer, Truck
 } from 'lucide-react';
 
 interface DocumentActionsModalProps {
@@ -10,6 +10,7 @@ interface DocumentActionsModalProps {
   onDownloadPDF: () => void;
   onToggleCustomizer: () => void;
   onConvert?: (targetType: 'PROFORMA' | 'FACTURA') => void;
+  onShowOrdenEntrega?: () => void;
   isDownloadingPDF?: boolean;
   isConverting?: boolean;
   docType?: string; // 'cotizacion', 'proforma', etc
@@ -21,6 +22,7 @@ export default function DocumentActionsModal({
   onDownloadPDF,
   onToggleCustomizer,
   onConvert,
+  onShowOrdenEntrega,
   isDownloadingPDF,
   isConverting,
   docType,
@@ -81,6 +83,19 @@ export default function DocumentActionsModal({
                 </div>
                 <span className="font-bold text-slate-700 text-sm text-center">Personalizar Diseño</span>
               </button>
+
+              {/* Orden de Entrega (solo si es factura) */}
+              {docType === 'factura' && onShowOrdenEntrega && (
+                <button 
+                  onClick={() => handleAction(onShowOrdenEntrega)}
+                  className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-indigo-100 hover:border-indigo-500 rounded-2xl transition-all hover:shadow-lg"
+                >
+                  <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <Truck size={28} />
+                  </div>
+                  <span className="font-bold text-slate-700 text-sm text-center leading-tight">Orden de Entrega</span>
+                </button>
+              )}
 
               {/* Convertir a Proforma (Si aplica) */}
               {docType === 'cotizacion' && onConvert && (
