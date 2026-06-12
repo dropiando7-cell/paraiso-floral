@@ -30,6 +30,33 @@ type Activo = {
     integrado: boolean;
     costoAdq?: number | null;
     createdAt: string;
+    garantia?: string | null;
+    mantenimientosIncluidos?: number | null;
+    frecuenciaMantenimientoMeses?: number | null;
+    detallesFactura?: {
+        factura: {
+            id: string;
+            fechaEmision: string;
+            numeroDocumento?: string | null;
+            correlativo?: string | null;
+            creadoPor?: {
+                nombre?: string | null;
+                apellido?: string | null;
+                email: string;
+            } | null;
+            cliente?: {
+                nombre: string;
+                telefono?: string | null;
+                direccion?: string | null;
+                rtn?: string | null;
+            } | null;
+            ordenEntrega?: {
+                correlativo: string;
+                aplicaMantenimientos: boolean;
+                evidenciaFotos: string[];
+            } | null;
+        };
+    }[];
 };
 
 function EstatusBadge({ estatus }: { estatus: string }) {
@@ -74,6 +101,12 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
 }) {
     const images = [activo.imagenUrl, activo.imagenPlacaUrl].filter(Boolean) as string[];
     const [imgIdx, setImgIdx] = useState(0);
+
+    // Combine original images and sales evidence photos for the Lightbox
+    const salesFotos = activo.detallesFactura?.flatMap(df => df.factura.ordenEntrega?.evidenciaFotos || []) || [];
+    const allImages = [...images, ...salesFotos];
+
+    const [lightboxIdx, setLightboxIdx] = useState(0);
     const [lightbox, setLightbox] = useState(false);
 
     const fecha = (d?: string | null) => {
@@ -90,11 +123,28 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
         return acc;
     }, {} as Record<string, { stockTotal: number, items: NonNullable<typeof distribucion>[0][] }>) || {};
 
+    const lastSaleDetail = activo.detallesFactura && activo.detallesFactura.length > 0 ? activo.detallesFactura[activo.detallesFactura.length - 1] : null;
+    const sale = lastSaleDetail?.factura;
+    const ordenEntrega = sale?.ordenEntrega;
+
+    const baseDate = sale?.fechaEmision ? new Date(sale.fechaEmision) : new Date();
+    const maintenanceDates = [];
+    if (ordenEntrega?.aplicaMantenimientos && activo.mantenimientosIncluidos && activo.frecuenciaMantenimientoMeses) {
+        for (let i = 1; i <= activo.mantenimientosIncluidos; i++) {
+            const scheduledDate = new Date(baseDate);
+            scheduledDate.setMonth(scheduledDate.getMonth() + i * activo.frecuenciaMantenimientoMeses);
+            maintenanceDates.push({
+                num: i,
+                date: scheduledDate.toLocaleDateString('es-HN', { day: '2-digit', month: 'long', year: 'numeric' })
+            });
+        }
+    }
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-start py-8 px-4">
 
             {/* Lightbox */}
-            {lightbox && images.length > 0 && (
+            {lightbox && allImages.length > 0 && (
                 <div
                     className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4"
                     onClick={() => setLightbox(false)}
@@ -104,18 +154,18 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                     </button>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                        src={images[imgIdx]}
+                        src={allImages[lightboxIdx]}
                         alt="Vista ampliada"
                         className="w-[600px] max-w-full h-auto max-h-[80vh] object-contain bg-white p-4 rounded-xl shadow-2xl"
                         onClick={e => e.stopPropagation()}
                     />
-                    {images.length > 1 && (
+                    {allImages.length > 1 && (
                         <div className="absolute bottom-6 flex gap-2">
-                            {images.map((_, i) => (
+                            {allImages.map((_, i) => (
                                 <button
                                     key={i}
-                                    onClick={e => { e.stopPropagation(); setImgIdx(i); }}
-                                    className={`w-2.5 h-2.5 rounded-full transition-all ${i === imgIdx ? 'bg-white scale-125' : 'bg-white/30'}`}
+                                    onClick={e => { e.stopPropagation(); setLightboxIdx(i); }}
+                                    className={`w-2.5 h-2.5 rounded-full transition-all ${i === lightboxIdx ? 'bg-white scale-125' : 'bg-white/30'}`}
                                 />
                             ))}
                         </div>
@@ -169,7 +219,10 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                             src={images[imgIdx]}
                             alt={activo.descripcionCorta}
                             className="w-full h-full object-contain cursor-zoom-in"
-                            onClick={() => setLightbox(true)}
+                            onClick={() => {
+                                setLightboxIdx(imgIdx);
+                                setLightbox(true);
+                            }}
                         />
                         {images.length > 1 && (
                             <>
@@ -215,7 +268,106 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                         </div>
                     )}
 
-                    {/* Identificación */}
+                    {/* Trazabilidad de Venta y Entrega */}
+                    {sale && (
+                        <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 space-y-4">
+                            <h2 className="text-xs font-bold text-blue-800 uppercase tracking-widest flex items-center gap-1.5 border-b border-blue-100 pb-2">
+                                <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                                Trazabilidad de Venta y Entrega
+                            </h2>
+                            
+                            {/* Info Grid */}
+                            <div className="grid grid-cols-2 gap-4 text-xs">
+                                <div>
+                                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Orden de Entrega</span>
+                                    <span className="font-mono font-bold text-blue-900 text-sm">{ordenEntrega?.correlativo || 'ODE-PENDIENTE'}</span>
+                                </div>
+                                <div>
+                                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Fecha de Venta</span>
+                                    <span className="font-medium text-slate-800">{fecha(sale.fechaEmision)}</span>
+                                </div>
+                                <div className="col-span-2">
+                                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Vendido por</span>
+                                    <span className="font-medium text-slate-800">
+                                        {sale.creadoPor ? `${sale.creadoPor.nombre || ''} ${sale.creadoPor.apellido || ''} (${sale.creadoPor.email})`.trim() : 'Asesor Comercial'}
+                                    </span>
+                                </div>
+                                <div className="col-span-2 border-t border-blue-100/50 pt-2">
+                                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Cliente Comprador</span>
+                                    <span className="font-bold text-slate-800 text-sm block">{sale.cliente?.nombre || 'Cliente Particular'}</span>
+                                    {sale.cliente?.rtn && <span className="block text-slate-500 font-mono text-[11px] mt-0.5">RTN: {sale.cliente.rtn}</span>}
+                                    {sale.cliente?.telefono && <span className="block text-slate-500 text-[11px]">Tel: {sale.cliente.telefono}</span>}
+                                    {sale.cliente?.direccion && <span className="block text-slate-500 text-[11px] leading-relaxed mt-0.5">{sale.cliente.direccion}</span>}
+                                </div>
+                                
+                                {activo.garantia && (
+                                    <div className="col-span-2 border-t border-blue-100/50 pt-2 flex items-center justify-between">
+                                        <div>
+                                            <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Garantía de Fábrica</span>
+                                            <span className="font-bold text-emerald-700 text-sm">{activo.garantia} meses</span>
+                                        </div>
+                                        {ordenEntrega?.aplicaMantenimientos && (
+                                            <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-1 rounded-md">
+                                                <Shield className="w-3 h-3" />
+                                                Garantía Activa
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {/* Evidence Photos */}
+                            {ordenEntrega?.evidenciaFotos && ordenEntrega.evidenciaFotos.length > 0 && (
+                                <div className="border-t border-blue-100/50 pt-3">
+                                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px] mb-2">Evidencias de Entrega (R2)</span>
+                                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200">
+                                        {ordenEntrega.evidenciaFotos.map((foto, i) => {
+                                            const combinedIndex = allImages.indexOf(foto);
+                                            return (
+                                                <button
+                                                    key={i}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setLightboxIdx(combinedIndex !== -1 ? combinedIndex : 0);
+                                                        setLightbox(true);
+                                                    }}
+                                                    className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 hover:border-blue-500 transition-colors"
+                                                >
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={foto} alt={`Evidencia ${i + 1}`} className="w-full h-full object-cover" />
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+ 
+                            {/* Maintenance Calendar */}
+                            {ordenEntrega?.aplicaMantenimientos && maintenanceDates.length > 0 && (
+                                <div className="border-t border-blue-100/50 pt-3">
+                                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px] mb-2">Calendario de Mantenimientos Preventivos</span>
+                                    <div className="space-y-2">
+                                        {maintenanceDates.map((m) => (
+                                            <div key={m.num} className="flex items-center justify-between bg-white/60 rounded-xl p-2.5 border border-slate-100">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="bg-blue-100 text-blue-700 rounded-lg p-1.5">
+                                                        <Calendar className="w-3.5 h-3.5" />
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">Mantenimiento #{m.num}</span>
+                                                        <span className="text-xs font-semibold text-slate-700">{m.date}</span>
+                                                    </div>
+                                                </div>
+                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                                                    Programado
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
                     <div>
                         <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
                             <div className="h-px flex-1 bg-slate-100" />

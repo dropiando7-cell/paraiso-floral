@@ -58,6 +58,7 @@ model Organization {
   
   kanbanSpaces          KanbanSpace[]
   kanbanTasks           KanbanTask[]
+  ordenesEntrega        OrdenEntrega[]
 
   @@map("organizations")
 }
@@ -127,6 +128,7 @@ model User {
   kanbanAttachments     KanbanAttachment[]
   kanbanSpacesMiembro   KanbanSpace[]          @relation("KanbanSpaceMembers")
   ordenesAsignadasMulti OrdenTrabajo[]         @relation("TecnicoOrdenesMulti")
+  ordenesEntregaCreadas OrdenEntrega[]         @relation("CreatedOrdenesEntrega")
 
   @@map("users")
 }
@@ -702,6 +704,7 @@ model Factura {
   cajaSession              CorteCajaSession? @relation(fields: [cajaSessionId], references: [id])
   firmaClienteBase64       String?          @db.Text
   firmaClienteAt           DateTime?
+  ordenEntrega             OrdenEntrega?
 
   @@unique([organizationId, correlativo])
   @@index([organizationId])
@@ -1198,4 +1201,24 @@ model WebTraffic {
 
   @@map("web_traffic")
 }
+
+model OrdenEntrega {
+  id                    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId        String        @db.Uuid
+  correlativo           String        // Ej: "ODE-0037"
+  facturaId             String        @db.Uuid @unique
+  aplicaMantenimientos  Boolean       @default(false)
+  evidenciaFotos        String[]      @default([]) // URLs públicas en Cloudflare R2
+  creadoPorId           String?       @db.Uuid
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  factura               Factura       @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  creadoPor             User?         @relation("CreatedOrdenesEntrega", fields: [creadoPorId], references: [id])
+  organization          Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, correlativo])
+  @@map("ordenes_entrega")
+}
+
 

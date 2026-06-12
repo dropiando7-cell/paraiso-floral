@@ -51,6 +51,42 @@ export default async function FichaTecnicaPage({ params }: Props) {
             integrado: true,
             costoAdq: true,
             createdAt: true,
+            garantia: true,
+            mantenimientosIncluidos: true,
+            frecuenciaMantenimientoMeses: true,
+            detallesFactura: {
+                select: {
+                    factura: {
+                        select: {
+                            id: true,
+                            fechaEmision: true,
+                            correlativo: true,
+                            creadoPor: {
+                                select: {
+                                    nombre: true,
+                                    apellido: true,
+                                    email: true,
+                                }
+                            },
+                            cliente: {
+                                select: {
+                                    nombre: true,
+                                    telefono: true,
+                                    direccion: true,
+                                    rtn: true,
+                                }
+                            },
+                            ordenEntrega: {
+                                select: {
+                                    correlativo: true,
+                                    aplicaMantenimientos: true,
+                                    evidenciaFotos: true,
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         },
     });
 

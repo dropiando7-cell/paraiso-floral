@@ -69,6 +69,7 @@ interface Product {
 
 import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion } from './actions';
 import { createContacto } from '../contactos/actions';
+import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
 import InvoiceCustomizerSidebar from '@/components/facturas/customizer/InvoiceCustomizerSidebar';
@@ -992,6 +993,9 @@ export default function DocumentBuilderClient({
   const [showDiscardModal, setShowDiscardModal] = useState(false);
   const [isForcePrinting, setIsForcePrinting] = useState(false);
   const [showExpiredOnly, setShowExpiredOnly] = useState(false);
+  const [ordenEntrega, setOrdenEntrega] = useState<any>(initialData?.ordenEntrega || null);
+  const [loadingOrden, setLoadingOrden] = useState(false);
+  const [isUploadingFoto, setIsUploadingFoto] = useState(false);
   
   // States for registering new product directly
   const [registeringLineId, setRegisteringLineId] = useState<string | null>(null);
@@ -1074,6 +1078,26 @@ export default function DocumentBuilderClient({
       setTimeout(convertImagesToBase64, 400);
     }
   }, [effectiveViewMode]);
+
+  // Cargar/Inicializar Orden de Entrega si está en viewMode y es una Factura
+  useEffect(() => {
+    if (viewMode && initialData?.id && docType === 'factura') {
+      const fetchOrden = async () => {
+        setLoadingOrden(true);
+        try {
+          const res = await getOrCreateOrdenEntrega(initialData.id);
+          if (res.success && res.orden) {
+            setOrdenEntrega(res.orden);
+          }
+        } catch (err) {
+          console.error("Error cargando Orden de Entrega:", err);
+        } finally {
+          setLoadingOrden(false);
+        }
+      };
+      fetchOrden();
+    }
+  }, [viewMode, initialData?.id, docType]);
 
   // 1. Hydrate from localStorage on mount (ONLY if it's a new document and not in viewMode)
   useEffect(() => {
@@ -1333,7 +1357,7 @@ export default function DocumentBuilderClient({
   };
 
   // PDF Download handler
-  const handleDownloadPDF = async () => {
+  const handleDownloadPDF = async (pdfType: 'factura' | 'entrega' | 'garantia' = 'factura') => {
     const container = templateContainerRef.current;
     if (!container) {
       toast.error('No se encontró el documento para exportar');
@@ -1348,11 +1372,14 @@ export default function DocumentBuilderClient({
     }
 
     setIsDownloadingPDF(true);
-    const toastId = toast.loading('Generando PDF Vectorial (Máxima Calidad)...');
+    const labelMessage = pdfType === 'entrega' ? 'Generando Orden de Entrega...' :
+                         pdfType === 'garantia' ? 'Generando Certificado de Garantía...' :
+                         'Generando PDF Vectorial (Máxima Calidad)...';
+    const toastId = toast.loading(labelMessage);
 
     try {
-      // Petición al API de generación PDF Serverless
-      const res = await fetch(`/api/pdf/${docId}`);
+      // Petición al API de generación PDF Serverless con query param type
+      const res = await fetch(`/api/pdf/${docId}?type=${pdfType}`);
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
         console.warn('PDF Server API Error:', errBody);
@@ -1360,13 +1387,20 @@ export default function DocumentBuilderClient({
       }
       
       const blob = await res.blob();
-      const isRepair = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'REPARACION');
-      const isMaint = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'MANTENIMIENTO');
-      const typeLabel = isRepair ? 'PresupuestoReparacion' : 
-                        isMaint ? 'PresupuestoMantenimiento' :
-                        docType === 'cotizacion' ? 'Cotizacion' : 
-                        docType === 'proforma' ? 'ProForma' : 
-                        'Factura';
+      let typeLabel = '';
+      if (pdfType === 'entrega') {
+        typeLabel = `OrdenEntrega-${ordenEntrega?.correlativo || 'PENDIENTE'}`;
+      } else if (pdfType === 'garantia') {
+        typeLabel = `CertificadoGarantia-${ordenEntrega?.correlativo || 'PENDIENTE'}`;
+      } else {
+        const isRepair = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'REPARACION');
+        const isMaint = docType === 'cotizacion' && (initialData?.ordenTrabajo?.tipoTrabajo === 'MANTENIMIENTO');
+        typeLabel = isRepair ? 'PresupuestoReparacion' : 
+                    isMaint ? 'PresupuestoMantenimiento' :
+                    docType === 'cotizacion' ? 'Cotizacion' : 
+                    docType === 'proforma' ? 'ProForma' : 
+                    'Factura';
+      }
       const fileName = `${typeLabel}-${docNumber || 'documento'}.pdf`;
 
       const url = URL.createObjectURL(blob);
@@ -1378,10 +1412,15 @@ export default function DocumentBuilderClient({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success('PDF Vectorial descargado exitosamente', { id: toastId });
+      toast.success('PDF generado y descargado exitosamente', { id: toastId });
       setIsDownloadingPDF(false);
       return;
     } catch (apiError) {
+      if (pdfType !== 'factura') {
+        toast.error('Error al generar este PDF especial en el servidor.', { id: toastId });
+        setIsDownloadingPDF(false);
+        return;
+      }
       console.warn('API Vector Serverless failed/timeout. Falling back to html2canvas local render.', apiError);
       toast.loading('Generación de respaldo activada...', { id: toastId });
       
@@ -2074,7 +2113,7 @@ export default function DocumentBuilderClient({
   return (
     <div className="min-h-screen bg-slate-50 font-sans print:!bg-white overflow-x-hidden print:overflow-visible print:min-h-0 print:block">
       {/* Top Bar */}
-      <div className={`sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[360px]' : ''}`}>
+      <div className={`bg-white border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[360px]' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-y-3 gap-x-4 overflow-x-auto sm:overflow-visible">
           
           <div className="flex items-center gap-4">
@@ -2123,9 +2162,9 @@ export default function DocumentBuilderClient({
         </div>
       </div>
 
-      <div className="max-w-[1200px] mx-auto px-4 py-8 flex gap-5 print:p-0 print:max-w-none print:m-0 relative print:block">
+      <div className="max-w-[1200px] mx-auto px-4 py-8 flex flex-col md:flex-row gap-5 print:p-0 print:max-w-none print:m-0 relative print:block">
 
-        <div className={`w-full relative transition-all duration-300 print:block ${isLocked ? 'pointer-events-none' : ''}`}>
+        <div className={`flex-1 min-w-0 relative transition-all duration-300 print:block ${isLocked ? 'pointer-events-none' : ''}`}>
           
           <div className={`transition-all duration-500 relative flex-1 min-w-0 z-10 print:block ${showCustomizer ? 'pr-[360px] print:pr-0 scale-[0.95] print:scale-100 origin-top' : ''} ${isLocked ? 'blur-[6px] opacity-60 grayscale-[0.1]' : ''}`}>
              <div ref={templateContainerRef} className="max-w-[816px] mx-auto relative bg-white">
@@ -2303,6 +2342,190 @@ export default function DocumentBuilderClient({
           )}
 
         </div>
+
+        {/* Right side: Orden de Entrega & Trazabilidad Panel */}
+        {viewMode && docType === 'factura' && !isLocked && (
+          <div className="w-full md:w-[360px] shrink-0 bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm self-start md:sticky md:top-[80px] print:hidden space-y-6">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2 text-base">
+                🚚 Orden de Entrega
+              </h3>
+              {loadingOrden ? (
+                <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+              ) : ordenEntrega ? (
+                <span className="text-[10px] bg-emerald-50 border border-emerald-200 text-emerald-700 font-extrabold px-2.5 py-1 rounded-full tracking-wider uppercase font-mono">
+                  {ordenEntrega.correlativo}
+                </span>
+              ) : null}
+            </div>
+
+            {ordenEntrega ? (
+              <>
+                {/* Toggles section */}
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                    <input
+                      id="aplicaMantenimientos"
+                      type="checkbox"
+                      checked={ordenEntrega.aplicaMantenimientos || false}
+                      onChange={async (e) => {
+                        const val = e.target.checked;
+                        const toastId = toast.loading('Guardando preferencia...');
+                        try {
+                          const res = await updateOrdenEntrega(ordenEntrega.id, { aplicaMantenimientos: val });
+                          if (res.success && res.orden) {
+                            setOrdenEntrega(res.orden);
+                            toast.success('Preferencia actualizada', { id: toastId });
+                          } else {
+                            throw new Error(res.error);
+                          }
+                        } catch (err: any) {
+                          toast.error(err.message || 'Error al actualizar', { id: toastId });
+                        }
+                      }}
+                      className="mt-1 h-4.5 w-4.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <label htmlFor="aplicaMantenimientos" className="text-xs font-semibold text-slate-600 cursor-pointer leading-relaxed">
+                      ¿Aplica Calendario de Mantenimientos e Historial de Garantía?
+                      <span className="block text-[10px] text-slate-400 font-normal mt-0.5">Calcula fechas dinámicas de visitas basándose en la configuración del activo.</span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Evidencia fotográfica R2 uploader */}
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                    📷 Evidencias de Entrega
+                  </h4>
+                  
+                  {/* Image Grid */}
+                  <div className="grid grid-cols-2 gap-2">
+                    {ordenEntrega.evidenciaFotos?.map((foto: string, index: number) => (
+                      <div key={index} className="relative group aspect-video bg-slate-900 rounded-xl overflow-hidden border border-slate-100 shadow-sm flex items-center justify-center">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={foto} alt={`Evidencia ${index + 1}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => window.open(foto, '_blank')}
+                            className="p-1.5 bg-white text-slate-800 rounded-lg hover:bg-slate-100 shadow"
+                            title="Ver en pantalla completa"
+                          >
+                            <Eye size={14} />
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (!confirm('¿Deseas eliminar esta foto de evidencia?')) return;
+                              const toastId = toast.loading('Eliminando foto...');
+                              try {
+                                const newFotos = ordenEntrega.evidenciaFotos.filter((f: string) => f !== foto);
+                                const res = await updateOrdenEntrega(ordenEntrega.id, { evidenciaFotos: newFotos });
+                                if (res.success && res.orden) {
+                                  setOrdenEntrega(res.orden);
+                                  toast.success('Evidencia eliminada', { id: toastId });
+                                } else {
+                                  throw new Error(res.error);
+                                }
+                              } catch (err: any) {
+                                toast.error(err.message || 'Error al eliminar', { id: toastId });
+                              }
+                            }}
+                            className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow"
+                            title="Eliminar foto"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {ordenEntrega.evidenciaFotos?.length === 0 && (
+                    <div className="text-center py-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-[11px] text-slate-400 font-medium">
+                      No se han subido fotos de evidencia
+                    </div>
+                  )}
+
+                  {/* Upload button */}
+                  <div>
+                    <label className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-500 bg-slate-50/50 hover:bg-indigo-50/10 text-slate-600 hover:text-indigo-600 rounded-xl text-xs font-bold cursor-pointer transition-all duration-200 ${isUploadingFoto ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}>
+                      <Download size={14} />
+                      {isUploadingFoto ? 'Subiendo archivo...' : 'Subir Foto de Evidencia'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          setIsUploadingFoto(true);
+                          const toastId = toast.loading('Subiendo evidencia a R2...');
+                          try {
+                            const formData = new FormData();
+                            formData.append('file', file);
+                            formData.append('fileName', `entrega_${Date.now()}_${file.name}`);
+                            
+                            const uploadRes = await fetch('/api/upload/inventario', {
+                              method: 'POST',
+                              body: formData
+                            });
+                            if (!uploadRes.ok) throw new Error('Error al subir la foto');
+                            const data = await uploadRes.json();
+                            
+                            const updatedFotos = [...(ordenEntrega.evidenciaFotos || []), data.publicUrl];
+                            const saveRes = await updateOrdenEntrega(ordenEntrega.id, { evidenciaFotos: updatedFotos });
+                            if (saveRes.success && saveRes.orden) {
+                              setOrdenEntrega(saveRes.orden);
+                              toast.success('Evidencia subida correctamente', { id: toastId });
+                            } else {
+                              throw new Error(saveRes.error || 'Error al guardar la foto en base de datos');
+                            }
+                          } catch (err: any) {
+                            toast.error(err.message || 'Error al subir foto', { id: toastId });
+                          } finally {
+                            setIsUploadingFoto(false);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                {/* PDF generation list */}
+                <div className="space-y-3 pt-4 border-t border-slate-100 flex flex-col gap-2">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    📄 Documentos Adicionales
+                  </h4>
+                  <button
+                    onClick={() => handleDownloadPDF('entrega')}
+                    disabled={isDownloadingPDF}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black shadow transition-all hover:shadow-lg disabled:opacity-50"
+                  >
+                    <Download size={13} /> Descargar Orden de Entrega
+                  </button>
+                  <button
+                    onClick={() => handleDownloadPDF('garantia')}
+                    disabled={isDownloadingPDF || !ordenEntrega.aplicaMantenimientos}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl text-xs font-black shadow transition-all hover:shadow-lg disabled:opacity-50"
+                  >
+                    <Download size={13} /> Descargar Certificado de Garantía
+                  </button>
+                  {!ordenEntrega.aplicaMantenimientos && (
+                    <p className="text-[10px] text-amber-500 font-medium text-center">
+                      * Habilita el calendario de mantenimientos para descargar la garantía
+                    </p>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-2"></div>
+                <p className="text-xs text-slate-400 font-medium">Inicializando Orden de Entrega...</p>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* ─── MODALS ────────────────────────────────────────────────── */}

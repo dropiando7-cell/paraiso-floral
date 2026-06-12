@@ -755,7 +755,8 @@ export async function getDocumentoById(id: string) {
                         producto: true,
                         activo: true
                     }
-                }
+                },
+                ordenEntrega: true
             }
         });
         if (!doc) return null;

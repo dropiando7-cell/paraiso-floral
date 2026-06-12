@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import React from 'react';
 import { renderToStream } from '@react-pdf/renderer';
 import LegacyTemplatePDF from '@/components/pdf/LegacyTemplatePDF';
+import OrdenEntregaPDF from '@/components/pdf/OrdenEntregaPDF';
+import GarantiaLimitadaPDF from '@/components/pdf/GarantiaLimitadaPDF';
 import { DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 
 // We need to set max duration since Vercel's default 10s might be too short 
@@ -45,6 +47,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return new Response('Missing ID', { status: 400 });
     }
 
+    const url = new URL(req.url);
+    const type = url.searchParams.get('type') || 'factura';
+
     // 1. Fetch document and organization data
     const doc = await prisma.factura.findUnique({
       where: { id },
@@ -54,7 +59,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         }, 
         cliente: true,
         creadoPor: true,
-        ordenTrabajo: true
+        ordenTrabajo: true,
+        ordenEntrega: true
       }
     });
 
@@ -105,7 +111,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         discountType: 'amount',
         isSection: isSection,
         sectionStyle: sectionStyle,
-        imageUrl: d.producto?.imageUrl || d.activo?.imagenUrl || null
+        imageUrl: d.producto?.imageUrl || d.activo?.imagenUrl || null,
+        garantia: d.activo?.garantia || null,
+        mantenimientosIncluidos: d.activo?.mantenimientosIncluidos || null,
+        frecuenciaMantenimientoMeses: d.activo?.frecuenciaMantenimientoMeses || null,
+        serie: d.activo?.serie || null,
+        marca: d.activo?.marca || d.producto?.marca || null,
+        modelo: d.activo?.modelo || d.producto?.modelo || null
       };
     });
     
@@ -156,6 +168,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         address: (doc.cliente as any).direccion || (doc.cliente as any).address || '',
         city: (doc.cliente as any).ciudad || (doc.cliente as any).city || '',
         rtn: (doc.cliente as any).rtn || '',
+        phone: (doc.cliente as any).telefono || '',
       } : null,
       nombreUsuario: (doc as any).nombreUsuario || (doc as any).creadoPor?.nombre || (doc as any).creadoPor?.email || 'Sistema',
       paymentTerms: doc.terminosPago || '30 días netos',
@@ -168,7 +181,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         const hora = d.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
         return `${fecha} ${hora}`;
       })(),
-      fmt
+      fmt,
+      fechaEmision: doc.fechaEmision || null,
+      ordenEntrega: doc.ordenEntrega || null,
+      ordenTrabajo: doc.ordenTrabajo || null
     };
 
     // 3. Pre-fetch external images (Logo and Products) as Buffers
@@ -238,6 +254,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       if (item.imageUrl) {
         const itemImageBase64 = await fetchImageAsBase64(item.imageUrl);
         if (itemImageBase64) images[item.id] = itemImageBase64;
+      }
+    }
+
+    // Fetch Delivery Evidence Images if type === 'entrega'
+    if (doc.ordenEntrega && type === 'entrega' && Array.isArray(doc.ordenEntrega.evidenciaFotos)) {
+      for (let i = 0; i < doc.ordenEntrega.evidenciaFotos.length; i++) {
+        const fotoUrl = doc.ordenEntrega.evidenciaFotos[i];
+        const base64 = await fetchImageAsBase64(fotoUrl);
+        if (base64) {
+          images[`evidencia_${i}`] = base64;
+        }
       }
     }
 
@@ -333,15 +360,26 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     console.log('Generating PDF via @react-pdf/renderer');
 
+    // Select Component to render
+    let pdfTemplate = LegacyTemplatePDF;
+    let downloadFileName = `documento-${id}.pdf`;
+    if (type === 'entrega') {
+      pdfTemplate = OrdenEntregaPDF;
+      downloadFileName = `orden-entrega-${doc.ordenEntrega?.correlativo || id}.pdf`;
+    } else if (type === 'garantia') {
+      pdfTemplate = GarantiaLimitadaPDF;
+      downloadFileName = `garantia-${doc.ordenEntrega?.correlativo || id}.pdf`;
+    }
+
     // 4. Render PDF
-    const stream = await renderToStream(React.createElement(LegacyTemplatePDF, { data: templateData, images }) as any);
+    const stream = await renderToStream(React.createElement(pdfTemplate, { data: templateData, images }) as any);
     
     // We must return the stream directly
     return new Response(stream as any, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="documento-${id}.pdf"`,
+        'Content-Disposition': `attachment; filename="${downloadFileName}"`,
       }
     });
 

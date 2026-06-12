@@ -4,7 +4,7 @@ import React from 'react';
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import {
   LayoutDashboard,
   Sparkles,
@@ -88,6 +88,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
           { name: 'Directorio de Contactos', href: '/contactos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Cotizaciones', href: '/cotizaciones', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Facturación', href: '/facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Órdenes de Entrega', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Cierre de Caja', href: '/cierre-caja' }
         ]
       },
@@ -119,6 +120,7 @@ const bottomItems = [
 
 export function Sidebar({ dbUser, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [openMenus, setOpenMenus] = React.useState<Record<string, boolean>>({});
 
   const toggleMenu = (name: string, e: React.MouseEvent) => {
@@ -266,18 +268,41 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                       {hasSubMenu && isOpen && (
                         <div className="flex flex-col gap-1 pl-4 mt-1 border-l-2 border-slate-100 ml-4">
                           {visibleSubItems.map((subItem) => {
-                            const isExactMatch = pathname === subItem.href;
-                            const isNestedMatch = pathname.startsWith(subItem.href + '/');
-                            const isMatch = isExactMatch || isNestedMatch;
+                            const hasQueryParams = subItem.href.includes('?');
+                            let isSubActive = false;
                             
-                            // Prevent parent paths (like /inventario) from highlighting if there is a more specific child match (like /inventario/historico)
                             const hasMoreSpecificMatch = visibleSubItems.some(other => 
                                 other.href !== subItem.href && 
                                 other.href.length > subItem.href.length && 
                                 (pathname === other.href || pathname.startsWith(other.href + '/'))
                             );
-                            
-                            const isSubActive = isMatch && !hasMoreSpecificMatch;
+
+                            if (hasQueryParams) {
+                              const [basePath, queryStr] = subItem.href.split('?');
+                              const isPathMatch = pathname === basePath;
+                              const params = new URLSearchParams(queryStr);
+                              const allParamsMatch = Array.from(params.entries()).every(([key, val]) => searchParams.get(key) === val);
+                              isSubActive = isPathMatch && allParamsMatch;
+                            } else {
+                              const isMatch = pathname === subItem.href || (subItem.href !== '/' && pathname.startsWith(subItem.href + '/'));
+                              
+                              const matchesOtherWithQuery = visibleSubItems.some(other => 
+                                other.href !== subItem.href && 
+                                other.href.startsWith(subItem.href + '?')
+                              );
+
+                              let isOtherQueryActive = false;
+                              if (matchesOtherWithQuery) {
+                                isOtherQueryActive = visibleSubItems.some(other => {
+                                  if (!other.href.includes('?')) return false;
+                                  const [_, qStr] = other.href.split('?');
+                                  const p = new URLSearchParams(qStr);
+                                  return Array.from(p.entries()).every(([k, v]) => searchParams.get(k) === v);
+                                });
+                              }
+
+                              isSubActive = isMatch && !hasMoreSpecificMatch && !isOtherQueryActive;
+                            }
                             return (
                               <Link
                                 key={subItem.name}
