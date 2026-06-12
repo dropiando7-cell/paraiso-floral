@@ -2159,8 +2159,10 @@ export default function DocumentBuilderClient({
         </div>
       </div>
 
-      <div className={`max-w-[1200px] mx-auto px-4 py-8 flex flex-col md:flex-row print:p-0 print:max-w-none print:m-0 relative print:block transition-all duration-300 ${
-        (viewMode && docType === 'factura' && !isLocked && showOrdenEntregaPanel) ? 'gap-5' : 'gap-y-5 md:gap-x-0'
+      <div className={`mx-auto px-4 py-8 flex flex-col md:flex-row print:p-0 print:max-w-none print:m-0 relative print:block transition-all duration-300 ${
+        (viewMode && docType === 'factura' && !isLocked)
+          ? (showOrdenEntregaPanel ? 'max-w-[1200px] gap-5' : 'max-w-[816px] gap-y-5 md:gap-x-0')
+          : (viewMode ? 'max-w-[816px] gap-y-5 md:gap-x-0' : 'max-w-[1200px] gap-y-5 md:gap-x-0')
       }`}>
 
         <div className={`flex-1 min-w-0 relative transition-all duration-300 print:block ${isLocked ? 'pointer-events-none' : ''}`}>
@@ -2343,27 +2345,11 @@ export default function DocumentBuilderClient({
         </div>
 
         {/* Right side: Orden de Entrega & Trazabilidad Panel */}
-        {viewMode && docType === 'factura' && !isLocked && (
-          <div className={`transition-all duration-300 relative flex shrink-0 print:hidden ${showOrdenEntregaPanel ? 'w-full md:w-[360px]' : 'w-0'}`}>
-            {/* Flap/Tab when hidden */}
-            {!showOrdenEntregaPanel && (
-              <button
-                type="button"
-                onClick={() => setShowOrdenEntregaPanel(true)}
-                className="fixed right-0 top-1/2 -translate-y-1/2 z-45 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-5 px-2.5 rounded-l-2xl shadow-lg border-l border-y border-indigo-500 transition-all hover:pr-3.5 flex items-center justify-center gap-1.5"
-                style={{ writingMode: 'vertical-lr' }}
-              >
-                <span className="text-[10px] tracking-widest font-black flex items-center gap-1.5 transform rotate-180 select-none">
-                  🚚 ORDEN DE ENTREGA
-                </span>
-              </button>
-            )}
-
+        {viewMode && docType === 'factura' && !isLocked && showOrdenEntregaPanel && (
+          <div className="transition-all duration-300 relative flex shrink-0 print:hidden w-full md:w-[360px]">
             {/* Collapsible Panel */}
             <div 
-              className={`w-full md:w-[360px] bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm self-start md:sticky md:top-[80px] space-y-6 transition-all duration-300 transform ${
-                showOrdenEntregaPanel ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0 pointer-events-none w-0 p-0 border-0 overflow-hidden'
-              }`}
+              className="w-full md:w-[360px] bg-white border border-slate-200 rounded-[2rem] p-6 shadow-sm self-start md:sticky md:top-[80px] space-y-6 transition-all duration-300 transform translate-x-0 opacity-100"
             >
               <div className="flex items-center justify-between pb-4 border-b border-slate-100">
                 <h3 className="font-bold text-slate-800 flex items-center gap-2 text-base">
@@ -2554,6 +2540,20 @@ export default function DocumentBuilderClient({
             )}
             </div>
           </div>
+        )}
+
+        {/* Flap/Tab when hidden */}
+        {viewMode && docType === 'factura' && !isLocked && !showOrdenEntregaPanel && (
+          <button
+            type="button"
+            onClick={() => setShowOrdenEntregaPanel(true)}
+            className="fixed right-0 top-1/2 -translate-y-1/2 z-45 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-5 px-2.5 rounded-l-2xl shadow-lg border-l border-y border-indigo-500 transition-all hover:pr-3.5 flex items-center justify-center gap-1.5 print:hidden"
+            style={{ writingMode: 'vertical-lr' }}
+          >
+            <span className="text-[10px] tracking-widest font-black flex items-center gap-1.5 transform rotate-180 select-none">
+              🚚 ORDEN DE ENTREGA
+            </span>
+          </button>
         )}
 
       </div>
@@ -2922,6 +2922,7 @@ export default function DocumentBuilderClient({
               : (initialData?.tipoDocumento?.toLowerCase() || docType)
           }
           estaVencida={estaVencida}
+          isEmitida={initialData?.estado === 'EMITIDA'}
         />
       )}
 

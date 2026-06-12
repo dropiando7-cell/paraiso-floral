@@ -15,6 +15,7 @@ interface DocumentActionsModalProps {
   isConverting?: boolean;
   docType?: string; // 'cotizacion', 'proforma', etc
   estaVencida?: boolean;
+  isEmitida?: boolean;
 }
 
 export default function DocumentActionsModal({
@@ -26,7 +27,8 @@ export default function DocumentActionsModal({
   isDownloadingPDF,
   isConverting,
   docType,
-  estaVencida
+  estaVencida,
+  isEmitida = false
 }: DocumentActionsModalProps) {
   
   // Handlers para acciones que luego cierran el modal
@@ -84,16 +86,32 @@ export default function DocumentActionsModal({
                 <span className="font-bold text-slate-700 text-sm text-center">Personalizar Diseño</span>
               </button>
 
-              {/* Orden de Entrega (solo si es factura) */}
-              {docType === 'factura' && onShowOrdenEntrega && (
+              {/* Orden de Entrega */}
+              {onShowOrdenEntrega && (
                 <button 
-                  onClick={() => handleAction(onShowOrdenEntrega)}
-                  className="group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 border-indigo-100 hover:border-indigo-500 rounded-2xl transition-all hover:shadow-lg"
+                  onClick={() => isEmitida && docType === 'factura' && handleAction(onShowOrdenEntrega)}
+                  disabled={!isEmitida || docType !== 'factura'}
+                  className={`group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 rounded-2xl transition-all shadow-sm ${
+                    (isEmitida && docType === 'factura')
+                      ? 'border-indigo-100 hover:border-indigo-500 hover:shadow-lg cursor-pointer' 
+                      : 'border-slate-100 opacity-50 cursor-not-allowed'
+                  }`}
+                  title={
+                    docType !== 'factura'
+                      ? "Esta opción solo está disponible para Facturas Oficiales"
+                      : (!isEmitida ? "La factura debe ser emitida para habilitar la orden de entrega" : "")
+                  }
                 >
-                  <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-transform ${
+                    (isEmitida && docType === 'factura')
+                      ? 'bg-indigo-50 text-indigo-600 group-hover:scale-110' 
+                      : 'bg-slate-50 text-slate-400'
+                  }`}>
                     <Truck size={28} />
                   </div>
-                  <span className="font-bold text-slate-700 text-sm text-center leading-tight">Orden de Entrega</span>
+                  <span className={`font-bold text-sm text-center leading-tight ${
+                    (isEmitida && docType === 'factura') ? 'text-slate-700' : 'text-slate-400'
+                  }`}>Orden de Entrega</span>
                 </button>
               )}
 

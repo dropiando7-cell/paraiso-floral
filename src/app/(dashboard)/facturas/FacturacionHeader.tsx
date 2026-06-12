@@ -51,7 +51,7 @@ export default function FacturacionHeader(props: Props) {
   const isViewOrEdit = props.activeTab === 'ver' || props.activeTab === 'editar';
 
   return (
-    <div className="bg-white border-b border-slate-200 sticky top-0 z-[40] print:hidden">
+    <div className="bg-white border-b border-slate-200 print:hidden">
       <div className="max-w-[1600px] mx-auto px-4 flex flex-wrap items-center justify-between min-h-[64px] py-2 gap-y-2">
         
         {/* Lado Izquierdo: Título y Tabs */}
