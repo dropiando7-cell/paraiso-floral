@@ -401,6 +401,7 @@ model ActivoFijo {
   esConsumible          Boolean              @default(false)
   garantia              String?
   mantenimientosIncluidos Int?
+  frecuenciaMantenimientoMeses Int?
   fechaVencimiento      DateTime?
   lote                  String?
   productoId            String?              @db.Uuid

@@ -379,6 +379,7 @@ type Activo = {
     esConsumible?: boolean;
     garantia?: string | null;
     mantenimientosIncluidos?: number | null;
+    frecuenciaMantenimientoMeses?: number | null;
     stock?: number;
 };
 
@@ -854,6 +855,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     const [responsable, setResponsable] = useState(editActivo?.responsable || (lockedArea ? RESPONSABLES[lockedArea] : '') || '');
     const [garantia, setGarantia] = useState(editActivo?.garantia || '');
     const [mantenimientosIncluidos, setMantenimientosIncluidos] = useState(editActivo?.mantenimientosIncluidos ? String(editActivo.mantenimientosIncluidos) : '');
+    const [frecuenciaMantenimientoMeses, setFrecuenciaMantenimientoMeses] = useState(editActivo?.frecuenciaMantenimientoMeses ? String(editActivo.frecuenciaMantenimientoMeses) : '');
 
     // Pre-step Registration Type
     const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso' | 'servicio'>(editActivo ? 'reingreso' : 'seleccion');
@@ -1245,6 +1247,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setEsConsumible(editActivo.esConsumible || false);
             setGarantia(editActivo.garantia || '');
             setMantenimientosIncluidos(editActivo.mantenimientosIncluidos ? String(editActivo.mantenimientosIncluidos) : '');
+            setFrecuenciaMantenimientoMeses(editActivo.frecuenciaMantenimientoMeses ? String(editActivo.frecuenciaMantenimientoMeses) : '');
             setLote(editActivo.lote || '');
             setFechaVencimiento(editActivo.fechaVencimiento ? getLocalDateString(editActivo.fechaVencimiento) : '');
             setFechaFabricacion(editActivo.fechaFabricacion ? getLocalDateString(editActivo.fechaFabricacion) : '');
@@ -1255,7 +1258,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setReferencia(''); setCodigoGrupo(''); setCodigoBarras(''); setCantidad('1');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
-            setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setGarantia(''); setMantenimientosIncluidos(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
+            setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setGarantia(''); setMantenimientosIncluidos(''); setFrecuenciaMantenimientoMeses(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
             setTipoRegistro('seleccion');
         }
     }, [editActivo, open, lockedArea]);
@@ -2244,6 +2247,14 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                             value={mantenimientosIncluidos || ''}
                                                             onChange={e => setMantenimientosIncluidos(e.target.value)}
                                                             placeholder="Ej: 2, 4..."
+                                                            className={inputCls} />
+                                                    </div>
+                                                    <div>
+                                                        <FieldLabel>Frecuencia Mantenimiento (Meses)</FieldLabel>
+                                                        <input type="number" name="frecuenciaMantenimientoMeses"
+                                                            value={frecuenciaMantenimientoMeses || ''}
+                                                            onChange={e => setFrecuenciaMantenimientoMeses(e.target.value)}
+                                                            placeholder="Ej: 6, 12..."
                                                             className={inputCls} />
                                                     </div>
                                                 </>
@@ -3571,6 +3582,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                         <div>
                                             <div className="text-xs text-slate-400 mb-1">Mantenimientos Incluidos</div>
                                             <div className="font-medium text-slate-800">{viewActivo.mantenimientosIncluidos}</div>
+                                        </div>
+                                    )}
+                                    {viewActivo.frecuenciaMantenimientoMeses !== undefined && viewActivo.frecuenciaMantenimientoMeses !== null && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">Frecuencia Mantenimiento</div>
+                                            <div className="font-medium text-slate-800">{viewActivo.frecuenciaMantenimientoMeses} {viewActivo.frecuenciaMantenimientoMeses === 1 ? 'mes' : 'meses'}</div>
                                         </div>
                                     )}
                                 </div>

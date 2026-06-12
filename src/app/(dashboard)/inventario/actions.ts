@@ -517,6 +517,8 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
     const garantia = (formData.get('garantia') as string) || null;
     const mantenimientosIncluidosStr = formData.get('mantenimientosIncluidos') as string;
     const mantenimientosIncluidos = mantenimientosIncluidosStr ? parseInt(mantenimientosIncluidosStr, 10) : null;
+    const frecuenciaStr = formData.get('frecuenciaMantenimientoMeses') as string;
+    const frecuenciaMantenimientoMeses = frecuenciaStr ? parseInt(frecuenciaStr, 10) : null;
 
     // Generar 1 idQr si es consumible (o será agrupado), o N idQrs si es Activo Fijo (serialización forzada)
     const numIds = (esConsumible || esServicio) ? 1 : cantidadRegistros;
@@ -582,6 +584,7 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
         esConsumible: formData.get('esConsumible') === 'true',
         garantia,
         mantenimientosIncluidos,
+        frecuenciaMantenimientoMeses,
         lote: (formData.get('lote') as string) || null,
         fechaFabricacion: formData.get('fechaFabricacion') ? new Date(formData.get('fechaFabricacion') as string) : null,
         fechaVencimiento: formData.get('fechaVencimiento') ? new Date(formData.get('fechaVencimiento') as string) : null,
@@ -729,6 +732,8 @@ export async function updateActivo(id: string, formData: FormData): Promise<{ su
         const stockNum = cantidadStr ? parseInt(cantidadStr, 10) : undefined;
         const mantenimientosIncluidosStr = formData.get('mantenimientosIncluidos') as string;
         const mantenimientosIncluidos = mantenimientosIncluidosStr ? parseInt(mantenimientosIncluidosStr, 10) : null;
+        const frecuenciaStr = formData.get('frecuenciaMantenimientoMeses') as string;
+        const frecuenciaMantenimientoMeses = frecuenciaStr ? parseInt(frecuenciaStr, 10) : null;
 
         await prisma.activoFijo.updateMany({
             where: { id, organizationId: orgId },
@@ -763,6 +768,7 @@ export async function updateActivo(id: string, formData: FormData): Promise<{ su
                 esConsumible: formData.get('esConsumible') === 'true',
                 garantia: (formData.get('garantia') as string) || null,
                 mantenimientosIncluidos,
+                frecuenciaMantenimientoMeses,
                 lote: (formData.get('lote') as string) || null,
                 fechaFabricacion: formData.get('fechaFabricacion') ? new Date(formData.get('fechaFabricacion') as string) : null,
                 fechaVencimiento: formData.get('fechaVencimiento') ? new Date(formData.get('fechaVencimiento') as string) : null,
