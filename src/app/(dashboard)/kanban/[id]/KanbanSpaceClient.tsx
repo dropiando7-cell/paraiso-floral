@@ -316,6 +316,9 @@ export default function KanbanSpaceClient({ initialData }: Props) {
     const [selectedType, setSelectedType] = useState('');
     const [selectedPriority, setSelectedPriority] = useState('');
     const [selectedAssignee, setSelectedAssignee] = useState('');
+    const [selectedDateFilter, setSelectedDateFilter] = useState('all');
+    const [customStartDate, setCustomStartDate] = useState('');
+    const [customEndDate, setCustomEndDate] = useState('');
 
     // Tarea activa en modal
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -331,6 +334,8 @@ export default function KanbanSpaceClient({ initialData }: Props) {
             }
         }
     }, [taskIdParam, tasks]);
+
+
 
     // Modal de Creación Avanzada
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -493,7 +498,68 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                 (selectedAssignee === 'unassigned' ? !task.asignado : task.asignado?.id === selectedAssignee) 
                 : true;
 
-            return matchesSearch && matchesType && matchesPriority && matchesAssignee;
+            const matchesDate = (() => {
+                if (selectedDateFilter === 'all') return true;
+                
+                const parseLocalDateObj = (dateVal: string | null) => {
+                    if (!dateVal) return null;
+                    return new Date(dateVal);
+                };
+                
+                const taskCreated = parseLocalDateObj(task.createdAt);
+                const taskDue = parseLocalDateObj(task.dueDate);
+                const taskStart = parseLocalDateObj(task.startDate);
+
+                const getWeekRange = () => {
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    const day = today.getDay();
+                    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+                    const monday = new Date(today.setDate(diff));
+                    
+                    const sunday = new Date(monday);
+                    sunday.setDate(monday.getDate() + 6);
+                    sunday.setHours(23, 59, 59, 999);
+                    return { start: monday, end: sunday };
+                };
+
+                const getMonthRange = () => {
+                    const today = new Date();
+                    const start = new Date(today.getFullYear(), today.getMonth(), 1, 0, 0, 0, 0);
+                    const end = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59, 999);
+                    return { start, end };
+                };
+
+                if (selectedDateFilter === 'created-week') {
+                    const { start, end } = getWeekRange();
+                    return taskCreated ? (taskCreated >= start && taskCreated <= end) : false;
+                }
+                if (selectedDateFilter === 'created-month') {
+                    const { start, end } = getMonthRange();
+                    return taskCreated ? (taskCreated >= start && taskCreated <= end) : false;
+                }
+                if (selectedDateFilter === 'due-week') {
+                    const { start, end } = getWeekRange();
+                    return taskDue ? (taskDue >= start && taskDue <= end) : false;
+                }
+                if (selectedDateFilter === 'due-month') {
+                    const { start, end } = getMonthRange();
+                    return taskDue ? (taskDue >= start && taskDue <= end) : false;
+                }
+                if (selectedDateFilter === 'custom') {
+                    if (!customStartDate && !customEndDate) return true;
+                    const start = customStartDate ? new Date(customStartDate + 'T00:00:00') : new Date(0);
+                    const end = customEndDate ? new Date(customEndDate + 'T23:59:59') : new Date(8640000000000000);
+                    
+                    const matchesCreated = taskCreated ? (taskCreated >= start && taskCreated <= end) : false;
+                    const matchesStart = taskStart ? (taskStart >= start && taskStart <= end) : false;
+                    const matchesDue = taskDue ? (taskDue >= start && taskDue <= end) : false;
+                    return matchesCreated || matchesStart || matchesDue;
+                }
+                return true;
+            })();
+
+            return matchesSearch && matchesType && matchesPriority && matchesAssignee && matchesDate;
         });
 
         if (query) {
@@ -524,7 +590,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
         }
 
         return filtered;
-    }, [tasks, search, selectedType, selectedPriority, selectedAssignee]);
+    }, [tasks, search, selectedType, selectedPriority, selectedAssignee, selectedDateFilter, customStartDate, customEndDate]);
 
 
     // 2. Drag & Drop nativo de HTML5
@@ -926,7 +992,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
     };
 
     return (
-        <div className="flex-1 flex flex-col min-h-screen bg-slate-50">
+        <div className="flex-grow flex flex-col bg-slate-50">
             {/* Cabecera del Espacio */}
             <div className="bg-white border-b border-slate-200 px-4 py-3 md:px-6 md:py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0">
                 <div className="flex items-center gap-4">
@@ -997,7 +1063,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
             {/* VISTA TABLERO */}
             {activeTab === 'tablero' && (
-                <div className="flex-1 flex flex-col">
+                <div className="flex flex-col">
                     {/* Barra de Filtros */}
                     <div className="bg-white border-b border-slate-200 px-4 py-2.5 md:px-6 md:py-3 flex flex-wrap items-center gap-3 shrink-0">
                         {/* Buscador */}
@@ -1050,14 +1116,59 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                             ))}
                         </select>
 
+                        {/* Filtro de Fecha */}
+                        <div className="flex items-center gap-2">
+                            <select
+                                value={selectedDateFilter}
+                                onChange={(e) => {
+                                    setSelectedDateFilter(e.target.value);
+                                    if (e.target.value !== 'custom') {
+                                        setCustomStartDate('');
+                                        setCustomEndDate('');
+                                    }
+                                }}
+                                className="bg-white border border-slate-200 rounded-xl px-3 py-2.5 md:py-2 text-sm md:text-xs text-slate-705 focus:outline-none focus:border-brand-500 cursor-pointer"
+                            >
+                                <option value="all">Todas las fechas</option>
+                                <option value="created-week">Creadas esta semana</option>
+                                <option value="created-month">Creadas este mes</option>
+                                <option value="due-week">Vencen esta semana</option>
+                                <option value="due-month">Vencen este mes</option>
+                                <option value="custom">Rango personalizado...</option>
+                            </select>
+
+                            {selectedDateFilter === 'custom' && (
+                                <div className="flex items-center gap-1.5 animate-fade-in">
+                                    <input
+                                        type="date"
+                                        value={customStartDate}
+                                        onChange={(e) => setCustomStartDate(e.target.value)}
+                                        className="bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-slate-705 focus:outline-none focus:border-brand-500"
+                                        title="Fecha Inicio"
+                                    />
+                                    <span className="text-xs text-slate-400">a</span>
+                                    <input
+                                        type="date"
+                                        value={customEndDate}
+                                        onChange={(e) => setCustomEndDate(e.target.value)}
+                                        className="bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs text-slate-705 focus:outline-none focus:border-brand-500"
+                                        title="Fecha Fin"
+                                    />
+                                </div>
+                            )}
+                        </div>
+
                         {/* Botón resetear filtros */}
-                        {(search || selectedType || selectedPriority || selectedAssignee) && (
+                        {(search || selectedType || selectedPriority || selectedAssignee || selectedDateFilter !== 'all' || customStartDate || customEndDate) && (
                             <button
                                 onClick={() => {
                                     setSearch('');
                                     setSelectedType('');
                                     setSelectedPriority('');
                                     setSelectedAssignee('');
+                                    setSelectedDateFilter('all');
+                                    setCustomStartDate('');
+                                    setCustomEndDate('');
                                 }}
                                 className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-semibold px-2 py-1 rounded-lg hover:bg-slate-50 transition"
                             >
@@ -1068,7 +1179,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     </div>
 
                     {/* Columnas del Tablero Kanban */}
-                    <div className="flex-1 overflow-x-auto p-3.5 sm:p-6 flex gap-3.5 sm:gap-6 items-start">
+                    <div className="overflow-x-auto py-4 flex gap-4 items-start">
                         {columnas.map((columna) => {
                             const columnTasks = filteredTasks.filter(t => t.status === columna);
 
@@ -1099,7 +1210,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                     className="w-[86vw] xs:w-[325px] sm:w-80 shrink-0 bg-slate-100/60 border border-slate-200 rounded-2xl px-3.5 pb-3.5 sm:px-4 sm:pb-4 flex flex-col"
                                 >
                                     {/* Cabecera Columna */}
-                                    <div className="sticky top-0 z-10 bg-[#f1f5f9] flex items-center justify-between pt-3.5 pb-3 mb-3 border-b border-slate-200 group/header sm:pt-4 rounded-t-2xl">
+                                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 group/header">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm sm:text-xs font-extrabold text-slate-800 uppercase tracking-wider">{columna}</span>
                                             <span className="text-xs sm:text-[10px] bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded-full font-bold">
@@ -1217,6 +1328,12 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                         <h4 className="text-sm sm:text-xs font-bold text-slate-800 line-clamp-2 leading-relaxed group-hover:text-brand-900 transition-colors">
                                                             {task.title}
                                                         </h4>
+                                                        
+                                                        {/* Fecha de Creación */}
+                                                        <div className="-mt-1.5 flex items-center gap-1 text-[9.5px] sm:text-[8.5px] text-slate-400">
+                                                            <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
+                                                            <span>Creado: {formatDate(task.createdAt)}</span>
+                                                        </div>
  
                                                         {/* Fechas de Inicio y Vencimiento */}
                                                         {(task.startDate || task.dueDate) && (

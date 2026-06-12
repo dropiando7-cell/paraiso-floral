@@ -18,7 +18,7 @@ export default async function SpacePage({ params }: Props) {
         }
 
         return (
-            <div className="flex-1 flex flex-col min-h-screen">
+            <div className="w-full">
                 <KanbanSpaceClient initialData={spaceData} />
             </div>
         );

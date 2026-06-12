@@ -51,7 +51,7 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
     if (isFullscreen) {
         return (
             <LayoutContext.Provider value={{ isFullscreen, setIsFullscreen }}>
-                <div className="flex min-h-screen print:min-h-0 print:block bg-[#F0F4FF] w-full">
+                <div className="flex h-screen overflow-hidden print:min-h-0 print:block bg-[#F0F4FF] w-full">
                     <main className="flex-1 w-full relative">
                         {children}
                     </main>
@@ -62,7 +62,7 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
 
     return (
         <LayoutContext.Provider value={{ isFullscreen, setIsFullscreen }}>
-            <div className="flex min-h-screen print:min-h-0 print:block bg-[#f8fafc]">
+            <div className="flex h-screen overflow-hidden print:min-h-0 print:block bg-[#f8fafc]">
                 {/* Mobile overlay */}
                 {mobileSidebarOpen && (
                     <div
