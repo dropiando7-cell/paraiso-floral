@@ -997,7 +997,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
             {/* VISTA TABLERO */}
             {activeTab === 'tablero' && (
-                <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col">
                     {/* Barra de Filtros */}
                     <div className="bg-white border-b border-slate-200 px-4 py-2.5 md:px-6 md:py-3 flex flex-wrap items-center gap-3 shrink-0">
                         {/* Buscador */}
@@ -1096,10 +1096,10 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                     key={columna}
                                     onDragOver={handleDragOver}
                                     onDrop={(e) => handleDrop(e, columna)}
-                                    className="w-[86vw] xs:w-[325px] sm:w-80 shrink-0 bg-slate-100/60 border border-slate-200 rounded-2xl p-3.5 sm:p-4 flex flex-col max-h-[calc(100vh-170px)] sm:max-h-[calc(100vh-190px)]"
+                                    className="w-[86vw] xs:w-[325px] sm:w-80 shrink-0 bg-slate-100/60 border border-slate-200 rounded-2xl px-3.5 pb-3.5 sm:px-4 sm:pb-4 flex flex-col"
                                 >
                                     {/* Cabecera Columna */}
-                                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-200 group/header">
+                                    <div className="sticky top-0 z-10 bg-[#f1f5f9] flex items-center justify-between pt-3.5 pb-3 mb-3 border-b border-slate-200 group/header sm:pt-4 rounded-t-2xl">
                                         <div className="flex items-center gap-2">
                                             <span className="text-sm sm:text-xs font-extrabold text-slate-800 uppercase tracking-wider">{columna}</span>
                                             <span className="text-xs sm:text-[10px] bg-slate-200/80 text-slate-600 px-2 py-0.5 rounded-full font-bold">
@@ -1137,7 +1137,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                     </div>
 
                                     {/* Listado de Tarjetas */}
-                                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 scrollbar-thin">
+                                    <div className="space-y-3 py-1">
                                         {columnTasks.length === 0 ? (
                                             <div className="h-20 flex items-center justify-center border border-dashed border-slate-300 rounded-xl bg-white/40">
                                                 <span className="text-[10px] text-slate-400 italic">Arrastra tareas aquí</span>

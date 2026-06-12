@@ -772,49 +772,50 @@ export async function syncKanbanStatus(ordenId: string, nuevoEstado: string, use
 
         if (!task || !task.space) return;
 
+        const columnas = task.space.columnas;
+        if (columnas.length === 0) return;
+
         let targetColumn = '';
         if (['RECIBIDO', 'EN_EVALUACION', 'ESPERANDO_APROBACION'].includes(nuevoEstado)) {
-            targetColumn = 'POR HACER';
+            // Buscar columna de inicio (To Do / Por hacer)
+            const keywords = ['hacer', 'ejecutar', 'pendiente', 'backlog', 'recibido', 'todo'];
+            const matched = columnas.find(col => 
+                keywords.some(kw => col.toLowerCase().includes(kw))
+            );
+            targetColumn = matched || columnas[0];
         } else if (nuevoEstado === 'APROBACION_PRESUPUESTO') {
-            targetColumn = 'EN REVISIÓN';
+            // Buscar columna de revisión (Review / En revisión)
+            const keywords = ['revisión', 'revision', 'evaluación', 'evaluacion', 'verificación', 'verificacion', 'review', 'test', 'pruebas'];
+            const matched = columnas.find(col => 
+                keywords.some(kw => col.toLowerCase().includes(kw))
+            );
+            if (matched) {
+                targetColumn = matched;
+            } else {
+                // Fallback a columna en curso o columna del medio
+                const enCursoKeywords = ['curso', 'ejecución', 'ejecucion', 'proceso', 'haciendo', 'doing', 'progress', 'desarrollo'];
+                const enCursoMatched = columnas.find(col => 
+                    enCursoKeywords.some(kw => col.toLowerCase().includes(kw))
+                );
+                targetColumn = enCursoMatched || (columnas.length > 2 ? columnas[columnas.length - 2] : columnas[0]);
+            }
         } else if (nuevoEstado === 'REPARACION') {
-            targetColumn = 'EN CURSO';
+            // Buscar columna en curso (In Progress / En curso)
+            const keywords = ['curso', 'ejecución', 'ejecucion', 'proceso', 'haciendo', 'doing', 'progress', 'desarrollo'];
+            const matched = columnas.find(col => 
+                keywords.some(kw => col.toLowerCase().includes(kw))
+            );
+            targetColumn = matched || (columnas.length > 2 ? columnas[1] : columnas[0]);
         } else if (['LISTO_ENTREGA', 'ENTREGADO'].includes(nuevoEstado)) {
-            targetColumn = 'LISTO';
+            // Buscar columna listo/completado (Done / Listo)
+            const keywords = ['listo', 'completado', 'entregado', 'done', 'finalizado', 'terminado', 'completada'];
+            const matched = columnas.find(col => 
+                keywords.some(kw => col.toLowerCase().includes(kw))
+            );
+            targetColumn = matched || columnas[columnas.length - 1];
         }
 
         if (!targetColumn) return;
-
-        // Buscar una columna en el espacio que coincida de forma insensible a mayúsculas/minúsculas
-        const matchedColumn = task.space.columnas.find(
-            col => col.toLowerCase() === targetColumn.toLowerCase()
-        );
-
-        if (matchedColumn) {
-            targetColumn = matchedColumn;
-        } else {
-            // Auto-healing: Si no existe, usamos una versión legible
-            let userFriendlyColumn = targetColumn;
-            if (targetColumn === 'POR HACER') userFriendlyColumn = 'Por hacer';
-            else if (targetColumn === 'EN REVISIÓN') userFriendlyColumn = 'En revisión';
-            else if (targetColumn === 'EN CURSO') userFriendlyColumn = 'En curso';
-            else if (targetColumn === 'LISTO') userFriendlyColumn = 'Listo';
-
-            const matchedUserFriendly = task.space.columnas.find(
-                col => col.toLowerCase() === userFriendlyColumn.toLowerCase()
-            );
-
-            if (matchedUserFriendly) {
-                targetColumn = matchedUserFriendly;
-            } else {
-                targetColumn = userFriendlyColumn;
-                const currentColumns = [...task.space.columnas, targetColumn];
-                await prisma.kanbanSpace.update({
-                    where: { id: task.space.id },
-                    data: { columnas: currentColumns }
-                });
-            }
-        }
 
         if (task.status !== targetColumn) {
             await prisma.kanbanTask.update({
