@@ -414,10 +414,35 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
         {/* Signatures */}
         <View style={[styles.signaturesContainer, { alignItems: 'flex-end' }]} wrap={false}>
           {/* Gerente General Signature */}
-          <View style={[styles.signatureCol, { width: firstQrCode ? '38%' : '45%' }]}>
-            {images['sig_manuel'] && (
-              <Image src={images['sig_manuel']} style={{ height: 40, objectFit: 'contain', marginBottom: -25 }} />
-            )}
+          <View style={[styles.signatureCol, { width: firstQrCode ? '38%' : '45%', position: 'relative' }]}>
+            <View style={{ height: 60, width: '100%', position: 'relative', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 2 }}>
+              {images['seal_company'] && (
+                <Image 
+                  src={images['seal_company']} 
+                  style={{ 
+                    position: 'absolute', 
+                    width: 70, 
+                    height: 70, 
+                    opacity: 0.75, 
+                    bottom: -12,
+                    zIndex: 1
+                  }} 
+                />
+              )}
+              {images['sig_manuel'] && (
+                <Image 
+                  src={images['sig_manuel']} 
+                  style={{ 
+                    position: 'absolute', 
+                    height: 55, 
+                    width: 120, 
+                    objectFit: 'contain', 
+                    bottom: -8,
+                    zIndex: 2 
+                  }} 
+                />
+              )}
+            </View>
             <View style={styles.signatureLine} />
             <Text style={styles.signatureLabel}>Ing. Manuel Tejada</Text>
             <Text style={styles.signatureSubLabel}>Gerente General</Text>

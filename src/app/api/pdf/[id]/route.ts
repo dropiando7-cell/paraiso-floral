@@ -104,7 +104,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     }
 
     // 2. Prepare Data Model for the PDF Component
-    const lineItems = doc.detalles.map((d: any) => {
+    const lineItems = await Promise.all(doc.detalles.map(async (d: any) => {
       let shortDesc = d.descripcion;
       let longDesc = '';
       if (d.descripcion && d.descripcion.includes('\n')) {
@@ -125,8 +125,43 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         }
       }
 
-      const code = d.activo?.idQr || d.producto?.sku || '';
-      const isAsset = !!d.activo?.idQr;
+      const parsedBrand = extractBrandAndModelFromDesc(d.descripcion || '').marca;
+      const parsedModel = extractBrandAndModelFromDesc(d.descripcion || '').modelo;
+
+      let resolvedActivo = d.activo;
+      if (!resolvedActivo && parsedBrand && parsedModel) {
+        const cleanBrand = parsedBrand.trim();
+        const modelNumMatch = parsedModel.match(/\d+/);
+        const modelSearchTerm = modelNumMatch ? modelNumMatch[0] : parsedModel.trim();
+
+        resolvedActivo = await prisma.activoFijo.findFirst({
+          where: {
+            organizationId: doc.organizationId,
+            OR: [
+              {
+                AND: [
+                  {
+                    OR: [
+                      { marca: { contains: cleanBrand, mode: 'insensitive' } },
+                      { descripcionCorta: { contains: cleanBrand, mode: 'insensitive' } }
+                    ]
+                  },
+                  {
+                    OR: [
+                      { modelo: { contains: modelSearchTerm, mode: 'insensitive' } },
+                      { descripcionCorta: { contains: modelSearchTerm, mode: 'insensitive' } },
+                      { descripcionDetallada: { contains: modelSearchTerm, mode: 'insensitive' } }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        });
+      }
+
+      const code = resolvedActivo?.idQr || d.producto?.sku || '';
+      const isAsset = !!resolvedActivo?.idQr;
 
       return {
         id: d.id,
@@ -142,15 +177,15 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         discountType: 'amount',
         isSection: isSection,
         sectionStyle: sectionStyle,
-        imageUrl: d.producto?.imageUrl || d.activo?.imagenUrl || null,
-        garantia: d.activo?.garantia || extractWarrantyFromDesc(d.descripcion || '') || null,
-        mantenimientosIncluidos: d.activo?.mantenimientosIncluidos || null,
-        frecuenciaMantenimientoMeses: d.activo?.frecuenciaMantenimientoMeses || null,
-        serie: d.activo?.serie || null,
-        marca: d.activo?.marca || d.activo?.producto?.marca || d.producto?.marca || extractBrandAndModelFromDesc(d.descripcion || '').marca || null,
-        modelo: d.activo?.modelo || d.activo?.producto?.modelo || d.producto?.modelo || extractBrandAndModelFromDesc(d.descripcion || '').modelo || null
+        imageUrl: d.producto?.imageUrl || resolvedActivo?.imagenUrl || null,
+        garantia: resolvedActivo?.garantia || extractWarrantyFromDesc(d.descripcion || '') || null,
+        mantenimientosIncluidos: resolvedActivo?.mantenimientosIncluidos || null,
+        frecuenciaMantenimientoMeses: resolvedActivo?.frecuenciaMantenimientoMeses || null,
+        serie: resolvedActivo?.serie || null,
+        marca: resolvedActivo?.marca || resolvedActivo?.producto?.marca || d.producto?.marca || parsedBrand || null,
+        modelo: resolvedActivo?.modelo || resolvedActivo?.producto?.modelo || d.producto?.modelo || parsedModel || null
       };
-    });
+    }));
     
     const totals = {
       subtotal: lineItems.reduce((acc: number, item: any) => acc + calcLine(item).base, 0),
@@ -359,7 +394,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     };
 
     const shouldLoadSignatures = settings.showSignatures || (doc.ordenEntrega && doc.ordenEntrega.mostrarFirmas !== false);
-    const shouldLoadSeals = settings.showSeals || (doc.ordenEntrega && doc.ordenEntrega.mostrarSello !== false);
+    const shouldLoadSeals = settings.showSeals || (doc.ordenEntrega && doc.ordenEntrega.mostrarSello !== false) || type === 'garantia';
 
     if (shouldLoadSignatures) {
       const signaturesList = settings.signaturesList || [
