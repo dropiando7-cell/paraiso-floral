@@ -1117,3 +1117,27 @@ export async function getInvoiceTemplates() {
         return [];
     }
 }
+
+export async function updateDocumentTemplateSettings(facturaId: string, settings: any) {
+    try {
+        const user = await getAuthenticatedUser();
+        const organizationId = user.organizationId;
+
+        const docExistente = await prisma.factura.findFirst({
+            where: { id: facturaId, organizationId }
+        });
+        if (!docExistente) throw new Error('Documento no encontrado o sin permisos.');
+
+        const updated = await prisma.factura.update({
+            where: { id: facturaId },
+            data: {
+                templateSettings: settings ? JSON.parse(JSON.stringify(settings)) : null
+            }
+        });
+
+        return { success: true, settings: updated.templateSettings };
+    } catch (error: any) {
+        console.error("Error al actualizar templateSettings:", error);
+        return { success: false, error: error.message || "Error al guardar" };
+    }
+}

@@ -47,7 +47,13 @@ export async function getOrCreateOrdenEntrega(facturaId: string) {
 
 export async function updateOrdenEntrega(
     id: string, 
-    data: { aplicaMantenimientos?: boolean; evidenciaFotos?: string[] }
+    data: { 
+        aplicaMantenimientos?: boolean; 
+        evidenciaFotos?: string[];
+        evidenciaFotosDesc?: string[];
+        mostrarFirmas?: boolean;
+        mostrarSello?: boolean;
+    }
 ) {
     try {
         const user = await getAuthenticatedUser();
@@ -66,7 +72,10 @@ export async function updateOrdenEntrega(
             where: { id },
             data: {
                 aplicaMantenimientos: data.aplicaMantenimientos !== undefined ? data.aplicaMantenimientos : undefined,
-                evidenciaFotos: data.evidenciaFotos !== undefined ? data.evidenciaFotos : undefined
+                evidenciaFotos: data.evidenciaFotos !== undefined ? data.evidenciaFotos : undefined,
+                evidenciaFotosDesc: data.evidenciaFotosDesc !== undefined ? data.evidenciaFotosDesc : undefined,
+                mostrarFirmas: data.mostrarFirmas !== undefined ? data.mostrarFirmas : undefined,
+                mostrarSello: data.mostrarSello !== undefined ? data.mostrarSello : undefined
             }
         });
 

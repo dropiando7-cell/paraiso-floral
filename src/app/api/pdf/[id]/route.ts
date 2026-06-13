@@ -287,6 +287,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                 // If pixel is white/near-white, make it transparent
                 if (data[i] > 240 && data[i+1] > 240 && data[i+2] > 240) {
                   data[i+3] = 0;
+                } else {
+                  // Enhance contrast/visibility by making non-white lines darker (decrease RGB values by 55%)
+                  data[i] = Math.max(0, Math.floor(data[i] * 0.45));
+                  data[i+1] = Math.max(0, Math.floor(data[i+1] * 0.45));
+                  data[i+2] = Math.max(0, Math.floor(data[i+2] * 0.45));
                 }
               }
               buffer = (await sharp(data as any, {
@@ -310,7 +315,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       return fetchImageAsBase64(url);
     };
 
-    if (settings.showSignatures) {
+    const shouldLoadSignatures = settings.showSignatures || (doc.ordenEntrega && doc.ordenEntrega.mostrarFirmas !== false);
+    const shouldLoadSeals = settings.showSeals || (doc.ordenEntrega && doc.ordenEntrega.mostrarSello !== false);
+
+    if (shouldLoadSignatures) {
       const signaturesList = settings.signaturesList || [
         { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: settings.showEmiliaZapata !== false },
         { id: 'manuel', name: 'Ing. Manuel Tejada', role: 'Gerente General', imageUrl: '/firmas-sellos/firma Ing Manuel Tejada.png', enabled: settings.showManuelTejada !== false }
@@ -325,7 +333,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }
     }
 
-    if (settings.showSeals) {
+    if (shouldLoadSeals) {
       const companySealImg = settings.companySealUrl || '/firmas-sellos/SELLO DE BIOELECTRONICA.png';
       if (settings.showCompanySeal !== false) {
         const companySealBase64 = await getLocalOrRemoteImage(companySealImg);

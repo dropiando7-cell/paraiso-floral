@@ -122,11 +122,11 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   showSeals: false,
   showCompanySeal: true,
   selectedStatusSeal: 'none',
-  signatureHeight: 64,
-  sealSize: 112,
+  signatureHeight: 120,
+  sealSize: 180,
   companySealPosition: 'manuel',
   statusSealPosition: 'right',
-  signatureSpacing: 0,
+  signatureSpacing: 39,
   signaturesList: [
     { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: true },
     { id: 'manuel', name: 'Ing. Manuel Tejada', role: 'Gerente General', imageUrl: '/firmas-sellos/firma Ing Manuel Tejada.png', enabled: true }

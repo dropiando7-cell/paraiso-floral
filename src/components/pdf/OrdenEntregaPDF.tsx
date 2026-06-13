@@ -16,27 +16,27 @@ const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
     backgroundColor: '#FFFFFF',
-    paddingLeft: 60,
-    paddingRight: 60,
-    paddingTop: 40,
-    paddingBottom: 80, // Space for footer
+    paddingLeft: 45,
+    paddingRight: 45,
+    paddingTop: 30,
+    paddingBottom: 70, // Space for footer
     fontFamily: 'Inter',
-    fontSize: 10,
+    fontSize: 9.5,
     color: '#000000',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 14,
   },
   logo: {
-    height: 60,
-    width: 140,
+    height: 50,
+    width: 120,
     objectFit: 'contain',
   },
   title: {
-    fontSize: 36,
+    fontSize: 30,
     fontWeight: 700,
     color: '#0d608e',
     textTransform: 'uppercase',
@@ -44,13 +44,13 @@ const styles = StyleSheet.create({
   sectionTitleContainer: {
     borderBottomWidth: 1.5,
     borderBottomColor: '#000000',
-    paddingBottom: 2,
-    marginTop: 16,
-    marginBottom: 8,
+    paddingBottom: 1,
+    marginTop: 10,
+    marginBottom: 5,
     width: '100%',
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: 700,
     color: '#000000',
     textTransform: 'uppercase',
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 8,
+    marginBottom: 4,
   },
   infoCol: {
     width: '48%',
@@ -69,13 +69,13 @@ const styles = StyleSheet.create({
     width: 0.75,
     backgroundColor: '#000000',
     alignSelf: 'stretch',
-    marginVertical: 2,
+    marginVertical: 1,
   },
   fieldRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginBottom: 6,
-    minHeight: 18,
+    marginBottom: 4,
+    minHeight: 14,
   },
   fieldLabelContainer: {
     width: 74,
@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     paddingBottom: 1,
   },
   fieldLabelText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 500,
     color: '#000000',
     textTransform: 'uppercase',
@@ -96,10 +96,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#000000',
     paddingBottom: 1,
     marginLeft: 6,
-    minHeight: 12,
+    minHeight: 11,
   },
   fieldValueText: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
   },
   table: {
@@ -112,8 +112,8 @@ const styles = StyleSheet.create({
     borderLeftColor: '#000000',
     borderRightWidth: 0.75,
     borderRightColor: '#000000',
-    marginTop: 12,
-    marginBottom: 16,
+    marginTop: 6,
+    marginBottom: 10,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -124,24 +124,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 0.75,
     borderBottomColor: '#000000',
-    minHeight: 28,
+    minHeight: 24,
   },
   tableCell: {
     borderRightWidth: 0.75,
     borderRightColor: '#000000',
-    paddingVertical: 6,
+    paddingVertical: 4,
     paddingHorizontal: 4,
     justifyContent: 'center',
   },
   thText: {
-    fontSize: 10.5,
+    fontSize: 9.5,
     fontWeight: 500,
     textTransform: 'uppercase',
     color: '#000000',
     textAlign: 'center',
   },
   tdText: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#000000',
     textAlign: 'center',
   },
@@ -154,13 +154,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     borderBottomColor: '#000000',
     paddingBottom: 2,
-    marginTop: 8,
-    marginBottom: 16,
+    marginTop: 6,
+    marginBottom: 10,
     alignSelf: 'flex-start',
     width: '100%',
   },
   warrantyText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: 700,
     color: '#000000',
     textTransform: 'uppercase',
@@ -168,77 +168,86 @@ const styles = StyleSheet.create({
   diagnosticoBox: {
     borderWidth: 0.75,
     borderColor: '#000000',
-    padding: 10,
-    marginBottom: 16,
+    padding: 8,
+    marginBottom: 10,
     width: '100%',
   },
   diagnosticoTitle: {
     fontWeight: 700,
     color: '#000000',
-    marginBottom: 4,
-    fontSize: 10,
+    marginBottom: 3,
+    fontSize: 9.5,
     textTransform: 'uppercase',
   },
   diagnosticoText: {
-    fontSize: 9,
+    fontSize: 8.5,
     color: '#000000',
-    lineHeight: 1.3,
+    lineHeight: 1.25,
   },
   evidenciasTitle: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 700,
     color: '#000000',
-    marginBottom: 8,
+    marginBottom: 6,
     textTransform: 'uppercase',
   },
   evidenciasGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
-    marginBottom: 20,
+    justifyContent: 'flex-start',
+    gap: 8,
+    marginBottom: 10,
   },
   evidenciaContainer: {
-    width: '48%',
-    height: 100,
-    borderWidth: 0.75,
-    borderColor: '#000000',
-    overflow: 'hidden',
-    justifyContent: 'center',
+    flexDirection: 'column',
     alignItems: 'center',
+    width: '23.5%',
+    marginBottom: 6,
   },
   evidenciaImage: {
     width: '100%',
-    height: '100%',
+    height: 75,
+    borderWidth: 0.75,
+    borderColor: '#000000',
     objectFit: 'cover',
+  },
+  evidenciaText: {
+    fontSize: 7,
+    color: '#000000',
+    textAlign: 'center',
+    marginTop: 3,
+    lineHeight: 1.1,
   },
   signaturesContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-around',
+    alignItems: 'flex-end',
     marginTop: 'auto',
     paddingTop: 15,
     marginBottom: 20,
+    position: 'relative',
   },
   signatureCol: {
-    width: '45%',
     alignItems: 'center',
+    marginHorizontal: 10,
+    position: 'relative',
   },
   signatureLine: {
     width: '100%',
     borderBottomWidth: 0.75,
     borderBottomColor: '#000000',
-    marginTop: 40,
+    marginTop: 4,
     marginBottom: 8,
   },
   signatureLabel: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: 700,
     color: '#000000',
     textAlign: 'center',
   },
   signatureSubLabel: {
-    fontSize: 9,
-    color: '#000000',
-    marginTop: 2,
+    fontSize: 7,
+    color: '#4b5563',
     textAlign: 'center',
   },
   blueFranja: {
@@ -291,6 +300,15 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
   const maxGarantiaAnios = maxGarantiaMeses > 0 ? Math.round(maxGarantiaMeses / 12) : (ordenEntrega?.aplicaMantenimientos ? 3 : 0);
 
   const nombreUsuario = data.nombreUsuario || '';
+
+  // Configuración de firmas y sellos dinámicos
+  const signaturesList = settings?.signaturesList || [
+    { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: settings?.showEmiliaZapata !== false },
+    { id: 'manuel', name: 'Ing. Manuel Tejada', role: 'Gerente General', imageUrl: '/firmas-sellos/firma Ing Manuel Tejada.png', enabled: settings?.showManuelTejada !== false }
+  ];
+
+  const activeSigs = (ordenEntrega?.mostrarFirmas !== false) ? signaturesList.filter((sig: any) => sig.enabled) : [];
+  const showSeals = (ordenEntrega?.mostrarSello !== false);
 
   return (
     <Document>
@@ -447,14 +465,18 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
 
         {/* Delivery Evidence Images */}
         {evidenciaImages.length > 0 && (
-          <View wrap={false} style={{ marginTop: 16 }}>
+          <View wrap={false} style={{ marginTop: 8 }}>
             <Text style={styles.evidenciasTitle}>Evidencias Fotográficas de Entrega</Text>
             <View style={styles.evidenciasGrid}>
-              {evidenciaImages.map((foto, i) => (
-                <View key={i} style={styles.evidenciaContainer}>
-                  <Image src={foto} style={styles.evidenciaImage} />
-                </View>
-              ))}
+              {evidenciaImages.map((foto, i) => {
+                const desc = (ordenEntrega?.evidenciaFotosDesc || [])[i] || "";
+                return (
+                  <View key={i} style={styles.evidenciaContainer}>
+                    <Image src={foto} style={styles.evidenciaImage} />
+                    <Text style={styles.evidenciaText}>{`${i + 1}. ${desc || 'Evidencia'}`}</Text>
+                  </View>
+                );
+              })}
             </View>
           </View>
         )}
@@ -468,21 +490,58 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
 
         {/* Signatures */}
         <View style={styles.signaturesContainer} wrap={false}>
-          {/* Bioelectrónica Autorizada */}
-          <View style={styles.signatureCol}>
-            {images['sig_emilia'] && (
-              <Image src={images['sig_emilia']} style={{ height: 40, objectFit: 'contain', marginBottom: -25 }} />
-            )}
-            <View style={styles.signatureLine} />
-            <Text style={[styles.signatureLabel, { fontSize: 11 }]}>FIRMA Y SELLO</Text>
-            <Text style={[styles.signatureLabel, { fontSize: 11 }]}>BIOELECTRONICA</Text>
-            <Text style={[styles.signatureSubLabel, { fontSize: 12, fontWeight: 700, marginTop: 4 }]}>Ing. Emilia Zapata</Text>
-          </View>
+          {/* Render Active Signatures columns */}
+          {activeSigs.map((sig: any) => {
+            const totalCols = activeSigs.length + 1;
+            const sigColWidth = totalCols <= 2 ? '45%' : '30%';
+            return (
+              <View key={sig.id} style={[styles.signatureCol, { width: sigColWidth }]}>
+                {/* Sello de la Empresa superpuesto sobre esta firma */}
+                {showSeals && settings.showCompanySeal !== false && settings.companySealPosition === sig.id && images['seal_company'] && (
+                  <Image 
+                    src={images['seal_company']} 
+                    style={{ 
+                      position: 'absolute', 
+                      top: -20 + (typeof settings.signatureSpacing === 'number' ? settings.signatureSpacing : 39), 
+                      width: settings.sealSize || 180, 
+                      height: settings.sealSize || 180, 
+                      opacity: 0.75 
+                    }} 
+                  />
+                )}
+                 <View style={{ height: settings.signatureHeight || 120, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
+                  {images[`sig_${sig.id}`] && (
+                    <Image 
+                      src={images[`sig_${sig.id}`]} 
+                      style={{ 
+                        height: settings.signatureHeight || 120, 
+                        objectFit: 'contain', 
+                        position: 'relative', 
+                        top: typeof settings.signatureSpacing === 'number' ? settings.signatureSpacing : 39 
+                      }} 
+                    />
+                  )}
+                </View>
+                <View style={styles.signatureLine} />
+                <Text style={styles.signatureLabel}>{sig.name}</Text>
+                <Text style={styles.signatureSubLabel}>{sig.role}</Text>
+              </View>
+            );
+          })}
 
-          {/* Client Signature */}
-          <View style={styles.signatureCol}>
+          {/* Sello de la Empresa cuando no hay firmas pero el sello está activo */}
+          {activeSigs.length === 0 && showSeals && settings.showCompanySeal !== false && images['seal_company'] && (
+            <View style={{ alignItems: 'center', justifyContent: 'center', width: '45%' }}>
+              <Image src={images['seal_company']} style={{ width: settings.sealSize || 180, height: settings.sealSize || 180, opacity: 0.8 }} />
+            </View>
+          )}
+
+          {/* Client Signature Column */}
+          <View style={[styles.signatureCol, { width: activeSigs.length <= 1 ? '45%' : '30%' }]}>
+            <View style={{ height: settings.signatureHeight || 120 }} />
             <View style={styles.signatureLine} />
-            <Text style={[styles.signatureLabel, { fontSize: 11 }]}>RECIBE:</Text>
+            <Text style={[styles.signatureLabel, { fontSize: 10 }]}>RECIBE:</Text>
+            <Text style={styles.signatureSubLabel}>Cliente / Solicitante</Text>
           </View>
         </View>
 

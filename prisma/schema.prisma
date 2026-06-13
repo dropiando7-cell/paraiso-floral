@@ -1209,6 +1209,9 @@ model OrdenEntrega {
   facturaId             String        @db.Uuid @unique
   aplicaMantenimientos  Boolean       @default(false)
   evidenciaFotos        String[]      @default([]) // URLs públicas en Cloudflare R2
+  evidenciaFotosDesc    String[]      @default([]) // Descripciones de las fotos
+  mostrarFirmas         Boolean       @default(true)
+  mostrarSello          Boolean       @default(true)
   creadoPorId           String?       @db.Uuid
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt

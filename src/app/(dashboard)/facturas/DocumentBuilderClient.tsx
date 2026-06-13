@@ -67,7 +67,7 @@ interface Product {
   serie?: string | null;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings } from './actions';
 import { createContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
@@ -1357,6 +1357,17 @@ export default function DocumentBuilderClient({
     }, 150);
   };
 
+  // Helper to save template settings to database
+  const handleSaveTemplateSettings = async (newSettings: any) => {
+    const docId = reservedDocId || initialData?.id;
+    if (!docId || docId === 'nuevo') return;
+    try {
+      await updateDocumentTemplateSettings(docId, newSettings);
+    } catch (err) {
+      console.error('Error auto-saving template settings:', err);
+    }
+  };
+
   // PDF Download handler
   const handleDownloadPDF = async (pdfType: 'factura' | 'entrega' | 'garantia' = 'factura') => {
     const container = templateContainerRef.current;
@@ -2407,104 +2418,297 @@ export default function DocumentBuilderClient({
                   </div>
                 </div>
 
-                {/* Evidencia fotográfica R2 uploader */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                    📷 Evidencias de Entrega
-                  </h4>
-                  
-                  {/* Image Grid */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {ordenEntrega.evidenciaFotos?.map((foto: string, index: number) => (
-                      <div key={index} className="relative group aspect-video bg-slate-900 rounded-xl overflow-hidden border border-slate-100 shadow-sm flex items-center justify-center">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={foto} alt={`Evidencia ${index + 1}`} className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                          <button
-                            onClick={() => window.open(foto, '_blank')}
-                            className="p-1.5 bg-white text-slate-800 rounded-lg hover:bg-slate-100 shadow"
-                            title="Ver en pantalla completa"
-                          >
-                            <Eye size={14} />
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (!confirm('¿Deseas eliminar esta foto de evidencia?')) return;
-                              const toastId = toast.loading('Eliminando foto...');
-                              try {
-                                const newFotos = ordenEntrega.evidenciaFotos.filter((f: string) => f !== foto);
-                                const res = await updateOrdenEntrega(ordenEntrega.id, { evidenciaFotos: newFotos });
-                                if (res.success && res.orden) {
-                                  setOrdenEntrega(res.orden);
-                                  toast.success('Evidencia eliminada', { id: toastId });
-                                } else {
-                                  throw new Error(res.error);
-                                }
-                              } catch (err: any) {
-                                toast.error(err.message || 'Error al eliminar', { id: toastId });
-                              }
-                            }}
-                            className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow"
-                            title="Eliminar foto"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {ordenEntrega.evidenciaFotos?.length === 0 && (
-                    <div className="text-center py-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-[11px] text-slate-400 font-medium">
-                      No se han subido fotos de evidencia
-                    </div>
-                  )}
-
-                  {/* Upload button */}
-                  <div>
-                    <label className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-500 bg-slate-50/50 hover:bg-indigo-50/10 text-slate-600 hover:text-indigo-600 rounded-xl text-xs font-bold cursor-pointer transition-all duration-200 ${isUploadingFoto ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}>
-                      <Download size={14} />
-                      {isUploadingFoto ? 'Subiendo archivo...' : 'Subir Foto de Evidencia'}
+                  {/* Firmas y Sellos en la Orden de Entrega */}
+                  <div className="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      ✍️ Firmas y Sellos en PDF
+                    </h4>
+                    
+                    <div className="flex items-center gap-3">
                       <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
+                        id="oeMostrarFirmas"
+                        type="checkbox"
+                        checked={ordenEntrega.mostrarFirmas !== false}
                         onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          setIsUploadingFoto(true);
-                          const toastId = toast.loading('Subiendo evidencia a R2...');
+                          const val = e.target.checked;
+                          const toastId = toast.loading('Guardando preferencia...');
                           try {
-                            const formData = new FormData();
-                            formData.append('file', file);
-                            formData.append('fileName', `entrega_${Date.now()}_${file.name}`);
-                            
-                            const uploadRes = await fetch('/api/upload/inventario', {
-                              method: 'POST',
-                              body: formData
-                            });
-                            if (!uploadRes.ok) throw new Error('Error al subir la foto');
-                            const data = await uploadRes.json();
-                            
-                            const updatedFotos = [...(ordenEntrega.evidenciaFotos || []), data.publicUrl];
-                            const saveRes = await updateOrdenEntrega(ordenEntrega.id, { evidenciaFotos: updatedFotos });
-                            if (saveRes.success && saveRes.orden) {
-                              setOrdenEntrega(saveRes.orden);
-                              toast.success('Evidencia subida correctamente', { id: toastId });
+                            const res = await updateOrdenEntrega(ordenEntrega.id, { mostrarFirmas: val });
+                            if (res.success && res.orden) {
+                              setOrdenEntrega(res.orden);
+                              toast.success('Preferencia guardada', { id: toastId });
                             } else {
-                              throw new Error(saveRes.error || 'Error al guardar la foto en base de datos');
+                              throw new Error(res.error);
                             }
                           } catch (err: any) {
-                            toast.error(err.message || 'Error al subir foto', { id: toastId });
-                          } finally {
-                            setIsUploadingFoto(false);
+                            toast.error(err.message || 'Error al actualizar', { id: toastId });
                           }
                         }}
+                        className="h-4.5 w-4.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
                       />
-                    </label>
+                      <label htmlFor="oeMostrarFirmas" className="text-xs font-semibold text-slate-600 cursor-pointer">
+                        Mostrar firmas de responsables
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <input
+                        id="oeMostrarSello"
+                        type="checkbox"
+                        checked={ordenEntrega.mostrarSello !== false}
+                        onChange={async (e) => {
+                          const val = e.target.checked;
+                          const toastId = toast.loading('Guardando preferencia...');
+                          try {
+                            const res = await updateOrdenEntrega(ordenEntrega.id, { mostrarSello: val });
+                            if (res.success && res.orden) {
+                              setOrdenEntrega(res.orden);
+                              toast.success('Preferencia guardada', { id: toastId });
+                            } else {
+                              throw new Error(res.error);
+                            }
+                          } catch (err: any) {
+                            toast.error(err.message || 'Error al actualizar', { id: toastId });
+                          }
+                        }}
+                        className="h-4.5 w-4.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                      />
+                      <label htmlFor="oeMostrarSello" className="text-xs font-semibold text-slate-600 cursor-pointer">
+                        Mostrar sello de Bioelectrónica
+                      </label>
+                    </div>
+
+                    {/* Controles deslizantes para cambiar el tamaño de las firmas y del sello */}
+                    <div className="pt-3 border-t border-slate-200/60 space-y-3">
+                      {ordenEntrega.mostrarFirmas !== false && (
+                        <>
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center text-xs text-slate-600">
+                              <span className="font-semibold">Alto de las Firmas:</span>
+                              <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.signatureHeight ?? 64}px</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="30"
+                              max="120"
+                              value={settings.signatureHeight ?? 64}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const newSettings = { ...settings, signatureHeight: val };
+                                setSettings(newSettings);
+                              }}
+                              onMouseUp={() => {
+                                handleSaveTemplateSettings(settings);
+                              }}
+                              onTouchEnd={() => {
+                                handleSaveTemplateSettings(settings);
+                              }}
+                              className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center text-xs text-slate-600">
+                              <span className="font-semibold">Posición de las Firmas (Subir/Bajar):</span>
+                              <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.signatureSpacing ?? 0}px</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="-30"
+                              max="50"
+                              value={settings.signatureSpacing ?? 0}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const newSettings = { ...settings, signatureSpacing: val };
+                                setSettings(newSettings);
+                              }}
+                              onMouseUp={() => {
+                                handleSaveTemplateSettings(settings);
+                              }}
+                              onTouchEnd={() => {
+                                handleSaveTemplateSettings(settings);
+                              }}
+                              className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                            />
+                          </div>
+                        </>
+                      )}
+
+                      {ordenEntrega.mostrarSello !== false && (
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs text-slate-600">
+                            <span className="font-semibold">Tamaño del Sello:</span>
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.sealSize ?? 112}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="50"
+                            max="180"
+                            value={settings.sealSize ?? 112}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const newSettings = { ...settings, sealSize: val };
+                              setSettings(newSettings);
+                            }}
+                            onMouseUp={() => {
+                              handleSaveTemplateSettings(settings);
+                            }}
+                            onTouchEnd={() => {
+                              handleSaveTemplateSettings(settings);
+                            }}
+                            className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
+
+                  {/* Evidencia fotográfica R2 uploader */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                      📷 Evidencias de Entrega
+                    </h4>
+                    
+                    {/* Listado de Fotos con Descripción */}
+                    <div className="space-y-3">
+                      {(ordenEntrega.evidenciaFotos || []).map((foto: string, index: number) => {
+                        const desc = (ordenEntrega.evidenciaFotosDesc || [])[index] || "";
+                        return (
+                          <div key={index} className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 relative group">
+                            <div className="relative aspect-video bg-slate-900 rounded-lg overflow-hidden border border-slate-100 shadow-sm flex items-center justify-center">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={foto} alt={`Evidencia ${index + 1}`} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => window.open(foto, '_blank')}
+                                  className="p-1.5 bg-white text-slate-800 rounded-lg hover:bg-slate-100 shadow"
+                                  title="Ver en pantalla completa"
+                                >
+                                  <Eye size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    if (!confirm('¿Deseas eliminar esta foto de evidencia?')) return;
+                                    const toastId = toast.loading('Eliminando foto...');
+                                    try {
+                                      const newFotos = ordenEntrega.evidenciaFotos.filter((_: string, idx: number) => idx !== index);
+                                      const newDescs = (ordenEntrega.evidenciaFotosDesc || []).filter((_: string, idx: number) => idx !== index);
+                                      const res = await updateOrdenEntrega(ordenEntrega.id, { evidenciaFotos: newFotos, evidenciaFotosDesc: newDescs });
+                                      if (res.success && res.orden) {
+                                        setOrdenEntrega(res.orden);
+                                        toast.success('Evidencia eliminada', { id: toastId });
+                                      } else {
+                                        throw new Error(res.error);
+                                      }
+                                    } catch (err: any) {
+                                      toast.error(err.message || 'Error al eliminar', { id: toastId });
+                                    }
+                                  }}
+                                  className="p-1.5 bg-red-500 text-white rounded-lg hover:bg-red-600 shadow"
+                                  title="Eliminar foto"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                            
+                            {/* Campo de descripción */}
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                Descripción #{index + 1}
+                              </label>
+                              <input
+                                type="text"
+                                value={desc}
+                                placeholder="Ej: Orring dañado por uso de siliconas..."
+                                onChange={(e) => {
+                                  const newDescs = [...(ordenEntrega.evidenciaFotosDesc || [])];
+                                  while (newDescs.length < ordenEntrega.evidenciaFotos.length) {
+                                    newDescs.push("");
+                                  }
+                                  newDescs[index] = e.target.value;
+                                  setOrdenEntrega((p: any) => ({
+                                    ...p,
+                                    evidenciaFotosDesc: newDescs
+                                  }));
+                                }}
+                                onBlur={async (e) => {
+                                  const newDescs = [...(ordenEntrega.evidenciaFotosDesc || [])];
+                                  while (newDescs.length < ordenEntrega.evidenciaFotos.length) {
+                                    newDescs.push("");
+                                  }
+                                  newDescs[index] = e.target.value;
+                                  try {
+                                    const res = await updateOrdenEntrega(ordenEntrega.id, { evidenciaFotosDesc: newDescs });
+                                    if (res.success && res.orden) {
+                                      setOrdenEntrega(res.orden);
+                                    }
+                                  } catch (err) {
+                                    console.error("Error saving photo description:", err);
+                                  }
+                                }}
+                                className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {ordenEntrega.evidenciaFotos?.length === 0 && (
+                      <div className="text-center py-4 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-[11px] text-slate-400 font-medium">
+                        No se han subido fotos de evidencia
+                      </div>
+                    )}
+
+                    {/* Upload button */}
+                    <div>
+                      <label className={`w-full flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-slate-200 hover:border-indigo-500 bg-slate-50/50 hover:bg-indigo-50/10 text-slate-600 hover:text-indigo-600 rounded-xl text-xs font-bold cursor-pointer transition-all duration-200 ${isUploadingFoto ? 'opacity-50 cursor-not-allowed pointer-events-none' : ''}`}>
+                        <Download size={14} />
+                        {isUploadingFoto ? 'Subiendo archivo...' : 'Subir Foto de Evidencia'}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setIsUploadingFoto(true);
+                            const toastId = toast.loading('Subiendo evidencia a R2...');
+                            try {
+                              const formData = new FormData();
+                              formData.append('file', file);
+                              formData.append('fileName', `entrega_${Date.now()}_${file.name}`);
+                              
+                              const uploadRes = await fetch('/api/upload/inventario', {
+                                method: 'POST',
+                                body: formData
+                              });
+                              if (!uploadRes.ok) throw new Error('Error al subir la foto');
+                              const data = await uploadRes.json();
+                              
+                              const updatedFotos = [...(ordenEntrega.evidenciaFotos || []), data.publicUrl];
+                              const updatedDescs = [...(ordenEntrega.evidenciaFotosDesc || []), ""];
+                              const saveRes = await updateOrdenEntrega(ordenEntrega.id, { evidenciaFotos: updatedFotos, evidenciaFotosDesc: updatedDescs });
+                              if (saveRes.success && saveRes.orden) {
+                                setOrdenEntrega(saveRes.orden);
+                                toast.success('Evidencia subida correctamente', { id: toastId });
+                              } else {
+                                throw new Error(saveRes.error || 'Error al guardar la foto en base de datos');
+                              }
+                            } catch (err: any) {
+                              toast.error(err.message || 'Error al subir foto', { id: toastId });
+                            } finally {
+                              setIsUploadingFoto(false);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+                  </div>
 
                 {/* PDF generation list */}
                 <div className="space-y-3 pt-4 border-t border-slate-100 flex flex-col gap-2">
