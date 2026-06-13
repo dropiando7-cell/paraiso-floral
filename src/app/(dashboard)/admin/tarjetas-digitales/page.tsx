@@ -1,3 +1,6 @@
+import { redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
+import { prisma } from '@/lib/prisma';
 import { 
     getDigitalCards, 
     getCardLeads, 
@@ -8,6 +11,27 @@ import TarjetasClient from './TarjetasClient';
 export const dynamic = 'force-dynamic';
 
 export default async function TarjetasAdminPage() {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        redirect("/login");
+    }
+
+    const dbUser = await prisma.user.findUnique({
+        where: { email: user.email },
+        select: { role: true, accessibleModules: true }
+    });
+
+    if (!dbUser) {
+        redirect("/unauthorized");
+    }
+
+    const hasAccess = (dbUser.accessibleModules || []).includes('/admin/tarjetas-digitales');
+    if (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && !hasAccess) {
+        redirect("/unauthorized");
+    }
+
     // Fetch initial server data
     const [cards, leads, users] = await Promise.all([
         getDigitalCards(),

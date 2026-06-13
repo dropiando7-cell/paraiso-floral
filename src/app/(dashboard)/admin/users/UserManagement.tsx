@@ -108,7 +108,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/cotizaciones', label: 'Cotizaciones' },
         { id: '/facturas', label: 'Facturación' },
         { id: '/caja-chica', label: 'Caja Chica' },
-        { id: '/admin/gestion-web', label: 'Gestión Web / Tienda' }
+        { id: '/admin/gestion-web', label: 'Gestión Web / Tienda' },
+        { id: '/admin/tarjetas-digitales', label: 'Tarjetas Digitales' }
     ];
 
 

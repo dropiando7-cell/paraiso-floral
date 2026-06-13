@@ -12,12 +12,14 @@ async function getOrgContext() {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
-        select: { id: true, organizationId: true, role: true }
+        select: { id: true, organizationId: true, role: true, accessibleModules: true }
     });
     if (!dbUser) throw new Error('Usuario no registrado en la base de datos');
     
-    // Check role access. It must be SUPER_ADMIN or ORG_ADMIN.
-    if (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN') {
+    const hasAccess = (dbUser.accessibleModules || []).includes('/admin/tarjetas-digitales');
+    
+    // Check role access. It must be SUPER_ADMIN, ORG_ADMIN or have explicit module access.
+    if (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && !hasAccess) {
         throw new Error('No tienes permisos de administración');
     }
 

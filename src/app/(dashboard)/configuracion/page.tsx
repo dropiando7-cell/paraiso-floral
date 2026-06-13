@@ -15,7 +15,8 @@ const allAvailableModules = [
     { id: '/inventario', name: 'Inventario de Activos' },
     { id: '/conciliacion', name: 'Conciliación Bancaria' },
     { id: '/boveda', name: 'Bóveda de Contraseñas' },
-    { id: '/calendario', name: 'Calendario Centralizado' }
+    { id: '/calendario', name: 'Calendario Centralizado' },
+    { id: '/admin/tarjetas-digitales', name: 'Tarjetas Digitales' }
 ];
 
 const timezones = [

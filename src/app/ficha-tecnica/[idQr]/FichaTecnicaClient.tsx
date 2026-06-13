@@ -141,7 +141,7 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-start py-8 px-4">
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-start py-8 px-4">
 
             {/* Lightbox */}
             {lightbox && allImages.length > 0 && (
@@ -527,7 +527,7 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
             </div>
 
             {/* Sub-brand */}
-            <p className="mt-6 text-xs text-white/30 text-center">
+            <p className="mt-6 text-xs text-slate-400 text-center">
                 Inventario Comercial · Bioelectrónica Honduras
             </p>
         </div>
