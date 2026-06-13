@@ -98,6 +98,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
     category: 'ADMINISTRACIÓN',
     items: [
       {
+        name: 'Avances del Desarrollo',
+        href: '/admin/avances',
+        icon: TrendingUp,
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE', 'EXECUTIVE_ASSISTANT'],
+      },
+      {
         name: 'Usuarios y Roles',
         href: '/admin/users',
         icon: Users,

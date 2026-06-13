@@ -43,5 +43,20 @@ export default async function KardexPage({ searchParams }: { searchParams: { pro
         take: 200,
     });
 
-    return <KardexClient productos={productos} movimientos={movimientos} />;
+    const serializedProductos = productos.map(p => ({
+        ...p,
+        precioVenta: Number(p.precioVenta),
+        costoBase: p.costoBase ? Number(p.costoBase) : null,
+    }));
+
+    const serializedMovimientos = movimientos.map(m => ({
+        ...m,
+        producto: m.producto ? {
+            ...m.producto,
+            precioVenta: Number(m.producto.precioVenta),
+            costoBase: m.producto.costoBase ? Number(m.producto.costoBase) : null,
+        } : null,
+    }));
+
+    return <KardexClient productos={serializedProductos} movimientos={serializedMovimientos} />;
 }

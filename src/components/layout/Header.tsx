@@ -41,6 +41,7 @@ const searchItems: SearchItem[] = [
     { name: 'Órdenes de Entrega', category: 'Ventas y Servicios', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['ordenes', 'entrega', 'delivery', 'shipping'] },
     { name: 'Cierre de Caja', category: 'Ventas y Servicios', href: '/cierre-caja', keywords: ['cierre', 'caja', 'cortes', 'arqueo', 'cash close'] },
     { name: 'Usuarios y Roles', category: 'Administración', href: '/admin/users', roles: ['SUPER_ADMIN', 'CHECKIN_KIDS_ADMIN'], keywords: ['usuarios', 'roles', 'permisos', 'users', 'staff'] },
+    { name: 'Avances del Desarrollo', category: 'Administración', href: '/admin/avances', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE', 'EXECUTIVE_ASSISTANT'], keywords: ['avances', 'desarrollo', 'progreso', 'manuel tejada', 'erp', 'completion', 'usabilidad', 'ux'] },
     { name: 'Gestión Web / Tienda', category: 'Administración', href: '/admin/gestion-web', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['web', 'tienda', 'shop', 'configuracion web'] },
     { name: 'Configuración', category: 'Ajustes', href: '/configuracion', keywords: ['configuracion', 'ajustes', 'system settings'] },
     { name: 'Ayuda y Soporte', category: 'Soporte', href: '/soporte', keywords: ['ayuda', 'soporte', 'faq', 'help', 'docs'] }
