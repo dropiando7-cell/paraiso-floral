@@ -124,32 +124,30 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 0.75,
     borderBottomColor: '#000000',
-    alignItems: 'center',
     minHeight: 28,
   },
-  thCol: {
+  tableCell: {
+    borderRightWidth: 0.75,
+    borderRightColor: '#000000',
     paddingVertical: 6,
     paddingHorizontal: 4,
+    justifyContent: 'center',
+  },
+  thText: {
     fontSize: 10.5,
     fontWeight: 500,
     textTransform: 'uppercase',
     color: '#000000',
-    borderRightWidth: 0.75,
-    borderRightColor: '#000000',
     textAlign: 'center',
   },
-  tdCol: {
-    paddingVertical: 6,
-    paddingHorizontal: 4,
+  tdText: {
     fontSize: 10,
     color: '#000000',
-    borderRightWidth: 0.75,
-    borderRightColor: '#000000',
     textAlign: 'center',
   },
   colNo: { width: '7.5%' },
   colSerie: { width: '24%' },
-  colDesc: { width: '44%', textAlign: 'left' },
+  colDesc: { width: '44%' },
   colQty: { width: '24.5%', borderRightWidth: 0 },
 
   warrantyBlock: {
@@ -407,18 +405,34 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
         {/* Table of Items */}
         <View style={styles.table}>
           <View style={styles.tableHeader}>
-            <Text style={[styles.thCol, styles.colNo]}>No.</Text>
-            <Text style={[styles.thCol, styles.colSerie]}>SERIE</Text>
-            <Text style={[styles.thCol, styles.colDesc]}>DESCRIPCION</Text>
-            <Text style={[styles.thCol, styles.colQty]}>CANTIDAD</Text>
+            <View style={[styles.tableCell, styles.colNo]}>
+              <Text style={styles.thText}>No.</Text>
+            </View>
+            <View style={[styles.tableCell, styles.colSerie]}>
+              <Text style={styles.thText}>SERIE</Text>
+            </View>
+            <View style={[styles.tableCell, styles.colDesc]}>
+              <Text style={[styles.thText, { textAlign: 'left' }]}>DESCRIPCION</Text>
+            </View>
+            <View style={[styles.tableCell, styles.colQty]}>
+              <Text style={styles.thText}>CANTIDAD</Text>
+            </View>
           </View>
 
           {validItems.map((item: any, idx: number) => (
             <View key={idx} style={styles.tableRow} wrap={false}>
-              <Text style={[styles.tdCol, styles.colNo]}>{idx + 1}</Text>
-              <Text style={[styles.tdCol, styles.colSerie, { fontWeight: 700 }]}>{item.serie || 'N/A'}</Text>
-              <Text style={[styles.tdCol, styles.colDesc]}>{item.shortDesc}</Text>
-              <Text style={[styles.tdCol, styles.colQty]}>{item.qty}</Text>
+              <View style={[styles.tableCell, styles.colNo]}>
+                <Text style={styles.tdText}>{idx + 1}</Text>
+              </View>
+              <View style={[styles.tableCell, styles.colSerie]}>
+                <Text style={[styles.tdText, { fontWeight: 700 }]}>{item.serie || 'N/A'}</Text>
+              </View>
+              <View style={[styles.tableCell, styles.colDesc]}>
+                <Text style={[styles.tdText, { textAlign: 'left' }]}>{item.shortDesc}</Text>
+              </View>
+              <View style={[styles.tableCell, styles.colQty]}>
+                <Text style={styles.tdText}>{item.qty}</Text>
+              </View>
             </View>
           ))}
         </View>
