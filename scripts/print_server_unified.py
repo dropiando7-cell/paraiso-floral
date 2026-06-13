@@ -22,7 +22,7 @@ TIEMPO_ESPERA = 3
 
 # ─── Tamaños de Etiqueta ──────────────────────────────────────────────────────
 # Se define un diccionario con las configuraciones según el tamaño deseado.
-# 70x40mm: Ancho = 559px, Alto = 320px -> Alto seguro = 300px
+# 70x40mm: Ancho = 559px, Alto = 320px -> Alto seguro = 310px
 # 50x33mm: Ancho = 399px, Alto = 263px -> Alto seguro = 245px
 # 50x25mm: Ancho = 399px, Alto = 200px -> Alto seguro = 185px
 TAMANOS = {
@@ -32,6 +32,8 @@ TAMANOS = {
         "QR_MARGEN": 16,
         "QR_SCALE": 1,
         "CB_MARGEN_INF": 16,
+        "CB_HEIGHT": 6,
+        "CB_SCALE": 2,
         "FONT_ID": 20,
         "FONT_DESC_LONG": 14,
         "FONT_DESC_SHORT": 16,
@@ -54,6 +56,8 @@ TAMANOS = {
         "QR_MARGEN": 20,
         "QR_SCALE": 1,
         "CB_MARGEN_INF": 24,
+        "CB_HEIGHT": 8,
+        "CB_SCALE": 2,
         "FONT_ID": 24,
         "FONT_DESC_LONG": 16,
         "FONT_DESC_SHORT": 18,
@@ -76,6 +80,8 @@ TAMANOS = {
         "QR_MARGEN": 22,
         "QR_SCALE": 1,
         "CB_MARGEN_INF": 26,
+        "CB_HEIGHT": 8,
+        "CB_SCALE": 2,
         "FONT_ID": 24,
         "FONT_DESC_LONG": 17,
         "FONT_DESC_SHORT": 20,
@@ -94,25 +100,27 @@ TAMANOS = {
     },
     "70x40": {
         "ANCHO_FIJO": 559,
-        "ALTO_MAXIMO": 300,
-        "QR_MARGEN": 28,
+        "ALTO_MAXIMO": 310,
+        "QR_MARGEN": 16,
         "QR_SCALE": 2,
-        "CB_MARGEN_INF": 28,
-        "FONT_ID": 30,
-        "FONT_DESC_LONG": 20,
-        "FONT_DESC_SHORT": 24,
-        "FONT_SMALL": 18,
-        "FONT_BARCODE": 17,
-        "FONT_BIO": 17,
-        "WRAP_MAX_PX": 360,
-        "X_TEXT": 20,
-        "Y_TEXT": 22,
-        "Y_OFFSET_2_LINES": 95,
-        "Y_OFFSET_1_LINE": 75,
-        "MARCA_Y_OFFSET": 24,
-        "SERIE_Y_OFFSET": 24,
-        "BIO_Y_OFFSET_SERIE": 48,
-        "BIO_Y_OFFSET_NO_SERIE": 24,
+        "CB_MARGEN_INF": 18,
+        "CB_HEIGHT": 10,
+        "CB_SCALE": 2,
+        "FONT_ID": 34,
+        "FONT_DESC_LONG": 22,
+        "FONT_DESC_SHORT": 26,
+        "FONT_SMALL": 20,
+        "FONT_BARCODE": 18,
+        "FONT_BIO": 18,
+        "WRAP_MAX_PX": 390,
+        "X_TEXT": 16,
+        "Y_TEXT": 16,
+        "Y_OFFSET_2_LINES": 105,
+        "Y_OFFSET_1_LINE": 80,
+        "MARCA_Y_OFFSET": 26,
+        "SERIE_Y_OFFSET": 26,
+        "BIO_Y_OFFSET_SERIE": 52,
+        "BIO_Y_OFFSET_NO_SERIE": 26,
     }
 }
 DEFAULT_SIZE = "50x25"
@@ -303,10 +311,9 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
 
             # ── Código de barras 1D (layout desde abajo hacia arriba) ──────
             bc_text = urllib.parse.quote(codigo_barras)
-            bc_url  = (
-                f"https://bwipjs-api.metafloor.com/?bcid=code128"
-                f"&text={bc_text}&height=6&scale=2&includetext=false"
-            )
+            cb_height = cfg.get("CB_HEIGHT", 6)
+            cb_scale = cfg.get("CB_SCALE", 2)
+            bc_url  = f"https://bwipjs-api.metafloor.com/?bcid=code128&text={bc_text}&height={cb_height}&scale={cb_scale}&includetext=false"
             try:
                 req_bc = requests.get(bc_url, timeout=5)
                 if req_bc.status_code == 200:
@@ -474,10 +481,9 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
 
             # ── Código de barras 1D ────────────────────────────────────────
             bc_text = urllib.parse.quote(orden_id)
-            bc_url  = (
-                f"https://bwipjs-api.metafloor.com/?bcid=code128"
-                f"&text={bc_text}&height=6&scale=2&includetext=false"
-            )
+            cb_height = cfg.get("CB_HEIGHT", 6)
+            cb_scale = cfg.get("CB_SCALE", 2)
+            bc_url  = f"https://bwipjs-api.metafloor.com/?bcid=code128&text={bc_text}&height={cb_height}&scale={cb_scale}&includetext=false"
             try:
                 req_bc = requests.get(bc_url, timeout=5)
                 if req_bc.status_code == 200:
@@ -564,8 +570,11 @@ def imprimir_etiqueta(url_imagen, impresora_solicitada, tamano_solicitado):
         hDC.StartDoc("Etiqueta NIIMBOT Bioelectronica")
         hDC.StartPage()
 
+        # Calcular dimensiones destino en el DC del driver para evitar distorsiones
+        alto_dib = int(ancho_driver * (nuevo_alto / cfg['ANCHO_FIJO']))
+
         dib = ImageWin.Dib(img_final)
-        dib.draw(hDC.GetHandleOutput(), (0, 0, cfg['ANCHO_FIJO'], nuevo_alto))
+        dib.draw(hDC.GetHandleOutput(), (0, 0, ancho_driver, alto_dib))
 
         hDC.EndPage()
         hDC.EndDoc()

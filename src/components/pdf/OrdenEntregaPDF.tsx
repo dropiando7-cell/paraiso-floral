@@ -16,162 +16,180 @@ const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
     backgroundColor: '#FFFFFF',
-    padding: 30,
+    paddingLeft: 60,
+    paddingRight: 60,
+    paddingTop: 40,
+    paddingBottom: 80, // Space for footer
     fontFamily: 'Inter',
-    fontSize: 9,
-    color: '#1f2937',
+    fontSize: 10,
+    color: '#000000',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    paddingBottom: 12,
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 24,
   },
   logo: {
     height: 60,
-  },
-  companyInfo: {
-    textAlign: 'right',
-    fontSize: 8,
-    color: '#4b5563',
-    lineHeight: 1.3,
-  },
-  companyName: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#1e40af',
-    marginBottom: 2,
-  },
-  titleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#eff6ff',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#bfdbfe',
+    width: 140,
+    objectFit: 'contain',
   },
   title: {
-    fontSize: 14,
+    fontSize: 36,
     fontWeight: 700,
-    color: '#1e40af',
-  },
-  odeCorrelativo: {
-    fontSize: 12,
-    fontWeight: 700,
-    color: '#1e40af',
-  },
-  infoSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  infoBlock: {
-    width: '48%',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8,
-    padding: 10,
-    backgroundColor: '#fafafa',
-  },
-  infoTitle: {
-    fontWeight: 700,
-    fontSize: 9,
-    color: '#1e40af',
-    marginBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    paddingBottom: 2,
+    color: '#0d608e',
     textTransform: 'uppercase',
   },
-  infoRow: {
-    flexDirection: 'row',
-    marginBottom: 4,
-    lineHeight: 1.3,
+  sectionTitleContainer: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#000000',
+    paddingBottom: 2,
+    marginTop: 16,
+    marginBottom: 8,
+    width: '100%',
   },
-  infoLabel: {
+  sectionTitle: {
+    fontSize: 13,
     fontWeight: 700,
-    width: '32%',
-    color: '#4b5563',
-    fontSize: 8,
+    color: '#000000',
+    textTransform: 'uppercase',
   },
-  infoValue: {
-    width: '68%',
-    color: '#1f2937',
-    fontSize: 8,
+  infoGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 8,
+  },
+  infoCol: {
+    width: '48%',
+    flexDirection: 'column',
+  },
+  infoDivider: {
+    width: 0.75,
+    backgroundColor: '#000000',
+    alignSelf: 'stretch',
+    marginVertical: 2,
+  },
+  fieldRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    marginBottom: 6,
+    minHeight: 18,
+  },
+  fieldLabelContainer: {
+    width: 74,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#000000',
+    paddingBottom: 1,
+  },
+  fieldLabelText: {
+    fontSize: 10,
+    fontWeight: 500,
+    color: '#000000',
+    textTransform: 'uppercase',
+  },
+  fieldValueContainer: {
+    flex: 1,
+    borderStyle: 'dashed',
+    borderBottomWidth: 1,
+    borderBottomColor: '#000000',
+    paddingBottom: 1,
+    marginLeft: 6,
+    minHeight: 12,
+  },
+  fieldValueText: {
+    fontSize: 10,
+    color: '#000000',
   },
   table: {
     width: '100%',
-    borderWidth: 1,
-    borderColor: '#d1d5db',
-    borderRadius: 6,
-    overflow: 'hidden',
+    borderTopWidth: 1.5,
+    borderTopColor: '#000000',
+    borderBottomWidth: 0.75,
+    borderBottomColor: '#000000',
+    borderLeftWidth: 0.75,
+    borderLeftColor: '#000000',
+    borderRightWidth: 0.75,
+    borderRightColor: '#000000',
+    marginTop: 12,
     marginBottom: 16,
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
-    borderBottomWidth: 1,
-    borderBottomColor: '#d1d5db',
-    fontWeight: 700,
-    fontSize: 8,
-    textTransform: 'uppercase',
-    color: '#374151',
+    borderBottomWidth: 0.75,
+    borderBottomColor: '#000000',
   },
   tableRow: {
     flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomWidth: 0.75,
+    borderBottomColor: '#000000',
     alignItems: 'center',
-    minHeight: 22,
+    minHeight: 28,
   },
   thCol: {
     paddingVertical: 6,
     paddingHorizontal: 4,
+    fontSize: 10.5,
+    fontWeight: 500,
+    textTransform: 'uppercase',
+    color: '#000000',
+    borderRightWidth: 0.75,
+    borderRightColor: '#000000',
     textAlign: 'center',
   },
   tdCol: {
-    paddingVertical: 4,
+    paddingVertical: 6,
     paddingHorizontal: 4,
-    fontSize: 8,
+    fontSize: 10,
+    color: '#000000',
+    borderRightWidth: 0.75,
+    borderRightColor: '#000000',
+    textAlign: 'center',
   },
-  colNo: { width: '8%' },
-  colQty: { width: '8%', textAlign: 'center' },
-  colDesc: { width: '38%' },
-  colBrand: { width: '16%' },
-  colModel: { width: '14%' },
-  colSerie: { width: '16%' },
-  
+  colNo: { width: '7.5%' },
+  colSerie: { width: '24%' },
+  colDesc: { width: '44%', textAlign: 'left' },
+  colQty: { width: '24.5%', borderRightWidth: 0 },
+
+  warrantyBlock: {
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#000000',
+    paddingBottom: 2,
+    marginTop: 8,
+    marginBottom: 16,
+    alignSelf: 'flex-start',
+    width: '100%',
+  },
+  warrantyText: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: '#000000',
+    textTransform: 'uppercase',
+  },
   diagnosticoBox: {
-    borderWidth: 1,
-    borderColor: '#f59e0b',
-    backgroundColor: '#fffbeb',
-    borderRadius: 8,
+    borderWidth: 0.75,
+    borderColor: '#000000',
     padding: 10,
     marginBottom: 16,
+    width: '100%',
   },
   diagnosticoTitle: {
     fontWeight: 700,
-    color: '#b45309',
+    color: '#000000',
     marginBottom: 4,
-    fontSize: 8,
+    fontSize: 10,
     textTransform: 'uppercase',
   },
   diagnosticoText: {
-    fontSize: 8,
-    color: '#78350f',
+    fontSize: 9,
+    color: '#000000',
     lineHeight: 1.3,
   },
-
   evidenciasTitle: {
-    fontSize: 9,
+    fontSize: 11,
     fontWeight: 700,
-    color: '#1e40af',
+    color: '#000000',
     marginBottom: 8,
     textTransform: 'uppercase',
   },
@@ -184,11 +202,9 @@ const styles = StyleSheet.create({
   evidenciaContainer: {
     width: '48%',
     height: 100,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 6,
+    borderWidth: 0.75,
+    borderColor: '#000000',
     overflow: 'hidden',
-    backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -197,13 +213,12 @@ const styles = StyleSheet.create({
     height: '100%',
     objectFit: 'cover',
   },
-
   signaturesContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     marginTop: 'auto',
     paddingTop: 15,
-    marginBottom: 30,
+    marginBottom: 20,
   },
   signatureCol: {
     width: '45%',
@@ -211,40 +226,39 @@ const styles = StyleSheet.create({
   },
   signatureLine: {
     width: '100%',
-    borderTopWidth: 1,
-    borderTopColor: '#9ca3af',
+    borderBottomWidth: 0.75,
+    borderBottomColor: '#000000',
     marginTop: 40,
-    marginBottom: 4,
+    marginBottom: 8,
   },
   signatureLabel: {
-    fontSize: 8,
+    fontSize: 11,
     fontWeight: 700,
-    color: '#1f2937',
+    color: '#000000',
+    textAlign: 'center',
   },
   signatureSubLabel: {
-    fontSize: 7,
-    color: '#4b5563',
+    fontSize: 9,
+    color: '#000000',
     marginTop: 2,
     textAlign: 'center',
   },
-  clientInputs: {
-    width: '100%',
-    marginTop: 4,
-    fontSize: 7,
-    color: '#4b5563',
-    lineHeight: 1.4,
-  },
-
   blueFranja: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#1e40af',
+    height: 62,
+    backgroundColor: '#0d608e',
     color: '#ffffff',
-    paddingVertical: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 6,
     paddingHorizontal: 20,
-    fontSize: 7,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#ffffff',
     textAlign: 'center',
     lineHeight: 1.3,
   }
@@ -267,6 +281,19 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
     .filter(key => key.startsWith('evidencia_'))
     .map(key => images[key]);
 
+  // Separar fecha y hora
+  const [fechaVal = '', ...horaParts] = (today || '').split(' ');
+  const horaVal = horaParts.join(' ');
+
+  // Calcular garantía dinámica
+  const maxGarantiaMeses = validItems.reduce((max: number, item: any) => {
+    const gar = parseInt(item.garantia || '0', 10);
+    return gar > max ? gar : max;
+  }, 0);
+  const maxGarantiaAnios = maxGarantiaMeses > 0 ? Math.round(maxGarantiaMeses / 12) : (ordenEntrega?.aplicaMantenimientos ? 3 : 0);
+
+  const nombreUsuario = data.nombreUsuario || '';
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -276,90 +303,122 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
             {images['logo'] ? (
               <Image src={images['logo']} style={styles.logo} />
             ) : (
-              <View style={{ height: 60, width: 100, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' }}>
+              <View style={{ height: 60, width: 140, backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center' }}>
                 <Text style={{ fontSize: 8, color: '#9ca3af' }}>Bioelectrónica</Text>
               </View>
             )}
           </View>
-          <View style={styles.companyInfo}>
-            <Text style={styles.companyName}>{organization?.name || 'BIOELECTRÓNICA HONDURAS'}</Text>
-            <Text>San Pedro Sula, Cortés, Honduras</Text>
-            <Text>Correo: {organization?.correoContacto || 'soporte@bioelectronicahn.com'}</Text>
-            <Text>Teléfono: {organization?.telefono || '+504 9999-0000'}</Text>
-            {organization?.rtn && <Text>RTN: {organization.rtn}</Text>}
+          <Text style={styles.title}>ORDEN DE ENTREGA</Text>
+        </View>
+
+        {/* Info Grid: Client Block */}
+        <View style={styles.sectionTitleContainer}>
+          <Text style={styles.sectionTitle}>INFORMACIÒN DEL CLIENTE</Text>
+        </View>
+        <View style={styles.infoGrid}>
+          <View style={styles.infoCol}>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldLabelContainer}>
+                <Text style={styles.fieldLabelText}>CLIENTE</Text>
+              </View>
+              <View style={styles.fieldValueContainer}>
+                <Text style={styles.fieldValueText}>{selectedClient?.name || ''}</Text>
+              </View>
+            </View>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldLabelContainer}>
+                <Text style={styles.fieldLabelText}>CELULAR:</Text>
+              </View>
+              <View style={styles.fieldValueContainer}>
+                <Text style={styles.fieldValueText}>{selectedClient?.phone || ''}</Text>
+              </View>
+            </View>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldLabelContainer}>
+                <Text style={styles.fieldLabelText}>RTN:</Text>
+              </View>
+              <View style={styles.fieldValueContainer}>
+                <Text style={styles.fieldValueText}>{selectedClient?.rtn || ''}</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.infoDivider} />
+          <View style={styles.infoCol}>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldLabelContainer}>
+                <Text style={styles.fieldLabelText}>ATENCION:</Text>
+              </View>
+              <View style={styles.fieldValueContainer}>
+                <Text style={styles.fieldValueText}>{(nombreUsuario || '').toUpperCase()}</Text>
+              </View>
+            </View>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldLabelContainer}>
+                <Text style={styles.fieldLabelText}>DIRECCION:</Text>
+              </View>
+              <View style={styles.fieldValueContainer}>
+                <Text style={styles.fieldValueText}>{(selectedClient?.address || '').toUpperCase()}</Text>
+              </View>
+            </View>
           </View>
         </View>
 
-        {/* Title Block */}
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>ORDEN DE ENTREGA DE EQUIPO</Text>
-          <Text style={styles.odeCorrelativo}>{ordenEntrega?.correlativo || 'ODE-PENDIENTE'}</Text>
+        {/* Info Grid: Details Block */}
+        <View style={styles.sectionTitleContainer}>
+          <Text style={styles.sectionTitle}>DETALLES DE ENTREGA</Text>
+        </View>
+        <View style={styles.infoGrid}>
+          <View style={styles.infoCol}>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldLabelContainer}>
+                <Text style={styles.fieldLabelText}>FECHA:</Text>
+              </View>
+              <View style={styles.fieldValueContainer}>
+                <Text style={styles.fieldValueText}>{fechaVal}</Text>
+              </View>
+            </View>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldLabelContainer}>
+                <Text style={styles.fieldLabelText}>HORA:</Text>
+              </View>
+              <View style={styles.fieldValueContainer}>
+                <Text style={styles.fieldValueText}>{horaVal}</Text>
+              </View>
+            </View>
+          </View>
+          <View style={styles.infoDivider} />
+          <View style={styles.infoCol}>
+            <View style={styles.fieldRow}>
+              <View style={styles.fieldLabelContainer}>
+                <Text style={styles.fieldLabelText}>NO.</Text>
+              </View>
+              <View style={styles.fieldValueContainer}>
+                <Text style={styles.fieldValueText}>{ordenEntrega?.correlativo || ''}</Text>
+              </View>
+            </View>
+          </View>
         </View>
 
-        {/* Info Grid */}
-        <View style={styles.infoSection}>
-          {/* Client Block */}
-          <View style={styles.infoBlock}>
-            <Text style={styles.infoTitle}>Información del Cliente</Text>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Nombre:</Text>
-              <Text style={styles.infoValue}>{selectedClient?.name || 'Cliente Particular'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>RTN / ID:</Text>
-              <Text style={styles.infoValue}>{selectedClient?.rtn || 'Sin registro'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Teléfono:</Text>
-              <Text style={styles.infoValue}>{selectedClient?.phone || 'Sin registro'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Dirección:</Text>
-              <Text style={styles.infoValue}>{selectedClient?.address || 'San Pedro Sula'}</Text>
-            </View>
-          </View>
-
-          {/* Transaction Block */}
-          <View style={styles.infoBlock}>
-            <Text style={styles.infoTitle}>Trazabilidad de Venta / Servicio</Text>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Documento:</Text>
-              <Text style={styles.infoValue}>Factura / Proforma {docNumber}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Fecha Venta:</Text>
-              <Text style={styles.infoValue}>{today}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Vendido Por:</Text>
-              <Text style={styles.infoValue}>{data.nombreUsuario || 'Asesor Comercial'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Despacho:</Text>
-              <Text style={styles.infoValue}>Taller Principal SPS</Text>
-            </View>
-          </View>
+        {/* Table Title */}
+        <View style={styles.sectionTitleContainer}>
+          <Text style={styles.sectionTitle}>ARTICULO POR ENTREGAR</Text>
         </View>
 
         {/* Table of Items */}
         <View style={styles.table}>
           <View style={styles.tableHeader}>
             <Text style={[styles.thCol, styles.colNo]}>No.</Text>
-            <Text style={[styles.thCol, styles.colQty]}>Cant.</Text>
-            <Text style={[styles.thCol, styles.colDesc, { textAlign: 'left' }]}>Descripción del Equipo</Text>
-            <Text style={[styles.thCol, styles.colBrand]}>Marca</Text>
-            <Text style={[styles.thCol, styles.colModel]}>Modelo</Text>
-            <Text style={[styles.thCol, styles.colSerie]}>No. Serie</Text>
+            <Text style={[styles.thCol, styles.colSerie]}>SERIE</Text>
+            <Text style={[styles.thCol, styles.colDesc]}>DESCRIPCION</Text>
+            <Text style={[styles.thCol, styles.colQty]}>CANTIDAD</Text>
           </View>
 
           {validItems.map((item: any, idx: number) => (
             <View key={idx} style={styles.tableRow} wrap={false}>
-              <Text style={[styles.tdCol, styles.colNo, { textAlign: 'center' }]}>{idx + 1}</Text>
-              <Text style={[styles.tdCol, styles.colQty, { textAlign: 'center' }]}>{item.qty}</Text>
+              <Text style={[styles.tdCol, styles.colNo]}>{idx + 1}</Text>
+              <Text style={[styles.tdCol, styles.colSerie, { fontWeight: 700 }]}>{item.serie || 'N/A'}</Text>
               <Text style={[styles.tdCol, styles.colDesc]}>{item.shortDesc}</Text>
-              <Text style={[styles.tdCol, styles.colBrand, { textAlign: 'center' }]}>{item.marca || 'N/A'}</Text>
-              <Text style={[styles.tdCol, styles.colModel, { textAlign: 'center' }]}>{item.modelo || 'N/A'}</Text>
-              <Text style={[styles.tdCol, styles.colSerie, { textAlign: 'center', fontFamily: 'Helvetica-Bold' }]}>{item.serie || 'N/A'}</Text>
+              <Text style={[styles.tdCol, styles.colQty]}>{item.qty}</Text>
             </View>
           ))}
         </View>
@@ -374,7 +433,7 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
 
         {/* Delivery Evidence Images */}
         {evidenciaImages.length > 0 && (
-          <View wrap={false}>
+          <View wrap={false} style={{ marginTop: 16 }}>
             <Text style={styles.evidenciasTitle}>Evidencias Fotográficas de Entrega</Text>
             <View style={styles.evidenciasGrid}>
               {evidenciaImages.map((foto, i) => (
@@ -386,6 +445,13 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
           </View>
         )}
 
+        {/* Dynamic Warranty Section */}
+        {maxGarantiaAnios > 0 && (
+          <View style={styles.warrantyBlock} wrap={false}>
+            <Text style={styles.warrantyText}>GARANTÍA DE {maxGarantiaAnios} {maxGarantiaAnios === 1 ? 'AÑO' : 'AÑOS'}</Text>
+          </View>
+        )}
+
         {/* Signatures */}
         <View style={styles.signaturesContainer} wrap={false}>
           {/* Bioelectrónica Autorizada */}
@@ -394,30 +460,26 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
               <Image src={images['sig_emilia']} style={{ height: 40, objectFit: 'contain', marginBottom: -25 }} />
             )}
             <View style={styles.signatureLine} />
-            <Text style={styles.signatureLabel}>Ing. Emilia Zapata</Text>
-            <Text style={styles.signatureSubLabel}>Jefa del Departamento de Biomédica</Text>
-            <Text style={styles.signatureSubLabel}>Bioelectrónica Honduras</Text>
+            <Text style={[styles.signatureLabel, { fontSize: 11 }]}>FIRMA Y SELLO</Text>
+            <Text style={[styles.signatureLabel, { fontSize: 11 }]}>BIOELECTRONICA</Text>
+            <Text style={[styles.signatureSubLabel, { fontSize: 12, fontWeight: 700, marginTop: 4 }]}>Ing. Emilia Zapata</Text>
           </View>
 
           {/* Client Signature */}
           <View style={styles.signatureCol}>
             <View style={styles.signatureLine} />
-            <Text style={styles.signatureLabel}>Firma de Recibido Conforme</Text>
-            <View style={styles.clientInputs}>
-              <Text>Nombre Cliente: ____________________________________</Text>
-              <Text style={{ marginTop: 4 }}>ID / Identidad: _____________________________________</Text>
-              <Text style={{ marginTop: 4 }}>Teléfono / Celular: __________________________________</Text>
-            </View>
+            <Text style={[styles.signatureLabel, { fontSize: 11 }]}>RECIBE:</Text>
           </View>
         </View>
 
         {/* Blue Footer */}
         <View style={styles.blueFranja} fixed>
-          <Text>BIOELECTRÓNICA HONDURAS - SOLUCIONES MÉDICAS E INDUSTRIALES</Text>
-          <Text>Dirección: Barrio Guamilito, 8 Calle entre 6 y 7 Ave, San Pedro Sula, Cortés</Text>
-          <Text>Tel: +504 9999-0000 | Correo: soporte@bioelectronicahn.com | Web: www.bioelectronicahn.com</Text>
+          <Text style={styles.footerText}>BARRIO GUAMILITO. 7 CALLE. 9 AVENIDA, SAN PEDRO SULA, CORTES, HONDURAS C.A.</Text>
+          <Text style={styles.footerText}>TEL:(504) 552 04 91. CEL. 3178 2368 / 8924-6108</Text>
+          <Text style={styles.footerText}>E-MAIL: gerencia@bioelectronicahn.com / bioelectronicaa_a@yahoo.com</Text>
         </View>
       </Page>
     </Document>
   );
 }
+
