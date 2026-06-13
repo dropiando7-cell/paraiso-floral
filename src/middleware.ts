@@ -132,7 +132,8 @@ export async function middleware(request: NextRequest) {
     }
 
     // 3. MFA Enforcement (AAL2 Check)
-    if (user && !url.pathname.startsWith('/auth/mfa') && !url.pathname.startsWith('/auth/callback')) {
+    const isPrefetch = request.headers.get('x-middleware-prefetch') === '1' || request.headers.get('purpose') === 'prefetch';
+    if (user && !isPrefetch && !url.pathname.startsWith('/auth/mfa') && !url.pathname.startsWith('/auth/callback')) {
         // Fetch session to check AAL level
         const { data: { session } } = await supabase.auth.getSession();
 
