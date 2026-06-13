@@ -30,7 +30,7 @@ export async function middleware(request: NextRequest) {
             '/boveda', '/caja-chica', '/checkin', '/conciliacion', '/configuracion',
             '/cotizaciones', '/inventario-ia', '/kanban', '/medico', '/perfil',
             '/precios', '/soporte', '/unauthorized', '/trazabilidad', '/debug-whatsapp',
-            '/diseno-v2', '/aprobar-presupuesto'
+            '/diseno-v2', '/aprobar-presupuesto', '/t/'
         ]
         const isSystemPath = systemPrefixes.some(prefix => url.pathname.startsWith(prefix))
 
@@ -115,7 +115,10 @@ export async function middleware(request: NextRequest) {
         url.pathname.startsWith('/print') ||
         url.pathname.startsWith('/c/') ||
         url.pathname.startsWith('/aprobar-presupuesto') ||
-        url.pathname.startsWith('/api/soporte/firmar-presupuesto')
+        url.pathname.startsWith('/api/soporte/firmar-presupuesto') ||
+        url.pathname.startsWith('/t/') ||
+        url.pathname.startsWith('/api/tarjetas/') ||
+        url.pathname.startsWith('/api/tarjeta/')
 
     if (!user && !isPublicRoute) {
         url.pathname = '/login'

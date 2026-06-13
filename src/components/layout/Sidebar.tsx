@@ -108,6 +108,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         href: '/admin/gestion-web',
         icon: Globe,
         roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
+      },
+      {
+        name: 'Tarjetas Digitales',
+        href: '/admin/tarjetas-digitales',
+        icon: FileSignature,
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
       }
     ]
   }
