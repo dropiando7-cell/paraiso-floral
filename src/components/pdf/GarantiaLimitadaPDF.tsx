@@ -325,7 +325,7 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Dirección:</Text>
-              <Text style={styles.infoValue}>{selectedClient?.address || 'San Pedro Sula'}</Text>
+              <Text style={styles.infoValue}>{selectedClient?.address || ''}</Text>
             </View>
           </View>
 

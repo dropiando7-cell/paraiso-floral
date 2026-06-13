@@ -40,6 +40,17 @@ const calcLine = (item: any) => {
   return { base, dAmount, baseAfterDiscount, tax, total: baseAfterDiscount + tax };
 };
 
+// Helper to extract brand and model from description text when relations are null
+const extractBrandAndModelFromDesc = (desc: string) => {
+  if (!desc) return { marca: null, modelo: null };
+  const marcaMatch = desc.match(/marca\s+([^,]+?)(?=\s+modelo|\s+mod\b|\s+de\b|,|$)/i);
+  const modeloMatch = desc.match(/(?:modelo|mod\.?)\s+([^,]+?)(?=\s+de\b|,|$)/i);
+  return {
+    marca: marcaMatch ? marcaMatch[1].trim() : null,
+    modelo: modeloMatch ? modeloMatch[1].trim() : null
+  };
+};
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -55,7 +66,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       where: { id },
       include: { 
         detalles: {
-          include: { producto: true, activo: true }
+          include: { 
+            producto: true, 
+            activo: {
+              include: {
+                producto: true
+              }
+            }
+          }
         }, 
         cliente: true,
         creadoPor: true,
@@ -116,8 +134,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         mantenimientosIncluidos: d.activo?.mantenimientosIncluidos || null,
         frecuenciaMantenimientoMeses: d.activo?.frecuenciaMantenimientoMeses || null,
         serie: d.activo?.serie || null,
-        marca: d.activo?.marca || d.producto?.marca || null,
-        modelo: d.activo?.modelo || d.producto?.modelo || null
+        marca: d.activo?.marca || d.activo?.producto?.marca || d.producto?.marca || extractBrandAndModelFromDesc(d.descripcion || '').marca || null,
+        modelo: d.activo?.modelo || d.activo?.producto?.modelo || d.producto?.modelo || extractBrandAndModelFromDesc(d.descripcion || '').modelo || null
       };
     });
     
