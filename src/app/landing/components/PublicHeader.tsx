@@ -91,12 +91,12 @@ export default function PublicHeader({
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
                 
                 <Link href="/" className="flex items-center gap-3 shrink-0">
-                    <div className="h-16 flex items-center justify-center overflow-hidden">
+                    <div className="h-24 flex items-center justify-center overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
                             src={logoUrl || '/logo-bioelectronica.jpg'} 
                             alt={companyName} 
-                            className="h-14 max-w-[280px] object-contain" 
+                            className="h-22 max-w-[320px] object-contain" 
                         />
                     </div>
                 </Link>
