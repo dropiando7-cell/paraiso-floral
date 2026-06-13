@@ -261,12 +261,25 @@ const formatDate = (date: Date) => {
   });
 };
 
+// Helper to format warranty duration nicely
+const formatGarantia = (garantia: any) => {
+  if (!garantia) return 'Sin garantía';
+  const str = String(garantia).trim();
+  if (/^\d+$/.test(str)) {
+    return `${str} meses`;
+  }
+  return str;
+};
+
 export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPDFProps) {
   const {
     organization, settings, docNumber, selectedClient, lineItems, today, ordenEntrega, fechaEmision
   } = data;
 
   const validItems = lineItems?.filter((item: any) => !item.isSection) || [];
+
+  const firstQrAsset = validItems.find((item: any) => item.isAsset && item.code);
+  const firstQrCode = firstQrAsset?.code || null;
   
   // Filter items that qualify as assets and have maintenance properties
   const maintenanceItems = validItems.filter((item: any) => 
@@ -359,7 +372,10 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
             <Text style={[styles.thCol, styles.colDesc, { textAlign: 'left' }]}>Equipo y Número de Serie</Text>
             <Text style={[styles.thCol, styles.colBrand]}>Marca</Text>
             <Text style={[styles.thCol, styles.colModel]}>Modelo</Text>
-            <Text style={[styles.thCol, styles.colGarantia]}>Período Garantía</Text>
+            <View style={[styles.thCol, styles.colGarantia, { justifyContent: 'center', alignItems: 'center', paddingVertical: 2 }]}>
+              <Text style={{ fontSize: 7.5, fontWeight: 700, textAlign: 'center' }}>PERÍODO DE</Text>
+              <Text style={{ fontSize: 7.5, fontWeight: 700, textAlign: 'center' }}>GARANTÍA</Text>
+            </View>
           </View>
 
           {validItems.map((item: any, idx: number) => (
@@ -372,7 +388,7 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
               <Text style={[styles.tdCol, styles.colBrand, { textAlign: 'center' }]}>{item.marca || 'N/A'}</Text>
               <Text style={[styles.tdCol, styles.colModel, { textAlign: 'center' }]}>{item.modelo || 'N/A'}</Text>
               <Text style={[styles.tdCol, styles.colGarantia, { textAlign: 'center', fontWeight: 700, color: '#1e40af' }]}>
-                {item.garantia ? `${item.garantia} meses` : 'Sin garantía'}
+                {formatGarantia(item.garantia)}
               </Text>
             </View>
           ))}
@@ -396,9 +412,9 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
         </View>
 
         {/* Signatures */}
-        <View style={styles.signaturesContainer} wrap={false}>
+        <View style={[styles.signaturesContainer, { alignItems: 'flex-end' }]} wrap={false}>
           {/* Gerente General Signature */}
-          <View style={styles.signatureCol}>
+          <View style={[styles.signatureCol, { width: firstQrCode ? '38%' : '45%' }]}>
             {images['sig_manuel'] && (
               <Image src={images['sig_manuel']} style={{ height: 40, objectFit: 'contain', marginBottom: -25 }} />
             )}
@@ -409,12 +425,21 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
           </View>
 
           {/* Client Signature */}
-          <View style={styles.signatureCol}>
+          <View style={[styles.signatureCol, { width: firstQrCode ? '38%' : '45%' }]}>
             <View style={styles.signatureLine} />
             <Text style={styles.signatureLabel}>Aceptación del Cliente</Text>
             <Text style={styles.signatureSubLabel}>Firma y Sello del Beneficiario</Text>
             <Text style={[styles.signatureSubLabel, { fontSize: 6.5, marginTop: 4 }]}>Al firmar, el cliente acepta los términos y condiciones de esta garantía limitada.</Text>
           </View>
+
+          {/* QR Code de Trazabilidad */}
+          {firstQrCode && images[`qr_${firstQrCode}`] && (
+            <View style={{ width: '18%', alignItems: 'center', alignSelf: 'flex-end', marginBottom: 2 }}>
+              <Image src={images[`qr_${firstQrCode}`]} style={{ width: 48, height: 48, marginBottom: 2 }} />
+              <Text style={{ fontSize: 6, fontWeight: 700, color: '#1f2937' }}>{firstQrCode}</Text>
+              <Text style={{ fontSize: 5, color: '#4b5563', marginTop: 1, textAlign: 'center' }}>Trazabilidad Digital</Text>
+            </View>
+          )}
         </View>
 
         {/* Blue Footer */}

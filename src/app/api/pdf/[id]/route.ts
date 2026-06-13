@@ -51,12 +51,23 @@ const extractBrandAndModelFromDesc = (desc: string) => {
   };
 };
 
+// Helper to extract warranty from description text
+const extractWarrantyFromDesc = (desc: string) => {
+  if (!desc) return null;
+  const match = desc.match(/garant[íi]a\s+de\s+(\d+\s+(?:meses|mes|a[ñn]os|a[ñn]o))/i);
+  return match ? match[1].trim() : null;
+};
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     if (!id) {
       return new Response('Missing ID', { status: 400 });
     }
+
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}` 
+      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     const url = new URL(req.url);
     const type = url.searchParams.get('type') || 'factura';
@@ -114,11 +125,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         }
       }
 
-      const code = d.producto?.sku || d.activo?.idQr || '';
+      const code = d.activo?.idQr || d.producto?.sku || '';
+      const isAsset = !!d.activo?.idQr;
 
       return {
         id: d.id,
         code: code,
+        isAsset: isAsset,
         shortDesc: shortDesc,
         longDesc: longDesc,
         showLongDesc: d.mostrarDescripcion,
@@ -130,7 +143,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         isSection: isSection,
         sectionStyle: sectionStyle,
         imageUrl: d.producto?.imageUrl || d.activo?.imagenUrl || null,
-        garantia: d.activo?.garantia || null,
+        garantia: d.activo?.garantia || extractWarrantyFromDesc(d.descripcion || '') || null,
         mantenimientosIncluidos: d.activo?.mantenimientosIncluidos || null,
         frecuenciaMantenimientoMeses: d.activo?.frecuenciaMantenimientoMeses || null,
         serie: d.activo?.serie || null,
@@ -272,6 +285,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       if (item.imageUrl) {
         const itemImageBase64 = await fetchImageAsBase64(item.imageUrl);
         if (itemImageBase64) images[item.id] = itemImageBase64;
+      }
+    }
+
+    // Fetch QR Code Images for assets
+    for (const item of lineItems as any[]) {
+      if (item.isAsset && item.code) {
+        const qrText = encodeURIComponent(`${baseUrl}/ficha-tecnica/${item.code}`);
+        const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=3&eclevel=M&includetext=false`;
+        const qrBase64 = await fetchImageAsBase64(qrUrl);
+        if (qrBase64) {
+          images[`qr_${item.code}`] = qrBase64;
+        }
       }
     }
 
