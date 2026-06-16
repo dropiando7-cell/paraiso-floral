@@ -1134,6 +1134,16 @@ export default function GestionWebClient({
                                                                 <Eye size={10} className="text-slate-450 shrink-0" />
                                                                 <span>Ficha</span>
                                                             </button>
+                                                            <a
+                                                                href={`/landing/productos/${item.id}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="text-[9px] font-bold text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 bg-white border border-cyan-200 px-2 py-0.5 rounded-md flex items-center gap-1 transition-all shrink-0 cursor-pointer"
+                                                                title="Ver cómo se ve en el catálogo público"
+                                                            >
+                                                                <Globe size={10} className="shrink-0" />
+                                                                <span>Ver Web</span>
+                                                            </a>
                                                         </div>
                                                         <h4 
                                                             onClick={() => setSelectedItem(item)}
@@ -2210,6 +2220,16 @@ export default function GestionWebClient({
                                             <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-200/50 px-2 py-0.5 rounded-md">
                                                 {selectedItem.code}
                                             </span>
+                                            <a
+                                                href={`/landing/productos/${selectedItem.id}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-[9px] font-bold text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 bg-white border border-cyan-200 px-2 py-0.5 rounded-md flex items-center gap-1 transition-all shrink-0 cursor-pointer ml-1"
+                                                title="Ver cómo se ve en el catálogo público"
+                                            >
+                                                <Globe size={10} className="shrink-0" />
+                                                <span>Ver Web</span>
+                                            </a>
                                         </div>
                                         <h3 className="font-extrabold text-base text-slate-900 leading-tight">
                                             {selectedItem.name}

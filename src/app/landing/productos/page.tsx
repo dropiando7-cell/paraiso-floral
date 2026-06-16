@@ -285,7 +285,7 @@ export default async function ProductosPage({
                                 <span>Todos</span>
                             </Link>
                             <Link 
-                                href={{ query: { ...resolvedParams, type: 'activo' } }}
+                                href={{ query: { ...resolvedParams, type: activeType === 'activo' ? undefined : 'activo' } }}
                                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                     activeType === 'activo' 
                                         ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
@@ -306,7 +306,7 @@ export default async function ProductosPage({
                                 <span>Equipos Biomédicos</span>
                             </Link>
                             <Link 
-                                href={{ query: { ...resolvedParams, type: 'producto' } }}
+                                href={{ query: { ...resolvedParams, type: activeType === 'producto' ? undefined : 'producto' } }}
                                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                     activeType === 'producto' 
                                         ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
@@ -360,7 +360,7 @@ export default async function ProductosPage({
                                     return (
                                         <Link 
                                             key={brand}
-                                            href={{ query: { ...resolvedParams, brand } }}
+                                            href={{ query: { ...resolvedParams, brand: isBrandActive ? undefined : brand } }}
                                             className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all truncate ${
                                                 isBrandActive 
                                                     ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
