@@ -89,28 +89,56 @@ async function getCompanyProfile() {
     }
 }
 
-async function getDynamicCategories() {
+async function getDynamicCategories(hideRealInventory: boolean, allowScrapedProducts: boolean) {
     try {
-        const physicalCategories = await prisma.categoria.findMany({
-            select: { nombre: true }
-        });
-        const scrapedCategories = await prisma.producto.findMany({
-            where: {
+        const allCategoryNames = new Set<string>();
+
+        // 1. Fetch physical categories only if physical inventory is NOT hidden
+        if (!hideRealInventory) {
+            const physicalCategories = await prisma.categoria.findMany({
+                where: {
+                    activos: {
+                        some: {
+                            estatusContable: 'VIGENTE',
+                            NOT: {
+                                area: { equals: 'SERVICIOS', mode: 'insensitive' }
+                            }
+                        }
+                    }
+                },
+                select: { nombre: true }
+            });
+            physicalCategories.forEach(c => {
+                if (c.nombre) allCategoryNames.add(c.nombre.trim());
+            });
+        }
+
+        // 2. Fetch product categories only if hideRealInventory is true or allowScrapedProducts is true
+        if (hideRealInventory || allowScrapedProducts) {
+            const productWhere: any = {
                 estado: 'ACTIVO',
                 esServicio: false,
                 categoria: { not: null }
-            },
-            select: { categoria: true },
-            distinct: ['categoria']
-        });
+            };
 
-        const allCategoryNames = new Set<string>();
-        physicalCategories.forEach(c => {
-            if (c.nombre) allCategoryNames.add(c.nombre.trim());
-        });
-        scrapedCategories.forEach(p => {
-            if (p.categoria) allCategoryNames.add(p.categoria.trim());
-        });
+            if (hideRealInventory) {
+                productWhere.sku = { startsWith: 'SOMA-' };
+            } else if (!allowScrapedProducts) {
+                productWhere.NOT = {
+                    sku: { startsWith: 'SOMA-' }
+                };
+            }
+
+            const scrapedCategories = await prisma.producto.findMany({
+                where: productWhere,
+                select: { categoria: true },
+                distinct: ['categoria']
+            });
+
+            scrapedCategories.forEach(p => {
+                if (p.categoria) allCategoryNames.add(p.categoria.trim());
+            });
+        }
 
         return Array.from(allCategoryNames);
     } catch (e) {
@@ -126,7 +154,9 @@ export default async function PublicLayout({
 }) {
     const settings = await getLandingInfo();
     const org = await getCompanyProfile();
-    const categories = await getDynamicCategories();
+    const hideRealInventory = settings.hideRealInventory === true;
+    const allowScrapedProducts = settings.allowScrapedProducts !== false;
+    const categories = await getDynamicCategories(hideRealInventory, allowScrapedProducts);
     
     // Fallbacks from DB organization or settings
     const primaryPhone = org?.telefono || settings.whatsappNumbers?.[0] || '50431782368';
