@@ -285,6 +285,25 @@ export default function GestionWebClient({
     const [simulatingChat, setSimulatingChat] = useState<any | null>(null);
     const [chatMsgText, setChatMsgText] = useState('¡Hola! Vemos que estás buscando soluciones médicas en nuestro portal. ¿Te gustaría chatear con un asesor especializado ahora mismo?');
 
+    // Scraper streaming progress states
+    const [isImporting, setIsImporting] = useState(false);
+    const [progressCurrent, setProgressCurrent] = useState(0);
+    const [progressTotal, setProgressTotal] = useState(0);
+    const [scraperLogs, setScraperLogs] = useState<string[]>([
+        '[SISTEMA] Listo para iniciar extracción...',
+        '[SISTEMA] Servidor R2 configurado: OK',
+        '[SISTEMA] PostgreSQL conectado: OK',
+        '[SISTEMA] Selecciona una categoría y haz clic en "Comenzar Importación".'
+    ]);
+    const logsEndRef = React.useRef<HTMLDivElement>(null);
+
+    // Auto-scroll the scraper console log when log changes
+    useEffect(() => {
+        if (logsEndRef.current) {
+            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [scraperLogs]);
+
     // Close lightbox on Escape key press
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -405,6 +424,78 @@ export default function GestionWebClient({
             }
         } catch (e: any) {
             toast.error(e.message || 'Error de conexión');
+        }
+    };
+
+    // --- Tab Scraper: Async Streaming Scraper Handler ---
+    const handleStartScrape = async () => {
+        const cat = (document.getElementById('scrape-category-select') as HTMLSelectElement)?.value || 'all';
+        setIsImporting(true);
+        setProgressCurrent(0);
+        setProgressTotal(0);
+        setScraperLogs(['[SISTEMA] Iniciando conexión con el endpoint del scraper...']);
+        
+        try {
+            const res = await fetch('/api/admin/scrape-soma', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: cat })
+            });
+
+            if (!res.ok) {
+                const errText = await res.text();
+                throw new Error(errText || `Error de servidor: ${res.status}`);
+            }
+
+            const reader = res.body?.getReader();
+            if (!reader) {
+                throw new Error('No se pudo establecer comunicación con el stream de datos del servidor.');
+            }
+
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const data = JSON.parse(line);
+                        if (data.type === 'status') {
+                            setScraperLogs(prev => [...prev, `[SISTEMA] ${data.message}`]);
+                        } else if (data.type === 'info') {
+                            setProgressTotal(data.total);
+                            setScraperLogs(prev => [...prev, `[SISTEMA] ${data.message}`]);
+                        } else if (data.type === 'progress') {
+                            setProgressCurrent(data.current);
+                            if (data.total) setProgressTotal(data.total);
+                            setScraperLogs(prev => [...prev, `[PROCESADO] (${data.current}/${data.total}) - ${data.product}`]);
+                        } else if (data.type === 'success') {
+                            setScraperLogs(prev => [
+                                ...prev, 
+                                `[ÉXITO] Extracción finalizada. Total de la categoría: ${data.total}, Nuevos productos importados: ${data.count}.`
+                            ]);
+                            toast.success(`Importación finalizada. Nuevos importados: ${data.count}`);
+                        } else if (data.type === 'error') {
+                            setScraperLogs(prev => [...prev, `[ERROR] ${data.error}`]);
+                            toast.error(`Error de importación: ${data.error}`);
+                        }
+                    } catch (e) {
+                        console.error('Error parsing NDJSON chunk:', e);
+                    }
+                }
+            }
+        } catch (e: any) {
+            setScraperLogs(prev => [...prev, `[ERROR] Conexión fallida: ${e.message}`]);
+            toast.error(`Error: ${e.message}`);
+        } finally {
+            setIsImporting(false);
         }
     };
 
@@ -2019,29 +2110,16 @@ export default function GestionWebClient({
                                 <button
                                     type="button"
                                     id="start-scraper-btn"
-                                    onClick={async () => {
-                                        const cat = (document.getElementById('scrape-category-select') as HTMLSelectElement)?.value || 'all';
-                                        const toastId = toast.loading('Iniciando extractor por lotes en segundo plano...', { duration: 3000 });
-                                        try {
-                                            const res = await fetch('/api/admin/scrape-soma', {
-                                                method: 'POST',
-                                                headers: { 'Content-Type': 'application/json' },
-                                                body: JSON.stringify({ category: cat })
-                                            });
-                                            const data = await res.json();
-                                            if (data.success) {
-                                                toast.success(`Extracción completada. Se importaron ${data.count} productos exitosamente.`, { id: toastId });
-                                            } else {
-                                                toast.error(`Error en la extracción: ${data.error}`, { id: toastId });
-                                            }
-                                        } catch (e: any) {
-                                            toast.error(`Error: ${e.message}`, { id: toastId });
-                                        }
-                                    }}
-                                    className="w-full bg-[#00A8CC] hover:bg-[#008ba8] text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                                    onClick={handleStartScrape}
+                                    disabled={isImporting}
+                                    className={`w-full text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer ${
+                                        isImporting 
+                                            ? 'bg-slate-400 cursor-not-allowed' 
+                                            : 'bg-[#00A8CC] hover:bg-[#008ba8] active:scale-95'
+                                    }`}
                                 >
-                                    <Activity size={14} />
-                                    <span>Comenzar Importación</span>
+                                    <Activity size={14} className={isImporting ? 'animate-spin' : ''} />
+                                    <span>{isImporting ? 'Importando...' : 'Comenzar Importación'}</span>
                                 </button>
                             </div>
 
@@ -2049,19 +2127,51 @@ export default function GestionWebClient({
                             <div className="border border-slate-200 rounded-2xl p-5 bg-slate-50/50 space-y-4 lg:col-span-2 flex flex-col justify-between shadow-inner">
                                 <div className="space-y-3">
                                     <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
-                                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                        <div className={`w-2 h-2 rounded-full ${isImporting ? 'bg-amber-500 animate-ping' : 'bg-emerald-500 animate-pulse'}`} />
                                         <span>Bitácora de Importación</span>
                                     </h3>
-                                    <div className="h-40 bg-slate-950 text-emerald-400 font-mono text-[10px] p-3 rounded-xl overflow-y-auto space-y-1 select-none">
-                                        <div>[SISTEMA] Listo para iniciar extracción...</div>
-                                        <div>[SISTEMA] Servidor R2 configurado: OK</div>
-                                        <div>[SISTEMA] PostgreSQL conectado: OK</div>
-                                        <div>[SISTEMA] Selecciona una categoría y haz clic en "Comenzar Importación".</div>
+                                    
+                                    <div className="h-40 bg-slate-950 text-emerald-400 font-mono text-[10px] p-3 rounded-xl overflow-y-auto space-y-1 select-none scrollbar-thin scrollbar-thumb-slate-800">
+                                        {scraperLogs.map((log, index) => (
+                                            <div key={index} className="leading-relaxed border-b border-slate-900/50 pb-0.5 last:border-none">
+                                                {log}
+                                            </div>
+                                        ))}
+                                        <div ref={logsEndRef} />
                                     </div>
+
+                                    {/* Progress Bar Container */}
+                                    {(isImporting || progressTotal > 0) && (
+                                        <div className="space-y-1.5 mt-2 bg-white border border-slate-200/60 p-3 rounded-xl shadow-sm">
+                                            <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                                <span>Progreso de Importación</span>
+                                                <span className="font-mono">
+                                                    {progressTotal > 0 ? `${Math.round((progressCurrent / progressTotal) * 100)}%` : '0%'} ({progressCurrent}/{progressTotal})
+                                                </span>
+                                            </div>
+                                            <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200/40 relative">
+                                                <div 
+                                                    className="h-full bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 rounded-full transition-all duration-300 relative shadow-[0_0_8px_rgba(6,182,212,0.5)]"
+                                                    style={{ width: `${progressTotal > 0 ? (progressCurrent / progressTotal) * 100 : 0}%` }}
+                                                >
+                                                    {isImporting && (
+                                                        <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(255,255,255,0.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.15)_50%,rgba(255,255,255,0.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-[progressbar-stripes_1s_linear_infinite]" />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <style dangerouslySetInnerHTML={{__html: `
+                                                @keyframes progressbar-stripes {
+                                                    from { background-position: 1rem 0; }
+                                                    to { background-position: 0 0; }
+                                                }
+                                            `}} />
+                                        </div>
+                                    )}
                                 </div>
+                                
                                 <div className="flex gap-3 text-xs border-t pt-4 font-semibold text-slate-655 justify-between">
-                                    <span>Productos Scraped Totales: <strong className="text-slate-900">Listo</strong></span>
-                                    <span>Última ejecución: <strong className="text-slate-900">Exitosa</strong></span>
+                                    <span>Estado Scraper: <strong className={isImporting ? 'text-amber-600' : 'text-slate-900'}>{isImporting ? 'Extrayendo lotes...' : 'Listo'}</strong></span>
+                                    <span>Último Estado: <strong className="text-slate-900">Exitoso</strong></span>
                                 </div>
                             </div>
                         </div>

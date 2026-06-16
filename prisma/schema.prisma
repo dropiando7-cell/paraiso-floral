@@ -596,6 +596,7 @@ model Producto {
   isvAplicable            Int                    @default(15)
   estado                  String                 @default("ACTIVO")
   esServicio              Boolean                @default(false)
+  categoria               String?
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
   activosFijos            ActivoFijo[]

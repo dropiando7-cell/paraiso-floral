@@ -116,7 +116,8 @@ async function getLandingData() {
                         marca: true,
                         modelo: true,
                         sku: true,
-                        imagenWeb: true
+                        imagenWeb: true,
+                        categoria: true
                     }
                 });
                 realAssets = queryProducts.map(p => ({
@@ -126,7 +127,7 @@ async function getLandingData() {
                     modelo: p.modelo || 'N/A',
                     idQr: p.sku,
                     imagenUrl: p.imagenWeb || null,
-                    category: 'consumibles'
+                    category: p.categoria || 'consumibles'
                 }));
             } catch (dbErr) {
                 console.error('Error loading SOMA products for homepage:', dbErr);

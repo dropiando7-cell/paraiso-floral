@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Search, HeartPulse, SlidersHorizontal, EyeOff } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
 import VisibilityToggle from './VisibilityToggle';
+import DeleteButton from './DeleteButton';
 
 interface SearchParams {
     q?: string;
@@ -134,7 +135,8 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                     sku: true,
                     precioVenta: true,
                     imagenWeb: true,
-                    tituloWeb: true
+                    tituloWeb: true,
+                    categoria: true
                 }
             });
         }
@@ -160,8 +162,8 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                 code: c.sku || '',
                 imageUrl: c.imagenWeb || null,
                 type: 'producto' as const,
-                typeName: 'Consumible / Repuesto',
-                category: 'consumibles',
+                typeName: c.sku.startsWith('SOMA-') ? (c.categoria || 'Máquinas de anestesia') : 'Consumible / Repuesto',
+                category: c.categoria || 'consumibles',
                 hidden: c.estado === 'OCULTO',
             }))
         ];
@@ -487,13 +489,18 @@ export default async function ProductosPage({
                                         </div>
                                     )}
 
-                                    {/* Admin Visibility Toggle */}
+                                    {/* Admin Actions (Visibility & Delete) */}
                                     {isAdmin && (
-                                        <div className="absolute top-3 right-3 z-20">
+                                        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
                                             <VisibilityToggle 
                                                 id={item.id} 
                                                 type={item.type} 
                                                 initialHidden={item.hidden} 
+                                            />
+                                            <DeleteButton 
+                                                id={item.id} 
+                                                type={item.type} 
+                                                name={item.name}
                                             />
                                         </div>
                                     )}

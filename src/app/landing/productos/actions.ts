@@ -64,3 +64,47 @@ export async function toggleItemVisibility(id: string, type: 'activo' | 'product
         return { success: false, error: e.message || 'Error al cambiar visibilidad' };
     }
 }
+
+export async function deleteLandingItem(id: string, type: 'activo' | 'producto') {
+    try {
+        await checkAdminAuth();
+        const itemId = getUuidFromParam(id);
+
+        if (type === 'activo') {
+            try {
+                // Try complete deletion first
+                await prisma.activoFijo.delete({
+                    where: { id: itemId }
+                });
+            } catch (deleteError) {
+                console.warn('Could not hard delete activo, marking as ELIMINADO:', deleteError);
+                // Fallback to soft delete
+                await prisma.activoFijo.update({
+                    where: { id: itemId },
+                    data: { estatusContable: 'ELIMINADO' }
+                });
+            }
+        } else {
+            try {
+                // Try complete deletion first
+                await prisma.producto.delete({
+                    where: { id: itemId }
+                });
+            } catch (deleteError) {
+                console.warn('Could not hard delete producto, marking as INACTIVO:', deleteError);
+                // Fallback to soft delete
+                await prisma.producto.update({
+                    where: { id: itemId },
+                    data: { estado: 'INACTIVO' }
+                });
+            }
+        }
+
+        revalidatePath('/landing/productos');
+        revalidatePath('/admin/gestion-web');
+        return { success: true };
+    } catch (e: any) {
+        console.error('Error deleting landing item:', e);
+        return { success: false, error: e.message || 'Error al eliminar el producto' };
+    }
+}

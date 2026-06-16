@@ -103,9 +103,9 @@ async function getItemData(id: string, settings: any) {
                 code: product.sku,
                 imageUrl: product.imagenWeb || null,
                 type: 'producto' as const,
-                typeName: 'Consumible / Repuesto',
+                typeName: product.sku.startsWith('SOMA-') ? (product.categoria || 'Máquinas de anestesia') : 'Consumible / Repuesto',
                 description: product.descripcionWeb || product.descripcion || '',
-                category: 'consumibles',
+                category: product.categoria || 'consumibles',
                 details
             };
         }

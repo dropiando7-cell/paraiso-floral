@@ -183,7 +183,7 @@ export async function searchInventoryItems(query: string) {
             }
         });
 
-        // Search Productos
+         // Search Productos
         const productos = await prisma.producto.findMany({
             where: {
                 organizationId: dbUser.organizationId,
@@ -204,7 +204,8 @@ export async function searchInventoryItems(query: string) {
                 sku: true,
                 imagenWeb: true,
                 tituloWeb: true,
-                descripcionWeb: true
+                descripcionWeb: true,
+                categoria: true
             }
         });
 
@@ -238,7 +239,7 @@ export async function searchInventoryItems(query: string) {
                 descripcionWeb: p.descripcionWeb || '',
                 type: 'producto' as const,
                 cost: null,
-                category: 'consumibles'
+                category: p.categoria || 'consumibles'
             }))
         };
     } catch (error: any) {
@@ -302,12 +303,17 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
             ]
         };
         if (search) {
-            assetsWhere.OR = [
-                { descripcionCorta: { contains: search, mode: 'insensitive' } },
-                { marca: { contains: search, mode: 'insensitive' } },
-                { modelo: { contains: search, mode: 'insensitive' } },
-                { idQr: { contains: search, mode: 'insensitive' } }
-            ];
+            const tokens = search.split(/\s+/).filter(Boolean);
+            if (tokens.length > 0) {
+                assetsWhere.AND = tokens.map(token => ({
+                    OR: [
+                        { descripcionCorta: { contains: token, mode: 'insensitive' } },
+                        { marca: { contains: token, mode: 'insensitive' } },
+                        { modelo: { contains: token, mode: 'insensitive' } },
+                        { idQr: { contains: token, mode: 'insensitive' } }
+                    ]
+                }));
+            }
         }
 
         // Product filter
@@ -317,12 +323,17 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
             esServicio: false
         };
         if (search) {
-            productsWhere.OR = [
-                { nombre: { contains: search, mode: 'insensitive' } },
-                { marca: { contains: search, mode: 'insensitive' } },
-                { modelo: { contains: search, mode: 'insensitive' } },
-                { sku: { contains: search, mode: 'insensitive' } }
-            ];
+            const tokens = search.split(/\s+/).filter(Boolean);
+            if (tokens.length > 0) {
+                productsWhere.AND = tokens.map(token => ({
+                    OR: [
+                        { nombre: { contains: token, mode: 'insensitive' } },
+                        { marca: { contains: token, mode: 'insensitive' } },
+                        { modelo: { contains: token, mode: 'insensitive' } },
+                        { sku: { contains: token, mode: 'insensitive' } }
+                    ]
+                }));
+            }
         }
 
         // Apply source filters (scraped SOMA products vs own inventory)
@@ -402,7 +413,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                         sku: true,
                         imagenWeb: true,
                         tituloWeb: true,
-                        descripcionWeb: true
+                        descripcionWeb: true,
+                        categoria: true
                     }
                 });
 
@@ -421,7 +433,7 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                         descripcionWeb: p.descripcionWeb || '',
                         type: 'producto' as const,
                         cost: null,
-                        category: 'consumibles'
+                        category: p.categoria || 'consumibles'
                     }))
                 ];
             }
@@ -442,7 +454,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                     sku: true,
                     imagenWeb: true,
                     tituloWeb: true,
-                    descripcionWeb: true
+                    descripcionWeb: true,
+                    categoria: true
                 }
             });
 
@@ -459,7 +472,7 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                 descripcionWeb: p.descripcionWeb || '',
                 type: 'producto' as const,
                 cost: null,
-                category: 'consumibles'
+                category: p.categoria || 'consumibles'
             }));
         }
 
@@ -695,7 +708,7 @@ export async function getInventoryItemById(id: string) {
                     descripcionWeb: product.descripcionWeb || '',
                     type: 'producto' as const,
                     cost: null,
-                    category: 'consumibles'
+                    category: product.categoria || 'consumibles'
                 }
             };
         }

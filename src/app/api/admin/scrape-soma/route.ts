@@ -222,18 +222,21 @@ export async function POST(req: NextRequest) {
         // 1. Authenticate user
         const supabase = await createClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
-        if (authError || !user) {
+        if (authError || !user || !user.email) {
             return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
         }
 
-        // 2. Fetch default organization
-        const defaultOrg = await prisma.organization.findFirst();
-        if (!defaultOrg) {
-            return NextResponse.json({ error: 'No se encontró ninguna organización en el sistema' }, { status: 500 });
+        // Fetch user from DB to get their organizationId
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            select: { organizationId: true }
+        });
+        if (!dbUser) {
+            return NextResponse.json({ error: 'Usuario no encontrado en la base de datos' }, { status: 404 });
         }
-        const organizationId = defaultOrg.id;
+        const organizationId = dbUser.organizationId;
 
-        // 3. Parse category filter
+        // Parse category filter
         let requestCategory = "all";
         try {
             const body = await req.json();
@@ -242,114 +245,200 @@ export async function POST(req: NextRequest) {
             // Use default 'all' if body is empty
         }
 
-        // 4. Construct WooCommerce Store API endpoint (using Spanish version)
-        let targetUrl = 'https://www.somatechnology.com/spanish/wp-json/wc/store/v1/products?per_page=10';
-        if (requestCategory !== "all" && CATEGORY_MAP[requestCategory]) {
-            const categoryId = CATEGORY_MAP[requestCategory];
-            targetUrl = `https://www.somatechnology.com/spanish/wp-json/wc/store/v1/products?category=${categoryId}&per_page=10`;
-        }
+        const encoder = new TextEncoder();
+        const stream = new ReadableStream({
+            async start(controller) {
+                const sendUpdate = (data: any) => {
+                    controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
+                };
 
-        // 5. Fetch real products from WooCommerce Store API
-        console.log(`[Scraper] Fetching products from live URL: ${targetUrl}`);
-        const response = await fetch(targetUrl, { headers: HEADERS });
-        if (!response.ok) {
-            throw new Error(`Error de red al consultar Soma Technology (Código: ${response.status})`);
-        }
-
-        const scrapedProducts = await response.json();
-        if (!Array.isArray(scrapedProducts)) {
-            throw new Error('La respuesta de Soma Technology no tiene un formato válido.');
-        }
-
-        console.log(`[Scraper] Successfully fetched ${scrapedProducts.length} products.`);
-        let importedCount = 0;
-
-        // 6. Process products sequentially to respect rate limits
-        for (const item of scrapedProducts) {
-            const decodedName = decodeHtml(item.name || '');
-            const brand = extractBrand(decodedName);
-            const model = extractModel(decodedName, brand);
-            
-            // Clean up SKU generation
-            const cleanSku = `SOMA-${brand.toUpperCase().replace(/[^A-Z0-9]/g, '')}-${model.toUpperCase().replace(/[^A-Z0-9]/g, '')}`;
-
-            const descClean = cleanHtml(item.description || '');
-            const descShortClean = cleanHtml(item.short_description || '') || descClean.substring(0, 200);
-
-            // Determine image URL
-            let originalImageUrl = '';
-            if (item.images && item.images.length > 0) {
-                originalImageUrl = item.images[0].src;
-            }
-
-            let finalImageUrl = originalImageUrl;
-
-            // Upload image to Cloudflare R2 if it exists
-            if (originalImageUrl) {
                 try {
-                    console.log(`[Scraper] Downloading image for ${decodedName}: ${originalImageUrl}`);
-                    const imgResponse = await fetch(originalImageUrl, { headers: HEADERS });
-                    if (imgResponse.ok) {
-                        const arrayBuffer = await imgResponse.arrayBuffer();
-                        const buffer = Buffer.from(arrayBuffer);
-                        const ext = originalImageUrl.split('.').pop()?.split('?')[0] || 'jpg';
-                        const uniqueFileName = `scraped/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
-                        const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
-                        
-                        // Upload directly to R2 bucket!
-                        const r2Url = await uploadToR2(buffer, uniqueFileName, contentType);
-                        if (r2Url) {
-                            finalImageUrl = r2Url;
-                            console.log(`[Scraper] Image successfully uploaded to R2: ${r2Url}`);
+                    sendUpdate({ type: 'status', message: 'Iniciando conexión con Soma Technology...' });
+
+                    let allProducts: any[] = [];
+                    let page = 1;
+                    let hasMore = true;
+
+                    while (hasMore) {
+                        let targetUrl = `https://www.somatechnology.com/spanish/wp-json/wc/store/v1/products?per_page=100&page=${page}`;
+                        if (requestCategory !== "all" && CATEGORY_MAP[requestCategory]) {
+                            const categoryId = CATEGORY_MAP[requestCategory];
+                            targetUrl = `https://www.somatechnology.com/spanish/wp-json/wc/store/v1/products?category=${categoryId}&per_page=100&page=${page}`;
+                        }
+
+                        console.log(`[Scraper] Fetching products from live URL: ${targetUrl}`);
+                        sendUpdate({ type: 'status', message: `Descargando productos, página ${page}...` });
+
+                        const response = await fetch(targetUrl, { headers: HEADERS });
+                        if (!response.ok) {
+                            if (page === 1) {
+                                throw new Error(`Error de red al consultar Soma Technology (Código: ${response.status})`);
+                            } else {
+                                console.log(`[Scraper] Stopped paging at page ${page} due to status ${response.status}`);
+                                break;
+                            }
+                        }
+
+                        const scrapedProducts = await response.json();
+                        if (!Array.isArray(scrapedProducts) || scrapedProducts.length === 0) {
+                            hasMore = false;
+                            break;
+                        }
+
+                        allProducts = allProducts.concat(scrapedProducts);
+                        if (scrapedProducts.length < 100) {
+                            hasMore = false;
+                        } else {
+                            page++;
                         }
                     }
-                } catch (imgErr) {
-                    console.error(`[Scraper] Failed to download or upload image to R2 for ${decodedName}:`, imgErr);
-                    // Keep original URL as fallback if R2 upload fails
+
+                    console.log(`[Scraper] Successfully fetched ${allProducts.length} products total.`);
+                    sendUpdate({ type: 'info', total: allProducts.length, message: `Se encontraron ${allProducts.length} productos en Soma Technology.` });
+
+                    let importedCount = 0;
+                    let processedCount = 0;
+
+                    for (const item of allProducts) {
+                        processedCount++;
+                        const decodedName = decodeHtml(item.name || '');
+                        const brand = extractBrand(decodedName);
+                        const model = extractModel(decodedName, brand);
+                        
+                        // Clean up SKU generation
+                        const cleanSku = `SOMA-${brand.toUpperCase().replace(/[^A-Z0-9]/g, '')}-${model.toUpperCase().replace(/[^A-Z0-9]/g, '')}`;
+
+                        const categoryName = item.categories?.[0]?.name || 'Consumibles';
+
+                        // Check if product already exists (by SKU) in the database
+                        const existingProduct = await prisma.producto.findUnique({
+                            where: { sku: cleanSku }
+                        });
+
+                        if (existingProduct) {
+                            // If it exists, but lacks a category or belongs to a different organization, update it
+                            if (existingProduct.organizationId !== organizationId || existingProduct.categoria !== categoryName) {
+                                console.log(`[Scraper] Updating organizationId/category for product SKU ${cleanSku}`);
+                                await prisma.producto.update({
+                                    where: { sku: cleanSku },
+                                    data: { 
+                                        organizationId,
+                                        categoria: categoryName
+                                    }
+                                });
+                            }
+                            console.log(`[Scraper] Product with SKU ${cleanSku} already exists. Skipping...`);
+                            sendUpdate({ 
+                                type: 'progress', 
+                                current: processedCount, 
+                                total: allProducts.length, 
+                                product: `${decodedName} (Ya existe - Omitido)` 
+                            });
+                            continue;
+                        }
+
+                        const descClean = cleanHtml(item.description || '');
+                        const descShortClean = cleanHtml(item.short_description || '') || descClean.substring(0, 200);
+
+                        // Determine image URL
+                        let originalImageUrl = '';
+                        if (item.images && item.images.length > 0) {
+                            originalImageUrl = item.images[0].src;
+                        }
+
+                        let finalImageUrl = originalImageUrl;
+
+                        // Upload image to Cloudflare R2 if it exists
+                        if (originalImageUrl) {
+                            try {
+                                console.log(`[Scraper] Downloading image for ${decodedName}: ${originalImageUrl}`);
+                                sendUpdate({ type: 'status', message: `Descargando imagen comercial para: ${decodedName}` });
+                                const imgResponse = await fetch(originalImageUrl, { headers: HEADERS });
+                                if (imgResponse.ok) {
+                                    const arrayBuffer = await imgResponse.arrayBuffer();
+                                    const buffer = Buffer.from(arrayBuffer);
+                                    const ext = originalImageUrl.split('.').pop()?.split('?')[0] || 'jpg';
+                                    const uniqueFileName = `scraped/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
+                                    const contentType = imgResponse.headers.get('content-type') || 'image/jpeg';
+                                    
+                                    // Upload directly to R2 bucket!
+                                    const r2Url = await uploadToR2(buffer, uniqueFileName, contentType);
+                                    if (r2Url) {
+                                        finalImageUrl = r2Url;
+                                        console.log(`[Scraper] Image successfully uploaded to R2: ${r2Url}`);
+                                    }
+                                }
+                            } catch (imgErr) {
+                                console.error(`[Scraper] Failed to download or upload image to R2 for ${decodedName}:`, imgErr);
+                                // Keep original URL as fallback if R2 upload fails
+                            }
+                        }
+
+                        // Upsert the Producto entry in the database
+                        console.log(`[Scraper] Creating product: ${decodedName} with SKU: ${cleanSku}`);
+                        await prisma.producto.upsert({
+                            where: { sku: cleanSku },
+                            update: {
+                                nombre: decodedName,
+                                descripcion: descClean,
+                                imagenWeb: finalImageUrl,
+                                tituloWeb: decodedName,
+                                descripcionWeb: descShortClean,
+                                marca: brand,
+                                modelo: model,
+                                estado: 'ACTIVO',
+                                categoria: categoryName
+                            },
+                            create: {
+                                organizationId,
+                                sku: cleanSku,
+                                nombre: decodedName,
+                                descripcion: descClean,
+                                imagenWeb: finalImageUrl,
+                                tituloWeb: decodedName,
+                                descripcionWeb: descShortClean,
+                                marca: brand,
+                                modelo: model,
+                                precioVenta: 0,
+                                costoBase: 0,
+                                stockActual: 0,
+                                stockMinimo: 0,
+                                estado: 'ACTIVO',
+                                categoria: categoryName
+                            }
+                        });
+
+                        importedCount++;
+                        sendUpdate({ 
+                            type: 'progress', 
+                            current: processedCount, 
+                            total: allProducts.length, 
+                            product: decodedName 
+                        });
+
+                        // Wait 1 second between products to avoid rate limit bans
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                    }
+
+                    sendUpdate({ type: 'success', count: importedCount, total: allProducts.length });
+                    controller.close();
+                } catch (err: any) {
+                    console.error('[Scraper Stream Error]:', err);
+                    sendUpdate({ type: 'error', error: err.message || 'Error desconocido' });
+                    controller.close();
                 }
             }
+        });
 
-            // Upsert the Producto entry in the database
-            console.log(`[Scraper] Upserting product: ${decodedName} with SKU: ${cleanSku}`);
-            await prisma.producto.upsert({
-                where: { sku: cleanSku },
-                update: {
-                    nombre: decodedName,
-                    descripcion: descClean,
-                    imagenWeb: finalImageUrl,
-                    tituloWeb: decodedName,
-                    descripcionWeb: descShortClean,
-                    marca: brand,
-                    modelo: model,
-                    estado: 'ACTIVO'
-                },
-                create: {
-                    organizationId,
-                    sku: cleanSku,
-                    nombre: decodedName,
-                    descripcion: descClean,
-                    imagenWeb: finalImageUrl,
-                    tituloWeb: decodedName,
-                    descripcionWeb: descShortClean,
-                    marca: brand,
-                    modelo: model,
-                    precioVenta: 0,
-                    costoBase: 0,
-                    stockActual: 0,
-                    stockMinimo: 0,
-                    estado: 'ACTIVO'
-                }
-            });
-
-            importedCount++;
-
-            // Wait 1 second between products to avoid rate limit bans
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-
-        return NextResponse.json({ success: true, count: importedCount });
+        return new Response(stream, {
+            headers: {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache, no-transform',
+                'Connection': 'keep-alive',
+            }
+        });
     } catch (err: any) {
         console.error('[Scraper Endpoint Error]:', err);
-        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+        return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }
