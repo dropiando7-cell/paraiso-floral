@@ -1,10 +1,11 @@
 import React from 'react';
 import { prisma } from '@/lib/prisma';
-import ProductDetailClient from './ProductDetailClient';
+import ProductDetailClient from '../../[id]/ProductDetailClient';
 import { notFound, redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 
 interface Params {
+    category: string;
     id: string;
 }
 
@@ -132,7 +133,7 @@ async function getLandingSettings() {
     };
 }
 
-export default async function ProductDetailPage({
+export default async function NestedProductDetailPage({
     params,
     searchParams
 }: {
@@ -151,9 +152,33 @@ export default async function ProductDetailPage({
         notFound();
     }
 
-    // Always redirect legacy requests to the new canonical nested structure /productos/[category]/[id]-[slug]
     const canonicalCategory = slugify(item.category || 'equipos');
     const canonicalSlug = `${item.id}-${slugify(item.name || '')}`;
-    const queryStr = resolvedSearchParams.cotizar === 'true' ? '?cotizar=true' : '';
-    redirect(`/productos/${canonicalCategory}/${canonicalSlug}${queryStr}`);
+
+    // Redirect to the correct canonical URL if the slug or category path doesn't match
+    if (resolvedParams.category !== canonicalCategory || resolvedParams.id !== canonicalSlug) {
+        const queryStr = resolvedSearchParams.cotizar === 'true' ? '?cotizar=true' : '';
+        redirect(`/productos/${canonicalCategory}/${canonicalSlug}${queryStr}`);
+    }
+
+    const autoOpen = resolvedSearchParams.cotizar === 'true';
+
+    // Check if the browsing user is an administrator
+    let isAdmin = false;
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        isAdmin = !!user;
+    } catch (e) {
+        console.error('Error checking user session in details page:', e);
+    }
+
+    return (
+        <ProductDetailClient 
+            item={item} 
+            landingSettings={settings} 
+            autoOpenCotizar={autoOpen} 
+            isAdmin={isAdmin}
+        />
+    );
 }

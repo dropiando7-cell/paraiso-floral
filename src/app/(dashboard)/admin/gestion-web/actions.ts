@@ -4,6 +4,14 @@ import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 
+const getUuidFromParam = (param: string) => {
+    const parts = param.split('-');
+    if (parts.length >= 5) {
+        return parts.slice(0, 5).join('-');
+    }
+    return param;
+};
+
 // Helper to check permission
 async function checkAdminAuth() {
     const supabase = await createClient();
@@ -166,7 +174,12 @@ export async function searchInventoryItems(query: string) {
                 imagenWeb: true,
                 tituloWeb: true,
                 descripcionWeb: true,
-                costoAdq: true
+                costoAdq: true,
+                categoria: {
+                    select: {
+                        nombre: true
+                    }
+                }
             }
         });
 
@@ -209,7 +222,8 @@ export async function searchInventoryItems(query: string) {
                 tituloWeb: a.tituloWeb || '',
                 descripcionWeb: a.descripcionWeb || '',
                 type: 'activo' as const,
-                cost: a.costoAdq ? Number(a.costoAdq) : null
+                cost: a.costoAdq ? Number(a.costoAdq) : null,
+                category: a.categoria?.nombre || 'equipos'
             })),
             productos: productos.map(p => ({
                 id: p.id,
@@ -223,7 +237,8 @@ export async function searchInventoryItems(query: string) {
                 tituloWeb: p.tituloWeb || '',
                 descripcionWeb: p.descripcionWeb || '',
                 type: 'producto' as const,
-                cost: null
+                cost: null,
+                category: 'consumibles'
             }))
         };
     } catch (error: any) {
@@ -239,6 +254,7 @@ export async function updateItemWebFields(
 ) {
     try {
         await checkAdminAuth();
+        const itemId = getUuidFromParam(id);
 
         const data: { imagenWeb?: string | null; tituloWeb?: string | null; descripcionWeb?: string | null } = {};
 
@@ -248,12 +264,12 @@ export async function updateItemWebFields(
 
         if (type === 'activo') {
             await prisma.activoFijo.update({
-                where: { id },
+                where: { id: itemId },
                 data
             });
         } else {
             await prisma.producto.update({
-                where: { id },
+                where: { id: itemId },
                 data
             });
         }
@@ -335,7 +351,12 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                     imagenWeb: true,
                     tituloWeb: true,
                     descripcionWeb: true,
-                    costoAdq: true
+                    costoAdq: true,
+                    categoria: {
+                        select: {
+                            nombre: true
+                        }
+                    }
                 }
             });
 
@@ -351,7 +372,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                 tituloWeb: a.tituloWeb || '',
                 descripcionWeb: a.descripcionWeb || '',
                 type: 'activo' as const,
-                cost: a.costoAdq ? Number(a.costoAdq) : null
+                cost: a.costoAdq ? Number(a.costoAdq) : null,
+                category: a.categoria?.nombre || 'equipos'
             }));
 
             // If we still have space in the page, fetch products
@@ -389,7 +411,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                         tituloWeb: p.tituloWeb || '',
                         descripcionWeb: p.descripcionWeb || '',
                         type: 'producto' as const,
-                        cost: null
+                        cost: null,
+                        category: 'consumibles'
                     }))
                 ];
             }
@@ -426,7 +449,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                 tituloWeb: p.tituloWeb || '',
                 descripcionWeb: p.descripcionWeb || '',
                 type: 'producto' as const,
-                cost: null
+                cost: null,
+                category: 'consumibles'
             }));
         }
 
@@ -612,10 +636,12 @@ export async function getWebTraffic(minutesLimit: number = 15) {
 export async function getInventoryItemById(id: string) {
     try {
         const dbUser = await checkAdminAuth();
+        const itemId = getUuidFromParam(id);
 
         // 1. Try finding in ActivoFijo
         const asset = await prisma.activoFijo.findFirst({
-            where: { id, organizationId: dbUser.organizationId }
+            where: { id: itemId, organizationId: dbUser.organizationId },
+            include: { categoria: true }
         });
 
         if (asset) {
@@ -632,14 +658,15 @@ export async function getInventoryItemById(id: string) {
                     imagenWeb: asset.imagenWeb || '',
                     tituloWeb: asset.tituloWeb || '',
                     descripcionWeb: asset.descripcionWeb || '',
-                    type: 'activo' as const
+                    type: 'activo' as const,
+                    category: asset.categoria?.nombre || 'equipos'
                 }
             };
         }
 
         // 2. Try finding in Producto
         const product = await prisma.producto.findFirst({
-            where: { id, organizationId: dbUser.organizationId }
+            where: { id: itemId, organizationId: dbUser.organizationId }
         });
 
         if (product) {
@@ -656,7 +683,8 @@ export async function getInventoryItemById(id: string) {
                     imagenWeb: product.imagenWeb || '',
                     tituloWeb: product.tituloWeb || '',
                     descripcionWeb: product.descripcionWeb || '',
-                    type: 'producto' as const
+                    type: 'producto' as const,
+                    category: 'consumibles'
                 }
             };
         }

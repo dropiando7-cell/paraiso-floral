@@ -96,7 +96,12 @@ async function getInventory(searchParams: SearchParams) {
                     imagenUrl: true,
                     imagenWeb: true,
                     tituloWeb: true,
-                    costoAdq: true
+                    costoAdq: true,
+                    categoria: {
+                        select: {
+                            nombre: true
+                        }
+                    }
                 }
             });
         }
@@ -139,6 +144,7 @@ async function getInventory(searchParams: SearchParams) {
                 imageUrl: a.imagenWeb || a.imagenUrl,
                 type: 'activo' as const,
                 typeName: 'Equipo Médico / Activo',
+                category: a.categoria?.nombre || 'equipos',
             })),
             ...consumables.map(c => ({
                 id: c.id,
@@ -149,6 +155,7 @@ async function getInventory(searchParams: SearchParams) {
                 imageUrl: c.imagenWeb || null,
                 type: 'producto' as const,
                 typeName: 'Consumible / Repuesto',
+                category: 'consumibles',
             }))
         ];
 
@@ -471,13 +478,13 @@ export default async function ProductosPage({
 
                                         <div className="flex gap-2 text-[10px] font-bold">
                                             <Link
-                                                href={`/productos/${item.id}-${slugify(item.name || '')}`}
+                                                href={`/productos/${slugify(item.category || 'equipos')}/${item.id}-${slugify(item.name || '')}`}
                                                 className="flex-1 text-center bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl border border-slate-200 transition-colors"
                                             >
                                                 Ver Ficha
                                             </Link>
                                             <Link
-                                                href={`/productos/${item.id}-${slugify(item.name || '')}?cotizar=true`}
+                                                href={`/productos/${slugify(item.category || 'equipos')}/${item.id}-${slugify(item.name || '')}?cotizar=true`}
                                                 className="flex-1 text-center bg-[#00a8cc] hover:bg-[#00b4d8] text-white py-2.5 rounded-xl transition-colors shadow-sm shadow-cyan-500/10 cursor-pointer"
                                             >
                                                 Cotizar

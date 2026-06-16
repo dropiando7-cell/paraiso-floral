@@ -33,6 +33,7 @@ const mockAssets = [
         marca: 'General Electric',
         modelo: 'Logiq E9',
         imagenUrl: 'https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&w=600&q=80',
+        category: 'equipos'
     },
     {
         id: 'mock-2',
@@ -40,6 +41,7 @@ const mockAssets = [
         marca: 'Zoll Medical',
         modelo: 'M Series CCT',
         imagenUrl: 'https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=600&q=80',
+        category: 'equipos'
     },
     {
         id: 'mock-3',
@@ -47,6 +49,7 @@ const mockAssets = [
         marca: 'Mindray',
         modelo: 'BeneView T5',
         imagenUrl: 'https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&w=600&q=80',
+        category: 'equipos'
     },
     {
         id: 'mock-4',
@@ -54,6 +57,7 @@ const mockAssets = [
         marca: 'Dräger',
         modelo: 'Fabius GS',
         imagenUrl: 'https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&w=600&q=80',
+        category: 'equipos'
     }
 ];
 
@@ -97,7 +101,7 @@ async function getLandingData() {
         // Fetch real active inventory assets (ActivoFijo)
         let realAssets: any[] = [];
         try {
-            realAssets = await prisma.activoFijo.findMany({
+            const queryAssets = await prisma.activoFijo.findMany({
                 where: {
                     estatusContable: 'VIGENTE',
                     NOT: [
@@ -111,9 +115,23 @@ async function getLandingData() {
                     marca: true,
                     modelo: true,
                     idQr: true,
-                    imagenUrl: true
+                    imagenUrl: true,
+                    categoria: {
+                        select: {
+                            nombre: true
+                        }
+                    }
                 }
             });
+            realAssets = queryAssets.map(a => ({
+                id: a.id,
+                descripcionCorta: a.descripcionCorta,
+                marca: a.marca,
+                modelo: a.modelo,
+                idQr: a.idQr,
+                imagenUrl: a.imagenUrl,
+                category: a.categoria?.nombre || 'equipos'
+            }));
         } catch (dbErr) {
             console.error('Error loading inventory assets:', dbErr);
         }

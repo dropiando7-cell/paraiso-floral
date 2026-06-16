@@ -1186,7 +1186,7 @@ export default function GestionWebClient({
                                                                 <span>Ficha</span>
                                                             </button>
                                                             <a
-                                                                href={`/landing/productos/${item.id}-${slugify(item.name || '')}`}
+                                                                href={`/landing/productos/${slugify(item.category || 'equipos')}/${item.id}-${slugify(item.name || '')}`}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="text-[9px] font-bold text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 bg-white border border-cyan-200 px-2 py-0.5 rounded-md flex items-center gap-1 transition-all shrink-0 cursor-pointer"
@@ -2272,7 +2272,7 @@ export default function GestionWebClient({
                                                 {selectedItem.code}
                                             </span>
                                             <a
-                                                href={`/landing/productos/${selectedItem.id}-${slugify(selectedItem.name || '')}`}
+                                                href={`/landing/productos/${slugify(selectedItem.category || 'equipos')}/${selectedItem.id}-${slugify(selectedItem.name || '')}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-[9px] font-bold text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 bg-white border border-cyan-200 px-2 py-0.5 rounded-md flex items-center gap-1 transition-all shrink-0 cursor-pointer ml-1"
