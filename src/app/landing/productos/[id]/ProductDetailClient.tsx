@@ -113,6 +113,16 @@ export default function ProductDetailClient({
         }
     };
 
+    const getAdminLink = () => {
+        if (typeof window !== 'undefined') {
+            const hostname = window.location.hostname;
+            if (hostname === 'bioelectronicahn.com' || hostname === 'www.bioelectronicahn.com') {
+                return `https://sistema.bioelectronicahn.com/admin/gestion-web?editItem=${item.id}`;
+            }
+        }
+        return `/admin/gestion-web?editItem=${item.id}`;
+    };
+
     return (
         <div className="max-w-6xl mx-auto px-4 py-8 space-y-8 bg-white text-slate-800 animate-fade-in">
             {/* Back Button */}
@@ -144,7 +154,7 @@ export default function ProductDetailClient({
 
                     {isAdmin && (
                         <Link 
-                            href={`/admin/gestion-web?editItem=${item.id}`}
+                            href={getAdminLink()}
                             className="absolute bottom-4 right-4 bg-slate-950/90 text-white hover:bg-slate-900 border border-white/10 text-[9px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-slate-950/20 backdrop-blur-md z-10 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                             title="Editar imagen y detalles en el panel"
                         >

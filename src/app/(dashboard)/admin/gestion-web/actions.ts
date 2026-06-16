@@ -668,6 +668,7 @@ export async function getInventoryItemById(id: string) {
                     tituloWeb: asset.tituloWeb || '',
                     descripcionWeb: asset.descripcionWeb || '',
                     type: 'activo' as const,
+                    cost: asset.costoAdq ? Number(asset.costoAdq) : null,
                     category: asset.categoria?.nombre || 'equipos'
                 }
             };
@@ -693,6 +694,7 @@ export async function getInventoryItemById(id: string) {
                     tituloWeb: product.tituloWeb || '',
                     descripcionWeb: product.descripcionWeb || '',
                     type: 'producto' as const,
+                    cost: null,
                     category: 'consumibles'
                 }
             };

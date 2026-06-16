@@ -82,6 +82,7 @@ interface LandingSettings {
     activeTheme?: string;
     allowScrapedProducts?: boolean;
     defaultScrapedStock?: number;
+    hideRealInventory?: boolean;
 }
 
 interface GestionWebClientProps {
@@ -1783,7 +1784,7 @@ export default function GestionWebClient({
                         <div className="p-5 border rounded-2xl bg-slate-50 space-y-4">
                             <h3 className="font-bold text-sm text-slate-800">Control de Productos Externos (Soma Tech)</h3>
                             
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                                 <div className="flex items-center justify-between gap-4 p-3 bg-white border rounded-xl">
                                     <div className="space-y-0.5">
                                         <span className="text-xs font-bold text-slate-800 block">Mostrar Productos Externos</span>
@@ -1793,6 +1794,19 @@ export default function GestionWebClient({
                                         type="checkbox"
                                         checked={landingSettings.allowScrapedProducts ?? true}
                                         onChange={(e) => setLandingSettings(p => ({ ...p, allowScrapedProducts: e.target.checked }))}
+                                        className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 shrink-0"
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between gap-4 p-3 bg-white border rounded-xl">
+                                    <div className="space-y-0.5">
+                                        <span className="text-xs font-bold text-slate-800 block">Ocultar Inventario Real</span>
+                                        <span className="text-[10px] text-slate-400 font-medium">Oculta del catálogo público todos los productos de tu inventario físico local, mostrando solo los de Soma.</span>
+                                    </div>
+                                    <input 
+                                        type="checkbox"
+                                        checked={landingSettings.hideRealInventory ?? false}
+                                        onChange={(e) => setLandingSettings(p => ({ ...p, hideRealInventory: e.target.checked }))}
                                         className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 shrink-0"
                                     />
                                 </div>
@@ -2452,7 +2466,7 @@ export default function GestionWebClient({
                                                 <span className="text-[9px] font-bold text-slate-400 uppercase block">Modelo</span>
                                                 <span className="text-xs font-bold text-slate-800">{selectedItem.model}</span>
                                             </div>
-                                            {selectedItem.type === 'activo' && selectedItem.cost !== null && (
+                                            {selectedItem.type === 'activo' && selectedItem.cost !== undefined && selectedItem.cost !== null && (
                                                 <div>
                                                     <span className="text-[9px] font-bold text-slate-400 uppercase block">Costo de Adquisición</span>
                                                     <span className="text-xs font-mono font-bold text-slate-800">

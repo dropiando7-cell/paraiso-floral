@@ -97,43 +97,76 @@ async function getLandingData() {
 
         const landingSettingsRaw = settings.find(s => s.key === 'landing_settings')?.value || '{}';
         const landingSettings = JSON.parse(landingSettingsRaw);
+        const hideRealInventory = landingSettings.hideRealInventory === true;
 
-        // Fetch real active inventory assets (ActivoFijo)
+        // Fetch real active inventory assets (ActivoFijo) or SOMA products depending on configuration
         let realAssets: any[] = [];
-        try {
-            const queryAssets = await prisma.activoFijo.findMany({
-                where: {
-                    estatusContable: 'VIGENTE',
-                    NOT: [
-                        { area: { equals: 'SERVICIOS', mode: 'insensitive' } }
-                    ]
-                },
-                take: 4,
-                select: {
-                    id: true,
-                    descripcionCorta: true,
-                    marca: true,
-                    modelo: true,
-                    idQr: true,
-                    imagenUrl: true,
-                    categoria: {
-                        select: {
-                            nombre: true
+        if (hideRealInventory) {
+            try {
+                const queryProducts = await prisma.producto.findMany({
+                    where: {
+                        estado: 'ACTIVO',
+                        esServicio: false,
+                        sku: { startsWith: 'SOMA-' }
+                    },
+                    take: 4,
+                    select: {
+                        id: true,
+                        nombre: true,
+                        marca: true,
+                        modelo: true,
+                        sku: true,
+                        imagenWeb: true
+                    }
+                });
+                realAssets = queryProducts.map(p => ({
+                    id: p.id,
+                    descripcionCorta: p.nombre,
+                    marca: p.marca || 'SOMA',
+                    modelo: p.modelo || 'N/A',
+                    idQr: p.sku,
+                    imagenUrl: p.imagenWeb || null,
+                    category: 'consumibles'
+                }));
+            } catch (dbErr) {
+                console.error('Error loading SOMA products for homepage:', dbErr);
+            }
+        } else {
+            try {
+                const queryAssets = await prisma.activoFijo.findMany({
+                    where: {
+                        estatusContable: 'VIGENTE',
+                        NOT: [
+                            { area: { equals: 'SERVICIOS', mode: 'insensitive' } }
+                        ]
+                    },
+                    take: 4,
+                    select: {
+                        id: true,
+                        descripcionCorta: true,
+                        marca: true,
+                        modelo: true,
+                        idQr: true,
+                        imagenUrl: true,
+                        categoria: {
+                            select: {
+                                nombre: true
+                            }
                         }
                     }
-                }
-            });
-            realAssets = queryAssets.map(a => ({
-                id: a.id,
-                descripcionCorta: a.descripcionCorta,
-                marca: a.marca,
-                modelo: a.modelo,
-                idQr: a.idQr,
-                imagenUrl: a.imagenUrl,
-                category: a.categoria?.nombre || 'equipos'
-            }));
-        } catch (dbErr) {
-            console.error('Error loading inventory assets:', dbErr);
+                });
+                realAssets = queryAssets.map(a => ({
+                    id: a.id,
+                    descripcionCorta: a.descripcionCorta,
+                    marca: a.marca,
+                    modelo: a.modelo,
+                    idQr: a.idQr,
+                    imagenUrl: a.imagenUrl,
+                    category: a.categoria?.nombre || 'equipos'
+                }));
+            } catch (dbErr) {
+                console.error('Error loading inventory assets:', dbErr);
+            }
         }
 
         return {

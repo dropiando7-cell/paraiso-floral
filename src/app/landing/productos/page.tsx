@@ -61,6 +61,7 @@ async function getInventory(searchParams: SearchParams) {
     const selectedType = searchParams.type || '';
 
     let allowScrapedProducts = true;
+    let hideRealInventory = false;
     try {
         const setting = await prisma.systemSetting.findUnique({
             where: { key: 'landing_settings' }
@@ -68,6 +69,7 @@ async function getInventory(searchParams: SearchParams) {
         if (setting) {
             const parsed = JSON.parse(setting.value);
             allowScrapedProducts = parsed.allowScrapedProducts !== false;
+            hideRealInventory = parsed.hideRealInventory === true;
         }
     } catch (e) {
         console.error('Error loading landing settings in getInventory:', e);
@@ -78,7 +80,7 @@ async function getInventory(searchParams: SearchParams) {
         let consumables: any[] = [];
 
         // Query database filtering by brand and type
-        if (selectedType === '' || selectedType === 'activo') {
+        if (!hideRealInventory && (selectedType === '' || selectedType === 'activo')) {
             assets = await prisma.activoFijo.findMany({
                 where: {
                     estatusContable: 'VIGENTE',
@@ -113,7 +115,9 @@ async function getInventory(searchParams: SearchParams) {
                 marca: selectedBrand ? { equals: selectedBrand, mode: 'insensitive' } : undefined
             };
 
-            if (!allowScrapedProducts) {
+            if (hideRealInventory) {
+                productWhere.sku = { startsWith: 'SOMA-' };
+            } else if (!allowScrapedProducts) {
                 productWhere.NOT = {
                     sku: { startsWith: 'SOMA-' }
                 };
