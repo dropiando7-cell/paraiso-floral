@@ -115,6 +115,7 @@ export default function GestionWebClient({
     const [totalPages, setTotalPages] = useState(1);
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
 
     // Review editing states
     const [editingReview, setEditingReview] = useState<Review | null>(null);
@@ -141,6 +142,17 @@ export default function GestionWebClient({
     const [loadingTraffic, setLoadingTraffic] = useState(false);
     const [simulatingChat, setSimulatingChat] = useState<any | null>(null);
     const [chatMsgText, setChatMsgText] = useState('¡Hola! Vemos que estás buscando soluciones médicas en nuestro portal. ¿Te gustaría chatear con un asesor especializado ahora mismo?');
+
+    // Close lightbox on Escape key press
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setLightboxImageUrl(null);
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     // Load contacts when tab active
     useEffect(() => {
@@ -1442,7 +1454,12 @@ export default function GestionWebClient({
                                         <div className="aspect-video bg-slate-100 relative flex items-center justify-center overflow-hidden border-b">
                                             {landingSettings.seoImage ? (
                                                 // eslint-disable-next-line @next/next/no-img-element
-                                                <img src={landingSettings.seoImage} alt="Vista previa SEO" className="w-full h-full object-cover" />
+                                                <img 
+                                                    src={landingSettings.seoImage} 
+                                                    alt="Vista previa SEO" 
+                                                    className="w-full h-full object-cover cursor-zoom-in hover:opacity-95 hover:scale-[1.02] transition-all duration-200" 
+                                                    onClick={() => setLightboxImageUrl(landingSettings.seoImage || null)}
+                                                />
                                             ) : (
                                                 <div className="flex flex-col items-center justify-center gap-1.5 text-slate-400">
                                                     <ImageIcon size={32} strokeWidth={1.5} />
@@ -2147,9 +2164,14 @@ export default function GestionWebClient({
                                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">
                                                 Foto de Inventario (Interna)
                                             </span>
-                                            <div className="relative w-full aspect-video rounded-xl bg-slate-100 border overflow-hidden flex items-center justify-center shadow-inner">
+                                            <div className="relative w-full aspect-video rounded-xl bg-slate-100 border overflow-hidden flex items-center justify-center shadow-inner group">
                                                 {selectedItem.imageUrl ? (
-                                                    <img src={selectedItem.imageUrl} alt="Foto original" className="w-full h-full object-cover" />
+                                                    <img 
+                                                        src={selectedItem.imageUrl} 
+                                                        alt="Foto original" 
+                                                        className="w-full h-full object-cover cursor-zoom-in hover:opacity-95 hover:scale-[1.02] transition-all duration-200" 
+                                                        onClick={() => setLightboxImageUrl(selectedItem.imageUrl || null)}
+                                                    />
                                                 ) : (
                                                     <ImageIcon className="text-slate-350" size={32} />
                                                 )}
@@ -2167,9 +2189,14 @@ export default function GestionWebClient({
                                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block text-center">
                                                 Imagen en la Web (Pública)
                                             </span>
-                                            <div className="relative w-full aspect-video rounded-xl bg-slate-100 border overflow-hidden flex items-center justify-center shadow-inner">
+                                            <div className="relative w-full aspect-video rounded-xl bg-slate-100 border overflow-hidden flex items-center justify-center shadow-inner group">
                                                 {itemImageUrls[selectedItem.id] ? (
-                                                    <img src={itemImageUrls[selectedItem.id]} alt="Foto web" className="w-full h-full object-cover" />
+                                                    <img 
+                                                        src={itemImageUrls[selectedItem.id]} 
+                                                        alt="Foto web" 
+                                                        className="w-full h-full object-cover cursor-zoom-in hover:opacity-95 hover:scale-[1.02] transition-all duration-200" 
+                                                        onClick={() => setLightboxImageUrl(itemImageUrls[selectedItem.id] || null)}
+                                                    />
                                                 ) : (
                                                     <ImageIcon className="text-slate-350" size={32} />
                                                 )}
@@ -2333,6 +2360,27 @@ export default function GestionWebClient({
                         </div>
                     );
                 })()}
+
+                {/* Lightbox Modal */}
+                {lightboxImageUrl && (
+                    <div 
+                        className="fixed inset-0 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 z-[60] animate-fade-in cursor-zoom-out"
+                        onClick={() => setLightboxImageUrl(null)}
+                    >
+                        <button 
+                            className="absolute top-6 right-6 p-2 bg-white/10 hover:bg-white/20 rounded-full text-white hover:text-slate-200 transition-colors cursor-pointer shadow-lg"
+                            onClick={() => setLightboxImageUrl(null)}
+                        >
+                            <X size={24} />
+                        </button>
+                        <img 
+                            src={lightboxImageUrl} 
+                            alt="Vista ampliada" 
+                            className="max-w-[90vw] max-h-[85vh] object-contain rounded-2xl shadow-2xl animate-in zoom-in-95 duration-200 border border-white/10"
+                            onClick={(e) => e.stopPropagation()} 
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );
