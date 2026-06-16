@@ -10,6 +10,7 @@ interface SearchParams {
     q?: string;
     brand?: string;
     type?: string;
+    category?: string;
 }
 
 function cleanString(str: string): string {
@@ -57,10 +58,12 @@ const slugify = (text: string) => {
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-');
 };
+
 async function getInventory(searchParams: SearchParams, isAdmin = false) {
     const query = searchParams.q || '';
     const selectedBrand = searchParams.brand || '';
     const selectedType = searchParams.type || '';
+    const selectedCategory = searchParams.category || '';
 
     let allowScrapedProducts = true;
     let hideRealInventory = false;
@@ -81,12 +84,11 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
         let assets: any[] = [];
         let consumables: any[] = [];
 
-        // Query database filtering by brand and type
+        // Query database filtering by type (without brand filter initially, to extract all available brands/categories)
         if (!hideRealInventory && (selectedType === '' || selectedType === 'activo')) {
             assets = await prisma.activoFijo.findMany({
                 where: {
                     estatusContable: isAdmin ? { in: ['VIGENTE', 'OCULTO'] } : 'VIGENTE',
-                    marca: selectedBrand ? { equals: selectedBrand, mode: 'insensitive' } : undefined,
                     NOT: [
                         { area: { equals: 'SERVICIOS', mode: 'insensitive' } }
                     ]
@@ -113,8 +115,7 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
         if (selectedType === '' || selectedType === 'producto') {
             const productWhere: any = {
                 estado: isAdmin ? { in: ['ACTIVO', 'OCULTO'] } : 'ACTIVO',
-                esServicio: false,
-                marca: selectedBrand ? { equals: selectedBrand, mode: 'insensitive' } : undefined
+                esServicio: false
             };
 
             if (hideRealInventory) {
@@ -145,38 +146,55 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
             ...assets.map(a => ({
                 id: a.id,
                 name: a.tituloWeb || a.descripcionCorta,
-                brand: a.marca || 'Genérico',
+                brand: (a.marca || 'GENÉRICO').trim(),
                 model: a.modelo || 'N/A',
                 code: a.idQr || '',
                 imageUrl: a.imagenWeb || a.imagenUrl,
                 type: 'activo' as const,
                 typeName: 'Equipo Médico / Activo',
-                category: a.categoria?.nombre || 'equipos',
+                category: (a.categoria?.nombre || 'EQUIPOS').trim(),
                 hidden: a.estatusContable === 'OCULTO',
             })),
             ...consumables.map(c => ({
                 id: c.id,
                 name: c.tituloWeb || c.nombre,
-                brand: c.marca || 'Genérico',
+                brand: (c.marca || 'GENÉRICO').trim(),
                 model: c.modelo || 'N/A',
                 code: c.sku || '',
                 imageUrl: c.imagenWeb || null,
                 type: 'producto' as const,
                 typeName: c.sku.startsWith('SOMA-') ? (c.categoria || 'Máquinas de anestesia') : 'Consumible / Repuesto',
-                category: c.categoria || 'consumibles',
+                category: (c.categoria || 'CONSUMIBLES').trim(),
                 hidden: c.estado === 'OCULTO',
             }))
         ];
-        const allBrands = Array.from(new Set(unifiedItems.map(item => item.brand).filter(Boolean)));
 
-        // Perform smart search algorithm
+        // Deduplicate and uppercase brands & categories
+        const allBrands = Array.from(new Set(unifiedItems.map(item => item.brand.toUpperCase()).filter(Boolean))).sort();
+        const allCategories = Array.from(new Set(unifiedItems.map(item => item.category.toUpperCase()).filter(Boolean))).sort();
+
+        // Perform brand and category in-memory filters first
         let filteredItems = unifiedItems;
+
+        if (selectedBrand) {
+            filteredItems = filteredItems.filter(item => 
+                item.brand.toUpperCase() === selectedBrand.toUpperCase()
+            );
+        }
+
+        if (selectedCategory) {
+            filteredItems = filteredItems.filter(item => 
+                item.category.toUpperCase() === selectedCategory.toUpperCase()
+            );
+        }
+
+        // Perform smart search algorithm on the filtered items
         if (query.trim()) {
             const cleanQuery = cleanString(query);
             const queryTokens = cleanQuery.split(/\s+/).filter(Boolean);
 
             if (queryTokens.length > 0) {
-                const scoredItems = unifiedItems.map(item => {
+                const scoredItems = filteredItems.map(item => {
                     const brandWords = cleanString(item.brand).split(/\s+/).filter(Boolean);
                     const nameWords = cleanString(item.name).split(/\s+/).filter(Boolean);
                     const modelWords = cleanString(item.model).split(/\s+/).filter(Boolean);
@@ -207,7 +225,7 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                             }
                         }
 
-                        // General acronym detection (e.g. "zoll cct" matching "Zoll Medical M Series CCT")
+                        // General acronym detection
                         if (token.length >= 2 && brandWords.length >= 2) {
                             const brandAcronym = brandWords.map(w => w[0]).join('');
                             if (brandAcronym.startsWith(token)) {
@@ -244,11 +262,12 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
 
         return {
             items: filteredItems,
-            brands: allBrands
+            brands: allBrands,
+            categories: allCategories
         };
     } catch (e) {
         console.error('Error fetching catalog:', e);
-        return { items: [], brands: [] };
+        return { items: [], brands: [], categories: [] };
     }
 }
 
@@ -277,10 +296,11 @@ export default async function ProductosPage({
         console.error('Error checking user session in public catalog:', e);
     }
 
-    const { items, brands } = await getInventory(resolvedParams, isAdmin);
+    const { items, brands, categories } = await getInventory(resolvedParams, isAdmin);
     const query = resolvedParams.q || '';
     const activeBrand = resolvedParams.brand || '';
     const activeType = resolvedParams.type || '';
+    const activeCategory = resolvedParams.category || '';
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 space-y-8 bg-white text-slate-800">
@@ -298,7 +318,7 @@ export default async function ProductosPage({
                             <SlidersHorizontal size={14} className="text-cyan-500" />
                             Filtros
                         </span>
-                        {(query || activeBrand || activeType) && (
+                        {(query || activeBrand || activeType || activeCategory) && (
                             <Link href="/productos" className="text-[10px] text-cyan-600 font-bold hover:underline">
                                 Limpiar todo
                             </Link>
@@ -323,12 +343,12 @@ export default async function ProductosPage({
                                         : 'border-slate-300 bg-white'
                                 }`}>
                                     {!activeType && (
-                                        <svg xmlns="http://www.w3.org/2050/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
                                             <polyline points="20 6 9 17 4 12" />
                                         </svg>
                                     )}
                                 </div>
-                                <span>Todos</span>
+                                <span>TODOS</span>
                             </Link>
                             <Link 
                                 href={{ query: { ...resolvedParams, type: activeType === 'activo' ? undefined : 'activo' } }}
@@ -349,7 +369,7 @@ export default async function ProductosPage({
                                         </svg>
                                     )}
                                 </div>
-                                <span>Equipos Biomédicos</span>
+                                <span>EQUIPOS BIOMÉDICOS</span>
                             </Link>
                             <Link 
                                 href={{ query: { ...resolvedParams, type: activeType === 'producto' ? undefined : 'producto' } }}
@@ -370,7 +390,7 @@ export default async function ProductosPage({
                                         </svg>
                                     )}
                                 </div>
-                                <span>Consumibles y Repuestos</span>
+                                <span>CONSUMIBLES Y REPUESTOS</span>
                             </Link>
                         </div>
                     </div>
@@ -399,10 +419,10 @@ export default async function ProductosPage({
                                             </svg>
                                         )}
                                     </div>
-                                    <span>Cualquier Marca</span>
+                                    <span>CUALQUIER MARCA</span>
                                 </Link>
                                 {brands.map(brand => {
-                                    const isBrandActive = activeBrand.toLowerCase() === brand.toLowerCase();
+                                    const isBrandActive = activeBrand.toUpperCase() === brand.toUpperCase();
                                     return (
                                         <Link 
                                             key={brand}
@@ -431,6 +451,63 @@ export default async function ProductosPage({
                             </div>
                         </div>
                     )}
+
+                    {/* Filter by Category */}
+                    {categories.length > 0 && (
+                        <div className="space-y-2 border-t border-slate-200 pt-4">
+                            <label className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest block">Categorías Disponibles</label>
+                            <div className="flex flex-col gap-1 max-h-64 overflow-y-auto custom-scrollbar text-xs text-slate-600 font-medium pr-1">
+                                <Link 
+                                    href={{ query: { ...resolvedParams, category: undefined } }}
+                                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                                        !activeCategory 
+                                            ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
+                                            : 'text-slate-600 hover:bg-slate-100 hover:text-slate-905'
+                                    }`}
+                                >
+                                    <div className={`w-3.5 h-3.5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                                        !activeCategory 
+                                            ? 'bg-[#00a8cc] border-[#00a8cc] text-white' 
+                                            : 'border-slate-300 bg-white'
+                                    }`}>
+                                        {!activeCategory && (
+                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+                                                <polyline points="20 6 9 17 4 12" />
+                                            </svg>
+                                        )}
+                                    </div>
+                                    <span>CUALQUIER CATEGORÍA</span>
+                                </Link>
+                                {categories.map(category => {
+                                    const isCategoryActive = activeCategory.toUpperCase() === category.toUpperCase();
+                                    return (
+                                        <Link 
+                                            key={category}
+                                            href={{ query: { ...resolvedParams, category: isCategoryActive ? undefined : category } }}
+                                            className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all truncate ${
+                                                isCategoryActive 
+                                                    ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
+                                                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-905'
+                                            }`}
+                                        >
+                                            <div className={`w-3.5 h-3.5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                                                isCategoryActive 
+                                                    ? 'bg-[#00a8cc] border-[#00a8cc] text-white' 
+                                                    : 'border-slate-300 bg-white'
+                                            }`}>
+                                                {isCategoryActive && (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="w-2.5 h-2.5">
+                                                        <polyline points="20 6 9 17 4 12" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                            <span className="truncate">{category}</span>
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Products Grid & Search */}
@@ -448,6 +525,7 @@ export default async function ProductosPage({
                             />
                             {activeType && <input type="hidden" name="type" value={activeType} />}
                             {activeBrand && <input type="hidden" name="brand" value={activeBrand} />}
+                            {activeCategory && <input type="hidden" name="category" value={activeCategory} />}
                         </div>
                         <button 
                             type="submit"

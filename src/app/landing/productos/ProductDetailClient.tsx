@@ -14,8 +14,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { sendQuoteEmailAction } from './actions';
-import VisibilityToggle from '../VisibilityToggle';
+import { sendQuoteEmailAction } from './detailActions';
+import VisibilityToggle from './VisibilityToggle';
 
 interface ProductDetailClientProps {
     item: {

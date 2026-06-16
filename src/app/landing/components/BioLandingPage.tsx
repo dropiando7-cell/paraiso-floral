@@ -31,20 +31,25 @@ interface BioLandingPageProps {
         reviews: any[];
         landingSettings: any;
         assets: any[];
+        categories?: any[];
     };
 }
 
 export default function BioLandingPage({ data }: BioLandingPageProps) {
-    const categorias = [
-        { id: 1, titulo: "Máquinas de Anestesia", subtitulo: "Sistemas Completos", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=600" },
-        { id: 2, titulo: "Monitores de Pacientes", subtitulo: "Signos Vitales y UCI", img: "/categorias/monitores.png" },
-        { id: 3, titulo: "Mesas Quirúrgicas", subtitulo: "Hidráulicas y Eléctricas", img: "/categorias/mesas.png" },
-        { id: 4, titulo: "Lámparas Quirúrgicas", subtitulo: "LED de alta intensidad", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=600" },
-        { id: 5, titulo: "Electrobisturís", subtitulo: "Corte y Coagulación", img: "/categorias/electrobisturi.png" },
-        { id: 6, titulo: "Ultrasonidos", subtitulo: "Imágenes Diagnósticas", img: "/categorias/ultrasonidos.png" },
-        { id: 7, titulo: "Desfibriladores", subtitulo: "DEA y Clínicos", img: "/categorias/desfibriladores.png" },
-        { id: 8, titulo: "Terapia Respiratoria", subtitulo: "Ventiladores y CPAP", img: "/categorias/respiratoria.png" }
+    const dbCategories = data.categories || [];
+
+    const fallbackCategories = [
+        { titulo: "Máquinas de Anestesia", subtitulo: "Sistemas Completos", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=600", href: "/productos?category=Máquinas de Anestesia" },
+        { titulo: "Monitores de Pacientes", subtitulo: "Signos Vitales y UCI", img: "/categorias/monitores.png", href: "/productos?category=Monitores de Pacientes" },
+        { titulo: "Mesas Quirúrgicas", subtitulo: "Hidráulicas y Eléctricas", img: "/categorias/mesas.png", href: "/productos?category=Mesas Quirúrgicas" },
+        { titulo: "Lámparas Quirúrgicas", subtitulo: "LED de alta intensidad", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=600", href: "/productos?category=Lámparas Quirúrgicas" },
+        { titulo: "Electrobisturís", subtitulo: "Corte y Coagulación", img: "/categorias/electrobisturi.png", href: "/productos?category=Electrobisturís" },
+        { titulo: "Ultrasonidos", subtitulo: "Imágenes Diagnósticas", img: "/categorias/ultrasonidos.png", href: "/productos?category=Ultrasonidos" },
+        { titulo: "Desfibriladores", subtitulo: "DEA y Clínicos", img: "/categorias/desfibriladores.png", href: "/productos?category=Desfibriladores" },
+        { titulo: "Terapia Respiratoria", subtitulo: "Ventiladores y CPAP", img: "/categorias/respiratoria.png", href: "/productos?category=Terapia Respiratoria" }
     ];
+
+    const categorias = dbCategories.length > 0 ? dbCategories.slice(0, 8) : fallbackCategories;
 
     const servicios = [
         { icon: <Settings className="w-8 h-8 text-[#00A8CC]" />, title: "Planificación de Equipos", desc: "Nuestros expertos le ayudan a diseñar y seleccionar la mejor configuración para su clínica o quirófano." },
@@ -143,10 +148,10 @@ export default function BioLandingPage({ data }: BioLandingPageProps) {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {categorias.map((cat) => (
+                    {categorias.map((cat, idx) => (
                         <Link 
-                            href={`/productos?q=${cat.titulo}`}
-                            key={cat.id} 
+                            href={cat.href || `/productos?category=${encodeURIComponent(cat.titulo)}`}
+                            key={idx} 
                             className="group relative h-72 rounded-2xl overflow-hidden cursor-pointer shadow-md block"
                         >
                             {/* eslint-disable-next-line @next/next/no-img-element */}

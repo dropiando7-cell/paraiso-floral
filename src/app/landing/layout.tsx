@@ -89,6 +89,36 @@ async function getCompanyProfile() {
     }
 }
 
+async function getDynamicCategories() {
+    try {
+        const physicalCategories = await prisma.categoria.findMany({
+            select: { nombre: true }
+        });
+        const scrapedCategories = await prisma.producto.findMany({
+            where: {
+                estado: 'ACTIVO',
+                esServicio: false,
+                categoria: { not: null }
+            },
+            select: { categoria: true },
+            distinct: ['categoria']
+        });
+
+        const allCategoryNames = new Set<string>();
+        physicalCategories.forEach(c => {
+            if (c.nombre) allCategoryNames.add(c.nombre.trim());
+        });
+        scrapedCategories.forEach(p => {
+            if (p.categoria) allCategoryNames.add(p.categoria.trim());
+        });
+
+        return Array.from(allCategoryNames);
+    } catch (e) {
+        console.error('Error fetching dynamic categories in layout:', e);
+        return [];
+    }
+}
+
 export default async function PublicLayout({
     children,
 }: {
@@ -96,6 +126,7 @@ export default async function PublicLayout({
 }) {
     const settings = await getLandingInfo();
     const org = await getCompanyProfile();
+    const categories = await getDynamicCategories();
     
     // Fallbacks from DB organization or settings
     const primaryPhone = org?.telefono || settings.whatsappNumbers?.[0] || '50431782368';
@@ -176,6 +207,7 @@ export default async function PublicLayout({
                 cleanPhone={cleanPhone}
                 contactEmail={contactEmail}
                 activeTheme={settings.activeTheme || 'DRE'}
+                categories={categories}
             />
 
             {/* Public Page View */}

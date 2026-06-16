@@ -48,7 +48,8 @@ import {
     Check,
     RefreshCw,
     X,
-    List
+    List,
+    ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -289,6 +290,7 @@ export default function GestionWebClient({
     const [isImporting, setIsImporting] = useState(false);
     const [progressCurrent, setProgressCurrent] = useState(0);
     const [progressTotal, setProgressTotal] = useState(0);
+    const [importedCategorySlug, setImportedCategorySlug] = useState<string | null>(null);
     const [scraperLogs, setScraperLogs] = useState<string[]>([
         '[SISTEMA] Listo para iniciar extracción...',
         '[SISTEMA] Servidor R2 configurado: OK',
@@ -433,6 +435,7 @@ export default function GestionWebClient({
         setIsImporting(true);
         setProgressCurrent(0);
         setProgressTotal(0);
+        setImportedCategorySlug(null);
         setScraperLogs(['[SISTEMA] Iniciando conexión con el endpoint del scraper...']);
         
         try {
@@ -482,6 +485,7 @@ export default function GestionWebClient({
                                 `[ÉXITO] Extracción finalizada. Total de la categoría: ${data.total}, Nuevos productos importados: ${data.count}.`
                             ]);
                             toast.success(`Importación finalizada. Nuevos importados: ${data.count}`);
+                            setImportedCategorySlug(cat);
                         } else if (data.type === 'error') {
                             setScraperLogs(prev => [...prev, `[ERROR] ${data.error}`]);
                             toast.error(`Error de importación: ${data.error}`);
@@ -2165,6 +2169,27 @@ export default function GestionWebClient({
                                                     to { background-position: 0 0; }
                                                 }
                                             `}} />
+                                        </div>
+                                    )}
+
+                                    {/* Link to visited category */}
+                                    {!isImporting && importedCategorySlug && (
+                                        <div className="mt-4 p-4 bg-cyan-50/50 border border-cyan-100 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-fade-in shrink-0">
+                                            <div className="text-left space-y-0.5">
+                                                <span className="text-xs font-bold text-cyan-800 block">¡Importación Exitosa!</span>
+                                                <span className="text-[10px] text-slate-500 block">
+                                                    La categoría ha sido procesada. Ya puedes ver los productos en la web pública.
+                                                </span>
+                                            </div>
+                                            <a 
+                                                href={importedCategorySlug === 'all' ? '/productos' : `/productos/${importedCategorySlug}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-cyan-500/20 active:scale-95 cursor-pointer"
+                                            >
+                                                <span>Ver Categoría en la Web</span>
+                                                <ExternalLink size={14} />
+                                            </a>
                                         </div>
                                     )}
                                 </div>

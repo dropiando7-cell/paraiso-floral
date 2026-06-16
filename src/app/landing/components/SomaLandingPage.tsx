@@ -30,36 +30,45 @@ interface SomaLandingPageProps {
         reviews: any[];
         landingSettings: any;
         assets: any[];
+        categories?: any[];
     };
 }
 
 export default function SomaLandingPage({ data }: SomaLandingPageProps) {
-    const categories = [
-        { title: "Anestesia", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=400", href: "/productos?q=anestesia" },
-        { title: "Autoclaves y Esterilizadores", img: "https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&q=80&w=400", href: "/productos?q=esterilizador" },
-        { title: "Sistemas de Monitoreo Quirúrgico", img: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=400", href: "/productos?q=monitoreo" },
-        { title: "Bombas de Infusión", img: "https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&q=80&w=400", href: "/productos?q=infusion" },
-        { title: "Cargadores de Baterías", img: "https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=400", href: "/productos?q=cargador" },
-        { title: "Calentadores y Mantas", img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400", href: "/productos?q=calentador" },
-        { title: "Camas de Parto", img: "https://images.unsplash.com/photo-1516062423079-7ca13cdc7f5a?auto=format&fit=crop&q=80&w=400", href: "/productos?q=cama" },
-        { title: "C-Arms / Arcos en C", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&q=80&w=400", href: "/productos?q=carm" },
-        { title: "Desfibriladores", img: "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&q=80&w=400", href: "/productos?q=desfibrilador" },
-        { title: "Electrocardiógrafos (ECG)", img: "https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&q=80&w=400", href: "/productos?q=ecg" },
-        { title: "Mesas Quirúrgicas", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=400", href: "/productos?q=mesa" },
-        { title: "Ecógrafos y Ultrasonidos", img: "https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&q=80&w=400", href: "/productos?q=ultrasonido" },
-        { title: "Lámparas de Cirugía", img: "https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=400", href: "/productos?q=lampara" },
-        { title: "Monitores de Pacientes", img: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=400", href: "/productos?q=monitor" },
-        { title: "Respiradores de Anestesia", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=400", href: "/productos?q=respirador" },
-        { title: "Rayos X Portátiles", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&q=80&w=400", href: "/productos?q=rayos" },
-        { title: "Mesas de Quirófano", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=400", href: "/productos?q=mesa" },
-        { title: "Mesas de Tracción", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=400", href: "/productos?q=traccion" },
-        { title: "Microscopios Quirúrgicos", img: "https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&q=80&w=400", href: "/productos?q=microscopio" },
-        { title: "Vaporizadores de Anestesia", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=400", href: "/productos?q=vaporizador" },
-        { title: "Sistemas de Fototerapia", img: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=400", href: "/productos?q=fototerapia" },
-        { title: "Incubadoras", img: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=400", href: "/productos?q=incubadora" },
-        { title: "Ultrasonidos", img: "https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&q=80&w=400", href: "/productos?q=ultrasonido" },
-        { title: "Ventiladores", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=400", href: "/productos?q=ventilador" }
+    const dbCategories = (data.categories || []).map((c: any) => ({
+        title: c.titulo,
+        img: c.img,
+        href: c.href
+    }));
+
+    const fallbackCategories = [
+        { title: "Anestesia", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Anestesia" },
+        { title: "Autoclaves y Esterilizadores", img: "https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Autoclaves y Esterilizadores" },
+        { title: "Sistemas de Monitoreo Quirúrgico", img: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Monitores de Pacientes" },
+        { title: "Bombas de Infusión", img: "https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Bombas de Infusión" },
+        { title: "Cargadores de Baterías", img: "https://images.unsplash.com/photo-1584017911766-d451b3d0e843?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Cargadores de Baterías" },
+        { title: "Calentadores y Mantas", img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Calentadores y Mantas" },
+        { title: "Camas de Parto", img: "https://images.unsplash.com/photo-1516062423079-7ca13cdc7f5a?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Camas Hospitalarias" },
+        { title: "C-Arms / Arcos en C", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&q=80&w=400", href: "/productos?category=C-Arms" },
+        { title: "Desfibriladores", img: "https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Desfibriladores" },
+        { title: "Electrocardiógrafos (ECG)", img: "https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Electrocardiógrafos (ECG)" },
+        { title: "Mesas Quirúrgicas", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Mesas Quirúrgicas" },
+        { title: "Ecógrafos y Ultrasonidos", img: "https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Ultrasonidos / Ecógrafos" },
+        { title: "Lámparas de Cirugía", img: "https://images.unsplash.com/photo-1551601651-2a8555f1a136?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Lámparas Quirúrgicas" },
+        { title: "Monitores de Pacientes", img: "https://images.unsplash.com/photo-1516549655169-df83a0774514?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Monitores de Pacientes" },
+        { title: "Respiradores de Anestesia", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Máquinas de Anestesia" },
+        { title: "Rayos X Portátiles", img: "https://images.unsplash.com/photo-1530497610245-94d3c16cda28?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Equipos de Rayos X" },
+        { title: "Mesas de Quirófano", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Mesas Quirúrgicas" },
+        { title: "Mesas de Tracción", img: "https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Mesas Quirúrgicas" },
+        { title: "Microscopios Quirúrgicos", img: "https://images.unsplash.com/photo-1576086213369-97a306d36557?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Microscopios de Cirugía" },
+        { title: "Vaporizadores de Anestesia", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Vaporizadores" },
+        { title: "Sistemas de Fototerapia", img: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Sistemas de Fototerapia" },
+        { title: "Incubadoras", img: "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Incubadoras" },
+        { title: "Ultrasonidos", img: "https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Ultrasonidos / Ecógrafos" },
+        { title: "Ventiladores", img: "https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=400", href: "/productos?category=Ventiladores Mecánicos" }
     ];
+
+    const categories = dbCategories.length > 0 ? dbCategories : fallbackCategories;
 
     return (
         <div className="relative bg-white min-h-screen text-slate-800 theme-soma font-sans">

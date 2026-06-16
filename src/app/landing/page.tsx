@@ -98,6 +98,7 @@ async function getLandingData() {
         const landingSettingsRaw = settings.find(s => s.key === 'landing_settings')?.value || '{}';
         const landingSettings = JSON.parse(landingSettingsRaw);
         const hideRealInventory = landingSettings.hideRealInventory === true;
+        const allowScrapedProducts = landingSettings.allowScrapedProducts !== false;
 
         // Fetch real active inventory assets (ActivoFijo) or SOMA products depending on configuration
         let realAssets: any[] = [];
@@ -170,11 +171,168 @@ async function getLandingData() {
             }
         }
 
+        // Fetch unique categories
+        let uniqueCategories: string[] = [];
+        if (!hideRealInventory) {
+            try {
+                const afCategories = await prisma.activoFijo.findMany({
+                    where: {
+                        estatusContable: 'VIGENTE',
+                        NOT: [
+                            { area: { equals: 'SERVICIOS', mode: 'insensitive' } }
+                        ]
+                    },
+                    select: {
+                        categoria: {
+                            select: { nombre: true }
+                        }
+                    }
+                });
+                afCategories.forEach(af => {
+                    if (af.categoria?.nombre) {
+                        uniqueCategories.push(af.categoria.nombre.trim());
+                    }
+                });
+            } catch (afCatErr) {
+                console.error('Error loading AF categories for homepage:', afCatErr);
+            }
+        }
+
+        if (hideRealInventory || allowScrapedProducts) {
+            try {
+                const productWhere: any = {
+                    estado: 'ACTIVO',
+                    esServicio: false,
+                    categoria: { not: null }
+                };
+                if (hideRealInventory) {
+                    productWhere.sku = { startsWith: 'SOMA-' };
+                } else if (!allowScrapedProducts) {
+                    productWhere.NOT = {
+                        sku: { startsWith: 'SOMA-' }
+                    };
+                }
+
+                const prodCategories = await prisma.producto.findMany({
+                    where: productWhere,
+                    select: { categoria: true },
+                    distinct: ['categoria']
+                });
+                prodCategories.forEach(p => {
+                    if (p.categoria) {
+                        uniqueCategories.push(p.categoria.trim());
+                    }
+                });
+            } catch (prodCatErr) {
+                console.error('Error loading product categories for homepage:', prodCatErr);
+            }
+        }
+
+        // Deduplicate case-insensitively
+        const categoryMap = new Map<string, string>();
+        uniqueCategories.forEach(cat => {
+            const norm = cat.toUpperCase();
+            if (!categoryMap.has(norm)) {
+                categoryMap.set(norm, cat);
+            }
+        });
+
+        const consolidatedCategoryNames = Array.from(categoryMap.values());
+        
+        const CATEGORY_IMAGES: Record<string, string> = {
+            'anestesia': 'https://images.unsplash.com/photo-1628771065518-0d82f1938462?auto=format&fit=crop&q=80&w=600',
+            'monitor': '/categorias/monitores.png',
+            'mesa': '/categorias/mesas.png',
+            'lampara': 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=600',
+            'lámpara': 'https://images.unsplash.com/photo-1579684385127-1ef15d508118?auto=format&fit=crop&q=80&w=600',
+            'electrobisturi': '/categorias/electrobisturi.png',
+            'electrobisturí': '/categorias/electrobisturi.png',
+            'ultrasonido': '/categorias/ultrasonidos.png',
+            'ecógrafo': '/categorias/ultrasonidos.png',
+            'ecografo': '/categorias/ultrasonidos.png',
+            'desfibrilador': '/categorias/desfibriladores.png',
+            'respiratoria': '/categorias/respiratoria.png',
+            'ventilador': '/categorias/respiratoria.png',
+            'esterilizador': 'https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&q=80&w=600',
+            'autoclave': 'https://images.unsplash.com/photo-1581594693702-fbdc51b2763b?auto=format&fit=crop&q=80&w=600',
+            'incubadora': 'https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?auto=format&fit=crop&q=80&w=600'
+        };
+
+        const capitalize = (str: string) => {
+            return str
+                .toLowerCase()
+                .split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        };
+
+        const categoriesData: any[] = [];
+        for (const catName of consolidatedCategoryNames) {
+            let img = '';
+            const clean = catName.toLowerCase();
+            const matchedKey = Object.keys(CATEGORY_IMAGES).find(k => clean.includes(k));
+            
+            if (matchedKey) {
+                img = CATEGORY_IMAGES[matchedKey];
+            } else {
+                try {
+                    const firstProd = await prisma.producto.findFirst({
+                        where: {
+                            categoria: catName,
+                            estado: 'ACTIVO',
+                            imagenWeb: { not: null }
+                        },
+                        select: { imagenWeb: true }
+                    });
+                    if (firstProd?.imagenWeb) {
+                        img = firstProd.imagenWeb;
+                    } else {
+                        const firstAsset = await prisma.activoFijo.findFirst({
+                            where: {
+                                categoria: { nombre: catName },
+                                estatusContable: 'VIGENTE',
+                                OR: [
+                                    { imagenWeb: { not: null } },
+                                    { imagenUrl: { not: null } }
+                                ]
+                            },
+                            select: { imagenWeb: true, imagenUrl: true }
+                        });
+                        if (firstAsset) {
+                            img = firstAsset.imagenWeb || firstAsset.imagenUrl || '';
+                        }
+                    }
+                } catch (dbErr) {
+                    console.error('Error resolving category image from DB:', dbErr);
+                }
+            }
+
+            if (!img) {
+                img = 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&q=80&w=600';
+            }
+
+            categoriesData.push({
+                titulo: capitalize(catName),
+                subtitulo: clean.includes('anestesia') ? 'Sistemas Completos' : 
+                           clean.includes('monitor') ? 'Signos Vitales y UCI' : 
+                           clean.includes('mesa') ? 'Hidráulicas y Eléctricas' : 
+                           clean.includes('lampara') || clean.includes('lámpara') ? 'LED de alta intensidad' : 
+                           clean.includes('electrobisturi') ? 'Corte y Coagulación' : 
+                           clean.includes('ultrasonido') ? 'Imágenes Diagnósticas' : 
+                           clean.includes('desfibrilador') ? 'DEA y Clínicos' : 
+                           clean.includes('ventilador') ? 'Ventiladores y CPAP' : 
+                           'Equipamiento de Calidad',
+                img,
+                href: `/productos?category=${encodeURIComponent(catName)}`
+            });
+        }
+
         return {
             maintenanceMode,
             reviews: reviews.length > 0 ? reviews : defaultReviews,
             landingSettings,
-            assets: realAssets.length > 0 ? realAssets : mockAssets
+            assets: realAssets.length > 0 ? realAssets : mockAssets,
+            categories: categoriesData
         };
     } catch (e) {
         console.error('Error fetching landing data:', e);
@@ -182,7 +340,8 @@ async function getLandingData() {
             maintenanceMode: false,
             reviews: defaultReviews,
             landingSettings: {},
-            assets: mockAssets
+            assets: mockAssets,
+            categories: []
         };
     }
 }

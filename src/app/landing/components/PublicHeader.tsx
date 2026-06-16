@@ -11,6 +11,7 @@ interface PublicHeaderProps {
     cleanPhone: string;
     contactEmail: string;
     activeTheme?: string;
+    categories?: string[];
 }
 
 export default function PublicHeader({
@@ -19,7 +20,8 @@ export default function PublicHeader({
     primaryPhone,
     cleanPhone,
     contactEmail,
-    activeTheme = 'DRE'
+    activeTheme = 'DRE',
+    categories = []
 }: PublicHeaderProps) {
     const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -45,106 +47,202 @@ export default function PublicHeader({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const megaMenuData = [
+    // Helper to capitalize category names nicely for display
+    const capitalize = (str: string) => {
+        return str
+            .toLowerCase()
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+    };
+
+    function categorizeCategory(name: string) {
+        const clean = name.toLowerCase();
+        if (
+            clean.includes('anestesia') || 
+            clean.includes('quirurg') || 
+            clean.includes('quiró') || 
+            clean.includes('mesa') || 
+            clean.includes('lampara') || 
+            clean.includes('lámpara') || 
+            clean.includes('electrobisturi') || 
+            clean.includes('electrobisturí') || 
+            clean.includes('vaporizador') || 
+            clean.includes('aspirador') || 
+            clean.includes('surgical') || 
+            clean.includes('anesthesia') || 
+            clean.includes('operating')
+        ) {
+            return 'quirofano';
+        }
+        if (
+            clean.includes('monitor') || 
+            clean.includes('desfibrilador') || 
+            clean.includes('defibrillator') || 
+            clean.includes('electrocardiog') || 
+            clean.includes('electrocardióg') || 
+            clean.includes('ecg') || 
+            clean.includes('oximetro') || 
+            clean.includes('oxímetro') || 
+            clean.includes('bomba') || 
+            clean.includes('cama') || 
+            clean.includes('critico') || 
+            clean.includes('crítico') || 
+            clean.includes('telemetria') || 
+            clean.includes('telemetría') || 
+            clean.includes('fetal')
+        ) {
+            return 'monitoreo';
+        }
+        if (
+            clean.includes('ultrasonido') || 
+            clean.includes('ecografo') || 
+            clean.includes('ecógrafo') || 
+            clean.includes('rayos') || 
+            clean.includes('x-ray') || 
+            clean.includes('negatoscopio') || 
+            clean.includes('otoscopio') || 
+            clean.includes('oftalmoscopio') || 
+            clean.includes('diagnostico') || 
+            clean.includes('diagnóstico') || 
+            clean.includes('ultrasound') || 
+            clean.includes('imaging') || 
+            clean.includes('cuna') || 
+            clean.includes('incubadora') || 
+            clean.includes('microscopio') || 
+            clean.includes('c-arm') || 
+            clean.includes('arco en c')
+        ) {
+            return 'diagnostico';
+        }
+        if (
+            clean.includes('ventilador') || 
+            clean.includes('oxigeno') || 
+            clean.includes('oxígeno') || 
+            clean.includes('respirador') || 
+            clean.includes('respiratory') || 
+            clean.includes('ventilator')
+        ) {
+            return 'respiratorio';
+        }
+        return 'otros';
+    }
+
+    // Dynamic grouping
+    const grouped = {
+        quirofano: [] as { name: string; href: string }[],
+        monitoreo: [] as { name: string; href: string }[],
+        diagnostico: [] as { name: string; href: string }[],
+        respiratorio: [] as { name: string; href: string }[],
+        otros: [] as { name: string; href: string }[],
+    };
+
+    categories.forEach(cat => {
+        const bucket = categorizeCategory(cat);
+        const item = {
+            name: capitalize(cat),
+            href: `/productos?category=${encodeURIComponent(cat)}`
+        };
+        grouped[bucket].push(item);
+    });
+
+    const fallbackDRE = [
         {
             title: "QUIRÓFANO Y ANESTESIA",
             items: [
-                { name: "Máquinas de Anestesia", href: "/productos?q=Anestesia" },
-                { name: "Mesas Quirúrgicas", href: "/productos?q=Mesa" },
-                { name: "Lámparas Quirúrgicas", href: "/productos?q=Lampara" },
-                { name: "Electrobisturís", href: "/productos?q=Electrobisturi" },
-                { name: "Vaporizadores", href: "/productos?q=Vaporizador" },
-                { name: "Aspiradores de Succión", href: "/productos?q=Aspirador" }
+                { name: "Máquinas de Anestesia", href: "/productos?category=Máquinas de Anestesia" },
+                { name: "Mesas Quirúrgicas", href: "/productos?category=Mesas Quirúrgicas" },
+                { name: "Lámparas Quirúrgicas", href: "/productos?category=Lámparas Quirúrgicas" },
+                { name: "Electrobisturís", href: "/productos?category=Electrobisturís" }
             ]
         },
         {
             title: "CUIDADO CRÍTICO Y MONITOREO",
             items: [
-                { name: "Monitores de Pacientes", href: "/productos?q=Monitor" },
-                { name: "Desfibriladores", href: "/productos?q=Desfibrilador" },
-                { name: "Electrocardiógrafos (ECG)", href: "/productos?q=Electrocardiografo" },
-                { name: "Oxímetros de Pulso", href: "/productos?q=Oximetro" },
-                { name: "Bombas de Infusión", href: "/productos?q=Bomba" },
-                { name: "Camas Hospitalarias", href: "/productos?q=Cama" }
+                { name: "Monitores de Pacientes", href: "/productos?category=Monitores de Pacientes" },
+                { name: "Desfibriladores", href: "/productos?category=Desfibriladores" },
+                { name: "Camas Hospitalarias", href: "/productos?category=Camas Hospitalarias" }
             ]
         },
         {
             title: "DIAGNÓSTICO E IMAGEN",
             items: [
-                { name: "Ultrasonidos / Ecógrafos", href: "/productos?q=Ultrasonido" },
-                { name: "Equipos de Rayos X", href: "/productos?q=Rayos" },
-                { name: "Negatoscopios", href: "/productos?q=Negatoscopio" },
-                { name: "Otoscopios y Oftalmos", href: "/productos?q=Diagnostico" },
-                { name: "Esfigmomanómetros", href: "/productos?q=Presion" }
+                { name: "Ultrasonidos / Ecógrafos", href: "/productos?category=Ultrasonidos / Ecógrafos" },
+                { name: "Equipos de Rayos X", href: "/productos?category=Equipos de Rayos X" }
             ]
         },
         {
             title: "SOPORTE RESPIRATORIO Y SOPORTE",
             items: [
-                { name: "Ventiladores Mecánicos", href: "/productos?q=Ventilador" },
-                { name: "Concentradores de Oxígeno", href: "/productos?q=Oxigeno" },
-                { name: "Autoclaves y Esterilizadores", href: "/productos?q=Esterilizador" },
-                { name: "Compresores Médicos", href: "/productos?q=Compresor" },
-                { name: "Reguladores de Vacío", href: "/productos?q=Vacio" }
+                { name: "Ventiladores Mecánicos", href: "/productos?category=Ventiladores Mecánicos" },
+                { name: "Concentradores de Oxígeno", href: "/productos?category=Concentradores de Oxígeno" }
             ]
         }
     ];
 
-    // Soma Tech specific 5-column mega menu dropdown items
-    const somaMegaMenuData = [
+    const fallbackSOMA = [
         {
             title: "Equipos de Quirófano",
             items: [
-                { name: "Máquinas de Anestesia", href: "/productos?q=Anestesia" },
-                { name: "Mesas Quirúrgicas", href: "/productos?q=Mesa" },
-                { name: "Lámparas Quirúrgicas", href: "/productos?q=Lampara" },
-                { name: "Electrobisturís", href: "/productos?q=Electrobisturi" },
-                { name: "Vaporizadores", href: "/productos?q=Vaporizador" },
-                { name: "Autoclaves / Esterilizadores", href: "/productos?q=Esterilizador" }
+                { name: "Máquinas de Anestesia", href: "/productos?category=Máquinas de Anestesia" },
+                { name: "Mesas Quirúrgicas", href: "/productos?category=Mesas Quirúrgicas" }
             ]
         },
         {
             title: "Cuidado Crítico",
             items: [
-                { name: "Monitores de Pacientes", href: "/productos?q=Monitor" },
-                { name: "Desfibriladores", href: "/productos?q=Desfibrilador" },
-                { name: "Electrocardiógrafos (ECG)", href: "/productos?q=Electrocardiografo" },
-                { name: "Oxímetros de Pulso", href: "/productos?q=Oximetro" },
-                { name: "Bombas de Infusión", href: "/productos?q=Bomba" },
-                { name: "Camas de Hospital", href: "/productos?q=Cama" }
+                { name: "Monitores de Pacientes", href: "/productos?category=Monitores de Pacientes" },
+                { name: "Desfibriladores", href: "/productos?category=Desfibriladores" }
             ]
         },
         {
             title: "Diagnóstico e Imagen",
             items: [
-                { name: "Ultrasonidos / Ecógrafos", href: "/productos?q=Ultrasonido" },
-                { name: "Equipos de Rayos X", href: "/productos?q=Rayos" },
-                { name: "Cunas Térmicas", href: "/productos?q=Cuna" },
-                { name: "Incubadoras", href: "/productos?q=Incubadora" },
-                { name: "Microscopios de Cirugía", href: "/productos?q=Microscopio" }
+                { name: "Ultrasonidos / Ecógrafos", href: "/productos?category=Ultrasonidos / Ecógrafos" }
             ]
         },
         {
             title: "Soporte Respiratorio",
             items: [
-                { name: "Ventiladores Mecánicos", href: "/productos?q=Ventilador" },
-                { name: "Evacuadores de humo", href: "/productos?q=Evacuador" },
-                { name: "Sistemas de Telemetría", href: "/productos?q=Telemetria" },
-                { name: "Monitores Fetales", href: "/productos?q=Fetal" }
+                { name: "Ventiladores Mecánicos", href: "/productos?category=Ventiladores Mecánicos" }
             ]
         },
         {
             title: "Otros Equipamientos",
             items: [
-                { name: "Calentador de Mantas", href: "/productos?q=Mantas" },
-                { name: "Bisturíes Armónicos", href: "/productos?q=Bisturi" },
-                { name: "Carros de Emergencia", href: "/productos?q=Carro" },
                 { name: "Más equipo médico", href: "/productos" }
             ]
         }
     ];
 
-    const currentMegaMenu = isSoma ? somaMegaMenuData : megaMenuData;
+    let dynamicMenu: { title: string; items: { name: string; href: string }[] }[] = [];
+
+    if (isSoma) {
+        dynamicMenu = [
+            { title: "Equipos de Quirófano", items: grouped.quirofano },
+            { title: "Cuidado Crítico", items: grouped.monitoreo },
+            { title: "Diagnóstico e Imagen", items: grouped.diagnostico },
+            { title: "Soporte Respiratorio", items: grouped.respiratorio },
+            { title: "Otros Equipamientos", items: grouped.otros }
+        ].filter(col => col.items.length > 0);
+
+        if (dynamicMenu.length === 0) {
+            dynamicMenu = fallbackSOMA;
+        }
+    } else {
+        dynamicMenu = [
+            { title: "QUIRÓFANO Y ANESTESIA", items: grouped.quirofano },
+            { title: "CUIDADO CRÍTICO Y MONITOREO", items: grouped.monitoreo },
+            { title: "DIAGNÓSTICO E IMAGEN", items: grouped.diagnostico },
+            { title: "SOPORTE RESPIRATORIO Y SOPORTE", items: [...grouped.respiratorio, ...grouped.otros] }
+        ].filter(col => col.items.length > 0);
+
+        if (dynamicMenu.length === 0) {
+            dynamicMenu = fallbackDRE;
+        }
+    }
+
+    const currentMegaMenu = dynamicMenu;
 
     return (
         <header className={`sticky top-0 z-50 bg-white text-slate-800 border-b border-slate-200/80 px-4 sm:px-8 py-3.5 shadow-sm relative font-sans ${isSoma ? 'theme-soma' : ''}`}>
