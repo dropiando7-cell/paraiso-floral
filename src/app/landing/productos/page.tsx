@@ -1,7 +1,9 @@
 import React from 'react';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { Search, HeartPulse, SlidersHorizontal } from 'lucide-react';
+import { Search, HeartPulse, SlidersHorizontal, EyeOff } from 'lucide-react';
+import { createClient } from '@/utils/supabase/server';
+import VisibilityToggle from './VisibilityToggle';
 
 interface SearchParams {
     q?: string;
@@ -54,8 +56,7 @@ const slugify = (text: string) => {
         .replace(/\s+/g, '-')
         .replace(/-+/g, '-');
 };
-
-async function getInventory(searchParams: SearchParams) {
+async function getInventory(searchParams: SearchParams, isAdmin = false) {
     const query = searchParams.q || '';
     const selectedBrand = searchParams.brand || '';
     const selectedType = searchParams.type || '';
@@ -83,7 +84,7 @@ async function getInventory(searchParams: SearchParams) {
         if (!hideRealInventory && (selectedType === '' || selectedType === 'activo')) {
             assets = await prisma.activoFijo.findMany({
                 where: {
-                    estatusContable: 'VIGENTE',
+                    estatusContable: isAdmin ? { in: ['VIGENTE', 'OCULTO'] } : 'VIGENTE',
                     marca: selectedBrand ? { equals: selectedBrand, mode: 'insensitive' } : undefined,
                     NOT: [
                         { area: { equals: 'SERVICIOS', mode: 'insensitive' } }
@@ -110,7 +111,7 @@ async function getInventory(searchParams: SearchParams) {
 
         if (selectedType === '' || selectedType === 'producto') {
             const productWhere: any = {
-                estado: 'ACTIVO',
+                estado: isAdmin ? { in: ['ACTIVO', 'OCULTO'] } : 'ACTIVO',
                 esServicio: false,
                 marca: selectedBrand ? { equals: selectedBrand, mode: 'insensitive' } : undefined
             };
@@ -149,6 +150,7 @@ async function getInventory(searchParams: SearchParams) {
                 type: 'activo' as const,
                 typeName: 'Equipo Médico / Activo',
                 category: a.categoria?.nombre || 'equipos',
+                hidden: a.estatusContable === 'OCULTO',
             })),
             ...consumables.map(c => ({
                 id: c.id,
@@ -160,10 +162,9 @@ async function getInventory(searchParams: SearchParams) {
                 type: 'producto' as const,
                 typeName: 'Consumible / Repuesto',
                 category: 'consumibles',
+                hidden: c.estado === 'OCULTO',
             }))
         ];
-
-        // Brands are calculated from the unified list matching selected categories (prior to search query)
         const allBrands = Array.from(new Set(unifiedItems.map(item => item.brand).filter(Boolean)));
 
         // Perform smart search algorithm
@@ -255,12 +256,32 @@ export default async function ProductosPage({
     searchParams: Promise<SearchParams>;
 }) {
     const resolvedParams = await searchParams;
-    const { items, brands } = await getInventory(resolvedParams);
+
+    // Check if user is administrator to see hidden items and toggle them
+    let isAdmin = false;
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+            const dbUser = await prisma.user.findUnique({
+                where: { email: user.email },
+                select: { role: true, accessibleModules: true }
+            });
+            if (dbUser && (dbUser.role === 'SUPER_ADMIN' || dbUser.role === 'ORG_ADMIN' || dbUser.accessibleModules.includes('/admin/gestion-web'))) {
+                isAdmin = true;
+            }
+        }
+    } catch (e) {
+        console.error('Error checking user session in public catalog:', e);
+    }
+
+    const { items, brands } = await getInventory(resolvedParams, isAdmin);
     const query = resolvedParams.q || '';
     const activeBrand = resolvedParams.brand || '';
-    const activeType = resolvedParams.type || '';    return (
+    const activeType = resolvedParams.type || '';
+
+    return (
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 space-y-8 bg-white text-slate-800">
-            {/* Header */}
             <div className="border-l-4 border-cyan-500 pl-4">
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Catálogo de Equipos y Consumibles</h1>
                 <p className="text-xs text-slate-500 mt-1">Busca, filtra y solicita cotizaciones formales para equipos y repuestos médicos.</p>
@@ -448,11 +469,34 @@ export default async function ProductosPage({
                     ) : (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             {items.map(item => (
-                                <div key={item.id} className="group bg-white border border-slate-200/80 hover:border-slate-300 hover:border-[#00a8cc] rounded-3xl overflow-hidden hover:shadow-lg transition-all flex flex-col relative duration-300">
+                                <div key={item.id} className={`group bg-white border rounded-3xl overflow-hidden hover:shadow-lg transition-all flex flex-col relative duration-300 ${
+                                    item.hidden 
+                                        ? 'opacity-65 bg-slate-50 border-dashed border-red-200/80' 
+                                        : 'border-slate-200/80 hover:border-slate-350 hover:border-[#00a8cc]'
+                                }`}>
                                     {/* Type badge */}
                                     <div className="absolute top-3 left-3 bg-slate-100/90 backdrop-blur text-[8px] font-extrabold text-slate-550 px-2 py-0.5 rounded-full uppercase tracking-wider border border-slate-200 z-10">
                                         {item.typeName}
                                     </div>
+
+                                    {/* Visibility indicator for Admin */}
+                                    {isAdmin && item.hidden && (
+                                        <div className="absolute top-3 left-28 bg-red-100/90 backdrop-blur text-[8px] font-black text-red-700 px-2 py-0.5 rounded-full uppercase tracking-wider border border-red-200 z-10 flex items-center gap-1 shadow-sm">
+                                            <EyeOff size={8} />
+                                            <span>Oculto</span>
+                                        </div>
+                                    )}
+
+                                    {/* Admin Visibility Toggle */}
+                                    {isAdmin && (
+                                        <div className="absolute top-3 right-3 z-20">
+                                            <VisibilityToggle 
+                                                id={item.id} 
+                                                type={item.type} 
+                                                initialHidden={item.hidden} 
+                                            />
+                                        </div>
+                                    )}
 
                                     {/* Image */}
                                     <div className="aspect-[4/3] w-full bg-slate-50 flex items-center justify-center border-b border-slate-200/60 relative overflow-hidden">

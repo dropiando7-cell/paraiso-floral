@@ -65,7 +65,8 @@ async function getItemData(id: string, settings: any) {
                 typeName: 'Equipo Médico / Activo',
                 description: asset.descripcionWeb || asset.descripcionDetallada || '',
                 category: asset.categoria?.nombre || 'equipos',
-                details
+                details,
+                hidden: asset.estatusContable === 'OCULTO'
             };
         }
 
@@ -107,7 +108,8 @@ async function getItemData(id: string, settings: any) {
                 typeName: 'Consumible / Repuesto',
                 description: product.descripcionWeb || product.descripcion || '',
                 category: 'consumibles',
-                details
+                details,
+                hidden: product.estado === 'OCULTO'
             };
         }
     } catch (e) {
@@ -147,7 +149,6 @@ export default async function NestedProductDetailPage({
     // Extract actual database UUID from parameter
     const itemId = getUuidFromParam(resolvedParams.id);
     const item = await getItemData(itemId, settings);
-
     if (!item) {
         notFound();
     }
@@ -168,9 +169,22 @@ export default async function NestedProductDetailPage({
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
-        isAdmin = !!user;
+        if (user?.email) {
+            const dbUser = await prisma.user.findUnique({
+                where: { email: user.email },
+                select: { role: true, accessibleModules: true }
+            });
+            if (dbUser && (dbUser.role === 'SUPER_ADMIN' || dbUser.role === 'ORG_ADMIN' || dbUser.accessibleModules.includes('/admin/gestion-web'))) {
+                isAdmin = true;
+            }
+        }
     } catch (e) {
         console.error('Error checking user session in details page:', e);
+    }
+
+    // If item is hidden and the user is not admin, deny access
+    if (item.hidden && !isAdmin) {
+        notFound();
     }
 
     return (

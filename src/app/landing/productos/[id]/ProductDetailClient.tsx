@@ -15,6 +15,7 @@ import {
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { sendQuoteEmailAction } from './actions';
+import VisibilityToggle from '../VisibilityToggle';
 
 interface ProductDetailClientProps {
     item: {
@@ -28,6 +29,7 @@ interface ProductDetailClientProps {
         typeName: string;
         description: string;
         details?: any;
+        hidden?: boolean;
     };
     landingSettings: {
         whatsappNumbers?: string[];
@@ -134,14 +136,37 @@ export default function ProductDetailClient({
                 <span>Volver al Catálogo</span>
             </Link>
 
+            {/* Warning Banner for Admin if Hidden */}
+            {isAdmin && item.hidden && (
+                <div className="bg-amber-50 border border-amber-200 text-amber-900 px-4 py-3 rounded-2xl flex items-center gap-3 text-xs font-semibold shadow-sm animate-fade-in">
+                    <span className="flex h-2.5 w-2.5 relative shrink-0">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+                    </span>
+                    <span>
+                        Este producto está actualmente <strong className="text-amber-950">oculto para el público general</strong>. Solo tú, como administrador, puedes ver esta página de detalles. Puedes volver a hacerlo visible con el ojo en la esquina superior derecha de la imagen.
+                    </span>
+                </div>
+            )}
+
             {/* Product Detail Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
                 
                 {/* Left Column: Image Card */}
-                <div className="bg-slate-50 border border-slate-200/80 rounded-3xl p-6 flex flex-col items-center justify-center relative overflow-hidden aspect-[4/3] w-full">
+                <div className={`bg-slate-50 border border-slate-200/80 rounded-3xl p-6 flex flex-col items-center justify-center relative overflow-hidden aspect-[4/3] w-full ${item.hidden ? 'opacity-80' : ''}`}>
                     <div className="absolute top-4 left-4 bg-white/90 backdrop-blur border border-slate-200 text-[9px] font-extrabold text-[#00a8cc] px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
                         {item.typeName}
                     </div>
+
+                    {isAdmin && (
+                        <div className="absolute top-4 right-4 z-25">
+                            <VisibilityToggle 
+                                id={item.id} 
+                                type={item.type} 
+                                initialHidden={!!item.hidden} 
+                            />
+                        </div>
+                    )}
                     {item.imageUrl ? (
                         <img 
                             src={item.imageUrl} 
