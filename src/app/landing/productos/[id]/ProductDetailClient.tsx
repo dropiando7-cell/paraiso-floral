@@ -9,7 +9,8 @@ import {
     CheckCircle2, 
     Send,
     X,
-    FileText
+    FileText,
+    Edit
 } from 'lucide-react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -35,12 +36,14 @@ interface ProductDetailClientProps {
         quoteEmail?: string;
     };
     autoOpenCotizar?: boolean;
+    isAdmin?: boolean;
 }
 
 export default function ProductDetailClient({
     item,
     landingSettings,
-    autoOpenCotizar = false
+    autoOpenCotizar = false,
+    isAdmin = false
 }: ProductDetailClientProps) {
     const [isModalOpen, setIsModalOpen] = useState(autoOpenCotizar);
     const [modalView, setModalView] = useState<'select' | 'email'>('select');
@@ -137,6 +140,17 @@ export default function ProductDetailClient({
                         />
                     ) : (
                         <HeartPulse className="text-slate-350 w-24 h-24 stroke-[1.2]" />
+                    )}
+
+                    {isAdmin && (
+                        <Link 
+                            href={`/admin/gestion-web?editItem=${item.id}`}
+                            className="absolute bottom-4 right-4 bg-slate-950/90 text-white hover:bg-slate-900 border border-white/10 text-[9px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-slate-950/20 backdrop-blur-md z-10 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                            title="Editar imagen y detalles en el panel"
+                        >
+                            <Edit size={10} className="text-cyan-400 shrink-0" />
+                            <span>Editar Ficha</span>
+                        </Link>
                     )}
                 </div>
 

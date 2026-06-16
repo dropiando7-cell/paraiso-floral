@@ -608,3 +608,62 @@ export async function getWebTraffic(minutesLimit: number = 15) {
         return { success: false, error: error.message || 'Error al obtener tráfico web' };
     }
 }
+
+export async function getInventoryItemById(id: string) {
+    try {
+        const dbUser = await checkAdminAuth();
+
+        // 1. Try finding in ActivoFijo
+        const asset = await prisma.activoFijo.findFirst({
+            where: { id, organizationId: dbUser.organizationId }
+        });
+
+        if (asset) {
+            return {
+                success: true,
+                item: {
+                    id: asset.id,
+                    name: asset.descripcionCorta,
+                    internalDescription: asset.descripcionDetallada || '',
+                    brand: asset.marca || 'N/A',
+                    model: asset.modelo || 'N/A',
+                    code: asset.idQr,
+                    imageUrl: asset.imagenUrl,
+                    imagenWeb: asset.imagenWeb || '',
+                    tituloWeb: asset.tituloWeb || '',
+                    descripcionWeb: asset.descripcionWeb || '',
+                    type: 'activo' as const
+                }
+            };
+        }
+
+        // 2. Try finding in Producto
+        const product = await prisma.producto.findFirst({
+            where: { id, organizationId: dbUser.organizationId }
+        });
+
+        if (product) {
+            return {
+                success: true,
+                item: {
+                    id: product.id,
+                    name: product.nombre,
+                    internalDescription: product.descripcion || '',
+                    brand: product.marca || 'N/A',
+                    model: product.modelo || 'N/A',
+                    code: product.sku,
+                    imageUrl: null,
+                    imagenWeb: product.imagenWeb || '',
+                    tituloWeb: product.tituloWeb || '',
+                    descripcionWeb: product.descripcionWeb || '',
+                    type: 'producto' as const
+                }
+            };
+        }
+
+        return { success: false, error: 'Producto / Equipo no encontrado' };
+    } catch (error: any) {
+        console.error('Error fetching item by id:', error);
+        return { success: false, error: error.message || 'Error al cargar el producto' };
+    }
+}

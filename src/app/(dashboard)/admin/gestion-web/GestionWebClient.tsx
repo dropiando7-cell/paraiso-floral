@@ -13,7 +13,8 @@ import {
     updateContactStatus,
     deleteWebContact,
     getWebTraffic,
-    getPaginatedInventoryItems
+    getPaginatedInventoryItems,
+    getInventoryItemById
 } from './actions';
 import { 
     Settings, 
@@ -89,6 +90,18 @@ interface GestionWebClientProps {
     initialSections: Section[];
     initialLandingSettings: LandingSettings;
 }
+
+const slugify = (text: string) => {
+    return text
+        .toString()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, ' ')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+};
 
 export default function GestionWebClient({
     initialMaintenanceMode,
@@ -406,6 +419,44 @@ export default function GestionWebClient({
             setLoadingSearch(false);
         }
     };
+
+    // Parse editItem query param on mount to auto-open product modal
+    useEffect(() => {
+        const searchParams = new URLSearchParams(window.location.search);
+        const editItemId = searchParams.get('editItem');
+        
+        if (editItemId) {
+            const fetchAndOpen = async () => {
+                const toastId = toast.loading('Cargando ficha de edición...');
+                try {
+                    const res = await getInventoryItemById(editItemId);
+                    if (res.success && res.item) {
+                        // Switch to the Web Catalog tab
+                        setActiveTab('inventory');
+                        
+                        // Prefill customizable fields state
+                        setItemImageUrls(prev => ({ ...prev, [res.item.id]: res.item.imagenWeb || '' }));
+                        setItemWebTitles(prev => ({ ...prev, [res.item.id]: res.item.tituloWeb || '' }));
+                        setItemWebDescriptions(prev => ({ ...prev, [res.item.id]: res.item.descripcionWeb || '' }));
+                        
+                        // Select the item to trigger edit modal
+                        setSelectedItem(res.item);
+                        toast.success('Ficha de edición abierta', { id: toastId });
+                    } else {
+                        toast.error(res.error || 'No se pudo cargar el producto', { id: toastId });
+                    }
+                } catch (e: any) {
+                    toast.error(e.message || 'Error al conectar con el servidor', { id: toastId });
+                } finally {
+                    // Clean URL query parameters
+                    const cleanUrl = window.location.pathname;
+                    window.history.replaceState({}, '', cleanUrl);
+                }
+            };
+            
+            fetchAndOpen();
+        }
+    }, []);
 
     useEffect(() => {
         if (activeTab === 'inventory') {
@@ -1135,7 +1186,7 @@ export default function GestionWebClient({
                                                                 <span>Ficha</span>
                                                             </button>
                                                             <a
-                                                                href={`/landing/productos/${item.id}`}
+                                                                href={`/landing/productos/${item.id}-${slugify(item.name || '')}`}
                                                                 target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="text-[9px] font-bold text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 bg-white border border-cyan-200 px-2 py-0.5 rounded-md flex items-center gap-1 transition-all shrink-0 cursor-pointer"
@@ -2221,7 +2272,7 @@ export default function GestionWebClient({
                                                 {selectedItem.code}
                                             </span>
                                             <a
-                                                href={`/landing/productos/${selectedItem.id}`}
+                                                href={`/landing/productos/${selectedItem.id}-${slugify(selectedItem.name || '')}`}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="text-[9px] font-bold text-cyan-600 hover:text-cyan-800 hover:bg-cyan-50 bg-white border border-cyan-200 px-2 py-0.5 rounded-md flex items-center gap-1 transition-all shrink-0 cursor-pointer ml-1"

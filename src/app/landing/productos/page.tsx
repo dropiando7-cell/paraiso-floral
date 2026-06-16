@@ -43,6 +43,18 @@ function matchToken(token: string, word: string): number {
     return 0;
 }
 
+const slugify = (text: string) => {
+    return text
+        .toString()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, ' ')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+};
+
 async function getInventory(searchParams: SearchParams) {
     const query = searchParams.q || '';
     const selectedBrand = searchParams.brand || '';
@@ -459,13 +471,13 @@ export default async function ProductosPage({
 
                                         <div className="flex gap-2 text-[10px] font-bold">
                                             <Link
-                                                href={`/productos/${item.id}`}
+                                                href={`/productos/${item.id}-${slugify(item.name || '')}`}
                                                 className="flex-1 text-center bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl border border-slate-200 transition-colors"
                                             >
                                                 Ver Ficha
                                             </Link>
                                             <Link
-                                                href={`/productos/${item.id}?cotizar=true`}
+                                                href={`/productos/${item.id}-${slugify(item.name || '')}?cotizar=true`}
                                                 className="flex-1 text-center bg-[#00a8cc] hover:bg-[#00b4d8] text-white py-2.5 rounded-xl transition-colors shadow-sm shadow-cyan-500/10 cursor-pointer"
                                             >
                                                 Cotizar

@@ -1,7 +1,8 @@
 import React from 'react';
 import { prisma } from '@/lib/prisma';
 import ProductDetailClient from './ProductDetailClient';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { createClient } from '@/utils/supabase/server';
 
 interface Params {
     id: string;
@@ -10,6 +11,26 @@ interface Params {
 interface SearchParams {
     cotizar?: string;
 }
+
+const slugify = (text: string) => {
+    return text
+        .toString()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9\s-]/g, ' ')
+        .trim()
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-');
+};
+
+const getUuidFromParam = (param: string) => {
+    const parts = param.split('-');
+    if (parts.length >= 5) {
+        return parts.slice(0, 5).join('-');
+    }
+    return param;
+};
 
 async function getItemData(id: string, settings: any) {
     const allowScrapedProducts = settings?.allowScrapedProducts !== false;
@@ -119,19 +140,40 @@ export default async function ProductDetailPage({
     const resolvedParams = await params;
     const resolvedSearchParams = await searchParams;
     const settings = await getLandingSettings();
-    const item = await getItemData(resolvedParams.id, settings);
+    
+    // Extract actual database UUID from parameter
+    const itemId = getUuidFromParam(resolvedParams.id);
+    const item = await getItemData(itemId, settings);
 
     if (!item) {
         notFound();
     }
 
+    // Perform canonical redirect to Friendly Slug structure if param doesn't match
+    const canonicalSlug = `${item.id}-${slugify(item.name || '')}`;
+    if (resolvedParams.id !== canonicalSlug) {
+        const queryStr = resolvedSearchParams.cotizar === 'true' ? '?cotizar=true' : '';
+        redirect(`/productos/${canonicalSlug}${queryStr}`);
+    }
+
     const autoOpen = resolvedSearchParams.cotizar === 'true';
+
+    // Check if the browsing user is an administrator
+    let isAdmin = false;
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        isAdmin = !!user;
+    } catch (e) {
+        console.error('Error checking user session in details page:', e);
+    }
 
     return (
         <ProductDetailClient 
             item={item} 
             landingSettings={settings} 
             autoOpenCotizar={autoOpen} 
+            isAdmin={isAdmin}
         />
     );
 }
