@@ -128,6 +128,7 @@ export default function GestionWebClient({
     const [totalPages, setTotalPages] = useState(1);
     const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
     const [selectedItem, setSelectedItem] = useState<any | null>(null);
+    const [sourceFilter, setSourceFilter] = useState<'all' | 'scraped' | 'own'>('all');
     const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
 
     // Review editing states
@@ -388,10 +389,10 @@ export default function GestionWebClient({
     };
 
     // --- Tab 4: Web Inventory Image Manager ---
-    const loadInventory = async (page: number, query: string) => {
+    const loadInventory = async (page: number, query: string, filterVal: 'all' | 'scraped' | 'own' = sourceFilter) => {
         setLoadingSearch(true);
         try {
-            const res = await getPaginatedInventoryItems(page, 10, query);
+            const res = await getPaginatedInventoryItems(page, 10, query, filterVal);
             if (res.success && res.items) {
                 setSearchResults(res.items);
                 setTotalPages(res.totalPages || 1);
@@ -460,20 +461,26 @@ export default function GestionWebClient({
 
     useEffect(() => {
         if (activeTab === 'inventory') {
-            loadInventory(currentPage, searchQuery);
+            loadInventory(currentPage, searchQuery, sourceFilter);
         }
-    }, [activeTab, currentPage]);
+    }, [activeTab, currentPage, sourceFilter]);
 
     const handleSearchInventory = (e: React.FormEvent) => {
         e.preventDefault();
         setCurrentPage(1);
-        loadInventory(1, searchQuery);
+        loadInventory(1, searchQuery, sourceFilter);
     };
 
     const handleClearInventorySearch = () => {
         setSearchQuery('');
         setCurrentPage(1);
-        loadInventory(1, '');
+        loadInventory(1, '', sourceFilter);
+    };
+
+    const handleSourceFilterChange = (filterVal: 'all' | 'scraped' | 'own') => {
+        setSourceFilter(filterVal);
+        setCurrentPage(1);
+        loadInventory(1, searchQuery, filterVal);
     };
 
     const handleSaveItemWebFields = async (id: string, type: 'activo' | 'producto') => {
@@ -1063,6 +1070,45 @@ export default function GestionWebClient({
                                 {loadingSearch ? 'Buscando...' : 'Buscar'}
                             </button>
                         </form>
+
+                        {/* Source Filter Tabs */}
+                        <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                            <button
+                                type="button"
+                                onClick={() => handleSourceFilterChange('all')}
+                                className={`px-4 py-2 rounded-xl transition-all duration-200 border cursor-pointer ${
+                                    sourceFilter === 'all'
+                                        ? 'bg-slate-900 border-slate-900 text-white font-bold shadow-sm'
+                                        : 'bg-white border-slate-200 text-slate-605 hover:bg-slate-50'
+                                }`}
+                            >
+                                Mostrar Todo
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleSourceFilterChange('scraped')}
+                                className={`px-4 py-2 rounded-xl transition-all duration-200 border cursor-pointer flex items-center gap-1.5 ${
+                                    sourceFilter === 'scraped'
+                                        ? 'bg-cyan-600 border-cyan-600 text-white font-bold shadow-sm'
+                                        : 'bg-white border-slate-200 text-slate-605 hover:bg-slate-50'
+                                }`}
+                            >
+                                <span className={`w-2 h-2 rounded-full ${sourceFilter === 'scraped' ? 'bg-white' : 'bg-cyan-500'}`} />
+                                Solo Importados (SOMA)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleSourceFilterChange('own')}
+                                className={`px-4 py-2 rounded-xl transition-all duration-200 border cursor-pointer flex items-center gap-1.5 ${
+                                    sourceFilter === 'own'
+                                        ? 'bg-indigo-600 border-indigo-600 text-white font-bold shadow-sm'
+                                        : 'bg-white border-slate-200 text-slate-605 hover:bg-slate-50'
+                                }`}
+                            >
+                                <span className={`w-2 h-2 rounded-full ${sourceFilter === 'own' ? 'bg-white' : 'bg-indigo-500'}`} />
+                                Solo Inventario Interno
+                            </button>
+                        </div>
 
                         {/* Search Results */}
                         <div className="space-y-4">

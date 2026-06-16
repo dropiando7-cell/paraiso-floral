@@ -288,7 +288,7 @@ export async function updateItemImage(id: string, type: 'activo' | 'producto', i
     return updateItemWebFields(id, type, { imagenWeb: imageUrl });
 }
 
-export async function getPaginatedInventoryItems(page: number, limit: number, query = '') {
+export async function getPaginatedInventoryItems(page: number, limit: number, query = '', sourceFilter: 'all' | 'scraped' | 'own' = 'all') {
     try {
         const dbUser = await checkAdminAuth();
         const search = query.trim();
@@ -325,7 +325,16 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
             ];
         }
 
-        const assetsCount = await prisma.activoFijo.count({ where: assetsWhere });
+        // Apply source filters (scraped SOMA products vs own inventory)
+        if (sourceFilter === 'scraped') {
+            productsWhere.sku = { startsWith: 'SOMA-' };
+        } else if (sourceFilter === 'own') {
+            productsWhere.NOT = {
+                sku: { startsWith: 'SOMA-' }
+            };
+        }
+
+        const assetsCount = sourceFilter === 'scraped' ? 0 : await prisma.activoFijo.count({ where: assetsWhere });
         const productsCount = await prisma.producto.count({ where: productsWhere });
         const totalItems = assetsCount + productsCount;
         const totalPages = Math.ceil(totalItems / limit);
