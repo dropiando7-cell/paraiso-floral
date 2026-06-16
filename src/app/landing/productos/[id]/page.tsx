@@ -11,7 +11,10 @@ interface SearchParams {
     cotizar?: string;
 }
 
-async function getItemData(id: string) {
+async function getItemData(id: string, settings: any) {
+    const allowScrapedProducts = settings?.allowScrapedProducts !== false;
+    const defaultScrapedStock = typeof settings?.defaultScrapedStock === 'number' ? settings.defaultScrapedStock : 5;
+
     try {
         // 1. Try finding in ActivoFijo
         const asset = await prisma.activoFijo.findUnique({
@@ -49,9 +52,24 @@ async function getItemData(id: string) {
         });
 
         if (product) {
+            // If it is a scraped SOMA product and they are currently disabled, prevent details access
+            if (product.sku.startsWith('SOMA-') && !allowScrapedProducts) {
+                return null;
+            }
+
+            // Determine virtual or actual stock display
+            let stockVal = String(product.stockActual);
+            if (product.sku.startsWith('SOMA-')) {
+                if (defaultScrapedStock > 0) {
+                    stockVal = `${defaultScrapedStock}`;
+                } else {
+                    stockVal = 'Bajo Pedido (Sin stock inmediato)';
+                }
+            }
+
             const details: Record<string, string> = {
                 'SKU': product.sku,
-                'Stock Disponible': String(product.stockActual),
+                'Stock Disponible': stockVal,
                 'Impuesto (ISV)': `${product.isvAplicable}%`
             };
 
@@ -100,8 +118,8 @@ export default async function ProductDetailPage({
 }) {
     const resolvedParams = await params;
     const resolvedSearchParams = await searchParams;
-    const item = await getItemData(resolvedParams.id);
     const settings = await getLandingSettings();
+    const item = await getItemData(resolvedParams.id, settings);
 
     if (!item) {
         notFound();

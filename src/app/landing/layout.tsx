@@ -6,6 +6,9 @@ import PublicHeader from './components/PublicHeader';
 import VisitorTracker from './components/VisitorTracker';
 import type { Metadata } from 'next';
 
+export const dynamic = 'force-dynamic';
+
+
 export async function generateMetadata(): Promise<Metadata> {
     let title = "Bioelectrónica Honduras - Enterprise Platform";
     let description = "Estamos diseñando nuestro nuevo sitio corporativo y catálogo médico en línea. Muy pronto podrás explorar todas nuestras soluciones y productos médicos.";
@@ -103,34 +106,67 @@ export default async function PublicLayout({
     const companyName = org?.name || 'Bioelectrónica Honduras';
     const logoUrl = org?.logoUrl || '';
 
+    const isSoma = settings.activeTheme === 'SOMA';
+
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-cyan-500/10">
+        <div className={`min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-cyan-500/10 ${isSoma ? 'theme-soma' : ''}`}>
+            {isSoma && (
+                <>
+                    {/* Google Font Manrope Injection */}
+                    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+                    <style dangerouslySetInnerHTML={{ __html: `
+                        .theme-soma, .theme-soma * {
+                            font-family: 'Manrope', sans-serif !important;
+                        }
+                    `}} />
+                </>
+            )}
             <VisitorTracker />
             {/* Top Info Bar */}
-            <div className="bg-[#030d1a] border-b border-slate-900 text-[11px] font-semibold text-slate-400 py-2.5 px-4 sm:px-8">
-                <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
-                    <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1.5">
-                            <Clock size={12} className="text-cyan-400" />
-                            {settings.workingHours}
-                        </span>
-                        <span className="hidden md:flex items-center gap-1.5">
-                            <MapPin size={12} className="text-cyan-400" />
-                            {physicalAddress}
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-4">
-                        <a href={`mailto:${contactEmail}`} className="hover:text-cyan-400 transition-colors flex items-center gap-1">
-                            <Mail size={12} className="text-cyan-400" />
-                            {contactEmail}
-                        </a>
-                        <a href={`https://wa.me/${cleanPhone}`} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors flex items-center gap-1 font-mono">
-                            <Phone size={12} className="text-cyan-400" />
-                            {primaryPhone.startsWith('+') ? primaryPhone : `+${primaryPhone}`}
-                        </a>
+            {settings.activeTheme === 'SOMA' ? (
+                <div className="bg-[#1b2a47] text-white text-[11px] font-bold py-2 px-4 sm:px-8 border-b border-slate-700 select-none">
+                    <div className="max-w-7xl mx-auto flex justify-between items-center text-[10px]">
+                        <div className="flex items-center gap-2">
+                            <span>🇪🇸 ESPAÑOL</span>
+                        </div>
+                        <div className="flex items-center gap-6">
+                            <span>Catálogo 2026</span>
+                            <span className="text-white/40">|</span>
+                            <a href={`https://wa.me/${cleanPhone}`} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                                {primaryPhone.startsWith('+') ? primaryPhone : `+${primaryPhone}`}
+                            </a>
+                        </div>
+                        <div>
+                            <span className="hover:underline cursor-pointer">Carrito de cotizaciones</span>
+                        </div>
                     </div>
                 </div>
-            </div>
+            ) : (
+                <div className="bg-[#030d1a] border-b border-slate-900 text-[11px] font-semibold text-slate-400 py-2.5 px-4 sm:px-8">
+                    <div className="max-w-7xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-2">
+                        <div className="flex items-center gap-4">
+                            <span className="flex items-center gap-1.5">
+                                <Clock size={12} className="text-cyan-400" />
+                                {settings.workingHours}
+                            </span>
+                            <span className="hidden md:flex items-center gap-1.5">
+                                <MapPin size={12} className="text-cyan-400" />
+                                {physicalAddress}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <a href={`mailto:${contactEmail}`} className="hover:text-cyan-400 transition-colors flex items-center gap-1">
+                                <Mail size={12} className="text-cyan-400" />
+                                {contactEmail}
+                            </a>
+                            <a href={`https://wa.me/${cleanPhone}`} target="_blank" rel="noopener noreferrer" className="hover:text-cyan-400 transition-colors flex items-center gap-1 font-mono">
+                                <Phone size={12} className="text-cyan-400" />
+                                {primaryPhone.startsWith('+') ? primaryPhone : `+${primaryPhone}`}
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Main Header (Sleek White Header with Mega Menu) */}
             <PublicHeader 
@@ -139,6 +175,7 @@ export default async function PublicLayout({
                 primaryPhone={primaryPhone}
                 cleanPhone={cleanPhone}
                 contactEmail={contactEmail}
+                activeTheme={settings.activeTheme || 'DRE'}
             />
 
             {/* Public Page View */}

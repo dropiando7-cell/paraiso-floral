@@ -48,6 +48,19 @@ async function getInventory(searchParams: SearchParams) {
     const selectedBrand = searchParams.brand || '';
     const selectedType = searchParams.type || '';
 
+    let allowScrapedProducts = true;
+    try {
+        const setting = await prisma.systemSetting.findUnique({
+            where: { key: 'landing_settings' }
+        });
+        if (setting) {
+            const parsed = JSON.parse(setting.value);
+            allowScrapedProducts = parsed.allowScrapedProducts !== false;
+        }
+    } catch (e) {
+        console.error('Error loading landing settings in getInventory:', e);
+    }
+
     try {
         let assets: any[] = [];
         let consumables: any[] = [];
@@ -77,12 +90,20 @@ async function getInventory(searchParams: SearchParams) {
         }
 
         if (selectedType === '' || selectedType === 'producto') {
+            const productWhere: any = {
+                estado: 'ACTIVO',
+                esServicio: false,
+                marca: selectedBrand ? { equals: selectedBrand, mode: 'insensitive' } : undefined
+            };
+
+            if (!allowScrapedProducts) {
+                productWhere.NOT = {
+                    sku: { startsWith: 'SOMA-' }
+                };
+            }
+
             consumables = await prisma.producto.findMany({
-                where: {
-                    estado: 'ACTIVO',
-                    esServicio: false,
-                    marca: selectedBrand ? { equals: selectedBrand, mode: 'insensitive' } : undefined
-                },
+                where: productWhere,
                 select: {
                     id: true,
                     nombre: true,

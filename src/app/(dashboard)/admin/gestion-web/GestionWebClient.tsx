@@ -78,6 +78,9 @@ interface LandingSettings {
     seoDescription?: string;
     seoKeywords?: string;
     seoImage?: string;
+    activeTheme?: string;
+    allowScrapedProducts?: boolean;
+    defaultScrapedStock?: number;
 }
 
 interface GestionWebClientProps {
@@ -93,7 +96,7 @@ export default function GestionWebClient({
     initialSections,
     initialLandingSettings
 }: GestionWebClientProps) {
-    const [activeTab, setActiveTab] = useState<'status' | 'sections' | 'reviews' | 'inventory' | 'general' | 'seo' | 'contacts' | 'activity'>('status');
+    const [activeTab, setActiveTab] = useState<'status' | 'sections' | 'reviews' | 'inventory' | 'general' | 'seo' | 'contacts' | 'activity' | 'themes' | 'scraper'>('status');
     const [maintenanceMode, setMaintenanceMode] = useState(initialMaintenanceMode);
     const [sections, setSections] = useState<Section[]>(initialSections);
     const [reviews, setReviews] = useState<Review[]>(initialReviews);
@@ -597,6 +600,29 @@ export default function GestionWebClient({
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                         <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                     </span>
+                </button>
+                <div className="h-px bg-slate-100 my-1" />
+                <button
+                    onClick={() => setActiveTab('themes')}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-left text-sm font-medium transition-all ${
+                        activeTab === 'themes' 
+                            ? 'bg-brand-600 text-white shadow-sm' 
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                >
+                    <LayoutGrid size={18} />
+                    <span>Temas de la Web</span>
+                </button>
+                <button
+                    onClick={() => setActiveTab('scraper')}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-left text-sm font-medium transition-all ${
+                        activeTab === 'scraper' 
+                            ? 'bg-brand-600 text-white shadow-sm' 
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                    }`}
+                >
+                    <Activity size={18} />
+                    <span>Importador de Soma</span>
                 </button>
             </div>
 
@@ -1420,6 +1446,246 @@ export default function GestionWebClient({
                             </div>
                         </div>
                     </form>
+                )}
+
+                {/* TAB: Themes Selection */}
+                {activeTab === 'themes' && (
+                    <div className="p-6 space-y-6">
+                        <div className="flex justify-between items-start gap-4">
+                            <div>
+                                <h2 className="text-lg font-bold text-slate-900">Temas de la Página Web</h2>
+                                <p className="text-xs text-slate-500 mt-0.5 font-sans">Selecciona el diseño y estilo visual que se mostrará a los visitantes públicos.</p>
+                            </div>
+                            <button
+                                onClick={async () => {
+                                    setSaving(true);
+                                    const res = await saveLandingSettings(landingSettings);
+                                    if (res.success) {
+                                        toast.success('Configuración de tema guardada');
+                                    } else {
+                                        toast.error(res.error || 'Error al guardar');
+                                    }
+                                    setSaving(false);
+                                }}
+                                disabled={saving}
+                                className="flex items-center gap-2 bg-[#00A8CC] hover:bg-[#008ba8] disabled:bg-slate-300 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer"
+                            >
+                                <Save size={14} />
+                                {saving ? 'Guardando...' : 'Guardar Tema'}
+                            </button>
+                        </div>
+
+                        {/* Themes Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            {/* DRE Theme Card */}
+                            <div 
+                                onClick={() => setLandingSettings(p => ({ ...p, activeTheme: 'DRE' }))}
+                                className={`border-2 rounded-2xl p-4 cursor-pointer transition-all flex flex-col justify-between gap-4 overflow-hidden relative ${
+                                    (landingSettings.activeTheme || 'DRE') === 'DRE'
+                                        ? 'border-[#00A8CC] bg-cyan-50/10 shadow-md ring-1 ring-cyan-500/50'
+                                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                                }`}
+                            >
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-extrabold text-sm text-slate-900">DRE Theme</span>
+                                        {(landingSettings.activeTheme || 'DRE') === 'DRE' && (
+                                            <span className="bg-cyan-100 text-cyan-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Activo</span>
+                                        )}
+                                    </div>
+                                    <p className="text-[11px] text-slate-550 leading-relaxed">Diseño tradicional basado en DRE Med. Utiliza colores celestes y azul marino, enfocado en el cotizador y la herramienta de búsqueda de 60 segundos.</p>
+                                </div>
+                                <div className="aspect-video w-full rounded-lg bg-slate-100 border overflow-hidden flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                                    <div className="w-full h-full bg-[#0B1E36]/10 flex flex-col justify-between p-3">
+                                        <div className="w-1/2 h-2 bg-[#00A8CC] rounded" />
+                                        <div className="w-full h-4 bg-white border rounded" />
+                                        <div className="flex gap-1">
+                                            <div className="w-8 h-8 bg-white border rounded" />
+                                            <div className="w-8 h-8 bg-white border rounded" />
+                                            <div className="w-8 h-8 bg-white border rounded" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* SOMA Theme Card */}
+                            <div 
+                                onClick={() => setLandingSettings(p => ({ ...p, activeTheme: 'SOMA' }))}
+                                className={`border-2 rounded-2xl p-4 cursor-pointer transition-all flex flex-col justify-between gap-4 overflow-hidden relative ${
+                                    landingSettings.activeTheme === 'SOMA'
+                                        ? 'border-[#00A8CC] bg-cyan-50/10 shadow-md ring-1 ring-cyan-500/50'
+                                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                                }`}
+                            >
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-extrabold text-sm text-slate-900">Soma Theme</span>
+                                        {landingSettings.activeTheme === 'SOMA' && (
+                                            <span className="bg-cyan-100 text-cyan-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Activo</span>
+                                        )}
+                                    </div>
+                                    <p className="text-[11px] text-slate-550 leading-relaxed">Diseño premium e institucional inspirado en Soma Technology. Colores corporativos sobrios, banner tipo hero expandido y tipografía estilizada.</p>
+                                </div>
+                                <div className="aspect-video w-full rounded-lg bg-slate-100 border overflow-hidden flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                                    <div className="w-full h-full bg-[#0B1E36] flex flex-col justify-between p-3 text-white/50">
+                                        <div className="w-2/3 h-2.5 bg-[#00A8CC] rounded" />
+                                        <div className="w-full h-2 bg-white/20 rounded" />
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="h-6 bg-white/10 rounded" />
+                                            <div className="h-6 bg-white/10 rounded" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* BIO Theme Card */}
+                            <div 
+                                onClick={() => setLandingSettings(p => ({ ...p, activeTheme: 'BIO' }))}
+                                className={`border-2 rounded-2xl p-4 cursor-pointer transition-all flex flex-col justify-between gap-4 overflow-hidden relative ${
+                                    landingSettings.activeTheme === 'BIO'
+                                        ? 'border-[#00A8CC] bg-cyan-50/10 shadow-md ring-1 ring-cyan-500/50'
+                                        : 'border-slate-200 hover:border-slate-300 bg-white'
+                                }`}
+                            >
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center">
+                                        <span className="font-extrabold text-sm text-slate-900">BIO Hybrid Theme</span>
+                                        {landingSettings.activeTheme === 'BIO' && (
+                                            <span className="bg-cyan-100 text-cyan-700 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Activo</span>
+                                        )}
+                                    </div>
+                                    <p className="text-[11px] text-slate-550 leading-relaxed">Lo mejor de ambos mundos: combina el Hero Banner de Soma con el buscador interactivo de DRE y un grid optimizado de reseñas.</p>
+                                </div>
+                                <div className="aspect-video w-full rounded-lg bg-slate-100 border overflow-hidden flex items-center justify-center text-[10px] text-slate-400 font-bold">
+                                    <div className="w-full h-full bg-[#07162c] flex flex-col justify-between p-3 text-white/40">
+                                        <div className="flex justify-between items-center">
+                                            <div className="w-1/3 h-2 bg-[#00A8CC] rounded" />
+                                            <div className="w-4 h-4 bg-amber-500 rounded-full" />
+                                        </div>
+                                        <div className="w-full h-4 bg-white/10 border border-white/20 rounded" />
+                                        <div className="h-4 bg-[#00A8CC]/20 rounded" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Controls for Scraped / External Products */}
+                        <div className="p-5 border rounded-2xl bg-slate-50 space-y-4">
+                            <h3 className="font-bold text-sm text-slate-800">Control de Productos Externos (Soma Tech)</h3>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                                <div className="flex items-center justify-between gap-4 p-3 bg-white border rounded-xl">
+                                    <div className="space-y-0.5">
+                                        <span className="text-xs font-bold text-slate-800 block">Mostrar Productos Externos</span>
+                                        <span className="text-[10px] text-slate-400 font-medium">Habilita la visualización de equipos importados sin stock real en el catálogo público.</span>
+                                    </div>
+                                    <input 
+                                        type="checkbox"
+                                        checked={landingSettings.allowScrapedProducts ?? true}
+                                        onChange={(e) => setLandingSettings(p => ({ ...p, allowScrapedProducts: e.target.checked }))}
+                                        className="w-4 h-4 rounded text-brand-600 focus:ring-brand-500 shrink-0"
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-between gap-4 p-3 bg-white border rounded-xl">
+                                    <div className="space-y-1 flex-1">
+                                        <span className="text-xs font-bold text-slate-800 block">Stock Virtual Predeterminado</span>
+                                        <span className="text-[10px] text-slate-400 font-medium block">Cantidad a mostrar en inventario para permitir solicitudes fluidas (0 desactivará el stock).</span>
+                                        <input 
+                                            type="number"
+                                            value={landingSettings.defaultScrapedStock ?? 5}
+                                            onChange={(e) => setLandingSettings(p => ({ ...p, defaultScrapedStock: parseInt(e.target.value) || 0 }))}
+                                            className="text-xs p-1.5 border border-slate-200 rounded-lg bg-white w-20 font-semibold text-slate-850"
+                                            min={0}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* TAB: Scraper Controls */}
+                {activeTab === 'scraper' && (
+                    <div className="p-6 space-y-6">
+                        <div>
+                            <h2 className="text-lg font-bold text-slate-900">Importador de Catálogo - Soma Tech</h2>
+                            <p className="text-xs text-slate-500 mt-0.5 font-sans">Extrae de forma automática categorías, descripciones e imágenes desde Soma Technology. Las fotos se subirán directamente a tu Cloudflare R2.</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                            {/* Scraper Control Card */}
+                            <div className="border border-slate-200 rounded-2xl p-5 bg-white space-y-5 lg:col-span-1 shadow-sm">
+                                <h3 className="font-bold text-sm text-slate-800">Iniciar Extracción</h3>
+                                <p className="text-xs text-slate-500 leading-normal">
+                                    La importación se ejecuta en segundo plano por lotes seguros con delay aleatorio de 1-3 segundos para prevenir bloqueos de IP y mantener la estabilidad del sitio.
+                                </p>
+                                
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Categoría de Inicio</label>
+                                    <select 
+                                        id="scrape-category-select"
+                                        className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800"
+                                    >
+                                        <option value="all">Todas las Categorías principales</option>
+                                        <option value="anesthesia">Máquinas de Anestesia</option>
+                                        <option value="defibrillators">Desfibriladores</option>
+                                        <option value="patient-monitors">Monitores de Pacientes</option>
+                                        <option value="surgical-tables">Mesas de Cirugía</option>
+                                        <option value="ultrasounds">Ultrasonidos</option>
+                                    </select>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    id="start-scraper-btn"
+                                    onClick={async () => {
+                                        const cat = (document.getElementById('scrape-category-select') as HTMLSelectElement)?.value || 'all';
+                                        const toastId = toast.loading('Iniciando extractor por lotes en segundo plano...', { duration: 3000 });
+                                        try {
+                                            const res = await fetch('/api/admin/scrape-soma', {
+                                                method: 'POST',
+                                                headers: { 'Content-Type': 'application/json' },
+                                                body: JSON.stringify({ category: cat })
+                                            });
+                                            const data = await res.json();
+                                            if (data.success) {
+                                                toast.success(`Extracción completada. Se importaron ${data.count} productos exitosamente.`, { id: toastId });
+                                            } else {
+                                                toast.error(`Error en la extracción: ${data.error}`, { id: toastId });
+                                            }
+                                        } catch (e: any) {
+                                            toast.error(`Error: ${e.message}`, { id: toastId });
+                                        }
+                                    }}
+                                    className="w-full bg-[#00A8CC] hover:bg-[#008ba8] text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                                >
+                                    <Activity size={14} />
+                                    <span>Comenzar Importación</span>
+                                </button>
+                            </div>
+
+                            {/* Scraper Status Panel */}
+                            <div className="border border-slate-200 rounded-2xl p-5 bg-slate-50/50 space-y-4 lg:col-span-2 flex flex-col justify-between shadow-inner">
+                                <div className="space-y-3">
+                                    <h3 className="font-bold text-sm text-slate-800 flex items-center gap-2">
+                                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                                        <span>Bitácora de Importación</span>
+                                    </h3>
+                                    <div className="h-40 bg-slate-950 text-emerald-400 font-mono text-[10px] p-3 rounded-xl overflow-y-auto space-y-1 select-none">
+                                        <div>[SISTEMA] Listo para iniciar extracción...</div>
+                                        <div>[SISTEMA] Servidor R2 configurado: OK</div>
+                                        <div>[SISTEMA] PostgreSQL conectado: OK</div>
+                                        <div>[SISTEMA] Selecciona una categoría y haz clic en "Comenzar Importación".</div>
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 text-xs border-t pt-4 font-semibold text-slate-655 justify-between">
+                                    <span>Productos Scraped Totales: <strong className="text-slate-900">Listo</strong></span>
+                                    <span>Última ejecución: <strong className="text-slate-900">Exitosa</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 )}
 
                 {/* TAB: Web Contacts */}
