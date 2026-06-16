@@ -14,7 +14,8 @@ import {
     deleteWebContact,
     getWebTraffic,
     getPaginatedInventoryItems,
-    getInventoryItemById
+    getInventoryItemById,
+    deleteInventoryItem
 } from './actions';
 import { 
     Settings, 
@@ -506,6 +507,29 @@ export default function GestionWebClient({
             toast.error(e.message || 'Error de conexión');
         } finally {
             setUpdatingImageId(null);
+        }
+    };
+
+    const handleDeleteItem = async (id: string, type: 'activo' | 'producto', name: string) => {
+        if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente el producto "${name}"? Esta acción no se puede deshacer.`)) {
+            return false;
+        }
+
+        const toastId = toast.loading('Eliminando producto...');
+        try {
+            const res = await deleteInventoryItem(id, type);
+            if (res.success) {
+                toast.success('Producto eliminado con éxito', { id: toastId });
+                // Remove from local search results state so it disappears from UI immediately
+                setSearchResults(prev => prev.filter(item => item.id !== id));
+                return true;
+            } else {
+                toast.error(res.error || 'Error al eliminar producto', { id: toastId });
+                return false;
+            }
+        } catch (e: any) {
+            toast.error(e.message || 'Error de conexión', { id: toastId });
+            return false;
         }
     };
 
@@ -1314,8 +1338,8 @@ export default function GestionWebClient({
                                                     </div>
                                                 </div>
 
-                                                {/* Right Side: Action Save Button */}
-                                                <div className={isList ? "flex xl:flex-col justify-end gap-2 xl:self-center shrink-0" : "w-full"}>
+                                                {/* Right Side: Action Save & Delete Buttons */}
+                                                <div className={isList ? "flex xl:flex-col justify-end gap-2 xl:self-center shrink-0" : "w-full flex gap-2"}>
                                                     <button
                                                         onClick={() => handleSaveItemWebFields(item.id, item.type)}
                                                         disabled={isSaving || isUploading}
@@ -1332,6 +1356,14 @@ export default function GestionWebClient({
                                                                 <span>Guardar</span>
                                                             </>
                                                         )}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDeleteItem(item.id, item.type, item.name)}
+                                                        className="bg-red-50 hover:bg-red-100 text-red-650 text-[9px] font-black px-4 py-3 rounded-xl uppercase tracking-wider transition-all hover:scale-[1.02] border border-red-200/60 shadow-sm cursor-pointer flex items-center justify-center gap-1.5 w-full xl:w-auto shrink-0 active:scale-95"
+                                                    >
+                                                        <Trash2 size={10} className="shrink-0" />
+                                                        <span>Eliminar</span>
                                                     </button>
                                                 </div>
                                             </div>
@@ -2526,13 +2558,29 @@ export default function GestionWebClient({
 
                                 {/* Footer buttons */}
                                 <div className="bg-slate-50 border-t border-slate-100 px-6 py-4 flex justify-between gap-2 shrink-0">
-                                    <button
-                                        type="button"
-                                        onClick={() => setSelectedItem(null)}
-                                        className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
-                                    >
-                                        Cerrar Ficha
-                                    </button>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSelectedItem(null)}
+                                            className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer"
+                                        >
+                                            Cerrar Ficha
+                                        </button>
+                                        
+                                        <button
+                                            type="button"
+                                            onClick={async () => {
+                                                const deleted = await handleDeleteItem(selectedItem.id, selectedItem.type, selectedItem.name);
+                                                if (deleted) {
+                                                    setSelectedItem(null);
+                                                }
+                                            }}
+                                            className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/60 text-xs font-bold px-4 py-2 rounded-xl transition-all hover:scale-[1.02] cursor-pointer flex items-center justify-center gap-1.5 shrink-0 active:scale-95"
+                                        >
+                                            <Trash2 size={12} className="shrink-0" />
+                                            <span>Eliminar Producto</span>
+                                        </button>
+                                    </div>
 
                                     <button
                                         type="button"

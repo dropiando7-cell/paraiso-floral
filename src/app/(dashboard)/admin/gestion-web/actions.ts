@@ -706,3 +706,48 @@ export async function getInventoryItemById(id: string) {
         return { success: false, error: error.message || 'Error al cargar el producto' };
     }
 }
+
+export async function deleteInventoryItem(id: string, type: 'activo' | 'producto') {
+    try {
+        await checkAdminAuth();
+        const itemId = getUuidFromParam(id);
+
+        if (type === 'activo') {
+            try {
+                // Try complete deletion first
+                await prisma.activoFijo.delete({
+                    where: { id: itemId }
+                });
+            } catch (deleteError) {
+                console.warn('Could not hard delete activo, marking as ELIMINADO:', deleteError);
+                // Fallback to soft delete
+                await prisma.activoFijo.update({
+                    where: { id: itemId },
+                    data: { estatusContable: 'ELIMINADO' }
+                });
+            }
+        } else {
+            try {
+                // Try complete deletion first
+                await prisma.producto.delete({
+                    where: { id: itemId }
+                });
+            } catch (deleteError) {
+                console.warn('Could not hard delete producto, marking as INACTIVO:', deleteError);
+                // Fallback to soft delete
+                await prisma.producto.update({
+                    where: { id: itemId },
+                    data: { estado: 'INACTIVO' }
+                });
+            }
+        }
+
+        revalidatePath('/admin/gestion-web');
+        revalidatePath('/landing');
+        revalidatePath('/landing/productos');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error deleting inventory item:', error);
+        return { success: false, error: error.message || 'Error al eliminar el producto' };
+    }
+}
