@@ -450,15 +450,83 @@ export default function GestionWebClient({
         }
     };
 
+    const compressImage = (file: File, maxWidth = 1000, maxHeight = 1000, quality = 0.75): Promise<File> => {
+        return new Promise((resolve) => {
+            if (!file.type.startsWith('image/')) {
+                resolve(file);
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.readAsDataURL(file);
+            reader.onload = (event) => {
+                const img = new Image();
+                img.src = event.target?.result as string;
+                img.onload = () => {
+                    let width = img.width;
+                    let height = img.height;
+
+                    if (width > maxWidth || height > maxHeight) {
+                        const ratio = Math.min(maxWidth / width, maxHeight / height);
+                        width = Math.round(width * ratio);
+                        height = Math.round(height * ratio);
+                    }
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        resolve(file);
+                        return;
+                    }
+
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    canvas.toBlob(
+                        (blob) => {
+                            if (blob) {
+                                // Extract extension name and swap with webp
+                                const nameWithoutExt = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                                const compressedFile = new File(
+                                    [blob], 
+                                    `${nameWithoutExt}.webp`, 
+                                    { type: 'image/webp', lastModified: Date.now() }
+                                );
+                                
+                                // Safeguard: If the original file is already smaller than the compressed version, keep the original
+                                if (file.size > 0 && compressedFile.size >= file.size) {
+                                    resolve(file);
+                                } else {
+                                    resolve(compressedFile);
+                                }
+                            } else {
+                                resolve(file);
+                            }
+                        },
+                        'image/webp',
+                        quality
+                    );
+                };
+                img.onerror = () => resolve(file);
+            };
+            reader.onerror = () => resolve(file);
+        });
+    };
+
     const handleUploadFile = async (id: string, file: File) => {
         if (!file) return;
         setUploadingItemId(id);
-        const toastId = toast.loading('Subiendo imagen a R2...');
+        const toastId = toast.loading('Optimizando y subiendo imagen...');
         
         try {
+            // Compress the image before uploading to R2
+            const optimizedFile = await compressImage(file);
+            
             const formData = new FormData();
-            formData.append('file', file);
-            formData.append('fileName', file.name);
+            formData.append('file', optimizedFile);
+            formData.append('fileName', optimizedFile.name);
             
             const res = await fetch('/api/upload/inventario', {
                 method: 'POST',
