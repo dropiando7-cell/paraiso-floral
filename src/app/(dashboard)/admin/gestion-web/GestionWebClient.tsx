@@ -475,6 +475,24 @@ export default function GestionWebClient({
         }
     };
 
+    const handlePasteImage = async (id: string, event: React.ClipboardEvent<any>) => {
+        const items = event.clipboardData?.items;
+        if (!items) return;
+        
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const file = items[i].getAsFile();
+                if (file) {
+                    event.preventDefault();
+                    const extension = file.name.split('.').pop() || 'png';
+                    const customFile = new File([file], `paste-${id}-${Date.now()}.${extension}`, { type: file.type });
+                    handleUploadFile(id, customFile);
+                    break;
+                }
+            }
+        }
+    };
+
     // --- Tab 5: General Landing Settings ---
     const handleSaveGeneralSettings = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -2091,7 +2109,7 @@ export default function GestionWebClient({
                     const isUploading = uploadingItemId === selectedItem.id;
                     
                     return (
-                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in animate-duration-200">
+                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in animate-duration-200" onPaste={(e) => handlePasteImage(selectedItem.id, e)}>
                             <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden relative animate-in fade-in zoom-in-95 duration-200 flex flex-col">
                                 {/* Header / Top Ribbon */}
                                 <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex justify-between items-center shrink-0">
@@ -2194,7 +2212,8 @@ export default function GestionWebClient({
                                                         type="text" 
                                                         value={itemImageUrls[selectedItem.id] || ''}
                                                         onChange={(e) => setItemImageUrls(prev => ({ ...prev, [selectedItem.id]: e.target.value }))}
-                                                        placeholder="Pegar enlace de imagen..."
+                                                        onPaste={(e) => handlePasteImage(selectedItem.id, e)}
+                                                        placeholder="Pegar enlace o imagen (Ctrl+V)..."
                                                         className="flex-1 min-w-0 text-xs px-2.5 py-2 border border-slate-200 rounded-xl font-mono bg-white focus:outline-none focus:border-cyan-500 transition-all text-slate-700"
                                                     />
                                                 </div>
