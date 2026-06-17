@@ -2528,7 +2528,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             {/* Lightbox Modal overlay for images */}
             {lightboxImage && (
                 <div 
-                    className="fixed inset-0 z-[70] bg-black/95 flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+                    className="fixed inset-0 z-[150] bg-black/95 flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
                     onClick={() => setLightboxImage(null)}
                 >
                     <button 
@@ -3467,7 +3467,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
 
             {/* Image Preview Modal (Slider) */}
             {previewImage && previewImage.images.length > 0 && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={() => setPreviewImage(null)}>
+                <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4" onClick={() => setPreviewImage(null)}>
                     <div className="relative max-w-5xl w-full flex items-center justify-center h-full">
                         {/* Close button */}
                         <button onClick={() => setPreviewImage(null)} className="absolute top-4 right-4 z-10 p-3 text-white/70 hover:text-white bg-black/50 rounded-full transition-colors active:scale-95"><X className="w-6 h-6" /></button>
