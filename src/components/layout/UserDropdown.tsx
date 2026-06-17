@@ -1,11 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { User, Settings, LogOut, Loader2 } from 'lucide-react';
+import { User, Settings, LogOut, Loader2, Smartphone, X, ExternalLink } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
-import { useRouter } from 'next/navigation';
 
 interface UserDropdownProps {
     dbUser: any;
@@ -15,7 +15,11 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isPending, setIsPending] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
-    const router = useRouter();
+
+    const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+    const [isIos, setIsIos] = useState(false);
+    const [isStandalone, setIsStandalone] = useState(false);
+    const [showIosInstructions, setShowIosInstructions] = useState(false);
 
     // Close dropdown on outside click
     useEffect(() => {
@@ -26,6 +30,41 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
         }
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // PWA installability detection
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            // Check if captured globally on window
+            if ((window as any).deferredPrompt) {
+                setDeferredPrompt((window as any).deferredPrompt);
+            }
+
+            const handleInstallable = () => {
+                setDeferredPrompt((window as any).deferredPrompt);
+            };
+
+            const handleAppInstalled = () => {
+                setDeferredPrompt(null);
+                (window as any).deferredPrompt = null;
+            };
+
+            window.addEventListener('pwa-installable', handleInstallable);
+            window.addEventListener('appinstalled', handleAppInstalled);
+
+            // iOS detection
+            const userAgent = window.navigator.userAgent.toLowerCase();
+            const ios = /iphone|ipad|ipod/.test(userAgent);
+            const standalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
+            
+            setIsIos(ios);
+            setIsStandalone(standalone);
+
+            return () => {
+                window.removeEventListener('pwa-installable', handleInstallable);
+                window.removeEventListener('appinstalled', handleAppInstalled);
+            };
+        }
     }, []);
 
     async function handleLogout() {
@@ -45,6 +84,22 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
         } finally {
             // Force immediate hard redirect to login page
             window.location.href = '/login';
+        }
+    }
+
+    async function handleInstallApp() {
+        if (deferredPrompt) {
+            setIsOpen(false);
+            deferredPrompt.prompt();
+            const { outcome } = await deferredPrompt.userChoice;
+            console.log(`PWA install prompt user choice: ${outcome}`);
+            if (outcome === 'accepted') {
+                setDeferredPrompt(null);
+                (window as any).deferredPrompt = null;
+            }
+        } else if (isIos) {
+            setIsOpen(false);
+            setShowIosInstructions(true);
         }
     }
 
@@ -78,7 +133,7 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
                                         dbUser?.role === 'MEDICAL_STAFF' ? 'Asistencia Médica' :
                                             dbUser?.role === 'EXECUTIVE_ASSISTANT' ? 'Asistente Ejecutivo' :
                                                 'Usuario Limitado'
-                        )}
+                                        )}
                     </span>
                 </span>
                 <span className="w-10 h-10 rounded-full overflow-hidden border-2 border-slate-100 shrink-0 relative transition-transform hover:scale-105 bg-brand-100 flex items-center justify-center text-brand-700 font-bold text-sm">
@@ -110,7 +165,7 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
                     <Link
                         href="/perfil"
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-[#0500A3] transition-colors"
                     >
                         <User className="w-4 h-4" />
                         <span>Mi Perfil</span>
@@ -119,11 +174,23 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
                     <Link
                         href="/configuracion"
                         onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-brand-600 transition-colors"
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-[#0500A3] transition-colors"
                     >
                         <Settings className="w-4 h-4" />
                         <span>Configuración de cuenta</span>
                     </Link>
+
+                    {/* Elegant PWA Install Button */}
+                    {(deferredPrompt || (isIos && !isStandalone)) && (
+                        <button
+                            type="button"
+                            onClick={handleInstallApp}
+                            className="w-full flex items-center gap-3 px-4 py-2 text-sm text-[#0500A3] hover:bg-blue-50 font-bold transition-colors text-left cursor-pointer"
+                        >
+                            <Smartphone className="w-4 h-4 text-[#0500A3] shrink-0 animate-bounce" />
+                            <span>Instalar App Móvil</span>
+                        </button>
+                    )}
 
                     <div className="border-t border-slate-100 my-2"></div>
 
@@ -139,6 +206,57 @@ export function UserDropdown({ dbUser }: UserDropdownProps) {
                         </span>
                         {isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                     </button>
+                </div>
+            )}
+
+            {/* iOS Installation Instructions Modal */}
+            {showIosInstructions && (
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl relative animate-in zoom-in-95 duration-200 border border-slate-100">
+                        <button
+                            onClick={() => setShowIosInstructions(false)}
+                            className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-full transition-colors"
+                            title="Cerrar"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                        
+                        <div className="text-center mb-5">
+                            <div className="w-12 h-12 bg-blue-50 text-[#0500A3] rounded-full flex items-center justify-center mx-auto mb-3 shadow-inner">
+                                <Smartphone size={24} />
+                            </div>
+                            <h3 className="text-lg font-black text-slate-900 tracking-tight">Instalar en tu iPhone / iPad</h3>
+                            <p className="text-xs text-slate-500 mt-1">Sigue estos sencillos pasos para agregar el ERP a tu pantalla de inicio:</p>
+                        </div>
+                        
+                        <div className="space-y-4 text-sm text-slate-700">
+                            <div className="flex gap-3 items-start">
+                                <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-xs">1</span>
+                                <p className="leading-relaxed">
+                                    Abre este sitio en el navegador **Safari**.
+                                </p>
+                            </div>
+                            <div className="flex gap-3 items-start">
+                                <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-xs">2</span>
+                                <p className="leading-relaxed flex items-center gap-1.5 flex-wrap">
+                                    Toca el botón **Compartir** <span className="inline-flex p-1 bg-slate-50 border border-slate-200 rounded text-xs"><ExternalLink className="w-3.5 h-3.5 inline text-slate-500" /></span> (el cuadrado con la flecha hacia arriba).
+                                </p>
+                            </div>
+                            <div className="flex gap-3 items-start">
+                                <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0 text-xs">3</span>
+                                <p className="leading-relaxed">
+                                    Selecciona la opción &quot;Agregar a pantalla de inicio&quot; 📲.
+                                </p>
+                            </div>
+                        </div>
+                        
+                        <button
+                            onClick={() => setShowIosInstructions(false)}
+                            className="mt-6 w-full py-3 bg-[#0500A3] hover:bg-[#0600c2] text-white font-bold rounded-xl text-sm transition-all active:scale-[0.98] shadow-md shadow-blue-900/10"
+                        >
+                            Entendido
+                        </button>
+                    </div>
                 </div>
             )}
         </div>
