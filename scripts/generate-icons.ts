@@ -3,7 +3,7 @@ import * as path from 'path';
 
 async function generateIcons() {
     try {
-        const sourcePath = path.join(process.cwd(), 'public', 'logo-bioelectronica.jpg');
+        const sourcePath = path.join(process.cwd(), 'disenos', 'BEA-ICONO-APP.png');
         console.log(`Leyendo imagen de origen: ${sourcePath}`);
         
         const image = await Jimp.read(sourcePath);
