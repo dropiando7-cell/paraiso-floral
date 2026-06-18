@@ -6,6 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
         short_name: 'BEA ERP',
         description: 'Plataforma ERP de administración para Bioelectrónica Honduras',
         start_url: '/inventario',
+        scope: '/',
         display: 'standalone',
         background_color: '#ffffff',
         theme_color: '#0500A3',

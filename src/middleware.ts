@@ -4,47 +4,73 @@ import { updateSession } from '@/utils/supabase/middleware'
 export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
     const host = request.headers.get('host') || ''
-    const isMainDomain = host === 'bioelectronicahn.com' || host === 'www.bioelectronicahn.com'
+    const isSystemDomain = host === 'sistema.bioelectronicahn.com'
     const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1')
 
     // Update the Supabase session first to know auth status
     const { supabase, supabaseResponse } = await updateSession(request)
     const { data: { user } } = await supabase.auth.getUser()
 
-    // Determine if the path is a public landing path.
-    // On localhost, the root path '/' is only public if the user is not authenticated.
+    // Helper to return redirect/rewrite responses with updated Supabase cookies
+    const returnResponse = (res: NextResponse) => {
+        supabaseResponse.cookies.getAll().forEach(cookie => {
+            res.cookies.set(cookie)
+        })
+        return res
+    }
+
+    // Determine if the path is a public website path
     const isPublicPath =
-        (url.pathname === '/' && (isMainDomain || !user)) ||
+        url.pathname === '/' ||
         url.pathname.startsWith('/landing') ||
         url.pathname.startsWith('/productos') ||
         url.pathname === '/servicios' ||
         url.pathname === '/contacto' ||
         url.pathname === '/nosotros';
 
-    if (isMainDomain) {
-        // Redirect ERP system routes to the operational subdomain
-        const systemPrefixes = [
-            '/login', '/auth', '/api', '/print', '/c/', '/ficha-tecnica',
-            '/pos-kiosko', '/nuevo-dash', '/inventario', '/rentas', '/facturas',
-            '/cierre-caja', '/contactos', '/calendario', '/graficas', '/admin',
-            '/boveda', '/caja-chica', '/checkin', '/conciliacion', '/configuracion',
-            '/cotizaciones', '/inventario-ia', '/kanban', '/medico', '/perfil',
-            '/precios', '/soporte', '/unauthorized', '/trazabilidad', '/debug-whatsapp',
-            '/diseno-v2', '/aprobar-presupuesto', '/t/'
-        ]
-        const isSystemPath = systemPrefixes.some(prefix => url.pathname.startsWith(prefix))
+    // 1. DOMAIN ENFORCEMENT (PRODUCTION ONLY)
+    if (!isLocalhost) {
+        // A. System/Protected Routes and Login MUST only be served on sistema.bioelectronicahn.com
+        const isSystemRoute = !isPublicPath || url.pathname.startsWith('/login') || url.pathname.startsWith('/auth');
+        
+        if (isSystemRoute && !isSystemDomain) {
+            // Redirect to sistema.bioelectronicahn.com
+            return returnResponse(NextResponse.redirect(`https://sistema.bioelectronicahn.com${url.pathname}${url.search}`))
+        }
 
-        if (isSystemPath) {
-            return NextResponse.redirect(`https://sistema.bioelectronicahn.com${url.pathname}${url.search}`)
+        // B. Public Landing Routes on the System Domain:
+        // If the user is NOT logged in, redirect them to the main domain.
+        // If the user IS logged in, let them view the public pages on the system domain so they retain their session!
+        if (isPublicPath && isSystemDomain && !user) {
+            const targetPath = url.pathname === '/landing' ? '/' : url.pathname;
+            return returnResponse(NextResponse.redirect(`https://bioelectronicahn.com${targetPath}${url.search}`))
         }
     }
 
-    if (isMainDomain || (isLocalhost && isPublicPath)) {
-        // Query maintenance mode dynamically using Supabase (compatible with Edge runtime)
+    // 2. ROOT PATH REDIRECTS FOR SYSTEM DOMAIN / LOCALHOST
+    if (url.pathname === '/') {
+        if (user) {
+            // Logged in users go straight to the ERP inventory dashboard
+            url.pathname = '/inventario'
+            return returnResponse(NextResponse.redirect(url))
+        } else if (isSystemDomain) {
+            // Unauthenticated users on the system domain go to login
+            url.pathname = '/login'
+            return returnResponse(NextResponse.redirect(url))
+        }
+    }
+
+    // 3. LOGIN PATH REDIRECT FOR LOGGED-IN USERS
+    if (user && url.pathname.startsWith('/login')) {
+        url.pathname = '/inventario'
+        return returnResponse(NextResponse.redirect(url))
+    }
+
+    // 4. MAINTENANCE MODE & PUBLIC PATH REWRITES
+    if (isPublicPath) {
         let isMaintenance = true;
         let isSuperAdmin = false;
         try {
-            // Get maintenance mode
             const { data: settingData } = await supabase
                 .from('system_settings')
                 .select('value')
@@ -54,7 +80,6 @@ export async function middleware(request: NextRequest) {
                 isMaintenance = settingData.value === 'true';
             }
 
-            // Get logged in user role to bypass maintenance (if cookies/session exists)
             if (user) {
                 const { data: profile } = await supabase
                     .from('users')
@@ -62,7 +87,6 @@ export async function middleware(request: NextRequest) {
                     .eq('email', user.email)
                     .single();
                 if (profile) {
-                    // Allow any authenticated system user to bypass maintenance mode to preview the site
                     isSuperAdmin = true;
                 }
             }
@@ -71,39 +95,23 @@ export async function middleware(request: NextRequest) {
         }
 
         if (isMaintenance && !isSuperAdmin) {
-            // Internal rewrite to the landing under-construction page
             if (url.pathname !== '/landing') {
                 url.pathname = '/landing'
-                return NextResponse.rewrite(url)
+                return returnResponse(NextResponse.rewrite(url))
             }
-            return NextResponse.next()
+            return supabaseResponse
         } else {
-            // Rewrite public paths to their respective /landing endpoints
-            if (isPublicPath) {
-                const rewritePath = url.pathname === '/' ? '/landing' : (url.pathname.startsWith('/landing') ? url.pathname : `/landing${url.pathname}`);
-                if (url.pathname !== rewritePath) {
-                    url.pathname = rewritePath;
-                    return NextResponse.rewrite(url);
-                }
-            } else if (isMainDomain) {
-                // If it is not a system path and not a known public path, redirect to root
-                url.pathname = '/';
-                return NextResponse.redirect(url);
+            // Rewrite public paths to /landing internally (Next.js structure)
+            const rewritePath = url.pathname === '/' ? '/landing' : (url.pathname.startsWith('/landing') ? url.pathname : `/landing${url.pathname}`);
+            if (url.pathname !== rewritePath) {
+                url.pathname = rewritePath;
+                return returnResponse(NextResponse.rewrite(url));
             }
-            return NextResponse.next()
-        }
-    } else {
-        // Redirect public/landing requests on the operational domain to the main public domain (except local testing)
-        if (isPublicPath && !isLocalhost) {
-            const targetPath = url.pathname === '/landing' ? '/' : url.pathname;
-            return NextResponse.redirect(`https://bioelectronicahn.com${targetPath}${url.search}`);
+            return supabaseResponse
         }
     }
 
-    // Session is already updated at the top of the middleware
-
-    // 1. Redirect unauthenticated users to /login if they attempt to access protected routes
-    // For now, everything except /login and static assets is protected.
+    // 5. PROTECTED ROUTE ENFORCEMENT
     const isPublicRoute =
         url.pathname.startsWith('/login') ||
         url.pathname.startsWith('/auth/callback') ||
@@ -118,49 +126,33 @@ export async function middleware(request: NextRequest) {
         url.pathname.startsWith('/api/soporte/firmar-presupuesto') ||
         url.pathname.startsWith('/t/') ||
         url.pathname.startsWith('/api/tarjetas/') ||
-        url.pathname.startsWith('/api/tarjeta/')
+        url.pathname.startsWith('/api/tarjeta/') ||
+        isPublicPath; // Public paths are accessible
 
     if (!user && !isPublicRoute) {
         url.pathname = '/login'
-        return NextResponse.redirect(url)
+        return returnResponse(NextResponse.redirect(url))
     }
 
-    // 2. Redirect authenticated users away from /login
-    if (user && url.pathname.startsWith('/login')) {
-        url.pathname = '/'
-        return NextResponse.redirect(url)
-    }
-
-    // 3. MFA Enforcement (AAL2 Check)
+    // 6. MFA Enforcement (AAL2 Check)
     const isPrefetch = request.headers.get('x-middleware-prefetch') === '1' || request.headers.get('purpose') === 'prefetch';
     if (user && !isPrefetch && !url.pathname.startsWith('/auth/mfa') && !url.pathname.startsWith('/auth/callback')) {
-        // Fetch session to check AAL level
         const { data: { session } } = await supabase.auth.getSession();
 
         if (session) {
-            // Check if user has enrolled factors
             const { data: mfaData } = await supabase.auth.mfa.listFactors();
             const hasVerifiedTotp = mfaData?.all?.some(
                 (factor) => factor.factor_type === 'totp' && factor.status === 'verified'
             );
 
-            // Fetch the Assurance level
             const { data: aalData } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
-            // If they have MFA enrolled but their current session is only AAL1, force them to verify
             if (hasVerifiedTotp && aalData?.currentLevel === 'aal1') {
                 url.pathname = '/auth/mfa';
-                return NextResponse.redirect(url);
+                return returnResponse(NextResponse.redirect(url));
             }
         }
     }
-
-    // NOTE: For multi-tenant validation, ideally we could check Prisma here,
-    // but Prisma doesn't run natively in the Edge Runtime (which Middleware uses).
-    // Therefore, fine-grained access control (checking the user's role and organizationId)
-    // will be done on a per-layout or per-page basis in the Server Components,
-    // or via a separate Edge-compatible fetch if absolutely needed.
-    // For the MFA verification flow, we'll check it at the layout level.
 
     return supabaseResponse
 }
