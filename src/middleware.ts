@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
 
     // Determine if the path is a public website path
     const isPublicPath =
-        url.pathname === '/' ||
+        (url.pathname === '/' && !((isSystemDomain || isLocalhost) && user)) ||
         url.pathname.startsWith('/landing') ||
         url.pathname.startsWith('/productos') ||
         url.pathname === '/servicios' ||
@@ -49,11 +49,7 @@ export async function middleware(request: NextRequest) {
 
     // 2. ROOT PATH REDIRECTS FOR SYSTEM DOMAIN / LOCALHOST
     if (url.pathname === '/') {
-        if (user) {
-            // Logged in users go straight to the ERP inventory dashboard
-            url.pathname = '/inventario'
-            return returnResponse(NextResponse.redirect(url))
-        } else if (isSystemDomain) {
+        if (!user && (isSystemDomain || isLocalhost)) {
             // Unauthenticated users on the system domain go to login
             url.pathname = '/login'
             return returnResponse(NextResponse.redirect(url))
@@ -62,7 +58,7 @@ export async function middleware(request: NextRequest) {
 
     // 3. LOGIN PATH REDIRECT FOR LOGGED-IN USERS
     if (user && url.pathname.startsWith('/login')) {
-        url.pathname = '/inventario'
+        url.pathname = '/'
         return returnResponse(NextResponse.redirect(url))
     }
 

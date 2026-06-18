@@ -180,6 +180,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
         {menuItems.map((group) => {
           const visibleItems = group.items.filter((item) => {
             if (dbUser?.role === 'SUPER_ADMIN') return true;
+            if (item.href === '/') return true;
             const allowed = dbUser?.accessibleModules || [];
             if (allowed.includes(item.href)) return true;
             if (item.roles && item.roles.includes(dbUser?.role)) return true;
