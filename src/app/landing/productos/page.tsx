@@ -1,10 +1,10 @@
 import React from 'react';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import Link from 'next/link';
-import { Search, HeartPulse, SlidersHorizontal, EyeOff } from 'lucide-react';
+import { Search, SlidersHorizontal } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
-import VisibilityToggle from './VisibilityToggle';
-import DeleteButton from './DeleteButton';
+import ProductGridClient from './ProductGridClient';
 
 interface SearchParams {
     q?: string;
@@ -47,18 +47,6 @@ function matchToken(token: string, word: string): number {
     return 0;
 }
 
-const slugify = (text: string) => {
-    return text
-        .toString()
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9\s-]/g, ' ')
-        .trim()
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-');
-};
-
 async function getInventory(searchParams: SearchParams, isAdmin = false) {
     const query = searchParams.q || '';
     const selectedBrand = searchParams.brand || '';
@@ -81,8 +69,34 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
     }
 
     try {
-        let assets: any[] = [];
-        let consumables: any[] = [];
+        let assets: {
+            id: string;
+            descripcionCorta: string;
+            marca: string | null;
+            modelo: string | null;
+            idQr: string | null;
+            imagenUrl: string | null;
+            imagenWeb: string | null;
+            tituloWeb: string | null;
+            costoAdq: Prisma.Decimal | null;
+            categoria: {
+                nombre: string;
+            } | null;
+            estatusContable: string;
+        }[] = [];
+
+        let consumables: {
+            id: string;
+            nombre: string;
+            marca: string | null;
+            modelo: string | null;
+            sku: string;
+            precioVenta: Prisma.Decimal | null;
+            imagenWeb: string | null;
+            tituloWeb: string | null;
+            categoria: string | null;
+            estado: string;
+        }[] = [];
 
         // Query database filtering by type (without brand filter initially, to extract all available brands/categories)
         if (!hideRealInventory && (selectedType === '' || selectedType === 'activo')) {
@@ -107,13 +121,14 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                         select: {
                             nombre: true
                         }
-                    }
+                    },
+                    estatusContable: true
                 }
             });
         }
 
         if (selectedType === '' || selectedType === 'producto') {
-            const productWhere: any = {
+            const productWhere: Prisma.ProductoWhereInput = {
                 estado: isAdmin ? { in: ['ACTIVO', 'OCULTO'] } : 'ACTIVO',
                 esServicio: false
             };
@@ -137,7 +152,8 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                     precioVenta: true,
                     imagenWeb: true,
                     tituloWeb: true,
-                    categoria: true
+                    categoria: true,
+                    estado: true
                 }
             });
         }
@@ -541,93 +557,7 @@ export default async function ProductosPage({
                     </div>
 
                     {/* Grid */}
-                    {items.length === 0 ? (
-                        <div className="border border-slate-200 border-dashed rounded-3xl p-12 text-center text-slate-500 text-xs flex flex-col items-center justify-center gap-3">
-                            <HeartPulse size={36} className="text-slate-350 stroke-[1.2]" />
-                            <span>No se encontraron equipos para los filtros aplicados.</span>
-                        </div>
-                    ) : (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {items.map(item => (
-                                <div key={item.id} className={`group bg-white border rounded-3xl overflow-hidden hover:shadow-lg transition-all flex flex-col relative duration-300 ${
-                                    item.hidden 
-                                        ? 'opacity-65 bg-slate-50 border-dashed border-red-200/80' 
-                                        : 'border-slate-200/80 hover:border-slate-350 hover:border-[#00a8cc]'
-                                }`}>
-                                    {/* Type badge */}
-                                    <div className="absolute top-3 left-3 bg-slate-100/90 backdrop-blur text-[8px] font-extrabold text-slate-550 px-2 py-0.5 rounded-full uppercase tracking-wider border border-slate-200 z-10">
-                                        {item.typeName}
-                                    </div>
-
-                                    {/* Visibility indicator for Admin */}
-                                    {isAdmin && item.hidden && (
-                                        <div className="absolute top-3 left-28 bg-red-100/90 backdrop-blur text-[8px] font-black text-red-700 px-2 py-0.5 rounded-full uppercase tracking-wider border border-red-200 z-10 flex items-center gap-1 shadow-sm">
-                                            <EyeOff size={8} />
-                                            <span>Oculto</span>
-                                        </div>
-                                    )}
-
-                                    {/* Admin Actions (Visibility & Delete) */}
-                                    {isAdmin && (
-                                        <div className="absolute top-3 right-3 z-20 flex items-center gap-1.5">
-                                            <VisibilityToggle 
-                                                id={item.id} 
-                                                type={item.type} 
-                                                initialHidden={item.hidden} 
-                                            />
-                                            <DeleteButton 
-                                                id={item.id} 
-                                                type={item.type} 
-                                                name={item.name}
-                                            />
-                                        </div>
-                                    )}
-
-                                    {/* Image */}
-                                    <div className="aspect-[4/3] w-full bg-slate-50 flex items-center justify-center border-b border-slate-200/60 relative overflow-hidden">
-                                        {item.imageUrl ? (
-                                            <img 
-                                                src={item.imageUrl} 
-                                                alt={item.name} 
-                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                            />
-                                        ) : (
-                                            <HeartPulse className="text-slate-300 w-12 h-12 stroke-[1.2]" />
-                                        )}
-                                    </div>
-
-                                    {/* Body */}
-                                    <div className="p-5 flex-1 flex flex-col gap-4 text-xs font-semibold">
-                                        <div className="space-y-1.5 flex-1">
-                                            {/* Badges degradados tal como pidió el usuario */}
-                                            <span className="text-[8px] font-black bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block">
-                                                {item.brand}
-                                            </span>
-                                            <h3 className="font-extrabold text-slate-850 leading-snug line-clamp-2">{item.name}</h3>
-                                            {item.model && (
-                                                <p className="text-[10px] text-slate-400 font-mono font-medium">Modelo: {item.model}</p>
-                                            )}
-                                        </div>
-
-                                        <div className="flex gap-2 text-[10px] font-bold">
-                                            <Link
-                                                href={`/productos/${slugify(item.category || 'equipos')}/${item.id}-${slugify(item.name || '')}`}
-                                                className="flex-1 text-center bg-slate-50 hover:bg-slate-100 text-slate-700 py-2.5 rounded-xl border border-slate-200 transition-colors"
-                                            >
-                                                Ver Ficha
-                                            </Link>
-                                            <Link
-                                                href={`/productos/${slugify(item.category || 'equipos')}/${item.id}-${slugify(item.name || '')}?cotizar=true`}
-                                                className="flex-1 text-center bg-[#00a8cc] hover:bg-[#00b4d8] text-white py-2.5 rounded-xl transition-colors shadow-sm shadow-cyan-500/10 cursor-pointer"
-                                            >
-                                                Cotizar
-                                            </Link>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    <ProductGridClient items={items} isAdmin={isAdmin} />
                 </div>
             </div>
         </div>

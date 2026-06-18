@@ -59,9 +59,10 @@ export async function toggleItemVisibility(id: string, type: 'activo' | 'product
         revalidatePath('/landing/productos/[category]/[id]');
         revalidatePath('/admin/gestion-web');
         return { success: true };
-    } catch (e: any) {
-        console.error('Error toggling visibility:', e);
-        return { success: false, error: e.message || 'Error al cambiar visibilidad' };
+    } catch (e: unknown) {
+        const err = e as Error;
+        console.error('Error toggling visibility:', err);
+        return { success: false, error: err.message || 'Error al cambiar visibilidad' };
     }
 }
 
@@ -103,8 +104,80 @@ export async function deleteLandingItem(id: string, type: 'activo' | 'producto')
         revalidatePath('/landing/productos');
         revalidatePath('/admin/gestion-web');
         return { success: true };
-    } catch (e: any) {
-        console.error('Error deleting landing item:', e);
-        return { success: false, error: e.message || 'Error al eliminar el producto' };
+    } catch (e: unknown) {
+        const err = e as Error;
+        console.error('Error deleting landing item:', err);
+        return { success: false, error: err.message || 'Error al eliminar el producto' };
+    }
+}
+
+export async function bulkToggleItemVisibility(items: { id: string; type: 'activo' | 'producto' }[], makeVisible: boolean) {
+    try {
+        await checkAdminAuth();
+
+        for (const item of items) {
+            const itemId = getUuidFromParam(item.id);
+            if (item.type === 'activo') {
+                await prisma.activoFijo.update({
+                    where: { id: itemId },
+                    data: { estatusContable: makeVisible ? 'VIGENTE' : 'OCULTO' }
+                });
+            } else {
+                await prisma.producto.update({
+                    where: { id: itemId },
+                    data: { estado: makeVisible ? 'ACTIVO' : 'OCULTO' }
+                });
+            }
+        }
+
+        revalidatePath('/landing/productos');
+        revalidatePath('/landing/productos/[category]/[id]');
+        revalidatePath('/admin/gestion-web');
+        return { success: true };
+    } catch (e: unknown) {
+        const err = e as Error;
+        console.error('Error in bulk visibility toggle:', err);
+        return { success: false, error: err.message || 'Error al cambiar visibilidad en lote' };
+    }
+}
+
+export async function bulkDeleteLandingItems(items: { id: string; type: 'activo' | 'producto' }[]) {
+    try {
+        await checkAdminAuth();
+
+        for (const item of items) {
+            const itemId = getUuidFromParam(item.id);
+            if (item.type === 'activo') {
+                try {
+                    await prisma.activoFijo.delete({
+                        where: { id: itemId }
+                    });
+                } catch {
+                    await prisma.activoFijo.update({
+                        where: { id: itemId },
+                        data: { estatusContable: 'ELIMINADO' }
+                    });
+                }
+            } else {
+                try {
+                    await prisma.producto.delete({
+                        where: { id: itemId }
+                    });
+                } catch {
+                    await prisma.producto.update({
+                        where: { id: itemId },
+                        data: { estado: 'INACTIVO' }
+                    });
+                }
+            }
+        }
+
+        revalidatePath('/landing/productos');
+        revalidatePath('/admin/gestion-web');
+        return { success: true };
+    } catch (e: unknown) {
+        const err = e as Error;
+        console.error('Error in bulk delete:', err);
+        return { success: false, error: err.message || 'Error al eliminar productos en lote' };
     }
 }
