@@ -3,7 +3,7 @@ import type { MetadataRoute } from 'next';
 export default function manifest(): MetadataRoute.Manifest {
     return {
         name: 'Bioelectrónica ERP',
-        short_name: 'Bio ERP',
+        short_name: 'BEA ERP',
         description: 'Plataforma ERP de administración para Bioelectrónica Honduras',
         start_url: '/inventario',
         display: 'standalone',
