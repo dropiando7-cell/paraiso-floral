@@ -30,7 +30,8 @@ import {
     Square,
     RefreshCw,
     Volume2,
-    Plus
+    Plus,
+    Package
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
@@ -43,7 +44,11 @@ import {
     createKanbanAttachment, 
     deleteKanbanAttachment,
     updateKanbanAttachmentDescription,
-    addActivityTypeToSpace
+    addActivityTypeToSpace,
+    getTaskMaterials,
+    consumeMaterialForTask,
+    cancelMaterialConsumptionForTask,
+    searchMaterialsForTask
 } from '@/app/(dashboard)/kanban/actions';
 
 
@@ -166,10 +171,20 @@ export default function TaskDetailModal({
     const [assigneeSearch, setAssigneeSearch] = useState('');
 
     // Estados para colaboración
-    const [activeTab, setActiveTab] = useState<'comentarios' | 'actividad'>('comentarios');
+    const [activeTab, setActiveTab] = useState<'comentarios' | 'actividad' | 'materiales'>('comentarios');
     const [comments, setComments] = useState<any[]>([]);
     const [attachments, setAttachments] = useState<any[]>([]);
     const [loadingCollab, setLoadingCollab] = useState(false);
+
+    // Estados para consumo de materiales/inventario
+    const [materials, setMaterials] = useState<any[]>([]);
+    const [loadingMaterials, setLoadingMaterials] = useState(false);
+    const [materialSearchQuery, setMaterialSearchQuery] = useState("");
+    const [materialSearchResults, setMaterialSearchResults] = useState<any[]>([]);
+    const [searchingMaterials, setSearchingMaterials] = useState(false);
+    const [selectedInventoryItem, setSelectedInventoryItem] = useState<any | null>(null);
+    const [consumeQuantity, setConsumeQuantity] = useState(1);
+    const [consumingMaterial, setConsumingMaterial] = useState(false);
     const [newComment, setNewComment] = useState("");
     const [isUploading, setIsUploading] = useState(false);
     const [isDragging, setIsDragging] = useState(false);
@@ -276,7 +291,12 @@ export default function TaskDetailModal({
 
         if (isOpen && task.id) {
             loadCommentsAndAttachments();
+            loadTaskMaterials();
         }
+        setMaterialSearchQuery("");
+        setMaterialSearchResults([]);
+        setSelectedInventoryItem(null);
+        setConsumeQuantity(1);
     }, [task, isOpen]);
 
     // Limpieza al desmontar
@@ -621,6 +641,94 @@ export default function TaskDetailModal({
             toast.error("Error al cargar comentarios");
         } finally {
             setLoadingCollab(false);
+        }
+    };
+
+    const loadTaskMaterials = async () => {
+        setLoadingMaterials(true);
+        try {
+            const res = await getTaskMaterials(task.id);
+            if (res.success && res.materials) {
+                setMaterials(res.materials);
+            } else {
+                toast.error(res.error || "Error al cargar materiales");
+            }
+        } catch (error) {
+            console.error("Error al cargar materiales:", error);
+        } finally {
+            setLoadingMaterials(false);
+        }
+    };
+
+    const handleSearchMaterials = async (q: string) => {
+        setMaterialSearchQuery(q);
+        if (!q.trim() || q.trim().length < 2) {
+            setMaterialSearchResults([]);
+            return;
+        }
+        setSearchingMaterials(true);
+        try {
+            const results = await searchMaterialsForTask(q);
+            setMaterialSearchResults(results);
+        } catch (err) {
+            console.error("Error searching materials:", err);
+        } finally {
+            setSearchingMaterials(false);
+        }
+    };
+
+    const handleConsumeMaterial = async () => {
+        if (!selectedInventoryItem) return;
+        if (consumeQuantity <= 0) {
+            toast.error("La cantidad debe ser mayor que cero.");
+            return;
+        }
+        if (consumeQuantity > selectedInventoryItem.stock) {
+            toast.error(`La cantidad excede el stock disponible (${selectedInventoryItem.stock}).`);
+            return;
+        }
+
+        setConsumingMaterial(true);
+        try {
+            const res = await consumeMaterialForTask(task.id, selectedInventoryItem.id, consumeQuantity);
+            if (res.success && res.material) {
+                toast.success("Componente descontado de inventario correctamente.");
+                setMaterials(prev => [res.material, ...prev]);
+                setSelectedInventoryItem(null);
+                setConsumeQuantity(1);
+                if (materialSearchQuery) {
+                    handleSearchMaterials(materialSearchQuery);
+                }
+                router.refresh();
+            } else {
+                toast.error(res.error || "Error al registrar consumo");
+            }
+        } catch (err: any) {
+            console.error("Error consuming material:", err);
+            toast.error(err.message || "Error al registrar consumo");
+        } finally {
+            setConsumingMaterial(false);
+        }
+    };
+
+    const handleCancelMaterial = async (materialId: string) => {
+        if (!window.confirm("¿Estás seguro de que deseas anular esta descarga de inventario? El stock se devolverá automáticamente.")) return;
+        
+        try {
+            const res = await cancelMaterialConsumptionForTask(materialId);
+            if (res.success) {
+                toast.success("Descarga de inventario anulada y stock devuelto.");
+                setMaterials(prev => prev.filter(m => m.id !== materialId));
+                if (materialSearchQuery) {
+                    handleSearchMaterials(materialSearchQuery);
+                }
+                router.refresh();
+            } else {
+                toast.error(res.error || "Error al anular");
+            }
+        } catch (err: any) {
+            console.error("Error cancelling material:", err);
+            toast.error(err.message || "Error al anular");
         }
     };
 
@@ -1050,6 +1158,17 @@ export default function TaskDetailModal({
                                 >
                                     Historial ({taskActivities.length})
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('materiales')}
+                                    className={`text-xs font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                        activeTab === 'materiales' 
+                                            ? 'border-brand-600 text-brand-600' 
+                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                    }`}
+                                >
+                                    Materiales ({materials.length})
+                                </button>
                             </div>
 
                             {activeTab === 'actividad' ? (
@@ -1071,6 +1190,183 @@ export default function TaskDetailModal({
                                             ))}
                                         </div>
                                     )}
+                                </div>
+                            ) : activeTab === 'materiales' ? (
+                                <div className="space-y-4 animate-fadeIn">
+                                    {/* Buscar Componentes en el Inventario */}
+                                    <div className="bg-slate-50/50 border border-slate-200/60 rounded-2xl p-4 space-y-3.5 shadow-sm">
+                                        <div className="flex items-center justify-between">
+                                            <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                                <Package className="h-4 w-4 text-brand-600 animate-pulse" />
+                                                Descargar Componente / Material
+                                            </h5>
+                                            <span className="text-[10px] text-slate-400 font-medium">Búsqueda rápida en inventario</span>
+                                        </div>
+                                        
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                placeholder="Buscar por descripción, barras o código QR..."
+                                                value={materialSearchQuery}
+                                                onChange={(e) => handleSearchMaterials(e.target.value)}
+                                                className="w-full h-10 pl-3 pr-10 bg-white border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm transition-all shadow-sm outline-none"
+                                            />
+                                            {searchingMaterials && (
+                                                <div className="absolute right-3 top-2.5">
+                                                    <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Resultados de la búsqueda */}
+                                        {materialSearchResults.length > 0 && (
+                                            <div className="border border-slate-150 rounded-xl overflow-hidden bg-white max-h-[220px] overflow-y-auto divide-y divide-slate-100 shadow-inner">
+                                                {materialSearchResults.map((item) => (
+                                                    <button
+                                                        key={item.id}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedInventoryItem(item);
+                                                            setConsumeQuantity(1);
+                                                        }}
+                                                        className={`w-full px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between text-left hover:bg-slate-50 transition-colors ${selectedInventoryItem?.id === item.id ? 'bg-brand-50/50 hover:bg-brand-50' : ''}`}
+                                                    >
+                                                        <div className="min-w-0 pr-2">
+                                                            <p className="text-xs font-bold text-slate-800 truncate">{item.descripcionCorta}</p>
+                                                            <p className="text-[10px] text-slate-400 mt-0.5">
+                                                                SKU: <span className="font-mono">{item.codigoBarras || 'N/A'}</span> • QR: <span className="font-mono">{item.idQr}</span>
+                                                            </p>
+                                                        </div>
+                                                        <div className="mt-1 sm:mt-0 flex items-center gap-2 shrink-0">
+                                                            <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                                                                📍 {item.area}
+                                                            </span>
+                                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.stock > 0 ? 'bg-green-55 text-green-700' : 'bg-red-55 text-red-700'}`}>
+                                                                {item.stock} disp.
+                                                            </span>
+                                                        </div>
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                        {/* Formulario de consumo del ítem seleccionado */}
+                                        {selectedInventoryItem && (
+                                            <div className="bg-brand-50/30 border border-brand-100 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+                                                <div className="min-w-0 pr-2">
+                                                    <p className="text-xs font-bold text-brand-900 truncate">Seleccionado: {selectedInventoryItem.descripcionCorta}</p>
+                                                    <p className="text-[10px] text-brand-700/80 mt-0.5">
+                                                        Ubicación: <span className="font-semibold">{selectedInventoryItem.area}</span> (Disponibles: {selectedInventoryItem.stock})
+                                                    </p>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <div className="flex items-center border border-slate-200 rounded-lg bg-white overflow-hidden h-9 shadow-sm">
+                                                        <button
+                                                            type="button"
+                                                            disabled={consumeQuantity <= 1}
+                                                            onClick={() => setConsumeQuantity(prev => Math.max(1, prev - 1))}
+                                                            className="w-8 h-full flex items-center justify-center hover:bg-slate-50 text-slate-500 disabled:opacity-50 disabled:hover:bg-transparent transition-colors font-bold text-sm border-r border-slate-100"
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <input
+                                                            type="number"
+                                                            min={1}
+                                                            max={selectedInventoryItem.stock}
+                                                            value={consumeQuantity}
+                                                            onChange={(e) => {
+                                                                const val = parseInt(e.target.value);
+                                                                if (!isNaN(val)) {
+                                                                    setConsumeQuantity(Math.max(1, Math.min(selectedInventoryItem.stock, val)));
+                                                                }
+                                                            }}
+                                                            className="w-12 h-full text-center text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-none outline-none"
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            disabled={consumeQuantity >= selectedInventoryItem.stock}
+                                                            onClick={() => setConsumeQuantity(prev => Math.min(selectedInventoryItem.stock, prev + 1))}
+                                                            className="w-8 h-full flex items-center justify-center hover:bg-slate-50 text-slate-500 disabled:opacity-50 disabled:hover:bg-transparent transition-colors font-bold text-sm border-l border-slate-100"
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+
+                                                    <button
+                                                        type="button"
+                                                        disabled={consumingMaterial}
+                                                        onClick={handleConsumeMaterial}
+                                                        className="h-9 px-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold text-xs transition shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                    >
+                                                        {consumingMaterial ? (
+                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                        ) : (
+                                                            <Check className="h-3.5 w-3.5" />
+                                                        )}
+                                                        Descargar
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setSelectedInventoryItem(null)}
+                                                        className="h-9 px-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg text-xs transition"
+                                                    >
+                                                        Cancelar
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Listado de Materiales Usados */}
+                                    <div className="space-y-2">
+                                        <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                                            Materiales Consumidos en esta Tarea ({materials.length})
+                                        </h5>
+                                        
+                                        {loadingMaterials ? (
+                                            <div className="flex items-center justify-center py-8">
+                                                <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
+                                            </div>
+                                        ) : materials.length === 0 ? (
+                                            <div className="text-center py-8 bg-slate-50/50 rounded-2xl border border-dashed border-slate-200">
+                                                <Package className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                                                <p className="text-xs text-slate-500 font-medium">No se han registrado consumos</p>
+                                                <p className="text-[10px] text-slate-400">Usa el buscador de arriba para descargar materiales de inventario.</p>
+                                            </div>
+                                        ) : (
+                                            <div className="border border-slate-150 rounded-2xl bg-white overflow-hidden shadow-sm divide-y divide-slate-100">
+                                                {materials.map((m) => (
+                                                    <div key={m.id} className="p-3 flex items-center justify-between hover:bg-slate-50/30 transition-colors">
+                                                        <div className="min-w-0 pr-3 text-left">
+                                                            <div className="flex items-center gap-2">
+                                                                <p className="text-xs font-bold text-slate-800 truncate">{m.descripcionCorta}</p>
+                                                                <span className="text-[9px] font-bold bg-brand-50 text-brand-700 px-1.5 py-0.5 rounded">
+                                                                    Cant: {m.cantidad}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[9px] text-slate-400 mt-1">
+                                                                <span>📍 Ubicac: <span className="font-semibold text-slate-600">{m.area}</span></span>
+                                                                <span>•</span>
+                                                                <span>Barras/QR: <span className="font-mono text-slate-650">{m.codigoBarras || m.idQr}</span></span>
+                                                                <span>•</span>
+                                                                <span>Por: <span className="text-slate-600 font-medium">{m.creadoPor.nombre}</span></span>
+                                                                <span>•</span>
+                                                                <span>{new Date(m.createdAt).toLocaleDateString()}</span>
+                                                            </div>
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleCancelMaterial(m.id)}
+                                                            className="p-1.5 border border-slate-150 hover:border-red-100 hover:bg-red-50 text-slate-450 hover:text-red-650 rounded-lg shadow-sm transition"
+                                                            title="Anular descarga y regresar a inventario"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="space-y-4">

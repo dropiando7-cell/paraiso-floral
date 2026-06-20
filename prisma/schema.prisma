@@ -131,6 +131,8 @@ model User {
   ordenesAsignadasMulti OrdenTrabajo[]         @relation("TecnicoOrdenesMulti")
   ordenesEntregaCreadas OrdenEntrega[]         @relation("CreatedOrdenesEntrega")
   digitalCard           DigitalCard?
+  taskMaterialesCreados KanbanTaskMaterial[]   @relation("MaterialesCreados")
+  taskMaterialesAnulados KanbanTaskMaterial[]  @relation("MaterialesAnulados")
 
   @@map("users")
 }
@@ -424,6 +426,7 @@ model ActivoFijo {
   rentasEquipo          RentaEquipo[]
   ordenesTrabajoRepuesto OrdenTrabajoRepuesto[]
   historial             HistorialActivo[]    @relation("ActivoHistorial")
+  kanbanMaterials       KanbanTaskMaterial[]
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -1086,6 +1089,7 @@ model KanbanTask {
   activities      KanbanActivity[]
   comments        KanbanComment[]
   attachments     KanbanAttachment[]
+  materials       KanbanTaskMaterial[]
 
   @@unique([spaceId, codigo])
   @@index([spaceId])
@@ -1273,6 +1277,29 @@ model CardLead {
   card          DigitalCard  @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   @@map("card_leads")
+}
+
+model KanbanTaskMaterial {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId         String       @db.Uuid
+  activoFijoId   String       @db.Uuid
+  cantidad       Int
+  area           String       
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  creadoPorId    String?      @db.Uuid
+  anuladaPorId   String?      @db.Uuid
+  anuladaAt      DateTime?
+
+  task           KanbanTask   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  activoFijo     ActivoFijo   @relation(fields: [activoFijoId], references: [id], onDelete: Cascade)
+  creadoPor      User?        @relation("MaterialesCreados", fields: [creadoPorId], references: [id])
+  anuladaPor     User?        @relation("MaterialesAnulados", fields: [anuladaPorId], references: [id])
+
+  @@index([taskId])
+  @@index([activoFijoId])
+  @@map("kanban_task_materiales")
 }
 
 

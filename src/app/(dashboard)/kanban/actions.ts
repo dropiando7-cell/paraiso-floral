@@ -1465,6 +1465,285 @@ export async function renameColumnInSpace(spaceId: string, oldName: string, newN
     }
 }
 
+// --- CONSUMO DE MATERIALES EN TAREAS KANBAN ---
+
+export async function getTaskMaterials(taskId: string) {
+    try {
+        const { org } = await getCurrentUserAndOrg();
+
+        const task = await prisma.kanbanTask.findFirst({
+            where: { id: taskId, organizationId: org.id }
+        });
+        if (!task) throw new Error('Tarea no encontrada');
+
+        const materials = await prisma.kanbanTaskMaterial.findMany({
+            where: { taskId, anuladaAt: null },
+            include: {
+                activoFijo: true,
+                creadoPor: {
+                    select: { id: true, nombre: true, apellido: true, email: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        return {
+            success: true,
+            materials: materials.map(m => ({
+                id: m.id,
+                activoFijoId: m.activoFijoId,
+                descripcionCorta: m.activoFijo.descripcionCorta,
+                codigoBarras: m.activoFijo.codigoBarras || '',
+                idQr: m.activoFijo.idQr,
+                cantidad: m.cantidad,
+                area: m.area,
+                createdAt: m.createdAt.toISOString(),
+                creadoPor: {
+                    id: m.creadoPor?.id || '',
+                    nombre: m.creadoPor ? `${m.creadoPor.nombre || ''} ${m.creadoPor.apellido || ''}`.trim() || m.creadoPor.email : 'Sistema'
+                }
+            }))
+        };
+    } catch (e: any) {
+        console.error("getTaskMaterials Error:", e);
+        return { success: false, error: e.message || 'Error al obtener materiales' };
+    }
+}
+
+export async function searchMaterialsForTask(query: string) {
+    try {
+        const { org } = await getCurrentUserAndOrg();
+        if (!query || query.trim().length < 2) return [];
+
+        const matched = await prisma.activoFijo.findMany({
+            where: {
+                organizationId: org.id,
+                esParaRenta: false,
+                stock: { gt: 0 },
+                OR: [
+                    { descripcionCorta: { contains: query, mode: 'insensitive' } },
+                    { codigoBarras: { contains: query, mode: 'insensitive' } },
+                    { idQr: { contains: query, mode: 'insensitive' } }
+                ]
+            },
+            select: {
+                id: true,
+                descripcionCorta: true,
+                codigoBarras: true,
+                idQr: true,
+                stock: true,
+                area: true,
+                productoId: true
+            },
+            take: 30
+        });
+
+        return matched;
+    } catch (e) {
+        console.error("searchMaterialsForTask Error:", e);
+        return [];
+    }
+}
+
+export async function consumeMaterialForTask(taskId: string, activoFijoId: string, cantidad: number) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        if (cantidad <= 0) throw new Error("La cantidad debe ser mayor que cero");
+
+        const task = await prisma.kanbanTask.findFirst({
+            where: { id: taskId, organizationId: org.id }
+        });
+        if (!task) throw new Error("Tarea no encontrada");
+
+        const result = await prisma.$transaction(async (tx) => {
+            const activo = await tx.activoFijo.findUnique({
+                where: { id: activoFijoId, organizationId: org.id }
+            });
+            if (!activo) throw new Error("Componente no encontrado en inventario");
+            if (activo.stock < cantidad) {
+                throw new Error(`Stock insuficiente en ${activo.area}. Stock disponible: ${activo.stock}`);
+            }
+
+            // 1. Decrementar stock en ActivoFijo
+            await tx.activoFijo.update({
+                where: { id: activoFijoId },
+                data: { stock: { decrement: cantidad } }
+            });
+
+            // 2. Resolver matching Producto para sincronización y Movimientos
+            let prodId = activo.productoId;
+            if (!prodId && activo.codigoBarras) {
+                const matchProd = await tx.producto.findFirst({
+                    where: { organizationId: org.id, sku: activo.codigoBarras }
+                });
+                if (matchProd) {
+                    prodId = matchProd.id;
+                    await tx.activoFijo.update({
+                        where: { id: activoFijoId },
+                        data: { productoId: prodId }
+                    });
+                }
+            }
+
+            if (prodId) {
+                // Decrementar stock en Producto
+                await tx.producto.update({
+                    where: { id: prodId },
+                    data: { stockActual: { decrement: cantidad } }
+                });
+
+                // Registrar MovimientoInventario
+                await tx.movimientoInventario.create({
+                    data: {
+                        organizationId: org.id,
+                        productoId: prodId,
+                        tipoMovimiento: 'SALIDA',
+                        cantidad,
+                        motivo: `Uso en Tarea Kanban ${task.codigo} (${task.title})`,
+                        usuarioId: user.id
+                    }
+                });
+            }
+
+            // 3. Crear KanbanTaskMaterial
+            const material = await tx.kanbanTaskMaterial.create({
+                data: {
+                    taskId,
+                    activoFijoId,
+                    cantidad,
+                    area: activo.area,
+                    creadoPorId: user.id
+                },
+                include: {
+                    activoFijo: true,
+                    creadoPor: {
+                        select: { id: true, nombre: true, apellido: true, email: true }
+                    }
+                }
+            });
+
+            // 4. Registrar actividad del Kanban
+            await tx.kanbanActivity.create({
+                data: {
+                    spaceId: task.spaceId,
+                    taskId,
+                    usuarioId: user.id,
+                    accion: 'ACTUALIZACION',
+                    detalles: `Descargó de inventario: ${cantidad}x ${activo.descripcionCorta} de la ubicación "${activo.area}"`
+                }
+            });
+
+            return material;
+        });
+
+        revalidatePath(`/kanban/${task.spaceId}`);
+        return {
+            success: true,
+            material: {
+                id: result.id,
+                activoFijoId: result.activoFijoId,
+                descripcionCorta: result.activoFijo.descripcionCorta,
+                codigoBarras: result.activoFijo.codigoBarras || '',
+                idQr: result.activoFijo.idQr,
+                cantidad: result.cantidad,
+                area: result.area,
+                createdAt: result.createdAt.toISOString(),
+                creadoPor: {
+                    id: result.creadoPor?.id || '',
+                    nombre: result.creadoPor ? `${result.creadoPor.nombre || ''} ${result.creadoPor.apellido || ''}`.trim() || result.creadoPor.email : 'Sistema'
+                }
+            }
+        };
+    } catch (e: any) {
+        console.error("consumeMaterialForTask Error:", e);
+        return { success: false, error: e.message || 'Error al consumir material de inventario' };
+    }
+}
+
+export async function cancelMaterialConsumptionForTask(materialId: string) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        const material = await prisma.kanbanTaskMaterial.findUnique({
+            where: { id: materialId },
+            include: {
+                task: true,
+                activoFijo: true
+            }
+        });
+
+        if (!material) throw new Error("Registro de consumo de material no encontrado");
+        if (material.task.organizationId !== org.id) throw new Error("No autorizado");
+        if (material.anuladaAt !== null) throw new Error("El consumo ya ha sido cancelado");
+
+        await prisma.$transaction(async (tx) => {
+            // 1. Anulación lógica
+            await tx.kanbanTaskMaterial.update({
+                where: { id: materialId },
+                data: {
+                    anuladaPorId: user.id,
+                    anuladaAt: new Date()
+                }
+            });
+
+            // 2. Devolver stock a ActivoFijo
+            await tx.activoFijo.update({
+                where: { id: material.activoFijoId },
+                data: { stock: { increment: material.cantidad } }
+            });
+
+            // 3. Devolver stock a Producto y registrar movimiento
+            let prodId = material.activoFijo.productoId;
+            if (!prodId && material.activoFijo.codigoBarras) {
+                const matchProd = await tx.producto.findFirst({
+                    where: { organizationId: org.id, sku: material.activoFijo.codigoBarras }
+                });
+                if (matchProd) {
+                    prodId = matchProd.id;
+                }
+            }
+
+            if (prodId) {
+                // Incrementar stock en Producto
+                await tx.producto.update({
+                    where: { id: prodId },
+                    data: { stockActual: { increment: material.cantidad } }
+                });
+
+                // Registrar MovimientoInventario
+                await tx.movimientoInventario.create({
+                    data: {
+                        organizationId: org.id,
+                        productoId: prodId,
+                        tipoMovimiento: 'ENTRADA',
+                        cantidad: material.cantidad,
+                        motivo: `Devolución de material de Tarea Kanban ${material.task.codigo} (${material.task.title})`,
+                        usuarioId: user.id
+                    }
+                });
+            }
+
+            // 4. Registrar actividad del Kanban
+            await tx.kanbanActivity.create({
+                data: {
+                    spaceId: material.task.spaceId,
+                    taskId: material.taskId,
+                    usuarioId: user.id,
+                    accion: 'ACTUALIZACION',
+                    detalles: `Canceló descarga de material: devolvió ${material.cantidad}x ${material.activoFijo.descripcionCorta} a la ubicación "${material.activoFijo.area}"`
+                }
+            });
+        });
+
+        revalidatePath(`/kanban/${material.task.spaceId}`);
+        return { success: true };
+    } catch (e: any) {
+        console.error("cancelMaterialConsumptionForTask Error:", e);
+        return { success: false, error: e.message || 'Error al cancelar la descarga de material' };
+    }
+}
+
 
 
 
