@@ -45,3 +45,8 @@ next-env.d.ts
 
 .vercel
 .env*.local
+
+# Electron desktop files
+desktop/node_modules/
+desktop/dist/
+

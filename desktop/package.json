@@ -1,0 +1,49 @@
+{
+  "name": "bea-erp-desktop",
+  "version": "1.0.0",
+  "description": "Aplicación de Escritorio para BEA ERP - Bioelectrónica Honduras",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "erp",
+    "desktop",
+    "electron"
+  ],
+  "author": "Bioelectrónica Honduras",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.bioelectronicahn.erp",
+    "productName": "BEA ERP",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        "portable",
+        "zip"
+      ]
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "target": [
+        "dmg"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "BEA ERP"
+    }
+  }
+}
