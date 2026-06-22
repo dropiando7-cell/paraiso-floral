@@ -2781,20 +2781,20 @@ function ProductSummaryModal({
                             </div>
                             <div>
                                 <h2 className="text-lg font-bold text-slate-900 leading-tight">Consulta de Producto</h2>
-                                <p className="text-xs font-semibold text-slate-500">Busca por código, nombre o modelo</p>
+                                <p className="text-xs font-semibold text-slate-500">Busca por código, nombre, modelo o ubicación (ej. C-2-3)</p>
                             </div>
                         </div>
                         <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors active:scale-95">
                             <X className="w-5 h-5 text-slate-500" />
                         </button>
                     </div>
-
+ 
                     <form onSubmit={handleSearch} className="relative flex items-center gap-2">
                         <div className="relative flex-1">
                             <input
                                 autoFocus={!initialIdQr}
                                 type="text"
-                                placeholder="Ej: BEA-000001, CIRCUITO, MONITOR..."
+                                placeholder="Ej: BEA-000001, CIRCUITO, C-2-3..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value.toUpperCase().replace(/'/g, '-'))}
                                 className="w-full pl-10 pr-12 py-3 text-sm font-mono tracking-widest text-[#0500A3] border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-slate-50 transition-all placeholder:text-slate-300 placeholder:font-sans placeholder:tracking-normal placeholder:font-normal"
@@ -2814,7 +2814,7 @@ function ProductSummaryModal({
                         </button>
                     </form>
                 </div>
-
+ 
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-5 bg-slate-50/50">
                     {!hasSearched ? (
@@ -2822,7 +2822,7 @@ function ProductSummaryModal({
                             <div className="w-16 h-16 bg-white shadow-sm rounded-full flex items-center justify-center mb-4 border border-slate-100">
                                 <QrCode className="w-8 h-8 text-slate-300" />
                             </div>
-                            <p className="font-medium text-sm max-w-xs leading-relaxed">Escribe un nombre, modelo o escanea un código para ver su resumen de cantidades y distribución.</p>
+                            <p className="font-medium text-sm max-w-xs leading-relaxed">Escribe un nombre, modelo, ubicación o escanea un código para ver su resumen de cantidades y distribución.</p>
                         </div>
                     ) : loading ? (
                         <div className="flex flex-col items-center justify-center py-16 text-slate-400">

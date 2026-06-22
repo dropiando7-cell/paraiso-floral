@@ -1,0 +1,195 @@
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="utf-8">
+<title>Propuesta Comercial - Etapa 2 ERP Bioelectrónica</title>
+<!--[if gte mso 9]>
+<xml>
+<w:WordDocument>
+<w:View>Print</w:View>
+<w:Zoom>100</w:Zoom>
+<w:DoNotOptimizeForBrowser/>
+</w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #333333;
+    margin: 1in;
+  }
+  h1 {
+    font-size: 20pt;
+    color: #1e3a8a;
+    border-bottom: 2px solid #1e3a8a;
+    padding-bottom: 6px;
+    margin-top: 24pt;
+    margin-bottom: 12pt;
+    font-weight: bold;
+  }
+  h2 {
+    font-size: 14pt;
+    color: #0f766e;
+    margin-top: 18pt;
+    margin-bottom: 8pt;
+    font-weight: bold;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 4px;
+  }
+  h3 {
+    font-size: 12pt;
+    color: #1f2937;
+    margin-top: 14pt;
+    margin-bottom: 6pt;
+    font-weight: bold;
+  }
+  p {
+    margin-top: 0;
+    margin-bottom: 10pt;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 12pt;
+    margin-bottom: 12pt;
+  }
+  th {
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    padding: 10px;
+    font-weight: bold;
+    text-align: left;
+    color: #1f2937;
+  }
+  td {
+    border: 1px solid #d1d5db;
+    padding: 10px;
+    text-align: left;
+  }
+  .highlight-row {
+    background-color: #f9fafb;
+  }
+  .total-row {
+    font-weight: bold;
+    background-color: #f3f4f6;
+  }
+  .note {
+    background-color: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    padding: 12px;
+    margin: 12pt 0;
+    font-style: italic;
+  }
+  ul, ol {
+    margin-top: 0;
+    margin-bottom: 10pt;
+    padding-left: 20px;
+  }
+  li {
+    margin-bottom: 6pt;
+  }
+  .meta-info {
+    margin-bottom: 24pt;
+    font-size: 10.5pt;
+    color: #4b5563;
+  }
+  .signature-area {
+    margin-top: 40pt;
+    margin-bottom: 20pt;
+  }
+</style>
+</head>
+<body>
+
+<h1>Propuesta Comercial y Cotización: ERP Bioelectrónica (Etapa 2)</h1>
+
+<div class="meta-info">
+  <strong>DE:</strong> Consultor de Desarrollo de Software<br>
+  <strong>PARA:</strong> Manuel Tejada, Gerente General - Bioelectrónica Honduras<br>
+  <strong>FECHA:</strong> 22 de junio de 2026<br>
+  <strong>ASUNTO:</strong> Propuesta Comercial y Cotización – Desarrollo ERP Etapa 2 y Servicio de Inventario
+</div>
+
+<p>Estimado Ing. Tejada,</p>
+
+<p>Es un gusto saludarle. En seguimiento al plan de modernización digital para Bioelectrónica, presento la propuesta comercial correspondiente al desarrollo y estabilización de la <strong>Etapa 2</strong> del sistema ERP, junto con el servicio de levantamiento y carga inicial de inventario.</p>
+
+<h2>1. Alcance de los Servicios</h2>
+
+<h3>A. Desarrollo e Integración de Módulos (Etapa 2)</h3>
+<ul>
+  <li><strong>Cierre de Caja Diario:</strong> Control de arqueo físico por turnos y usuarios, conciliación automatizada con el POS y desglose de formas de pago (efectivo, transferencias, tarjetas).</li>
+  <li><strong>Control de Caja Chica:</strong> Registro digital de gastos menores, carga en la nube (Cloudflare R2) de comprobantes y reportes mensuales de egresos.</li>
+  <li><strong>Órdenes de Entrega (Bodega/Logística):</strong> Control de salida física del inventario vendido, recolección de firmas táctiles (canvas digital) del despachador y transportista, y evidencia fotográfica del despacho.</li>
+  <li><strong>Directorio Avanzado de Contactos:</strong> Perfiles unificados de Clientes, Proveedores, Médicos y Técnicos con historial transaccional de facturas y soporte en tiempo real.</li>
+  <li><strong>Garantías y Reemplazos:</strong> Trazabilidad de reclamos y fallas por números de serie de activos vendidos o rentados con reemplazo ágil en contratos activos.</li>
+  <li><strong>Gestor de Precios:</strong> Margen de ganancia operativa, protección de costos base y parametrización de impuestos SAR del ISV (15% general y 18% especial).</li>
+  <li><strong>Proyectos & Tareas:</strong> Tablero Kanban interactivo integrado para coordinación interna de personal técnico vinculando tareas directamente a órdenes de trabajo.</li>
+  <li><strong>Gráficas e Informes Contables:</strong> Dashboard gerencial de visualización del flujo monetario (Servicios, Rentas y Ventas) y auditoría de egresos.</li>
+  <li><strong>Tarjetas Digitales (vCard):</strong> Perfiles comerciales interactivos con QR dinámicos para el equipo ejecutivo y captación automática de prospectos.</li>
+</ul>
+
+<h3>B. Servicio de Inventario y Carga de Datos</h3>
+<ul>
+  <li>Levantamiento físico inicial del stock de productos, equipos de renta y repuestos de soporte técnico en las ubicaciones físicas de Bioelectrónica.</li>
+  <li>Clasificación, catalogación por categorías/sucursales y carga estructurada directa en la base de datos del ERP para iniciar operaciones con datos 100% reales.</li>
+</ul>
+
+<h2>2. Propuesta Económica Ajustada</h2>
+
+<p>Se ha estructurado un presupuesto cerrado y preferencial para Bioelectrónica:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Componente / Servicio</th>
+      <th>Descripción</th>
+      <th style="text-align: right; width: 150px;">Inversión (HNL)</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Desarrollo de Software ERP (Etapa 2)</strong></td>
+      <td>Implementación, despliegue y estabilización de los 9 módulos avanzados descritos en el alcance.</td>
+      <td style="text-align: right; font-weight: bold;">L 35,000.00</td>
+    </tr>
+    <tr class="highlight-row">
+      <td><strong>Levantamiento y Carga de Inventario</strong></td>
+      <td>Servicio operativo de toma de inventario físico y carga de datos iniciales en la base de datos.</td>
+      <td style="text-align: right; font-weight: bold;">L 5,000.00</td>
+    </tr>
+    <tr class="total-row">
+      <td colspan="2">INVERSIÓN TOTAL DE LA PROPUESTA</td>
+      <td style="text-align: right; color: #1e3a8a;">L 40,000.00</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note">
+  * A modo de referencia, el costo estimado en el mercado de desarrollo global para estas integraciones técnicas personalizadas supera los L 560,000.00 HNL ($23,000.00 USD), por lo que esta propuesta ofrece una relación valor-precio altamente preferente para la empresa.
+</div>
+
+<h2>3. Cronograma de Pagos Sugerido</h2>
+
+<p>Para facilitar la ejecución administrativa, se propone la distribución en tres desembolsos:</p>
+
+<ul>
+  <li><strong>50% (Pago de Inicio / Avance de Módulos):</strong> <strong>L 20,000.00 HNL</strong><br>
+  A la aceptación de la presente cotización (cubre el desarrollo de los módulos de facturación, caja chica, entregas y garantías que ya se encuentran avanzados en producción).</li>
+  <li><strong>30% (Entrega del Inventario y Gráficas):</strong> <strong>L 12,000.00 HNL</strong><br>
+  Contra la finalización de la carga de datos del inventario y despliegue del dashboard de gráficas gerenciales.</li>
+  <li><strong>20% (Aprobación Final y Cierre):</strong> <strong>L 8,000.00 HNL</strong><br>
+  Tras 15 días de uso continuo del sistema en producción y firma de conformidad de esta etapa.</li>
+</ul>
+
+<div class="signature-area">
+  <p>Quedo a su entera disposición para cualquier consulta adicional o ajuste en la presente propuesta.</p>
+  <br><br>
+  <p>_____________________________________________<br>
+  <strong>[Tu Nombre / Firma]</strong><br>
+  Consultor de Desarrollo de Software</p>
+</div>
+
+</body>
+</html>

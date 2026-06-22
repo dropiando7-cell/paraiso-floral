@@ -253,6 +253,7 @@ export async function searchActivosGlobal(query: string) {
                     { codigoBarras: { contains: query, mode: 'insensitive' } },
                     { descripcionCorta: { contains: query, mode: 'insensitive' } },
                     { modelo: { contains: query, mode: 'insensitive' } },
+                    { area: { contains: query, mode: 'insensitive' } },
                 ]
             },
             orderBy: [{ descripcionCorta: 'asc' }, { area: 'asc' }],
