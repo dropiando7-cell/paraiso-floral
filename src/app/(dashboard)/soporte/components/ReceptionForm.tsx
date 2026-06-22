@@ -11,12 +11,22 @@ type ReceptionFormProps = {
 };
 
 export default function ReceptionForm({ onSave, clientes = [], users = [] }: ReceptionFormProps) {
+  const getLocalDateString = () => {
+    const d = new Date();
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const [form, setForm] = useState({
     cliente: "", telefono: "+504 ", equipo: "medico", nombreEquipo: "", modelo: "", serie: "",
     marca: "", descripcionFalla: "", prioridad: "normal",
     costoRevision: "650", metodoPagoRevision: "Ninguno",
     tecnicoIds: [] as string[],
-    tipoTrabajo: "REPARACION"
+    tipoTrabajo: "NORMAL",
+    cobertura: "externa",
+    fechaRecibido: getLocalDateString()
   });
   const [photos, setPhotos] = useState<{name: string; file: File; url: string; size: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -128,7 +138,9 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
             costoRevision: "650",
             metodoPagoRevision: "Ninguno",
             tecnicoIds: [],
-            tipoTrabajo: "REPARACION"
+            tipoTrabajo: "NORMAL",
+            cobertura: "externa",
+            fechaRecibido: getLocalDateString()
           });
           setPhotos([]);
       }, 3000);
@@ -152,7 +164,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <div className="relative" ref={dropdownRef}>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Cliente / Empresa *</label>
           <input 
@@ -191,14 +203,34 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
              value={form.telefono} onChange={e => handleChange("telefono", e.target.value)} placeholder="+504 9999-0000"
           />
         </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Fecha de Recepción *</label>
+          <input 
+             type="date"
+             className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+             value={form.fechaRecibido} 
+             onChange={e => handleChange("fechaRecibido", e.target.value)}
+             required
+          />
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Cobertura de Orden</label>
+          <div className="flex gap-2">
+            {[["externa","🌍 Externa"],["interna","🏢 Interna"]].map(([v,l]) => (
+              <button type="button" key={v} onClick={() => handleChange("cobertura", v)} className={`flex-1 py-2.5 rounded-lg border-2 text-xs font-semibold transition-all ${
+                  form.cobertura === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
+              }`}>{l}</button>
+            ))}
+          </div>
+        </div>
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Trabajo</label>
-          <div className="flex gap-2">
-            {[["REPARACION","🔧 Reparación"],["MANTENIMIENTO","⚙️ Mantenimiento"]].map(([v,l]) => (
-              <button type="button" key={v} onClick={() => handleChange("tipoTrabajo", v)} className={`flex-1 py-2.5 rounded-lg border-2 text-xs font-semibold transition-all ${
+          <div className="flex gap-1.5">
+            {[["NORMAL","Normal"],["GARANTIA","Garantía"],["RECLAMO","Reclamo"]].map(([v,l]) => (
+              <button type="button" key={v} onClick={() => handleChange("tipoTrabajo", v)} className={`flex-1 py-2.5 rounded-lg border-2 text-[11px] font-semibold transition-all ${
                   form.tipoTrabajo === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
               }`}>{l}</button>
             ))}

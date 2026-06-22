@@ -746,6 +746,7 @@ model OrdenTrabajo {
   equipoDano         String
   tipoAparato        String?   @default("MEDICO")
   tipoTrabajo        String    @default("REPARACION")
+  cobertura          String    @default("externa")
   marcaModelo        String?
   serie              String?
   descripcionFalla   String?

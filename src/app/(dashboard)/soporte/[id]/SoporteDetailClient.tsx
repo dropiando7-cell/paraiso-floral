@@ -69,11 +69,24 @@ export default function SoporteDetailClient({
     };
   };
 
+  const formatForDateInput = (dateVal: string | Date | null | undefined) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Edit states for Work Order Datos
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false);
   const [editCliente, setEditCliente] = React.useState('');
   const [editTelefono, setEditTelefono] = React.useState('');
+  const [editFechaRecibido, setEditFechaRecibido] = React.useState('');
   const [editTipoAparato, setEditTipoAparato] = React.useState('MEDICO');
+  const [editTipoTrabajo, setEditTipoTrabajo] = React.useState('NORMAL');
+  const [editCobertura, setEditCobertura] = React.useState('externa');
   const [editEquipoDano, setEditEquipoDano] = React.useState('');
   const [editMarca, setEditMarca] = React.useState('');
   const [editModelo, setEditModelo] = React.useState('');
@@ -143,6 +156,9 @@ export default function SoporteDetailClient({
     setEditExistingPhotos(orden.fotosEstadoInicial || []);
     setEditPhotos([]);
     setLightboxUrl(null);
+    setEditTipoTrabajo(orden.tipoTrabajo || 'NORMAL');
+    setEditCobertura(orden.cobertura || 'externa');
+    setEditFechaRecibido(formatForDateInput(orden.fechaRecibido));
     setIsEditModalOpen(true);
   };
 
@@ -215,6 +231,9 @@ export default function SoporteDetailClient({
         costoRevision: parseFloat(editCostoRevision) || 650,
         metodoPagoRevision: editMetodoPagoRevision,
         fotosEstadoInicial: combinedPhotos,
+        tipoTrabajo: editTipoTrabajo,
+        cobertura: editCobertura,
+        fechaRecibido: editFechaRecibido,
       });
       if (res.success) {
         toast.success("Datos de la orden actualizados con éxito");
@@ -339,8 +358,24 @@ export default function SoporteDetailClient({
             <Wrench className="w-5 h-5 md:w-6 md:h-6 text-white" />
           </div>
           <div>
-            <h1 className="m-0 text-xl md:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="m-0 text-xl md:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2 flex-wrap">
               Módulo Técnico · Orden #{orden.codigoSeguridad}
+              <span className={`text-[10px] uppercase font-extrabold px-2.5 py-1 rounded-full border shrink-0 ${
+                orden.cobertura === 'interna' 
+                  ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                  : 'bg-blue-50 text-blue-700 border-blue-200'
+              }`}>
+                {orden.cobertura === 'interna' ? '🏢 Interna' : '🌍 Externa'}
+              </span>
+              <span className={`text-[10px] uppercase font-extrabold px-2.5 py-1 rounded-full border shrink-0 ${
+                orden.tipoTrabajo === 'GARANTIA' 
+                  ? 'bg-green-50 text-green-700 border-green-200' 
+                  : orden.tipoTrabajo === 'RECLAMO'
+                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                  : 'bg-slate-50 text-slate-700 border-slate-200'
+              }`}>
+                {orden.tipoTrabajo === 'GARANTIA' ? '🎖️ Garantía' : orden.tipoTrabajo === 'RECLAMO' ? '⚠️ Reclamo' : '⚙️ Normal'}
+              </span>
             </h1>
             <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">
               Bioelectrónica Honduras · Reparaciones y Mantenimiento
@@ -742,7 +777,7 @@ export default function SoporteDetailClient({
       {/* Modal para Editar Datos de la Orden */}
       {isEditModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col h-full sm:h-auto max-h-screen sm:max-h-[90vh] animate-in slide-in-from-bottom-56 sm:zoom-in-95 duration-300">
+          <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full max-w-6xl overflow-hidden flex flex-col h-full sm:h-auto max-h-screen sm:max-h-[90vh] animate-in slide-in-from-bottom-56 sm:zoom-in-95 duration-300">
             <div className="px-4 sm:px-6 py-4 flex items-center justify-between border-b border-slate-100 bg-slate-50/50 shrink-0">
               <h3 className="font-bold text-slate-800 text-sm sm:text-base">
                 Editar Datos de la Orden #{orden.codigoSeguridad}
@@ -757,7 +792,7 @@ export default function SoporteDetailClient({
             </div>
 
             <form onSubmit={handleSaveDatos} className="p-4 sm:p-6 overflow-y-auto space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                     Cliente / Empresa *
@@ -782,6 +817,59 @@ export default function SoporteDetailClient({
                     placeholder="+504 "
                     className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white shadow-sm"
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Fecha de Recepción *
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={editFechaRecibido}
+                    onChange={(e) => setEditFechaRecibido(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium shadow-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Cobertura de Orden
+                  </label>
+                  <div className="flex gap-2">
+                    {[["externa","🌍 Externa"],["interna","🏢 Interna"]].map(([v,l]) => (
+                      <button 
+                        type="button" 
+                        key={v} 
+                        onClick={() => setEditCobertura(v)} 
+                        className={`flex-1 py-3 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${
+                          editCobertura === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
+                        }`}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Tipo de Trabajo
+                  </label>
+                  <div className="flex gap-2">
+                    {[["NORMAL","Normal"],["GARANTIA","Garantía"],["RECLAMO","Reclamo"]].map(([v,l]) => (
+                      <button 
+                        type="button" 
+                        key={v} 
+                        onClick={() => setEditTipoTrabajo(v)} 
+                        className={`flex-1 py-3 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${
+                          editTipoTrabajo === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
+                        }`}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 

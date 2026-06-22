@@ -32,7 +32,7 @@ import { addActivityTypeToSpace } from '@/app/(dashboard)/kanban/actions';
 const SIDEBAR_MODULES = [
     "Portal Bioelectrónica",
     "Proyectos & Tareas",
-    "Mantenimiento y Reparaciones",
+    "Órdenes de Trabajo",
     "Inventario IA",
     "Rentas de Equipos",
     "Control de Caja Chica",

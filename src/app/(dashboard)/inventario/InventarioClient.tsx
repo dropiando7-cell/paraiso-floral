@@ -2769,8 +2769,8 @@ function ProductSummaryModal({
     const totalAreas = new Set(activos.map(a => a.area)).size;
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
-            <div className="bg-white w-full sm:rounded-2xl shadow-2xl sm:max-w-2xl flex flex-col max-h-[90vh] sm:max-h-[85vh] rounded-t-2xl animate-in slide-in-from-bottom-4 sm:slide-in-from-bottom-0 sm:zoom-in-95">
+        <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
+            <div className="bg-white w-full sm:rounded-2xl shadow-2xl sm:max-w-2xl flex flex-col max-h-[90vh] sm:max-h-[85vh] rounded-b-2xl animate-in slide-in-from-top-4 sm:slide-in-from-bottom-0 sm:zoom-in-95">
                 
                 {/* Header */}
                 <div className="px-5 py-4 border-b border-slate-100 flex flex-col gap-4 sticky top-0 bg-white/95 backdrop-blur z-10 sm:rounded-t-2xl shadow-sm">
@@ -3109,7 +3109,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const handleSuccess = () => { refresh(1); };
 
     return (
-        <div className="min-h-screen bg-slate-50 p-4 md:p-6 font-sans">
+        <div className="min-h-screen bg-slate-50 px-0 py-4 sm:p-4 md:p-6 font-sans">
             <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 mb-6">
                 <div>
                     {isRentaMode && (
@@ -3121,15 +3121,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                             Volver al módulo de Rentas
                         </button>
                     )}
-                    <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-3">
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-2 sm:gap-3">
                         {isRentaMode ? (
                             <>
-                                <ArrowRightLeft className="w-8 h-8 text-[#0500A3]" />
+                                <ArrowRightLeft className="w-6 h-6 sm:w-8 sm:h-8 text-[#0500A3]" />
                                 Equipos para Renta
                             </>
                         ) : (
                             <>
-                                <Package className="w-8 h-8 text-[#0500A3]" />
+                                <Package className="w-6 h-6 sm:w-8 sm:h-8 text-[#0500A3]" />
                                 Catálogo de Productos
                             </>
                         )}
@@ -3140,8 +3140,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                             : 'Gestión y control de inventario general de ventas.'}
                     </p>
                 </div>
-                <div className="flex flex-col items-end gap-2 w-full sm:w-auto mt-4 sm:mt-0">
-                    <div className="flex items-center gap-2">
+                <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto mt-4 sm:mt-0">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
                         {/* Funciones de Impresión para ADMIN */}
                         {userRole === 'SUPER_ADMIN' && (
                             <>
@@ -3176,26 +3176,25 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                 </button>
                             </>
                         )}
-                        <button onClick={() => setLoteModalOpen(true)}
-                            className="flex items-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print mt-2 sm:mt-0">
-                            <Printer className="w-5 h-5" /> Imprimir Lote
+                        <button
+                            onClick={() => setModalOpen(true)}
+                            className="flex items-center justify-center gap-2 bg-[#0500A3] hover:bg-[#0600c2] text-white px-5 py-3.5 rounded-2xl font-bold transition-all shadow-md active:scale-95 w-full sm:w-auto"
+                        >
+                            <Plus className="w-5 h-5" />
+                            {isRentaMode ? 'Nuevo Equipo' : 'Nuevo Producto'}
                         </button>
 
-                        <div className="flex flex-col sm:flex-row gap-3">
-                            <button
-                                onClick={() => setSearchModalOpen(true)}
-                                className="flex items-center justify-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto hide-on-print"
-                            >
-                                <Search className="w-5 h-5" /> Consultar
-                            </button>
-                            <button
-                                onClick={() => setModalOpen(true)}
-                                className="flex items-center gap-2 bg-[#0500A3] hover:bg-[#0600c2] text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-sm active:scale-95"
-                            >
-                                <Plus className="w-5 h-5" />
-                                {isRentaMode ? 'Nuevo Equipo' : 'Nuevo Producto'}
-                            </button>
-                        </div>
+                        <button
+                            onClick={() => setSearchModalOpen(true)}
+                            className="flex items-center justify-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3.5 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto hide-on-print"
+                        >
+                            <Search className="w-5 h-5" /> Consultar
+                        </button>
+
+                        <button onClick={() => setLoteModalOpen(true)}
+                            className="flex items-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3.5 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print">
+                            <Printer className="w-5 h-5" /> Imprimir Lote
+                        </button>
                     </div>
                 </div>
             </div>
@@ -3323,8 +3322,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto print-expand">
+            {/* Desktop Table View (>= 768px) */}
+            <div className="hidden md:block bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto print-expand">
                 <table className="w-full text-xs min-w-[800px]">
                     <thead>
                         <tr className="border-b border-slate-100 bg-slate-50">
@@ -3396,21 +3395,93 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                         ))}
                     </tbody>
                 </table>
+            </div>
 
-                {/* Pagination */}
-                <div className="flex items-center justify-between px-4 py-3 border-t border-slate-100 hide-on-print">
-                    <span className="text-xs text-slate-400">
-                        {total === 0 ? 'Sin activos registrados' : `${Math.min((page - 1) * PER_PAGE + 1, total)}–${Math.min(page * PER_PAGE, total)} de ${total}`}
-                    </span>
-                    <div className="flex items-center gap-1">
-                        <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1} className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors"><ChevronLeft className="w-4 h-4 text-slate-500" /></button>
-                        {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(n => (
-                            <button key={n} onClick={() => handlePageChange(n)}
-                                className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${page === n ? 'bg-[#0500A3] text-white' : 'hover:bg-slate-100 text-slate-600'}`}>{n}</button>
-                        ))}
-                        {totalPages > 5 && <span className="text-slate-400 text-xs px-1">...</span>}
-                        <button onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages} className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors"><ChevronRight className="w-4 h-4 text-slate-500" /></button>
+            {/* Mobile Card List View (< 768px) */}
+            <div className="block md:hidden space-y-3">
+                {activos.length === 0 && !isRefetching ? (
+                    <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
+                        <Package className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                        <div className="text-sm font-medium">No se encontraron activos</div>
                     </div>
+                ) : (
+                    activos.map(a => (
+                        <div 
+                            key={a.id} 
+                            onClick={() => setViewActivo(a)} 
+                            className="bg-white rounded-2xl border border-slate-200/70 p-3.5 shadow-xs hover:shadow-sm active:scale-[0.98] transition-all flex items-center gap-4 relative cursor-pointer"
+                        >
+                            {/* Left Side Thumbnail */}
+                            {a.imagenUrl ? (
+                                <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-slate-100 bg-slate-50 relative shadow-inner">
+                                    <Image 
+                                        src={a.imagenUrl} 
+                                        fill 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            const imgs = [a.imagenUrl, a.imagenPlacaUrl].filter(Boolean) as string[];
+                                            if (imgs.length > 0) setPreviewImage({ index: 0, images: imgs });
+                                        }} 
+                                        alt="" 
+                                        className="object-cover" 
+                                        sizes="64px"
+                                    />
+                                </div>
+                            ) : (
+                                <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 border border-slate-200/50">
+                                    <Eye className="w-5 h-5 text-slate-300" />
+                                </div>
+                            )}
+                            
+                            {/* Middle Text Details */}
+                            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                <h4 className="font-bold text-slate-800 text-sm leading-snug truncate">
+                                    {a.descripcionCorta}
+                                </h4>
+                                
+                                <span className="text-[10px] font-mono font-bold text-[#0500A3]/85 uppercase tracking-wider">
+                                    ID: {a.idQr}
+                                </span>
+                                
+                                <div className="flex items-center gap-1.5 flex-wrap text-slate-500 text-[11px] font-medium mt-1">
+                                    <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/50">
+                                        {a.stock ?? 1} ud.
+                                    </span>
+                                    <span className="text-slate-300">|</span>
+                                    <span className="flex items-center gap-0.5 max-w-[130px] truncate">
+                                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                        {a.area}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Right Side Status Badge */}
+                            <div className="shrink-0 self-center">
+                                <EstatusBadge estatus={a.estatusContable} />
+                                {a.estadoDano && (
+                                    <div className="mt-1.5 text-right">
+                                        <DanoBadge dano={a.estadoDano} />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {/* Pagination (Common) */}
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm mt-4 flex items-center justify-between px-4 py-3 hide-on-print">
+                <span className="text-xs text-slate-400">
+                    {total === 0 ? 'Sin activos registrados' : `${Math.min((page - 1) * PER_PAGE + 1, total)}–${Math.min(page * PER_PAGE, total)} de ${total}`}
+                </span>
+                <div className="flex items-center gap-1">
+                    <button onClick={() => handlePageChange(page - 1)} disabled={page <= 1} className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors"><ChevronLeft className="w-4 h-4 text-slate-500" /></button>
+                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map(n => (
+                        <button key={n} onClick={() => handlePageChange(n)}
+                            className={`w-8 h-8 rounded-lg text-xs font-medium transition-colors ${page === n ? 'bg-[#0500A3] text-white' : 'hover:bg-slate-100 text-slate-600'}`}>{n}</button>
+                    ))}
+                    {totalPages > 5 && <span className="text-slate-400 text-xs px-1">...</span>}
+                    <button onClick={() => handlePageChange(page + 1)} disabled={page >= totalPages} className="p-1.5 rounded-lg hover:bg-slate-100 disabled:opacity-30 transition-colors"><ChevronRight className="w-4 h-4 text-slate-500" /></button>
                 </div>
             </div>
 

@@ -65,7 +65,7 @@ export default function NuevoSoporteClient({ userId, clientes = [], users = [] }
     }
 
     return (
-        <div className="px-0 py-4 md:p-8 max-w-4xl mx-auto">
+        <div className="px-0 py-4 md:p-8 max-w-6xl mx-auto">
             <button 
                 onClick={() => router.push('/soporte')}
                 className="text-slate-500 hover:text-slate-800 flex items-center gap-2 mb-6 font-medium transition-colors"

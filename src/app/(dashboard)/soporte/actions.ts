@@ -69,6 +69,8 @@ export async function createOrdenTrabajo(data: {
     metodoPagoRevision?: string;
     tecnicoIds?: string[];
     tipoTrabajo?: string;
+    cobertura?: string;
+    fechaRecibido?: string | Date;
 }) {
     const orgId = await getOrgId();
 
@@ -122,7 +124,8 @@ export async function createOrdenTrabajo(data: {
             clienteId: clienteRecord.id,
             equipoDano: data.nombreEquipo?.trim() || (data.equipo.toLowerCase() === 'medico' ? 'Equipo Médico' : data.equipo.toLowerCase() === 'aire' ? 'Aire Acondicionado' : 'Otro'),
             tipoAparato: data.equipo.toUpperCase(),
-            tipoTrabajo: data.tipoTrabajo || 'REPARACION',
+            tipoTrabajo: data.tipoTrabajo || 'NORMAL',
+            cobertura: data.cobertura || 'externa',
             marcaModelo,
             serie: data.serie || null,
             descripcionFalla: data.descripcionFalla,
@@ -134,6 +137,7 @@ export async function createOrdenTrabajo(data: {
             estado: 'RECIBIDO',
             usuarioRecepcionId: data.usuarioRecepcionId || null,
             tecnicoReparacionId: firstTecnicoId,
+            fechaRecibido: data.fechaRecibido ? new Date(data.fechaRecibido) : new Date(),
             tecnicosAsignados: {
                 connect: data.tecnicoIds?.map(id => ({ id })) || []
             }
@@ -719,6 +723,9 @@ export async function updateDatosOrden(
         costoRevision?: number;
         metodoPagoRevision?: string;
         fotosEstadoInicial?: string[];
+        tipoTrabajo?: string;
+        cobertura?: string;
+        fechaRecibido?: string | Date;
     }
 ) {
     const orgId = await getOrgId();
@@ -734,6 +741,9 @@ export async function updateDatosOrden(
             costoRevision: data.costoRevision !== undefined ? parseFloat(data.costoRevision.toString()) : undefined,
             metodoPagoRevision: data.metodoPagoRevision || undefined,
             fotosEstadoInicial: data.fotosEstadoInicial || undefined,
+            tipoTrabajo: data.tipoTrabajo || undefined,
+            cobertura: data.cobertura || undefined,
+            fechaRecibido: data.fechaRecibido ? new Date(data.fechaRecibido) : undefined,
         },
         include: {
             cliente: true

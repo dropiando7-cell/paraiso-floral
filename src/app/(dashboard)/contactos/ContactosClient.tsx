@@ -166,7 +166,7 @@ export default function ContactosClient({ initialData }: { initialData: Cliente[
                                     <tr key={c.id} className="hover:bg-blue-50/30 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flexitems-center justify-center text-indigo-500 font-bold shrink-0">
+                                                <div className="w-10 h-10 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-500 font-bold shrink-0">
                                                     {c.nombre.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>

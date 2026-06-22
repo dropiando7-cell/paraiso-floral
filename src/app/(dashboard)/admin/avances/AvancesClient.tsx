@@ -69,7 +69,7 @@ const erpModules: ModuleData[] = [
     },
     {
         id: "soporte",
-        nombre: "Mantenimiento y Reparaciones",
+        nombre: "Órdenes de Trabajo",
         progreso: 90,
         estado: "OPTIMIZACION",
         colorClass: "from-blue-500 to-brand-600",
@@ -718,7 +718,7 @@ export default function AvancesClient({ dbUser }: { dbUser: any }) {
                                         <span>Etapa 1: Propuesta Inicial</span>
                                     </div>
                                     <p className="text-xs leading-relaxed text-slate-500">
-                                        Módulos originales propuestos para arrancar operaciones: <strong>Inventario, Mantenimiento y Reparaciones, Renta de Equipos, Cotizaciones y Facturación, y Página Web / Tienda.</strong>
+                                        Módulos originales propuestos para arrancar operaciones: <strong>Inventario, Órdenes de Trabajo, Renta de Equipos, Cotizaciones y Facturación, y Página Web / Tienda.</strong>
                                     </p>
                                     <div className="text-xs font-bold space-y-1">
                                         <div className="flex justify-between">

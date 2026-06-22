@@ -248,6 +248,36 @@ const translateType = (type: string) => {
     }
 };
 
+const getCardStatusStyles = (status: string) => {
+    const s = status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // remove accents
+    if (s.includes('ejecutar') || s.includes('hacer') || s.includes('pendiente')) {
+        return {
+            bg: 'bg-blue-50/20',
+            border: 'border-blue-200 hover:border-blue-400',
+            leftBar: 'bg-blue-500'
+        };
+    }
+    if (s.includes('ejecucion') || s.includes('curso') || s.includes('proceso')) {
+        return {
+            bg: 'bg-orange-50/20',
+            border: 'border-orange-200 hover:border-orange-400',
+            leftBar: 'bg-orange-500'
+        };
+    }
+    if (s.includes('completado') || s.includes('listo') || s.includes('finalizado') || s.includes('entregado')) {
+        return {
+            bg: 'bg-emerald-50/20',
+            border: 'border-emerald-250 hover:border-emerald-450',
+            leftBar: 'bg-emerald-500'
+        };
+    }
+    return {
+        bg: 'bg-white',
+        border: 'border-slate-200 hover:border-slate-350',
+        leftBar: 'bg-slate-300'
+    };
+};
+
 export default function KanbanSpaceClient({ initialData }: Props) {
     const space = initialData.space;
     const router = useRouter();
@@ -489,8 +519,17 @@ export default function KanbanSpaceClient({ initialData }: Props) {
             const matchesSearch = !query || 
                 task.title.toLowerCase().includes(query) ||
                 task.codigo.toLowerCase().includes(query) ||
-                (task.asignado && task.asignado.nombre.toLowerCase().includes(query)) ||
-                (task.asignados && task.asignados.some(m => m.nombre.toLowerCase().includes(query)));
+                (task.description && task.description.toLowerCase().includes(query)) ||
+                (task.etiquetas && task.etiquetas.some(e => e.toLowerCase().includes(query))) ||
+                (task.asignado && (
+                    task.asignado.nombre.toLowerCase().includes(query) ||
+                    members.find(m => m.id === task.asignado?.id)?.email?.toLowerCase().includes(query)
+                )) ||
+                (task.asignados && task.asignados.some(a => {
+                    const matchedMember = members.find(m => m.id === a.id);
+                    return a.nombre.toLowerCase().includes(query) || 
+                           (matchedMember?.email?.toLowerCase().includes(query));
+                }));
 
             const matchesType = selectedType ? task.type === selectedType : true;
             const matchesPriority = selectedPriority ? task.priority === selectedPriority : true;
@@ -566,21 +605,29 @@ export default function KanbanSpaceClient({ initialData }: Props) {
             filtered.sort((a, b) => {
                 const aName = a.asignado?.nombre.toLowerCase() || '';
                 const bName = b.asignado?.nombre.toLowerCase() || '';
+                const aEmail = a.asignado ? (members.find(m => m.id === a.asignado?.id)?.email?.toLowerCase() || '') : '';
+                const bEmail = b.asignado ? (members.find(m => m.id === b.asignado?.id)?.email?.toLowerCase() || '') : '';
                 
-                const aMatchesAssigneeOnly = aName.includes(query) && (a.asignados.length === 0 || (a.asignados.length === 1 && a.asignados[0].id === a.asignado?.id));
-                const bMatchesAssigneeOnly = bName.includes(query) && (b.asignados.length === 0 || (b.asignados.length === 1 && b.asignados[0].id === b.asignado?.id));
+                const aMatchesAssigneeOnly = (aName.includes(query) || aEmail.includes(query)) && (a.asignados.length === 0 || (a.asignados.length === 1 && a.asignados[0].id === a.asignado?.id));
+                const bMatchesAssigneeOnly = (bName.includes(query) || bEmail.includes(query)) && (b.asignados.length === 0 || (b.asignados.length === 1 && b.asignados[0].id === b.asignado?.id));
                 
                 if (aMatchesAssigneeOnly && !bMatchesAssigneeOnly) return -1;
                 if (!aMatchesAssigneeOnly && bMatchesAssigneeOnly) return 1;
 
-                const aMatchesAssignee = aName.includes(query);
-                const bMatchesAssignee = bName.includes(query);
+                const aMatchesAssignee = aName.includes(query) || aEmail.includes(query);
+                const bMatchesAssignee = bName.includes(query) || bEmail.includes(query);
 
                 if (aMatchesAssignee && !bMatchesAssignee) return -1;
                 if (!aMatchesAssignee && bMatchesAssignee) return 1;
 
-                const aMatchesParticipant = a.asignados ? a.asignados.some(m => m.nombre.toLowerCase().includes(query)) : false;
-                const bMatchesParticipant = b.asignados ? b.asignados.some(m => m.nombre.toLowerCase().includes(query)) : false;
+                const aMatchesParticipant = a.asignados ? a.asignados.some(m => {
+                    const matched = members.find(u => u.id === m.id);
+                    return m.nombre.toLowerCase().includes(query) || (matched?.email?.toLowerCase().includes(query));
+                }) : false;
+                const bMatchesParticipant = b.asignados ? b.asignados.some(m => {
+                    const matched = members.find(u => u.id === m.id);
+                    return m.nombre.toLowerCase().includes(query) || (matched?.email?.toLowerCase().includes(query));
+                }) : false;
 
                 if (aMatchesParticipant && !bMatchesParticipant) return -1;
                 if (!aMatchesParticipant && bMatchesParticipant) return 1;
@@ -590,7 +637,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
         }
 
         return filtered;
-    }, [tasks, search, selectedType, selectedPriority, selectedAssignee, selectedDateFilter, customStartDate, customEndDate]);
+    }, [tasks, search, selectedType, selectedPriority, selectedAssignee, selectedDateFilter, customStartDate, customEndDate, members]);
 
 
     // 2. Drag & Drop nativo de HTML5
@@ -1071,7 +1118,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 md:h-3.5 md:w-3.5 text-slate-400" />
                             <input
                                 type="text"
-                                placeholder="Buscar por título o código..."
+                                placeholder="Buscar por título, código, descripción o responsable..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2.5 md:py-2 text-sm md:text-xs text-slate-850 placeholder-slate-400 focus:border-brand-500 focus:outline-none"
@@ -1260,18 +1307,15 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                     draggable
                                                     onDragStart={(e) => handleDragStart(e, task.id)}
                                                     onClick={() => setSelectedTask(task)}
-                                                    className={`relative border hover:border-brand-500/30 hover:shadow-md rounded-xl p-4 sm:p-3.5 pl-5.5 sm:pl-4.5 shadow-sm cursor-grab active:cursor-grabbing transition duration-150 group ${
-                                                        task.type === 'Orden de Trabajo' 
-                                                            ? 'bg-blue-50/40 border-blue-200/70' 
-                                                            : 'bg-white border-slate-200'
+                                                    className={`relative border hover:shadow-md rounded-xl p-4 sm:p-3.5 pl-5.5 sm:pl-4.5 shadow-sm cursor-grab active:cursor-grabbing transition duration-150 group ${
+                                                        getCardStatusStyles(columna).bg
+                                                    } ${
+                                                        getCardStatusStyles(columna).border
                                                     }`}
                                                 >
                                                     {/* Indicador de Prioridad Lateral */}
                                                     <div className={`absolute left-0 top-0 bottom-0 w-1.5 rounded-l-xl ${
-                                                        task.priority === 'URGENT' ? 'bg-red-500' :
-                                                        task.priority === 'HIGH' ? 'bg-amber-500' :
-                                                        task.priority === 'MEDIUM' ? 'bg-brand-500' :
-                                                        'bg-slate-300'
+                                                        getCardStatusStyles(columna).leftBar
                                                      }`} />
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between gap-2">
