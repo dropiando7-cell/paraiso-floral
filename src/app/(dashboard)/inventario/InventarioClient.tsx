@@ -2908,21 +2908,27 @@ function ProductSummaryModal({
                             {viewMode === 'list' && (
                                 <div className="bg-white border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 shadow-sm">
                                     {activos.map(a => (
-                                        <div key={a.id} className="flex items-center justify-between p-3 hover:bg-slate-50 transition-colors gap-3">
+                                        <a 
+                                            href={`/ficha-tecnica/${a.idQr}`} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer"
+                                            key={a.id} 
+                                            className="flex items-center justify-between p-3 hover:bg-slate-50 transition-colors gap-3 cursor-pointer group"
+                                        >
                                             <div className="flex items-center gap-3 min-w-0 flex-1">
-                                                <div className="bg-slate-100 text-slate-700 font-extrabold px-2 py-1.5 rounded-lg text-xs shrink-0 w-10 text-center border border-slate-200 shadow-inner">{a.stock ?? 1}</div>
+                                                <div className="bg-slate-100 text-slate-700 font-extrabold px-2 py-1.5 rounded-lg text-xs shrink-0 w-10 text-center border border-slate-200 shadow-inner group-hover:bg-[#0500A3] group-hover:text-white transition-colors">{a.stock ?? 1}</div>
                                                 <div className="min-w-0 pr-2">
                                                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                                                        <span className="font-bold text-xs text-slate-800">{a.area}</span>
+                                                        <span className="font-bold text-xs text-slate-800 group-hover:text-[#0500A3] transition-colors">{a.area}</span>
                                                     </div>
-                                                    <div className="text-xs text-slate-500 truncate">{a.descripcionCorta}</div>
+                                                    <div className="text-xs text-slate-500 truncate group-hover:text-slate-700 transition-colors">{a.descripcionCorta}</div>
                                                 </div>
                                             </div>
                                             <div className="shrink-0 flex flex-col items-end gap-1.5">
-                                                <span className="font-mono text-[9px] text-[#0500A3] font-bold bg-blue-50 px-1.5 py-0.5 rounded ring-1 ring-[#0500A3]/10">{a.idQr}</span>
+                                                <span className="font-mono text-[9px] text-[#0500A3] font-bold bg-blue-50 px-1.5 py-0.5 rounded ring-1 ring-[#0500A3]/10 group-hover:bg-[#0500A3]/10 transition-all">{a.idQr}</span>
                                                 <div className="scale-90 origin-right"><EstatusBadge estatus={a.estatusContable} /></div>
                                             </div>
-                                        </div>
+                                        </a>
                                     ))}
                                 </div>
                             )}
