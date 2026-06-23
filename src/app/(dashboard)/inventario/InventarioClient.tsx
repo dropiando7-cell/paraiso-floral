@@ -2231,34 +2231,30 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     placeholder="Ej: LTA-2023..."
                                                     className={`${inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                             </div>
-                                            {!esConsumible && (
-                                                <>
-                                                    <div>
-                                                        <FieldLabel>Garantía <span className="text-slate-400 font-normal text-xs">(Tiempo o años)</span></FieldLabel>
-                                                        <input type="text" name="garantia"
-                                                            value={garantia || ''}
-                                                            onChange={e => setGarantia(e.target.value)}
-                                                            placeholder="Ej: 1 año, 18 meses, 2 años..."
-                                                            className={inputCls} />
-                                                    </div>
-                                                    <div>
-                                                        <FieldLabel>Mantenimientos Incluidos</FieldLabel>
-                                                        <input type="number" name="mantenimientosIncluidos"
-                                                            value={mantenimientosIncluidos || ''}
-                                                            onChange={e => setMantenimientosIncluidos(e.target.value)}
-                                                            placeholder="Ej: 2, 4..."
-                                                            className={inputCls} />
-                                                    </div>
-                                                    <div>
-                                                        <FieldLabel>Frecuencia Mantenimiento (Meses)</FieldLabel>
-                                                        <input type="number" name="frecuenciaMantenimientoMeses"
-                                                            value={frecuenciaMantenimientoMeses || ''}
-                                                            onChange={e => setFrecuenciaMantenimientoMeses(e.target.value)}
-                                                            placeholder="Ej: 6, 12..."
-                                                            className={inputCls} />
-                                                    </div>
-                                                </>
-                                            )}
+                                            <div>
+                                                <FieldLabel>Garantía <span className="text-slate-400 font-normal text-xs">(Tiempo o años)</span></FieldLabel>
+                                                <input type="text" name="garantia"
+                                                    value={garantia || ''}
+                                                    onChange={e => setGarantia(e.target.value)}
+                                                    placeholder="Ej: 1 año, 18 meses, 2 años..."
+                                                    className={inputCls} />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Mantenimientos Incluidos</FieldLabel>
+                                                <input type="number" name="mantenimientosIncluidos"
+                                                    value={mantenimientosIncluidos || ''}
+                                                    onChange={e => setMantenimientosIncluidos(e.target.value)}
+                                                    placeholder="Ej: 2, 4..."
+                                                    className={inputCls} />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Frecuencia Mantenimiento (Meses)</FieldLabel>
+                                                <input type="number" name="frecuenciaMantenimientoMeses"
+                                                    value={frecuenciaMantenimientoMeses || ''}
+                                                    onChange={e => setFrecuenciaMantenimientoMeses(e.target.value)}
+                                                    placeholder="Ej: 6, 12..."
+                                                    className={inputCls} />
+                                            </div>
                                         </div>
 
                                         {/* Compatibilidad Tags */}
