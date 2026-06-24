@@ -236,7 +236,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         rtn: (doc.cliente as any).rtn || '',
         phone: (doc.cliente as any).telefono || '',
       } : null,
-      nombreUsuario: (doc as any).nombreUsuario || (doc as any).creadoPor?.nombre || (doc as any).creadoPor?.email || 'Sistema',
+      nombreUsuario: (doc.creadoPor ? [doc.creadoPor.nombre, doc.creadoPor.apellido].filter(Boolean).join(' ') : null) || (doc as any).nombreUsuario || (doc as any).creadoPor?.email || 'Sistema',
       paymentTerms: doc.terminosPago || '30 días netos',
       notes: doc.notas || '',
       lineItems,

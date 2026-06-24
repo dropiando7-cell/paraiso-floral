@@ -53,6 +53,7 @@ export async function updateOrdenEntrega(
         evidenciaFotosDesc?: string[];
         mostrarFirmas?: boolean;
         mostrarSello?: boolean;
+        detallesExcluidos?: string[];
     }
 ) {
     try {
@@ -75,7 +76,8 @@ export async function updateOrdenEntrega(
                 evidenciaFotos: data.evidenciaFotos !== undefined ? data.evidenciaFotos : undefined,
                 evidenciaFotosDesc: data.evidenciaFotosDesc !== undefined ? data.evidenciaFotosDesc : undefined,
                 mostrarFirmas: data.mostrarFirmas !== undefined ? data.mostrarFirmas : undefined,
-                mostrarSello: data.mostrarSello !== undefined ? data.mostrarSello : undefined
+                mostrarSello: data.mostrarSello !== undefined ? data.mostrarSello : undefined,
+                detallesExcluidos: data.detallesExcluidos !== undefined ? data.detallesExcluidos : undefined
             }
         });
 

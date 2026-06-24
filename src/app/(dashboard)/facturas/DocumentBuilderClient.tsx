@@ -32,6 +32,7 @@ interface LineItem {
   productoId?: string;
   activoId?: string;
   imageUrl?: string;
+  serie?: string | null;
   isSection?: boolean;
   sectionStyle?: {
     bg?: string;
@@ -67,7 +68,7 @@ interface Product {
   serie?: string | null;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser } from './actions';
 import { createContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
@@ -77,6 +78,7 @@ import ModernTemplate from '@/components/facturas/templates/ModernTemplate';
 import ClassicTemplate from '@/components/facturas/templates/ClassicTemplate';
 import MinimalistTemplate from '@/components/facturas/templates/MinimalistTemplate';
 import LegacyTemplate from '@/components/facturas/templates/LegacyTemplate';
+import OrdenEntregaTemplate from '@/components/facturas/templates/OrdenEntregaTemplate';
 import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
 import { convertirDocumento } from './actions';
@@ -390,10 +392,12 @@ function LineItemRow({
     if (product.type === 'producto') {
        onChange(item.id, 'productoId', product.id);
        onChange(item.id, 'activoId', undefined);
+       onChange(item.id, 'serie', null);
     }
     if (product.type === 'activo') {
        onChange(item.id, 'activoId', product.id);
        onChange(item.id, 'productoId', undefined);
+       onChange(item.id, 'serie', product.serie || null);
     }
     
     setShowAutocomplete(false);
@@ -674,8 +678,16 @@ function LineItemRow({
                               onChange(item.id, 'shortDesc', res.name);
                               if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
                               if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
-                              if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
-                              if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
+                              if (res.type === 'producto') {
+                                onChange(item.id, 'productoId', res.id);
+                                onChange(item.id, 'activoId', undefined);
+                                onChange(item.id, 'serie', null);
+                              }
+                              if (res.type === 'activo') {
+                                onChange(item.id, 'activoId', res.id);
+                                onChange(item.id, 'productoId', undefined);
+                                onChange(item.id, 'serie', (res as any).serie || null);
+                              }
                               if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
                             }
                           } catch(err) { console.error('Error in onBlur search:', err); }
@@ -997,11 +1009,19 @@ export default function DocumentBuilderClient({
   const [loadingOrden, setLoadingOrden] = useState(false);
   const [isUploadingFoto, setIsUploadingFoto] = useState(false);
   const [showOrdenEntregaPanel, setShowOrdenEntregaPanel] = useState(true);
+  const [activeCanvasMode, setActiveCanvasMode] = useState<'document' | 'orden_entrega'>('document');
   
   // States for registering new product directly
   const [registeringLineId, setRegisteringLineId] = useState<string | null>(null);
   const [isActivoModalOpen, setIsActivoModalOpen] = useState(false);
   const [dbAreas, setDbAreas] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    getAuthenticatedUser()
+      .then(user => setCurrentUser(user))
+      .catch(err => console.error("Error fetching authenticated user in DocumentBuilderClient:", err));
+  }, []);
 
   const templateContainerRef = useRef<HTMLDivElement>(null);
   const [settings, setSettings] = useState<InvoiceSettings>(() => {
@@ -1014,6 +1034,7 @@ export default function DocumentBuilderClient({
   const isAnulada = initialData?.estado === 'ANULADA';
   const isConvertida = initialData?.estado === 'CONVERTIDA';
   const effectiveViewMode = viewMode || isAnulada || isConvertida || isForcePrinting;
+  const currentCanvasMode = docType === 'factura' ? activeCanvasMode : 'document';
 
   const estaVencida = typeof window !== 'undefined' ? (function() {
     if (!initialData?.fechaEmision || 
@@ -1241,6 +1262,7 @@ export default function DocumentBuilderClient({
               unitPrice: (Number(item.unitPrice) === 0 || !item.unitPrice) ? newlyCreatedProduct.price : item.unitPrice,
               productoId: newlyCreatedProduct.type === 'producto' ? newlyCreatedProduct.id : undefined,
               activoId: newlyCreatedProduct.type === 'activo' ? newlyCreatedProduct.id : undefined,
+              serie: newlyCreatedProduct.serie || null,
             };
           }
           return item;
@@ -1668,7 +1690,8 @@ export default function DocumentBuilderClient({
             discountType,
             productoId: d.productoId || undefined,
             activoId: d.activoId || undefined,
-            imageUrl: d.activo?.imagenUrl || undefined
+            imageUrl: d.activo?.imagenUrl || undefined,
+            serie: d.activo?.serie || null
           };
         });
         setLineItems(loadedItems);
@@ -1713,8 +1736,27 @@ export default function DocumentBuilderClient({
         console.error("Error al cargar datos", e);
       }
     };
-    loadData();
   }, [docType]);
+
+  // Safety net: resolve missing asset serial numbers against loaded catalog
+  useEffect(() => {
+    if (allProducts.length > 0 && lineItems.length > 0) {
+      let changed = false;
+      const updated = lineItems.map(item => {
+        if (item.activoId && !item.serie) {
+          const matched = allProducts.find(p => p.id === item.activoId && p.type === 'activo');
+          if (matched && matched.serie) {
+            changed = true;
+            return { ...item, serie: matched.serie };
+          }
+        }
+        return item;
+      });
+      if (changed) {
+        setLineItems(updated);
+      }
+    }
+  }, [allProducts, lineItems]);
 
   // Global hotkey for adding new row
   useEffect(() => {
@@ -1834,6 +1876,30 @@ export default function DocumentBuilderClient({
     ));
   }, [lineItems]);
 
+  const handleToggleItemExcluido = async (itemId: string, isIncluded: boolean) => {
+    if (!ordenEntrega) return;
+    const currentExcluded = ordenEntrega.detallesExcluidos || [];
+    let newExcluded: string[];
+    if (!isIncluded) {
+      newExcluded = [...currentExcluded, itemId];
+    } else {
+      newExcluded = currentExcluded.filter((id: string) => id !== itemId);
+    }
+    
+    const toastId = toast.loading('Actualizando artículos de entrega...');
+    try {
+      const res = await updateOrdenEntrega(ordenEntrega.id, { detallesExcluidos: newExcluded });
+      if (res.success && res.orden) {
+        setOrdenEntrega(res.orden);
+        toast.success('Artículos actualizados', { id: toastId });
+      } else {
+        throw new Error(res.error);
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error al actualizar', { id: toastId });
+    }
+  };
+
   const handleDuplicateLine = useCallback((id: string) => {
     setLineItems(prev => {
       const index = prev.findIndex(item => item.id === id);
@@ -1868,6 +1934,7 @@ export default function DocumentBuilderClient({
       productoId: product.type === 'producto' ? product.id : undefined,
       activoId: product.type === 'activo' ? product.id : undefined,
       imageUrl: (product as any).imageUrl || undefined,
+      serie: product.serie || null,
     };
     setLineItems(prev => {
       if (activeLineId) {
@@ -2118,6 +2185,8 @@ export default function DocumentBuilderClient({
     } 
     : null;
 
+  const resolvedNombreUsuario = (initialData?.creadoPor ? [initialData.creadoPor.nombre, initialData.creadoPor.apellido].filter(Boolean).join(' ') : null) || initialData?.nombreUsuario || currentUser?.fullName || 'Administrador (BEA)';
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans print:!bg-white overflow-x-hidden print:overflow-visible print:min-h-0 print:block">
       {/* Top Bar */}
@@ -2187,9 +2256,25 @@ export default function DocumentBuilderClient({
              </div>
           )}
           
-          {settings.template === 'modern' && <ModernTemplate 
+          {currentCanvasMode === 'orden_entrega' && (
+            <OrdenEntregaTemplate
+              settings={settings}
+              organization={organization}
+              docNumber={docNumber || 'PENDIENTE'}
+              nombreUsuario={resolvedNombreUsuario}
+              selectedClient={selectedClient}
+              today={today}
+              lineItems={lineItems}
+              viewMode={effectiveViewMode}
+              ordenEntrega={ordenEntrega}
+              onToggleItemExcluido={handleToggleItemExcluido}
+              ordenTrabajo={initialData?.ordenTrabajo}
+            />
+          )}
+
+          {currentCanvasMode === 'document' && settings.template === 'modern' && <ModernTemplate 
             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-            nombreUsuario={initialData?.nombreUsuario}
+            nombreUsuario={resolvedNombreUsuario}
             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
             today={today} futureDate={futureDate} selectedClient={selectedClient} 
             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
@@ -2202,9 +2287,9 @@ export default function DocumentBuilderClient({
             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
           />}
-          {settings.template === 'classic' && <ClassicTemplate 
+          {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-             nombreUsuario={initialData?.nombreUsuario}
+             nombreUsuario={resolvedNombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
@@ -2217,9 +2302,9 @@ export default function DocumentBuilderClient({
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
           />}
-          {settings.template === 'minimalist' && <MinimalistTemplate 
+          {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-             nombreUsuario={initialData?.nombreUsuario}
+             nombreUsuario={resolvedNombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
@@ -2232,9 +2317,9 @@ export default function DocumentBuilderClient({
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
           />}
-          {settings.template === 'legacy' && <LegacyTemplate 
+          {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
-             nombreUsuario={initialData?.nombreUsuario}
+             nombreUsuario={resolvedNombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
              today={today} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
@@ -2387,6 +2472,35 @@ export default function DocumentBuilderClient({
 
             {ordenEntrega ? (
               <>
+                {/* Selector de Lienzo */}
+                <div className="space-y-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Vista del Canvas</span>
+                  <div className="flex gap-1.5 p-1 bg-slate-100 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setActiveCanvasMode('document')}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                        activeCanvasMode === 'document' 
+                          ? 'bg-white text-slate-800 shadow-sm' 
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      📄 Factura
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveCanvasMode('orden_entrega')}
+                      className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${
+                        activeCanvasMode === 'orden_entrega' 
+                          ? 'bg-white text-slate-800 shadow-sm' 
+                          : 'text-slate-500 hover:text-slate-700'
+                      }`}
+                    >
+                      🚚 Entrega
+                    </button>
+                  </div>
+                </div>
+
                 {/* Toggles section */}
                 <div className="space-y-4">
                   <div className="flex items-start gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">

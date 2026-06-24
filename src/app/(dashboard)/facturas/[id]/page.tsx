@@ -82,7 +82,15 @@ export default async function EditDocumentPage({
                             totalDescuento: 0,
                             totalLinea: r.cantidad * (r.precioAprobado !== null ? Number(r.precioAprobado) : Number(r.precioSugerido || 0)),
                             productoId: r.productoId,
-                            activoId: r.activoFijoId
+                            activoId: r.activoFijoId,
+                            producto: r.producto ? { sku: r.producto.sku } : undefined,
+                            activo: r.activoFijo ? {
+                              id: r.activoFijo.id,
+                              idQr: r.activoFijo.idQr,
+                              descripcionCorta: r.activoFijo.descripcionCorta,
+                              serie: r.activoFijo.serie,
+                              imagenUrl: r.activoFijo.imagenUrl
+                            } : undefined
                         })),
                         ...manoObraArr.map(m => ({
                             porcentajeIsv: 15,

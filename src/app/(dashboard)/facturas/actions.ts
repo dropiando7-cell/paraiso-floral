@@ -689,7 +689,8 @@ export async function buscarItemPorCodigo(codigo: string) {
                 description: activo.descripcionDetallada || `Serie: ${activo.serie || 'N/A'} - Modelo: ${activo.modelo || 'N/A'}`,
                 price: activo.producto && activo.producto.precioVenta ? Number(activo.producto.precioVenta) : (Number(activo.costoAdq) || 0),
                 fechaVencimiento: activo.fechaVencimiento ? activo.fechaVencimiento.toISOString() : undefined,
-                imageUrl: activo.imagenUrl || undefined
+                imageUrl: activo.imagenUrl || undefined,
+                serie: activo.serie || null
             };
         }
 
@@ -745,6 +746,7 @@ export async function getDocumentoById(id: string) {
             where: { id, organizationId },
             include: {
                 cliente: true,
+                creadoPor: true,
                 ordenTrabajo: {
                     select: {
                         tipoTrabajo: true

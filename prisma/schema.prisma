@@ -1220,6 +1220,7 @@ model OrdenEntrega {
   evidenciaFotosDesc    String[]      @default([]) // Descripciones de las fotos
   mostrarFirmas         Boolean       @default(true)
   mostrarSello          Boolean       @default(true)
+  detallesExcluidos     String[]      @default([])
   creadoPorId           String?       @db.Uuid
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt

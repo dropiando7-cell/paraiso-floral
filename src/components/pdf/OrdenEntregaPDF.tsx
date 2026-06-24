@@ -205,11 +205,12 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   evidenciaImage: {
-    width: '100%',
+    width: 75,
     height: 75,
     borderWidth: 0.75,
     borderColor: '#000000',
-    objectFit: 'cover',
+    objectFit: 'contain',
+    backgroundColor: '#f8fafc',
   },
   evidenciaText: {
     fontSize: 7,
@@ -323,7 +324,8 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
     organization, settings, docNumber, selectedClient, lineItems, today, ordenEntrega, ordenTrabajo
   } = data;
 
-  const validItems = lineItems?.filter((item: any) => !item.isSection) || [];
+  const excludedIds = ordenEntrega?.detallesExcluidos || [];
+  const validItems = lineItems?.filter((item: any) => !item.isSection && !excludedIds.includes(item.id)) || [];
 
   // Recopilar fotos de evidencia en las imágenes pre-cargadas
   const evidenciaImages = Object.keys(images)
@@ -354,7 +356,7 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="LETTER" style={styles.page}>
         {/* Header */}
         <View style={styles.header}>
           <View>
