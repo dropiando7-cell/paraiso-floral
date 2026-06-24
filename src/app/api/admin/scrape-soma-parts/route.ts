@@ -280,6 +280,73 @@ const extractModel = (name: string, brand: string): string => {
     return model || "Genérico";
 };
 
+// Fetch with direct attempt and proxy fallback with exponential backoff retries
+async function fetchWithFallback(url: string, options: any = {}): Promise<any> {
+    const requestHeaders = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'application/json, text/plain, */*',
+        'Accept-Language': 'en-US,en;q=0.9,es;q=0.8',
+        ...options.headers
+    };
+
+    let lastResponse: any = null;
+    let lastError: any = null;
+
+    // 1. Direct attempt
+    try {
+        console.log(`[Scraper Parts] Trying direct fetch: ${url}`);
+        const response: any = await fetch(url, { ...options, headers: requestHeaders });
+        if (response.ok) {
+            return response;
+        }
+        console.log(`[Scraper Parts] Direct fetch failed with status ${response.status}`);
+        lastResponse = response;
+    } catch (err: any) {
+        console.log(`[Scraper Parts] Direct fetch failed with error: ${err.message}`);
+        lastError = err;
+    }
+
+    // 2. Fallback to api.allorigins.win
+    console.log(`[Scraper Parts] Falling back to proxy for: ${url}`);
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+    
+    const maxRetries = 3;
+    let delay = 1000;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            console.log(`[Scraper Parts] Proxy fetch attempt ${attempt}/${maxRetries}: ${proxyUrl}`);
+            const proxyResponse: any = await fetch(proxyUrl, {
+                ...options,
+                headers: {
+                    ...requestHeaders,
+                    'Cache-Control': 'no-cache'
+                }
+            });
+            if (proxyResponse.ok) {
+                return proxyResponse;
+            }
+            console.warn(`[Scraper Parts] Proxy attempt ${attempt} failed with status ${proxyResponse.status}`);
+            lastResponse = proxyResponse;
+        } catch (proxyErr: any) {
+            console.warn(`[Scraper Parts] Proxy attempt ${attempt} failed with error: ${proxyErr.message}`);
+            lastError = proxyErr;
+        }
+
+        if (attempt < maxRetries) {
+            console.log(`[Scraper Parts] Waiting ${delay}ms before retrying proxy...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            delay *= 2;
+        }
+    }
+
+    // If both failed, return the last response if we got one, otherwise throw the last exception
+    if (lastResponse) {
+        return lastResponse;
+    }
+    throw lastError || new Error(`Failed to fetch ${url} directly and via proxy.`);
+}
+
 export async function POST(req: NextRequest) {
     try {
         // 1. Authenticate user
@@ -332,7 +399,7 @@ export async function POST(req: NextRequest) {
                         console.log(`[Scraper Parts] Fetching products from live URL: ${targetUrl}`);
                         sendUpdate({ type: 'status', message: `Descargando repuestos, página ${page}...` });
 
-                        const response = await fetch(targetUrl, { headers: HEADERS });
+                        const response = await fetchWithFallback(targetUrl, { headers: HEADERS });
                         if (!response.ok) {
                             if (page === 1) {
                                 throw new Error(`Error de red al consultar Soma Medical Parts (Código: ${response.status})`);
@@ -434,7 +501,7 @@ export async function POST(req: NextRequest) {
                             try {
                                 console.log(`[Scraper Parts] Downloading image for ${decodedName}: ${originalImageUrl}`);
                                 sendUpdate({ type: 'status', message: `Descargando imagen comercial para: ${decodedName}` });
-                                const imgResponse = await fetch(originalImageUrl, { headers: HEADERS });
+                                const imgResponse = await fetchWithFallback(originalImageUrl, { headers: HEADERS });
                                 if (imgResponse.ok) {
                                     const arrayBuffer = await imgResponse.arrayBuffer();
                                     const buffer = Buffer.from(arrayBuffer);
