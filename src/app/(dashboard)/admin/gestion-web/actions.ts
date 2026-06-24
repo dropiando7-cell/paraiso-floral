@@ -771,3 +771,26 @@ export async function deleteInventoryItem(id: string, type: 'activo' | 'producto
         return { success: false, error: error.message || 'Error al eliminar el producto' };
     }
 }
+
+export async function getImportedCategories() {
+    try {
+        await checkAdminAuth();
+        const products = await prisma.producto.findMany({
+            where: {
+                estado: 'ACTIVO',
+                OR: [
+                    { sku: { startsWith: 'SOMA-' } },
+                    { sku: { startsWith: 'REP-' } }
+                ]
+            },
+            select: {
+                categoria: true
+            }
+        });
+        const uniqueCategories = Array.from(new Set(products.map(p => p.categoria).filter(Boolean))) as string[];
+        return { success: true, categories: uniqueCategories };
+    } catch (error: any) {
+        console.error('Error fetching imported categories:', error);
+        return { success: false, categories: [] };
+    }
+}

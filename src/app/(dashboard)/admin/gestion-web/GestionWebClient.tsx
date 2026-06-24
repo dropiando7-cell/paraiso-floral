@@ -15,7 +15,8 @@ import {
     getWebTraffic,
     getPaginatedInventoryItems,
     getInventoryItemById,
-    deleteInventoryItem
+    deleteInventoryItem,
+    getImportedCategories
 } from './actions';
 import { 
     Settings, 
@@ -451,6 +452,39 @@ export default function GestionWebClient({
     ]);
     const logsEndRef = React.useRef<HTMLDivElement>(null);
     const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts'>('soma-tech');
+    const [selectedScrapeCategory, setSelectedScrapeCategory] = useState<string>('all');
+    const [importedCategories, setImportedCategories] = useState<string[]>([]);
+
+    const fetchImportedCategories = async () => {
+        try {
+            const res = await getImportedCategories();
+            if (res.success && res.categories) {
+                setImportedCategories(res.categories);
+            }
+        } catch (err) {
+            console.error('Error fetching imported categories:', err);
+        }
+    };
+
+    // Load imported categories on mount
+    useEffect(() => {
+        fetchImportedCategories();
+    }, []);
+
+    const getExternalCategoryUrl = () => {
+        if (scraperSource === 'soma-tech') {
+            if (selectedScrapeCategory === 'all') {
+                return 'https://www.somatechnology.com/spanish/';
+            }
+            const label = SOMA_CATEGORIES.find(c => c.value === selectedScrapeCategory)?.label || '';
+            return `https://www.somatechnology.com/spanish/?s=${encodeURIComponent(label)}`;
+        } else {
+            if (selectedScrapeCategory === 'all') {
+                return 'https://somamedicalparts.com/';
+            }
+            return `https://somamedicalparts.com/product-category/${selectedScrapeCategory}/`;
+        }
+    };
 
     // Auto-scroll the scraper console log when log changes
     useEffect(() => {
@@ -584,7 +618,7 @@ export default function GestionWebClient({
 
     // --- Tab Scraper: Async Streaming Scraper Handler ---
     const handleStartScrape = async () => {
-        const cat = (document.getElementById('scrape-category-select') as HTMLSelectElement)?.value || 'all';
+        const cat = selectedScrapeCategory;
         setIsImporting(true);
         setProgressCurrent(0);
         setProgressTotal(0);
@@ -640,6 +674,7 @@ export default function GestionWebClient({
                             ]);
                             toast.success(`Importación finalizada. Nuevos importados: ${data.count}`);
                             setImportedCategorySlug(cat);
+                            fetchImportedCategories(); // Update checkmarks
                             
                             // Resolve readable category name for web redirection
                             let catLabel = 'Todas las Categorías';
@@ -2280,7 +2315,10 @@ export default function GestionWebClient({
                                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Origen del Catálogo</label>
                                     <select 
                                         value={scraperSource}
-                                        onChange={(e) => setScraperSource(e.target.value as 'soma-tech' | 'soma-parts')}
+                                        onChange={(e) => {
+                                            setScraperSource(e.target.value as 'soma-tech' | 'soma-parts');
+                                            setSelectedScrapeCategory('all');
+                                        }}
                                         className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                                     >
                                         <option value="soma-tech">Soma Tech (Equipos Médicos)</option>
@@ -2292,24 +2330,55 @@ export default function GestionWebClient({
                                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Categoría de Inicio</label>
                                     <select 
                                         id="scrape-category-select"
+                                        value={selectedScrapeCategory}
+                                        onChange={(e) => setSelectedScrapeCategory(e.target.value)}
                                         className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                                     >
                                         <option value="all">Todas las Categorías</option>
                                         {scraperSource === 'soma-tech' ? (
-                                            SOMA_CATEGORIES.map(cat => (
-                                                <option key={cat.value} value={cat.value}>{cat.label}</option>
-                                            ))
+                                            SOMA_CATEGORIES.map(cat => {
+                                                const isImported = importedCategories.includes(cat.label);
+                                                return (
+                                                    <option key={cat.value} value={cat.value}>
+                                                        {isImported ? `✓ ${cat.label}` : cat.label}
+                                                    </option>
+                                                );
+                                            })
                                         ) : (
-                                            SOMA_PARTS_CATEGORIES.map(group => (
-                                                <optgroup key={group.value} label={group.label}>
-                                                    <option value={group.value}>{group.label} (Todo)</option>
-                                                    {group.subcategories.map(sub => (
-                                                        <option key={sub.value} value={sub.value}>{sub.label}</option>
-                                                    ))}
-                                                </optgroup>
-                                            ))
+                                            SOMA_PARTS_CATEGORIES.map(group => {
+                                                const isGroupImported = importedCategories.includes(group.label);
+                                                return (
+                                                    <optgroup key={group.value} label={isGroupImported ? `✓ ${group.label}` : group.label}>
+                                                        <option value={group.value}>
+                                                            {isGroupImported ? `✓ ${group.label} (Todo)` : `${group.label} (Todo)`}
+                                                        </option>
+                                                        {group.subcategories.map(sub => {
+                                                            const isSubImported = importedCategories.includes(sub.label);
+                                                            return (
+                                                                <option key={sub.value} value={sub.value}>
+                                                                    {isSubImported ? `✓ ${sub.label}` : sub.label}
+                                                                </option>
+                                                            );
+                                                        })}
+                                                    </optgroup>
+                                                );
+                                            })
                                         )}
                                     </select>
+                                    
+                                    {/* Preview Link */}
+                                    <div className="mt-1.5 flex items-center justify-between text-[11px] px-1">
+                                        <span className="text-slate-400 font-sans">Previsualizar origen:</span>
+                                        <a 
+                                            href={getExternalCategoryUrl()} 
+                                            target="_blank" 
+                                            rel="noopener noreferrer" 
+                                            className="text-[#00A8CC] hover:underline font-semibold flex items-center gap-1 font-sans transition-colors hover:text-[#008ba8]"
+                                        >
+                                            <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : 'Soma Parts'}</span>
+                                            <ExternalLink size={10} />
+                                        </a>
+                                    </div>
                                 </div>
 
                                 <button
