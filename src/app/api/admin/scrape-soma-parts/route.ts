@@ -9,130 +9,193 @@ const HEADERS = {
     'Accept-Language': 'en-US,en;q=0.9,es;q=0.8'
 };
 
-const CATEGORY_MAP: Record<string, number> = {
-    "analizador-de-coagulacion": 44,
-    "arcos-en-c": 66,
-    "artroscopios": 102,
-    "autoclaves-esterilizadores": 61,
-    "autotransfusion": 110,
-    "bacinetes-pediatricos": 9507,
-    "bipap": 88,
-    "bisturies-armonicos": 89,
-    "bomba-de-alimentacion": 9503,
-    "bombas-de-jeringe": 57,
-    "bombas-de-succion": 54,
-    "bombas-intra-aorticas": 96,
-    "bombas-intravenosas": 52,
-    "bombas-portatiles-de-infusion": 4779,
-    "cabezales-medicos": 10577,
-    "calentador-enfriador": 82,
-    "calentador-de-fluidos": 912,
-    "calentador-de-mantas": 83,
-    "calentadores": 7029,
-    "camaras-de-video": 99,
-    "camas-de-hospital": 272,
-    "camillas": 58,
-    "camillas-de-transporte": 4778,
-    "capturadores-de-imagenes": 63,
-    "cardiologia": 130,
-    "cardiovascular": 131,
-    "carros-de-anestesia": 9506,
-    "carros-de-emergencia": 9505,
-    "carros-de-paro": 307,
-    "cistoscopios": 103,
-    "colposcopios": 9501,
-    "cortador-de-yeso": 9696,
-    "cunas-termicas": 56,
-    "desfibriladores": 97,
-    "desfibriladores-medicos": 117,
-    "desfibriladores-automaticos-externos": 92,
-    "desfibriladores-portatiles": 4765,
-    "unidades-electroquirurgicas-electrobisturis": 76,
-    "ekg-interpretativo-y-no-interpretativo": 49,
-    "electroencefalogramas-eeg": 6091,
-    "endoscopia": 118,
-    "endoscopios-flexibles": 7015,
-    "endoscopios-rigidos": 7010,
-    "algologia": 7006,
-    "escaneres-de-vejiga": 1157,
-    "evacuadores-de-humo": 9627,
-    "fibroscopios": 95,
-    "fuentes-de-luz": 74,
-    "generador-de-radiofrecuencia": 9529,
-    "ucii-nicu-unidades-neonatales-cuidado-intensivo": 132,
-    "imagenologia-radiologia": 127,
-    "impresoras": 106,
-    "incubadoras": 55,
-    "incubadoras-de-transporte": 4772,
-    "instrumental-de-cirugia": 4530,
-    "insufladores": 108,
-    "inyectores-para-campo-magnetico": 6039,
-    "luces-de-cirugia-lamparas-quirurgicas": 71,
-    "laparoscopios": 101,
-    "scrub-sinks": 123,
-    "limpiadores-ultrasonicos": 2382,
-    "maquinas-de-anestesia": 48,
-    "maquinas-de-corazon-y-pulmon": 78,
-    "maquinas-para-hiper-hipotermia": 9504,
-    "marcapasos-externos": 7504,
-    "mesa-de-examen": 10069,
-    "mesas-de-cirugia": 72,
-    "mesas-quirurgicas-de-urologia": 10933,
-    "mesas-transducidas": 136,
-    "microscopios-de-cirugia": 69,
-    "microscopios-para-oftalmologa": 70,
-    "microscopios-para-otorrinolaringologo": 68,
-    "mini-arcos-en-c": 53,
-    "miscelaneos": 10711,
-    "monitor-multiparametro-para-uti": 185,
-    "monitores": 107,
-    "monitores-bis": 7249,
-    "monitores-de-agente-y-co2": 60,
-    "monitores-de-capnografia": 9500,
-    "monitores-de-oxigeno": 81,
-    "monitores-de-paciente-portatiles": 4764,
-    "monitores-de-pantalla-plana": 7014,
-    "monitores-de-presin-sanguinea-no-invasiva": 67,
-    "monitores-de-signos-vitales": 129,
-    "monitores-de-volumen": 79,
-    "monitores-fetales": 3649,
-    "monitores-fetales-antepartum": 46,
-    "monitores-fetales-intrapartum": 105,
-    "monitores-multiparametros": 50,
-    "neurocirugia": 90,
-    "oximetro-de-pulso": 65,
-    "procesadores-de-video": 7016,
-    "productos-destacados": 2871,
-    "rayos-x-portables": 94,
-    "razuradores-artroscopicos": 100,
-    "reprocesador-para-endoscopios": 9572,
-    "calentadores-de-pacientes": 7028,
-    "sistema-de-compresion-secuencial": 9531,
-    "sistemas-completos-de-endoscopia": 7012,
-    "sistemas-completos-de-laparoscopia": 7011,
-    "sistemas-de-alto-flujo": 6174,
-    "sistemas-de-pruebas-de-esfuerzo": 75,
-    "sistemas-de-telemetria": 86,
-    "sistemas-hardwired": 80,
-    "sistemas-quirurgicos-de-slush": 291,
-    "soluciones-de-anestesia": 7007,
-    "terapia-respiratoria": 7009,
-    "obgyn-ucin": 7005,
-    "stirrups": 3206,
-    "terapia-intravenosa": 121,
-    "torniquetes": 77,
-    "sistema-de-video-endoscopia": 84,
-    "transductores-de-ultrasonido": 2032,
-    "ultrasonidos": 91,
-    "uncategorized": 9449,
-    "uci": 7017,
-    "unidades-emg": 47,
-    "vaporizadores-de-anestesia": 62,
-    "ventiladores": 51,
-    "ventiladores-de-anestesia": 64,
-    "ventiladores-portatil": 4780,
-    "video-laringoscopios": 978,
-    "video-endoscopia-y-laparoscopia": 7025
+const CATEGORY_MAP_PARTS: Record<string, number> = {
+    // BP
+    "bp": 4583,
+    "bp-connectors": 4662,
+    "ibp-cables": 4663,
+    "nibp-cuffs": 4664,
+    "nibp-hoses": 4638,
+    "tourniquet-cuffs": 4586,
+    "tourniquet-hoses": 4587,
+
+    // Consumables
+    "consumables": 4610,
+    "batteries": 4612,
+    "blades": 4611,
+    "blankets-sleeves": 4676,
+    "bulbs": 4613,
+
+    // Disposables
+    "disposables": 4615,
+    "aed-defib-pads": 4681,
+    "esu-electrodes": 4683,
+
+    // ECG
+    "ecg": 4556,
+    "defib-pacer-cables": 4691,
+    "ecg-accessories": 4578,
+    "ecg-leadwires": 4576,
+    "ecg-one-piece-cables": 4557,
+    "ecg-trunk-cables": 4694,
+
+    // Light Cables
+    "light-cables": 4601,
+    "endoscopy-light-cables": 4603,
+    "headlight-cables": 4602,
+    "light-cables-miscroscopes": 4696,
+
+    // Mattress
+    "mattress": 4560,
+    "incubators-warmers-pads": 4643,
+    "infant-pads": 4565,
+    "stretcher-mattress": 4644,
+    "surgical-table-pads": 4562,
+
+    // Mounting Solution
+    "mounting-solution": 4605,
+    "iv_poles": 4608,
+    "brackets": 4609,
+    "rolling-stands": 4606,
+    "wall-mounts": 4607,
+
+    // O2-Co2
+    "o2-co2": 4566,
+    "canulae": 4574,
+    "co2-sensors": 4700,
+    "others-o2-co2": 4701,
+    "oxygen-cell": 4575,
+    "patient-circuits": 4703,
+    "water-traps": 4567,
+
+    // Others
+    "others": 4619,
+    "cables-harness": 4755,
+    "cylinders": 4736,
+    "foot-switches": 4704,
+    "hand-control": 4705,
+    "hoses": 4725,
+    "power-supply-cords": 4751,
+    "regulators": 4752,
+
+    // Paper
+    "paper": 4621,
+    "paper-rolls": 4622,
+    "z-fold-paper-pack": 4707,
+
+    // Product Type
+    "product-type": 4563,
+    "aed-defibs": 4598,
+    "anesthesia-vents": 4708,
+    "ekg-accessories": 4600,
+    "esu-accessories": 4597,
+    "fetal-monitor": 4599,
+    "patient-monitor": 4635,
+    "stretchers-acc": 4645,
+    "surgical-table-accessories": 4572,
+    "tourniquet": 4561,
+
+    // Repair Parts
+    "repair-parts": 4590,
+    "circuit-boards": 4595,
+    "display-touch-screen": 4709,
+    "keypads-overlays": 4710,
+    "parameter-modules": 4596,
+    "rollers-belts": 4592,
+    "wheels-casters": 4594,
+
+    // Spo2
+    "spo2": 4558,
+    "spo2-accessories": 4580,
+    "spo2-cables": 4579,
+    "spo2-one-piece-sensors": 4712,
+    "spo2-sensors": 4559,
+
+    // Temp
+    "temp": 4620,
+    "temp-cables-adapters": 4713,
+    "temperature-sensors": 4714
+};
+
+const CATEGORY_NAMES_PARTS: Record<string, string> = {
+    "bp": "BP (Blood Pressure)",
+    "bp-connectors": "BP Connectors",
+    "ibp-cables": "IBP Cables",
+    "nibp-cuffs": "NIBP Cuffs",
+    "nibp-hoses": "NIBP Hoses",
+    "tourniquet-cuffs": "Tourniquet Cuffs",
+    "tourniquet-hoses": "Tourniquet Hoses",
+    "consumables": "Consumables",
+    "batteries": "Batteries",
+    "blades": "Blades",
+    "blankets-sleeves": "Blankets & Sleeves",
+    "bulbs": "Bulbs",
+    "disposables": "Disposables",
+    "aed-defib-pads": "AED-Defib Pads",
+    "esu-electrodes": "ESU Electrodes",
+    "ecg": "ECG",
+    "defib-pacer-cables": "Defib-Pacer Cables",
+    "ecg-accessories": "ECG Accessories",
+    "ecg-leadwires": "ECG Leadwires",
+    "ecg-one-piece-cables": "ECG One-Piece Cables",
+    "ecg-trunk-cables": "ECG Trunk Cables",
+    "light-cables": "Light Cables",
+    "endoscopy-light-cables": "Endoscopy Light Cables",
+    "headlight-cables": "Headlights & Cables",
+    "light-cables-miscroscopes": "Microscopes Light Cables",
+    "mattress": "Mattress",
+    "incubators-warmers-pads": "Incubators & Warmers Pads",
+    "infant-pads": "Infant Pads",
+    "stretcher-mattress": "Stretcher Mattress",
+    "surgical-table-pads": "Surgical Table Pads",
+    "mounting-solution": "Mounting Solution",
+    "iv_poles": "IV Poles",
+    "brackets": "Mounts & Brackets",
+    "rolling-stands": "Rolling Stand/Carts",
+    "wall-mounts": "Wall Mounts",
+    "o2-co2": "O2-Co2",
+    "canulae": "Canulae",
+    "co2-sensors": "Co2 Sensors",
+    "others-o2-co2": "Others (O2-Co2)",
+    "oxygen-cell": "Oxygen Cell",
+    "patient-circuits": "Patient Circuits",
+    "water-traps": "Water Traps",
+    "paper": "Paper",
+    "paper-rolls": "Paper Rolls",
+    "z-fold-paper-pack": "Z-fold Paper Pack",
+    "product-type": "Product Type",
+    "aed-defibs": "AED & Defibs",
+    "anesthesia-vents": "Anesthesia-Vents",
+    "ekg-accessories": "EKG-Stress Test",
+    "esu-accessories": "ESU Accessories",
+    "fetal-monitor": "Fetal Monitor",
+    "patient-monitor": "Patient Monitor",
+    "stretchers-acc": "Stretchers Acc",
+    "surgical-table-accessories": "Surgical Table Accessories",
+    "tourniquet": "Tourniquet Accessories",
+    "repair-parts": "Repair Parts",
+    "circuit-boards": "Circuit Boards",
+    "display-touch-screen": "Display & Touch Screen",
+    "keypads-overlays": "KeyPads & Overlays",
+    "parameter-modules": "Parameter Modules",
+    "rollers-belts": "Rollers & Belts",
+    "wheels-casters": "Wheels & Casters",
+    "spo2": "Spo2",
+    "spo2-accessories": "SpO2 Accessories",
+    "spo2-cables": "SpO2 Cables",
+    "spo2-one-piece-sensors": "SpO2 One-Piece Sensors",
+    "spo2-sensors": "SpO2 Sensors",
+    "temp": "Temp",
+    "temp-cables-adapters": "Temp Cables & Adapters",
+    "temperature-sensors": "Temperature Sensors",
+    "others": "Others",
+    "cables-harness": "Cables & Harness",
+    "cylinders": "Cylinders",
+    "foot-switches": "Foot Switches",
+    "hand-control": "Hand Control",
+    "hoses": "Hoses",
+    "power-supply-cords": "Power Supply & Cords",
+    "regulators": "Regulators"
 };
 
 // Decodes common HTML entities returned by the WordPress REST API
@@ -193,7 +256,7 @@ const extractBrand = (name: string): string => {
     
     // Default brand to the first word or fallback
     const firstWord = name.split(' ')[0];
-    return firstWord || "Soma Tech";
+    return firstWord || "Soma Medical Parts";
 };
 
 // Extract model name from product title by removing the brand name
@@ -253,28 +316,28 @@ export async function POST(req: NextRequest) {
                 };
 
                 try {
-                    sendUpdate({ type: 'status', message: 'Iniciando conexión con Soma Technology...' });
+                    sendUpdate({ type: 'status', message: 'Iniciando conexión con Soma Medical Parts...' });
 
                     let allProducts: any[] = [];
                     let page = 1;
                     let hasMore = true;
 
                     while (hasMore) {
-                        let targetUrl = `https://www.somatechnology.com/spanish/wp-json/wc/store/v1/products?per_page=100&page=${page}`;
-                        if (requestCategory !== "all" && CATEGORY_MAP[requestCategory]) {
-                            const categoryId = CATEGORY_MAP[requestCategory];
-                            targetUrl = `https://www.somatechnology.com/spanish/wp-json/wc/store/v1/products?category=${categoryId}&per_page=100&page=${page}`;
+                        let targetUrl = `https://somamedicalparts.com/wp-json/wc/store/v1/products?per_page=100&page=${page}`;
+                        if (requestCategory !== "all" && CATEGORY_MAP_PARTS[requestCategory]) {
+                            const categoryId = CATEGORY_MAP_PARTS[requestCategory];
+                            targetUrl = `https://somamedicalparts.com/wp-json/wc/store/v1/products?category=${categoryId}&per_page=100&page=${page}`;
                         }
 
-                        console.log(`[Scraper] Fetching products from live URL: ${targetUrl}`);
-                        sendUpdate({ type: 'status', message: `Descargando productos, página ${page}...` });
+                        console.log(`[Scraper Parts] Fetching products from live URL: ${targetUrl}`);
+                        sendUpdate({ type: 'status', message: `Descargando repuestos, página ${page}...` });
 
                         const response = await fetch(targetUrl, { headers: HEADERS });
                         if (!response.ok) {
                             if (page === 1) {
-                                throw new Error(`Error de red al consultar Soma Technology (Código: ${response.status})`);
+                                throw new Error(`Error de red al consultar Soma Medical Parts (Código: ${response.status})`);
                             } else {
-                                console.log(`[Scraper] Stopped paging at page ${page} due to status ${response.status}`);
+                                console.log(`[Scraper Parts] Stopped paging at page ${page} due to status ${response.status}`);
                                 break;
                             }
                         }
@@ -293,8 +356,8 @@ export async function POST(req: NextRequest) {
                         }
                     }
 
-                    console.log(`[Scraper] Successfully fetched ${allProducts.length} products total.`);
-                    sendUpdate({ type: 'info', total: allProducts.length, message: `Se encontraron ${allProducts.length} productos en Soma Technology.` });
+                    console.log(`[Scraper Parts] Successfully fetched ${allProducts.length} products total.`);
+                    sendUpdate({ type: 'info', total: allProducts.length, message: `Se encontraron ${allProducts.length} repuestos en Soma Medical Parts.` });
 
                     let importedCount = 0;
                     let processedCount = 0;
@@ -305,16 +368,21 @@ export async function POST(req: NextRequest) {
                         const brand = extractBrand(decodedName);
                         const model = extractModel(decodedName, brand);
                         
-                        // Clean up SKU generation
-                        const cleanSku = `SOMA-${brand.toUpperCase().replace(/[^A-Z0-9]/g, '')}-${model.toUpperCase().replace(/[^A-Z0-9]/g, '')}`;
+                        // Clean up SKU generation using REP- prefix and avoiding Soma naming
+                        const originalSku = item.sku ? String(item.sku).trim() : '';
+                        const cleanSku = originalSku 
+                            ? `REP-${originalSku.toUpperCase().replace(/[^A-Z0-9-]/g, '')}` 
+                            : `REP-${item.id}`;
 
-                        let categoryName = item.categories?.[0]?.name || 'Consumibles';
-                        if (requestCategory !== "all" && CATEGORY_MAP[requestCategory]) {
+                        let categoryName = item.categories?.[0]?.name || 'Repuestos / Accesorios';
+                        if (requestCategory !== "all" && CATEGORY_NAMES_PARTS[requestCategory]) {
                             const matchedCategory = item.categories?.find(
-                                (c: any) => c.slug === requestCategory || String(c.id) === String(CATEGORY_MAP[requestCategory])
+                                (c: any) => c.slug === requestCategory || String(c.id) === String(CATEGORY_MAP_PARTS[requestCategory])
                             );
                             if (matchedCategory) {
                                 categoryName = matchedCategory.name;
+                            } else {
+                                categoryName = CATEGORY_NAMES_PARTS[requestCategory];
                             }
                         }
 
@@ -330,7 +398,7 @@ export async function POST(req: NextRequest) {
                                 existingProduct.categoria !== categoryName || 
                                 existingProduct.estado !== 'ACTIVO'
                             ) {
-                                console.log(`[Scraper] Updating product SKU ${cleanSku}`);
+                                console.log(`[Scraper Parts] Updating product SKU ${cleanSku}`);
                                 await prisma.producto.update({
                                     where: { sku: cleanSku },
                                     data: { 
@@ -340,7 +408,7 @@ export async function POST(req: NextRequest) {
                                     }
                                 });
                             }
-                            console.log(`[Scraper] Product with SKU ${cleanSku} already exists. Skipping...`);
+                            console.log(`[Scraper Parts] Product with SKU ${cleanSku} already exists. Skipping...`);
                             sendUpdate({ 
                                 type: 'progress', 
                                 current: processedCount, 
@@ -364,7 +432,7 @@ export async function POST(req: NextRequest) {
                         // Upload image to Cloudflare R2 if it exists
                         if (originalImageUrl) {
                             try {
-                                console.log(`[Scraper] Downloading image for ${decodedName}: ${originalImageUrl}`);
+                                console.log(`[Scraper Parts] Downloading image for ${decodedName}: ${originalImageUrl}`);
                                 sendUpdate({ type: 'status', message: `Descargando imagen comercial para: ${decodedName}` });
                                 const imgResponse = await fetch(originalImageUrl, { headers: HEADERS });
                                 if (imgResponse.ok) {
@@ -378,17 +446,17 @@ export async function POST(req: NextRequest) {
                                     const r2Url = await uploadToR2(buffer, uniqueFileName, contentType);
                                     if (r2Url) {
                                         finalImageUrl = r2Url;
-                                        console.log(`[Scraper] Image successfully uploaded to R2: ${r2Url}`);
+                                        console.log(`[Scraper Parts] Image successfully uploaded to R2: ${r2Url}`);
                                     }
                                 }
                             } catch (imgErr) {
-                                console.error(`[Scraper] Failed to download or upload image to R2 for ${decodedName}:`, imgErr);
+                                console.error(`[Scraper Parts] Failed to download or upload image to R2 for ${decodedName}:`, imgErr);
                                 // Keep original URL as fallback if R2 upload fails
                             }
                         }
 
                         // Upsert the Producto entry in the database
-                        console.log(`[Scraper] Creating product: ${decodedName} with SKU: ${cleanSku}`);
+                        console.log(`[Scraper Parts] Creating product: ${decodedName} with SKU: ${cleanSku}`);
                         await prisma.producto.upsert({
                             where: { sku: cleanSku },
                             update: {
@@ -436,7 +504,7 @@ export async function POST(req: NextRequest) {
                     sendUpdate({ type: 'success', count: importedCount, total: allProducts.length });
                     controller.close();
                 } catch (err: any) {
-                    console.error('[Scraper Stream Error]:', err);
+                    console.error('[Scraper Parts Stream Error]:', err);
                     sendUpdate({ type: 'error', error: err.message || 'Error desconocido' });
                     controller.close();
                 }
@@ -451,7 +519,7 @@ export async function POST(req: NextRequest) {
             }
         });
     } catch (err: any) {
-        console.error('[Scraper Endpoint Error]:', err);
+        console.error('[Scraper Parts Endpoint Error]:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });
     }
 }

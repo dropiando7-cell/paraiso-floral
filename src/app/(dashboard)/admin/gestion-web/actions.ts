@@ -338,11 +338,18 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
 
         // Apply source filters (scraped SOMA products vs own inventory)
         if (sourceFilter === 'scraped') {
-            productsWhere.sku = { startsWith: 'SOMA-' };
+            productsWhere.OR = [
+                { sku: { startsWith: 'SOMA-' } },
+                { sku: { startsWith: 'REP-' } }
+            ];
         } else if (sourceFilter === 'own') {
-            productsWhere.NOT = {
-                sku: { startsWith: 'SOMA-' }
-            };
+            if (!productsWhere.AND) {
+                productsWhere.AND = [];
+            }
+            productsWhere.AND.push(
+                { sku: { not: { startsWith: 'SOMA-' } } },
+                { sku: { not: { startsWith: 'REP-' } } }
+            );
         }
 
         const assetsCount = sourceFilter === 'scraped' ? 0 : await prisma.activoFijo.count({ where: assetsWhere });

@@ -271,6 +271,48 @@ const styles = StyleSheet.create({
   }
 });
 
+// Helper to parse warranty string into months
+const parseGarantiaToMonths = (garantia: any): number => {
+  if (!garantia) return 0;
+  const str = String(garantia).trim().toLowerCase();
+  
+  // Try to match a decimal or integer number, optional whitespace, and units
+  const match = str.match(/^(\d+(?:\.\d+)?)\s*(a[ñn]o\(s\)|a[ñn]os|a[ñn]o|ano\(s\)|anos|ano|mes\(es\)|meses|mes|m)?/);
+  if (!match) return 0;
+
+  const value = parseFloat(match[1]);
+  const unit = match[2] || '';
+
+  if (unit.startsWith('a') || unit.startsWith('año') || unit.startsWith('ano')) {
+    return Math.round(value * 12);
+  }
+  if (unit.startsWith('m')) {
+    return Math.round(value);
+  }
+
+  // Heuristic for pure numbers without unit
+  // If the number is <= 5, it is probably years
+  // If the number is > 5, it is probably months
+  if (value <= 5) {
+    return Math.round(value * 12);
+  }
+  return Math.round(value);
+};
+
+// Helper to format warranty duration nicely
+const formatGarantia = (garantia: any) => {
+  if (!garantia) return '';
+  const str = String(garantia).trim();
+  if (/^\d+$/.test(str)) {
+    const val = parseInt(str, 10);
+    if (val <= 5) {
+      return `${val} ${val === 1 ? 'año' : 'años'}`;
+    }
+    return `${val} meses`;
+  }
+  return str;
+};
+
 interface OrdenEntregaPDFProps {
   data: any;
   images: Record<string, string>;
@@ -294,7 +336,7 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
 
   // Calcular garantía dinámica
   const maxGarantiaMeses = validItems.reduce((max: number, item: any) => {
-    const gar = parseInt(item.garantia || '0', 10);
+    const gar = parseGarantiaToMonths(item.garantia);
     return gar > max ? gar : max;
   }, 0);
   const maxGarantiaAnios = maxGarantiaMeses > 0 ? Math.round(maxGarantiaMeses / 12) : (ordenEntrega?.aplicaMantenimientos ? 3 : 0);
@@ -447,6 +489,11 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
               </View>
               <View style={[styles.tableCell, styles.colDesc]}>
                 <Text style={[styles.tdText, { textAlign: 'left' }]}>{item.shortDesc}</Text>
+                {item.garantia && item.garantia.toLowerCase() !== 'sin garantía' && (
+                  <Text style={[styles.tdText, { textAlign: 'left', color: '#4b5563', fontSize: 7.5, marginTop: 2, fontWeight: 500 }]}>
+                    Garantía: {formatGarantia(item.garantia)}
+                  </Text>
+                )}
               </View>
               <View style={[styles.tableCell, styles.colQty]}>
                 <Text style={styles.tdText}>{item.qty}</Text>

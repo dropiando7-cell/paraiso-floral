@@ -122,11 +122,15 @@ async function getDynamicCategories(hideRealInventory: boolean, allowScrapedProd
             };
 
             if (hideRealInventory) {
-                productWhere.sku = { startsWith: 'SOMA-' };
+                productWhere.OR = [
+                    { sku: { startsWith: 'SOMA-' } },
+                    { sku: { startsWith: 'REP-' } }
+                ];
             } else if (!allowScrapedProducts) {
-                productWhere.NOT = {
-                    sku: { startsWith: 'SOMA-' }
-                };
+                productWhere.AND = [
+                    { sku: { not: { startsWith: 'SOMA-' } } },
+                    { sku: { not: { startsWith: 'REP-' } } }
+                ];
             }
 
             const scrapedCategories = await prisma.producto.findMany({

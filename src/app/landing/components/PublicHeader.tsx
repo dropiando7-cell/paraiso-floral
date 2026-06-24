@@ -275,7 +275,7 @@ export default function PublicHeader({
                             </div>
 
                             <Link href="/servicios" className="hover:text-[#00509d] transition-colors">Servicios</Link>
-                            <Link href="/productos?type=producto" className="hover:text-[#00509d] transition-colors">Repuestos</Link>
+                            <Link href="/repuestos" className="hover:text-[#00509d] transition-colors">Repuestos</Link>
                             <Link href="/blog" className="hover:text-[#00509d] transition-colors">Blog</Link>
                             <Link href="/contacto" className="hover:text-[#00509d] transition-colors">Contacto</Link>
                             <Link href="/nosotros" className="hover:text-[#00509d] transition-colors">Nosotros</Link>

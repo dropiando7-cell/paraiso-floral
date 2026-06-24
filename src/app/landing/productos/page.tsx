@@ -134,11 +134,15 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
             };
 
             if (hideRealInventory) {
-                productWhere.sku = { startsWith: 'SOMA-' };
+                productWhere.OR = [
+                    { sku: { startsWith: 'SOMA-' } },
+                    { sku: { startsWith: 'REP-' } }
+                ];
             } else if (!allowScrapedProducts) {
-                productWhere.NOT = {
-                    sku: { startsWith: 'SOMA-' }
-                };
+                productWhere.AND = [
+                    { sku: { not: { startsWith: 'SOMA-' } } },
+                    { sku: { not: { startsWith: 'REP-' } } }
+                ];
             }
 
             consumables = await prisma.producto.findMany({
@@ -179,7 +183,11 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                 code: c.sku || '',
                 imageUrl: c.imagenWeb || null,
                 type: 'producto' as const,
-                typeName: c.sku.startsWith('SOMA-') ? (c.categoria || 'Máquinas de anestesia') : 'Consumible / Repuesto',
+                typeName: c.sku.startsWith('SOMA-') 
+                    ? (c.categoria || 'Máquinas de anestesia') 
+                    : c.sku.startsWith('REP-') 
+                        ? `Repuesto / ${c.categoria || 'Accesorios'}` 
+                        : 'Consumible / Repuesto',
                 category: (c.categoria || 'CONSUMIBLES').trim(),
                 hidden: c.estado === 'OCULTO',
             }))

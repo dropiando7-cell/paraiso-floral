@@ -108,7 +108,10 @@ async function getLandingData() {
                     where: {
                         estado: 'ACTIVO',
                         esServicio: false,
-                        sku: { startsWith: 'SOMA-' }
+                        OR: [
+                            { sku: { startsWith: 'SOMA-' } },
+                            { sku: { startsWith: 'REP-' } }
+                        ]
                     },
                     take: 4,
                     select: {
@@ -206,11 +209,15 @@ async function getLandingData() {
                     categoria: { not: null }
                 };
                 if (hideRealInventory) {
-                    productWhere.sku = { startsWith: 'SOMA-' };
+                    productWhere.OR = [
+                        { sku: { startsWith: 'SOMA-' } },
+                        { sku: { startsWith: 'REP-' } }
+                    ];
                 } else if (!allowScrapedProducts) {
-                    productWhere.NOT = {
-                        sku: { startsWith: 'SOMA-' }
-                    };
+                    productWhere.AND = [
+                        { sku: { not: { startsWith: 'SOMA-' } } },
+                        { sku: { not: { startsWith: 'REP-' } } }
+                    ];
                 }
 
                 const prodCategories = await prisma.producto.findMany({

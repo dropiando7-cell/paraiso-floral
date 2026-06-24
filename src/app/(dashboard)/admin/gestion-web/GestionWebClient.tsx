@@ -179,6 +179,157 @@ const SOMA_CATEGORIES = [
     { value: "video-endoscopia-y-laparoscopia", label: "Video-Endoscopia y Laparoscopia" }
 ];
 
+const SOMA_PARTS_CATEGORIES = [
+    {
+        value: "bp",
+        label: "BP (Blood Pressure)",
+        subcategories: [
+            { value: "bp-connectors", label: "BP Connectors" },
+            { value: "ibp-cables", label: "IBP Cables" },
+            { value: "nibp-cuffs", label: "NIBP Cuffs" },
+            { value: "nibp-hoses", label: "NIBP Hoses" },
+            { value: "tourniquet-cuffs", label: "Tourniquet Cuffs" },
+            { value: "tourniquet-hoses", label: "Tourniquet Hoses" }
+        ]
+    },
+    {
+        value: "consumables",
+        label: "Consumables",
+        subcategories: [
+            { value: "batteries", label: "Batteries" },
+            { value: "blades", label: "Blades" },
+            { value: "blankets-sleeves", label: "Blankets & Sleeves" },
+            { value: "bulbs", label: "Bulbs" }
+        ]
+    },
+    {
+        value: "disposables",
+        label: "Disposables",
+        subcategories: [
+            { value: "aed-defib-pads", label: "AED-Defib Pads" },
+            { value: "esu-electrodes", label: "ESU Electrodes" }
+        ]
+    },
+    {
+        value: "ecg",
+        label: "ECG",
+        subcategories: [
+            { value: "defib-pacer-cables", label: "Defib-Pacer Cables" },
+            { value: "ecg-accessories", label: "ECG Accessories" },
+            { value: "ecg-leadwires", label: "ECG Leadwires" },
+            { value: "ecg-one-piece-cables", label: "ECG One-Piece Cables" },
+            { value: "ecg-trunk-cables", label: "ECG Trunk Cables" }
+        ]
+    },
+    {
+        value: "light-cables",
+        label: "Light Cables",
+        subcategories: [
+            { value: "endoscopy-light-cables", label: "Endoscopy Light Cables" },
+            { value: "headlight-cables", label: "Headlights & Cables" },
+            { value: "light-cables-miscroscopes", label: "Microscopes Light Cables" }
+        ]
+    },
+    {
+        value: "mattress",
+        label: "Mattress",
+        subcategories: [
+            { value: "incubators-warmers-pads", label: "Incubators & Warmers Pads" },
+            { value: "infant-pads", label: "Infant Pads" },
+            { value: "stretcher-mattress", label: "Stretcher Mattress" },
+            { value: "surgical-table-pads", label: "Surgical Table Pads" }
+        ]
+    },
+    {
+        value: "mounting-solution",
+        label: "Mounting Solution",
+        subcategories: [
+            { value: "iv_poles", label: "IV Poles" },
+            { value: "brackets", label: "Mounts & Brackets" },
+            { value: "rolling-stands", label: "Rolling Stand/Carts" },
+            { value: "wall-mounts", label: "Wall Mounts" }
+        ]
+    },
+    {
+        value: "o2-co2",
+        label: "O2-Co2",
+        subcategories: [
+            { value: "canulae", label: "Canulae" },
+            { value: "co2-sensors", label: "Co2 Sensors" },
+            { value: "others-o2-co2", label: "Others (O2-Co2)" },
+            { value: "oxygen-cell", label: "Oxygen Cell" },
+            { value: "patient-circuits", label: "Patient Circuits" },
+            { value: "water-traps", label: "Water Traps" }
+        ]
+    },
+    {
+        value: "paper",
+        label: "Paper",
+        subcategories: [
+            { value: "paper-rolls", label: "Paper Rolls" },
+            { value: "z-fold-paper-pack", label: "Z-fold Paper Pack" }
+        ]
+    },
+    {
+        value: "product-type",
+        label: "Product Type",
+        subcategories: [
+            { value: "aed-defibs", label: "AED & Defibs" },
+            { value: "anesthesia-vents", label: "Anesthesia-Vents" },
+            { value: "ekg-accessories", label: "EKG-Stress Test" },
+            { value: "esu-accessories", label: "ESU Accessories" },
+            { value: "fetal-monitor", label: "Fetal Monitor" },
+            { value: "patient-monitor", label: "Patient Monitor" },
+            { value: "stretchers-acc", label: "Stretchers Acc" },
+            { value: "surgical-table-accessories", label: "Surgical Table Accessories" },
+            { value: "tourniquet", label: "Tourniquet Accessories" }
+        ]
+    },
+    {
+        value: "repair-parts",
+        label: "Repair Parts",
+        subcategories: [
+            { value: "circuit-boards", label: "Circuit Boards" },
+            { value: "display-touch-screen", label: "Display & Touch Screen" },
+            { value: "keypads-overlays", label: "KeyPads & Overlays" },
+            { value: "parameter-modules", label: "Parameter Modules" },
+            { value: "rollers-belts", label: "Rollers & Belts" },
+            { value: "wheels-casters", label: "Wheels & Casters" }
+        ]
+    },
+    {
+        value: "spo2",
+        label: "Spo2",
+        subcategories: [
+            { value: "spo2-accessories", label: "SpO2 Accessories" },
+            { value: "spo2-cables", label: "SpO2 Cables" },
+            { value: "spo2-one-piece-sensors", label: "SpO2 One-Piece Sensors" },
+            { value: "spo2-sensors", label: "SpO2 Sensors" }
+        ]
+    },
+    {
+        value: "temp",
+        label: "Temp",
+        subcategories: [
+            { value: "temp-cables-adapters", label: "Temp Cables & Adapters" },
+            { value: "temperature-sensors", label: "Temperature Sensors" }
+        ]
+    },
+    {
+        value: "others",
+        label: "Others",
+        subcategories: [
+            { value: "cables-harness", label: "Cables & Harness" },
+            { value: "cylinders", label: "Cylinders" },
+            { value: "foot-switches", label: "Foot Switches" },
+            { value: "hand-control", label: "Hand Control" },
+            { value: "hoses", label: "Hoses" },
+            { value: "power-supply-cords", label: "Power Supply & Cords" },
+            { value: "regulators", label: "Regulators" }
+        ]
+    }
+];
+
 interface Review {
     id: string;
     author: string;
@@ -291,6 +442,7 @@ export default function GestionWebClient({
     const [progressCurrent, setProgressCurrent] = useState(0);
     const [progressTotal, setProgressTotal] = useState(0);
     const [importedCategorySlug, setImportedCategorySlug] = useState<string | null>(null);
+    const [importedCategoryName, setImportedCategoryName] = useState<string | null>(null);
     const [scraperLogs, setScraperLogs] = useState<string[]>([
         '[SISTEMA] Listo para iniciar extracción...',
         '[SISTEMA] Servidor R2 configurado: OK',
@@ -298,6 +450,7 @@ export default function GestionWebClient({
         '[SISTEMA] Selecciona una categoría y haz clic en "Comenzar Importación".'
     ]);
     const logsEndRef = React.useRef<HTMLDivElement>(null);
+    const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts'>('soma-tech');
 
     // Auto-scroll the scraper console log when log changes
     useEffect(() => {
@@ -436,10 +589,11 @@ export default function GestionWebClient({
         setProgressCurrent(0);
         setProgressTotal(0);
         setImportedCategorySlug(null);
-        setScraperLogs(['[SISTEMA] Iniciando conexión con el endpoint del scraper...']);
+        setScraperLogs([`[SISTEMA] Iniciando conexión con el endpoint del scraper para ${scraperSource === 'soma-tech' ? 'Soma Tech' : 'Soma Medical Parts'}...`]);
         
         try {
-            const res = await fetch('/api/admin/scrape-soma', {
+            const endpoint = scraperSource === 'soma-tech' ? '/api/admin/scrape-soma' : '/api/admin/scrape-soma-parts';
+            const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ category: cat })
@@ -486,6 +640,30 @@ export default function GestionWebClient({
                             ]);
                             toast.success(`Importación finalizada. Nuevos importados: ${data.count}`);
                             setImportedCategorySlug(cat);
+                            
+                            // Resolve readable category name for web redirection
+                            let catLabel = 'Todas las Categorías';
+                            if (cat !== 'all') {
+                                if (scraperSource === 'soma-tech') {
+                                    const found = SOMA_CATEGORIES.find(c => c.value === cat);
+                                    catLabel = found ? found.label : cat;
+                                } else {
+                                    for (const group of SOMA_PARTS_CATEGORIES) {
+                                        if (group.value === cat) {
+                                            catLabel = group.label;
+                                            break;
+                                        }
+                                        if (group.subcategories) {
+                                            const foundSub = group.subcategories.find(sub => sub.value === cat);
+                                            if (foundSub) {
+                                                catLabel = foundSub.label;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            setImportedCategoryName(catLabel);
                         } else if (data.type === 'error') {
                             setScraperLogs(prev => [...prev, `[ERROR] ${data.error}`]);
                             toast.error(`Error de importación: ${data.error}`);
@@ -2086,8 +2264,8 @@ export default function GestionWebClient({
                 {activeTab === 'scraper' && (
                     <div className="p-6 space-y-6">
                         <div>
-                            <h2 className="text-lg font-bold text-slate-900">Importador de Catálogo - Soma Tech</h2>
-                            <p className="text-xs text-slate-500 mt-0.5 font-sans">Extrae de forma automática categorías, descripciones e imágenes desde Soma Technology. Las fotos se subirán directamente a tu Cloudflare R2.</p>
+                            <h2 className="text-lg font-bold text-slate-900">Importador de Catálogos Externos</h2>
+                            <p className="text-xs text-slate-500 mt-0.5 font-sans">Extrae de forma automática categorías, descripciones e imágenes desde Soma Tech (Equipos) o Soma Medical Parts (Repuestos/Accesorios). Las fotos se subirán directamente a tu Cloudflare R2.</p>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -2095,19 +2273,42 @@ export default function GestionWebClient({
                             <div className="border border-slate-200 rounded-2xl p-5 bg-white space-y-5 lg:col-span-1 shadow-sm">
                                 <h3 className="font-bold text-sm text-slate-800">Iniciar Extracción</h3>
                                 <p className="text-xs text-slate-500 leading-normal">
-                                    La importación se ejecuta en segundo plano por lotes seguros con delay aleatorio de 1-3 segundos para prevenir bloqueos de IP y mantener la estabilidad del sitio.
+                                    La importación se ejecuta en segundo plano por lotes seguros con delay aleatorio de 1 segundo para prevenir bloqueos de IP y mantener la estabilidad del sitio.
                                 </p>
                                 
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Origen del Catálogo</label>
+                                    <select 
+                                        value={scraperSource}
+                                        onChange={(e) => setScraperSource(e.target.value as 'soma-tech' | 'soma-parts')}
+                                        className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                                    >
+                                        <option value="soma-tech">Soma Tech (Equipos Médicos)</option>
+                                        <option value="soma-parts">Soma Medical Parts (Repuestos/Accesorios)</option>
+                                    </select>
+                                </div>
+
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Categoría de Inicio</label>
                                     <select 
                                         id="scrape-category-select"
-                                        className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800"
+                                        className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                                     >
                                         <option value="all">Todas las Categorías</option>
-                                        {SOMA_CATEGORIES.map(cat => (
-                                            <option key={cat.value} value={cat.value}>{cat.label}</option>
-                                        ))}
+                                        {scraperSource === 'soma-tech' ? (
+                                            SOMA_CATEGORIES.map(cat => (
+                                                <option key={cat.value} value={cat.value}>{cat.label}</option>
+                                            ))
+                                        ) : (
+                                            SOMA_PARTS_CATEGORIES.map(group => (
+                                                <optgroup key={group.value} label={group.label}>
+                                                    <option value={group.value}>{group.label} (Todo)</option>
+                                                    {group.subcategories.map(sub => (
+                                                        <option key={sub.value} value={sub.value}>{sub.label}</option>
+                                                    ))}
+                                                </optgroup>
+                                            ))
+                                        )}
                                     </select>
                                 </div>
 
@@ -2182,7 +2383,10 @@ export default function GestionWebClient({
                                                 </span>
                                             </div>
                                             <a 
-                                                href={importedCategorySlug === 'all' ? '/productos' : `/productos/${importedCategorySlug}`}
+                                                href={importedCategorySlug === 'all' 
+                                                    ? (scraperSource === 'soma-tech' ? '/productos' : '/repuestos')
+                                                    : `/productos?category=${encodeURIComponent(importedCategoryName || '')}${scraperSource === 'soma-parts' ? '&type=producto' : ''}`
+                                                }
                                                 target="_blank"
                                                 rel="noopener noreferrer"
                                                 className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-cyan-500/20 active:scale-95 cursor-pointer"

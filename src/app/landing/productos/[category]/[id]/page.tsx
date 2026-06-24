@@ -76,14 +76,14 @@ async function getItemData(id: string, settings: any) {
         });
 
         if (product) {
-            // If it is a scraped SOMA product and they are currently disabled, prevent details access
-            if (product.sku.startsWith('SOMA-') && !allowScrapedProducts) {
+            // If it is a scraped SOMA or REP product and they are currently disabled, prevent details access
+            if ((product.sku.startsWith('SOMA-') || product.sku.startsWith('REP-')) && !allowScrapedProducts) {
                 return null;
             }
 
             // Determine virtual or actual stock display
             let stockVal = String(product.stockActual);
-            if (product.sku.startsWith('SOMA-')) {
+            if (product.sku.startsWith('SOMA-') || product.sku.startsWith('REP-')) {
                 if (defaultScrapedStock > 0) {
                     stockVal = `${defaultScrapedStock}`;
                 } else {
@@ -105,7 +105,11 @@ async function getItemData(id: string, settings: any) {
                 code: product.sku,
                 imageUrl: product.imagenWeb || null,
                 type: 'producto' as const,
-                typeName: product.sku.startsWith('SOMA-') ? (product.categoria || 'Máquinas de anestesia') : 'Consumible / Repuesto',
+                typeName: product.sku.startsWith('SOMA-') 
+                    ? (product.categoria || 'Máquinas de anestesia') 
+                    : product.sku.startsWith('REP-') 
+                        ? `Repuesto / ${product.categoria || 'Accesorios'}` 
+                        : 'Consumible / Repuesto',
                 description: product.descripcionWeb || product.descripcion || '',
                 category: product.categoria || 'consumibles',
                 details,
