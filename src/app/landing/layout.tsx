@@ -166,7 +166,7 @@ export default async function PublicLayout({
     const primaryPhone = org?.telefono || settings.whatsappNumbers?.[0] || '50431782368';
     // Clean phone for wa.me link
     const cleanPhone = primaryPhone.replace(/\D/g, '');
-    const contactEmail = org?.correoContacto || settings.contactEmails?.[0] || 'ventas@bioelectronicahn.com';
+    const contactEmail = settings.topbarEmail || settings.contactEmails?.[0] || org?.correoContacto || 'ventas@bioelectronicahn.com';
     const physicalAddress = org?.direccion || settings.physicalAddress || '7 Calle, 9 Avenida NO, San Pedro Sula, Cortés';
     const companyName = org?.name || 'Bioelectrónica Honduras';
     const logoUrl = org?.logoUrl || '';

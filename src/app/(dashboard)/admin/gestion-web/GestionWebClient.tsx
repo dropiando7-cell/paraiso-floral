@@ -349,6 +349,7 @@ interface Section {
 interface LandingSettings {
     whatsappNumbers?: string[];
     contactEmails?: string[];
+    topbarEmail?: string;
     physicalAddress?: string;
     workingHours?: string;
     heroTitle?: string;
@@ -485,6 +486,45 @@ export default function GestionWebClient({
             return `https://somamedicalparts.com/product-category/${selectedScrapeCategory}/`;
         }
     };
+
+    const categoryImportStatus = (() => {
+        if (selectedScrapeCategory === 'all') {
+            return { isImported: false, label: '', href: '' };
+        }
+        
+        let label = '';
+        let isImported = false;
+        
+        if (scraperSource === 'soma-tech') {
+            const found = SOMA_CATEGORIES.find(c => c.value === selectedScrapeCategory);
+            if (found) {
+                label = found.label;
+                isImported = importedCategories.includes(found.label);
+            }
+        } else {
+            for (const group of SOMA_PARTS_CATEGORIES) {
+                if (group.value === selectedScrapeCategory) {
+                    label = group.label;
+                    isImported = importedCategories.includes(group.label);
+                    break;
+                }
+                if (group.subcategories) {
+                    const foundSub = group.subcategories.find(sub => sub.value === selectedScrapeCategory);
+                    if (foundSub) {
+                        label = foundSub.label;
+                        isImported = importedCategories.includes(foundSub.label);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        const href = isImported
+            ? `/productos?category=${encodeURIComponent(label)}${scraperSource === 'soma-parts' ? '&type=producto' : ''}`
+            : '';
+            
+        return { isImported, label, href };
+    })();
 
     // Auto-scroll the scraper console log when log changes
     useEffect(() => {
@@ -1891,6 +1931,22 @@ export default function GestionWebClient({
                                 />
                             </div>
 
+                            {/* Top Bar Email */}
+                            <div className="space-y-1">
+                                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                                    <Mail size={12} className="text-brand-500" />
+                                    Correo de la Barra Superior (Top Bar)
+                                </label>
+                                <input 
+                                    type="email" 
+                                    value={landingSettings.topbarEmail || ''}
+                                    onChange={(e) => handleGeneralFieldChange('topbarEmail', e.target.value.trim())}
+                                    placeholder="ventas@bioelectronicahn.com"
+                                    className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white"
+                                />
+                                <span className="text-[10px] text-slate-400 block mt-0.5">Este correo se mostrará en la esquina superior derecha de la cabecera pública. Si se deja vacío, se usará el primero de la lista superior.</span>
+                            </div>
+
                             {/* Working Hours */}
                             <div className="space-y-1">
                                 <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
@@ -2367,17 +2423,33 @@ export default function GestionWebClient({
                                     </select>
                                     
                                     {/* Preview Link */}
-                                    <div className="mt-1.5 flex items-center justify-between text-[11px] px-1">
-                                        <span className="text-slate-400 font-sans">Previsualizar origen:</span>
-                                        <a 
-                                            href={getExternalCategoryUrl()} 
-                                            target="_blank" 
-                                            rel="noopener noreferrer" 
-                                            className="text-[#00A8CC] hover:underline font-semibold flex items-center gap-1 font-sans transition-colors hover:text-[#008ba8]"
-                                        >
-                                            <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : 'Soma Parts'}</span>
-                                            <ExternalLink size={10} />
-                                        </a>
+                                    <div className="mt-1.5 flex flex-col gap-1.5 text-[11px] px-1">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-slate-400 font-sans">Previsualizar origen:</span>
+                                            <a 
+                                                href={getExternalCategoryUrl()} 
+                                                target="_blank" 
+                                                rel="noopener noreferrer" 
+                                                className="text-[#00A8CC] hover:underline font-semibold flex items-center gap-1 font-sans transition-colors hover:text-[#008ba8]"
+                                            >
+                                                <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : 'Soma Parts'}</span>
+                                                <ExternalLink size={10} />
+                                            </a>
+                                        </div>
+                                        {categoryImportStatus.isImported && (
+                                            <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-100 animate-fade-in">
+                                                <span className="text-slate-400 font-sans font-medium text-emerald-700">En nuestra página:</span>
+                                                <a 
+                                                    href={categoryImportStatus.href} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    className="text-emerald-600 hover:underline font-semibold flex items-center gap-1 font-sans transition-colors hover:text-emerald-700"
+                                                >
+                                                    <span>Ver Categoría</span>
+                                                    <ExternalLink size={10} />
+                                                </a>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
