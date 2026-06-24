@@ -9,7 +9,8 @@ import {
     ShieldCheck,
     ChevronRight,
     Settings,
-    Users
+    Users,
+    Search
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -106,9 +107,19 @@ export default function SomaLandingPage({ data }: SomaLandingPageProps) {
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight leading-[1.15] text-white max-w-3xl">
                             Equipo confiable que su instalación necesita
                         </h1>
-                        <p className="text-slate-300 text-sm md:text-base leading-relaxed max-w-2xl font-medium">
+                        <p className="text-slate-300 text-sm md:text-base leading-relaxed max-w-2xl font-medium mb-6">
                             Nuevo, de demostración y reacondicionado por los mejores fabricantes. Hasta un 50 % por debajo del OEM con el mismo servicio y garantía.
                         </p>
+
+                        <form action="/productos" method="GET" className="max-w-md w-full relative mb-8">
+                            <input 
+                                type="text"
+                                name="q"
+                                placeholder="¿Qué equipo biomédico busca?"
+                                className="w-full bg-white/10 focus:bg-white text-white focus:text-slate-900 border border-white/20 focus:border-[#00509d] rounded-xl text-xs sm:text-sm py-3.5 pl-12 pr-4 transition-all placeholder-gray-400 font-semibold focus:outline-none focus:ring-2 focus:ring-[#00509d]/20"
+                            />
+                            <Search className="absolute left-4 top-3.5 text-gray-400" size={18} />
+                        </form>
 
                         <div className="flex flex-wrap gap-4 pt-4">
                             <Link href="/productos" className="bg-white hover:bg-slate-100 text-[#0b1a30] px-8 py-3.5 rounded-lg font-black transition-all hover:scale-[1.02] active:scale-[0.98] shadow-md uppercase tracking-wider text-xs">
@@ -226,7 +237,10 @@ export default function SomaLandingPage({ data }: SomaLandingPageProps) {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                         {data.assets.map((item: any) => (
                             <div key={item.id} className="group bg-white border border-slate-200/85 rounded-xl overflow-hidden hover:shadow-lg hover:border-[#00509d] transition-all duration-300 flex flex-col justify-between h-96">
-                                <div className="aspect-[4/3] w-full bg-slate-50 flex items-center justify-center border-b relative overflow-hidden p-4">
+                                <Link 
+                                    href={`/productos/${slugify(item.category || 'equipos')}/${item.id}-${slugify(item.descripcionCorta || '')}`}
+                                    className="aspect-[4/3] w-full bg-slate-50 flex items-center justify-center border-b relative overflow-hidden p-4 block hover:opacity-95 transition-opacity"
+                                >
                                     {item.imagenUrl ? (
                                         <img 
                                             src={item.imagenUrl} 
@@ -236,7 +250,7 @@ export default function SomaLandingPage({ data }: SomaLandingPageProps) {
                                     ) : (
                                         <Activity className="text-slate-350 w-12 h-12 stroke-[1.2]" />
                                     )}
-                                </div>
+                                </Link>
                                 <div className="p-5 flex-1 flex flex-col justify-between gap-4">
                                     <div className="space-y-1">
                                         <span className="text-[9px] font-bold text-[#00509d] bg-[#00509d]/10 px-2.5 py-0.5 rounded uppercase tracking-wider inline-block">

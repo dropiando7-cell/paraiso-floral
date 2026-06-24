@@ -99,16 +99,16 @@ export async function createRenta(data: FormData) {
         }
     });
 
+    const activeCaja = await prisma.corteCajaSession.findFirst({
+        where: {
+            organizationId: dbUser.organizationId,
+            estado: 'ABIERTA'
+        }
+    });
+    const cajaSessionId = activeCaja?.id || null;
+
     const metodoPagoDeposito = data.get('metodoPagoDeposito') as string;
     if (deposito > 0 && metodoPagoDeposito && metodoPagoDeposito !== 'Ninguno') {
-        const activeCaja = await prisma.corteCajaSession.findFirst({
-            where: {
-                organizationId: dbUser.organizationId,
-                estado: 'ABIERTA'
-            }
-        });
-        const cajaSessionId = activeCaja?.id || null;
-
         await prisma.rentaPago.create({
             data: {
                 organizationId: dbUser.organizationId,
@@ -116,6 +116,21 @@ export async function createRenta(data: FormData) {
                 monto: deposito,
                 metodoPago: metodoPagoDeposito,
                 notas: "Depósito en Garantía (Recibido)",
+                creadoPorId: dbUser.id,
+                cajaSessionId
+            }
+        });
+    }
+
+    const metodoPagoRenta = data.get('metodoPagoRenta') as string;
+    if (costoRenta > 0 && metodoPagoRenta && metodoPagoRenta !== 'Ninguno') {
+        await prisma.rentaPago.create({
+            data: {
+                organizationId: dbUser.organizationId,
+                rentaId: renta.id,
+                monto: costoRenta,
+                metodoPago: metodoPagoRenta,
+                notas: "Pago Inicial de Alquiler",
                 creadoPorId: dbUser.id,
                 cajaSessionId
             }

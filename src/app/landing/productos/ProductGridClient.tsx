@@ -246,7 +246,11 @@ export default function ProductGridClient({ items, isAdmin }: ProductGridClientP
                             )}
 
                             {/* Image */}
-                            <div className="aspect-[4/3] w-full bg-slate-50 flex items-center justify-center border-b border-slate-200/60 relative overflow-hidden">
+                            <Link 
+                                href={`/productos/${slugify(item.category || 'equipos')}/${item.id}-${slugify(item.name || '')}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="aspect-[4/3] w-full bg-slate-50 flex items-center justify-center border-b border-slate-200/60 relative overflow-hidden block hover:opacity-95 transition-opacity"
+                            >
                                 {item.imageUrl ? (
                                     /* eslint-disable-next-line @next/next/no-img-element */
                                     <img 
@@ -257,7 +261,7 @@ export default function ProductGridClient({ items, isAdmin }: ProductGridClientP
                                 ) : (
                                     <HeartPulse className="text-slate-300 w-12 h-12 stroke-[1.2]" />
                                 )}
-                            </div>
+                            </Link>
 
                             {/* Body */}
                             <div className="p-5 flex-1 flex flex-col gap-4 text-xs font-semibold" onClick={(e) => e.stopPropagation()}>

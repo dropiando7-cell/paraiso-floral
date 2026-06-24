@@ -180,7 +180,7 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                 name: c.tituloWeb || c.nombre,
                 brand: (c.marca || 'GENÉRICO').trim(),
                 model: c.modelo || 'N/A',
-                code: c.sku || '',
+                code: c.sku ? c.sku.replace(/^SOMA-/, '') : '',
                 imageUrl: c.imagenWeb || null,
                 type: 'producto' as const,
                 typeName: c.sku.startsWith('SOMA-') 

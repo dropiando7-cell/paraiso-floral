@@ -267,10 +267,24 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                         <div className="space-y-5 pt-6 border-t border-slate-100">
                             <h2 className="text-sm uppercase tracking-wider font-bold text-slate-400">3. Financiero</h2>
                             
-                            <div className="grid md:grid-cols-3 gap-5">
+                            <div className="grid md:grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><DollarSign className="w-4 h-4 text-slate-400" /> Costo Total Renta (L.) <span className="text-red-500">*</span></label>
                                     <input type="number" step="0.01" name="costoRenta" value={costoRenta} onChange={e => setCostoRenta(parseFloat(e.target.value) || 0)} required min="0" placeholder="Ej. 1500" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-bold text-emerald-700" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">Método de Pago de Renta</label>
+                                    <select 
+                                        name="metodoPagoRenta"
+                                        defaultValue="Ninguno"
+                                        className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold"
+                                    >
+                                        <option value="Ninguno">No registrar en Caja (Ninguno)</option>
+                                        <option value="Efectivo">Efectivo</option>
+                                        <option value="Tarjeta">Tarjeta</option>
+                                        <option value="Transferencia">Transferencia</option>
+                                        <option value="Cheque">Cheque</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><DollarSign className="w-4 h-4 text-slate-400" /> Depósito en Garantía (L.)</label>

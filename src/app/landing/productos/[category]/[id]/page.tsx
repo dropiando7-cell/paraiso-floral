@@ -92,7 +92,7 @@ async function getItemData(id: string, settings: any) {
             }
 
             const details: Record<string, string> = {
-                'SKU': product.sku,
+                'SKU': product.sku ? product.sku.replace(/^SOMA-/, '') : '',
                 'Stock Disponible': stockVal,
                 'Impuesto (ISV)': `${product.isvAplicable}%`
             };
@@ -102,7 +102,7 @@ async function getItemData(id: string, settings: any) {
                 name: product.tituloWeb || product.nombre,
                 brand: product.marca || 'Genérico',
                 model: product.modelo || 'N/A',
-                code: product.sku,
+                code: product.sku ? product.sku.replace(/^SOMA-/, '') : '',
                 imageUrl: product.imagenWeb || null,
                 type: 'producto' as const,
                 typeName: product.sku.startsWith('SOMA-') 

@@ -127,9 +127,9 @@ async function getLandingData() {
                 realAssets = queryProducts.map(p => ({
                     id: p.id,
                     descripcionCorta: p.nombre,
-                    marca: p.marca || 'SOMA',
+                    marca: p.marca || 'GENÉRICO',
                     modelo: p.modelo || 'N/A',
-                    idQr: p.sku,
+                    idQr: p.sku ? p.sku.replace(/^SOMA-/, '') : '',
                     imagenUrl: p.imagenWeb || null,
                     category: p.categoria || 'consumibles'
                 }));

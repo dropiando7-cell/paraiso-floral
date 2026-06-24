@@ -368,6 +368,19 @@ export default function PublicHeader({
                 </div>
             </div>
 
+            {/* Mobile Search Row (always visible on mobile) */}
+            <div className="mt-2.5 lg:hidden border-t border-slate-100 pt-2.5">
+                <form action="/productos" method="GET" className="relative w-full">
+                    <input 
+                        type="text"
+                        name="q"
+                        placeholder={isSoma ? "¿Qué busca?" : "BUSCAR EQUIPO..."}
+                        className={`w-full bg-slate-100 border border-slate-200 rounded-xl text-xs py-2.5 pl-10 pr-4 text-slate-800 focus:outline-none font-semibold ${isSoma ? 'focus:border-[#00509d]' : 'focus:border-[#00A8CC]'}`}
+                    />
+                    <Search className="absolute left-3.5 top-3 text-slate-400" size={14} />
+                </form>
+            </div>
+
             {/* MEGA MENU CONTAINER (DEKSTOP) */}
             {isMegaMenuOpen && (
                 <div 

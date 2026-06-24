@@ -9,7 +9,8 @@ import {
     ShieldCheck,
     ChevronRight,
     Settings,
-    Users
+    Users,
+    Search
 } from 'lucide-react';
 import Link from 'next/link';
 import FinderTool from './FinderTool';
@@ -80,9 +81,19 @@ export default function BioLandingPage({ data }: BioLandingPageProps) {
                         <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-white leading-tight">
                             Equipos Médicos Nuevos y <span className="text-[#00A8CC]">Remanufacturados</span>.
                         </h1>
-                        <p className="text-gray-300 text-base md:text-lg leading-relaxed max-w-xl">
+                        <p className="text-gray-300 text-base md:text-lg leading-relaxed max-w-xl mb-6">
                             El proveedor de confianza para hospitales, clínicas de cirugía y centros de atención en Honduras. Equipos certificados, calibrados y listos para salvar vidas.
                         </p>
+
+                        <form action="/productos" method="GET" className="max-w-md w-full relative mb-8">
+                            <input 
+                                type="text"
+                                name="q"
+                                placeholder="Buscar equipos médicos (ej. Ultrasonido)..."
+                                className="w-full bg-white/10 focus:bg-white text-white focus:text-slate-900 border border-white/20 focus:border-[#00A8CC] rounded-full text-xs sm:text-sm py-3.5 pl-12 pr-4 transition-all placeholder-gray-400 font-semibold focus:outline-none focus:ring-2 focus:ring-[#00A8CC]/20"
+                            />
+                            <Search className="absolute left-4 top-3.5 text-gray-400" size={18} />
+                        </form>
 
                         <div className="flex flex-wrap gap-4 pt-2">
                             <Link href="/productos" className="bg-[#00A8CC] hover:bg-[#008ba8] text-white px-8 py-3.5 rounded-full font-bold shadow-lg shadow-cyan-550/20 transition-all flex items-center gap-2">
@@ -208,7 +219,10 @@ export default function BioLandingPage({ data }: BioLandingPageProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {data.assets.map((item: any) => (
                         <div key={item.id} className="group flex flex-col bg-white border border-gray-250 rounded-2xl overflow-hidden hover:shadow-lg hover:border-[#00A8CC] transition-all relative duration-300">
-                            <div className="aspect-[4/3] w-full bg-slate-50 border-b flex items-center justify-center relative overflow-hidden">
+                            <Link 
+                                href={`/productos/${slugify(item.category || 'equipos')}/${item.id}-${slugify(item.descripcionCorta || '')}`}
+                                className="aspect-[4/3] w-full bg-slate-50 border-b flex items-center justify-center relative overflow-hidden block hover:opacity-95 transition-opacity"
+                            >
                                 {item.imagenUrl ? (
                                     <img 
                                         src={item.imagenUrl} 
@@ -218,7 +232,7 @@ export default function BioLandingPage({ data }: BioLandingPageProps) {
                                 ) : (
                                     <Activity className="text-slate-300 w-12 h-12 stroke-[1.2]" />
                                 )}
-                            </div>
+                            </Link>
                             <div className="p-5 flex-1 flex flex-col gap-4 text-xs font-semibold">
                                 <div className="space-y-1.5 flex-1">
                                     <span className="text-[9px] font-black bg-gradient-to-r from-cyan-500 to-blue-600 text-white px-2.5 py-0.5 rounded-full uppercase tracking-wider inline-block">
