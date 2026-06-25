@@ -336,7 +336,6 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
             }
         }
 
-        // Apply source filters (scraped SOMA products vs own inventory)
         if (sourceFilter === 'scraped') {
             productsWhere.OR = [
                 { sku: { startsWith: 'SOMA-' } },
@@ -344,7 +343,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                 { sku: { startsWith: 'PUKANG-' } },
                 { sku: { startsWith: 'JOSON-' } },
                 { sku: { startsWith: 'AERTI-' } },
-                { sku: { startsWith: 'DRE-' } }
+                { sku: { startsWith: 'DRE-' } },
+                { sku: { startsWith: 'AMCARE-' } }
             ];
         } else if (sourceFilter === 'own') {
             if (!productsWhere.AND) {
@@ -356,7 +356,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                 { sku: { not: { startsWith: 'PUKANG-' } } },
                 { sku: { not: { startsWith: 'JOSON-' } } },
                 { sku: { not: { startsWith: 'AERTI-' } } },
-                { sku: { not: { startsWith: 'DRE-' } } }
+                { sku: { not: { startsWith: 'DRE-' } } },
+                { sku: { not: { startsWith: 'AMCARE-' } } }
             );
         }
 
@@ -792,7 +793,8 @@ export async function getImportedCategories() {
                     { sku: { startsWith: 'PUKANG-' } },
                     { sku: { startsWith: 'JOSON-' } },
                     { sku: { startsWith: 'AERTI-' } },
-                    { sku: { startsWith: 'DRE-' } }
+                    { sku: { startsWith: 'DRE-' } },
+                    { sku: { startsWith: 'AMCARE-' } }
                 ]
             },
             select: {
@@ -804,5 +806,61 @@ export async function getImportedCategories() {
     } catch (error: any) {
         console.error('Error fetching imported categories:', error);
         return { success: false, categories: [] };
+    }
+}
+
+export async function deleteWebCategory(categoryName: string) {
+    try {
+        await checkAdminAuth();
+
+        if (!categoryName) {
+            return { success: false, error: 'Nombre de categoría inválido' };
+        }
+
+        await prisma.producto.updateMany({
+            where: {
+                categoria: categoryName
+            },
+            data: {
+                categoria: null
+            }
+        });
+
+        revalidatePath('/admin/gestion-web');
+        revalidatePath('/landing');
+        revalidatePath('/landing/productos');
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error deleting category:', error);
+        return { success: false, error: error.message || 'Error al eliminar la categoría' };
+    }
+}
+
+export async function deleteWebCategoriesBulk(categoryNames: string[]) {
+    try {
+        await checkAdminAuth();
+
+        if (!categoryNames || categoryNames.length === 0) {
+            return { success: false, error: 'No se especificaron categorías para eliminar' };
+        }
+
+        await prisma.producto.updateMany({
+            where: {
+                categoria: { in: categoryNames }
+            },
+            data: {
+                categoria: null
+            }
+        });
+
+        revalidatePath('/admin/gestion-web');
+        revalidatePath('/landing');
+        revalidatePath('/landing/productos');
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error deleting categories bulk:', error);
+        return { success: false, error: error.message || 'Error al eliminar las categorías seleccionadas' };
     }
 }

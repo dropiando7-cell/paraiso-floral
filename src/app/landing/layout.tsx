@@ -128,7 +128,8 @@ async function getDynamicCategories(hideRealInventory: boolean, allowScrapedProd
                     { sku: { startsWith: 'PUKANG-' } },
                     { sku: { startsWith: 'JOSON-' } },
                     { sku: { startsWith: 'AERTI-' } },
-                    { sku: { startsWith: 'DRE-' } }
+                    { sku: { startsWith: 'DRE-' } },
+                    { sku: { startsWith: 'AMCARE-' } }
                 ];
             } else if (!allowScrapedProducts) {
                 productWhere.AND = [
@@ -137,7 +138,8 @@ async function getDynamicCategories(hideRealInventory: boolean, allowScrapedProd
                     { sku: { not: { startsWith: 'PUKANG-' } } },
                     { sku: { not: { startsWith: 'JOSON-' } } },
                     { sku: { not: { startsWith: 'AERTI-' } } },
-                    { sku: { not: { startsWith: 'DRE-' } } }
+                    { sku: { not: { startsWith: 'DRE-' } } },
+                    { sku: { not: { startsWith: 'AMCARE-' } } }
                 ];
             }
 

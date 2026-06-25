@@ -114,7 +114,8 @@ async function getLandingData() {
                             { sku: { startsWith: 'PUKANG-' } },
                             { sku: { startsWith: 'JOSON-' } },
                             { sku: { startsWith: 'AERTI-' } },
-                            { sku: { startsWith: 'DRE-' } }
+                            { sku: { startsWith: 'DRE-' } },
+                            { sku: { startsWith: 'AMCARE-' } }
                         ]
                     },
                     take: 4,
@@ -133,7 +134,7 @@ async function getLandingData() {
                     descripcionCorta: p.nombre,
                     marca: p.marca || 'GENÉRICO',
                     modelo: p.modelo || 'N/A',
-                    idQr: p.sku ? p.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-)/, '') : '',
+                    idQr: p.sku ? p.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-|AMCARE-)/, '') : '',
                     imagenUrl: p.imagenWeb || null,
                     category: p.categoria || 'consumibles'
                 }));
@@ -219,7 +220,8 @@ async function getLandingData() {
                         { sku: { startsWith: 'PUKANG-' } },
                         { sku: { startsWith: 'JOSON-' } },
                         { sku: { startsWith: 'AERTI-' } },
-                        { sku: { startsWith: 'DRE-' } }
+                        { sku: { startsWith: 'DRE-' } },
+                        { sku: { startsWith: 'AMCARE-' } }
                     ];
                 } else if (!allowScrapedProducts) {
                     productWhere.AND = [
@@ -228,7 +230,8 @@ async function getLandingData() {
                         { sku: { not: { startsWith: 'PUKANG-' } } },
                         { sku: { not: { startsWith: 'JOSON-' } } },
                         { sku: { not: { startsWith: 'AERTI-' } } },
-                        { sku: { not: { startsWith: 'DRE-' } } }
+                        { sku: { not: { startsWith: 'DRE-' } } },
+                        { sku: { not: { startsWith: 'AMCARE-' } } }
                     ];
                 }
 

@@ -16,7 +16,9 @@ import {
     getPaginatedInventoryItems,
     getInventoryItemById,
     deleteInventoryItem,
-    getImportedCategories
+    getImportedCategories,
+    deleteWebCategory,
+    deleteWebCategoriesBulk
 } from './actions';
 import { 
     Settings, 
@@ -590,6 +592,9 @@ export default function GestionWebClient({
     const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts' | 'pukang' | 'joson' | 'aerti' | 'dre' | 'amcaremed'>('soma-tech');
     const [selectedScrapeCategory, setSelectedScrapeCategory] = useState<string>('all');
     const [importedCategories, setImportedCategories] = useState<string[]>([]);
+    const [categorySearch, setCategorySearch] = useState<string>('');
+    const [selectedCats, setSelectedCats] = useState<string[]>([]);
+    const [categoryViewMode, setCategoryViewMode] = useState<'cards' | 'list'>('cards');
 
     const fetchImportedCategories = async () => {
         try {
@@ -606,6 +611,43 @@ export default function GestionWebClient({
     useEffect(() => {
         fetchImportedCategories();
     }, []);
+
+    const handleDeleteCategory = async (categoryName: string) => {
+        const confirmMsg = `¿Estás seguro de que deseas eliminar la categoría "${categoryName}"? Todos los productos asociados a ella pasarán a estar "Sin Categorizar" y la categoría dejará de mostrarse en los menús de la web.`;
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            const res = await deleteWebCategory(categoryName);
+            if (res.success) {
+                toast.success('Categoría eliminada con éxito');
+                setSelectedCats(prev => prev.filter(c => c !== categoryName));
+                fetchImportedCategories();
+            } else {
+                toast.error(res.error || 'Error al eliminar la categoría');
+            }
+        } catch (e: any) {
+            toast.error(e.message || 'Error de conexión');
+        }
+    };
+
+    const handleDeleteSelectedCategories = async () => {
+        if (selectedCats.length === 0) return;
+        const confirmMsg = `¿Estás seguro de que deseas eliminar las ${selectedCats.length} categorías seleccionadas? Todos los productos asociados a ellas pasarán a estar "Sin Categorizar" y dejarán de mostrarse en la web pública.`;
+        if (!confirm(confirmMsg)) return;
+
+        try {
+            const res = await deleteWebCategoriesBulk(selectedCats);
+            if (res.success) {
+                toast.success('Categorías seleccionadas eliminadas con éxito');
+                setSelectedCats([]);
+                fetchImportedCategories();
+            } else {
+                toast.error(res.error || 'Error al eliminar las categorías');
+            }
+        } catch (e: any) {
+            toast.error(e.message || 'Error de conexión');
+        }
+    };
 
     const getExternalCategoryUrl = () => {
         if (scraperSource === 'soma-tech') {
@@ -2881,12 +2923,233 @@ export default function GestionWebClient({
                                         </div>
                                     )}
                                 </div>
-                                
-                                <div className="flex gap-3 text-xs border-t pt-4 font-semibold text-slate-655 justify-between">
+
+                                <div className="flex gap-3 text-xs border-t pt-4 font-semibold text-slate-500 justify-between">
                                     <span>Estado Scraper: <strong className={isImporting ? 'text-amber-600' : 'text-slate-900'}>{isImporting ? 'Extrayendo lotes...' : 'Listo'}</strong></span>
                                     <span>Último Estado: <strong className="text-slate-900">Exitoso</strong></span>
                                 </div>
                             </div>
+                        </div>
+
+                        {/* Administrar Categorías Importadas */}
+                        <div className="border border-slate-200 rounded-2xl p-6 bg-white shadow-sm space-y-4">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                                <div className="space-y-0.5">
+                                    <h3 className="font-bold text-sm text-slate-800">Categorías Importadas Activas en la Web</h3>
+                                    <p className="text-xs text-slate-500 font-sans leading-relaxed">
+                                        Esta es la lista de categorías generadas por tus productos importados activos en la web. Al eliminar una categoría, todos los productos asociados se moverán a <strong>"Sin Categorizar"</strong> y la categoría dejará de mostrarse en los menús de navegación de la landing page.
+                                    </p>
+                                </div>
+                                {/* View toggles & bulk actions */}
+                                <div className="flex items-center gap-3 shrink-0">
+                                    <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 select-none">
+                                        <button
+                                            type="button"
+                                            onClick={() => setCategoryViewMode('cards')}
+                                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${categoryViewMode === 'cards' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                                        >
+                                            Tarjetas
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setCategoryViewMode('list')}
+                                            className={`px-3 py-1 text-xs font-bold rounded-md transition-all cursor-pointer ${categoryViewMode === 'list' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-550 hover:text-slate-800'}`}
+                                        >
+                                            Lista
+                                        </button>
+                                    </div>
+                                    
+                                    {selectedCats.length > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={handleDeleteSelectedCategories}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-650 hover:bg-red-700 text-white text-xs font-bold rounded-xl transition-all shadow-md active:scale-95 cursor-pointer animate-fade-in"
+                                        >
+                                            <Trash2 size={13} />
+                                            <span>Eliminar Seleccionadas ({selectedCats.length})</span>
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {importedCategories.length === 0 ? (
+                                <p className="text-xs text-slate-400 italic font-sans py-4 text-center">No hay categorías importadas activas en la base de datos.</p>
+                            ) : (
+                                (() => {
+                                    const filteredCategories = importedCategories.filter(cat =>
+                                        cat.toLowerCase().includes(categorySearch.toLowerCase())
+                                    );
+
+                                    const isAllFilteredSelected = filteredCategories.length > 0 && 
+                                        filteredCategories.every(cat => selectedCats.includes(cat));
+
+                                    return (
+                                        <div className="space-y-4">
+                                            {/* Search input & Select All */}
+                                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50 p-4 rounded-xl border border-slate-150">
+                                                <div className="relative w-full sm:max-w-xs">
+                                                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                                                    <input
+                                                        type="text"
+                                                        value={categorySearch}
+                                                        onChange={(e) => setCategorySearch(e.target.value)}
+                                                        placeholder="Buscar categorías..."
+                                                        className="w-full bg-white border border-slate-200 rounded-xl text-xs py-2 pl-9.5 pr-4 text-slate-800 focus:outline-none focus:ring-1 focus:ring-cyan-500 focus:border-cyan-500 font-semibold shadow-sm transition-all"
+                                                    />
+                                                    {categorySearch && (
+                                                        <button 
+                                                            onClick={() => setCategorySearch('')}
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 hover:text-slate-600 transition-colors"
+                                                        >
+                                                            Limpiar
+                                                        </button>
+                                                    )}
+                                                </div>
+
+                                                {filteredCategories.length > 0 && (
+                                                    <div className="flex items-center gap-2 pl-1 sm:pl-0 text-xs text-slate-600 font-semibold select-none">
+                                                        <input
+                                                            type="checkbox"
+                                                            id="select-all-cats-checkbox"
+                                                            checked={isAllFilteredSelected}
+                                                            onChange={(e) => {
+                                                                if (e.target.checked) {
+                                                                    setSelectedCats(prev => {
+                                                                        const union = new Set([...prev, ...filteredCategories]);
+                                                                        return Array.from(union);
+                                                                    });
+                                                                } else {
+                                                                    setSelectedCats(prev => prev.filter(cat => !filteredCategories.includes(cat)));
+                                                                }
+                                                            }}
+                                                            className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 cursor-pointer w-4 h-4 transition-all"
+                                                        />
+                                                        <label htmlFor="select-all-cats-checkbox" className="cursor-pointer font-bold text-[11px] text-slate-500 uppercase tracking-wider">
+                                                            {isAllFilteredSelected ? 'Deseleccionar Todas' : 'Seleccionar Todas las Filtradas'}
+                                                        </label>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Categories Render */}
+                                            {filteredCategories.length === 0 ? (
+                                                <p className="text-xs text-slate-400 italic font-sans py-6 text-center">No se encontraron categorías que coincidan con tu búsqueda.</p>
+                                            ) : categoryViewMode === 'cards' ? (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-96 overflow-y-auto pr-2 scrollbar-thin">
+                                                    {filteredCategories.map((cat) => {
+                                                        const isSelected = selectedCats.includes(cat);
+                                                        return (
+                                                            <div 
+                                                                key={cat} 
+                                                                className={`flex items-center justify-between p-3 border rounded-xl transition-all ${
+                                                                    isSelected 
+                                                                        ? 'bg-cyan-50/20 border-cyan-300 shadow-sm ring-1 ring-cyan-300' 
+                                                                        : 'bg-slate-50 border-slate-200 hover:border-slate-300 hover:bg-slate-50/80 shadow-sm'
+                                                                }`}
+                                                            >
+                                                                <label className="flex items-center gap-2.5 min-w-0 flex-1 select-none cursor-pointer">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isSelected}
+                                                                        onChange={(e) => {
+                                                                            if (e.target.checked) {
+                                                                                setSelectedCats(prev => [...prev, cat]);
+                                                                            } else {
+                                                                                setSelectedCats(prev => prev.filter(c => c !== cat));
+                                                                            }
+                                                                        }}
+                                                                        className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 cursor-pointer w-4 h-4"
+                                                                    />
+                                                                    <span className="text-xs font-semibold text-slate-800 truncate font-sans" title={cat}>
+                                                                        {cat}
+                                                                    </span>
+                                                                </label>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleDeleteCategory(cat)}
+                                                                    className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer shrink-0 ml-1"
+                                                                    title={`Eliminar categoría ${cat}`}
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="border border-slate-200 rounded-xl overflow-hidden max-h-96 overflow-y-auto scrollbar-thin shadow-sm">
+                                                    <table className="w-full text-left border-collapse">
+                                                        <thead>
+                                                            <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider select-none">
+                                                                <th className="p-3 w-12 text-center">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={isAllFilteredSelected}
+                                                                        onChange={(e) => {
+                                                                            if (e.target.checked) {
+                                                                                setSelectedCats(prev => {
+                                                                                    const union = new Set([...prev, ...filteredCategories]);
+                                                                                    return Array.from(union);
+                                                                                });
+                                                                            } else {
+                                                                                setSelectedCats(prev => prev.filter(cat => !filteredCategories.includes(cat)));
+                                                                            }
+                                                                        }}
+                                                                        className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 cursor-pointer w-4 h-4"
+                                                                    />
+                                                                </th>
+                                                                <th className="p-3">Nombre de la Categoría</th>
+                                                                <th className="p-3 w-24 text-center">Acciones</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700 bg-white">
+                                                            {filteredCategories.map((cat) => {
+                                                                const isSelected = selectedCats.includes(cat);
+                                                                return (
+                                                                    <tr 
+                                                                        key={cat} 
+                                                                        className={`hover:bg-slate-50/40 transition-colors ${
+                                                                            isSelected ? 'bg-cyan-50/10' : ''
+                                                                        }`}
+                                                                    >
+                                                                        <td className="p-3 text-center">
+                                                                            <input
+                                                                                type="checkbox"
+                                                                                checked={isSelected}
+                                                                                onChange={(e) => {
+                                                                                    if (e.target.checked) {
+                                                                                        setSelectedCats(prev => [...prev, cat]);
+                                                                                    } else {
+                                                                                        setSelectedCats(prev => prev.filter(c => c !== cat));
+                                                                                    }
+                                                                                }}
+                                                                                className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 cursor-pointer w-4 h-4"
+                                                                            />
+                                                                        </td>
+                                                                        <td className="p-3 font-semibold text-slate-800">
+                                                                            {cat}
+                                                                        </td>
+                                                                        <td className="p-3 text-center">
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleDeleteCategory(cat)}
+                                                                                className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                                                                                title={`Eliminar categoría ${cat}`}
+                                                                            >
+                                                                                <Trash2 size={14} />
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                );
+                                                            })}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })()
+                            )}
                         </div>
                     </div>
                 )}

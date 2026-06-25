@@ -77,13 +77,13 @@ async function getItemData(id: string, settings: any) {
 
         if (product) {
             // If it is a scraped product and they are currently disabled, prevent details access
-            if ((product.sku.startsWith('SOMA-') || product.sku.startsWith('REP-') || product.sku.startsWith('PUKANG-') || product.sku.startsWith('JOSON-') || product.sku.startsWith('AERTI-') || product.sku.startsWith('DRE-')) && !allowScrapedProducts) {
+            if ((product.sku.startsWith('SOMA-') || product.sku.startsWith('REP-') || product.sku.startsWith('PUKANG-') || product.sku.startsWith('JOSON-') || product.sku.startsWith('AERTI-') || product.sku.startsWith('DRE-') || product.sku.startsWith('AMCARE-')) && !allowScrapedProducts) {
                 return null;
             }
 
             // Determine virtual or actual stock display
             let stockVal = String(product.stockActual);
-            if (product.sku.startsWith('SOMA-') || product.sku.startsWith('REP-') || product.sku.startsWith('PUKANG-') || product.sku.startsWith('JOSON-') || product.sku.startsWith('AERTI-') || product.sku.startsWith('DRE-')) {
+            if (product.sku.startsWith('SOMA-') || product.sku.startsWith('REP-') || product.sku.startsWith('PUKANG-') || product.sku.startsWith('JOSON-') || product.sku.startsWith('AERTI-') || product.sku.startsWith('DRE-') || product.sku.startsWith('AMCARE-')) {
                 if (defaultScrapedStock > 0) {
                     stockVal = `${defaultScrapedStock}`;
                 } else {
@@ -92,7 +92,7 @@ async function getItemData(id: string, settings: any) {
             }
 
             const details: Record<string, string> = {
-                'SKU': product.sku ? product.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-)/, '') : '',
+                'SKU': product.sku ? product.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-|AMCARE-)/, '') : '',
                 'Stock Disponible': stockVal,
                 'Impuesto (ISV)': `${product.isvAplicable}%`
             };
@@ -102,7 +102,7 @@ async function getItemData(id: string, settings: any) {
                 name: product.tituloWeb || product.nombre,
                 brand: product.marca || 'Genérico',
                 model: product.modelo || 'N/A',
-                code: product.sku ? product.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-)/, '') : '',
+                code: product.sku ? product.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-|AMCARE-)/, '') : '',
                 imageUrl: product.imagenWeb || null,
                 images: product.imagenes || [],
                 type: 'producto' as const,
@@ -116,9 +116,11 @@ async function getItemData(id: string, settings: any) {
                                 ? (product.categoria || 'Equipos de Oxigenoterapia')
                                 : product.sku.startsWith('DRE-')
                                     ? (product.categoria || 'Equipos Médicos Quirúrgicos DRE')
-                                    : product.sku.startsWith('REP-') 
-                                        ? `Repuesto / ${product.categoria || 'Accesorios'}` 
-                                        : 'Consumible / Repuesto',
+                                    : product.sku.startsWith('AMCARE-')
+                                        ? (product.categoria || 'Gases Medicinales y Quirófano')
+                                        : product.sku.startsWith('REP-') 
+                                            ? `Repuesto / ${product.categoria || 'Accesorios'}` 
+                                            : 'Consumible / Repuesto',
                 description: product.descripcionWeb || product.descripcion || '',
                 category: product.categoria || 'consumibles',
                 details,

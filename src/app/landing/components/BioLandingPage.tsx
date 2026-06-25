@@ -73,8 +73,8 @@ export default function BioLandingPage({ data }: BioLandingPageProps) {
                     <div className="absolute inset-0 bg-gradient-to-tr from-[#07162c] via-[#07162c]/90 to-transparent"></div>
                 </div>
 
-                <div className="container mx-auto px-4 max-w-7xl relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                    <div className="space-y-6">
+                <div className="container mx-auto px-4 max-w-7xl relative z-10">
+                    <div className="max-w-3xl space-y-6">
                         
                         {/* 1. MOBILE SEARCH INPUT (Visible ONLY on mobile, placed FIRST) */}
                         <div className="block lg:hidden w-full">
@@ -164,34 +164,6 @@ export default function BioLandingPage({ data }: BioLandingPageProps) {
                             <Link href="/contacto" className="bg-white/10 text-white backdrop-blur-sm border border-white/10 px-8 py-3.5 rounded-full font-bold hover:bg-white/20 transition-colors text-xs uppercase tracking-wider">
                                 Solicitar Cotización
                             </Link>
-                        </div>
-                    </div>
-
-                    {/* Stats Dashboard Card (PC version ONLY) */}
-                    <div className="hidden lg:block relative select-none">
-                        <div className="bg-[#0e223d]/80 backdrop-blur border border-slate-700/50 rounded-3xl p-8 space-y-6 shadow-2xl relative">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-cyan-500/10 rounded-full blur-xl pointer-events-none" />
-                            <h3 className="font-extrabold text-sm text-white uppercase tracking-wider border-b border-slate-800 pb-2">Alcance & Respaldo</h3>
-                            
-                            <div className="grid grid-cols-3 gap-6 text-center">
-                                <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800 hover:border-cyan-500/30 transition-all">
-                                    <h4 className="text-3xl font-extrabold text-cyan-400">15+</h4>
-                                    <p className="text-[10px] text-slate-400 font-semibold uppercase mt-1">Años de Exp.</p>
-                                </div>
-                                <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800 hover:border-cyan-500/30 transition-all">
-                                    <h4 className="text-3xl font-extrabold text-cyan-400">100+</h4>
-                                    <p className="text-[10px] text-slate-400 font-semibold uppercase mt-1">Hospitales</p>
-                                </div>
-                                <div className="p-4 bg-slate-900/40 rounded-2xl border border-slate-800 hover:border-cyan-500/30 transition-all">
-                                    <h4 className="text-3xl font-extrabold text-cyan-400">12</h4>
-                                    <p className="text-[10px] text-slate-400 font-semibold uppercase mt-1">Meses Gar.</p>
-                                </div>
-                            </div>
-                            
-                            <div className="p-4 rounded-2xl bg-cyan-500/5 border border-cyan-500/20 text-xs text-cyan-300 leading-normal flex items-start gap-3">
-                                <ShieldCheck size={18} className="shrink-0 text-cyan-400" />
-                                <span>Calibración verificada con analizadores de grado médico antes de cada entrega para asegurar precisión absoluta.</span>
-                            </div>
                         </div>
                     </div>
                 </div>
