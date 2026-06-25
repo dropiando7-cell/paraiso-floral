@@ -137,13 +137,19 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                 productWhere.OR = [
                     { sku: { startsWith: 'SOMA-' } },
                     { sku: { startsWith: 'REP-' } },
-                    { sku: { startsWith: 'PUKANG-' } }
+                    { sku: { startsWith: 'PUKANG-' } },
+                    { sku: { startsWith: 'JOSON-' } },
+                    { sku: { startsWith: 'AERTI-' } },
+                    { sku: { startsWith: 'DRE-' } }
                 ];
             } else if (!allowScrapedProducts) {
                 productWhere.AND = [
                     { sku: { not: { startsWith: 'SOMA-' } } },
                     { sku: { not: { startsWith: 'REP-' } } },
-                    { sku: { not: { startsWith: 'PUKANG-' } } }
+                    { sku: { not: { startsWith: 'PUKANG-' } } },
+                    { sku: { not: { startsWith: 'JOSON-' } } },
+                    { sku: { not: { startsWith: 'AERTI-' } } },
+                    { sku: { not: { startsWith: 'DRE-' } } }
                 ];
             }
 
@@ -182,16 +188,22 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                 name: c.tituloWeb || c.nombre,
                 brand: (c.marca || 'GENÉRICO').trim(),
                 model: c.modelo || 'N/A',
-                code: c.sku ? c.sku.replace(/^(SOMA-|PUKANG-)/, '') : '',
+                code: c.sku ? c.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-)/, '') : '',
                 imageUrl: c.imagenWeb || null,
                 type: 'producto' as const,
                 typeName: c.sku.startsWith('SOMA-') 
                     ? (c.categoria || 'Máquinas de anestesia') 
                     : c.sku.startsWith('PUKANG-')
                         ? (c.categoria || 'Muebles Hospitalarios')
-                        : c.sku.startsWith('REP-') 
-                            ? `Repuesto / ${c.categoria || 'Accesorios'}` 
-                            : 'Consumible / Repuesto',
+                        : c.sku.startsWith('JOSON-')
+                            ? (c.categoria || 'Camas y Mobiliario Hospitalario')
+                            : c.sku.startsWith('AERTI-')
+                                ? (c.categoria || 'Equipos de Oxigenoterapia')
+                                : c.sku.startsWith('DRE-')
+                                    ? (c.categoria || 'Equipos Médicos Quirúrgicos DRE')
+                                    : c.sku.startsWith('REP-') 
+                                        ? `Repuesto / ${c.categoria || 'Accesorios'}` 
+                                        : 'Consumible / Repuesto',
                 category: (c.categoria || 'CONSUMIBLES').trim(),
                 hidden: c.estado === 'OCULTO',
             }))

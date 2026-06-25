@@ -588,6 +588,7 @@ model Producto {
   nombre                  String
   descripcion             String?
   imagenWeb               String?
+  imagenes                String[]               @default([])
   tituloWeb               String?
   descripcionWeb          String?
   marca                   String?

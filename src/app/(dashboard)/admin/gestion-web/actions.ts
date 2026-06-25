@@ -341,7 +341,10 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
             productsWhere.OR = [
                 { sku: { startsWith: 'SOMA-' } },
                 { sku: { startsWith: 'REP-' } },
-                { sku: { startsWith: 'PUKANG-' } }
+                { sku: { startsWith: 'PUKANG-' } },
+                { sku: { startsWith: 'JOSON-' } },
+                { sku: { startsWith: 'AERTI-' } },
+                { sku: { startsWith: 'DRE-' } }
             ];
         } else if (sourceFilter === 'own') {
             if (!productsWhere.AND) {
@@ -350,7 +353,10 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
             productsWhere.AND.push(
                 { sku: { not: { startsWith: 'SOMA-' } } },
                 { sku: { not: { startsWith: 'REP-' } } },
-                { sku: { not: { startsWith: 'PUKANG-' } } }
+                { sku: { not: { startsWith: 'PUKANG-' } } },
+                { sku: { not: { startsWith: 'JOSON-' } } },
+                { sku: { not: { startsWith: 'AERTI-' } } },
+                { sku: { not: { startsWith: 'DRE-' } } }
             );
         }
 
@@ -783,7 +789,10 @@ export async function getImportedCategories() {
                 OR: [
                     { sku: { startsWith: 'SOMA-' } },
                     { sku: { startsWith: 'REP-' } },
-                    { sku: { startsWith: 'PUKANG-' } }
+                    { sku: { startsWith: 'PUKANG-' } },
+                    { sku: { startsWith: 'JOSON-' } },
+                    { sku: { startsWith: 'AERTI-' } },
+                    { sku: { startsWith: 'DRE-' } }
                 ]
             },
             select: {

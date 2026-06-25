@@ -198,6 +198,54 @@ const PUKANG_CATEGORIES = [
     { value: "patient-lift", label: "Elevación de Pacientes" }
 ];
 
+const JOSON_CATEGORIES = [
+    { value: "cama-uci", label: "Cama de UCI" },
+    { value: "cama-hospital", label: "Cama de hospital" },
+    { value: "cama-hospital-manual", label: "Cama de hospital manual" },
+    { value: "camilla-emergencia", label: "Camilla de emergencia" },
+    { value: "cama-pediatrica", label: "Cama pediátrica" },
+    { value: "cama-cuidados-hogar", label: "Cama de cuidados en el hogar" },
+    { value: "equipo-medico-sala", label: "Equipo médico y de sala" }
+];
+
+const AERTI_CATEGORIES = [
+    { value: "camara-oxigeno", label: "Cámara de oxígeno", path: "oxygen-chamber" },
+    { value: "concentrador-medico", label: "Concentrador de oxígeno médico", path: "medical-oxygen-concentrator" },
+    { value: "concentrador-portatil", label: "Concentrador de oxígeno portátil", path: "portable-oxygen-concentrator" },
+    { value: "concentrador-industrial", label: "Concentrador de oxígeno industrial", path: "industrial-oxygen-concentrator" },
+    { value: "analizador-oxigeno", label: "Analizador de oxígeno", path: "oxygen-analyzer" },
+    { value: "mezclador-cocteles", label: "Mezclador de cócteles de oxígeno", path: "oxygen-cocktail-mixer" },
+    { value: "concentrador-veterinario", label: "Concentrador de oxígeno veterinario", path: "veterinary-oxygen-concentrator" },
+    { value: "entrenamiento-altitud", label: "Entrenamiento de altitud simulada", path: "simulated-altitude-training" },
+    { value: "accesorios-concentrador", label: "Accesorios para concentradores de oxígeno", path: "oxygen-concentrator-accessories" }
+];
+
+const DRE_CATEGORIES = [
+    { value: "anestesia", label: "Equipos de Anestesia" },
+    { value: "aspiradores-succion", label: "Aspiradores y Bombas de Succión" },
+    { value: "electrocirugia", label: "Equipos de Electrocirugía" },
+    { value: "endoscopia-laparoscopia", label: "Endoscopía y Laparoscopía" },
+    { value: "lamparas-quirurgicas", label: "Lámparas Quirúrgicas" },
+    { value: "microscopios", label: "Microscopios Clínicos y Quirúrgicos" },
+    { value: "mobiliario-quirofano", label: "Mobiliario de Quirófano" },
+    { value: "motores-quirurgicos", label: "Motores e Instrumental de Poder" },
+    { value: "sillones-procedimiento", label: "Sillones de Procedimiento" },
+    { value: "camillas-quirurgicas", label: "Camillas Quirúrgicas y de Transporte" },
+    { value: "compresion-secuencial", label: "Dispositivos de Compresión Secuencial" },
+    { value: "esterilizacion-autoclaves", label: "Esterilizadores y Autoclaves" },
+    { value: "instrumental-quirurgico", label: "Instrumental Quirúrgico" },
+    { value: "mesas-quirurgicas", label: "Mesas Quirúrgicas" },
+    { value: "sistemas-torniquete", label: "Sistemas de Torniquete" },
+    { value: "camas-hospital", label: "Camas de Hospital" },
+    { value: "cunas-incubadoras", label: "Cuidado Neonatal e Incubadoras" },
+    { value: "desfibriladores", label: "Desfibriladores y DEAs" },
+    { value: "electrocardiografos", label: "Electrocardiógrafos (ECG/EKG)" },
+    { value: "monitores-fetal", label: "Monitores Fetales" },
+    { value: "monitores-paciente", label: "Monitores de Signos Vitales y Paciente" },
+    { value: "mesas-imagenologia", label: "Mesas de Imagenología" },
+    { value: "ultrasonidos", label: "Equipos de Ultrasonido" }
+];
+
 const SOMA_PARTS_CATEGORIES = [
     {
         value: "bp",
@@ -470,7 +518,7 @@ export default function GestionWebClient({
         '[SISTEMA] Selecciona una categoría y haz clic en "Comenzar Importación".'
     ]);
     const logsEndRef = React.useRef<HTMLDivElement>(null);
-    const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts' | 'pukang'>('soma-tech');
+    const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts' | 'pukang' | 'joson' | 'aerti' | 'dre'>('soma-tech');
     const [selectedScrapeCategory, setSelectedScrapeCategory] = useState<string>('all');
     const [importedCategories, setImportedCategories] = useState<string[]>([]);
 
@@ -502,6 +550,58 @@ export default function GestionWebClient({
                 return 'https://es.pukangmed.com/products.html';
             }
             return `https://es.pukangmed.com/${selectedScrapeCategory}.html`;
+        } else if (scraperSource === 'joson') {
+            if (selectedScrapeCategory === 'all') {
+                return 'https://www.joson-care.com/product.php?lang=es&tb=1';
+            }
+            const JOSON_CID_MAP: Record<string, number> = {
+                "cama-uci": 501,
+                "cama-hospital": 502,
+                "cama-hospital-manual": 503,
+                "camilla-emergencia": 504,
+                "cama-pediatrica": 505,
+                "cama-cuidados-hogar": 506,
+                "equipo-medico-sala": 507
+            };
+            const cid = JOSON_CID_MAP[selectedScrapeCategory] || 501;
+            return `https://www.joson-care.com/product.php?lang=es&tb=1&cid=${cid}`;
+        } else if (scraperSource === 'aerti') {
+            if (selectedScrapeCategory === 'all') {
+                return 'https://es.aertioxygen.com/products';
+            }
+            const path = AERTI_CATEGORIES.find(c => c.value === selectedScrapeCategory)?.path || '';
+            return `https://es.aertioxygen.com/product-list/${path}`;
+        } else if (scraperSource === 'dre') {
+            if (selectedScrapeCategory === 'all') {
+                return 'https://dremed.com/';
+            }
+            const slugMap: Record<string, string> = {
+                "anestesia": "surgery-procedures/anesthesia",
+                "aspiradores-succion": "surgery-procedures/aspirators-suction-pumps",
+                "electrocirugia": "surgery-procedures/electrosurgical-power-generators",
+                "endoscopia-laparoscopia": "surgery-procedures/endoscopy-laparoscopy",
+                "lamparas-quirurgicas": "surgery-procedures/lights",
+                "microscopios": "surgery-procedures/microscopes",
+                "mobiliario-quirofano": "surgery-procedures/or-furniture",
+                "motores-quirurgicos": "surgery-procedures/power-instruments",
+                "sillones-procedimiento": "surgery-procedures/procedure-chairs",
+                "camillas-quirurgicas": "patient-care-diagnostics/stretchers",
+                "compresion-secuencial": "surgery-procedures/sequential-compression-devices",
+                "esterilizacion-autoclaves": "surgery-procedures/sterile-processing",
+                "instrumental-quirurgico": "surgery-procedures/surgical-instruments",
+                "mesas-quirurgicas": "surgery-procedures/tables-surgical",
+                "sistemas-torniquete": "surgery-procedures/tourniquets-systems",
+                "camas-hospital": "patient-care-diagnostics/hospital-beds",
+                "cunas-incubadoras": "patient-care-diagnostics/neonatal-care",
+                "desfibriladores": "patient-monitoring/aeds-defibrillators",
+                "electrocardiografos": "patient-monitoring/electrocardiogram-ecg-ekg",
+                "monitores-fetal": "patient-care-diagnostics/neonatal-care/fetal-monitor",
+                "monitores-paciente": "patient-monitoring/patient-monitors",
+                "mesas-imagenologia": "imaging/imaging-tables",
+                "ultrasonidos": "imaging/ultrasounds"
+            };
+            const path = slugMap[selectedScrapeCategory] || '';
+            return `https://dremed.com/product-category/${path}/`;
         } else {
             if (selectedScrapeCategory === 'all') {
                 return 'https://somamedicalparts.com/';
@@ -526,6 +626,24 @@ export default function GestionWebClient({
             }
         } else if (scraperSource === 'pukang') {
             const found = PUKANG_CATEGORIES.find(c => c.value === selectedScrapeCategory);
+            if (found) {
+                label = found.label;
+                isImported = importedCategories.includes(found.label);
+            }
+        } else if (scraperSource === 'joson') {
+            const found = JOSON_CATEGORIES.find(c => c.value === selectedScrapeCategory);
+            if (found) {
+                label = found.label;
+                isImported = importedCategories.includes(found.label);
+            }
+        } else if (scraperSource === 'aerti') {
+            const found = AERTI_CATEGORIES.find(c => c.value === selectedScrapeCategory);
+            if (found) {
+                label = found.label;
+                isImported = importedCategories.includes(found.label);
+            }
+        } else if (scraperSource === 'dre') {
+            const found = DRE_CATEGORIES.find(c => c.value === selectedScrapeCategory);
             if (found) {
                 label = found.label;
                 isImported = importedCategories.includes(found.label);
@@ -692,14 +810,20 @@ export default function GestionWebClient({
         setProgressCurrent(0);
         setProgressTotal(0);
         setImportedCategorySlug(null);
-        setScraperLogs([`[SISTEMA] Iniciando conexión con el endpoint del scraper para ${scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : 'Soma Medical Parts'}...`]);
+        setScraperLogs([`[SISTEMA] Iniciando conexión con el endpoint del scraper para ${scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : scraperSource === 'joson' ? 'Joson Care' : scraperSource === 'aerti' ? 'Aerti Oxygen' : scraperSource === 'dre' ? 'DRE Medical' : 'Soma Medical Parts'}...`]);
         
         try {
             const endpoint = scraperSource === 'soma-tech' 
                 ? '/api/admin/scrape-soma' 
                 : scraperSource === 'pukang'
                     ? '/api/admin/scrape-pukang'
-                    : '/api/admin/scrape-soma-parts';
+                    : scraperSource === 'joson'
+                        ? '/api/admin/scrape-joson'
+                        : scraperSource === 'aerti'
+                            ? '/api/admin/scrape-aerti'
+                            : scraperSource === 'dre'
+                                ? '/api/admin/scrape-dre'
+                                : '/api/admin/scrape-soma-parts';
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -757,6 +881,15 @@ export default function GestionWebClient({
                                     catLabel = found ? found.label : cat;
                                 } else if (scraperSource === 'pukang') {
                                     const found = PUKANG_CATEGORIES.find(c => c.value === cat);
+                                    catLabel = found ? found.label : cat;
+                                } else if (scraperSource === 'joson') {
+                                    const found = JOSON_CATEGORIES.find(c => c.value === cat);
+                                    catLabel = found ? found.label : cat;
+                                } else if (scraperSource === 'aerti') {
+                                    const found = AERTI_CATEGORIES.find(c => c.value === cat);
+                                    catLabel = found ? found.label : cat;
+                                } else if (scraperSource === 'dre') {
+                                    const found = DRE_CATEGORIES.find(c => c.value === cat);
                                     catLabel = found ? found.label : cat;
                                 } else {
                                     for (const group of SOMA_PARTS_CATEGORIES) {
@@ -1313,7 +1446,7 @@ export default function GestionWebClient({
                     }`}
                 >
                     <Activity size={18} />
-                    <span>Importador de Soma</span>
+                    <span>Importador Catálogo</span>
                 </button>
             </div>
 
@@ -2392,7 +2525,7 @@ export default function GestionWebClient({
                     <div className="p-6 space-y-6">
                         <div>
                             <h2 className="text-lg font-bold text-slate-900">Importador de Catálogos Externos</h2>
-                            <p className="text-xs text-slate-500 mt-0.5 font-sans">Extrae de forma automática categorías, descripciones e imágenes desde Soma Tech (Equipos) o Soma Medical Parts (Repuestos/Accesorios). Las fotos se subirán directamente a tu Cloudflare R2.</p>
+                            <p className="text-xs text-slate-500 mt-0.5 font-sans">Extrae de forma automática categorías, descripciones e imágenes desde Soma Tech (Equipos), Soma Medical Parts (Repuestos/Accesorios), Pukang Medical o Joson Care. Las fotos se subirán directamente a tu Cloudflare R2.</p>
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -2408,7 +2541,7 @@ export default function GestionWebClient({
                                     <select 
                                         value={scraperSource}
                                         onChange={(e) => {
-                                            setScraperSource(e.target.value as 'soma-tech' | 'soma-parts' | 'pukang');
+                                            setScraperSource(e.target.value as 'soma-tech' | 'soma-parts' | 'pukang' | 'joson' | 'aerti' | 'dre');
                                             setSelectedScrapeCategory('all');
                                         }}
                                         className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-cyan-500"
@@ -2416,6 +2549,9 @@ export default function GestionWebClient({
                                         <option value="soma-tech">Soma Tech (Equipos Médicos)</option>
                                         <option value="soma-parts">Soma Medical Parts (Repuestos/Accesorios)</option>
                                         <option value="pukang">Pukang Medical (Muebles y Equipos Hospitalarios)</option>
+                                        <option value="joson">Joson Care (Camas y Mobiliario Hospitalario)</option>
+                                        <option value="aerti">Aerti Oxygen (Equipos de Oxigenoterapia)</option>
+                                        <option value="dre">DRE Medical (Equipos Médicos e Imagenología)</option>
                                     </select>
                                 </div>
 
@@ -2439,6 +2575,33 @@ export default function GestionWebClient({
                                             })
                                         ) : scraperSource === 'pukang' ? (
                                             PUKANG_CATEGORIES.map(cat => {
+                                                const isImported = importedCategories.includes(cat.label);
+                                                return (
+                                                    <option key={cat.value} value={cat.value}>
+                                                        {isImported ? `✓ ${cat.label}` : cat.label}
+                                                    </option>
+                                                );
+                                            })
+                                        ) : scraperSource === 'joson' ? (
+                                            JOSON_CATEGORIES.map(cat => {
+                                                const isImported = importedCategories.includes(cat.label);
+                                                return (
+                                                    <option key={cat.value} value={cat.value}>
+                                                        {isImported ? `✓ ${cat.label}` : cat.label}
+                                                    </option>
+                                                );
+                                            })
+                                        ) : scraperSource === 'aerti' ? (
+                                            AERTI_CATEGORIES.map(cat => {
+                                                const isImported = importedCategories.includes(cat.label);
+                                                return (
+                                                    <option key={cat.value} value={cat.value}>
+                                                        {isImported ? `✓ ${cat.label}` : cat.label}
+                                                    </option>
+                                                );
+                                            })
+                                        ) : scraperSource === 'dre' ? (
+                                            DRE_CATEGORIES.map(cat => {
                                                 const isImported = importedCategories.includes(cat.label);
                                                 return (
                                                     <option key={cat.value} value={cat.value}>
@@ -2478,7 +2641,7 @@ export default function GestionWebClient({
                                                 rel="noopener noreferrer" 
                                                 className="text-[#00A8CC] hover:underline font-semibold flex items-center gap-1 font-sans transition-colors hover:text-[#008ba8]"
                                             >
-                                                <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : 'Soma Parts'}</span>
+                                                <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : scraperSource === 'joson' ? 'Joson Care' : scraperSource === 'aerti' ? 'Aerti Oxygen' : scraperSource === 'dre' ? 'DRE Medical' : 'Soma Parts'}</span>
                                                 <ExternalLink size={10} />
                                             </a>
                                         </div>
@@ -2571,7 +2734,7 @@ export default function GestionWebClient({
                                             </div>
                                             <a 
                                                 href={importedCategorySlug === 'all' 
-                                                    ? (scraperSource === 'soma-tech' ? '/productos' : scraperSource === 'pukang' ? '/productos' : '/repuestos')
+                                                    ? (scraperSource === 'soma-parts' ? '/repuestos' : '/productos')
                                                     : `/productos?category=${encodeURIComponent(importedCategoryName || '')}${scraperSource === 'soma-parts' ? '&type=producto' : ''}`
                                                 }
                                                 target="_blank"

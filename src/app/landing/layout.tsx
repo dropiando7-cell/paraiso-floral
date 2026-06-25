@@ -125,13 +125,19 @@ async function getDynamicCategories(hideRealInventory: boolean, allowScrapedProd
                 productWhere.OR = [
                     { sku: { startsWith: 'SOMA-' } },
                     { sku: { startsWith: 'REP-' } },
-                    { sku: { startsWith: 'PUKANG-' } }
+                    { sku: { startsWith: 'PUKANG-' } },
+                    { sku: { startsWith: 'JOSON-' } },
+                    { sku: { startsWith: 'AERTI-' } },
+                    { sku: { startsWith: 'DRE-' } }
                 ];
             } else if (!allowScrapedProducts) {
                 productWhere.AND = [
                     { sku: { not: { startsWith: 'SOMA-' } } },
                     { sku: { not: { startsWith: 'REP-' } } },
-                    { sku: { not: { startsWith: 'PUKANG-' } } }
+                    { sku: { not: { startsWith: 'PUKANG-' } } },
+                    { sku: { not: { startsWith: 'JOSON-' } } },
+                    { sku: { not: { startsWith: 'AERTI-' } } },
+                    { sku: { not: { startsWith: 'DRE-' } } }
                 ];
             }
 

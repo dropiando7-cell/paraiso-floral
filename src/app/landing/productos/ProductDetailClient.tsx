@@ -25,6 +25,7 @@ interface ProductDetailClientProps {
         model: string;
         code: string;
         imageUrl: string | null;
+        images?: string[];
         type: 'activo' | 'producto';
         typeName: string;
         description: string;
@@ -49,6 +50,22 @@ export default function ProductDetailClient({
 }: ProductDetailClientProps) {
     const [isModalOpen, setIsModalOpen] = useState(autoOpenCotizar);
     const [modalView, setModalView] = useState<'select' | 'email'>('select');
+    
+    // Image selection state
+    const allImages: string[] = [];
+    if (item.imageUrl) {
+        allImages.push(item.imageUrl);
+    }
+    if (item.images && Array.isArray(item.images)) {
+        item.images.forEach(img => {
+            if (img && !allImages.includes(img)) {
+                allImages.push(img);
+            }
+        });
+    }
+
+    const [selectedImage, setSelectedImage] = useState<string | null>(null);
+    const currentImage = selectedImage || allImages[0] || null;
     
     // Form fields
     const [clientName, setClientName] = useState('');
@@ -152,40 +169,68 @@ export default function ProductDetailClient({
             {/* Product Detail Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-start">
                 
-                {/* Left Column: Image Card */}
-                <div className={`bg-slate-50 border border-slate-200/80 rounded-3xl p-6 flex flex-col items-center justify-center relative overflow-hidden aspect-[4/3] w-full ${item.hidden ? 'opacity-80' : ''}`}>
-                    <div className="absolute top-4 left-4 bg-white/90 backdrop-blur border border-slate-200 text-[9px] font-extrabold text-[#00a8cc] px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
-                        {item.typeName}
+                {/* Left Column: Image Card & Thumbnails */}
+                <div className="flex flex-col gap-4 w-full">
+                    <div className={`bg-slate-50 border border-slate-200/80 rounded-3xl p-6 flex flex-col items-center justify-center relative overflow-hidden aspect-[4/3] w-full ${item.hidden ? 'opacity-80' : ''}`}>
+                        <div className="absolute top-4 left-4 bg-white/90 backdrop-blur border border-slate-200 text-[9px] font-extrabold text-[#00a8cc] px-3 py-1 rounded-full uppercase tracking-wider shadow-sm z-10">
+                            {item.typeName}
+                        </div>
+
+                        {isAdmin && (
+                            <div className="absolute top-4 right-4 z-20">
+                                <VisibilityToggle 
+                                    id={item.id} 
+                                    type={item.type} 
+                                    initialHidden={!!item.hidden} 
+                                />
+                            </div>
+                        )}
+                        {currentImage ? (
+                            <img 
+                                src={currentImage} 
+                                alt={item.name} 
+                                className="w-full h-full object-contain rounded-2xl max-h-80 transition-all duration-300 ease-out"
+                            />
+                        ) : (
+                            <HeartPulse className="text-slate-350 w-24 h-24 stroke-[1.2]" />
+                        )}
+
+                        {isAdmin && (
+                            <Link 
+                                href={getAdminLink()}
+                                className="absolute bottom-4 right-4 bg-slate-950/90 text-white hover:bg-slate-900 border border-white/10 text-[9px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-slate-950/20 backdrop-blur-md z-10 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                                title="Editar imagen y detalles en el panel"
+                            >
+                                <Edit size={10} className="text-cyan-400 shrink-0" />
+                                <span>Editar Ficha</span>
+                            </Link>
+                        )}
                     </div>
 
-                    {isAdmin && (
-                        <div className="absolute top-4 right-4 z-25">
-                            <VisibilityToggle 
-                                id={item.id} 
-                                type={item.type} 
-                                initialHidden={!!item.hidden} 
-                            />
+                    {/* Thumbnail gallery row */}
+                    {allImages.length > 1 && (
+                        <div className="flex items-center gap-2 overflow-x-auto py-1.5 scrollbar-thin px-1 scroll-smooth">
+                            {allImages.map((img, idx) => {
+                                const isActive = currentImage === img;
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => setSelectedImage(img)}
+                                        className={`relative w-16 h-12 sm:w-20 sm:h-16 flex-shrink-0 bg-slate-50 border rounded-xl overflow-hidden cursor-pointer transition-all duration-200 focus:outline-none ${
+                                            isActive 
+                                                ? 'border-[#00a8cc] ring-2 ring-cyan-500/20 ring-offset-1 scale-95 shadow-sm' 
+                                                : 'border-slate-200 opacity-70 hover:opacity-100 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <img 
+                                            src={img} 
+                                            alt={`Miniatura ${idx + 1}`}
+                                            className="w-full h-full object-contain p-1"
+                                        />
+                                    </button>
+                                );
+                            })}
                         </div>
-                    )}
-                    {item.imageUrl ? (
-                        <img 
-                            src={item.imageUrl} 
-                            alt={item.name} 
-                            className="w-full h-full object-contain rounded-2xl max-h-80"
-                        />
-                    ) : (
-                        <HeartPulse className="text-slate-350 w-24 h-24 stroke-[1.2]" />
-                    )}
-
-                    {isAdmin && (
-                        <Link 
-                            href={getAdminLink()}
-                            className="absolute bottom-4 right-4 bg-slate-950/90 text-white hover:bg-slate-900 border border-white/10 text-[9px] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-all shadow-md shadow-slate-950/20 backdrop-blur-md z-10 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-                            title="Editar imagen y detalles en el panel"
-                        >
-                            <Edit size={10} className="text-cyan-400 shrink-0" />
-                            <span>Editar Ficha</span>
-                        </Link>
                     )}
                 </div>
 

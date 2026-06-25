@@ -111,7 +111,10 @@ async function getLandingData() {
                         OR: [
                             { sku: { startsWith: 'SOMA-' } },
                             { sku: { startsWith: 'REP-' } },
-                            { sku: { startsWith: 'PUKANG-' } }
+                            { sku: { startsWith: 'PUKANG-' } },
+                            { sku: { startsWith: 'JOSON-' } },
+                            { sku: { startsWith: 'AERTI-' } },
+                            { sku: { startsWith: 'DRE-' } }
                         ]
                     },
                     take: 4,
@@ -130,7 +133,7 @@ async function getLandingData() {
                     descripcionCorta: p.nombre,
                     marca: p.marca || 'GENÉRICO',
                     modelo: p.modelo || 'N/A',
-                    idQr: p.sku ? p.sku.replace(/^(SOMA-|PUKANG-)/, '') : '',
+                    idQr: p.sku ? p.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-)/, '') : '',
                     imagenUrl: p.imagenWeb || null,
                     category: p.categoria || 'consumibles'
                 }));
@@ -213,13 +216,19 @@ async function getLandingData() {
                     productWhere.OR = [
                         { sku: { startsWith: 'SOMA-' } },
                         { sku: { startsWith: 'REP-' } },
-                        { sku: { startsWith: 'PUKANG-' } }
+                        { sku: { startsWith: 'PUKANG-' } },
+                        { sku: { startsWith: 'JOSON-' } },
+                        { sku: { startsWith: 'AERTI-' } },
+                        { sku: { startsWith: 'DRE-' } }
                     ];
                 } else if (!allowScrapedProducts) {
                     productWhere.AND = [
                         { sku: { not: { startsWith: 'SOMA-' } } },
                         { sku: { not: { startsWith: 'REP-' } } },
-                        { sku: { not: { startsWith: 'PUKANG-' } } }
+                        { sku: { not: { startsWith: 'PUKANG-' } } },
+                        { sku: { not: { startsWith: 'JOSON-' } } },
+                        { sku: { not: { startsWith: 'AERTI-' } } },
+                        { sku: { not: { startsWith: 'DRE-' } } }
                     ];
                 }
 
