@@ -1736,6 +1736,7 @@ export default function DocumentBuilderClient({
         console.error("Error al cargar datos", e);
       }
     };
+    loadData();
   }, [docType]);
 
   // Safety net: resolve missing asset serial numbers against loaded catalog

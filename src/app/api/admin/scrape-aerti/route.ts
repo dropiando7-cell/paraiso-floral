@@ -157,6 +157,7 @@ export async function POST(req: NextRequest) {
                         for (const path of catInfo.paths) {
                             let page = 1;
                             let hasMore = true;
+                            const currentPathLinks = new Set<string>();
 
                             while (hasMore) {
                                 const targetUrl = page === 1
@@ -181,11 +182,21 @@ export async function POST(req: NextRequest) {
                                     continue;
                                 }
 
+                                let newLinksFound = false;
                                 links.forEach(link => {
                                     if (!allDetailLinks.some(item => item.link === link)) {
                                         allDetailLinks.push({ link, categoryLabel: catInfo.label });
                                     }
+                                    if (!currentPathLinks.has(link)) {
+                                        currentPathLinks.add(link);
+                                        newLinksFound = true;
+                                    }
                                 });
+
+                                if (!newLinksFound) {
+                                    hasMore = false;
+                                    continue;
+                                }
 
                                 // Respect rate limiting
                                 await new Promise(resolve => setTimeout(resolve, 300));
