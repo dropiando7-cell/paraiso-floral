@@ -133,6 +133,12 @@ model User {
   digitalCard           DigitalCard?
   taskMaterialesCreados KanbanTaskMaterial[]   @relation("MaterialesCreados")
   taskMaterialesAnulados KanbanTaskMaterial[]  @relation("MaterialesAnulados")
+  
+  // Notification fields
+  oneSignalSubscriptionId String?              @unique
+  notifications          Notification[]        @relation("UserNotifications")
+  notificationsCreadas   Notification[]        @relation("CreatedNotifications")
+  notificationsAnuladas  Notification[]        @relation("AnuladaNotifications")
 
   @@map("users")
 }
@@ -1303,6 +1309,31 @@ model KanbanTaskMaterial {
   @@index([taskId])
   @@index([activoFijoId])
   @@map("kanban_task_materiales")
+}
+
+model Notification {
+  id              String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId          String        @db.Uuid
+  user            User          @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  title           String
+  message         String
+  type            String        // "WORK_ORDER", "TASK", "SYSTEM", etc.
+  read            Boolean       @default(false)
+  readAt          DateTime?
+  link            String?       // destination URL (e.g. "/soporte?id=...")
+  
+  // Traceability
+  creadoPorId     String?       @db.Uuid
+  creadoPor       User?         @relation("CreatedNotifications", fields: [creadoPorId], references: [id])
+  anuladaPorId    String?       @db.Uuid
+  anuladaPor      User?         @relation("AnuladaNotifications", fields: [anuladaPorId], references: [id])
+  anuladaAt       DateTime?
+  
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([userId])
+  @@map("notifications")
 }
 
 

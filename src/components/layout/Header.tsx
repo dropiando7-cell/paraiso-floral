@@ -2,8 +2,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Bell, Menu, ArrowRight } from 'lucide-react';
+import { Search, Bell, Menu, ArrowRight, Wrench, Trello, Settings, Trash2, Check, X, BellRing } from 'lucide-react';
 import { UserDropdown } from './UserDropdown';
+import { 
+    getUserNotifications, 
+    markNotificationAsRead, 
+    markAllNotificationsAsRead, 
+    deleteNotification 
+} from '@/app/(dashboard)/admin/notificaciones/actions';
 
 interface HeaderProps {
     dbUser: any;
@@ -53,6 +59,83 @@ export function Header({ dbUser, onMenuClick }: HeaderProps) {
     const [selectedIndex, setSelectedIndex] = useState(0);
     const router = useRouter();
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Notification State
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [isNotifOpen, setIsNotifOpen] = useState(false);
+    const notifRef = useRef<HTMLDivElement>(null);
+
+    const formatTimeAgo = (dateInput: Date | string) => {
+        const date = new Date(dateInput);
+        const now = new Date();
+        const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+        if (seconds < 60) return 'Hace un momento';
+        const minutes = Math.floor(seconds / 60);
+        if (minutes < 60) return `Hace ${minutes} min`;
+        const hours = Math.floor(minutes / 60);
+        if (hours < 24) return `Hace ${hours} h`;
+        const days = Math.floor(hours / 24);
+        return `Hace ${days} d`;
+    };
+
+    const fetchNotifications = async () => {
+        const res = await getUserNotifications();
+        if (res.success && res.notifications) {
+            setNotifications(res.notifications);
+        }
+    };
+
+    useEffect(() => {
+        fetchNotifications();
+        // Poll for new notifications every 30 seconds
+        const interval = setInterval(fetchNotifications, 30000);
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
+                setIsNotifOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleNotificationClick = async (notif: any) => {
+        if (!notif.read) {
+            setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, read: true } : n));
+            await markNotificationAsRead(notif.id);
+        }
+        setIsNotifOpen(false);
+        if (notif.link) {
+            router.push(notif.link);
+        }
+    };
+
+    const handleMarkAllRead = async () => {
+        setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        await markAllNotificationsAsRead();
+    };
+
+    const handleDeleteNotif = async (e: React.MouseEvent, id: string) => {
+        e.stopPropagation();
+        setNotifications(prev => prev.filter(n => n.id !== id));
+        await deleteNotification(id);
+    };
+
+    const getNotifIcon = (type: string) => {
+        switch (type) {
+            case 'WORK_ORDER':
+                return <Wrench className="w-4 h-4 text-cyan-600" />;
+            case 'TASK':
+                return <Trello className="w-4 h-4 text-emerald-600" />;
+            default:
+                return <Settings className="w-4 h-4 text-slate-500" />;
+        }
+    };
+
+    const unreadCount = notifications.filter(n => !n.read).length;
 
     const userRole = dbUser?.role || 'USER';
     const userAllowedModules = dbUser?.accessibleModules || [];
@@ -178,11 +261,111 @@ export function Header({ dbUser, onMenuClick }: HeaderProps) {
                     <span className="text-xs font-medium text-brand-700">Sistema Operativo</span>
                 </div>
 
-                {/* Notifications */}
-                <button className="relative text-slate-400 hover:text-slate-600 transition-colors">
-                    <Bell className="w-5 h-5" />
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
-                </button>
+                {/* Notifications Dropdown */}
+                <div className="relative" ref={notifRef}>
+                    <button 
+                        onClick={() => setIsNotifOpen(prev => !prev)}
+                        className="relative text-slate-400 hover:text-slate-600 transition-colors p-1.5 hover:bg-slate-50 rounded-xl cursor-pointer"
+                        aria-label="Abrir notificaciones"
+                    >
+                        <Bell className="w-5 h-5" />
+                        {unreadCount > 0 && (
+                            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-white animate-pulse" />
+                        )}
+                    </button>
+
+                    {isNotifOpen && (
+                        <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white border border-slate-200 rounded-2xl shadow-xl z-[90] overflow-hidden flex flex-col max-h-[460px] animate-in fade-in duration-150">
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 border-b border-slate-100 shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="font-bold text-slate-800 text-sm">Notificaciones</span>
+                                    {unreadCount > 0 && (
+                                        <span className="text-[10px] bg-brand-500 text-white font-bold px-1.5 py-0.5 rounded-full">
+                                            {unreadCount} nuevas
+                                        </span>
+                                    )}
+                                </div>
+                                {unreadCount > 0 && (
+                                    <button 
+                                        onClick={handleMarkAllRead}
+                                        className="text-[11px] font-bold text-brand-600 hover:text-brand-700 transition-colors cursor-pointer"
+                                    >
+                                        Marcar todo leído
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* List */}
+                            <div className="flex-1 overflow-y-auto max-h-[360px] divide-y divide-slate-100 custom-scrollbar">
+                                {notifications.length === 0 ? (
+                                    <div className="p-8 text-center text-slate-400">
+                                        <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                                            <BellRing className="w-5 h-5 text-slate-350" />
+                                        </div>
+                                        <p className="text-xs font-semibold">No tienes notificaciones</p>
+                                        <p className="text-[10px] text-slate-400 mt-0.5">Te avisaremos sobre tus tareas y órdenes de trabajo aquí.</p>
+                                    </div>
+                                ) : (
+                                    notifications.map((notif) => (
+                                        <div 
+                                            key={notif.id}
+                                            onClick={() => handleNotificationClick(notif)}
+                                            className={`p-3.5 flex items-start gap-3 transition-colors hover:bg-slate-50/50 cursor-pointer ${!notif.read ? 'bg-cyan-50/10' : ''}`}
+                                        >
+                                            {/* Icon */}
+                                            <div className="w-8 h-8 rounded-xl bg-slate-100/80 border border-slate-200/20 flex items-center justify-center shrink-0 mt-0.5">
+                                                {getNotifIcon(notif.type)}
+                                            </div>
+
+                                            {/* Body */}
+                                            <div className="flex-1 min-w-0 space-y-0.5">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className={`text-xs font-bold text-slate-800 truncate block ${!notif.read ? 'font-extrabold' : ''}`}>
+                                                        {notif.title}
+                                                    </span>
+                                                    <span className="text-[9px] text-slate-400 shrink-0 font-medium font-sans">
+                                                        {formatTimeAgo(notif.createdAt)}
+                                                    </span>
+                                                </div>
+                                                <p className="text-[11px] text-slate-500 font-sans leading-normal line-clamp-2">
+                                                    {notif.message}
+                                                </p>
+                                            </div>
+
+                                            {/* Actions */}
+                                            <div className="flex flex-col gap-1 items-center justify-center ml-1">
+                                                {!notif.read && (
+                                                    <div className="w-1.5 h-1.5 bg-brand-500 rounded-full shrink-0" />
+                                                )}
+                                                <button
+                                                    onClick={(e) => handleDeleteNotif(e, notif.id)}
+                                                    className="p-1 text-slate-400 hover:text-red-500 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer shrink-0 ml-1"
+                                                    title="Eliminar notificación"
+                                                >
+                                                    <Trash2 size={12} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+
+                            {/* Footer */}
+                            <div className="p-2 border-t border-slate-100 bg-slate-50/50 text-center shrink-0">
+                                <button 
+                                    onClick={() => {
+                                        setIsNotifOpen(false);
+                                        router.push('/admin/notificaciones');
+                                    }}
+                                    className="text-[11px] font-bold text-slate-500 hover:text-slate-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                                >
+                                    <span>Administrar notificaciones</span>
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
 
                 <UserDropdown dbUser={dbUser} />
 

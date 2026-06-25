@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/utils/supabase/server';
+import { triggerNotification } from '@/lib/notifications';
 
 // Auxiliar para obtener usuario y organización actuales
 async function getCurrentUserAndOrg() {
@@ -362,6 +363,21 @@ export async function createKanbanTask(data: {
             }
         });
 
+        // Notificar a los técnicos asignados
+        const assignees = data.asignadoIds || (data.asignadoId ? [data.asignadoId] : []);
+        for (const assigneeId of assignees) {
+            if (assigneeId !== user.id) {
+                await triggerNotification(
+                    assigneeId,
+                    "Nueva Tarea Asignada",
+                    `Se te ha asignado la tarea ${newTask.codigo}: "${newTask.title}" por ${user.nombre || user.email}.`,
+                    `/kanban`,
+                    'TASK',
+                    user.id
+                );
+            }
+        }
+
         revalidatePath(`/kanban/${data.spaceId}`);
         return { success: true, task: newTask };
     } catch (e: any) {
@@ -402,6 +418,47 @@ export async function updateTaskStatus(taskId: string, targetStatus: string) {
                 detalles: `Mover de "${oldStatus}" a "${targetStatus}"`
             }
         });
+
+        // Notificar al creador o responsables asignados si otra persona mueve la tarea
+        try {
+            const taskWithAssignees = await prisma.kanbanTask.findUnique({
+                where: { id: taskId },
+                include: { asignados: true }
+            });
+
+            if (taskWithAssignees) {
+                // Si la tarea se mueve a Listo/Completado/Hecho, notificar al creador si no fue él mismo
+                const isCompleted = targetStatus.toLowerCase().includes('listo') || 
+                                    targetStatus.toLowerCase().includes('completado') || 
+                                    targetStatus.toLowerCase().includes('hecho');
+                if (isCompleted && taskWithAssignees.creadoPorId && taskWithAssignees.creadoPorId !== user.id) {
+                    await triggerNotification(
+                        taskWithAssignees.creadoPorId,
+                        "Tarea Completada",
+                        `La tarea ${taskWithAssignees.codigo} ("${taskWithAssignees.title}") ha sido movida a "${targetStatus}" por ${user.nombre || user.email}.`,
+                        `/kanban`,
+                        'TASK',
+                        user.id
+                    );
+                }
+
+                // Notificar a los asignados si otra persona mueve su tarea
+                for (const assignee of taskWithAssignees.asignados) {
+                    if (assignee.id !== user.id) {
+                        await triggerNotification(
+                            assignee.id,
+                            "Estado de Tarea Actualizado",
+                            `La tarea ${taskWithAssignees.codigo} ("${taskWithAssignees.title}") fue movida de "${oldStatus}" a "${targetStatus}" por ${user.nombre || user.email}.`,
+                            `/kanban`,
+                            'TASK',
+                            user.id
+                        );
+                    }
+                }
+            }
+        } catch (notifErr) {
+            console.error("Error sending update status notification:", notifErr);
+        }
 
         revalidatePath(`/kanban/${task.spaceId}`);
         return { success: true, task: updated };
@@ -560,6 +617,34 @@ export async function updateTaskFields(taskId: string, data: {
                 detalles: logs.join(', ')
             }
         });
+
+        // Notificar a nuevos técnicos asignados
+        try {
+            let newAssigneeIds: string[] = [];
+            if (data.asignadoIds !== undefined) {
+                const oldIds = oldTask.asignados.map(a => a.id);
+                newAssigneeIds = data.asignadoIds.filter(id => !oldIds.includes(id));
+            } else if (data.asignadoId !== undefined) {
+                if (data.asignadoId && oldTask.asignadoId !== data.asignadoId) {
+                    newAssigneeIds = [data.asignadoId];
+                }
+            }
+
+            for (const assigneeId of newAssigneeIds) {
+                if (assigneeId !== user.id) {
+                    await triggerNotification(
+                        assigneeId,
+                        "Tarea Asignada",
+                        `Se te ha asignado la tarea ${oldTask.codigo}: "${data.title !== undefined ? data.title : oldTask.title}" por ${user.nombre || user.email}.`,
+                        `/kanban`,
+                        'TASK',
+                        user.id
+                    );
+                }
+            }
+        } catch (notifErr) {
+            console.error("Error sending update task fields assignment notification:", notifErr);
+        }
 
         revalidatePath(`/kanban/${oldTask.spaceId}`);
         return { success: true, task: updated };

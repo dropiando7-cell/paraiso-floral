@@ -11,6 +11,7 @@ import {
     sendSoporteReparacionIniciada
 } from '@/lib/checkin-notifications';
 import { createClient } from '@/utils/supabase/server';
+import { triggerNotification } from '@/lib/notifications';
 
 async function getOrgId() {
     const supabase = await createClient();
@@ -302,6 +303,23 @@ export async function createOrdenTrabajo(data: {
         console.error("[Kanban Sync Error]: No se pudo auto-crear la tarea en Kanban:", kanbanErr);
     }
 
+    // Notificar a los técnicos asignados sobre el nuevo trabajo
+    try {
+        const techIds = data.tecnicoIds || [];
+        for (const techId of techIds) {
+            await triggerNotification(
+                techId,
+                "Nueva Orden de Trabajo Asignada",
+                `Se te ha asignado la Orden #${orden.codigoSeguridad} para reparar: ${orden.equipoDano}.`,
+                `/soporte/${orden.id}`,
+                'WORK_ORDER',
+                data.usuarioRecepcionId || undefined
+            );
+        }
+    } catch (notifErr) {
+        console.error("Error sending work order assignment notification:", notifErr);
+    }
+
     revalidatePath('/soporte');
     return {
         ...orden,
@@ -340,6 +358,21 @@ export async function updateEstadoOrden(id: string, nuevoEstado: string) {
         } catch (e) {
             console.error("Twilio Diagnostico Error:", e);
         }
+    }
+
+    // Notificar al técnico asignado sobre el cambio de estado
+    try {
+        if (updated.tecnicoReparacionId) {
+            await triggerNotification(
+                updated.tecnicoReparacionId,
+                "Estado de Orden Actualizado",
+                `La Orden #${updated.codigoSeguridad} (${updated.equipoDano}) cambió al estado "${nuevoEstado}".`,
+                `/soporte/${id}`,
+                'WORK_ORDER'
+            );
+        }
+    } catch (notifErr) {
+        console.error("Error sending update state notification:", notifErr);
     }
 
     revalidatePath('/soporte');
@@ -604,7 +637,7 @@ export async function aprobarPresupuesto(
         userId = dbUser?.id;
     }
 
-    await prisma.$transaction(async (tx) => {
+    const updatedOrder = await prisma.$transaction(async (tx) => {
         for (const rep of repuestosAprobados) {
             await tx.ordenTrabajoRepuesto.update({
                 where: { id: rep.id },
@@ -645,6 +678,7 @@ export async function aprobarPresupuesto(
                 console.error("Twilio Reparacion Iniciada Error:", e);
             }
         }
+        return orden;
     });
 
     await syncKanbanStatus(ordenId, 'REPARACION', userId || undefined);
@@ -668,6 +702,22 @@ export async function aprobarPresupuesto(
         }
     }
 
+    // Notificar al técnico asignado sobre el presupuesto aprobado
+    try {
+        if (updatedOrder.tecnicoReparacionId) {
+            await triggerNotification(
+                updatedOrder.tecnicoReparacionId,
+                "Presupuesto Aprobado",
+                `El presupuesto para la Orden #${updatedOrder.codigoSeguridad} (${updatedOrder.equipoDano}) ha sido aprobado. Puedes iniciar con la reparación.`,
+                `/soporte/${ordenId}`,
+                'WORK_ORDER',
+                userId || undefined
+            );
+        }
+    } catch (notifErr) {
+        console.error("Error sending budget approval notification:", notifErr);
+    }
+
     revalidatePath('/soporte');
     revalidatePath(`/soporte/${ordenId}`);
     return { success: true };
@@ -675,7 +725,7 @@ export async function aprobarPresupuesto(
 
 export async function asignarTecnicos(ordenId: string, tecnicoIds: string[]) {
     const firstTecnicoId = tecnicoIds[0] || null;
-    await prisma.ordenTrabajo.update({
+    const updated = await prisma.ordenTrabajo.update({
         where: { id: ordenId },
         data: {
             tecnicoReparacionId: firstTecnicoId,
@@ -684,6 +734,21 @@ export async function asignarTecnicos(ordenId: string, tecnicoIds: string[]) {
             }
         }
     });
+
+    // Notificar a los técnicos asignados
+    try {
+        for (const techId of tecnicoIds) {
+            await triggerNotification(
+                techId,
+                "Orden de Trabajo Asignada",
+                `Se te ha asignado la Orden #${updated.codigoSeguridad} (${updated.equipoDano}).`,
+                `/soporte/${ordenId}`,
+                'WORK_ORDER'
+            );
+        }
+    } catch (notifErr) {
+        console.error("Error sending order assignment notification:", notifErr);
+    }
 
     try {
         const task = await prisma.kanbanTask.findFirst({

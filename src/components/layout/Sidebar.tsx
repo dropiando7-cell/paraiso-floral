@@ -22,7 +22,8 @@ import {
   ChevronDown,
   Wrench,
   Trello,
-  Globe
+  Globe,
+  Bell
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -119,6 +120,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         name: 'Tarjetas Digitales',
         href: '/admin/tarjetas-digitales',
         icon: FileSignature,
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
+      },
+      {
+        name: 'Notificaciones',
+        href: '/admin/notificaciones',
+        icon: Bell,
         roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
       }
     ]
