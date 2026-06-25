@@ -246,6 +246,75 @@ const DRE_CATEGORIES = [
     { value: "ultrasonidos", label: "Equipos de Ultrasonido" }
 ];
 
+const AMCAREMED_CATEGORIES = [
+    {
+        value: "fuente-de-gases-medicinales",
+        label: "Fuente de gases medicinales",
+        subcategories: [
+            { value: "plantas-de-oxigeno-medicinal", label: "Plantas de oxígeno medicinal", path: "product/oxygen-plant" },
+            { value: "almacenamiento-de-oxigeno-liquido", label: "Almacenamiento de oxígeno líquido", path: "product/cryogenic-liquid-oxygen-storage-system" },
+            { value: "compresores-de-aire-medicinal", label: "Compresores de aire medicinal", path: "product/medical-air-compressor" },
+            { value: "sistema-de-vacio-medico", label: "Sistema de vacío médico", path: "products/medical-vacuum-pump-system" },
+            { value: "sistema-de-eliminacion-de-gases-anestesicos", label: "Sistema de eliminación de gases anestésicos", path: "product/agss" },
+            { value: "colectores", label: "Colectores", path: "product/manifolds" },
+            { value: "cilindros-de-gases-medicinales", label: "Cilindros de gases medicinales", path: "product/medical-gas-cylinders" },
+            { value: "ambulance-oxygen-supply-system", label: "Ambulance Oxygen Supply System", path: "products/ambulance-oxygen-supply-system" }
+        ]
+    },
+    {
+        value: "gasoducto-de-gases-medicinales",
+        label: "Gasoducto de gases medicinales",
+        subcategories: [
+            { value: "tubo-de-cobre-accesorios-y-accesorios", label: "Tubo de cobre, Accesorios, y Accesorios", path: "product/copper-tube-fittings-accessories" },
+            { value: "salidas", label: "Salidas", path: "product/gas-outlets" },
+            { value: "adaptadores-de-gases-medicinales", label: "Adaptadores de gases medicinales", path: "product/gas-outlets-probes-adapters" },
+            { value: "unidad-de-cabecera-de-cama", label: "Unidad de cabecera de cama", path: "product/bed-head-unit" },
+            { value: "caja-de-valvulas-de-zona", label: "Caja de válvulas de zona", path: "products/zone-valve-box" },
+            { value: "alarmas-de-gases-medicinales", label: "Alarmas de gases medicinales", path: "product/alarms" },
+            { value: "estacion-de-regulacion-de-gases-medicinales", label: "Estación de regulación de gases medicinales", path: "product/medical-gas-regulating-station" },
+            { value: "valvulas-de-gases-medicinales", label: "Válvulas de gases medicinales", path: "product/medical-gas-valves" },
+            { value: "panel-de-control-de-gases", label: "Panel de control de gases", path: "products/gas-control-panel" }
+        ]
+    },
+    {
+        value: "equipos-secundarios",
+        label: "Equipos Secundarios",
+        subcategories: [
+            { value: "caudalimetros", label: "Caudalímetros", path: "product/medical-gas-flowmeters" },
+            { value: "reguladores-de-oxigeno", label: "Reguladores de oxígeno", path: "product/medical-regulators" },
+            { value: "reguladores-de-vacio", label: "Reguladores de vacío", path: "product/vacuum-regulator" },
+            { value: "jarra-de-succion", label: "Jarra de Succión", path: "product/suction-jar" },
+            { value: "mezclador-de-aire-y-oxigeno", label: "Mezclador de aire y oxígeno", path: "products/air-oxygen-blender" },
+            { value: "accesorios-equipos", label: "Accesorios", path: "product/accessories" }
+        ]
+    },
+    {
+        value: "quirofano",
+        label: "Quirófano",
+        subcategories: [
+            { value: "colgante-medico", label: "Colgante médico", path: "product/medical-pendant" },
+            { value: "lamparas-quirurgicas", label: "Lámparas quirúrgicas", path: "product/surgical-lights" },
+            { value: "electric-operating-table", label: "Electric Operating Table", path: "products/electric-operating-table" },
+            { value: "panel-de-control-del-teatro-de-operaciones", label: "Panel de control del teatro de operaciones", path: "product/operation-theatre-control-panel" },
+            { value: "caja-de-paso-de-sala-limpia", label: "Caja de paso de sala limpia", path: "product/pass-box" },
+            { value: "visor-de-pelicula-de-rayos-x-led", label: "Visor de película de rayos X LED", path: "product/led-x-ray-film-viewer" },
+            { value: "monitor-de-sala-limpia", label: "Monitor de sala limpia", path: "products/cleanroom-monitor" },
+            { value: "stainless-steel-surgical-scrub-sink", label: "Stainless Steel Surgical Scrub Sink", path: "products/stainless-steel-surgical-scrub-sink" },
+            { value: "escritorio", label: "Escritorio", path: "products/writing-table" },
+            { value: "techo-de-flujo-de-aire-laminar", label: "Techo de flujo de aire laminar", path: "products/laminar-air-flow-ceiling" }
+        ]
+    },
+    {
+        value: "sistema-de-llamada-de-enfermera",
+        label: "Sistema de llamada de enfermera",
+        subcategories: [
+            { value: "intelligent-nurse-call-system", label: "Intelligent Nurse Call System", path: "product/nc-a-nurse-call-system" },
+            { value: "sistema-de-llamada-de-enfermeria-ip", label: "Sistema de llamada de enfermería IP", path: "product/nc-c-ip-nurse-call-system" },
+            { value: "wireless-nurse-call-system", label: "Wireless Nurse Call System", path: "products/wireless-nurse-call-system" }
+        ]
+    }
+];
+
 const SOMA_PARTS_CATEGORIES = [
     {
         value: "bp",
@@ -518,7 +587,7 @@ export default function GestionWebClient({
         '[SISTEMA] Selecciona una categoría y haz clic en "Comenzar Importación".'
     ]);
     const logsEndRef = React.useRef<HTMLDivElement>(null);
-    const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts' | 'pukang' | 'joson' | 'aerti' | 'dre'>('soma-tech');
+    const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts' | 'pukang' | 'joson' | 'aerti' | 'dre' | 'amcaremed'>('soma-tech');
     const [selectedScrapeCategory, setSelectedScrapeCategory] = useState<string>('all');
     const [importedCategories, setImportedCategories] = useState<string[]>([]);
 
@@ -602,6 +671,21 @@ export default function GestionWebClient({
             };
             const path = slugMap[selectedScrapeCategory] || '';
             return `https://dremed.com/product-category/${path}/`;
+        } else if (scraperSource === 'amcaremed') {
+            if (selectedScrapeCategory === 'all') {
+                return 'https://amcaremed.com/product-center/?lang=es';
+            }
+            const group = AMCAREMED_CATEGORIES.find(g => g.value === selectedScrapeCategory);
+            if (group) {
+                return 'https://amcaremed.com/product-center/?lang=es';
+            }
+            for (const g of AMCAREMED_CATEGORIES) {
+                const sub = g.subcategories.find(s => s.value === selectedScrapeCategory);
+                if (sub) {
+                    return `https://amcaremed.com/${sub.path}/?lang=es`;
+                }
+            }
+            return 'https://amcaremed.com/product-center/?lang=es';
         } else {
             if (selectedScrapeCategory === 'all') {
                 return 'https://somamedicalparts.com/';
@@ -647,6 +731,22 @@ export default function GestionWebClient({
             if (found) {
                 label = found.label;
                 isImported = importedCategories.includes(found.label);
+            }
+        } else if (scraperSource === 'amcaremed') {
+            for (const group of AMCAREMED_CATEGORIES) {
+                if (group.value === selectedScrapeCategory) {
+                    label = group.label;
+                    isImported = importedCategories.includes(group.label);
+                    break;
+                }
+                if (group.subcategories) {
+                    const foundSub = group.subcategories.find(sub => sub.value === selectedScrapeCategory);
+                    if (foundSub) {
+                        label = foundSub.label;
+                        isImported = importedCategories.includes(foundSub.label);
+                        break;
+                    }
+                }
             }
         } else {
             for (const group of SOMA_PARTS_CATEGORIES) {
@@ -810,7 +910,7 @@ export default function GestionWebClient({
         setProgressCurrent(0);
         setProgressTotal(0);
         setImportedCategorySlug(null);
-        setScraperLogs([`[SISTEMA] Iniciando conexión con el endpoint del scraper para ${scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : scraperSource === 'joson' ? 'Joson Care' : scraperSource === 'aerti' ? 'Aerti Oxygen' : scraperSource === 'dre' ? 'DRE Medical' : 'Soma Medical Parts'}...`]);
+        setScraperLogs([`[SISTEMA] Iniciando conexión con el endpoint del scraper para ${scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : scraperSource === 'joson' ? 'Joson Care' : scraperSource === 'aerti' ? 'Aerti Oxygen' : scraperSource === 'dre' ? 'DRE Medical' : scraperSource === 'amcaremed' ? 'AmcareMed' : 'Soma Medical Parts'}...`]);
         
         try {
             const endpoint = scraperSource === 'soma-tech' 
@@ -823,7 +923,9 @@ export default function GestionWebClient({
                             ? '/api/admin/scrape-aerti'
                             : scraperSource === 'dre'
                                 ? '/api/admin/scrape-dre'
-                                : '/api/admin/scrape-soma-parts';
+                                : scraperSource === 'amcaremed'
+                                    ? '/api/admin/scrape-amcaremed'
+                                    : '/api/admin/scrape-soma-parts';
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -891,6 +993,18 @@ export default function GestionWebClient({
                                 } else if (scraperSource === 'dre') {
                                     const found = DRE_CATEGORIES.find(c => c.value === cat);
                                     catLabel = found ? found.label : cat;
+                                } else if (scraperSource === 'amcaremed') {
+                                    for (const group of AMCAREMED_CATEGORIES) {
+                                        if (group.value === cat) {
+                                            catLabel = group.label;
+                                            break;
+                                        }
+                                        const sub = group.subcategories.find(s => s.value === cat);
+                                        if (sub) {
+                                            catLabel = sub.label;
+                                            break;
+                                        }
+                                    }
                                 } else {
                                     for (const group of SOMA_PARTS_CATEGORIES) {
                                         if (group.value === cat) {
@@ -2552,6 +2666,7 @@ export default function GestionWebClient({
                                         <option value="joson">Joson Care (Camas y Mobiliario Hospitalario)</option>
                                         <option value="aerti">Aerti Oxygen (Equipos de Oxigenoterapia)</option>
                                         <option value="dre">DRE Medical (Equipos Médicos e Imagenología)</option>
+                                        <option value="amcaremed">AmcareMed (Gases Medicinales y Quirófano)</option>
                                     </select>
                                 </div>
 
@@ -2609,6 +2724,25 @@ export default function GestionWebClient({
                                                     </option>
                                                 );
                                             })
+                                        ) : scraperSource === 'amcaremed' ? (
+                                            AMCAREMED_CATEGORIES.map(group => {
+                                                const isGroupImported = importedCategories.includes(group.label);
+                                                return (
+                                                    <optgroup key={group.value} label={isGroupImported ? `✓ ${group.label}` : group.label}>
+                                                        <option value={group.value}>
+                                                            {isGroupImported ? `✓ ${group.label} (Todo)` : `${group.label} (Todo)`}
+                                                        </option>
+                                                        {group.subcategories.map(sub => {
+                                                            const isSubImported = importedCategories.includes(sub.label);
+                                                            return (
+                                                                <option key={sub.value} value={sub.value}>
+                                                                    {isSubImported ? `✓ ${sub.label}` : sub.label}
+                                                                </option>
+                                                            );
+                                                        })}
+                                                    </optgroup>
+                                                );
+                                            })
                                         ) : (
                                             SOMA_PARTS_CATEGORIES.map(group => {
                                                 const isGroupImported = importedCategories.includes(group.label);
@@ -2641,7 +2775,7 @@ export default function GestionWebClient({
                                                 rel="noopener noreferrer" 
                                                 className="text-[#00A8CC] hover:underline font-semibold flex items-center gap-1 font-sans transition-colors hover:text-[#008ba8]"
                                             >
-                                                <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : scraperSource === 'joson' ? 'Joson Care' : scraperSource === 'aerti' ? 'Aerti Oxygen' : scraperSource === 'dre' ? 'DRE Medical' : 'Soma Parts'}</span>
+                                                <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : scraperSource === 'joson' ? 'Joson Care' : scraperSource === 'aerti' ? 'Aerti Oxygen' : scraperSource === 'dre' ? 'DRE Medical' : scraperSource === 'amcaremed' ? 'AmcareMed' : 'Soma Parts'}</span>
                                                 <ExternalLink size={10} />
                                             </a>
                                         </div>

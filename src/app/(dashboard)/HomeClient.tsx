@@ -28,6 +28,16 @@ interface HomeClientProps {
   workOrders: any[];
   totalPendingTasks: number;
   totalPendingOrders: number;
+  tasksSummary?: {
+    pending: number;
+    inProgress: number;
+    completed: number;
+  };
+  ordersSummary?: {
+    pending: number;
+    inProgress: number;
+    completed: number;
+  };
 }
 
 export default function HomeClient({
@@ -35,7 +45,9 @@ export default function HomeClient({
   kanbanTasks,
   workOrders,
   totalPendingTasks,
-  totalPendingOrders
+  totalPendingOrders,
+  tasksSummary,
+  ordersSummary
 }: HomeClientProps) {
   const [activeTab, setActiveTab] = useState<'soporte' | 'kanban'>('soporte');
   const [greeting, setGreeting] = useState('¡Hola!');
@@ -253,15 +265,28 @@ export default function HomeClient({
               <Wrench className="w-6 h-6" />
             </div>
             <div>
-              <span className="text-sm font-medium text-slate-500">Reparaciones en Curso</span>
+              <span className="text-sm font-medium text-slate-500 font-semibold">Reparaciones en Curso</span>
               <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">
                 {totalPendingOrders} ordenes
               </h2>
+              {ordersSummary && (
+                <div className="flex flex-wrap gap-1.5 mt-2 text-[10px] font-bold">
+                  <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200">
+                    Pendientes: {ordersSummary.pending}
+                  </span>
+                  <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
+                    En Reparación: {ordersSummary.inProgress}
+                  </span>
+                  <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full border border-emerald-200">
+                    Listos: {ordersSummary.completed}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           <Link 
             href="/soporte"
-            className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg transition-colors shrink-0"
           >
             <span>Ver todo</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -275,15 +300,28 @@ export default function HomeClient({
               <Trello className="w-6 h-6" />
             </div>
             <div>
-              <span className="text-sm font-medium text-slate-500">Mis Tareas Pendientes</span>
+              <span className="text-sm font-medium text-slate-500 font-semibold">Mis Tareas Pendientes</span>
               <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">
                 {totalPendingTasks} asignadas
               </h2>
+              {tasksSummary && (
+                <div className="flex flex-wrap gap-1.5 mt-2 text-[10px] font-bold">
+                  <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200">
+                    Por Ejecutar: {tasksSummary.pending}
+                  </span>
+                  <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200">
+                    En Ejecución: {tasksSummary.inProgress}
+                  </span>
+                  <span className="bg-green-50 text-green-700 px-2 py-0.5 rounded-full border border-green-200">
+                    Completadas: {tasksSummary.completed}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           <Link 
             href="/kanban"
-            className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-2 rounded-lg transition-colors shrink-0"
           >
             <span>Ver todo</span>
             <ChevronRight className="w-3.5 h-3.5" />
@@ -369,7 +407,22 @@ export default function HomeClient({
           
           {/* TAB 1: SOPORTE Y REPARACIONES */}
           {activeTab === 'soporte' && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
+              {ordersSummary && (
+                <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-150 text-xs text-slate-600 font-medium">
+                  <span className="font-bold text-slate-700 mr-1">Tus Órdenes de Trabajo:</span>
+                  <span className="bg-slate-200/60 text-slate-800 px-2 py-0.5 rounded-md border border-slate-200/80">
+                    {ordersSummary.pending} Pendientes
+                  </span>
+                  <span className="bg-amber-100/60 text-amber-800 px-2 py-0.5 rounded-md border border-amber-200/50">
+                    {ordersSummary.inProgress} En Reparación
+                  </span>
+                  <span className="bg-emerald-100/60 text-emerald-800 px-2 py-0.5 rounded-md border border-emerald-200/50">
+                    {ordersSummary.completed} Entregados
+                  </span>
+                  <span className="ml-auto text-[10px] text-slate-400 font-semibold">Total Asignado: {ordersSummary.pending + ordersSummary.inProgress + ordersSummary.completed}</span>
+                </div>
+              )}
               {workOrders.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {workOrders.map((orden) => (
@@ -430,7 +483,22 @@ export default function HomeClient({
 
           {/* TAB 2: KANBAN TASKS */}
           {activeTab === 'kanban' && (
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-4">
+              {tasksSummary && (
+                <div className="flex flex-wrap items-center gap-2 p-3 bg-slate-50 rounded-xl border border-slate-150 text-xs text-slate-600 font-medium">
+                  <span className="font-bold text-slate-700 mr-1">Tus Tareas en Tableros:</span>
+                  <span className="bg-slate-200/60 text-slate-800 px-2 py-0.5 rounded-md border border-slate-200/80">
+                    {tasksSummary.pending} Por Ejecutar
+                  </span>
+                  <span className="bg-blue-100/60 text-blue-800 px-2 py-0.5 rounded-md border border-blue-200/50">
+                    {tasksSummary.inProgress} En Ejecución
+                  </span>
+                  <span className="bg-green-100/60 text-green-800 px-2 py-0.5 rounded-md border border-green-200/50">
+                    {tasksSummary.completed} Completadas
+                  </span>
+                  <span className="ml-auto text-[10px] text-slate-400 font-semibold">Total Asignado: {tasksSummary.pending + tasksSummary.inProgress + tasksSummary.completed}</span>
+                </div>
+              )}
               {kanbanTasks.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {kanbanTasks.map((task) => (
