@@ -588,7 +588,7 @@ export default function GestionWebClient({
         '[SISTEMA] PostgreSQL conectado: OK',
         '[SISTEMA] Selecciona una categoría y haz clic en "Comenzar Importación".'
     ]);
-    const logsEndRef = React.useRef<HTMLDivElement>(null);
+    const logContainerRef = React.useRef<HTMLDivElement>(null);
     const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts' | 'pukang' | 'joson' | 'aerti' | 'dre' | 'amcaremed'>('soma-tech');
     const [selectedScrapeCategory, setSelectedScrapeCategory] = useState<string>('all');
     const [importedCategories, setImportedCategories] = useState<string[]>([]);
@@ -815,10 +815,10 @@ export default function GestionWebClient({
         return { isImported, label, href };
     })();
 
-    // Auto-scroll the scraper console log when log changes
+    // Auto-scroll the scraper console log when log changes (locally scrolling ONLY the terminal container, preventing global page scroll jumps)
     useEffect(() => {
-        if (logsEndRef.current) {
-            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        if (logContainerRef.current) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
         }
     }, [scraperLogs]);
 
@@ -2862,13 +2862,12 @@ export default function GestionWebClient({
                                         <span>Bitácora de Importación</span>
                                     </h3>
                                     
-                                    <div className="h-40 bg-slate-950 text-emerald-400 font-mono text-[10px] p-3 rounded-xl overflow-y-auto space-y-1 select-none scrollbar-thin scrollbar-thumb-slate-800">
+                                    <div ref={logContainerRef} className="h-40 bg-slate-950 text-emerald-400 font-mono text-[10px] p-3 rounded-xl overflow-y-auto space-y-1 select-none scrollbar-thin scrollbar-thumb-slate-800">
                                         {scraperLogs.map((log, index) => (
                                             <div key={index} className="leading-relaxed border-b border-slate-900/50 pb-0.5 last:border-none">
                                                 {log}
                                             </div>
                                         ))}
-                                        <div ref={logsEndRef} />
                                     </div>
 
                                     {/* Progress Bar Container */}
