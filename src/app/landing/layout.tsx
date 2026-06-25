@@ -124,12 +124,14 @@ async function getDynamicCategories(hideRealInventory: boolean, allowScrapedProd
             if (hideRealInventory) {
                 productWhere.OR = [
                     { sku: { startsWith: 'SOMA-' } },
-                    { sku: { startsWith: 'REP-' } }
+                    { sku: { startsWith: 'REP-' } },
+                    { sku: { startsWith: 'PUKANG-' } }
                 ];
             } else if (!allowScrapedProducts) {
                 productWhere.AND = [
                     { sku: { not: { startsWith: 'SOMA-' } } },
-                    { sku: { not: { startsWith: 'REP-' } } }
+                    { sku: { not: { startsWith: 'REP-' } } },
+                    { sku: { not: { startsWith: 'PUKANG-' } } }
                 ];
             }
 

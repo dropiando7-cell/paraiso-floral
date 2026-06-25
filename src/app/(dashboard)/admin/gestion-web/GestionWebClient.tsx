@@ -180,6 +180,24 @@ const SOMA_CATEGORIES = [
     { value: "video-endoscopia-y-laparoscopia", label: "Video-Endoscopia y Laparoscopia" }
 ];
 
+const PUKANG_CATEGORIES = [
+    { value: "hospital-bed", label: "Cama de Hospital" },
+    { value: "icu-bed", label: "Cama UCI" },
+    { value: "electric-hospital-bed", label: "Cama de Hospital Eléctrica" },
+    { value: "manual-hospital-bed", label: "Cama de Hospital Manual" },
+    { value: "children-hospital-bed", label: "Cama de Hospital para Niños" },
+    { value: "infant-hospital-bed", label: "Cama de Hospital Infantil" },
+    { value: "examination-bed", label: "Cama de Examen" },
+    { value: "home-care-bed", label: "Cama de Cuidados Domiciliarios" },
+    { value: "transport-stretcher", label: "Camilla de Transporte" },
+    { value: "delivery-bed", label: "Cama de Parto" },
+    { value: "medical-trolleys", label: "Carro Médico" },
+    { value: "bedside-table", label: "Mesilla de Noche" },
+    { value: "medical-cabinet", label: "Gabinete Médico" },
+    { value: "peripheral-products", label: "Productos Periféricos" },
+    { value: "patient-lift", label: "Elevación de Pacientes" }
+];
+
 const SOMA_PARTS_CATEGORIES = [
     {
         value: "bp",
@@ -452,7 +470,7 @@ export default function GestionWebClient({
         '[SISTEMA] Selecciona una categoría y haz clic en "Comenzar Importación".'
     ]);
     const logsEndRef = React.useRef<HTMLDivElement>(null);
-    const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts'>('soma-tech');
+    const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts' | 'pukang'>('soma-tech');
     const [selectedScrapeCategory, setSelectedScrapeCategory] = useState<string>('all');
     const [importedCategories, setImportedCategories] = useState<string[]>([]);
 
@@ -479,6 +497,11 @@ export default function GestionWebClient({
             }
             const label = SOMA_CATEGORIES.find(c => c.value === selectedScrapeCategory)?.label || '';
             return `https://www.somatechnology.com/spanish/?s=${encodeURIComponent(label)}`;
+        } else if (scraperSource === 'pukang') {
+            if (selectedScrapeCategory === 'all') {
+                return 'https://es.pukangmed.com/products.html';
+            }
+            return `https://es.pukangmed.com/${selectedScrapeCategory}.html`;
         } else {
             if (selectedScrapeCategory === 'all') {
                 return 'https://somamedicalparts.com/';
@@ -497,6 +520,12 @@ export default function GestionWebClient({
         
         if (scraperSource === 'soma-tech') {
             const found = SOMA_CATEGORIES.find(c => c.value === selectedScrapeCategory);
+            if (found) {
+                label = found.label;
+                isImported = importedCategories.includes(found.label);
+            }
+        } else if (scraperSource === 'pukang') {
+            const found = PUKANG_CATEGORIES.find(c => c.value === selectedScrapeCategory);
             if (found) {
                 label = found.label;
                 isImported = importedCategories.includes(found.label);
@@ -663,10 +692,14 @@ export default function GestionWebClient({
         setProgressCurrent(0);
         setProgressTotal(0);
         setImportedCategorySlug(null);
-        setScraperLogs([`[SISTEMA] Iniciando conexión con el endpoint del scraper para ${scraperSource === 'soma-tech' ? 'Soma Tech' : 'Soma Medical Parts'}...`]);
+        setScraperLogs([`[SISTEMA] Iniciando conexión con el endpoint del scraper para ${scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : 'Soma Medical Parts'}...`]);
         
         try {
-            const endpoint = scraperSource === 'soma-tech' ? '/api/admin/scrape-soma' : '/api/admin/scrape-soma-parts';
+            const endpoint = scraperSource === 'soma-tech' 
+                ? '/api/admin/scrape-soma' 
+                : scraperSource === 'pukang'
+                    ? '/api/admin/scrape-pukang'
+                    : '/api/admin/scrape-soma-parts';
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -721,6 +754,9 @@ export default function GestionWebClient({
                             if (cat !== 'all') {
                                 if (scraperSource === 'soma-tech') {
                                     const found = SOMA_CATEGORIES.find(c => c.value === cat);
+                                    catLabel = found ? found.label : cat;
+                                } else if (scraperSource === 'pukang') {
+                                    const found = PUKANG_CATEGORIES.find(c => c.value === cat);
                                     catLabel = found ? found.label : cat;
                                 } else {
                                     for (const group of SOMA_PARTS_CATEGORIES) {
@@ -2372,13 +2408,14 @@ export default function GestionWebClient({
                                     <select 
                                         value={scraperSource}
                                         onChange={(e) => {
-                                            setScraperSource(e.target.value as 'soma-tech' | 'soma-parts');
+                                            setScraperSource(e.target.value as 'soma-tech' | 'soma-parts' | 'pukang');
                                             setSelectedScrapeCategory('all');
                                         }}
                                         className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                                     >
                                         <option value="soma-tech">Soma Tech (Equipos Médicos)</option>
                                         <option value="soma-parts">Soma Medical Parts (Repuestos/Accesorios)</option>
+                                        <option value="pukang">Pukang Medical (Muebles y Equipos Hospitalarios)</option>
                                     </select>
                                 </div>
 
@@ -2393,6 +2430,15 @@ export default function GestionWebClient({
                                         <option value="all">Todas las Categorías</option>
                                         {scraperSource === 'soma-tech' ? (
                                             SOMA_CATEGORIES.map(cat => {
+                                                const isImported = importedCategories.includes(cat.label);
+                                                return (
+                                                    <option key={cat.value} value={cat.value}>
+                                                        {isImported ? `✓ ${cat.label}` : cat.label}
+                                                    </option>
+                                                );
+                                            })
+                                        ) : scraperSource === 'pukang' ? (
+                                            PUKANG_CATEGORIES.map(cat => {
                                                 const isImported = importedCategories.includes(cat.label);
                                                 return (
                                                     <option key={cat.value} value={cat.value}>
@@ -2432,7 +2478,7 @@ export default function GestionWebClient({
                                                 rel="noopener noreferrer" 
                                                 className="text-[#00A8CC] hover:underline font-semibold flex items-center gap-1 font-sans transition-colors hover:text-[#008ba8]"
                                             >
-                                                <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : 'Soma Parts'}</span>
+                                                <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : 'Soma Parts'}</span>
                                                 <ExternalLink size={10} />
                                             </a>
                                         </div>
@@ -2525,7 +2571,7 @@ export default function GestionWebClient({
                                             </div>
                                             <a 
                                                 href={importedCategorySlug === 'all' 
-                                                    ? (scraperSource === 'soma-tech' ? '/productos' : '/repuestos')
+                                                    ? (scraperSource === 'soma-tech' ? '/productos' : scraperSource === 'pukang' ? '/productos' : '/repuestos')
                                                     : `/productos?category=${encodeURIComponent(importedCategoryName || '')}${scraperSource === 'soma-parts' ? '&type=producto' : ''}`
                                                 }
                                                 target="_blank"

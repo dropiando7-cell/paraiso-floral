@@ -136,12 +136,14 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
             if (hideRealInventory) {
                 productWhere.OR = [
                     { sku: { startsWith: 'SOMA-' } },
-                    { sku: { startsWith: 'REP-' } }
+                    { sku: { startsWith: 'REP-' } },
+                    { sku: { startsWith: 'PUKANG-' } }
                 ];
             } else if (!allowScrapedProducts) {
                 productWhere.AND = [
                     { sku: { not: { startsWith: 'SOMA-' } } },
-                    { sku: { not: { startsWith: 'REP-' } } }
+                    { sku: { not: { startsWith: 'REP-' } } },
+                    { sku: { not: { startsWith: 'PUKANG-' } } }
                 ];
             }
 
@@ -180,14 +182,16 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                 name: c.tituloWeb || c.nombre,
                 brand: (c.marca || 'GENÉRICO').trim(),
                 model: c.modelo || 'N/A',
-                code: c.sku ? c.sku.replace(/^SOMA-/, '') : '',
+                code: c.sku ? c.sku.replace(/^(SOMA-|PUKANG-)/, '') : '',
                 imageUrl: c.imagenWeb || null,
                 type: 'producto' as const,
                 typeName: c.sku.startsWith('SOMA-') 
                     ? (c.categoria || 'Máquinas de anestesia') 
-                    : c.sku.startsWith('REP-') 
-                        ? `Repuesto / ${c.categoria || 'Accesorios'}` 
-                        : 'Consumible / Repuesto',
+                    : c.sku.startsWith('PUKANG-')
+                        ? (c.categoria || 'Muebles Hospitalarios')
+                        : c.sku.startsWith('REP-') 
+                            ? `Repuesto / ${c.categoria || 'Accesorios'}` 
+                            : 'Consumible / Repuesto',
                 category: (c.categoria || 'CONSUMIBLES').trim(),
                 hidden: c.estado === 'OCULTO',
             }))
@@ -207,9 +211,23 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
         }
 
         if (selectedCategory) {
-            filteredItems = filteredItems.filter(item => 
-                item.category.toUpperCase() === selectedCategory.toUpperCase()
-            );
+            const cleanSelected = cleanString(selectedCategory);
+            filteredItems = filteredItems.filter(item => {
+                const cleanItemCat = cleanString(item.category);
+                
+                // Exact normalized match
+                if (cleanItemCat === cleanSelected) return true;
+                
+                // Partial containment (e.g. "cama de hospital electrica" contains "cama de hospital")
+                if (cleanItemCat.includes(cleanSelected) || cleanSelected.includes(cleanItemCat)) return true;
+                
+                // Custom check for "cama de hospital" parent category to match other beds in database
+                if (cleanSelected === "cama de hospital" || cleanSelected === "camas de hospital") {
+                    return cleanItemCat.includes("cama") || cleanItemCat.includes("uci") || cleanItemCat.includes("examen");
+                }
+                
+                return false;
+            });
         }
 
         // Perform smart search algorithm on the filtered items

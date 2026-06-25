@@ -340,7 +340,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
         if (sourceFilter === 'scraped') {
             productsWhere.OR = [
                 { sku: { startsWith: 'SOMA-' } },
-                { sku: { startsWith: 'REP-' } }
+                { sku: { startsWith: 'REP-' } },
+                { sku: { startsWith: 'PUKANG-' } }
             ];
         } else if (sourceFilter === 'own') {
             if (!productsWhere.AND) {
@@ -348,7 +349,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
             }
             productsWhere.AND.push(
                 { sku: { not: { startsWith: 'SOMA-' } } },
-                { sku: { not: { startsWith: 'REP-' } } }
+                { sku: { not: { startsWith: 'REP-' } } },
+                { sku: { not: { startsWith: 'PUKANG-' } } }
             );
         }
 
@@ -780,7 +782,8 @@ export async function getImportedCategories() {
                 estado: 'ACTIVO',
                 OR: [
                     { sku: { startsWith: 'SOMA-' } },
-                    { sku: { startsWith: 'REP-' } }
+                    { sku: { startsWith: 'REP-' } },
+                    { sku: { startsWith: 'PUKANG-' } }
                 ]
             },
             select: {

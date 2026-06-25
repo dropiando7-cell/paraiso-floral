@@ -77,13 +77,13 @@ async function getItemData(id: string, settings: any) {
 
         if (product) {
             // If it is a scraped SOMA or REP product and they are currently disabled, prevent details access
-            if ((product.sku.startsWith('SOMA-') || product.sku.startsWith('REP-')) && !allowScrapedProducts) {
+            if ((product.sku.startsWith('SOMA-') || product.sku.startsWith('REP-') || product.sku.startsWith('PUKANG-')) && !allowScrapedProducts) {
                 return null;
             }
 
             // Determine virtual or actual stock display
             let stockVal = String(product.stockActual);
-            if (product.sku.startsWith('SOMA-') || product.sku.startsWith('REP-')) {
+            if (product.sku.startsWith('SOMA-') || product.sku.startsWith('REP-') || product.sku.startsWith('PUKANG-')) {
                 if (defaultScrapedStock > 0) {
                     stockVal = `${defaultScrapedStock}`;
                 } else {
@@ -92,7 +92,7 @@ async function getItemData(id: string, settings: any) {
             }
 
             const details: Record<string, string> = {
-                'SKU': product.sku ? product.sku.replace(/^SOMA-/, '') : '',
+                'SKU': product.sku ? product.sku.replace(/^(SOMA-|PUKANG-)/, '') : '',
                 'Stock Disponible': stockVal,
                 'Impuesto (ISV)': `${product.isvAplicable}%`
             };
@@ -102,14 +102,16 @@ async function getItemData(id: string, settings: any) {
                 name: product.tituloWeb || product.nombre,
                 brand: product.marca || 'Genérico',
                 model: product.modelo || 'N/A',
-                code: product.sku ? product.sku.replace(/^SOMA-/, '') : '',
+                code: product.sku ? product.sku.replace(/^(SOMA-|PUKANG-)/, '') : '',
                 imageUrl: product.imagenWeb || null,
                 type: 'producto' as const,
                 typeName: product.sku.startsWith('SOMA-') 
                     ? (product.categoria || 'Máquinas de anestesia') 
-                    : product.sku.startsWith('REP-') 
-                        ? `Repuesto / ${product.categoria || 'Accesorios'}` 
-                        : 'Consumible / Repuesto',
+                    : product.sku.startsWith('PUKANG-')
+                        ? (product.categoria || 'Muebles Hospitalarios')
+                        : product.sku.startsWith('REP-') 
+                            ? `Repuesto / ${product.categoria || 'Accesorios'}` 
+                            : 'Consumible / Repuesto',
                 description: product.descripcionWeb || product.descripcion || '',
                 category: product.categoria || 'consumibles',
                 details,
