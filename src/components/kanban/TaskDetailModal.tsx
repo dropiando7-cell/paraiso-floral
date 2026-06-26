@@ -197,7 +197,7 @@ export default function TaskDetailModal({
     useEffect(() => {
         if (lightboxItem) {
             setLightboxDescText(lightboxItem.descripcion || "");
-            setIsEditingLightboxDesc(false);
+            setIsEditingLightboxDesc(!lightboxItem.descripcion);
         } else {
             setLightboxDescText("");
             setIsEditingLightboxDesc(false);
@@ -2386,8 +2386,8 @@ export default function TaskDetailModal({
                                     value={lightboxDescText}
                                     onChange={(e) => setLightboxDescText(e.target.value)}
                                     placeholder="Escribe una descripción para este archivo..."
-                                    rows={4}
-                                    className="w-full bg-slate-950/80 border border-white/10 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 resize-none font-medium leading-relaxed"
+                                    rows={5}
+                                    className="w-full bg-slate-950/80 border border-white/10 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 resize-y font-medium leading-relaxed min-h-[120px]"
                                     autoFocus
                                 />
                                 <div className="flex justify-end gap-2">
@@ -2414,17 +2414,24 @@ export default function TaskDetailModal({
                                 </div>
                             </div>
                         ) : (
-                            <div className="group relative bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl p-4 shadow-inner max-h-[15vh] overflow-y-auto max-w-xl mx-auto transition-all text-left">
+                            <div 
+                                onClick={() => {
+                                    setLightboxDescText(lightboxItem.descripcion || "");
+                                    setIsEditingLightboxDesc(true);
+                                }}
+                                className="group relative bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl p-4 shadow-inner max-h-[25vh] overflow-y-auto max-w-xl mx-auto transition-all text-left cursor-pointer hover:bg-white/10"
+                            >
                                 <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap select-text selection:bg-brand-500/30 selection:text-white pr-8">
-                                    {lightboxItem.descripcion || <span className="text-slate-500 italic">Sin descripción adjunta</span>}
+                                    {lightboxItem.descripcion || <span className="text-slate-500 italic">Sin descripción adjunta. Toca o haz clic aquí para añadir una.</span>}
                                 </p>
                                 <button
                                     type="button"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                        e.stopPropagation();
                                         setLightboxDescText(lightboxItem.descripcion || "");
                                         setIsEditingLightboxDesc(true);
                                     }}
-                                    className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-white/5 text-white/50 hover:text-white hover:bg-white/10 opacity-0 group-hover:opacity-100 transition duration-200 cursor-pointer"
+                                    className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-white/10 text-white/60 hover:text-white hover:bg-white/20 transition duration-200 cursor-pointer"
                                     title="Editar descripción"
                                 >
                                     <Pencil className="h-4 w-4" />

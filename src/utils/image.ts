@@ -44,7 +44,7 @@ export function compressImage(
     }
 
     const reader = new FileReader();
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(imageFile);
     reader.onload = (event) => {
       const img = new Image();
       img.src = event.target?.result as string;
@@ -65,7 +65,7 @@ export function compressImage(
 
         const ctx = canvas.getContext('2d');
         if (!ctx) {
-          return resolve(file);
+          return resolve(imageFile);
         }
 
         ctx.drawImage(img, 0, 0, width, height);
@@ -73,10 +73,10 @@ export function compressImage(
         canvas.toBlob(
           (blob) => {
             if (!blob) {
-              return resolve(file);
+              return resolve(imageFile);
             }
             // Replace extension with .jpg if needed
-            let newName = file.name;
+            let newName = imageFile.name;
             if (!newName.toLowerCase().endsWith('.jpg') && !newName.toLowerCase().endsWith('.jpeg')) {
               newName = newName.replace(/\.[^/.]+$/, "") + ".jpg";
             }
@@ -92,11 +92,11 @@ export function compressImage(
         );
       };
       img.onerror = () => {
-        resolve(file);
+        resolve(imageFile);
       };
     };
     reader.onerror = () => {
-      resolve(file);
+      resolve(imageFile);
     };
   });
 }
