@@ -193,6 +193,7 @@ export default function TaskDetailModal({
     const [lightboxItem, setLightboxItem] = useState<{ id: string; url: string; nombre: string; tipo: string; descripcion?: string | null } | null>(null);
     const [isEditingLightboxDesc, setIsEditingLightboxDesc] = useState(false);
     const [lightboxDescText, setLightboxDescText] = useState("");
+    const [attachmentToDelete, setAttachmentToDelete] = useState<any | null>(null);
 
     useEffect(() => {
         if (lightboxItem) {
@@ -909,18 +910,34 @@ export default function TaskDetailModal({
     };
 
     const handleDeleteAttachment = async (attachmentId: string) => {
-        if (!window.confirm('¿Confirmas que deseas eliminar este archivo adjunto?')) return;
+        const attObj = attachments.find(a => a.id === attachmentId);
+        if (attObj) {
+            setAttachmentToDelete(attObj);
+        }
+    };
+
+    const handleConfirmDeleteAttachment = async (attachmentId: string) => {
         try {
             const res = await deleteKanbanAttachment(attachmentId);
             if (res.success) {
                 setAttachments(prev => prev.filter(a => a.id !== attachmentId));
                 toast.success('Archivo adjunto eliminado');
+                
+                // Si el adjunto eliminado estaba activo en el Lightbox, cerrarlo
+                if (lightboxItem && lightboxItem.id === attachmentId) {
+                    setLightboxItem(null);
+                }
+                
+                // Recargar adjuntos y comentarios (historial) para reflejar la eliminación
+                loadCommentsAndAttachments();
             } else {
                 toast.error(res.error || 'Error al eliminar archivo');
             }
         } catch (error) {
             console.error("Error al eliminar adjunto:", error);
             toast.error('Error al eliminar archivo');
+        } finally {
+            setAttachmentToDelete(null);
         }
     };
 
@@ -2315,6 +2332,19 @@ export default function TaskDetailModal({
                     className="fixed inset-0 z-[10005] flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 md:p-8 animate-in fade-in duration-200"
                     onClick={() => setLightboxItem(null)}
                 >
+                    {/* Botón de Eliminar */}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setAttachmentToDelete(lightboxItem);
+                        }}
+                        className="absolute top-4 right-20 z-[10010] p-3 rounded-full bg-red-600/20 text-red-200 hover:bg-red-650/35 transition-all hover:scale-105 shadow-md active:scale-95 cursor-pointer border border-red-500/20"
+                        title="Eliminar archivo"
+                    >
+                        <Trash2 className="h-6 w-6" />
+                    </button>
+
                     {/* Botón de Cerrar */}
                     <button
                         type="button"
@@ -2438,6 +2468,59 @@ export default function TaskDetailModal({
                                 </button>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Confirmación de Eliminación de Adjunto */}
+            {attachmentToDelete && (
+                <div className="fixed inset-0 z-[10020] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl max-w-md w-full overflow-hidden shadow-2xl border border-slate-200 flex flex-col animate-in zoom-in-95 duration-200" onClick={(e) => e.stopPropagation()}>
+                        <div className="p-5 border-b border-slate-100 flex items-center gap-3 bg-red-50 text-red-700">
+                            <AlertTriangle className="h-6 w-6 shrink-0 animate-bounce text-red-600" />
+                            <h3 className="text-sm font-bold uppercase tracking-wider">
+                                ¿Eliminar archivo permanentemente?
+                            </h3>
+                        </div>
+                        
+                        <div className="p-6 space-y-4">
+                            <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                                Esta acción es irreversible y no se puede deshacer. Se guardará constancia en el historial de trazabilidad.
+                            </p>
+                            
+                            <div className="bg-slate-50 border border-slate-150 rounded-xl p-3.5 space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-1.5 bg-white border border-slate-200 rounded-lg text-slate-500">
+                                        {getFileIcon(attachmentToDelete.tipo)}
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-800 truncate block max-w-[300px]">
+                                        {attachmentToDelete.nombre}
+                                    </span>
+                                </div>
+                                {attachmentToDelete.descripcion && (
+                                    <div className="text-[10px] text-slate-650 italic bg-white border border-slate-100 rounded px-2.5 py-1.5 leading-normal break-words">
+                                        <strong>Descripción previa:</strong> {attachmentToDelete.descripcion}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3 justify-end">
+                            <button
+                                type="button"
+                                onClick={() => setAttachmentToDelete(null)}
+                                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleConfirmDeleteAttachment(attachmentToDelete.id)}
+                                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
+                            >
+                                Confirmar Eliminación
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

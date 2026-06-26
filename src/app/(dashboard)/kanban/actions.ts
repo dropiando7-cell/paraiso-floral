@@ -1152,14 +1152,17 @@ export async function deleteKanbanAttachment(attachmentId: string) {
             where: { id: attachmentId }
         });
 
-        // Registrar auditoría
+        // Registrar auditoría con descripción si existía
+        const descInfo = attachment.descripcion ? ` (Descripción: "${attachment.descripcion}")` : ' (Sin descripción)';
+        const detalles = `Eliminó el archivo adjunto "${attachment.nombre}"${descInfo}`;
+
         await prisma.kanbanActivity.create({
             data: {
                 spaceId: attachment.task.spaceId,
                 taskId: attachment.taskId,
                 usuarioId: user.id,
                 accion: 'ELIMINACION',
-                detalles: `Eliminó el archivo adjunto "${attachment.nombre}"`
+                detalles
             }
         });
 
