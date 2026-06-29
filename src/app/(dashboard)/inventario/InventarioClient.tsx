@@ -908,6 +908,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : getLocalDateString(new Date()));
     const [origenActivo, setOrigenActivo] = useState(editActivo?.origenActivo || '');
     const [condicionActivo, setCondicionActivo] = useState(editActivo?.condicionActivo || '');
+    const [serie, setSerie] = useState(editActivo?.serie || '');
 
     const [odooReference, setOdooReference] = useState<any>(null);
 
@@ -964,6 +965,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
 
         // Autocompletar lote y vencimiento desde GS1 si el modal los tiene
         if (gs1?.lote) setLote(gs1.lote);
+        if (gs1?.serial) setSerie(gs1.serial);
         if (gs1?.fechaProd) {
             const iso = gs1DateToISO(gs1.fechaProd);
             if (iso) setFechaFabricacion(iso);
@@ -1257,6 +1259,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setLote(editActivo.lote || '');
             setFechaVencimiento(editActivo.fechaVencimiento ? getLocalDateString(editActivo.fechaVencimiento) : '');
             setFechaFabricacion(editActivo.fechaFabricacion ? getLocalDateString(editActivo.fechaFabricacion) : '');
+            setSerie(editActivo.serie || '');
             // For now, not fetching full historic record on edit, just handling its absence.
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
@@ -1264,7 +1267,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setReferencia(''); setCodigoGrupo(''); setCodigoBarras(''); setCantidad('1');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
-            setFechaAdq(getLocalDateString(new Date())); setCostoAdq(''); setOrigenActivo(defaultOrigin); setCondicionActivo(defaultCondition); setCategoriaId(''); setEsConsumible(false); setGarantia(''); setMantenimientosIncluidos(''); setFrecuenciaMantenimientoMeses(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
+            setFechaAdq(getLocalDateString(new Date())); setCostoAdq(''); setOrigenActivo(defaultOrigin); setCondicionActivo(defaultCondition); setCategoriaId(''); setEsConsumible(false); setGarantia(''); setMantenimientosIncluidos(''); setFrecuenciaMantenimientoMeses(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion(''); setSerie('');
             setTipoRegistro('seleccion');
         }
     }, [editActivo, open, lockedArea, defaultOrigin, defaultCondition]);
@@ -1743,9 +1746,11 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                         <div className="col-span-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2.5 flex items-center gap-2">
                                             <QrCode className="w-4 h-4 text-[#0500A3] shrink-0" />
                                             <div>
-                                                <p className="text-[10px] font-bold text-[#0500A3]/60 uppercase tracking-wider">Código QR que se asignará</p>
+                                                <p className="text-[10px] font-bold text-[#0500A3]/60 uppercase tracking-wider">
+                                                    {isEdit ? 'Código QR' : 'Código QR que se asignará'}
+                                                </p>
                                                 <p className="text-xs font-black text-[#0500A3] font-mono tracking-tight">
-                                                    {isServiceMode ? codigoBarras : previewCode}
+                                                    {isEdit ? editActivo?.idQr : (isServiceMode ? codigoBarras : previewCode)}
                                                 </p>
                                             </div>
                                         </div>
@@ -2191,7 +2196,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     {placaUploadPhase === 'done' && imagenPlacaUrl && <Sparkles className="w-3 h-3 text-purple-500 ml-2 inline" />}
                                                 </FieldLabel>
                                                 <div className="flex gap-2">
-                                                    <input type="text" name="serie" defaultValue={editActivo?.serie || ''}
+                                                    <input type="text" name="serie" value={serie || ''} onChange={e => setSerie(e.target.value)}
                                                         placeholder="S/N si no aplica" className={placaUploadPhase === 'done' && imagenPlacaUrl ? inputAiCls : inputCls} />
 
                                                     <input ref={placaCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePlacaUpload} />
