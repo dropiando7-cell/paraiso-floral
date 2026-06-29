@@ -74,6 +74,12 @@ export interface InvoiceSettings {
   signaturesLibrary?: string[];
   sealsLibrary?: string[];
   companySealUrl?: string;
+  // Terms and observations for quote
+  showTerms?: boolean;
+  advancePercentage?: number;
+  completionPercentage?: number;
+  termsTextDefault1?: string;
+  termsTextDefault2?: string;
 }
 
 export interface CustomInvoiceTemplate {
@@ -140,5 +146,10 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
     '/firmas-sellos/SELLO DE ENTREGADO.png',
     '/firmas-sellos/SELLO DE CANCELADO.png'
   ],
-  companySealUrl: '/firmas-sellos/SELLO DE BIOELECTRONICA.png'
+  companySealUrl: '/firmas-sellos/SELLO DE BIOELECTRONICA.png',
+  showTerms: false,
+  advancePercentage: 80,
+  completionPercentage: 20,
+  termsTextDefault1: 'Para iniciar los trabajos aquí descritos se deberá cancelar el {p1}% del valor total y el {p2}% restante al finalizar.',
+  termsTextDefault2: 'Favor someter a consideración esta cotización y le rogamos sea devuelta con firma y sello de aceptación en caso que la misma sea aceptada.'
 };

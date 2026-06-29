@@ -337,11 +337,11 @@ export default function LegacyTemplate(props: TemplateProps) {
  </button>
  </div>
 
- {/* Spacer to push the footer naturally in flex views if needed */}
- <div className="flex-1" />
+  {/* Spacer to push the footer naturally in flex views if needed */}
+  <div className="flex-1" />
 
- {/* Signatures and Seals */}
- <InvoiceSignaturesAndSeals settings={settings} clienteSignature={props.clienteSignature} />
+  {/* Signatures and Seals */}
+  <InvoiceSignaturesAndSeals settings={settings} clienteSignature={props.clienteSignature} />
 
  {/* Footer */}
  <InvoiceFooter

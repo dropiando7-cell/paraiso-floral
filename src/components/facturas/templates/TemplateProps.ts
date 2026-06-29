@@ -48,4 +48,5 @@ export interface TemplateProps {
   clienteSignature?: { url: string; date: string; name: string } | null;
   fmt: (n: number) => string;
   LineItemRowComponent: React.FC<any>;
+  setSettings?: React.Dispatch<React.SetStateAction<InvoiceSettings>>;
 }

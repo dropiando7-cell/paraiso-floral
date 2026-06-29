@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling, CheckCircle2, AlertTriangle, FileSignature, Plus, UploadCloud, Loader2 } from 'lucide-react';
+import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling, CheckCircle2, AlertTriangle, FileSignature, Plus, UploadCloud, Loader2, FileText } from 'lucide-react';
 import { InvoiceSettings, TemplateLayout, LogoPosition, LogoSize, CustomInvoiceTemplate, SignatureItem, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 import { getInvoiceTemplates, guardarInvoiceTemplate, eliminarInvoiceTemplate } from '@/app/(dashboard)/facturas/actions';
 import toast from 'react-hot-toast';
@@ -10,6 +10,7 @@ interface Props {
   onChange: (key: keyof InvoiceSettings, val: any) => void;
   onClose: () => void;
   onLoadTemplate?: (settings: InvoiceSettings) => void;
+  onApplyTerms?: (newSettings?: InvoiceSettings) => void;
 }
 
 const TEMPLATES: { id: TemplateLayout; name: string; desc: string }[] = [
@@ -125,7 +126,7 @@ function FontSizeControl({
   );
 }
 
-export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, onLoadTemplate }: Props) {
+export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, onLoadTemplate, onApplyTerms }: Props) {
   const [activeTab, setActiveTab] = useState<'template' | 'colors' | 'font' | 'logo' | 'footer' | 'sizes'>('template');
   const [savedTemplates, setSavedTemplates] = useState<CustomInvoiceTemplate[]>([]);
   const [newTemplateName, setNewTemplateName] = useState('');
@@ -1009,6 +1010,117 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
                 </div>
                 {settings.footerNota && <p className="text-[9px] text-slate-500 italic">{settings.footerNota}</p>}
                 {settings.footerMostrarPagina && <p className="text-[9px] text-slate-400">Página: 1/1</p>}
+              </div>
+            </div>
+
+            {/* Términos y Observaciones Section */}
+            <div className="pt-4 border-t border-slate-200 mt-6 space-y-4">
+              <h3 className="text-[10px] font-bold text-slate-700 uppercase tracking-widest flex items-center gap-2">
+                <FileText size={12} className="text-blue-600" /> Observaciones (Cotización)
+              </h3>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Integra automáticamente las cláusulas de cotización en el campo de Notas y Plazo de pago del documento.
+              </p>
+
+              <div className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Integrar en Notas</p>
+                    <p className="text-[10px] text-slate-400">Insertar cláusulas en el campo de Notas</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const nextVal = !settings.showTerms;
+                      onChange('showTerms', nextVal);
+                      if (nextVal && onApplyTerms) {
+                        onApplyTerms({ ...settings, showTerms: nextVal });
+                      }
+                    }}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.showTerms ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.showTerms ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+
+                {settings.showTerms && (
+                  <div className="pt-3 border-t border-slate-100 space-y-3">
+                    {/* Cláusula 1 Textarea */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-slate-400 uppercase">Texto Cláusula 1</label>
+                      <textarea
+                        value={settings.termsTextDefault1 ?? ''}
+                        onChange={e => onChange('termsTextDefault1', e.target.value)}
+                        rows={3}
+                        className="w-full text-xs border border-slate-200 rounded-lg p-2 bg-slate-50/50 focus:border-slate-400 focus:ring-0 text-slate-700 font-sans leading-relaxed"
+                        placeholder="Ej: Para iniciar los trabajos aquí descritos se deberá cancelar el {p1}% del valor total..."
+                      />
+                      <span className="text-[9px] text-slate-400 block leading-tight">Usa <strong>{'{p1}'}</strong> y <strong>{'{p2}'}</strong> para los porcentajes.</span>
+                    </div>
+
+                    {/* Cláusula 2 Textarea */}
+                    <div className="space-y-1">
+                      <label className="text-[9px] font-bold text-slate-400 uppercase">Texto Cláusula 2</label>
+                      <textarea
+                        value={settings.termsTextDefault2 ?? ''}
+                        onChange={e => onChange('termsTextDefault2', e.target.value)}
+                        rows={3}
+                        className="w-full text-xs border border-slate-200 rounded-lg p-2 bg-slate-50/50 focus:border-slate-400 focus:ring-0 text-slate-700 font-sans leading-relaxed"
+                        placeholder="Ej: Favor someter a consideración esta cotización..."
+                      />
+                    </div>
+
+                    {/* % Adelanto */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">% Adelanto Inicial</label>
+                        <span className="text-xs font-bold text-slate-800">{settings.advancePercentage ?? 80}%</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="0" max="100" step="5"
+                        value={settings.advancePercentage ?? 80}
+                        onChange={e => {
+                          const val = Number(e.target.value);
+                          onChange('advancePercentage', val);
+                          onChange('completionPercentage', 100 - val);
+                        }}
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* % Fin */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">% Pago al Finalizar</label>
+                        <span className="text-xs font-bold text-slate-800">{settings.completionPercentage ?? 20}%</span>
+                      </div>
+                      <input 
+                        type="range" 
+                        min="0" max="100" step="5"
+                        value={settings.completionPercentage ?? 20}
+                        onChange={e => {
+                          const val = Number(e.target.value);
+                          onChange('completionPercentage', val);
+                          onChange('advancePercentage', 100 - val);
+                        }}
+                        className="w-full accent-blue-600 cursor-pointer"
+                      />
+                    </div>
+
+                    {/* Apply Button */}
+                    <button
+                      type="button"
+                      onClick={() => onApplyTerms && onApplyTerms()}
+                      className="w-full mt-2 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-blue-100 flex items-center justify-center gap-1.5"
+                    >
+                      <FileText size={14} /> Aplicar/Actualizar en Notas
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 

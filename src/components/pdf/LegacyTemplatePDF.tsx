@@ -190,6 +190,27 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
     paddingTop: 8,
+  },
+  termsSection: {
+    marginTop: 15,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    padding: 10,
+    backgroundColor: '#f9fafb',
+  },
+  termsTitle: {
+    fontSize: 9,
+    fontWeight: 700,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+    color: '#1f2937',
+  },
+  termsText: {
+    fontSize: 8,
+    color: '#4b5563',
+    lineHeight: 1.4,
+    marginBottom: 2,
   }
 });
 

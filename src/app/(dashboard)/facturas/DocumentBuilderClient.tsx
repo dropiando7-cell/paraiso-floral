@@ -1031,6 +1031,45 @@ export default function DocumentBuilderClient({
     return DEFAULT_INVOICE_SETTINGS;
   });
 
+  const handleApplyTerms = (newSettings?: InvoiceSettings) => {
+    const activeSettings = newSettings || settings;
+    const p1 = activeSettings.advancePercentage ?? 80;
+    const p2 = activeSettings.completionPercentage ?? 20;
+    const t1 = activeSettings.termsTextDefault1 ?? "Para iniciar los trabajos aquí descritos se deberá cancelar el {p1}% del valor total y el {p2}% restante al finalizar.";
+    const t2 = activeSettings.termsTextDefault2 ?? "Favor someter a consideración esta cotización y le rogamos sea devuelta con firma y sello de aceptación en caso que la misma sea aceptada.";
+
+    const compiledT1 = t1.replace('{p1}', `${p1}`).replace('{p2}', `${p2}`);
+    const compiledT2 = t2;
+
+    const compiledTerms = `1) ${compiledT1}\n\n2) ${compiledT2}`;
+
+    setNotes(prev => {
+      const cleaned = prev.trim();
+      if (!cleaned) {
+        return compiledTerms;
+      }
+
+      if (prev.includes('1)') && prev.includes('2)')) {
+        const lines = prev.split('\n');
+        const firstTermIdx = lines.findIndex(l => l.trim().startsWith('1)'));
+        const secondTermIdx = lines.findIndex(l => l.trim().startsWith('2)'));
+
+        if (firstTermIdx !== -1 && secondTermIdx !== -1 && secondTermIdx > firstTermIdx) {
+          const before = lines.slice(0, firstTermIdx).join('\n');
+          let endIdx = secondTermIdx + 1;
+          while (endIdx < lines.length && lines[endIdx].trim() !== '' && !lines[endIdx].trim().startsWith('1)') && !lines[endIdx].trim().startsWith('3)')) {
+            endIdx++;
+          }
+          const after = lines.slice(endIdx).join('\n');
+          return [before.trim(), compiledTerms, after.trim()].filter(Boolean).join('\n\n');
+        }
+      }
+
+      return `${prev}\n\n${compiledTerms}`;
+    });
+    toast.success("Términos aplicados al campo de Notas");
+  };
+
   const isAnulada = initialData?.estado === 'ANULADA';
   const isConvertida = initialData?.estado === 'CONVERTIDA';
   const effectiveViewMode = viewMode || isAnulada || isConvertida || isForcePrinting;
@@ -2287,6 +2326,7 @@ export default function DocumentBuilderClient({
             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+            setSettings={setSettings}
           />}
           {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -2302,6 +2342,7 @@ export default function DocumentBuilderClient({
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+             setSettings={setSettings}
           />}
           {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -2317,6 +2358,7 @@ export default function DocumentBuilderClient({
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+             setSettings={setSettings}
           />}
           {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -2332,8 +2374,8 @@ export default function DocumentBuilderClient({
              setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
+             setSettings={setSettings}
           />}
-
           </div>
 
           {/* Bottom Action Bar */}
@@ -3080,6 +3122,7 @@ export default function DocumentBuilderClient({
           settings={settings}
           onChange={(key, val) => setSettings(p => ({ ...p, [key]: val }))}
           onLoadTemplate={(tplSettings) => setSettings(tplSettings)}
+          onApplyTerms={handleApplyTerms}
           onClose={() => setShowCustomizer(false)}
         />
       )}
