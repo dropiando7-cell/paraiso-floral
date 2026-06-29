@@ -3938,6 +3938,14 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                         <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                                         {a.area}
                                     </span>
+                                    {a.serie && (
+                                        <>
+                                            <span className="text-slate-300">|</span>
+                                            <span className="font-mono text-[10px] font-bold bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200/50 uppercase tracking-wider shrink-0">
+                                                S/N: {a.serie}
+                                            </span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
 
