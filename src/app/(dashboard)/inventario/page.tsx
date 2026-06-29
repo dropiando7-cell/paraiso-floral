@@ -37,5 +37,36 @@ export default async function InventarioPage() {
         orderBy: { name: 'asc' },
     });
 
-    return <InventarioClient initialData={initialData} initialStats={initialStats} dbAreas={dbAreas} userRole={dbUser.role} />;
+    // Fetch system settings for origins
+    const originsSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'inventory_origins' }
+    });
+    const defaultSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'default_inventory_origin' }
+    });
+    const customOrigins = originsSetting ? JSON.parse(originsSetting.value) : ["Americano", "Chino", "Otro"];
+    const defaultOrigin = defaultSetting ? defaultSetting.value : "";
+
+    // Fetch system settings for conditions
+    const conditionsSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'inventory_conditions' }
+    });
+    const defaultCondSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'default_inventory_condition' }
+    });
+    const customConditions = conditionsSetting ? JSON.parse(conditionsSetting.value) : ["Nuevo", "Usado", "Remanufacturado"];
+    const defaultCondition = defaultCondSetting ? defaultCondSetting.value : "";
+
+    return (
+        <InventarioClient 
+            initialData={initialData} 
+            initialStats={initialStats} 
+            dbAreas={dbAreas} 
+            userRole={dbUser.role} 
+            initialOrigins={customOrigins}
+            initialDefaultOrigin={defaultOrigin}
+            initialConditions={customConditions}
+            initialDefaultCondition={defaultCondition}
+        />
+    );
 }

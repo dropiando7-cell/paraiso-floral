@@ -8,6 +8,7 @@ export async function getUserProfileData(email: string) {
         const user = await prisma.user.findUnique({
             where: { email },
             select: {
+                id: true,
                 phoneNumber: true,
                 role: true,
                 customRoleName: true

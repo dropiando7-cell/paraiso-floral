@@ -51,6 +51,7 @@ async function getItemData(id: string, settings: any) {
                 'Estatus': asset.estatusContable
             };
             if (asset.serie) details['Número de Serie'] = asset.serie;
+            if (asset.condicionActivo) details['Condición'] = asset.condicionActivo;
             if (asset.estadoDano) details['Estado de Conservación'] = asset.estadoDano;
             if (asset.observaciones) details['Observaciones'] = asset.observaciones;
 

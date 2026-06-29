@@ -91,7 +91,9 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
                         <Header dbUser={dbUser} onMenuClick={handleMenuClick} />
                     </div>
                     <main className="flex-1 overflow-y-auto print:overflow-visible p-4 md:p-6 lg:p-8 print-expand print:block">
-                        <div className="max-w-7xl mx-auto w-full print-expand print:block">
+                        <div className={`w-full print-expand print:block transition-all duration-300 ${
+                            desktopSidebarOpen ? 'max-w-7xl mx-auto' : 'max-w-none px-2 md:px-4 lg:px-8'
+                        }`}>
                             {children}
                         </div>
                     </main>

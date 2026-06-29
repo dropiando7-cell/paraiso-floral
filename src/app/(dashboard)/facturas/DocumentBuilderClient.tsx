@@ -2280,9 +2280,11 @@ export default function DocumentBuilderClient({
       </div>
 
       <div className={`mx-auto px-4 py-8 flex flex-col md:flex-row print:p-0 print:max-w-none print:m-0 relative print:block transition-all duration-300 ${
-        (viewMode && docType === 'factura' && !isLocked)
-          ? (showOrdenEntregaPanel ? 'max-w-[1200px] gap-5' : 'max-w-[816px] gap-y-5 md:gap-x-0')
-          : (viewMode ? 'max-w-[816px] gap-y-5 md:gap-x-0' : 'max-w-[1200px] gap-y-5 md:gap-x-0')
+        showCustomizer
+          ? 'max-w-none w-full gap-5'
+          : (viewMode && docType === 'factura' && !isLocked)
+            ? (showOrdenEntregaPanel ? 'max-w-[1200px] gap-5' : 'max-w-[816px] gap-y-5 md:gap-x-0')
+            : (viewMode ? 'max-w-[816px] gap-y-5 md:gap-x-0' : 'max-w-[1200px] gap-y-5 md:gap-x-0')
       }`}>
 
         <div className={`flex-1 min-w-0 relative transition-all duration-300 print:block ${isLocked ? 'pointer-events-none' : ''}`}>

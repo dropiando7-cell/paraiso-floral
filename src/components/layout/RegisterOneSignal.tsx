@@ -19,8 +19,19 @@ declare global {
 export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
     const [showBanner, setShowBanner] = useState(false);
     const [sdkLoaded, setSdkLoaded] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
 
     const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            (window as any).showOneSignalBanner = () => {
+                console.log('[ONESIGNAL] Forzando banner de suscripción...');
+                localStorage.removeItem('onesignal_banner_dismissed');
+                setShowBanner(true);
+            };
+        }
+    }, []);
 
     useEffect(() => {
         if (!appId) {
@@ -34,8 +45,15 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
         }
     }, [appId]);
 
+    useEffect(() => {
+        if (sdkLoaded) {
+            initOneSignal();
+        }
+    }, [sdkLoaded]);
+
     const initOneSignal = () => {
-        if (!appId || !window.OneSignal) return;
+        if (!appId || !window.OneSignal || isInitialized) return;
+        setIsInitialized(true);
 
         window.OneSignal.push(async function () {
             try {

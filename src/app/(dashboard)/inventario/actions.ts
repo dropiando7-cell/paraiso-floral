@@ -302,7 +302,7 @@ export async function updateActivoQuick(id: string, area: string, cantidadStr: s
 }
 
 // ─── READ: List with pagination, search, filters ─────────────────────────────
-export async function getActivos(page = 1, search = '', area = '', estatus = '') {
+export async function getActivos(page = 1, search = '', area = '', estatus = '', origen = '', condicion = '') {
     const orgId = await getOrgId();
     const PER_PAGE = 10;
     const skip = (page - 1) * PER_PAGE;
@@ -321,6 +321,12 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '')
         }),
         ...(area && { area }),
         ...(estatus && { estatusContable: estatus }),
+        ...(origen && {
+            origenActivo: origen === 'SIN_DEFINIR' ? null : origen
+        }),
+        ...(condicion && {
+            condicionActivo: condicion === 'SIN_DEFINIR' ? null : condicion
+        })
     };
 
     const activos = await prisma.activoFijo.findMany({
@@ -344,6 +350,54 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '')
     }));
 
     return { activos: plainActivos, total, totalPages: Math.ceil(total / PER_PAGE) };
+}
+
+// ─── READ: Get all matching assets for export (without pagination) ────────────
+export async function getActivosForExport(search = '', area = '', estatus = '', origen = '', condicion = '') {
+    try {
+        const orgId = await getOrgId();
+        const where = {
+            organizationId: orgId,
+            esParaRenta: false,
+            ...(search && {
+                OR: [
+                    { descripcionCorta: { contains: search, mode: 'insensitive' as const } },
+                    { idQr: { contains: search, mode: 'insensitive' as const } },
+                    { serie: { contains: search, mode: 'insensitive' as const } },
+                    { modelo: { contains: search, mode: 'insensitive' as const } },
+                    { responsable: { contains: search, mode: 'insensitive' as const } },
+                ],
+            }),
+            ...(area && { area }),
+            ...(estatus && { estatusContable: estatus }),
+            ...(origen && {
+                origenActivo: origen === 'SIN_DEFINIR' ? null : origen
+            }),
+            ...(condicion && {
+                condicionActivo: condicion === 'SIN_DEFINIR' ? null : condicion
+            })
+        };
+
+        const activos = await prisma.activoFijo.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            include: { categoria: true }
+        });
+
+        return activos.map(a => ({
+            ...a,
+            costoAdq: a.costoAdq ? Number(a.costoAdq) : null,
+            vidaUtilOverride: a.vidaUtilOverride ? Number(a.vidaUtilOverride) : null,
+            valResidual: a.valResidual ? Number(a.valResidual) : null,
+            baseDeprec: a.baseDeprec ? Number(a.baseDeprec) : null,
+            deprecMensual: a.deprecMensual ? Number(a.deprecMensual) : null,
+            deprecAcum: a.deprecAcum ? Number(a.deprecAcum) : null,
+            valorLibros: a.valorLibros ? Number(a.valorLibros) : null,
+        }));
+    } catch (error) {
+        console.error("Error in getActivosForExport:", error);
+        return [];
+    }
 }
 
 export async function getActivoStats(area?: string) {
@@ -452,6 +506,10 @@ export async function checkExistingByBarcode(codigoBarras: string) {
             cuentaAct: true,
             categoriaId: true,
             esConsumible: true,
+            origenActivo: true,
+            fechaAdq: true,
+            costoAdq: true,
+            condicionActivo: true,
         }
     });
     return activo;
@@ -469,7 +527,11 @@ export async function getActivoDetailsByBarcode(codigoBarras: string) {
             cuentaAct: true,
             categoriaId: true,
             esConsumible: true,
-            imagenUrl: true // so they don't need to re-photo
+            imagenUrl: true, // so they don't need to re-photo
+            origenActivo: true,
+            fechaAdq: true,
+            costoAdq: true,
+            condicionActivo: true,
         },
         orderBy: { createdAt: 'desc' }
     });
@@ -569,6 +631,7 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
         integrado: formData.get('integrado') === 'true',
         costoAdq: costoAdqNum,
         origenActivo: (formData.get('origenActivo') as string) || null,
+        condicionActivo: (formData.get('condicionActivo') as string) || null,
         imagenUrl: (formData.get('imagenUrl') as string) || null,
         imagenPlacaUrl: (formData.get('imagenPlacaUrl') as string) || null,
         estadoDano: (formData.get('estadoDano') as string) || null,
@@ -754,6 +817,7 @@ export async function updateActivo(id: string, formData: FormData): Promise<{ su
                 integrado: formData.get('integrado') === 'true',
                 costoAdq: costoAdqNum,
                 origenActivo: (formData.get('origenActivo') as string) || null,
+                condicionActivo: (formData.get('condicionActivo') as string) || null,
                 imagenUrl: (formData.get('imagenUrl') as string) || null,
                 imagenPlacaUrl: (formData.get('imagenPlacaUrl') as string) || null,
                 estadoDano: (formData.get('estadoDano') as string) || null,
@@ -1165,4 +1229,86 @@ export async function encolarCopiasNiimbot(activoId: string, cantidad: number, s
     });
 
     return { success: true, count: countPayload.count };
+}
+
+// ─── SETTINGS: Get and Save Inventory Origins ─────────────────────────────
+export async function getInventoryOriginsSetting() {
+    try {
+        const originsSetting = await prisma.systemSetting.findUnique({
+            where: { key: 'inventory_origins' }
+        });
+        const defaultSetting = await prisma.systemSetting.findUnique({
+            where: { key: 'default_inventory_origin' }
+        });
+
+        const origins = originsSetting ? JSON.parse(originsSetting.value) : ["Americano", "Chino", "Otro"];
+        const defaultOrigin = defaultSetting ? defaultSetting.value : "";
+
+        return { success: true, origins, defaultOrigin };
+    } catch (error: any) {
+        console.error('Error fetching inventory origins setting:', error);
+        return { success: false, origins: ["Americano", "Chino", "Otro"], defaultOrigin: "" };
+    }
+}
+
+export async function saveInventoryOriginsSetting(origins: string[], defaultOrigin: string) {
+    try {
+        await prisma.systemSetting.upsert({
+            where: { key: 'inventory_origins' },
+            update: { value: JSON.stringify(origins) },
+            create: { key: 'inventory_origins', value: JSON.stringify(origins) }
+        });
+
+        await prisma.systemSetting.upsert({
+            where: { key: 'default_inventory_origin' },
+            update: { value: defaultOrigin },
+            create: { key: 'default_inventory_origin', value: defaultOrigin }
+        });
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error saving inventory origins setting:', error);
+        return { success: false, error: error.message || 'Error al guardar configuraciones' };
+    }
+}
+
+// ─── SETTINGS: Get and Save Inventory Conditions ──────────────────────────
+export async function getInventoryConditionsSetting() {
+    try {
+        const conditionsSetting = await prisma.systemSetting.findUnique({
+            where: { key: 'inventory_conditions' }
+        });
+        const defaultSetting = await prisma.systemSetting.findUnique({
+            where: { key: 'default_inventory_condition' }
+        });
+
+        const conditions = conditionsSetting ? JSON.parse(conditionsSetting.value) : ["Nuevo", "Usado", "Remanufacturado"];
+        const defaultCondition = defaultSetting ? defaultSetting.value : "";
+
+        return { success: true, conditions, defaultCondition };
+    } catch (error: any) {
+        console.error('Error fetching inventory conditions setting:', error);
+        return { success: false, conditions: ["Nuevo", "Usado", "Remanufacturado"], defaultCondition: "" };
+    }
+}
+
+export async function saveInventoryConditionsSetting(conditions: string[], defaultCondition: string) {
+    try {
+        await prisma.systemSetting.upsert({
+            where: { key: 'inventory_conditions' },
+            update: { value: JSON.stringify(conditions) },
+            create: { key: 'inventory_conditions', value: JSON.stringify(conditions) }
+        });
+
+        await prisma.systemSetting.upsert({
+            where: { key: 'default_inventory_condition' },
+            update: { value: defaultCondition },
+            create: { key: 'default_inventory_condition', value: defaultCondition }
+        });
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error saving inventory conditions setting:', error);
+        return { success: false, error: error.message || 'Error al guardar configuraciones' };
+    }
 }

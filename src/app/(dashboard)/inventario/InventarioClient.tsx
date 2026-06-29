@@ -6,7 +6,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
-    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft, Wrench
+    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft, Wrench, Download, FileSpreadsheet
 } from 'lucide-react';
 import {
     searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, 
@@ -14,7 +14,8 @@ import {
     getActiveUserArea, validateAndOpenArea, getGruposAutocompletado, encolarLoteImpresion, 
     encolarCopiasNiimbot, getCategorias, createCategoria, updateCategoria, checkExistingByBarcode, 
     getActivosByGrupo, updateActivoQuick, checkGrupoExists, getActivosByIdQr, 
-    searchActivosGlobal, generateNextServiceCode
+    searchActivosGlobal, generateNextServiceCode, getActivosForExport, getInventoryOriginsSetting,
+    saveInventoryOriginsSetting, getInventoryConditionsSetting, saveInventoryConditionsSetting
 } from './actions';
 import { completarReparacionActivo } from './garantias/actions';
 import toast from 'react-hot-toast';
@@ -355,6 +356,7 @@ type Activo = {
     integrado: boolean;
     costoAdq?: any;
     origenActivo?: string | null;
+    condicionActivo?: string | null;
     referencia?: string | null;
     lote?: string | null;
     fechaFabricacion?: Date | string | null;
@@ -820,8 +822,8 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
 }
 
 // ─── Modal Form (iPad-first + AI vision) ─────────────────────────────────────
-export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode }: {
-    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean;
+export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions }: {
+    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void;
 }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
@@ -903,7 +905,9 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     const [compatibilidad, setCompatibilidad] = useState<string[]>(isEdit && editActivo ? editActivo.compatibilidad || [] : []);
     const [lightboxImage, setLightboxImage] = useState<string | null>(null);
     const [tagInput, setTagInput] = useState('');
-    const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
+    const [fechaAdq, setFechaAdq] = useState(editActivo?.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : getLocalDateString(new Date()));
+    const [origenActivo, setOrigenActivo] = useState(editActivo?.origenActivo || '');
+    const [condicionActivo, setCondicionActivo] = useState(editActivo?.condicionActivo || '');
 
     const [odooReference, setOdooReference] = useState<any>(null);
 
@@ -1243,6 +1247,8 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setVidaUtilOverride(editActivo.vidaUtilOverride ? Number(editActivo.vidaUtilOverride).toString() : '');
             setFechaAdq(editActivo.fechaAdq ? getLocalDateString(editActivo.fechaAdq) : '');
             setCostoAdq(editActivo.costoAdq ? Number(editActivo.costoAdq).toString() : '');
+            setOrigenActivo(editActivo.origenActivo || '');
+            setCondicionActivo(editActivo.condicionActivo || '');
             setCategoriaId(editActivo.categoriaId || '');
             setEsConsumible(editActivo.esConsumible || false);
             setGarantia(editActivo.garantia || '');
@@ -1258,15 +1264,39 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setReferencia(''); setCodigoGrupo(''); setCodigoBarras(''); setCantidad('1');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
-            setFechaAdq(''); setCostoAdq(''); setCategoriaId(''); setEsConsumible(false); setGarantia(''); setMantenimientosIncluidos(''); setFrecuenciaMantenimientoMeses(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
+            setFechaAdq(getLocalDateString(new Date())); setCostoAdq(''); setOrigenActivo(defaultOrigin); setCondicionActivo(defaultCondition); setCategoriaId(''); setEsConsumible(false); setGarantia(''); setMantenimientosIncluidos(''); setFrecuenciaMantenimientoMeses(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion('');
             setTipoRegistro('seleccion');
         }
-    }, [editActivo, open, lockedArea]);
+    }, [editActivo, open, lockedArea, defaultOrigin, defaultCondition]);
 
     useEffect(() => {
         if (open) document.body.style.overflow = 'hidden';
         else document.body.style.overflow = '';
         return () => { document.body.style.overflow = ''; };
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) return;
+        const handlePaste = (event: ClipboardEvent) => {
+            const items = event.clipboardData?.items;
+            if (!items) return;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    if (file) {
+                        event.preventDefault();
+                        setAiResult(null);
+                        const url = URL.createObjectURL(file);
+                        setCropImgSrc(url);
+                        setCropOpen(true);
+                        toast.success('Imagen detectada en el portapapeles y cargada.');
+                    }
+                    break;
+                }
+            }
+        };
+        window.addEventListener('paste', handlePaste);
+        return () => window.removeEventListener('paste', handlePaste);
     }, [open]);
 
     async function handleAreaChange(area: string) {
@@ -1510,6 +1540,10 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
         if (lote) fd.set('lote', lote);
         if (fechaVencimiento) fd.set('fechaVencimiento', fechaVencimiento);
         if (fechaFabricacion) fd.set('fechaFabricacion', fechaFabricacion);
+        if (fechaAdq) fd.set('fechaAdq', fechaAdq);
+        if (costoAdq) fd.set('costoAdq', costoAdq);
+        if (origenActivo) fd.set('origenActivo', origenActivo);
+        if (condicionActivo) fd.set('condicionActivo', condicionActivo);
 
         // Show preview and fetch real next code in parallel
         fd.set('shouldPrint', printRef.current ? 'true' : 'false');
@@ -2319,6 +2353,75 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                             </div>
                                         </div>
 
+                                        {/* Origen y Datos de Adquisición */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4 bg-indigo-50/30 p-4 rounded-xl border border-indigo-100/50">
+                                            <div>
+                                                <div className="flex justify-between items-center">
+                                                    <FieldLabel>Origen del Inventario</FieldLabel>
+                                                    <button
+                                                        type="button"
+                                                        onClick={onManageOrigins}
+                                                        className="text-[10px] text-[#0500A3] hover:text-[#0600c2] flex items-center gap-1 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100/50 hover:bg-blue-100 transition-colors mb-1.5"
+                                                        title="Administrar orígenes"
+                                                    >
+                                                        <Wrench className="w-3 h-3" /> Configurar
+                                                    </button>
+                                                </div>
+                                                <select
+                                                    value={origenActivo}
+                                                    onChange={e => setOrigenActivo(e.target.value)}
+                                                    className={selectCls}
+                                                >
+                                                    <option value="">Nacional / General</option>
+                                                    {originsList.map(o => (
+                                                        <option key={o} value={o}>{o}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <div className="flex justify-between items-center">
+                                                    <FieldLabel>Condición del Equipo</FieldLabel>
+                                                    <button
+                                                        type="button"
+                                                        onClick={onManageConditions}
+                                                        className="text-[10px] text-[#0500A3] hover:text-[#0600c2] flex items-center gap-1 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100/50 hover:bg-blue-100 transition-colors mb-1.5"
+                                                        title="Administrar condiciones"
+                                                    >
+                                                        <Wrench className="w-3 h-3" /> Configurar
+                                                    </button>
+                                                </div>
+                                                <select
+                                                    value={condicionActivo}
+                                                    onChange={e => setCondicionActivo(e.target.value)}
+                                                    className={selectCls}
+                                                >
+                                                    <option value="">Seleccionar condición</option>
+                                                    {conditionsList.map(c => (
+                                                        <option key={c} value={c}>{c}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Costo Adquisición (Lps)</FieldLabel>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={costoAdq}
+                                                    onChange={e => setCostoAdq(e.target.value)}
+                                                    placeholder="Lps. 0.00"
+                                                    className={inputCls}
+                                                />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Fecha de Ingreso</FieldLabel>
+                                                <DateInput
+                                                    value={fechaAdq}
+                                                    onChange={val => setFechaAdq(val)}
+                                                    className={inputCls}
+                                                />
+                                            </div>
+                                        </div>
+
                                         {/* Descripción Detallada — AI controlled */}
                                         <div>
                                             <FieldLabel>
@@ -2956,7 +3059,7 @@ function ProductSummaryModal({
 }
 
 // ─── Main Client Component ───────────────────────────────────────────────────
-export function InventarioClient({ initialData, initialStats, dbAreas, userRole, isRentaMode = false }: { initialData: any, initialStats: any, dbAreas: any[], userRole: string, isRentaMode?: boolean }) {
+export function InventarioClient({ initialData, initialStats, dbAreas, userRole, isRentaMode = false, initialOrigins = ["Americano", "Chino", "Otro"], initialDefaultOrigin = "", initialConditions = ["Nuevo", "Usado", "Remanufacturado"], initialDefaultCondition = "" }: { initialData: any, initialStats: any, dbAreas: any[], userRole: string, isRentaMode?: boolean, initialOrigins?: string[], initialDefaultOrigin?: string, initialConditions?: string[], initialDefaultCondition?: string }) {
     const router = useRouter();   
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
@@ -2970,6 +3073,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const [search, setSearch] = useState('');
     const [filtroArea, setFiltroArea] = useState('');
     const [filtroEstatus, setFiltroEstatus] = useState('');
+    const [filtroOrigen, setFiltroOrigen] = useState('');
+    const [filtroCondicion, setFiltroCondicion] = useState('');
+    const [exportingExcel, setExportingExcel] = useState(false);
+    const [originsList, setOriginsList] = useState<string[]>(initialOrigins);
+    const [defaultOrigin, setDefaultOrigin] = useState<string>(initialDefaultOrigin);
+    const [manageOriginsOpen, setManageOriginsOpen] = useState(false);
+    const [conditionsList, setConditionsList] = useState<string[]>(initialConditions);
+    const [defaultCondition, setDefaultCondition] = useState<string>(initialDefaultCondition);
+    const [manageConditionsOpen, setManageConditionsOpen] = useState(false);
     const [loading, setLoading] = useState(false);
     const [isRefetching, setIsRefetching] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
@@ -3068,7 +3180,81 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
         }
     }
 
-    async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea) {
+    async function handleExportExcel() {
+        setExportingExcel(true);
+        try {
+            const resolvedAreaFilter = filtroArea || (lockedArea || undefined);
+            
+            // 1. Fetch matching assets for export (without pagination)
+            const data = await getActivosForExport(search, resolvedAreaFilter, filtroEstatus, filtroOrigen, filtroCondicion);
+            
+            if (data.length === 0) {
+                alert('No hay datos que exportar con los filtros actuales.');
+                setExportingExcel(false);
+                return;
+            }
+
+            // 2. Load SheetJS dynamically
+            const XLSX = await import('xlsx');
+
+            // 3. Prepare data for Excel columns
+            const rows = data.map((a: any) => {
+                const stock = a.stock || 1;
+                const costo = a.costoAdq ? Number(a.costoAdq) : 0;
+                const totalInversion = costo * stock;
+
+                return {
+                    'ID QR': a.idQr,
+                    'Descripción Corta': a.descripcionCorta,
+                    'Marca': a.marca || 'N/A',
+                    'Modelo': a.modelo || 'N/A',
+                    'Serie': a.serie || 'N/A',
+                    'Ubicación / Área': a.area,
+                    'Clasificación': a.esConsumible ? 'Consumible' : 'Equipo Biomédico',
+                    'Estatus Contable': a.estatusContable,
+                    'Origen': a.origenActivo || 'Nacional / General',
+                    'Condición': a.condicionActivo || 'N/A',
+                    'Fecha de Ingreso': a.fechaAdq ? new Date(a.fechaAdq).toLocaleDateString('es-HN') : 'N/A',
+                    'Costo Adquisición (Lps)': costo,
+                    'Lote': a.lote || 'N/A',
+                    'Fecha Vencimiento': a.fechaVencimiento ? new Date(a.fechaVencimiento).toLocaleDateString('es-HN') : 'N/A',
+                    'Stock': stock,
+                    'Total Inversión (Lps)': totalInversion,
+                    'Fecha Registro': a.createdAt ? new Date(a.createdAt).toLocaleDateString('es-HN') : 'N/A'
+                };
+            });
+
+            // 4. Create worksheet and workbook
+            const worksheet = XLSX.utils.json_to_sheet(rows);
+
+            // 5. Add a summary row
+            const totalStock = data.reduce((sum, a) => sum + (a.stock || 1), 0);
+            const totalInversionVal = data.reduce((sum, a) => sum + ((a.costoAdq ? Number(a.costoAdq) : 0) * (a.stock || 1)), 0);
+
+            // Add spacer row and summary row to sheet
+            XLSX.utils.sheet_add_aoa(worksheet, [
+                [],
+                ['RESUMEN DE INVERSIONES Y CANTIDADES'],
+                ['Total Ítems Registrados (Stock):', totalStock],
+                ['Total Inversión Acumulada (Lps):', totalInversionVal]
+            ], { origin: -1 });
+
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Inventario');
+
+            // 6. Download file
+            const fileName = `Inventario_${filtroOrigen || 'Completo'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+            toast.success('Reporte de Excel exportado exitosamente.');
+        } catch (error) {
+            console.error('Error al exportar Excel:', error);
+            alert('Ocurrió un error al generar el reporte de Excel.');
+        } finally {
+            setExportingExcel(false);
+        }
+    }
+
+    async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea, o = filtroOrigen, c = filtroCondicion) {
         setIsRefetching(true);
         setLoading(false); // Make sure blocking loader is off
         try {
@@ -3076,7 +3262,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
             const [data, st] = await Promise.all([
                 isRentaMode 
                     ? getEquiposParaRenta(p, s, resolvedAreaFilter, e)
-                    : getActivos(p, s, resolvedAreaFilter, e),
+                    : getActivos(p, s, resolvedAreaFilter, e, o, c),
                 isRentaMode 
                     ? getRentaStats(resolvedAreaFilter)
                     : getActivoStats(currentLockedArea || undefined)
@@ -3096,15 +3282,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
              hasMounted.current = true;
              return; // Skip initial render since it's SSR hydrated
         }
-        const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus, lockedArea); }, 300);
+        const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion); }, 300);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [search, filtroArea, filtroEstatus]);
+    }, [search, filtroArea, filtroEstatus, filtroOrigen, filtroCondicion]);
 
     function handlePageChange(p: number) {
         setPage(p);
         // We explicitly pass `lockedArea` here to maintain the area context when paginating
-        refresh(p, search, filtroArea, filtroEstatus, lockedArea);
+        refresh(p, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion);
     }
     const PER_PAGE = 10;
 
@@ -3197,6 +3383,11 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                             className="flex items-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3.5 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print">
                             <Printer className="w-5 h-5" /> Imprimir Lote
                         </button>
+
+                        <button onClick={handleExportExcel} disabled={exportingExcel}
+                            className="flex items-center justify-center gap-2 text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3.5 rounded-2xl hover:shadow-md active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print disabled:opacity-60">
+                            {exportingExcel ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileSpreadsheet className="w-5 h-5" />} Exportar Excel
+                        </button>
                     </div>
                 </div>
             </div>
@@ -3262,6 +3453,263 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 />
             )}
 
+            {manageOriginsOpen && (
+                <div className="fixed inset-0 z-[110] bg-black/60 md:backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 flex flex-col gap-4 max-h-[85vh] overflow-y-auto">
+                        <div className="flex justify-between items-center border-b pb-3">
+                            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                <Wrench className="w-5 h-5 text-[#0500A3]" />
+                                Administrar Orígenes
+                            </h3>
+                            <button onClick={() => setManageOriginsOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* List of custom origins */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Orígenes Registrados</label>
+                            
+                            {/* Nacional/General */}
+                            <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-sm">
+                                <span className="font-medium text-slate-700">Nacional / General (Base)</span>
+                                <div className="flex items-center gap-2">
+                                    {defaultOrigin === "" ? (
+                                        <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-100">Predeterminado</span>
+                                    ) : (
+                                        <button 
+                                            onClick={() => setDefaultOrigin("")}
+                                            className="text-xs text-[#0500A3] hover:underline font-semibold"
+                                        >
+                                            Hacer Predeterminado
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Custom list */}
+                            {originsList.map((origin) => (
+                                <div key={origin} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-sm">
+                                    <span className="font-medium text-slate-700">{origin}</span>
+                                    <div className="flex items-center gap-3">
+                                        {defaultOrigin === origin ? (
+                                            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-100">Predeterminado</span>
+                                        ) : (
+                                            <button 
+                                                onClick={() => setDefaultOrigin(origin)}
+                                                className="text-xs text-[#0500A3] hover:underline font-semibold"
+                                            >
+                                                Hacer Predeterminado
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={() => {
+                                                if (confirm(`¿Estás seguro de eliminar el origen "${origin}"? Esto no afectará a los productos existentes.`)) {
+                                                    const updated = originsList.filter(o => o !== origin);
+                                                    setOriginsList(updated);
+                                                    if (defaultOrigin === origin) setDefaultOrigin("");
+                                                }
+                                            }}
+                                            className="p-1 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-md transition-colors"
+                                            title="Eliminar origen"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Add new origin */}
+                        <div className="border-t pt-4">
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Añadir Nuevo Origen</label>
+                            <form 
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const form = e.currentTarget;
+                                    const val = (form.elements.namedItem('newOrigin') as HTMLInputElement).value.trim();
+                                    if (!val) return;
+                                    if (val.toLowerCase() === 'nacional' || val.toLowerCase() === 'general') {
+                                        alert('Nacional / General ya existe como base.');
+                                        return;
+                                    }
+                                    if (originsList.some(o => o.toLowerCase() === val.toLowerCase())) {
+                                        alert('Este origen ya está registrado.');
+                                        return;
+                                    }
+                                    setOriginsList([...originsList, val]);
+                                    form.reset();
+                                }}
+                                className="flex gap-2"
+                            >
+                                <input 
+                                    name="newOrigin"
+                                    type="text" 
+                                    placeholder="Ej: Europeo, Coreano, etc."
+                                    className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30"
+                                    required
+                                />
+                                <button 
+                                    type="submit"
+                                    className="px-4 py-2 bg-[#0500A3] hover:bg-[#0600c2] text-white text-sm font-bold rounded-xl transition-all active:scale-95 shadow-sm"
+                                >
+                                    Añadir
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Save / Actions */}
+                        <div className="border-t pt-4 flex gap-2 justify-end">
+                            <button 
+                                onClick={() => setManageOriginsOpen(false)}
+                                className="px-4 py-2.5 border-2 border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-100 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={async () => {
+                                    setLoading(true);
+                                    try {
+                                        const res = await saveInventoryOriginsSetting(originsList, defaultOrigin);
+                                        if (res.success) {
+                                            toast.success('Configuración de orígenes guardada exitosamente.');
+                                            setManageOriginsOpen(false);
+                                        } else {
+                                            alert(res.error || 'Error al guardar.');
+                                        }
+                                    } catch (err: any) {
+                                        alert('Error al guardar: ' + err.message);
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-sm hover:shadow active:scale-95 transition-all"
+                            >
+                                Guardar Configuración
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {manageConditionsOpen && (
+                <div className="fixed inset-0 z-[110] bg-black/60 md:backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-100 flex flex-col gap-4 max-h-[85vh] overflow-y-auto">
+                        <div className="flex justify-between items-center border-b pb-3">
+                            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                                <Wrench className="w-5 h-5 text-[#0500A3]" />
+                                Administrar Condiciones
+                            </h3>
+                            <button onClick={() => setManageConditionsOpen(false)} className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* List of custom conditions */}
+                        <div className="space-y-2">
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">Condiciones Registradas</label>
+
+                            {/* Custom list */}
+                            {conditionsList.map((condition) => (
+                                <div key={condition} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200/60 text-sm">
+                                    <span className="font-medium text-slate-700">{condition}</span>
+                                    <div className="flex items-center gap-3">
+                                        {defaultCondition === condition ? (
+                                            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded border border-emerald-100">Predeterminado</span>
+                                        ) : (
+                                            <button 
+                                                onClick={() => setDefaultCondition(condition)}
+                                                className="text-xs text-[#0500A3] hover:underline font-semibold"
+                                            >
+                                                Hacer Predeterminado
+                                            </button>
+                                        )}
+                                        <button 
+                                            onClick={() => {
+                                                if (confirm(`¿Estás seguro de eliminar la condición "${condition}"? Esto no afectará a los productos existentes.`)) {
+                                                    const updated = conditionsList.filter(c => c !== condition);
+                                                    setConditionsList(updated);
+                                                    if (defaultCondition === condition) setDefaultCondition("");
+                                                }
+                                            }}
+                                            className="p-1 hover:bg-red-50 text-red-400 hover:text-red-600 rounded-md transition-colors"
+                                            title="Eliminar condición"
+                                        >
+                                            <Trash2 className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Add new condition */}
+                        <div className="border-t pt-4">
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">Añadir Nueva Condición</label>
+                            <form 
+                                onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const form = e.currentTarget;
+                                    const val = (form.elements.namedItem('newCondition') as HTMLInputElement).value.trim();
+                                    if (!val) return;
+                                    if (conditionsList.some(c => c.toLowerCase() === val.toLowerCase())) {
+                                        alert('Esta condición ya está registrada.');
+                                        return;
+                                    }
+                                    setConditionsList([...conditionsList, val]);
+                                    form.reset();
+                                }}
+                                className="flex gap-2"
+                            >
+                                <input 
+                                    name="newCondition"
+                                    type="text" 
+                                    placeholder="Ej: Reacondicionado, Demo, etc."
+                                    className="flex-1 text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30"
+                                    required
+                                />
+                                <button 
+                                    type="submit"
+                                    className="px-4 py-2 bg-[#0500A3] hover:bg-[#0600c2] text-white text-sm font-bold rounded-xl transition-all active:scale-95 shadow-sm"
+                                >
+                                    Añadir
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* Save / Actions */}
+                        <div className="border-t pt-4 flex gap-2 justify-end">
+                            <button 
+                                onClick={() => setManageConditionsOpen(false)}
+                                className="px-4 py-2.5 border-2 border-slate-200 text-slate-600 text-sm font-bold rounded-xl hover:bg-slate-100 transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                onClick={async () => {
+                                    setLoading(true);
+                                    try {
+                                        const res = await saveInventoryConditionsSetting(conditionsList, defaultCondition);
+                                        if (res.success) {
+                                            toast.success('Configuración de condiciones guardada exitosamente.');
+                                            setManageConditionsOpen(false);
+                                        } else {
+                                            alert(res.error || 'Error al guardar.');
+                                        }
+                                    } catch (err: any) {
+                                        alert('Error al guardar: ' + err.message);
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl shadow-sm hover:shadow active:scale-95 transition-all"
+                            >
+                                Guardar Configuración
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             <ImprimirLoteModal
                 open={loteModalOpen}
                 onClose={() => setLoteModalOpen(false)}
@@ -3295,7 +3743,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
             </div>
 
             {showFilters && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 p-4 bg-white rounded-xl border border-slate-200 hide-on-print">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-4 p-4 bg-white rounded-xl border border-slate-200 hide-on-print">
                     <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1.5">Área</label>
                         <Combobox options={AREAS} value={filtroArea}
@@ -3309,6 +3757,28 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                             className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30">
                             <option value="">Todos</option>
                             {ESTATUS.map(e => <option key={e}>{e}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Origen del Inventario</label>
+                        <select value={filtroOrigen} onChange={e => setFiltroOrigen(e.target.value)}
+                            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30">
+                            <option value="">Todos</option>
+                            <option value="SIN_DEFINIR">Nacional / Sin Definir</option>
+                            {originsList.map(o => (
+                                <option key={o} value={o}>{o}</option>
+                            ))}
+                        </select>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Condición del Equipo</label>
+                        <select value={filtroCondicion} onChange={e => setFiltroCondicion(e.target.value)}
+                            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30">
+                            <option value="">Todas</option>
+                            <option value="SIN_DEFINIR">Sin Definir</option>
+                            {conditionsList.map(c => (
+                                <option key={c} value={c}>{c}</option>
+                            ))}
                         </select>
                     </div>
                 </div>
@@ -3363,7 +3833,11 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                 </td>
                                 <td className="px-3 py-3 max-w-[200px]">
                                     <div className="font-semibold text-slate-800 truncate">{a.descripcionCorta}</div>
-                                    {a.categoria && <div className="text-purple-600 font-bold text-[10px] bg-purple-50 px-1.5 py-0.5 mt-0.5 rounded w-fit border border-purple-100">{a.categoria.nombre}</div>}
+                                    <div className="flex flex-wrap gap-1 mt-0.5">
+                                        {a.categoria && <span className="text-purple-600 font-bold text-[10px] bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">{a.categoria.nombre}</span>}
+                                        {a.origenActivo && <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">{a.origenActivo}</span>}
+                                        {a.condicionActivo && <span className="text-blue-700 font-bold text-[10px] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">{a.condicionActivo}</span>}
+                                    </div>
                                     {a.modelo && <div className="text-slate-400 text-[10px] truncate">{a.modelo}</div>}
                                     {a.serie && <div className="text-slate-400 text-[10px] font-mono truncate">S/N: {a.serie}</div>}
                                     {a.esConsumible && a.fechaVencimiento && (() => {
@@ -3449,6 +3923,16 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                     <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/50">
                                         {a.stock ?? 1} ud.
                                     </span>
+                                    {a.origenActivo && (
+                                        <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100/50">
+                                            {a.origenActivo}
+                                        </span>
+                                    )}
+                                    {a.condicionActivo && (
+                                        <span className="font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100/50">
+                                            {a.condicionActivo}
+                                        </span>
+                                    )}
                                     <span className="text-slate-300">|</span>
                                     <span className="flex items-center gap-0.5 max-w-[130px] truncate">
                                         <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
@@ -3508,6 +3992,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 lockedArea={lockedArea}
                 onSelectRestock={() => { setModalOpen(false); setRestockModalOpen(true); }}
                 isRentaMode={isRentaMode}
+                originsList={originsList}
+                defaultOrigin={defaultOrigin}
+                onManageOrigins={() => setManageOriginsOpen(true)}
+                conditionsList={conditionsList}
+                defaultCondition={defaultCondition}
+                onManageConditions={() => setManageConditionsOpen(true)}
             />
             {/* No Area Open Modal */}
             {noAreaModalOpen && (
@@ -3661,6 +4151,30 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                         <div>
                                             <div className="text-xs text-slate-400 mb-1">Frecuencia Mantenimiento</div>
                                             <div className="font-medium text-slate-800">{viewActivo.frecuenciaMantenimientoMeses} {viewActivo.frecuenciaMantenimientoMeses === 1 ? 'mes' : 'meses'}</div>
+                                        </div>
+                                    )}
+                                    {viewActivo.origenActivo && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">Origen</div>
+                                            <div className="font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 w-fit">{viewActivo.origenActivo}</div>
+                                        </div>
+                                    )}
+                                    {viewActivo.condicionActivo && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">Condición</div>
+                                            <div className="font-semibold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100 w-fit">{viewActivo.condicionActivo}</div>
+                                        </div>
+                                    )}
+                                    {viewActivo.costoAdq !== undefined && viewActivo.costoAdq !== null && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">Costo Adquisición / Inversión</div>
+                                            <div className="font-medium text-slate-800">Lps. {Number(viewActivo.costoAdq).toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                                        </div>
+                                    )}
+                                    {viewActivo.fechaAdq && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">Fecha de Ingreso</div>
+                                            <div className="font-medium text-slate-800">{new Date(viewActivo.fechaAdq).toLocaleDateString('es-HN')}</div>
                                         </div>
                                     )}
                                 </div>

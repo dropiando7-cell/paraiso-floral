@@ -3,7 +3,7 @@
 import { useState, useRef, useTransition, useEffect } from 'react';
 import { X, Search, Camera, Package, Loader2, CheckCircle2, ChevronDown, Sparkles, Printer, MapPin, CalendarDays } from 'lucide-react';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
-import { checkExistingByBarcode, getActivosByGrupo, createActivo, encolarCopiasNiimbot, getUbicacionesActivasByProducto, getActivosByDescripcionCorta } from './actions';
+import { checkExistingByBarcode, getActivosByGrupo, createActivo, encolarCopiasNiimbot, getUbicacionesActivasByProducto, getActivosByDescripcionCorta, getInventoryOriginsSetting, getInventoryConditionsSetting } from './actions';
 import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
 import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
 import { DateInput } from '@/components/ui/DateInput';
@@ -113,6 +113,32 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
     const [ubicacionesSugeridas, setUbicacionesSugeridas] = useState<{area:string; stock:number}[]>([]);
     const [fechaVencimiento, setFechaVencimiento] = useState('');
     const [serie, setSerie] = useState('');
+    const [origenActivo, setOrigenActivo] = useState('');
+    const [condicionActivo, setCondicionActivo] = useState('');
+    const [costoAdq, setCostoAdq] = useState('');
+    const [fechaAdq, setFechaAdq] = useState('');
+    const [originsList, setOriginsList] = useState<string[]>(["Americano", "Chino", "Otro"]);
+    const [defaultOrigin, setDefaultOrigin] = useState<string>('');
+    const [conditionsList, setConditionsList] = useState<string[]>(["Nuevo", "Usado", "Remanufacturado"]);
+    const [defaultCondition, setDefaultCondition] = useState<string>('');
+
+    // Fetch custom origins and conditions settings on load
+    useEffect(() => {
+        if (open) {
+            getInventoryOriginsSetting().then(res => {
+                if (res.success && res.origins) {
+                    setOriginsList(res.origins);
+                    setDefaultOrigin(res.defaultOrigin || '');
+                }
+            });
+            getInventoryConditionsSetting().then(res => {
+                if (res.success && res.conditions) {
+                    setConditionsList(res.conditions);
+                    setDefaultCondition(res.defaultCondition || '');
+                }
+            });
+        }
+    }, [open]);
 
     // Auto-search by barcode
     useEffect(() => {
@@ -132,6 +158,25 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
             buscarPorDescripcionCorta(codigoGrupoSearch);
         }
     }, [codigoGrupoSearch]);
+
+    // Update form values when selectedProduct changes
+    useEffect(() => {
+        if (selectedProduct) {
+            setOrigenActivo(selectedProduct.origenActivo || defaultOrigin || '');
+            setCondicionActivo(selectedProduct.condicionActivo || defaultCondition || '');
+            const today = new Date();
+            const y = today.getFullYear();
+            const m = String(today.getMonth() + 1).padStart(2, '0');
+            const d = String(today.getDate()).padStart(2, '0');
+            setFechaAdq(`${y}-${m}-${d}`);
+            setCostoAdq(selectedProduct.costoAdq ? Number(selectedProduct.costoAdq).toString() : '');
+        } else {
+            setOrigenActivo(defaultOrigin || '');
+            setCondicionActivo(defaultCondition || '');
+            setCostoAdq('');
+            setFechaAdq('');
+        }
+    }, [selectedProduct, defaultOrigin, defaultCondition]);
 
     async function buscarPorCodigoBarras(cb: string) {
         setIsSearching(true);
@@ -231,6 +276,10 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
             if (selectedProduct.categoriaId) fd.set('categoriaId', selectedProduct.categoriaId);
             if (selectedProduct.esConsumible !== undefined) fd.set('esConsumible', String(selectedProduct.esConsumible));
             fd.set('cuentaAct', selectedProduct.cuentaAct || 'INVENTARIO');
+            if (origenActivo) fd.set('origenActivo', origenActivo);
+            if (condicionActivo) fd.set('condicionActivo', condicionActivo);
+            if (costoAdq) fd.set('costoAdq', costoAdq);
+            if (fechaAdq) fd.set('fechaAdq', fechaAdq);
 
             const result = await createActivo(fd);
             if (!result || !result.success) throw new Error('Falló la creación o reabastecimiento.');
@@ -434,6 +483,51 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
                                                     value={serie}
                                                     onChange={e => setSerie(e.target.value)}
                                                     placeholder="Al indicar una serie se creará un registro de equipo nuevo e independiente"
+                                                    className={`${inputCls} font-mono`}
+                                                />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Origen del Inventario</FieldLabel>
+                                                <select
+                                                    value={origenActivo}
+                                                    onChange={e => setOrigenActivo(e.target.value)}
+                                                    className="w-full text-base border-2 border-slate-200 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 focus:border-[#0500A3]/50 bg-white transition-all appearance-none"
+                                                >
+                                                    <option value="">Nacional / General</option>
+                                                    {originsList.map(o => (
+                                                        <option key={o} value={o}>{o}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Condición del Equipo</FieldLabel>
+                                                <select
+                                                    value={condicionActivo}
+                                                    onChange={e => setCondicionActivo(e.target.value)}
+                                                    className="w-full text-base border-2 border-slate-200 rounded-xl px-4 py-3.5 focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 focus:border-[#0500A3]/50 bg-white transition-all appearance-none"
+                                                >
+                                                    <option value="">Seleccionar condición</option>
+                                                    {conditionsList.map(c => (
+                                                        <option key={c} value={c}>{c}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Costo Adquisición (Lps)</FieldLabel>
+                                                <input
+                                                    type="number"
+                                                    step="0.01"
+                                                    value={costoAdq}
+                                                    onChange={e => setCostoAdq(e.target.value)}
+                                                    placeholder="Lps. 0.00"
+                                                    className={`${inputCls} font-mono`}
+                                                />
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Fecha de Ingreso</FieldLabel>
+                                                <DateInput
+                                                    value={fechaAdq}
+                                                    onChange={setFechaAdq}
                                                     className={`${inputCls} font-mono`}
                                                 />
                                             </div>

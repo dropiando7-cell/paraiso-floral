@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react';
 import { MfaSettings } from '@/components/perfil/MfaSettings';
 import { PasswordChange } from '@/components/perfil/PasswordChange';
 import { createClient } from '@/utils/supabase/client';
-import { ExternalLink, ShieldAlert, Check, X } from 'lucide-react';
+import { ExternalLink, ShieldAlert, Check, X, Bell } from 'lucide-react';
 import { updateProfile, updateAvatarInDb } from './actions';
 import { getUserProfileData } from './data';
+import { registerOneSignalSubscription } from '@/app/(dashboard)/admin/notificaciones/actions';
+import toast from 'react-hot-toast';
 
 const roleTextMapping: Record<string, string> = {
     SUPER_ADMIN: 'Administrador General',
@@ -171,7 +173,34 @@ export default function ProfilePage() {
         return name.substring(0, 2).toUpperCase();
     };
 
-    const [activeTab, setActiveTab] = useState<'info' | 'security'>('info');
+    const [activeTab, setActiveTab] = useState<'info' | 'security' | 'notifications'>('info');
+    const [subStatus, setSubStatus] = useState<'cargando' | 'suscrito' | 'no_suscrito' | 'bloqueado'>('cargando');
+
+    useEffect(() => {
+        if (activeTab === 'notifications' && typeof window !== 'undefined' && window.OneSignal) {
+            window.OneSignal.push(async () => {
+                try {
+                    const subId = window.OneSignal.User?.PushSubscription?.id || 
+                                  (window.OneSignal.getUserId ? await window.OneSignal.getUserId() : null);
+                    const hasPermission = window.OneSignal.Notifications?.permission === true ||
+                                          (window.OneSignal.getNotificationPermission ? (await window.OneSignal.getNotificationPermission() === 'granted') : false);
+                    
+                    if (subId && hasPermission) {
+                        setSubStatus('suscrito');
+                    } else if (window.OneSignal.Notifications?.permission === false || 
+                               (window.OneSignal.getNotificationPermission && await window.OneSignal.getNotificationPermission() === 'denied')) {
+                        setSubStatus('bloqueado');
+                    } else {
+                        setSubStatus('no_suscrito');
+                    }
+                } catch (e) {
+                    console.error("Error fetching OneSignal status:", e);
+                    setSubStatus('no_suscrito');
+                }
+            });
+        }
+    }, [activeTab]);
+
     return (
         <div className="w-full max-w-4xl mx-auto space-y-6">
             <div>
@@ -195,7 +224,9 @@ export default function ProfilePage() {
                         className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'security' ? 'text-brand-600 bg-brand-50' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
                         Seguridad y Contraseña
                     </button>
-                    <button className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-colors">
+                    <button
+                        onClick={() => setActiveTab('notifications')}
+                        className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'notifications' ? 'text-brand-600 bg-brand-50' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'}`}>
                         Notificaciones
                     </button>
                 </div>
@@ -392,10 +423,91 @@ export default function ProfilePage() {
                                 </form>
                             </div>
                         </>
-                    ) : (
+                    ) : activeTab === 'security' ? (
                         <div className="flex flex-col gap-6">
                             {authProvider === 'email' && <PasswordChange />}
                             <MfaSettings />
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-200">
+                            <div className="px-6 py-5 border-b border-slate-100">
+                                <h3 className="text-base font-semibold leading-6 text-slate-900">Notificaciones Push</h3>
+                            </div>
+                            <div className="px-6 py-6 space-y-4">
+                                <p className="text-sm text-slate-650 leading-relaxed">
+                                    Recibe alertas instantáneas en este dispositivo (computadora o celular) sobre órdenes de trabajo asignadas, actualizaciones de estado y vencimientos de alquileres.
+                                </p>
+                                
+                                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="space-y-1">
+                                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Estado de Suscripción</p>
+                                        <p className="text-sm font-semibold text-slate-700">
+                                            {subStatus === 'cargando' && 'Verificando estado...'}
+                                            {subStatus === 'suscrito' && '✅ Suscripción Activa en este dispositivo'}
+                                            {subStatus === 'no_suscrito' && '❌ Desactivado / Sin permisos'}
+                                            {subStatus === 'bloqueado' && '🚫 Notificaciones Bloqueadas en tu navegador'}
+                                        </p>
+                                        <p className="text-xs text-slate-450 mt-1 leading-normal">
+                                            {subStatus === 'suscrito' && 'Estás listo para recibir alertas en tiempo real.'}
+                                            {subStatus === 'no_suscrito' && 'Haz clic en el botón de la derecha para solicitar el permiso.'}
+                                            {subStatus === 'bloqueado' && 'Por favor, haz clic en el ícono de candado junto a la URL en la barra de direcciones de tu navegador y cambia el permiso de Notificaciones a "Permitir".'}
+                                        </p>
+                                    </div>
+                                    <div className="flex gap-2 shrink-0">
+                                        <button
+                                            disabled={subStatus === 'suscrito' || subStatus === 'cargando'}
+                                            onClick={async () => {
+                                                if (typeof window !== 'undefined' && window.OneSignal) {
+                                                    try {
+                                                        localStorage.removeItem('onesignal_banner_dismissed');
+                                                        
+                                                        let granted = false;
+                                                        if (window.OneSignal.Notifications?.requestPermission) {
+                                                            granted = await window.OneSignal.Notifications.requestPermission();
+                                                        } else if (window.OneSignal.registerForPushNotifications) {
+                                                            await window.OneSignal.registerForPushNotifications();
+                                                            granted = true;
+                                                        }
+                                                        
+                                                        const subId = window.OneSignal.User?.PushSubscription?.id || 
+                                                                      (window.OneSignal.getUserId ? await window.OneSignal.getUserId() : null);
+                                                        
+                                                        if (subId) {
+                                                            const supabase = createClient();
+                                                            const { data: { user } } = await supabase.auth.getUser();
+                                                            if (user && user.email) {
+                                                                const dbData = await getUserProfileData(user.email);
+                                                                if (dbData) {
+                                                                    await window.OneSignal.login(dbData.id);
+                                                                    const res = await registerOneSignalSubscription(subId);
+                                                                    if (res.success) {
+                                                                        setSubStatus('suscrito');
+                                                                        toast.success('¡Notificaciones push activadas!');
+                                                                    }
+                                                                }
+                                                            }
+                                                        } else {
+                                                            (window as any).showOneSignalBanner?.();
+                                                        }
+                                                    } catch (err) {
+                                                        console.error(err);
+                                                        toast.error('Error al procesar la suscripción.');
+                                                    }
+                                                } else {
+                                                    toast.error('El servicio de OneSignal no está cargado.');
+                                                }
+                                            }}
+                                            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md ${
+                                                subStatus === 'suscrito' 
+                                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-not-allowed shadow-none' 
+                                                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-100 cursor-pointer'
+                                            }`}
+                                        >
+                                            {subStatus === 'suscrito' ? 'Ya Activo' : 'Activar en este Dispositivo'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
