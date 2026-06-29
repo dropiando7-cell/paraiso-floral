@@ -61,7 +61,7 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
                     appId: appId,
                     allowLocalhostAsSecureOrigin: true,
                     serviceWorkerParam: { scope: '/' },
-                    serviceWorkerPath: 'OneSignalSDKWorker.js',
+                    serviceWorkerPath: '/OneSignalSDKWorker.js',
                 });
 
                 // Verificar si ya está suscrito

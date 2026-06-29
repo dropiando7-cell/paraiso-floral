@@ -117,6 +117,7 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
     const [condicionActivo, setCondicionActivo] = useState('');
     const [costoAdq, setCostoAdq] = useState('');
     const [fechaAdq, setFechaAdq] = useState('');
+    const [esConsumible, setEsConsumible] = useState(false);
     const [originsList, setOriginsList] = useState<string[]>(["Americano", "Chino", "Otro"]);
     const [defaultOrigin, setDefaultOrigin] = useState<string>('');
     const [conditionsList, setConditionsList] = useState<string[]>(["Nuevo", "Usado", "Remanufacturado"]);
@@ -170,11 +171,13 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
             const d = String(today.getDate()).padStart(2, '0');
             setFechaAdq(`${y}-${m}-${d}`);
             setCostoAdq(selectedProduct.costoAdq ? Number(selectedProduct.costoAdq).toString() : '');
+            setEsConsumible(!!selectedProduct.esConsumible);
         } else {
             setOrigenActivo(defaultOrigin || '');
             setCondicionActivo(defaultCondition || '');
             setCostoAdq('');
             setFechaAdq('');
+            setEsConsumible(false);
         }
     }, [selectedProduct, defaultOrigin, defaultCondition]);
 
@@ -274,7 +277,7 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
             if (selectedProduct.modelo) fd.set('modelo', selectedProduct.modelo);
             if (selectedProduct.imagenUrl) fd.set('imagenUrl', selectedProduct.imagenUrl);
             if (selectedProduct.categoriaId) fd.set('categoriaId', selectedProduct.categoriaId);
-            if (selectedProduct.esConsumible !== undefined) fd.set('esConsumible', String(selectedProduct.esConsumible));
+            fd.set('esConsumible', String(esConsumible));
             fd.set('cuentaAct', selectedProduct.cuentaAct || 'INVENTARIO');
             if (origenActivo) fd.set('origenActivo', origenActivo);
             if (condicionActivo) fd.set('condicionActivo', condicionActivo);
@@ -401,7 +404,12 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
                                             </div>
                                             <p className="text-xs text-slate-500 mt-1 line-clamp-2">{selectedProduct.descripcionDetallada || 'Sin descripción detallada'}</p>
                                             
-                                            <div className="flex gap-2 mt-2">
+                                            <div className="flex flex-wrap gap-2 mt-2">
+                                                {selectedProduct.idQr && (
+                                                    <span className="inline-flex font-mono text-[10px] font-black bg-purple-50 text-purple-700 px-2 py-0.5 rounded-md border border-purple-200">
+                                                        Código: {selectedProduct.idQr}
+                                                    </span>
+                                                )}
                                                 {(selectedProduct.codigoBarras || selectedProduct.codigoGrupo) && (
                                                     <span className="inline-flex font-mono text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md border border-slate-200">
                                                         {selectedProduct.codigoBarras || `GRUPO: ${selectedProduct.codigoGrupo}`}
@@ -447,6 +455,33 @@ export function RestockModal({ open, onClose, onSuccess, dbAreas, gruposDisponib
                                             Paso 2: Detalles del Reingreso
                                         </h3>
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                            <div className="col-span-1 sm:col-span-2">
+                                                <FieldLabel required>Tipo de Item</FieldLabel>
+                                                <div className="grid grid-cols-2 gap-2 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEsConsumible(false)}
+                                                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all text-center select-none ${
+                                                            !esConsumible
+                                                                ? 'bg-white text-[#0500A3] shadow-sm'
+                                                                : 'text-slate-600 hover:text-slate-900'
+                                                        }`}
+                                                    >
+                                                        Equipo Médico (Nuevo Correlativo)
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEsConsumible(true)}
+                                                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all text-center select-none ${
+                                                            esConsumible
+                                                                ? 'bg-white text-[#0500A3] shadow-sm'
+                                                                : 'text-slate-600 hover:text-slate-900'
+                                                        }`}
+                                                    >
+                                                        Consumible (Mismo Código)
+                                                    </button>
+                                                </div>
+                                            </div>
                                             <div>
                                                 <FieldLabel required>Cantidad a añadir</FieldLabel>
                                                 <input
