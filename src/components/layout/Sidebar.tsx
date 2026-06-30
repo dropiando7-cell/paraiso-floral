@@ -23,6 +23,7 @@ import {
   Wrench,
   Trello,
   Globe,
+  QrCode,
   Bell,
   Megaphone,
   Coins
@@ -118,6 +119,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         name: 'Gestión Web / Tienda',
         href: '/admin/gestion-web',
         icon: Globe,
+        roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
+      },
+      {
+        name: 'Link en Bio (QR)',
+        href: '/admin/bio-settings',
+        icon: QrCode,
         roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
       },
       {

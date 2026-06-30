@@ -26,7 +26,9 @@ export async function middleware(request: NextRequest) {
         url.pathname.startsWith('/productos') ||
         url.pathname === '/servicios' ||
         url.pathname === '/contacto' ||
-        url.pathname === '/nosotros';
+        url.pathname === '/nosotros' ||
+        url.pathname === '/bio' ||
+        url.pathname.startsWith('/bio/');
 
     // 1. DOMAIN ENFORCEMENT (PRODUCTION ONLY)
     if (!isLocalhost) {
@@ -98,7 +100,10 @@ export async function middleware(request: NextRequest) {
             return supabaseResponse
         } else {
             // Rewrite public paths to /landing internally (Next.js structure)
-            const rewritePath = url.pathname === '/' ? '/landing' : (url.pathname.startsWith('/landing') ? url.pathname : `/landing${url.pathname}`);
+            const isBio = url.pathname === '/bio' || url.pathname.startsWith('/bio/');
+            const rewritePath = isBio 
+                ? url.pathname 
+                : (url.pathname === '/' ? '/landing' : (url.pathname.startsWith('/landing') ? url.pathname : `/landing${url.pathname}`));
             if (url.pathname !== rewritePath) {
                 url.pathname = rewritePath;
                 return returnResponse(NextResponse.rewrite(url));
