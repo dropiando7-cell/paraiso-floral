@@ -232,8 +232,11 @@ export default function CreateTaskModal({
     const handleFileUploadLocal = async (file: File) => {
         if (!file) return;
 
-        if (file.size > 20 * 1024 * 1024) { // 20MB limit
-            toast.error(`El archivo "${file.name}" supera el límite de 20MB`);
+        const isVideo = file.type.startsWith('video/');
+        const limitSize = isVideo ? 150 * 1024 * 1024 : 30 * 1024 * 1024; // 150MB for video, 30MB for others
+        const limitLabel = isVideo ? '150MB' : '30MB';
+        if (file.size > limitSize) {
+            toast.error(`El archivo "${file.name}" supera el límite de ${limitLabel}`);
             return;
         }
 
@@ -776,6 +779,7 @@ export default function CreateTaskModal({
                                 Subir Archivos
                                 <input
                                     type="file"
+                                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
                                     multiple
                                     className="hidden"
                                     onChange={async (e) => {
@@ -1277,8 +1281,9 @@ export default function CreateTaskModal({
                             </div>
 
                             <div className="p-4 bg-slate-50 flex gap-3 justify-center">
-                                {!recordedVideoUrl ? (
-                                    !isRecordingVideo ? (
+                            {!recordedVideoUrl ? (
+                                !isRecordingVideo ? (
+                                    <>
                                         <button
                                             type="button"
                                             onClick={startVideoRecording}
@@ -1288,7 +1293,29 @@ export default function CreateTaskModal({
                                             <div className="h-3.5 w-3.5 rounded-full bg-white shrink-0 animate-pulse" />
                                             Iniciar Grabación
                                         </button>
-                                    ) : (
+
+                                        <input
+                                            type="file"
+                                            accept="video/*"
+                                            id="video-gallery-input-create"
+                                            className="hidden"
+                                            onChange={async (e) => {
+                                                const files = e.target.files;
+                                                if (files && files.length > 0) {
+                                                    await handleFileUploadLocal(files[0]);
+                                                    closeVideoRecorder();
+                                                }
+                                            }}
+                                        />
+                                        <label
+                                            htmlFor="video-gallery-input-create"
+                                            className="bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 font-semibold text-xs px-5 py-2.5 rounded-xl cursor-pointer shadow-sm transition flex items-center gap-2 active:scale-95"
+                                        >
+                                            <Paperclip className="h-3.5 w-3.5 text-slate-500" />
+                                            Cargar desde Galería
+                                        </label>
+                                    </>
+                                ) : (
                                         <button
                                             type="button"
                                             onClick={stopVideoRecording}
