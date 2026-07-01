@@ -17,7 +17,7 @@ function useDebounce<T>(value: T, delay: number): T {
     return debouncedValue;
 }
 
-export default function HistoricoEditorClient() {
+export default function HistoricoEditorClient({ disableAiVision = false }: { disableAiVision?: boolean }) {
     const [query, setQuery] = useState('');
     const debouncedQuery = useDebounce(query, 500);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -106,7 +106,7 @@ export default function HistoricoEditorClient() {
                             </div>
                         )}
                         {items.map(item => (
-                            <EditableRow key={item.id} item={item} onSplit={() => fetchData(debouncedQuery, page)} onPreview={setPreviewImage} />
+                            <EditableRow key={item.id} item={item} onSplit={() => fetchData(debouncedQuery, page)} onPreview={setPreviewImage} disableAiVision={disableAiVision} />
                         ))}
 
                         {total > limit && (
@@ -396,7 +396,7 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => void, onPreview: (url: string) => void }) {
+function EditableRow({ item, onSplit, onPreview, disableAiVision }: { item: any, onSplit: () => void, onPreview: (url: string) => void, disableAiVision: boolean }) {
     const [descCorta, setDescCorta] = useState(item.descripcionCorta || '');
     const [descDetallada, setDescDetallada] = useState(item.descripcionDetallada || '');
     const [marca, setMarca] = useState(item.marca || '');
@@ -497,6 +497,17 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
             setUploadPhase('uploading');
             const url = await uploadDirectly(blob, 'activo.jpg');
 
+            if (disableAiVision) {
+                const newData = { imagenUrl: url };
+                startTransition(async () => {
+                    await updateHistorico(item.id, newData);
+                    item.imagenUrl = url;
+                    setImagenUrl(url);
+                    setSaved(true); setTimeout(() => setSaved(false), 2000);
+                });
+                return;
+            }
+
             setUploadPhase('analyzing');
             const aiRes = await fetch('/api/inventario/analyze-image', {
                 method: 'POST',
@@ -544,6 +555,17 @@ function EditableRow({ item, onSplit, onPreview }: { item: any, onSplit: () => v
         try {
             setPlacaUploadPhase('uploading');
             const url = await compressAndUpload(file, 'placa.jpg', rot);
+
+            if (disableAiVision) {
+                const newData = { imagenPlacaUrl: url };
+                startTransition(async () => {
+                    await updateHistorico(item.id, newData);
+                    item.imagenPlacaUrl = url;
+                    setImagenPlacaUrl(url);
+                    setSaved(true); setTimeout(() => setSaved(false), 2000);
+                });
+                return;
+            }
 
             setPlacaUploadPhase('analyzing');
             const aiRes = await fetch('/api/inventario/analyze-placa', {

@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
-import { updatePreferences, getEmailTemplates, saveEmailTemplate, getCompanyProfile, saveCompanyProfile, uploadCompanyLogo } from './actions';
+import { 
+    updatePreferences, getEmailTemplates, saveEmailTemplate, 
+    getCompanyProfile, saveCompanyProfile, uploadCompanyLogo,
+    getAiVisionSetting, saveAiVisionSetting
+} from './actions';
 import { getUserPreferencesData } from './data';
 import { Settings, Globe, LayoutDashboard, Palette, Check, Loader2, Mail, Save } from 'lucide-react';
 import { EmailTemplateType } from '@prisma/client';
@@ -39,6 +43,9 @@ export default function ConfiguracionPage() {
     const [companyProfile, setCompanyProfile] = useState({ name: '', direccion: '', telefono: '', correoContacto: '', rtn: '', logoUrl: '', qrPrefix: 'BEA' });
     const [isSavingCompany, setIsSavingCompany] = useState(false);
     const [saveCompanySuccess, setSaveCompanySuccess] = useState(false);
+    
+    // AI Vision State
+    const [disableAiVision, setDisableAiVision] = useState(false);
 
     const [filteredModules, setFilteredModules] = useState(allAvailableModules);
     const [userRole, setUserRole] = useState<string | null>(null);
@@ -88,6 +95,10 @@ export default function ConfiguracionPage() {
                         // Fetch Company Profile
                         const profile = await getCompanyProfile();
                         if (profile) setCompanyProfile(profile);
+
+                        // Fetch AI Vision Setting
+                        const aiSetting = await getAiVisionSetting();
+                        if (aiSetting.success) setDisableAiVision(aiSetting.disabled || false);
 
                         // Fetch Email Templates if Super Admin
                         const templates = await getEmailTemplates();
@@ -205,6 +216,10 @@ export default function ConfiguracionPage() {
             theme: preferences.theme,
             idleTimeoutEnabled: preferences.idleTimeoutEnabled
         });
+
+        if (userRole === 'SUPER_ADMIN') {
+            await saveAiVisionSetting(disableAiVision);
+        }
 
         setIsSaving(false);
 
@@ -351,6 +366,30 @@ export default function ConfiguracionPage() {
                                         Activa la ventana azul que avisa y cierra tu sesión tras un tiempo por seguridad. Si la desactivas, la sesión permanecerá abierta.
                                     </p>
                                 </div>
+
+                                {/* Desactivar IA Vision (Admin Only) */}
+                                {userRole === 'SUPER_ADMIN' && (
+                                    <>
+                                        <hr className="border-slate-100" />
+                                        <div>
+                                            <div className="flex items-center justify-between mb-1 max-w-md">
+                                                <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                                    <Settings className="w-4 h-4 text-slate-400" />
+                                                    Desactivar IA Vision en Inventario
+                                                </label>
+                                                <button
+                                                    onClick={() => setDisableAiVision(!disableAiVision)}
+                                                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${disableAiVision ? 'bg-brand-500' : 'bg-slate-300'}`}
+                                                >
+                                                    <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${disableAiVision ? 'translate-x-5' : 'translate-x-0'}`} />
+                                                </button>
+                                            </div>
+                                            <p className="text-sm text-slate-500 mb-3 max-w-md">
+                                                Desactiva el análisis automático por Inteligencia Artificial al subir fotos de productos. Útil al registrar inventario con descripciones predefinidas.
+                                            </p>
+                                        </div>
+                                    </>
+                                )}
 
                                 <hr className="border-slate-100" />
 

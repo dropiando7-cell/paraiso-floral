@@ -57,6 +57,11 @@ export default async function InventarioPage() {
     const customConditions = conditionsSetting ? JSON.parse(conditionsSetting.value) : ["Nuevo", "Usado", "Remanufacturado"];
     const defaultCondition = defaultCondSetting ? defaultCondSetting.value : "";
 
+    const disableAiSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'disable_ai_vision' }
+    });
+    const disableAiVision = disableAiSetting ? disableAiSetting.value === 'true' : false;
+
     return (
         <InventarioClient 
             initialData={initialData} 
@@ -67,6 +72,7 @@ export default async function InventarioPage() {
             initialDefaultOrigin={defaultOrigin}
             initialConditions={customConditions}
             initialDefaultCondition={defaultCondition}
+            disableAiVision={disableAiVision}
         />
     );
 }

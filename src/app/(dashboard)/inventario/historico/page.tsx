@@ -20,5 +20,10 @@ export default async function HistoricoPage() {
         redirect('/unauthorized');
     }
 
-    return <HistoricoEditorClient />;
+    const disableAiSetting = await prisma.systemSetting.findUnique({
+        where: { key: 'disable_ai_vision' }
+    });
+    const disableAiVision = disableAiSetting ? disableAiSetting.value === 'true' : false;
+
+    return <HistoricoEditorClient disableAiVision={disableAiVision} />;
 }

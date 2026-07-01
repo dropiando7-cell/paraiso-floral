@@ -1312,3 +1312,252 @@ export async function saveInventoryConditionsSetting(conditions: string[], defau
         return { success: false, error: error.message || 'Error al guardar configuraciones' };
     }
 }
+
+export async function bulkImportActivos(activos: any[]): Promise<{ success: boolean; error?: string; count?: number; batchTag?: string; createdIds?: string[] }> {
+    try {
+        const { orgId, userId } = await getContextUser();
+        
+        // 1. Get organization QR Prefix
+        const org = await prisma.organization.findUnique({ 
+            where: { id: orgId }, 
+            select: { qrPrefix: true } 
+        });
+        const prefijoBase = org?.qrPrefix || 'BEA';
+
+        // 2. Fetch all current assets to determine maxCorrelativo
+        const todos = await prisma.activoFijo.findMany({
+            where: { 
+                organizationId: orgId,
+                idQr: { startsWith: `${prefijoBase}-` }
+            },
+            select: { idQr: true }
+        });
+
+        let maxCorrelativo = 0;
+        for (const act of todos) {
+            const parts = act.idQr.split('-');
+            if (parts.length >= 2) {
+                const lastPart = parts[parts.length - 1];
+                if (!isNaN(Number(lastPart))) {
+                    const num = Number(lastPart);
+                    if (num > maxCorrelativo) maxCorrelativo = num;
+                }
+            }
+        }
+
+        const dateTag = new Date().toLocaleString('es-HN', { timeZone: 'America/Tegucigalialpa' })
+            .replace(/, /g, ' ')
+            .substring(0, 16);
+        const batchTag = `Lote CSV: ${dateTag.replace(/:/g, '-')}`;
+        
+        const createdIds: string[] = [];
+        let importedCount = 0;
+
+        await prisma.$transaction(async (tx) => {
+            for (const item of activos) {
+                // Find or create Area
+                let areaIdOrName = 'Taller';
+                if (item.area && item.area.trim()) {
+                    const cleanArea = item.area.trim();
+                    const existingArea = await tx.area.findFirst({
+                        where: { organizationId: orgId, name: { equals: cleanArea, mode: 'insensitive' } }
+                    });
+                    if (existingArea) {
+                        areaIdOrName = existingArea.name;
+                    } else {
+                        // Create new Area
+                        const cleanPrefix = cleanArea.replace(/[^a-zA-Z]/g, '').substring(0, 3).toUpperCase() || 'GEN';
+                        const fallbackQr = `ELIM-QR-GEN-${cleanArea.toUpperCase().replace(/[^A-Z0-9]/g, '-')}`;
+                        const newArea = await tx.area.create({
+                            data: { 
+                                organizationId: orgId, 
+                                name: cleanArea,
+                                prefix: cleanPrefix,
+                                qrCode: fallbackQr
+                            }
+                        });
+                        areaIdOrName = newArea.name;
+                    }
+                }
+
+                // Find or create Categoria
+                let catId: string | null = null;
+                if (item.categoria && item.categoria.trim()) {
+                    const cleanCat = item.categoria.trim();
+                    const existingCat = await tx.categoria.findFirst({
+                        where: { organizationId: orgId, nombre: { equals: cleanCat, mode: 'insensitive' } }
+                    });
+                    if (existingCat) {
+                        catId = existingCat.id;
+                    } else {
+                        const newCat = await tx.categoria.create({
+                            data: { organizationId: orgId, nombre: cleanCat }
+                        });
+                        catId = newCat.id;
+                    }
+                }
+
+                const esConsumible = ['si', 'sí', 'true', 'yes', '1', 's', 'true'].includes(String(item.esConsumible).toLowerCase().trim());
+                const cantidad = Math.max(1, parseInt(item.cantidad) || 1);
+                const codigoGrupo = (item.codigoGrupo && item.codigoGrupo.trim()) || '001';
+                const codigoBarras = (item.codigoBarras && item.codigoBarras.trim()) || null;
+                
+                // Base fields to insert
+                const baseData = {
+                    organizationId: orgId,
+                    descripcionCorta: item.descripcionCorta?.substring(0, 60) || 'Sin nombre',
+                    descripcionDetallada: item.descripcionDetallada || null,
+                    marca: item.marca || null,
+                    modelo: item.modelo || null,
+                    serie: item.serie || null,
+                    area: areaIdOrName,
+                    cuentaAct: item.cuentaAct || 'Equipos Diversos',
+                    estatusContable: 'VIGENTE',
+                    origenActivo: item.origenActivo || 'Americano',
+                    condicionActivo: item.condicionActivo || 'Nuevo',
+                    garantia: item.garantia || null,
+                    observaciones: `${item.observaciones || ''} [${batchTag}]`.trim(),
+                    esConsumible,
+                    codigoGrupo,
+                    codigoBarras,
+                    categoriaId: catId,
+                    createdById: userId,
+                    updatedById: userId
+                };
+
+                if (esConsumible) {
+                    // Consumible Re-entry logic (Agrupación)
+                    const whereClause: any = { organizationId: orgId, area: areaIdOrName, esConsumible: true };
+                    if (codigoBarras) {
+                        whereClause.codigoBarras = codigoBarras;
+                    } else {
+                        whereClause.codigoGrupo = codigoGrupo;
+                        whereClause.descripcionCorta = baseData.descripcionCorta;
+                    }
+
+                    const existente = await tx.activoFijo.findFirst({
+                        where: whereClause,
+                        orderBy: { createdAt: 'asc' }
+                    });
+
+                    if (existente) {
+                        // Increment stock
+                        const updated = await tx.activoFijo.update({
+                            where: { id: existente.id },
+                            data: { stock: existente.stock + cantidad }
+                        });
+                        createdIds.push(updated.id);
+                        importedCount += cantidad;
+                    } else {
+                        // Create new consumible
+                        let finalQr = item.idQr?.trim();
+                        if (!finalQr) {
+                            maxCorrelativo++;
+                            const numPart = String(maxCorrelativo).padStart(6, '0');
+                            finalQr = `${prefijoBase}-${codigoGrupo}-${numPart}`;
+                        }
+
+                        const created = await tx.activoFijo.create({
+                            data: {
+                                ...baseData,
+                                idQr: finalQr,
+                                stock: cantidad
+                            }
+                        });
+                        createdIds.push(created.id);
+                        importedCount += cantidad;
+                    }
+                } else {
+                    // Non-consumible / Medical Equipment: forced serialization (N items, each with stock=1)
+                    for (let i = 0; i < cantidad; i++) {
+                        let finalQr = item.idQr?.trim();
+                        // If quantity > 1 or no idQr was provided, we generate a new sequential idQr
+                        if (!finalQr || cantidad > 1) {
+                            maxCorrelativo++;
+                            const numPart = String(maxCorrelativo).padStart(6, '0');
+                            finalQr = `${prefijoBase}-${codigoGrupo}-${numPart}`;
+                        }
+
+                        const created = await tx.activoFijo.create({
+                            data: {
+                                ...baseData,
+                                idQr: finalQr,
+                                stock: 1
+                            }
+                        });
+                        createdIds.push(created.id);
+                        importedCount++;
+                    }
+                }
+            }
+        });
+
+        revalidatePath('/inventario');
+        return { success: true, count: importedCount, batchTag, createdIds };
+    } catch (e: any) {
+        console.error('Error in bulkImportActivos:', e);
+        return { success: false, error: e.message || 'Error al importar inventario' };
+    }
+}
+
+export async function encolarLoteImportado(ids: string[]) {
+    try {
+        const orgId = await getOrgId();
+        
+        const activos = await prisma.activoFijo.findMany({
+            where: { id: { in: ids }, organizationId: orgId },
+            select: {
+                id: true,
+                idQr: true,
+                descripcionCorta: true,
+                area: true,
+                cuentaAct: true,
+                marca: true,
+                modelo: true,
+                codigoBarras: true,
+                serie: true
+            }
+        });
+
+        if (activos.length === 0) {
+            return { success: false, error: 'No se encontraron activos para encolar' };
+        }
+
+        const host = process.env.NEXT_PUBLIC_APP_URL || 'https://bioelectronicahn.vercel.app';
+        const printJobs: any[] = [];
+
+        for (const activo of activos) {
+            const params = new URLSearchParams({
+                idQr: activo.idQr,
+                descripcion: activo.descripcionCorta,
+                area: activo.area,
+                cuenta: activo.cuentaAct,
+                marca: activo.marca || '',
+                modelo: activo.modelo || '',
+                codigoBarras: activo.codigoBarras || '',
+                serie: activo.serie || '',
+                size: '70x40'
+            });
+            const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+
+            printJobs.push({
+                organizationId: orgId,
+                activoId: activo.id,
+                urlImagen,
+                estado: 'PENDIENTE',
+                impresora: 'Niimbot',
+                tamano: '70x40'
+            });
+        }
+
+        const countPayload = await prisma.colaImpresion.createMany({
+            data: printJobs
+        });
+
+        return { success: true, count: countPayload.count };
+    } catch (e: any) {
+        console.error('Error in encolarLoteImportado:', e);
+        return { success: false, error: e.message || 'Error al encolar lote de impresión' };
+    }
+}
+

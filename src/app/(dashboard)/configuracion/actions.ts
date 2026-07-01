@@ -222,3 +222,43 @@ export async function uploadCompanyLogo(formData: FormData) {
         return { success: false, error: 'Error al subir logo' };
     }
 }
+
+export async function getAiVisionSetting() {
+    try {
+        const setting = await prisma.systemSetting.findUnique({
+            where: { key: 'disable_ai_vision' }
+        });
+        return { success: true, disabled: setting ? setting.value === 'true' : false };
+    } catch (e) {
+        console.error(e);
+        return { success: false, disabled: false };
+    }
+}
+
+export async function saveAiVisionSetting(disabled: boolean) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !user.email) return { success: false, error: 'No autorizado' };
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email }
+        });
+        if (!dbUser || dbUser.role !== 'SUPER_ADMIN') {
+            return { success: false, error: 'Se requieren permisos de administrador' };
+        }
+
+        await prisma.systemSetting.upsert({
+            where: { key: 'disable_ai_vision' },
+            update: { value: disabled ? 'true' : 'false' },
+            create: { key: 'disable_ai_vision', value: disabled ? 'true' : 'false' }
+        });
+
+        revalidatePath('/configuracion');
+        return { success: true };
+    } catch (e) {
+        console.error(e);
+        return { success: false, error: 'Error al actualizar configuración' };
+    }
+}
+

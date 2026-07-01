@@ -15,7 +15,8 @@ import {
     encolarCopiasNiimbot, getCategorias, createCategoria, updateCategoria, checkExistingByBarcode, 
     getActivosByGrupo, updateActivoQuick, checkGrupoExists, getActivosByIdQr, 
     searchActivosGlobal, generateNextServiceCode, getActivosForExport, getInventoryOriginsSetting,
-    saveInventoryOriginsSetting, getInventoryConditionsSetting, saveInventoryConditionsSetting
+    saveInventoryOriginsSetting, getInventoryConditionsSetting, saveInventoryConditionsSetting,
+    bulkImportActivos, encolarLoteImportado
 } from './actions';
 import { completarReparacionActivo } from './garantias/actions';
 import toast from 'react-hot-toast';
@@ -822,8 +823,8 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
 }
 
 // ─── Modal Form (iPad-first + AI vision) ─────────────────────────────────────
-export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions }: {
-    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void;
+export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions, disableAiVision = false }: {
+    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void; disableAiVision?: boolean;
 }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
@@ -1342,8 +1343,10 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             const { publicUrl } = await res.json();
             setImagenUrl(publicUrl);
             setUploadPhase('done');
-            // Auto-trigger AI analysis right after upload
-            analyzeWithAI(publicUrl);
+            // Auto-trigger AI analysis right after upload if not disabled
+            if (!disableAiVision) {
+                analyzeWithAI(publicUrl);
+            }
         } catch (err: any) {
             setUploadPhase('idle');
             alert('Error: ' + (err.message || 'Intenta de nuevo'));
@@ -1941,7 +1944,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                 <Upload className="w-5 h-5" />
                                                 Seleccionar de Galería
                                             </button>
-                                            {!isEdit && !!imagenUrl && !aiResult && (
+                                            {!isEdit && !disableAiVision && !!imagenUrl && !aiResult && (
                                                 <button type="button" onClick={() => analyzeWithAI()}
                                                     disabled={uploadPhase === 'analyzing'}
                                                     className="mt-2 flex items-center justify-center gap-2 text-sm font-semibold bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-300 py-3 px-5 rounded-xl active:scale-95 transition-all w-full">
@@ -1949,7 +1952,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     {uploadPhase === 'analyzing' ? 'Analizando...' : '✨ Analizar foto con IA'}
                                                 </button>
                                             )}
-                                            {!isEdit && uploadPhase === 'idle' && (
+                                            {!isEdit && !disableAiVision && uploadPhase === 'idle' && (
                                                 <p className="text-xs text-purple-600 text-center flex items-center justify-center gap-1 mt-2">
                                                     <Sparkles className="w-3 h-3" /> Sube la foto primero, luego usa la IA
                                                 </p>
@@ -3064,7 +3067,7 @@ function ProductSummaryModal({
 }
 
 // ─── Main Client Component ───────────────────────────────────────────────────
-export function InventarioClient({ initialData, initialStats, dbAreas, userRole, isRentaMode = false, initialOrigins = ["Americano", "Chino", "Otro"], initialDefaultOrigin = "", initialConditions = ["Nuevo", "Usado", "Remanufacturado"], initialDefaultCondition = "" }: { initialData: any, initialStats: any, dbAreas: any[], userRole: string, isRentaMode?: boolean, initialOrigins?: string[], initialDefaultOrigin?: string, initialConditions?: string[], initialDefaultCondition?: string }) {
+export function InventarioClient({ initialData, initialStats, dbAreas, userRole, isRentaMode = false, initialOrigins = ["Americano", "Chino", "Otro"], initialDefaultOrigin = "", initialConditions = ["Nuevo", "Usado", "Remanufacturado"], initialDefaultCondition = "", disableAiVision = false }: { initialData: any, initialStats: any, dbAreas: any[], userRole: string, isRentaMode?: boolean, initialOrigins?: string[], initialDefaultOrigin?: string, initialConditions?: string[], initialDefaultCondition?: string, disableAiVision?: boolean }) {
     const router = useRouter();   
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
@@ -3105,6 +3108,14 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const [repairReport, setRepairReport] = useState('');
     const [printStatus, setPrintStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
     const [loteModalOpen, setLoteModalOpen] = useState(false);
+    
+    // CSV Bulk Import states
+    const [bulkModalOpen, setBulkModalOpen] = useState(false);
+    const [bulkFile, setBulkFile] = useState<File | null>(null);
+    const [bulkData, setBulkData] = useState<any[]>([]);
+    const [isImporting, setIsImporting] = useState(false);
+    const [importSuccessData, setImportSuccessData] = useState<{ count: number; batchTag: string; createdIds: string[] } | null>(null);
+    
     const hasMounted = useRef(false);
 
     // Grupos autocompletables prefetch para el lote printer
@@ -3259,6 +3270,202 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
         }
     }
 
+    // Helper functions for CSV Bulk Import
+    function parseCSV(text: string): any[] {
+        const lines = text.split(/\r?\n/);
+        if (lines.length < 2) return [];
+
+        const headerLine = lines[0];
+        const commas = (headerLine.match(/,/g) || []).length;
+        const semicolons = (headerLine.match(/;/g) || []).length;
+        const separator = semicolons > commas ? ';' : ',';
+
+        const parseLine = (line: string) => {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === separator && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+            return result.map(val => val.replace(/^"|"$/g, '').trim());
+        };
+
+        const headers = parseLine(headerLine).map(h => h.toLowerCase());
+        const data = [];
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            const values = parseLine(line);
+            const row: any = {};
+            headers.forEach((header, index) => {
+                row[header] = values[index] || '';
+            });
+            
+            const cleanRow: any = {};
+            Object.keys(row).forEach(key => {
+                const cleanKey = key
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "") 
+                    .replace(/\s+/g, '') 
+                    .toLowerCase();
+                cleanRow[cleanKey] = row[key];
+            });
+            
+            const normalizedRow: any = {
+                descripcionCorta: cleanRow.descripcioncorta || cleanRow.descripcion || cleanRow.nombre || '',
+                descripcionDetallada: cleanRow.descripciondetallada || cleanRow.detalle || '',
+                marca: cleanRow.marca || '',
+                modelo: cleanRow.modelo || '',
+                serie: cleanRow.serie || cleanRow.numerodeserie || '',
+                area: cleanRow.area || cleanRow.ubicacion || '',
+                cantidad: cleanRow.cantidad || cleanRow.stock || '1',
+                esConsumible: cleanRow.esconsumible || cleanRow.consumible || 'NO',
+                origenActivo: cleanRow.origenactivo || cleanRow.origen || '',
+                condicionActivo: cleanRow.condicionactivo || cleanRow.condicion || '',
+                garantia: cleanRow.garantia || '',
+                observaciones: cleanRow.observaciones || cleanRow.comentarios || '',
+                cuentaAct: cleanRow.cuentaact || cleanRow.cuenta || '',
+                codigoGrupo: cleanRow.codigogrupo || cleanRow.grupo || '',
+                codigoBarras: cleanRow.codigobarras || cleanRow.codigo || '',
+                idQr: cleanRow.idqr || cleanRow.qr || ''
+            };
+
+            if (normalizedRow.descripcionCorta && normalizedRow.area) {
+                data.push(normalizedRow);
+            }
+        }
+        return data;
+    }
+
+    function downloadCsvTemplate() {
+        const headers = [
+            'DescripcionCorta',
+            'DescripcionDetallada',
+            'Marca',
+            'Modelo',
+            'Serie',
+            'Area',
+            'Cantidad',
+            'EsConsumible',
+            'OrigenActivo',
+            'CondicionActivo',
+            'Garantia',
+            'Observaciones',
+            'CuentaAct',
+            'CodigoGrupo',
+            'CodigoBarras',
+            'IdQr'
+        ];
+        const sampleRow = [
+            'Monitor de Signos Vitales Masimo',
+            'Monitor multiparametro con sensor SpO2 y pantalla tactil',
+            'Masimo',
+            'Rad-97',
+            'SN-12345/SN-9999',
+            'Bodega Guamilito',
+            '1',
+            'NO',
+            'Americano',
+            'Nuevo',
+            '12 meses',
+            'Importado de EE.UU.',
+            'Equipos Diversos',
+            '001',
+            '750102030405',
+            ''
+        ];
+        const csvContent = "data:text/csv;charset=utf-8," 
+            + [headers.join(','), sampleRow.join(',')].join('\n');
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "plantilla_inventario_bioelectronica.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setBulkFile(file);
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            const parsed = parseCSV(text);
+            setBulkData(parsed);
+        };
+        reader.readAsText(file);
+    };
+
+    async function handleImportSubmit() {
+        if (bulkData.length === 0) {
+            alert('No hay datos válidos para importar.');
+            return;
+        }
+        setIsImporting(true);
+        try {
+            const res = await bulkImportActivos(bulkData);
+            if (res.success && res.createdIds && res.batchTag) {
+                toast.success(`Se importaron ${res.count} productos exitosamente.`);
+                setImportSuccessData({
+                    count: res.count || 0,
+                    batchTag: res.batchTag,
+                    createdIds: res.createdIds
+                });
+                
+                // Fetch stats and update list
+                const resolvedAreaFilter = filtroArea || (lockedArea || undefined);
+                const updatedList = await getActivos(1, search, resolvedAreaFilter, filtroEstatus, filtroOrigen, filtroCondicion);
+                setActivos(updatedList.activos);
+                setTotal(updatedList.total);
+                setTotalPages(updatedList.totalPages);
+                const updatedStats = await getActivoStats(resolvedAreaFilter);
+                setStats(updatedStats);
+            } else {
+                alert(res.error || 'Error al realizar la importación masiva.');
+            }
+        } catch (e: any) {
+            console.error('Error importing bulk assets:', e);
+            alert('Error en el servidor al realizar la importación.');
+        } finally {
+            setIsImporting(false);
+        }
+    }
+
+    async function handleEncolarLoteImportado() {
+        if (!importSuccessData || importSuccessData.createdIds.length === 0) return;
+        setIsImporting(true);
+        try {
+            const res = await encolarLoteImportado(importSuccessData.createdIds);
+            if (res.success) {
+                toast.success(`Se encolaron ${res.count} etiquetas para impresión.`);
+                setBulkModalOpen(false);
+                setBulkFile(null);
+                setBulkData([]);
+                setImportSuccessData(null);
+            } else {
+                alert(res.error || 'Error al encolar etiquetas.');
+            }
+        } catch (e: any) {
+            console.error('Error queuing import batch:', e);
+            alert('Error al encolar las etiquetas en el servidor.');
+        } finally {
+            setIsImporting(false);
+        }
+    }
+
     async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea, o = filtroOrigen, c = filtroCondicion) {
         setIsRefetching(true);
         setLoading(false); // Make sure blocking loader is off
@@ -3375,6 +3582,18 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                         >
                             <Plus className="w-5 h-5" />
                             {isRentaMode ? 'Nuevo Equipo' : 'Nuevo Producto'}
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                setBulkModalOpen(true);
+                                setBulkFile(null);
+                                setBulkData([]);
+                                setImportSuccessData(null);
+                            }}
+                            className="flex items-center justify-center gap-2 text-base font-bold bg-white text-indigo-700 border-2 border-indigo-200 px-5 py-3.5 rounded-2xl hover:bg-indigo-50 active:scale-95 transition-all w-full sm:w-auto hide-on-print justify-center"
+                        >
+                            <Upload className="w-5 h-5" /> Cargar CSV
                         </button>
 
                         <button
@@ -3997,6 +4216,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 />
             )}
             <ActivoModal
+                disableAiVision={disableAiVision}
                 dbAreas={dbAreas}
                 open={modalOpen}
                 onClose={() => { setModalOpen(false); setEditActivo(null); }}
@@ -4305,6 +4525,157 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                             >
                                 Sí, Completar Reparación
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Carga Masiva (CSV) */}
+            {bulkModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hide-on-print">
+                    <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-indigo-50 to-white">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <Upload className="w-5 h-5 text-indigo-600" />
+                                    Importación Masiva de Inventario
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-1 font-medium">Carga un archivo CSV para registrar múltiples productos en segundos.</p>
+                            </div>
+                            <button onClick={() => setBulkModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Content */}
+                        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+                            {!importSuccessData ? (
+                                <>
+                                    {/* Pasos / Descarga de plantilla */}
+                                    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                        <div className="flex gap-3">
+                                            <div className="bg-indigo-100 text-indigo-700 w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm shrink-0">1</div>
+                                            <div>
+                                                <h4 className="text-sm font-bold text-slate-700">Descarga la Plantilla CSV</h4>
+                                                <p className="text-xs text-slate-500 mt-0.5 font-medium">Usa nuestro formato con los encabezados correspondientes para recolectar tus datos.</p>
+                                            </div>
+                                        </div>
+                                        <button onClick={downloadCsvTemplate} className="flex items-center gap-2 text-xs font-bold text-indigo-700 hover:text-indigo-800 bg-white border border-indigo-200 hover:border-indigo-300 shadow-sm px-4 py-2.5 rounded-xl transition-all active:scale-95">
+                                            <Download className="w-4 h-4" /> Descargar Plantilla
+                                        </button>
+                                    </div>
+
+                                    {/* Cargador de archivos */}
+                                    <div className="border-2 border-dashed border-indigo-200 hover:border-indigo-400 bg-indigo-50/20 hover:bg-indigo-50/40 rounded-2xl p-8 transition-colors text-center cursor-pointer relative">
+                                        <input type="file" accept=".csv" onChange={handleFileChange} className="absolute inset-0 opacity-0 cursor-pointer" />
+                                        <div className="flex flex-col items-center gap-3">
+                                            <div className="bg-white p-3 rounded-full shadow-sm text-indigo-600 border border-indigo-50">
+                                                <FileSpreadsheet className="w-8 h-8" />
+                                            </div>
+                                            <div>
+                                                <span className="text-sm font-bold text-slate-700 block">
+                                                    {bulkFile ? bulkFile.name : 'Selecciona o arrastra tu archivo CSV'}
+                                                </span>
+                                                <span className="text-xs text-slate-400 block mt-1 font-medium">
+                                                    {bulkFile ? `${(bulkFile.size / 1024).toFixed(1)} KB` : 'Solo archivos con formato .csv de Excel'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Preview Table */}
+                                    {bulkData.length > 0 && (
+                                        <div className="flex-1 flex flex-col border border-slate-100 rounded-2xl overflow-hidden min-h-[250px]">
+                                            <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                                                <span className="text-xs font-bold text-slate-600">Previsualización de Datos ({bulkData.length} filas detectadas)</span>
+                                            </div>
+                                            <div className="flex-1 overflow-x-auto overflow-y-auto max-h-[300px] custom-scrollbar">
+                                                <table className="w-full text-left border-collapse text-xs">
+                                                    <thead>
+                                                        <tr className="bg-slate-50/80 sticky top-0 border-b border-slate-100 text-slate-500 font-bold">
+                                                            <th className="p-3">Descripción Corta</th>
+                                                            <th className="p-3">Marca/Modelo</th>
+                                                            <th className="p-3">Serie</th>
+                                                            <th className="p-3">Área/Ubicación</th>
+                                                            <th className="p-3 text-center">Cant</th>
+                                                            <th className="p-3 text-center">Consumible</th>
+                                                            <th className="p-3">Código Barras</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody className="divide-y divide-slate-50 font-medium text-slate-700">
+                                                        {bulkData.map((row, idx) => (
+                                                            <tr key={idx} className="hover:bg-slate-50/50">
+                                                                <td className="p-3 max-w-[200px] truncate font-bold text-slate-800">{row.descripcionCorta}</td>
+                                                                <td className="p-3">{row.marca || 'N/A'} {row.modelo ? `/ ${row.modelo}` : ''}</td>
+                                                                <td className="p-3 font-mono">{row.serie || 'N/A'}</td>
+                                                                <td className="p-3"><span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-bold">{row.area}</span></td>
+                                                                <td className="p-3 text-center font-bold">{row.cantidad}</td>
+                                                                <td className="p-3 text-center">
+                                                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${['si', 'sí', 'true', 'yes', '1', 's'].includes(String(row.esConsumible).toLowerCase().trim()) ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                                        {['si', 'sí', 'true', 'yes', '1', 's'].includes(String(row.esConsumible).toLowerCase().trim()) ? 'SÍ' : 'NO'}
+                                                                    </span>
+                                                                </td>
+                                                                <td className="p-3 font-mono text-slate-500">{row.codigoBarras || 'N/A'}</td>
+                                                            </tr>
+                                                        ))}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                /* Import Success Feedback screen */
+                                <div className="text-center py-10 flex flex-col items-center gap-4">
+                                    <div className="bg-green-100 text-green-600 p-4 rounded-full border-4 border-green-50 animate-bounce">
+                                        <CheckCircle2 className="w-12 h-12" />
+                                    </div>
+                                    <div>
+                                        <h4 className="text-xl font-black text-slate-800">¡Carga Masiva Exitosa!</h4>
+                                        <p className="text-sm text-slate-500 mt-1 font-medium">Se han importado exitosamente <strong>{importSuccessData.count}</strong> artículos al inventario.</p>
+                                    </div>
+                                    <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl w-full max-w-md text-left flex flex-col gap-2.5 mt-2">
+                                        <div className="text-xs font-bold text-slate-600 flex justify-between">
+                                            <span>Identificador de Lote:</span>
+                                            <span className="font-mono text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full">{importSuccessData.batchTag}</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 font-medium leading-relaxed">
+                                            Los códigos de barra y correlativos QR fueron asignados de manera consecutiva. Puedes filtrar la tabla del catálogo para verlos en detalle o encolar su impresión ahora mismo.
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="p-6 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row gap-3 justify-end">
+                            {!importSuccessData ? (
+                                <>
+                                    <button onClick={() => setBulkModalOpen(false)} className="px-5 py-3 font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                                        Cancelar
+                                    </button>
+                                    <button onClick={handleImportSubmit} disabled={isImporting || bulkData.length === 0} className="px-6 py-3 font-bold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+                                        {isImporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle2 className="w-5 h-5" />} Importar Productos
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <button onClick={() => {
+                                        setSearch(importSuccessData.batchTag);
+                                        setBulkModalOpen(false);
+                                        toast.success("Filtro de lote aplicado en la búsqueda.");
+                                    }} className="px-5 py-3 font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition-all active:scale-95 flex items-center justify-center gap-2">
+                                        <Filter className="w-4 h-4" /> Filtrar en la Tabla
+                                    </button>
+                                    <button onClick={handleEncolarLoteImportado} disabled={isImporting} className="px-6 py-3 font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-xl shadow-md transition-all active:scale-95 flex items-center justify-center gap-2">
+                                        {isImporting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Printer className="w-5 h-5" />} Imprimir Todas las Etiquetas
+                                    </button>
+                                    <button onClick={() => setBulkModalOpen(false)} className="px-5 py-3 font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+                                        Listo / Cerrar
+                                    </button>
+                                </>
+                            )}
                         </div>
                     </div>
                 </div>
