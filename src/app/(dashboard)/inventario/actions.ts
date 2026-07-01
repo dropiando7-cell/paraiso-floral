@@ -1345,7 +1345,7 @@ export async function bulkImportActivos(activos: any[]): Promise<{ success: bool
             }
         }
 
-        const dateTag = new Date().toLocaleString('es-HN', { timeZone: 'America/Tegucigalialpa' })
+        const dateTag = new Date().toLocaleString('es-HN', { timeZone: 'America/Tegucigalpa' })
             .replace(/, /g, ' ')
             .substring(0, 16);
         const batchTag = `Lote CSV: ${dateTag.replace(/:/g, '-')}`;

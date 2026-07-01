@@ -257,8 +257,11 @@ export async function POST(req: NextRequest) {
                             }
                             const detailHtml = await detailRes.text();
 
-                            // Check if this page is a list page itself (contains product cards)
-                            if (detailHtml.includes('h5productTitle') || detailHtml.includes('c1ProductBox')) {
+                            // Check if this page is a list page itself (contains product cards in HTML body, not just CSS styles)
+                            const hasProductTitleInHtml = /class=["'][^"']*\bh5productTitle\b[^"']*["']/i.test(detailHtml);
+                            const hasProductBoxInHtml = /class=["'][^"']*\bc1ProductBox\b[^"']/i.test(detailHtml);
+
+                            if (hasProductTitleInHtml || hasProductBoxInHtml) {
                                 console.log(`[Scraper AmcareMed] Intermediate list page resolved: ${item.link}`);
                                 const titleDivRegex = /<div class="h5productTitle[^>]*>([\s\S]*?)<\/div>/gi;
                                 let titleDivMatch;

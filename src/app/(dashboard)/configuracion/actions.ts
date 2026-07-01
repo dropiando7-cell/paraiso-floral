@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { EmailTemplateType, Role } from '@prisma/client';
 import { uploadToR2 } from '@/lib/storage/r2';
 
-export async function updatePreferences(data: { defaultModule: string | null; timezone: string | null; theme: string | null; idleTimeoutEnabled?: boolean }) {
+export async function updatePreferences(data: { defaultModule: string | null; timezone: string | null; theme: string | null; idleTimeoutEnabled?: boolean; disableAiVision?: boolean }) {
     try {
         const supabase = await createClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -15,7 +15,7 @@ export async function updatePreferences(data: { defaultModule: string | null; ti
             return { success: false, error: 'No autorizado' };
         }
 
-        await prisma.user.update({
+        const dbUser = await prisma.user.update({
             where: { email: user.email },
             data: {
                 defaultModule: data.defaultModule,
@@ -24,6 +24,14 @@ export async function updatePreferences(data: { defaultModule: string | null; ti
                 ...(data.idleTimeoutEnabled !== undefined && { idleTimeoutEnabled: data.idleTimeoutEnabled })
             }
         });
+
+        if (dbUser.role === 'SUPER_ADMIN' && data.disableAiVision !== undefined) {
+            await prisma.systemSetting.upsert({
+                where: { key: 'disable_ai_vision' },
+                update: { value: data.disableAiVision ? 'true' : 'false' },
+                create: { key: 'disable_ai_vision', value: data.disableAiVision ? 'true' : 'false' }
+            });
+        }
 
         revalidatePath('/configuracion');
         return { success: true };

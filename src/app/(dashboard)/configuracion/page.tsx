@@ -214,12 +214,9 @@ export default function ConfiguracionPage() {
             defaultModule: preferences.defaultModule === '/' ? null : preferences.defaultModule,
             timezone: preferences.timezone,
             theme: preferences.theme,
-            idleTimeoutEnabled: preferences.idleTimeoutEnabled
+            idleTimeoutEnabled: preferences.idleTimeoutEnabled,
+            ...(userRole === 'SUPER_ADMIN' && { disableAiVision })
         });
-
-        if (userRole === 'SUPER_ADMIN') {
-            await saveAiVisionSetting(disableAiVision);
-        }
 
         setIsSaving(false);
 
