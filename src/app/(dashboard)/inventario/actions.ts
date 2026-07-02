@@ -700,6 +700,7 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
                 where: { id: existente.id },
                 data: {
                     stock: existente.stock + cantidadRegistros,
+                    estatusContable: 'VIGENTE'
                 }
             });
             revalidatePath('/inventario');
