@@ -1995,10 +1995,11 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                 </div>
                                                 <div>
                                                     <FieldLabel>Icono para Facturación</FieldLabel>
-                                                    <div className="grid grid-cols-5 gap-2 mt-2 bg-white/60 p-2 rounded-xl">
+                                                    <div className="grid grid-cols-6 gap-2 mt-2 bg-white/60 p-2 rounded-xl">
                                                         {[
                                                             { id: '/services/mantenimiento.svg', label: 'Mant.' },
                                                             { id: '/services/soporte.svg', label: 'Soporte' },
+                                                            { id: '/services/reparacion.jpg', label: 'Reparación' },
                                                             { id: '/services/envio.svg', label: 'Envío' },
                                                             { id: '/services/garantia.svg', label: 'Garantía' },
                                                             { id: '/services/software.svg', label: 'Software' }

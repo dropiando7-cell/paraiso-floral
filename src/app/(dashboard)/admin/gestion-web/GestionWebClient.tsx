@@ -55,6 +55,7 @@ import {
     ExternalLink
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import RD_CATEGORIES from './rd-categories.json';
 
 const SOMA_CATEGORIES = [
     { value: "analizador-de-coagulacion", label: "Analizador de Coagulación" },
@@ -589,7 +590,7 @@ export default function GestionWebClient({
         '[SISTEMA] Selecciona una categoría y haz clic en "Comenzar Importación".'
     ]);
     const logContainerRef = React.useRef<HTMLDivElement>(null);
-    const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts' | 'pukang' | 'joson' | 'aerti' | 'dre' | 'amcaremed'>('soma-tech');
+    const [scraperSource, setScraperSource] = useState<'soma-tech' | 'soma-parts' | 'pukang' | 'joson' | 'aerti' | 'dre' | 'amcaremed' | 'rd-batteries'>('soma-tech');
     const [selectedScrapeCategory, setSelectedScrapeCategory] = useState<string>('all');
     const [importedCategories, setImportedCategories] = useState<string[]>([]);
     const [categorySearch, setCategorySearch] = useState<string>('');
@@ -728,6 +729,12 @@ export default function GestionWebClient({
                 }
             }
             return 'https://amcaremed.com/product-center/?lang=es';
+        } else if (scraperSource === 'rd-batteries') {
+            if (selectedScrapeCategory === 'all') {
+                return 'https://www.rdbatteries.com/batteries/medical';
+            }
+            const path = RD_CATEGORIES.find(c => c.value === selectedScrapeCategory)?.path || '';
+            return `https://www.rdbatteries.com${path}`;
         } else {
             if (selectedScrapeCategory === 'all') {
                 return 'https://somamedicalparts.com/';
@@ -789,6 +796,12 @@ export default function GestionWebClient({
                         break;
                     }
                 }
+            }
+        } else if (scraperSource === 'rd-batteries') {
+            const found = RD_CATEGORIES.find(c => c.value === selectedScrapeCategory);
+            if (found) {
+                label = found.label;
+                isImported = importedCategories.includes(found.label);
             }
         } else {
             for (const group of SOMA_PARTS_CATEGORIES) {
@@ -952,7 +965,7 @@ export default function GestionWebClient({
         setProgressCurrent(0);
         setProgressTotal(0);
         setImportedCategorySlug(null);
-        setScraperLogs([`[SISTEMA] Iniciando conexión con el endpoint del scraper para ${scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : scraperSource === 'joson' ? 'Joson Care' : scraperSource === 'aerti' ? 'Aerti Oxygen' : scraperSource === 'dre' ? 'DRE Medical' : scraperSource === 'amcaremed' ? 'AmcareMed' : 'Soma Medical Parts'}...`]);
+        setScraperLogs([`[SISTEMA] Iniciando conexión con el endpoint del scraper para ${scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : scraperSource === 'joson' ? 'Joson Care' : scraperSource === 'aerti' ? 'Aerti Oxygen' : scraperSource === 'dre' ? 'DRE Medical' : scraperSource === 'amcaremed' ? 'AmcareMed' : scraperSource === 'rd-batteries' ? 'R&D Batteries' : 'Soma Medical Parts'}...`]);
         
         try {
             const endpoint = scraperSource === 'soma-tech' 
@@ -967,7 +980,9 @@ export default function GestionWebClient({
                                 ? '/api/admin/scrape-dre'
                                 : scraperSource === 'amcaremed'
                                     ? '/api/admin/scrape-amcaremed'
-                                    : '/api/admin/scrape-soma-parts';
+                                    : scraperSource === 'rd-batteries'
+                                        ? '/api/admin/scrape-rd'
+                                        : '/api/admin/scrape-soma-parts';
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -1047,6 +1062,9 @@ export default function GestionWebClient({
                                             break;
                                         }
                                     }
+                                } else if (scraperSource === 'rd-batteries') {
+                                    const found = RD_CATEGORIES.find(c => c.value === cat);
+                                    catLabel = found ? found.label : cat;
                                 } else {
                                     for (const group of SOMA_PARTS_CATEGORIES) {
                                         if (group.value === cat) {
@@ -2697,7 +2715,7 @@ export default function GestionWebClient({
                                     <select 
                                         value={scraperSource}
                                         onChange={(e) => {
-                                            setScraperSource(e.target.value as 'soma-tech' | 'soma-parts' | 'pukang' | 'joson' | 'aerti' | 'dre');
+                                            setScraperSource(e.target.value as 'soma-tech' | 'soma-parts' | 'pukang' | 'joson' | 'aerti' | 'dre' | 'amcaremed' | 'rd-batteries');
                                             setSelectedScrapeCategory('all');
                                         }}
                                         className="w-full text-xs p-2 border border-slate-200 rounded-lg bg-white font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-cyan-500"
@@ -2709,6 +2727,7 @@ export default function GestionWebClient({
                                         <option value="aerti">Aerti Oxygen (Equipos de Oxigenoterapia)</option>
                                         <option value="dre">DRE Medical (Equipos Médicos e Imagenología)</option>
                                         <option value="amcaremed">AmcareMed (Gases Medicinales y Quirófano)</option>
+                                        <option value="rd-batteries">R&D Batteries (Baterías Médicas y Lámparas)</option>
                                     </select>
                                 </div>
 
@@ -2723,6 +2742,15 @@ export default function GestionWebClient({
                                         <option value="all">Todas las Categorías</option>
                                         {scraperSource === 'soma-tech' ? (
                                             SOMA_CATEGORIES.map(cat => {
+                                                const isImported = importedCategories.includes(cat.label);
+                                                return (
+                                                    <option key={cat.value} value={cat.value}>
+                                                        {isImported ? `✓ ${cat.label}` : cat.label}
+                                                    </option>
+                                                );
+                                            })
+                                        ) : scraperSource === 'rd-batteries' ? (
+                                            RD_CATEGORIES.map(cat => {
                                                 const isImported = importedCategories.includes(cat.label);
                                                 return (
                                                     <option key={cat.value} value={cat.value}>
@@ -2817,7 +2845,7 @@ export default function GestionWebClient({
                                                 rel="noopener noreferrer" 
                                                 className="text-[#00A8CC] hover:underline font-semibold flex items-center gap-1 font-sans transition-colors hover:text-[#008ba8]"
                                             >
-                                                <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : scraperSource === 'joson' ? 'Joson Care' : scraperSource === 'aerti' ? 'Aerti Oxygen' : scraperSource === 'dre' ? 'DRE Medical' : scraperSource === 'amcaremed' ? 'AmcareMed' : 'Soma Parts'}</span>
+                                                <span>Ver en {scraperSource === 'soma-tech' ? 'Soma Tech' : scraperSource === 'pukang' ? 'Pukang Medical' : scraperSource === 'joson' ? 'Joson Care' : scraperSource === 'aerti' ? 'Aerti Oxygen' : scraperSource === 'dre' ? 'DRE Medical' : scraperSource === 'amcaremed' ? 'AmcareMed' : scraperSource === 'rd-batteries' ? 'R&D Batteries' : 'Soma Parts'}</span>
                                                 <ExternalLink size={10} />
                                             </a>
                                         </div>

@@ -141,7 +141,8 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                     { sku: { startsWith: 'JOSON-' } },
                     { sku: { startsWith: 'AERTI-' } },
                     { sku: { startsWith: 'DRE-' } },
-                    { sku: { startsWith: 'AMCARE-' } }
+                    { sku: { startsWith: 'AMCARE-' } },
+                    { sku: { startsWith: 'RD-' } }
                 ];
             } else if (!allowScrapedProducts) {
                 productWhere.AND = [
@@ -151,7 +152,8 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                     { sku: { not: { startsWith: 'JOSON-' } } },
                     { sku: { not: { startsWith: 'AERTI-' } } },
                     { sku: { not: { startsWith: 'DRE-' } } },
-                    { sku: { not: { startsWith: 'AMCARE-' } } }
+                    { sku: { not: { startsWith: 'AMCARE-' } } },
+                    { sku: { not: { startsWith: 'RD-' } } }
                 ];
             }
 
@@ -190,7 +192,7 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                 name: c.tituloWeb || c.nombre,
                 brand: (c.marca || 'GENÉRICO').trim(),
                 model: c.modelo || 'N/A',
-                code: c.sku ? c.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-|AMCARE-)/, '') : '',
+                code: c.sku ? c.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-|AMCARE-|RD-)/, '') : '',
                 imageUrl: c.imagenWeb || null,
                 type: 'producto' as const,
                 typeName: c.sku.startsWith('SOMA-') 
@@ -205,9 +207,11 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
                                     ? (c.categoria || 'Equipos Médicos Quirúrgicos DRE')
                                     : c.sku.startsWith('AMCARE-')
                                         ? (c.categoria || 'Gases Medicinales y Quirófano')
-                                        : c.sku.startsWith('REP-') 
-                                            ? `Repuesto / ${c.categoria || 'Accesorios'}` 
-                                            : 'Consumible / Repuesto',
+                                        : c.sku.startsWith('RD-')
+                                            ? `Baterías / ${c.categoria || 'Baterías Médicas'}`
+                                            : c.sku.startsWith('REP-') 
+                                                ? `Repuesto / ${c.categoria || 'Accesorios'}` 
+                                                : 'Consumible / Repuesto',
                 category: (c.categoria || 'CONSUMIBLES').trim(),
                 hidden: c.estado === 'OCULTO',
             }))

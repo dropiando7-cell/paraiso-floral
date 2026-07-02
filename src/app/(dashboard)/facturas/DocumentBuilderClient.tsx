@@ -298,7 +298,7 @@ function LineItemRow({
   const inputDescSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[10px]' : 'text-xs';
   const descStyle = isDescNum ? { fontSize: `${settings.itemDescFontSize}px` } as React.CSSProperties : undefined;
 
-  const isServiceIcon = item.imageUrl?.includes('/services/');
+  const isServiceIcon = item.imageUrl?.includes('/services/') && item.imageUrl?.endsWith('.svg');
   const renderImage = () => {
     if (!item.imageUrl) return <Package size={14} className="text-slate-300" />;
     if (isServiceIcon) {

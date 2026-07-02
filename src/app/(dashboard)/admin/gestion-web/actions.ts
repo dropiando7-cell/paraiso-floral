@@ -344,7 +344,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                 { sku: { startsWith: 'JOSON-' } },
                 { sku: { startsWith: 'AERTI-' } },
                 { sku: { startsWith: 'DRE-' } },
-                { sku: { startsWith: 'AMCARE-' } }
+                { sku: { startsWith: 'AMCARE-' } },
+                { sku: { startsWith: 'RD-' } }
             ];
         } else if (sourceFilter === 'own') {
             if (!productsWhere.AND) {
@@ -357,7 +358,8 @@ export async function getPaginatedInventoryItems(page: number, limit: number, qu
                 { sku: { not: { startsWith: 'JOSON-' } } },
                 { sku: { not: { startsWith: 'AERTI-' } } },
                 { sku: { not: { startsWith: 'DRE-' } } },
-                { sku: { not: { startsWith: 'AMCARE-' } } }
+                { sku: { not: { startsWith: 'AMCARE-' } } },
+                { sku: { not: { startsWith: 'RD-' } } }
             );
         }
 
@@ -794,7 +796,8 @@ export async function getImportedCategories() {
                     { sku: { startsWith: 'JOSON-' } },
                     { sku: { startsWith: 'AERTI-' } },
                     { sku: { startsWith: 'DRE-' } },
-                    { sku: { startsWith: 'AMCARE-' } }
+                    { sku: { startsWith: 'AMCARE-' } },
+                    { sku: { startsWith: 'RD-' } }
                 ]
             },
             select: {

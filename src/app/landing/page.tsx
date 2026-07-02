@@ -115,7 +115,8 @@ async function getLandingData() {
                             { sku: { startsWith: 'JOSON-' } },
                             { sku: { startsWith: 'AERTI-' } },
                             { sku: { startsWith: 'DRE-' } },
-                            { sku: { startsWith: 'AMCARE-' } }
+                            { sku: { startsWith: 'AMCARE-' } },
+                            { sku: { startsWith: 'RD-' } }
                         ]
                     },
                     take: 4,
@@ -134,7 +135,7 @@ async function getLandingData() {
                     descripcionCorta: p.nombre,
                     marca: p.marca || 'GENÉRICO',
                     modelo: p.modelo || 'N/A',
-                    idQr: p.sku ? p.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-|AMCARE-)/, '') : '',
+                    idQr: p.sku ? p.sku.replace(/^(SOMA-|PUKANG-|JOSON-|AERTI-|DRE-|AMCARE-|RD-)/, '') : '',
                     imagenUrl: p.imagenWeb || null,
                     category: p.categoria || 'consumibles'
                 }));
@@ -221,7 +222,8 @@ async function getLandingData() {
                         { sku: { startsWith: 'JOSON-' } },
                         { sku: { startsWith: 'AERTI-' } },
                         { sku: { startsWith: 'DRE-' } },
-                        { sku: { startsWith: 'AMCARE-' } }
+                        { sku: { startsWith: 'AMCARE-' } },
+                        { sku: { startsWith: 'RD-' } }
                     ];
                 } else if (!allowScrapedProducts) {
                     productWhere.AND = [
@@ -231,7 +233,8 @@ async function getLandingData() {
                         { sku: { not: { startsWith: 'JOSON-' } } },
                         { sku: { not: { startsWith: 'AERTI-' } } },
                         { sku: { not: { startsWith: 'DRE-' } } },
-                        { sku: { not: { startsWith: 'AMCARE-' } } }
+                        { sku: { not: { startsWith: 'AMCARE-' } } },
+                        { sku: { not: { startsWith: 'RD-' } } }
                     ];
                 }
 
