@@ -2883,14 +2883,14 @@ export default function DocumentBuilderClient({
                   </button>
                   <button
                     onClick={() => handleDownloadPDF('garantia')}
-                    disabled={isDownloadingPDF || !ordenEntrega.aplicaMantenimientos}
+                    disabled={isDownloadingPDF}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl text-xs font-black shadow transition-all hover:shadow-lg disabled:opacity-50"
                   >
                     <Download size={13} /> Descargar Certificado de Garantía
                   </button>
                   {!ordenEntrega.aplicaMantenimientos && (
                     <p className="text-[10px] text-amber-500 font-medium text-center">
-                      * Habilita el calendario de mantenimientos para descargar la garantía
+                      * Habilita el calendario de mantenimientos para incluir el cronograma de visitas preventivas
                     </p>
                   )}
                 </div>

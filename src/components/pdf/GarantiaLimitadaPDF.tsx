@@ -266,7 +266,11 @@ const formatGarantia = (garantia: any) => {
   if (!garantia) return 'Sin garantía';
   const str = String(garantia).trim();
   if (/^\d+$/.test(str)) {
-    return `${str} meses`;
+    const val = parseInt(str, 10);
+    if (val <= 5) {
+      return `${val} ${val === 1 ? 'año' : 'años'}`;
+    }
+    return `${val} meses`;
   }
   return str;
 };

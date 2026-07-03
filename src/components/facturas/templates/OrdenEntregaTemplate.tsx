@@ -78,24 +78,24 @@ export default function OrdenEntregaTemplate({
         <div className="border-b-2 border-black pb-0.5 mb-2">
           <h2 className="text-xs font-bold uppercase tracking-wider">INFORMACIÓN DEL CLIENTE</h2>
         </div>
-        <div className="grid grid-cols-[1fr_auto_1fr] gap-4 text-[11px]">
+        <div className="grid grid-cols-[1fr_auto_1fr] gap-4 text-[11px] min-w-0">
           {/* Col 1 */}
-          <div className="space-y-1.5">
-            <div className="flex items-end">
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex items-end min-w-0">
               <span className="font-bold w-20 border-b border-black pb-0.5 shrink-0">CLIENTE</span>
-              <span className="flex-1 border-b border-black border-dashed pb-0.5 pl-2 truncate font-semibold uppercase">
+              <span className="flex-1 border-b border-black border-dashed pb-0.5 pl-2 truncate font-semibold uppercase min-w-0 text-left">
                 {selectedClient?.name || '—'}
               </span>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end min-w-0">
               <span className="font-bold w-20 border-b border-black pb-0.5 shrink-0">CELULAR</span>
-              <span className="flex-1 border-b border-black border-dashed pb-0.5 pl-2 font-semibold">
+              <span className="flex-1 border-b border-black border-dashed pb-0.5 pl-2 font-semibold min-w-0 text-left">
                 {selectedClient?.phone || '—'}
               </span>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end min-w-0">
               <span className="font-bold w-20 border-b border-black pb-0.5 shrink-0">RTN</span>
-              <span className="flex-1 border-b border-black border-dashed pb-0.5 pl-2 font-mono font-semibold">
+              <span className="flex-1 border-b border-black border-dashed pb-0.5 pl-2 font-mono font-semibold min-w-0 text-left">
                 {selectedClient?.rtn || '—'}
               </span>
             </div>
@@ -105,16 +105,16 @@ export default function OrdenEntregaTemplate({
           <div className="w-[1.5px] bg-black self-stretch my-0.5"></div>
 
           {/* Col 2 */}
-          <div className="space-y-1.5">
-            <div className="flex items-end">
+          <div className="space-y-1.5 min-w-0">
+            <div className="flex items-end min-w-0">
               <span className="font-bold w-20 border-b border-black pb-0.5 shrink-0">ATENCIÓN</span>
-              <span className="flex-1 border-b border-black border-dashed pb-0.5 pl-2 font-semibold uppercase">
+              <span className="flex-1 border-b border-black border-dashed pb-0.5 pl-2 font-semibold uppercase min-w-0 text-left">
                 {nombreUsuario || '—'}
               </span>
             </div>
-            <div className="flex items-end">
+            <div className="flex items-end min-w-0">
               <span className="font-bold w-20 border-b border-black pb-0.5 shrink-0">DIRECCIÓN</span>
-              <span className="flex-1 border-b border-black border-dashed pb-0.5 pl-2 truncate font-semibold uppercase" title={selectedClient?.address || ''}>
+              <span className="flex-1 border-b border-black border-dashed pb-0.5 pl-2 truncate font-semibold uppercase min-w-0 text-left" title={selectedClient?.address || ''}>
                 {selectedClient?.address || '—'}
               </span>
             </div>
