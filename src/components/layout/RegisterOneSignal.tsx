@@ -148,7 +148,34 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
         localStorage.setItem('onesignal_banner_dismissed', 'true');
     };
 
-    if (!appId) return null;
+    if (!appId) {
+        if (showBanner) {
+            return (
+                <div className="fixed bottom-6 right-6 z-[9999] max-w-sm w-full bg-slate-900 text-white rounded-2xl shadow-2xl border border-rose-900/50 p-5 flex flex-col gap-4 animate-in slide-in-from-bottom duration-300">
+                    <button 
+                        onClick={handleDismiss}
+                        className="absolute top-3.5 right-3.5 text-slate-450 hover:text-white p-1 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        aria-label="Cerrar"
+                    >
+                        <X size={15} />
+                    </button>
+
+                    <div className="flex gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center shrink-0">
+                            <ShieldAlert className="w-5 h-5 text-rose-450 animate-pulse" />
+                        </div>
+                        <div className="space-y-1 pr-4">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-rose-300">Falta Configuración</h4>
+                            <p className="text-[11px] text-slate-350 leading-relaxed font-sans">
+                                No se pudo inicializar OneSignal en producción porque la variable <code className="bg-slate-950 px-1 py-0.5 rounded text-rose-400 font-mono text-[9px]">NEXT_PUBLIC_ONESIGNAL_APP_ID</code> no está configurada en tu panel de Vercel.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+        return null;
+    }
 
     return (
         <>

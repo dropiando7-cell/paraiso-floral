@@ -11,7 +11,8 @@ import {
     XCircle,
     UserCheck,
     Link as LinkIcon,
-    AlertCircle
+    AlertCircle,
+    ShieldAlert
 } from 'lucide-react';
 import { getNotificationsAdminData, sendManualNotification } from './actions';
 import toast from 'react-hot-toast';
@@ -20,6 +21,12 @@ export default function NotificationsAdminPage() {
     const [loading, setLoading] = useState(true);
     const [sending, setSending] = useState(false);
     const [adminData, setAdminData] = useState<any>(null);
+
+    // Diagnostics states
+    const [diagAppId, setDiagAppId] = useState<string | null>(null);
+    const [diagSdkLoaded, setDiagSdkLoaded] = useState(false);
+    const [diagPermission, setDiagPermission] = useState<string>('unknown');
+    const [diagSubscriptionId, setDiagSubscriptionId] = useState<string | null>(null);
 
     // Form states
     const [targetType, setTargetType] = useState<'all' | 'specific'>('all');
@@ -42,6 +49,77 @@ export default function NotificationsAdminPage() {
     useEffect(() => {
         loadData();
     }, []);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const updateDiagnostics = async () => {
+            const appId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID || null;
+            setDiagAppId(appId);
+
+            const sdkLoaded = !!(window as any).OneSignal;
+            setDiagSdkLoaded(sdkLoaded);
+
+            if (sdkLoaded && (window as any).OneSignal) {
+                (window as any).OneSignal.push(async () => {
+                    const os = (window as any).OneSignal;
+                    const subId = os.User?.PushSubscription?.id || 
+                                  (os.getUserId ? await os.getUserId() : null);
+                    setDiagSubscriptionId(subId);
+                });
+            }
+
+            if (typeof Notification !== 'undefined') {
+                setDiagPermission(Notification.permission);
+            }
+        };
+
+        updateDiagnostics();
+        const interval = setInterval(updateDiagnostics, 3000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleForceBanner = () => {
+        if (typeof window !== 'undefined' && (window as any).showOneSignalBanner) {
+            (window as any).showOneSignalBanner();
+            toast.success('Forzando banner de suscripción...');
+        } else {
+            toast.error('El cargador de banner no está disponible. Asegúrate de que el script SDK no esté bloqueado.');
+        }
+    };
+
+    const handleRequestNativePermission = () => {
+        if (typeof window !== 'undefined' && (window as any).OneSignal) {
+            const os = (window as any).OneSignal;
+            os.push(async () => {
+                try {
+                    let granted = false;
+                    if (os.Notifications?.requestPermission) {
+                        granted = await os.Notifications.requestPermission();
+                    } else if (os.registerForPushNotifications) {
+                        await os.registerForPushNotifications();
+                        granted = true;
+                    }
+                    if (granted) {
+                        toast.success('Permiso concedido');
+                    } else {
+                        toast.error('Permiso no concedido');
+                    }
+                } catch (err: any) {
+                    toast.error('Error al solicitar permiso: ' + err.message);
+                }
+            });
+        } else {
+            toast.error('SDK de OneSignal no disponible en la página.');
+        }
+    };
+
+    const handleClearDismissCache = () => {
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('onesignal_banner_dismissed');
+            toast.success('Caché de descarte local eliminada.');
+        }
+    };
 
     const handleUserSelectToggle = (userId: string) => {
         setSelectedUserIds(prev => 
@@ -169,119 +247,237 @@ export default function NotificationsAdminPage() {
             {/* Main Area */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
                 
-                {/* Form Column */}
-                <form onSubmit={handleSend} className="lg:col-span-1 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
-                    <h3 className="font-bold text-sm text-slate-800 border-b border-slate-100 pb-3">Enviar Alerta Manual</h3>
-                    
-                    {/* Destination Selection */}
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">Destinatarios</label>
-                        <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-150 select-none">
-                            <button
-                                type="button"
-                                onClick={() => setTargetType('all')}
-                                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${targetType === 'all' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
-                            >
-                                Todos (Broadcast)
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setTargetType('specific')}
-                                className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${targetType === 'specific' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
-                            >
-                                Seleccionar Técnicos
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Specific target list selector */}
-                    {targetType === 'specific' && (
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-bold text-slate-455 uppercase tracking-wider block">
-                                Seleccionar Destinatarios ({selectedUserIds.length})
-                            </label>
-                            <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-xl p-2.5 divide-y divide-slate-100 bg-slate-50/20 custom-scrollbar space-y-0.5">
-                                {users.map((user: any) => {
-                                    const isSelected = selectedUserIds.includes(user.id);
-                                    return (
-                                        <label 
-                                            key={user.id} 
-                                            className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors text-xs font-semibold ${isSelected ? 'bg-cyan-50/20 text-cyan-800' : 'hover:bg-slate-50 text-slate-650'}`}
-                                        >
-                                            <div className="flex items-center gap-2">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    onChange={() => handleUserSelectToggle(user.id)}
-                                                    className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 cursor-pointer w-3.5 h-3.5"
-                                                />
-                                                <span>{user.nombre || 'Sin nombre'} {user.apellido || ''}</span>
-                                            </div>
-                                            {user.oneSignalSubscriptionId && (
-                                                <span className="text-[9px] bg-emerald-50 text-emerald-600 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider scale-90">Push</span>
-                                            )}
-                                        </label>
-                                    );
-                                })}
+                {/* Form Column & Diagnostics Column */}
+                <div className="lg:col-span-1 space-y-6">
+                    <form onSubmit={handleSend} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                        <h3 className="font-bold text-sm text-slate-800 border-b border-slate-100 pb-3">Enviar Alerta Manual</h3>
+                        
+                        {/* Destination Selection */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-455 uppercase tracking-wider block">Destinatarios</label>
+                            <div className="flex bg-slate-50 p-1 rounded-xl border border-slate-150 select-none">
+                                <button
+                                    type="button"
+                                    onClick={() => setTargetType('all')}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${targetType === 'all' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    Todos (Broadcast)
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setTargetType('specific')}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${targetType === 'specific' ? 'bg-white text-slate-800 shadow-sm border border-slate-200/50' : 'text-slate-500 hover:text-slate-800'}`}
+                                >
+                                    Seleccionar Técnicos
+                                </button>
                             </div>
                         </div>
-                    )}
 
-                    {/* Notification Title */}
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">Título de la Alerta</label>
-                        <input
-                            type="text"
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            placeholder="Ej: Nueva Orden Asignada"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl text-xs py-2.5 px-3.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 font-semibold"
-                            required
-                        />
+                        {/* Specific target list selector */}
+                        {targetType === 'specific' && (
+                            <div className="space-y-1.5">
+                                <label className="text-[10px] font-bold text-slate-455 uppercase tracking-wider block">
+                                    Seleccionar Destinatarios ({selectedUserIds.length})
+                                </label>
+                                <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-xl p-2.5 divide-y divide-slate-100 bg-slate-50/20 custom-scrollbar space-y-0.5">
+                                    {users.map((user: any) => {
+                                        const isSelected = selectedUserIds.includes(user.id);
+                                        return (
+                                            <label 
+                                                key={user.id} 
+                                                className={`flex items-center justify-between p-2 rounded-lg cursor-pointer transition-colors text-xs font-semibold ${isSelected ? 'bg-cyan-50/20 text-cyan-800' : 'hover:bg-slate-50 text-slate-650'}`}
+                                            >
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isSelected}
+                                                        onChange={() => handleUserSelectToggle(user.id)}
+                                                        className="rounded border-slate-300 text-cyan-600 focus:ring-cyan-500 cursor-pointer w-3.5 h-3.5"
+                                                    />
+                                                    <span>{user.nombre || 'Sin nombre'} {user.apellido || ''}</span>
+                                                </div>
+                                                {user.oneSignalSubscriptionId && (
+                                                    <span className="text-[9px] bg-emerald-50 text-emerald-600 font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider scale-90">Push</span>
+                                                )}
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Notification Title */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">Título de la Alerta</label>
+                            <input
+                                type="text"
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                placeholder="Ej: Nueva Orden Asignada"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl text-xs py-2.5 px-3.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 font-semibold"
+                                required
+                            />
+                        </div>
+
+                        {/* Notification Message */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">Mensaje / Contenido</label>
+                            <textarea
+                                value={message}
+                                onChange={(e) => setMessage(e.target.value)}
+                                placeholder="Escribe el cuerpo del mensaje aquí..."
+                                rows={3}
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl text-xs py-2.5 px-3.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 font-semibold font-sans leading-relaxed resize-none"
+                                required
+                            />
+                        </div>
+
+                        {/* Redirection Link */}
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-455 uppercase tracking-wider block flex items-center gap-1">
+                                <LinkIcon size={10} />
+                                <span>Enlace de Redirección (Opcional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={link}
+                                onChange={(e) => setLink(e.target.value)}
+                                placeholder="Ej: /soporte o /kanban"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl text-xs py-2.5 px-3.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 font-semibold"
+                            />
+                        </div>
+
+                        {/* Submit Button */}
+                        <button
+                            type="submit"
+                            disabled={sending}
+                            className={`w-full py-2.5 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer ${
+                                sending 
+                                    ? 'bg-slate-400 cursor-not-allowed' 
+                                    : 'bg-brand-600 hover:bg-brand-700 active:scale-95 shadow-brand-500/10'
+                            }`}
+                        >
+                            <Send size={13} />
+                            <span>{sending ? 'Despachando Alertas...' : 'Despachar Notificaciones'}</span>
+                        </button>
+                    </form>
+
+                    {/* Diagnostics Panel */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
+                        <h3 className="font-bold text-xs text-slate-800 border-b border-slate-100 pb-3 flex items-center justify-between uppercase tracking-wider">
+                            <span>Diagnóstico Push (Tu Navegador)</span>
+                            <span className="w-2 h-2 rounded-full bg-cyan-500 animate-pulse" />
+                        </h3>
+
+                        <div className="space-y-2.5 text-xs">
+                            {/* App ID Status */}
+                            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                                <span className="font-semibold text-slate-500 text-[10px]">App ID (Vercel)</span>
+                                {diagAppId ? (
+                                    <span className="font-mono bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded text-[9px] truncate max-w-[130px]" title={diagAppId}>
+                                        {diagAppId.substring(0, 8)}...
+                                    </span>
+                                ) : (
+                                    <span className="font-bold bg-rose-50 text-rose-700 px-2 py-0.5 rounded text-[9px] uppercase tracking-wider">
+                                        No configurado
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* SDK Status */}
+                            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                                <span className="font-semibold text-slate-500 text-[10px]">SDK OneSignal</span>
+                                {diagSdkLoaded ? (
+                                    <span className="font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[9px] uppercase tracking-wider">
+                                        Cargado
+                                    </span>
+                                ) : (
+                                    <span className="font-bold bg-rose-50 text-rose-700 px-2 py-0.5 rounded text-[9px] uppercase tracking-wider">
+                                        No Detectado
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Browser Permission Status */}
+                            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                                <span className="font-semibold text-slate-500 text-[10px]">Permiso Navegador</span>
+                                {diagPermission === 'granted' ? (
+                                    <span className="font-bold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded text-[9px] uppercase tracking-wider">
+                                        Permitido
+                                    </span>
+                                ) : diagPermission === 'denied' ? (
+                                    <span className="font-bold bg-rose-50 text-rose-700 px-2 py-0.5 rounded text-[9px] uppercase tracking-wider">
+                                        Bloqueado
+                                    </span>
+                                ) : (
+                                    <span className="font-bold bg-amber-50 text-amber-700 px-2 py-0.5 rounded text-[9px] uppercase tracking-wider">
+                                        No Solicitado
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Subscription Status */}
+                            <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                                <span className="font-semibold text-slate-500 text-[10px]">Suscripción Push</span>
+                                {diagSubscriptionId ? (
+                                    <span className="font-mono bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded text-[9px] truncate max-w-[130px]" title={diagSubscriptionId}>
+                                        {diagSubscriptionId.substring(0, 8)}...
+                                    </span>
+                                ) : (
+                                    <span className="font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[9px] uppercase tracking-wider">
+                                        Inactiva
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Warning for Brave / Adblockers */}
+                            {!diagSdkLoaded && (
+                                <div className="p-3 bg-amber-50 border border-amber-100 rounded-xl text-amber-800 text-[10px] leading-relaxed">
+                                    <p className="font-bold flex items-center gap-1 mb-0.5 text-amber-900">
+                                        <AlertCircle size={11} />
+                                        <span>¿Usas Brave o Adblockers?</span>
+                                    </p>
+                                    Brave Shields y los adblockers bloquean la carga del SDK de OneSignal por defecto. Desactiva los escudos para esta página para probar notificaciones push.
+                                </div>
+                            )}
+
+                            {diagAppId && !diagSdkLoaded && (
+                                <div className="p-3 bg-rose-50 border border-rose-100 rounded-xl text-rose-800 text-[10px] leading-relaxed">
+                                    <p className="font-bold mb-0.5 text-rose-900 flex items-center gap-1">
+                                        <ShieldAlert size={11} />
+                                        <span>SDK no cargado</span>
+                                    </p>
+                                    Aunque la variable está configurada, el SDK de OneSignal no ha podido cargarse. Revisa la consola de desarrollador (F12) por errores de red.
+                                </div>
+                            )}
+
+                            {/* Diagnostics Actions */}
+                            <div className="grid grid-cols-1 gap-2 pt-2 border-t border-slate-100">
+                                <button
+                                    onClick={handleForceBanner}
+                                    type="button"
+                                    className="w-full py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold rounded-xl transition-all text-[10px] active:scale-95 border border-slate-200 cursor-pointer text-center uppercase tracking-wider"
+                                >
+                                    Forzar Banner
+                                </button>
+                                <button
+                                    onClick={handleRequestNativePermission}
+                                    type="button"
+                                    className="w-full py-2 bg-gradient-to-r from-brand-500/10 to-cyan-500/10 hover:from-brand-500/20 hover:to-cyan-500/20 text-brand-700 font-bold rounded-xl transition-all text-[10px] active:scale-95 cursor-pointer text-center border border-brand-500/20 uppercase tracking-wider"
+                                >
+                                    Solicitar Permiso Nativo
+                                </button>
+                                <button
+                                    onClick={handleClearDismissCache}
+                                    type="button"
+                                    className="w-full py-1.5 text-slate-400 hover:text-slate-650 transition-colors text-[9px] text-center"
+                                >
+                                    Limpiar descarte de banner
+                                </button>
+                            </div>
+                        </div>
                     </div>
-
-                    {/* Notification Message */}
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-450 uppercase tracking-wider block">Mensaje / Contenido</label>
-                        <textarea
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            placeholder="Escribe el cuerpo del mensaje aquí..."
-                            rows={3}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl text-xs py-2.5 px-3.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 font-semibold font-sans leading-relaxed resize-none"
-                            required
-                        />
-                    </div>
-
-                    {/* Redirection Link */}
-                    <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-455 uppercase tracking-wider block flex items-center gap-1">
-                            <LinkIcon size={10} />
-                            <span>Enlace de Redirección (Opcional)</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={link}
-                            onChange={(e) => setLink(e.target.value)}
-                            placeholder="Ej: /soporte o /kanban"
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl text-xs py-2.5 px-3.5 text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand-500 focus:border-brand-500 font-semibold"
-                        />
-                    </div>
-
-                    {/* Submit Button */}
-                    <button
-                        type="submit"
-                        disabled={sending}
-                        className={`w-full py-2.5 text-white text-xs font-bold rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer ${
-                            sending 
-                                ? 'bg-slate-400 cursor-not-allowed' 
-                                : 'bg-brand-600 hover:bg-brand-700 active:scale-95 shadow-brand-500/10'
-                        }`}
-                    >
-                        <Send size={13} />
-                        <span>{sending ? 'Despachando Alertas...' : 'Despachar Notificaciones'}</span>
-                    </button>
-                </form>
+                </div>
 
                 {/* Users List Column */}
                 <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-4">
