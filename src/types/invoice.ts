@@ -75,6 +75,8 @@ export interface InvoiceSettings {
   signaturesLibrary?: string[];
   sealsLibrary?: string[];
   companySealUrl?: string;
+  companySealX?: number;
+  companySealY?: number;
   // Terms and observations for quote
   showTerms?: boolean;
   advancePercentage?: number;

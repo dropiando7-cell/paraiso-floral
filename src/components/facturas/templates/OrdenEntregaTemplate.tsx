@@ -274,8 +274,13 @@ export default function OrdenEntregaTemplate({
           {/* Seal of Bioelectrónica */}
           {showSeals && (
             <div 
-              className="absolute right-8 top-0 pointer-events-none transform rotate-[-8deg] select-none z-10"
-              style={{ width: `${sealSize}px`, height: `${sealSize}px` }}
+              className="absolute pointer-events-none transform rotate-[-8deg] select-none z-10"
+              style={{ 
+                width: `${sealSize}px`, 
+                height: `${sealSize}px`,
+                right: `${8 - (settings.companySealX || 0)}px`,
+                top: `${0 + (settings.companySealY || 0)}px`
+              }}
             >
               <img 
                 src="/firmas-sellos/SELLO DE BIOELECTRONICA.png" 

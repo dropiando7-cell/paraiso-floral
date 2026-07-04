@@ -551,7 +551,8 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
                     src={images['seal_company']} 
                     style={{ 
                       position: 'absolute', 
-                      top: -20 + (typeof settings.signatureSpacing === 'number' ? settings.signatureSpacing : 39), 
+                      top: -20 + (typeof settings.signatureSpacing === 'number' ? settings.signatureSpacing : 39) + (settings.companySealY || 0), 
+                      left: (settings.companySealX || 0),
                       width: settings.sealSize || 180, 
                       height: settings.sealSize || 180, 
                       opacity: 0.75 

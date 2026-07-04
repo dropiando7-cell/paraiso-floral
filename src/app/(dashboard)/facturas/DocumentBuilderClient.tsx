@@ -69,7 +69,7 @@ interface Product {
   serie?: string | null;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings } from './actions';
 import { createContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
@@ -2893,31 +2893,107 @@ export default function DocumentBuilderClient({
                       )}
 
                       {ordenEntrega.mostrarSello !== false && (
-                        <div className="space-y-1.5">
-                          <div className="flex justify-between items-center text-xs text-slate-600">
-                            <span className="font-semibold">Tamaño del Sello:</span>
-                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.sealSize ?? 112}px</span>
+                        <>
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center text-xs text-slate-600">
+                              <span className="font-semibold">Tamaño del Sello:</span>
+                              <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.sealSize ?? 112}px</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="50"
+                              max="180"
+                              value={settings.sealSize ?? 112}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const newSettings = { ...settings, sealSize: val };
+                                setSettings(newSettings);
+                              }}
+                              onMouseUp={() => {
+                                handleSaveTemplateSettings(settings);
+                              }}
+                              onTouchEnd={() => {
+                                handleSaveTemplateSettings(settings);
+                              }}
+                              className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                            />
                           </div>
-                          <input
-                            type="range"
-                            min="50"
-                            max="180"
-                            value={settings.sealSize ?? 112}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              const newSettings = { ...settings, sealSize: val };
-                              setSettings(newSettings);
-                            }}
-                            onMouseUp={() => {
-                              handleSaveTemplateSettings(settings);
-                            }}
-                            onTouchEnd={() => {
-                              handleSaveTemplateSettings(settings);
-                            }}
-                            className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
-                          />
-                        </div>
+
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center text-xs text-slate-600">
+                              <span className="font-semibold">Ajuste Horizontal Sello (Mover Izq/Der):</span>
+                              <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.companySealX ?? 0}px</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="-300"
+                              max="150"
+                              step="2"
+                              value={settings.companySealX ?? 0}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const newSettings = { ...settings, companySealX: val };
+                                setSettings(newSettings);
+                              }}
+                              onMouseUp={() => {
+                                handleSaveTemplateSettings(settings);
+                              }}
+                              onTouchEnd={() => {
+                                handleSaveTemplateSettings(settings);
+                              }}
+                              className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                            />
+                          </div>
+
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between items-center text-xs text-slate-600">
+                              <span className="font-semibold">Ajuste Vertical Sello (Subir/Bajar):</span>
+                              <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.companySealY ?? 0}px</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="-200"
+                              max="200"
+                              step="2"
+                              value={settings.companySealY ?? 0}
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                const newSettings = { ...settings, companySealY: val };
+                                setSettings(newSettings);
+                              }}
+                              onMouseUp={() => {
+                                handleSaveTemplateSettings(settings);
+                              }}
+                              onTouchEnd={() => {
+                                handleSaveTemplateSettings(settings);
+                              }}
+                              className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                            />
+                          </div>
+                        </>
                       )}
+
+                      <div className="pt-3 border-t border-slate-200/60">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const toastId = toast.loading('Guardando ajustes como predeterminados para toda la empresa...');
+                            try {
+                              const res = await updateOrganizationDefaultSettings(settings);
+                              if (res.success) {
+                                toast.success('¡Ajustes establecidos como predeterminados con éxito!', { id: toastId });
+                              } else {
+                                throw new Error(res.error);
+                              }
+                            } catch (err: any) {
+                              toast.error(err.message || 'Error al guardar predeterminados', { id: toastId });
+                            }
+                          }}
+                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-all text-xs flex items-center justify-center gap-1.5 shadow active:scale-[0.98] cursor-pointer"
+                        >
+                          💾 Guardar Diseño como Predeterminado
+                        </button>
+                      </div>
                     </div>
                   </div>
 

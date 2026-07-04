@@ -1143,3 +1143,22 @@ export async function updateDocumentTemplateSettings(facturaId: string, settings
         return { success: false, error: error.message || "Error al guardar" };
     }
 }
+
+export async function updateOrganizationDefaultSettings(settings: any) {
+    try {
+        const user = await getAuthenticatedUser();
+        const organizationId = user.organizationId;
+
+        await prisma.organization.update({
+            where: { id: organizationId },
+            data: {
+                invoiceSettings: settings ? JSON.parse(JSON.stringify(settings)) : null
+            }
+        });
+
+        return { success: true };
+    } catch (error: any) {
+        console.error("Error al actualizar default settings de organizacion:", error);
+        return { success: false, error: error.message || "Error al guardar" };
+    }
+}
