@@ -1222,6 +1222,19 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
                                 <span className="text-[10px] font-bold text-blue-600 hover:text-blue-700">Cambiar</span>
                               </div>
                             </div>
+                            <div className="space-y-1 pt-1.5 border-t border-slate-200 mt-2">
+                              <div className="flex justify-between items-center text-[10px] text-slate-500">
+                                <span>Alineación Vertical Individual:</span>
+                                <span className="font-bold text-slate-700">{sig.offsetY ?? 0}px</span>
+                              </div>
+                              <input 
+                                type="range" 
+                                min="-60" max="60" step="1"
+                                value={sig.offsetY ?? 0}
+                                onChange={e => updateSignature(idx, 'offsetY', Number(e.target.value))}
+                                className="w-full accent-blue-600 cursor-pointer h-1 bg-slate-200 rounded-lg appearance-none"
+                              />
+                            </div>
                           </div>
                         )}
                       </div>

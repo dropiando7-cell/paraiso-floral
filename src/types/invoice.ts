@@ -8,6 +8,7 @@ export interface SignatureItem {
   role: string;
   imageUrl: string;
   enabled: boolean;
+  offsetY?: number;
 }
 
 export interface InvoiceSettings {

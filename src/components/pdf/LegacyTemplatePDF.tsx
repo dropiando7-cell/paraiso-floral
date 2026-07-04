@@ -582,7 +582,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                           height: settings.signatureHeight || 64, 
                           objectFit: 'contain', 
                           position: 'relative', 
-                          top: settings.signatureSpacing || 0 
+                          top: (settings.signatureSpacing || 0) + (sig.offsetY || 0)
                         }} 
                       />
                     )}

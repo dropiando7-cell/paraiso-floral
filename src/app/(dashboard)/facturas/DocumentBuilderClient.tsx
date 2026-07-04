@@ -8,7 +8,8 @@ import {
   Package, Stethoscope, Zap, CheckCircle2, Clock, AlertCircle,
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
-  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, Pencil
+  Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, Pencil,
+  Smartphone, Loader2, UploadCloud
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
 
@@ -79,7 +80,7 @@ import ClassicTemplate from '@/components/facturas/templates/ClassicTemplate';
 import MinimalistTemplate from '@/components/facturas/templates/MinimalistTemplate';
 import LegacyTemplate from '@/components/facturas/templates/LegacyTemplate';
 import OrdenEntregaTemplate from '@/components/facturas/templates/OrdenEntregaTemplate';
-import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
+import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS, SignatureItem } from '@/types/invoice';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
 import { convertirDocumento } from './actions';
 import { ActivoModal } from '../inventario/InventarioClient';
@@ -1030,6 +1031,95 @@ export default function DocumentBuilderClient({
     if (organization?.invoiceSettings) return { ...DEFAULT_INVOICE_SETTINGS, ...organization.invoiceSettings };
     return DEFAULT_INVOICE_SETTINGS;
   });
+
+  const [activeLibraryType, setActiveLibraryType] = useState<'signature' | 'seal' | null>(null);
+  const [activeSigIndex, setActiveSigIndex] = useState<number | null>(null);
+  const [activeSealField, setActiveSealField] = useState<'company' | 'status' | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [showShareSignatureModal, setShowShareSignatureModal] = useState(false);
+
+  const signaturesList = settings.signaturesList || [
+    { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: settings.showEmiliaZapata !== false },
+    { id: 'manuel', name: 'Ing. Manuel Tejada', role: 'Gerente General', imageUrl: '/firmas-sellos/firma Ing Manuel Tejada.png', enabled: settings.showManuelTejada !== false }
+  ];
+
+  const signaturesLibrary = settings.signaturesLibrary || [
+    '/firmas-sellos/firma emilia zapata.png',
+    '/firmas-sellos/firma Ing Manuel Tejada.png'
+  ];
+
+  const sealsLibrary = settings.sealsLibrary || [
+    '/firmas-sellos/SELLO DE BIOELECTRONICA.png',
+    '/firmas-sellos/SELLO DE ENTREGADO.png',
+    '/firmas-sellos/SELLO DE CANCELADO.png'
+  ];
+
+  const updateSignature = (index: number, field: keyof SignatureItem, value: any) => {
+    const updated = [...signaturesList];
+    updated[index] = { ...updated[index], [field]: value };
+    const newSettings = { ...settings, signaturesList: updated };
+    setSettings(newSettings);
+    handleSaveTemplateSettings(newSettings);
+  };
+
+  const addSignature = () => {
+    const newSig: SignatureItem = {
+      id: `sig_${Date.now()}`,
+      name: 'Nueva Persona',
+      role: 'Cargo',
+      imageUrl: '/firmas-sellos/firma emilia zapata.png',
+      enabled: true,
+      offsetY: 0
+    };
+    const newSettings = { ...settings, signaturesList: [...signaturesList, newSig] };
+    setSettings(newSettings);
+    handleSaveTemplateSettings(newSettings);
+  };
+
+  const deleteSignature = (index: number) => {
+    const updated = signaturesList.filter((_, i) => i !== index);
+    const newSettings = { ...settings, signaturesList: updated };
+    setSettings(newSettings);
+    handleSaveTemplateSettings(newSettings);
+  };
+
+  const handleFileUpload = async (file: File, type: 'signature' | 'seal') => {
+    try {
+      setUploading(true);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName: file.name, contentType: file.type })
+      });
+      if (!res.ok) throw new Error('Failed to get upload URL');
+      const { uploadUrl, publicUrl } = await res.json();
+
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: { 'Content-Type': file.type },
+        body: file
+      });
+      if (!uploadResponse.ok) throw new Error('Upload failed');
+
+      if (type === 'signature') {
+        const lib = [...signaturesLibrary, publicUrl];
+        const newSettings = { ...settings, signaturesLibrary: lib };
+        setSettings(newSettings);
+        handleSaveTemplateSettings(newSettings);
+      } else {
+        const lib = [...sealsLibrary, publicUrl];
+        const newSettings = { ...settings, sealsLibrary: lib };
+        setSettings(newSettings);
+        handleSaveTemplateSettings(newSettings);
+      }
+      return publicUrl;
+    } catch (err: any) {
+      toast.error(err.message || 'Error uploading file');
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleApplyTerms = (newSettings?: InvoiceSettings) => {
     const activeSettings = newSettings || settings;
@@ -2637,6 +2727,115 @@ export default function DocumentBuilderClient({
                       </label>
                     </div>
 
+                    {ordenEntrega.mostrarFirmas !== false && (
+                      <div className="space-y-3 pt-2 border-t border-slate-200/60">
+                        <div className="flex justify-between items-center">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lista de Firmantes</span>
+                          <button
+                            onClick={() => setShowShareSignatureModal(true)}
+                            className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-all active:scale-95"
+                          >
+                            <Smartphone size={10} /> Firma de Cliente (Móvil)
+                          </button>
+                        </div>
+
+                        <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                          {signaturesList.map((sig, idx) => (
+                            <div key={sig.id || idx} className="p-3 bg-white border border-slate-200 rounded-xl space-y-3 relative shadow-sm">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-slate-700">Firmante #{idx + 1}</span>
+                                <div className="flex items-center gap-2">
+                                  {signaturesList.length > 1 && (
+                                    <button
+                                      onClick={() => deleteSignature(idx)}
+                                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
+                                      title="Eliminar Firmante"
+                                    >
+                                      <Trash2 size={12} />
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => updateSignature(idx, 'enabled', !sig.enabled)}
+                                    className={`w-8 h-4 rounded-full transition-all relative ${
+                                      sig.enabled ? 'bg-indigo-600' : 'bg-slate-300'
+                                    }`}
+                                  >
+                                    <span className={`absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-all ${
+                                      sig.enabled ? 'left-4.5' : 'left-0.5'
+                                    }`} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              {sig.enabled && (
+                                <div className="space-y-2">
+                                  <div>
+                                    <label className="text-[9px] font-bold text-slate-400 uppercase">Nombre</label>
+                                    <input
+                                      type="text"
+                                      value={sig.name}
+                                      onChange={e => updateSignature(idx, 'name', e.target.value)}
+                                      className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1 bg-slate-50 text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                                      placeholder="Nombre"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] font-bold text-slate-400 uppercase">Cargo</label>
+                                    <input
+                                      type="text"
+                                      value={sig.role}
+                                      onChange={e => updateSignature(idx, 'role', e.target.value)}
+                                      className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1 bg-slate-50 text-slate-700 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                                      placeholder="Cargo"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-[9px] font-bold text-slate-400 uppercase">Firma</label>
+                                    <div 
+                                      onClick={() => {
+                                        setActiveLibraryType('signature');
+                                        setActiveSigIndex(idx);
+                                      }}
+                                      className="flex items-center justify-between border border-slate-200 rounded-lg p-2 bg-slate-50 hover:border-indigo-400 cursor-pointer transition-all"
+                                    >
+                                      <div className="h-8 w-20 flex items-center justify-center bg-white rounded overflow-hidden">
+                                        {sig.imageUrl ? (
+                                          <img src={sig.imageUrl} alt="Firma" className="max-h-full max-w-full object-contain mix-blend-multiply" />
+                                        ) : (
+                                          <span className="text-[9px] text-slate-400 font-semibold">Seleccionar...</span>
+                                        )}
+                                      </div>
+                                      <span className="text-[9px] font-bold text-indigo-600 hover:text-indigo-700">Cambiar</span>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1 pt-1.5 border-t border-slate-100 mt-2">
+                                    <div className="flex justify-between items-center text-[10px] text-slate-500">
+                                      <span>Alineación Vertical Individual:</span>
+                                      <span className="font-bold text-slate-700">{sig.offsetY ?? 0}px</span>
+                                    </div>
+                                    <input 
+                                      type="range" 
+                                      min="-60" max="60" step="1"
+                                      value={sig.offsetY ?? 0}
+                                      onChange={e => updateSignature(idx, 'offsetY', Number(e.target.value))}
+                                      className="w-full accent-indigo-600 cursor-pointer h-1 bg-slate-200 rounded-lg appearance-none"
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        <button
+                          onClick={addSignature}
+                          className="w-full py-2 bg-white hover:bg-slate-100 text-indigo-650 hover:text-indigo-755 text-xs font-bold rounded-xl transition-all border border-dashed border-slate-350 flex items-center justify-center gap-1.5"
+                        >
+                          <Plus size={12} /> Agregar Firmante
+                        </button>
+                      </div>
+                    )}
+
                     {/* Controles deslizantes para cambiar el tamaño de las firmas y del sello */}
                     <div className="pt-3 border-t border-slate-200/60 space-y-3">
                       {ordenEntrega.mostrarFirmas !== false && (
@@ -2649,7 +2848,7 @@ export default function DocumentBuilderClient({
                             <input
                               type="range"
                               min="30"
-                              max="120"
+                              max="180"
                               value={settings.signatureHeight ?? 64}
                               onChange={(e) => {
                                 const val = Number(e.target.value);
@@ -3321,6 +3520,194 @@ export default function DocumentBuilderClient({
           dbAreas={dbAreas}
           onSuccess={handleRegisterSuccess}
         />
+      )}
+
+      {/* Library Modal for Signatures/Seals */}
+      {activeLibraryType && (
+        <div className="fixed inset-0 z-[5000] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-slate-800">
+                {activeLibraryType === 'signature' ? 'Biblioteca de Firmas' : 'Biblioteca de Sellos'}
+              </h3>
+              <button 
+                onClick={() => {
+                  setActiveLibraryType(null);
+                  setActiveSigIndex(null);
+                  setActiveSealField(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-100 rounded-lg transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div className="p-5 max-h-[350px] overflow-y-auto">
+              <div className="grid grid-cols-3 gap-3">
+                {/* Upload Card */}
+                <label className="border-2 border-dashed border-slate-200 hover:border-blue-400 rounded-xl p-3 flex flex-col items-center justify-center cursor-pointer transition-all hover:bg-blue-50/20 aspect-square group">
+                  <input 
+                    type="file" 
+                    accept="image/png, image/jpeg" 
+                    className="hidden" 
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const url = await handleFileUpload(file, activeLibraryType);
+                        if (url) {
+                          // Select the newly uploaded file automatically
+                          if (activeLibraryType === 'signature' && activeSigIndex !== null) {
+                            updateSignature(activeSigIndex, 'imageUrl', url);
+                          } else if (activeLibraryType === 'seal') {
+                            if (activeSealField === 'company') {
+                              const newSettings = { ...settings, companySealUrl: url };
+                              setSettings(newSettings);
+                              handleSaveTemplateSettings(newSettings);
+                            } else if (activeSealField === 'status') {
+                              const newSettings = { ...settings, selectedStatusSeal: url };
+                              setSettings(newSettings);
+                              handleSaveTemplateSettings(newSettings);
+                            }
+                          }
+                          setActiveLibraryType(null);
+                          setActiveSigIndex(null);
+                          setActiveSealField(null);
+                        }
+                      }
+                    }}
+                  />
+                  {uploading ? (
+                    <div className="flex flex-col items-center gap-1.5">
+                      <Loader2 className="animate-spin text-blue-600 w-6 h-6" />
+                      <span className="text-[9px] text-slate-400 font-bold">Subiendo...</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1.5 text-center">
+                      <UploadCloud className="text-indigo-650 group-hover:scale-110 transition-transform w-6 h-6" />
+                      <span className="text-[10px] text-slate-500 font-bold">Subir PNG</span>
+                    </div>
+                  )}
+                </label>
+
+                {/* Library Items */}
+                {(activeLibraryType === 'signature' ? signaturesLibrary : sealsLibrary).map((url, i) => {
+                  const isSelected = activeLibraryType === 'signature'
+                    ? (activeSigIndex !== null && signaturesList[activeSigIndex]?.imageUrl === url)
+                    : (activeSealField === 'company' ? (settings.companySealUrl || '/firmas-sellos/SELLO DE BIOELECTRONICA.png') === url : settings.selectedStatusSeal === url);
+
+                  const isDefault = url.startsWith('/firmas-sellos/');
+
+                  return (
+                    <div 
+                      key={i} 
+                      className={`relative rounded-xl border p-2 flex items-center justify-center cursor-pointer transition-all aspect-square bg-slate-50/50 hover:bg-white group ${
+                        isSelected ? 'border-indigo-500 bg-white ring-2 ring-indigo-100' : 'border-slate-200 hover:border-slate-400'
+                      }`}
+                      onClick={() => {
+                        if (activeLibraryType === 'signature' && activeSigIndex !== null) {
+                          updateSignature(activeSigIndex, 'imageUrl', url);
+                        } else if (activeLibraryType === 'seal') {
+                          if (activeSealField === 'company') {
+                            const newSettings = { ...settings, companySealUrl: url };
+                            setSettings(newSettings);
+                            handleSaveTemplateSettings(newSettings);
+                          } else if (activeSealField === 'status') {
+                            const newSettings = { ...settings, selectedStatusSeal: url };
+                            setSettings(newSettings);
+                            handleSaveTemplateSettings(newSettings);
+                          }
+                        }
+                        setActiveLibraryType(null);
+                        setActiveSigIndex(null);
+                        setActiveSealField(null);
+                      }}
+                    >
+                      <img src={url} alt="Item" className="max-h-full max-w-full object-contain mix-blend-multiply" />
+                      
+                      {/* Delete button from library (only if not default) */}
+                      {!isDefault && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('¿Eliminar esta imagen de la biblioteca?')) {
+                              if (activeLibraryType === 'signature') {
+                                const newSettings = { ...settings, signaturesLibrary: signaturesLibrary.filter(u => u !== url) };
+                                setSettings(newSettings);
+                                handleSaveTemplateSettings(newSettings);
+                              } else {
+                                const newSettings = { ...settings, sealsLibrary: sealsLibrary.filter(u => u !== url) };
+                                setSettings(newSettings);
+                                handleSaveTemplateSettings(newSettings);
+                              }
+                            }
+                          }}
+                          className="absolute -top-1 -right-1 bg-red-100 hover:bg-red-200 text-red-655 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm border border-red-200"
+                        >
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            
+            <div className="bg-slate-50 px-5 py-3 border-t border-slate-100 text-right">
+              <button 
+                onClick={() => {
+                  setActiveLibraryType(null);
+                  setActiveSigIndex(null);
+                  setActiveSealField(null);
+                }}
+                className="px-4 py-2 text-xs font-bold text-slate-650 hover:bg-slate-200 bg-slate-100 rounded-xl transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showShareSignatureModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[5000] flex items-center justify-center animate-in fade-in p-4 print:hidden">
+          <div className="bg-white rounded-[2rem] p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col items-center">
+            <div className="w-12 h-12 bg-indigo-50 text-indigo-650 rounded-full flex items-center justify-center mb-4">
+              <Smartphone size={24} className="stroke-[2.5]" />
+            </div>
+            
+            <h3 className="text-xl font-black text-slate-900 text-center mb-1 tracking-tight">Firma Digital del Cliente</h3>
+            <p className="text-xs text-slate-500 text-center mb-6 font-medium leading-relaxed px-2">
+              Haz que el cliente escanee este código QR con su celular o tablet para abrir la pantalla de firma digital.
+            </p>
+            
+            <div className="bg-slate-50 p-4 rounded-3xl border border-slate-150 mb-6 flex justify-center items-center shadow-inner">
+              <img 
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(`${typeof window !== 'undefined' ? window.location.origin : ''}/c/${initialData?.id}/entrega`)}`}
+                alt="Código QR de Firma"
+                className="w-[180px] h-[180px] object-contain rounded-xl shadow border border-white"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2 w-full">
+              <button
+                onClick={() => {
+                  const url = `${window.location.origin}/c/${initialData?.id}/entrega`;
+                  navigator.clipboard.writeText(url);
+                  toast.success('Enlace de firma copiado al portapapeles');
+                }}
+                className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl transition-all text-xs flex items-center justify-center gap-1.5 active:scale-98"
+              >
+                Copiar Enlace de Firma
+              </button>
+              <button
+                onClick={() => setShowShareSignatureModal(false)}
+                className="w-full py-3 bg-[#0500A3] hover:bg-[#040080] text-white font-bold rounded-2xl transition-all text-xs active:scale-98"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

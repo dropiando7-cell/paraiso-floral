@@ -296,7 +296,7 @@ export default function OrdenEntregaTemplate({
                     className="object-contain mix-blend-multiply" 
                     style={{ 
                       height: `${signatureHeight}px`,
-                      top: `${signatureSpacing}px`,
+                      top: `${(signatureSpacing || 0) + (sig.offsetY || 0)}px`,
                       position: 'relative'
                     }}
                   />

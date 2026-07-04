@@ -293,6 +293,13 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
 
   const baseDate = fechaEmision ? new Date(fechaEmision) : new Date();
 
+  const signaturesList = settings?.signaturesList || [
+    { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: settings?.showEmiliaZapata !== false },
+    { id: 'manuel', name: 'Ing. Manuel Tejada', role: 'Gerente General', imageUrl: '/firmas-sellos/firma Ing Manuel Tejada.png', enabled: settings?.showManuelTejada !== false }
+  ];
+  const manuelSig = signaturesList.find((s: any) => s.id === 'manuel');
+  const manuelOffset = manuelSig?.offsetY || 0;
+
   return (
     <Document>
       {/* PAGE 1: Certificado de Garantía */}
@@ -441,7 +448,7 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
                     height: 55, 
                     width: 120, 
                     objectFit: 'contain', 
-                    bottom: -8,
+                    bottom: -8 + manuelOffset,
                     zIndex: 2 
                   }} 
                 />

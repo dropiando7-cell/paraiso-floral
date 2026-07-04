@@ -566,7 +566,7 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
                         height: settings.signatureHeight || 120, 
                         objectFit: 'contain', 
                         position: 'relative', 
-                        top: typeof settings.signatureSpacing === 'number' ? settings.signatureSpacing : 39 
+                        top: (typeof settings.signatureSpacing === 'number' ? settings.signatureSpacing : 39) + (sig.offsetY || 0)
                       }} 
                     />
                   )}

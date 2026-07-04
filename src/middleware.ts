@@ -125,6 +125,7 @@ export async function middleware(request: NextRequest) {
         url.pathname.startsWith('/c/') ||
         url.pathname.startsWith('/aprobar-presupuesto') ||
         url.pathname.startsWith('/api/soporte/firmar-presupuesto') ||
+        url.pathname.startsWith('/api/facturas/firmar-entrega') ||
         url.pathname.startsWith('/t/') ||
         url.pathname.startsWith('/api/tarjetas/') ||
         url.pathname.startsWith('/api/tarjeta/') ||

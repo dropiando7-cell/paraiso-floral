@@ -126,7 +126,7 @@ export default function InvoiceSignaturesAndSeals({ settings, clienteSignature }
                       className="object-contain relative mix-blend-multiply" 
                       style={{ 
                         height: `${signatureHeight}px`,
-                        top: `${signatureSpacing}px`
+                        top: `${(signatureSpacing || 0) + (sig.offsetY || 0)}px`
                       }}
                     />
                   )}
