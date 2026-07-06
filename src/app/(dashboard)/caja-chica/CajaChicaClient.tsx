@@ -898,10 +898,11 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                   <label className="block text-xs font-semibold text-gray-700 mb-1.5">
                     Tipo de Recarga <span className="text-red-500">*</span>
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                     {[
                       { val: 'Reposición de fondos', icon: RefreshCcw, desc: 'Recarga programada del fondo' },
                       { val: 'Reembolso', icon: ArrowUpCircle, desc: 'Alguien devuelve dinero a la caja' },
+                      { val: 'Cobro de venta', icon: Coins, desc: 'Efectivo recibido de ventas/servicios' },
                       { val: 'Ajuste de saldo', icon: Sparkles, desc: 'Corrección de diferencias' },
                     ].map((opt) => {
                       const Icon = opt.icon;

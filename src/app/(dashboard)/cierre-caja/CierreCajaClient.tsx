@@ -82,6 +82,14 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
     const [metodoPagoRetiro, setMetodoPagoRetiro] = useState('Efectivo');
     const [isSavingRetiro, setIsSavingRetiro] = useState(false);
 
+    // States for manual cash register income/adjustment
+    const [showModalIngreso, setShowModalIngreso] = useState(false);
+    const [montoIngreso, setMontoIngreso] = useState('');
+    const [descripcionIngreso, setDescripcionIngreso] = useState('');
+    const [referenciaIngreso, setReferenciaIngreso] = useState('');
+    const [metodoPagoIngreso, setMetodoPagoIngreso] = useState('Efectivo');
+    const [isSavingIngreso, setIsSavingIngreso] = useState(false);
+
     const [pendingDeposits, setPendingDeposits] = useState<any[]>([]);
     const [isLoadingDeposits, setIsLoadingDeposits] = useState(false);
     const [selectedDeposit, setSelectedDeposit] = useState<any>(null);
@@ -262,6 +270,38 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
         }
     };
 
+    const handleSaveIngreso = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const amt = parseFloat(montoIngreso);
+        if (isNaN(amt) || amt <= 0) {
+            toast.error("El monto del ingreso debe ser un número válido mayor a 0");
+            return;
+        }
+        setIsSavingIngreso(true);
+        try {
+            await registrarCorteMovimiento({
+                sessionId: activeSession.id,
+                tipo: 'INGRESO',
+                concepto: 'OTRO',
+                descripcion: descripcionIngreso || 'Ingreso Extraordinario / Ajuste',
+                monto: amt,
+                metodoPago: metodoPagoIngreso,
+                referenciaId: referenciaIngreso || undefined
+            });
+            toast.success("Ingreso registrado correctamente");
+            setShowModalIngreso(false);
+            setMontoIngreso('');
+            setDescripcionIngreso('');
+            setReferenciaIngreso('');
+            await fetchActiveSessionDetails(activeSession.id);
+            router.refresh();
+        } catch (err: any) {
+            toast.error(err.message || "Error al registrar ingreso");
+        } finally {
+            setIsSavingIngreso(false);
+        }
+    };
+
     const handleSaveReembolso = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!selectedDeposit) {
@@ -416,7 +456,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                 txList.push({
                     id: m.id,
                     fechaStr: m.createdAt,
-                    concepto: `${m.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : 'Movimiento de Caja'} ${m.anuladaAt ? '(ANULADO)' : ''}`,
+                    concepto: `${m.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : m.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Movimiento de Caja'} ${m.anuladaAt ? '(ANULADO)' : ''}`,
                     cliente: m.descripcion || 'Movimiento de Caja',
                     monto: isNegative ? -m.monto : m.monto
                 });
@@ -778,13 +818,25 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                         <div className="flex gap-2">
                                             <button
                                                 onClick={() => {
+                                                    setMontoIngreso('');
+                                                    setDescripcionIngreso('');
+                                                    setReferenciaIngreso('');
+                                                    setMetodoPagoIngreso('Efectivo');
+                                                    setShowModalIngreso(true);
+                                                }}
+                                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg transition duration-200 cursor-pointer flex items-center gap-1.5"
+                                            >
+                                                <Plus className="w-3.5 h-3.5" /> Registrar Ingreso / Ajuste
+                                            </button>
+                                            <button
+                                                onClick={() => {
                                                     setMontoRetiro('');
                                                     setDescripcionRetiro('');
                                                     setReferenciaRetiro('');
                                                     setMetodoPagoRetiro('Efectivo');
                                                     setShowModalRetiro(true);
                                                 }}
-                                                className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition duration-200 cursor-pointer flex items-center gap-1.5"
+                                                className="px-3 py-1.5 bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition duration-200 cursor-pointer flex items-center gap-1.5"
                                             >
                                                 <Plus className="w-3.5 h-3.5" /> Registrar Retiro / Remesa
                                             </button>
@@ -840,7 +892,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                                     </span>
                                                                 </td>
                                                                 <td className="px-6 py-3 text-xs font-bold text-slate-900">
-                                                                    {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso de Garantía' : 'Otro Movimiento'}
+                                                                    {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario / Remesa' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso de Garantía' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro Movimiento'}
                                                                 </td>
                                                                 <td className="px-6 py-3 text-xs">
                                                                     <div className="flex flex-col">
@@ -1272,7 +1324,7 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                                                         </span>
                                                                     </td>
                                                                     <td className="px-4 py-2 font-bold text-slate-800">
-                                                                        {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso Garantía' : 'Otro'}
+                                                                        {mov.concepto === 'RETIRO_BANCARIO' ? 'Retiro Bancario' : mov.concepto === 'REEMBOLSO_GARANTIA' ? 'Reembolso Garantía' : mov.concepto === 'OTRO' ? 'Ingreso / Ajuste' : 'Otro'}
                                                                     </td>
                                                                     <td className="px-4 py-2">
                                                                         <div className="flex flex-col">
@@ -1401,6 +1453,106 @@ export default function CierreCajaClient({ initialActiveSession, initialHistory 
                                 >
                                     {isSavingRetiro && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                                     Guardar Retiro
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL INGRESO EXTRAORDINARIO / AJUSTE */}
+            {showModalIngreso && (
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden max-w-md w-full animate-scale-in">
+                        <div className="bg-emerald-900 px-6 py-4 text-white flex justify-between items-center">
+                            <h3 className="font-bold text-base text-white">Registrar Ingreso / Ajuste Extraordinario</h3>
+                            <button
+                                onClick={() => setShowModalIngreso(false)}
+                                className="text-slate-400 hover:text-white transition"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                            </button>
+                        </div>
+                        <form onSubmit={handleSaveIngreso} className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                    Método de Ingreso
+                                </label>
+                                <select
+                                    className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    value={metodoPagoIngreso}
+                                    onChange={(e) => setMetodoPagoIngreso(e.target.value)}
+                                >
+                                    <option value="Efectivo">Efectivo (Gaveta diaria)</option>
+                                    <option value="Transferencia">Transferencia Bancaria</option>
+                                    <option value="Tarjeta">Tarjeta</option>
+                                    <option value="Cheque">Cheque</option>
+                                    <option value="Link de pago de Occidente">Link de pago de Occidente</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                    Monto del Ingreso (Lempiras) <span className="text-red-500">*</span>
+                                </label>
+                                <div className="relative rounded-lg shadow-sm">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span className="text-slate-400 font-medium">L.</span>
+                                    </div>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0.01"
+                                        className="block w-full pl-8 pr-3 py-2 border border-slate-300 rounded-lg text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                        placeholder="0.00"
+                                        value={montoIngreso}
+                                        onChange={(e) => setMontoIngreso(e.target.value)}
+                                        required
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
+                                    Referencia Bancaria / Captura (Opcional)
+                                </label>
+                                <input
+                                    type="text"
+                                    className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    placeholder="Ej. Depósito Atlántida #987654"
+                                    value={referenciaIngreso}
+                                    onChange={(e) => setReferenciaIngreso(e.target.value)}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">
+                                    Notas / Justificación
+                                </label>
+                                <textarea
+                                    className="block w-full border border-slate-300 rounded-lg text-sm px-3 py-2 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                    rows={2}
+                                    placeholder="Ej. Cobro parcial de proforma PRO-SO00001279..."
+                                    value={descripcionIngreso}
+                                    onChange={(e) => setDescripcionIngreso(e.target.value)}
+                                />
+                            </div>
+
+                            <div className="pt-2 flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setShowModalIngreso(false)}
+                                    className="w-1/2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold py-2 px-4 rounded-lg text-xs transition duration-200 cursor-pointer text-center"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingIngreso}
+                                    className="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg text-xs transition duration-200 flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer"
+                                >
+                                    {isSavingIngreso && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
+                                    Guardar Ingreso
                                 </button>
                             </div>
                         </form>
