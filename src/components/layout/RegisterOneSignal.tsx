@@ -79,7 +79,7 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
                     appId: appId,
                     allowLocalhostAsSecureOrigin: true,
                     serviceWorkerParam: { scope: '/' },
-                    serviceWorkerPath: '/sw.js',
+                    serviceWorkerPath: '/sw.js?v=3',
                 });
 
                 // Verificar si ya está suscrito

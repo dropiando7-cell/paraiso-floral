@@ -7,7 +7,7 @@ export default function RegisterServiceWorker() {
         // Register service worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker
-                .register('/sw.js')
+                .register('/sw.js?v=3')
                 .then((reg) => {
                     console.log('Service Worker de PWA registrado con éxito en el ámbito:', reg.scope);
                 })
