@@ -114,6 +114,7 @@ export async function middleware(request: NextRequest) {
 
     // 5. PROTECTED ROUTE ENFORCEMENT
     const isPublicRoute =
+        url.pathname === '/OneSignalSDKWorker.js' ||
         url.pathname.startsWith('/login') ||
         url.pathname.startsWith('/auth/callback') ||
         url.pathname.startsWith('/auth/mfa') ||
@@ -169,6 +170,6 @@ export const config = {
          * - public (public assets)
          * Feel free to modify this pattern to include more paths.
          */
-        '/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+        '/((?!_next/static|_next/image|favicon.ico|sw.js|OneSignalSDKWorker.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
     ],
 }

@@ -188,32 +188,49 @@ export default function ProfilePage() {
     const [subStatus, setSubStatus] = useState<'cargando' | 'suscrito' | 'no_suscrito' | 'bloqueado'>('cargando');
 
     useEffect(() => {
-        if (activeTab === 'notifications' && typeof window !== 'undefined' && window.OneSignal) {
-            window.OneSignal.push(async () => {
-                try {
-                    const subId = window.OneSignal.User?.PushSubscription?.id || 
-                                  (window.OneSignal.getUserId ? await window.OneSignal.getUserId() : null);
-                    
-                    const hasPermission = window.OneSignal.Notifications?.permission === true ||
-                                          (window.OneSignal.getNotificationPermission ? (await window.OneSignal.getNotificationPermission() === 'granted') : false) ||
-                                          (typeof Notification !== 'undefined' && Notification.permission === 'granted');
-                    
-                    const isDenied = (typeof Notification !== 'undefined' && Notification.permission === 'denied') ||
-                                     (window.OneSignal.getNotificationPermission && await window.OneSignal.getNotificationPermission() === 'denied');
-                    
-                    if (subId && hasPermission) {
-                        setSubStatus('suscrito');
-                    } else if (isDenied) {
-                        setSubStatus('bloqueado');
-                    } else {
+        if (activeTab !== 'notifications' || typeof window === 'undefined') return;
+
+        let intervalId: any;
+
+        const checkOneSignal = () => {
+            if (window.OneSignal) {
+                if (intervalId) clearInterval(intervalId);
+                window.OneSignal.push(async () => {
+                    try {
+                        const subId = window.OneSignal.User?.PushSubscription?.id || 
+                                      (window.OneSignal.getUserId ? await window.OneSignal.getUserId() : null);
+                        
+                        const hasPermission = window.OneSignal.Notifications?.permission === true ||
+                                              (window.OneSignal.getNotificationPermission ? (await window.OneSignal.getNotificationPermission() === 'granted') : false) ||
+                                              (typeof Notification !== 'undefined' && Notification.permission === 'granted');
+                        
+                        const isDenied = (typeof Notification !== 'undefined' && Notification.permission === 'denied') ||
+                                         (window.OneSignal.getNotificationPermission && await window.OneSignal.getNotificationPermission() === 'denied');
+                        
+                        if (subId && hasPermission) {
+                            setSubStatus('suscrito');
+                        } else if (isDenied) {
+                            setSubStatus('bloqueado');
+                        } else {
+                            setSubStatus('no_suscrito');
+                        }
+                    } catch (e) {
+                        console.error("Error fetching OneSignal status:", e);
                         setSubStatus('no_suscrito');
                     }
-                } catch (e) {
-                    console.error("Error fetching OneSignal status:", e);
-                    setSubStatus('no_suscrito');
-                }
-            });
+                });
+            }
+        };
+
+        checkOneSignal();
+
+        if (!window.OneSignal) {
+            intervalId = setInterval(checkOneSignal, 500);
         }
+
+        return () => {
+            if (intervalId) clearInterval(intervalId);
+        };
     }, [activeTab]);
 
     return (
