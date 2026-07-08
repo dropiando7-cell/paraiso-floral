@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { createClient } from '@/utils/supabase/client';
 import { 
     updatePreferences, getEmailTemplates, saveEmailTemplate, 
@@ -295,10 +296,13 @@ export default function ConfiguracionPage() {
                             </button>
                         </>
                     )}
-                    {/* Placeholder for future sections like Notifications, Integrations */}
-                    <button className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium text-slate-400 cursor-not-allowed rounded-xl transition-colors" disabled>
-                        Notificaciones (Próximamente)
-                    </button>
+                    {/* Link to actual notifications configuration in Profile page */}
+                    <Link
+                        href="/perfil?tab=notifications"
+                        className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition-colors"
+                    >
+                        Notificaciones
+                    </Link>
                     <button className="flex items-center justify-between w-full px-4 py-2 text-sm font-medium text-slate-400 cursor-not-allowed rounded-xl transition-colors" disabled>
                         Integraciones (Próximamente)
                     </button>

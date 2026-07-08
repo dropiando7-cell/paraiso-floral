@@ -174,6 +174,17 @@ export default function ProfilePage() {
     };
 
     const [activeTab, setActiveTab] = useState<'info' | 'security' | 'notifications'>('info');
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const tab = params.get('tab');
+            if (tab === 'notifications' || tab === 'security') {
+                setActiveTab(tab);
+            }
+        }
+    }, []);
+
     const [subStatus, setSubStatus] = useState<'cargando' | 'suscrito' | 'no_suscrito' | 'bloqueado'>('cargando');
 
     useEffect(() => {

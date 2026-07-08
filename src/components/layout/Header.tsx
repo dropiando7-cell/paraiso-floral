@@ -356,7 +356,10 @@ export function Header({ dbUser, onMenuClick }: HeaderProps) {
                                 <button 
                                     onClick={() => {
                                         setIsNotifOpen(false);
-                                        router.push('/admin/notificaciones');
+                                        const hasAdminAccess = dbUser?.role === 'SUPER_ADMIN' || 
+                                                              dbUser?.role === 'ORG_ADMIN' || 
+                                                              (dbUser?.accessibleModules && dbUser.accessibleModules.includes('/admin/notificaciones'));
+                                        router.push(hasAdminAccess ? '/admin/notificaciones' : '/perfil?tab=notifications');
                                     }}
                                     className="text-[11px] font-bold text-slate-500 hover:text-slate-800 transition-colors inline-flex items-center gap-1 cursor-pointer"
                                 >
