@@ -489,23 +489,39 @@ export default function ProfilePage() {
                                         <button
                                             disabled={subStatus === 'suscrito' || subStatus === 'cargando'}
                                             onClick={async () => {
+                                                toast.dismiss();
+                                                toast.loading('Iniciando proceso de notificación...');
+                                                console.log('[ONESIGNAL] Botón presionado.');
+                                                
                                                 if (typeof window !== 'undefined' && window.OneSignal) {
                                                     window.OneSignal.push(async () => {
                                                         try {
+                                                            console.log('[ONESIGNAL] Pushed onClick handler to queue.');
                                                             localStorage.removeItem('onesignal_banner_dismissed');
                                                             
                                                             let granted = false;
+                                                            toast.loading('Solicitando permisos al navegador...');
+                                                            
                                                             if (window.OneSignal.Notifications?.requestPermission) {
+                                                                console.log('[ONESIGNAL] Calling Notifications.requestPermission');
                                                                 granted = await window.OneSignal.Notifications.requestPermission();
+                                                                console.log('[ONESIGNAL] Notifications.requestPermission result:', granted);
                                                             } else if (window.OneSignal.registerForPushNotifications) {
+                                                                console.log('[ONESIGNAL] Calling registerForPushNotifications');
                                                                 await window.OneSignal.registerForPushNotifications();
                                                                 granted = true;
+                                                            } else {
+                                                                console.warn('[ONESIGNAL] No requestPermission methods found on OneSignal.');
                                                             }
                                                             
+                                                            toast.dismiss();
                                                             const subId = window.OneSignal.User?.PushSubscription?.id || 
                                                                           (window.OneSignal.getUserId ? await window.OneSignal.getUserId() : null);
                                                             
+                                                            console.log('[ONESIGNAL] Subscription ID:', subId);
+                                                            
                                                             if (subId) {
+                                                                toast.loading('Sincronizando suscripción con base de datos...');
                                                                 const supabase = createClient();
                                                                 const { data: { user } } = await supabase.auth.getUser();
                                                                 if (user && user.email) {
@@ -515,19 +531,25 @@ export default function ProfilePage() {
                                                                         const res = await registerOneSignalSubscription(subId);
                                                                         if (res.success) {
                                                                             setSubStatus('suscrito');
-                                                                            toast.success('¡Notificaciones push activadas!');
+                                                                            toast.success('¡Notificaciones push activadas exitosamente!');
+                                                                        } else {
+                                                                            toast.error('Error al registrar la suscripción en base de datos.');
                                                                         }
                                                                     }
                                                                 }
                                                             } else {
+                                                                console.warn('[ONESIGNAL] Subscription ID was not generated.');
+                                                                toast.error('No se pudo generar el ID de suscripción.');
                                                                 (window as any).showOneSignalBanner?.();
                                                             }
-                                                        } catch (err) {
-                                                            console.error(err);
-                                                            toast.error('Error al procesar la suscripción.');
+                                                        } catch (err: any) {
+                                                            console.error('[ONESIGNAL] Error caught in push handler:', err);
+                                                            toast.dismiss();
+                                                            toast.error(`Error: ${err.message || err}`);
                                                         }
                                                     });
                                                 } else {
+                                                    toast.dismiss();
                                                     toast.error('El servicio de OneSignal no está cargado.');
                                                 }
                                             }}
