@@ -516,53 +516,57 @@ export default function ProfilePage() {
                                                     return;
                                                 }
 
-                                                // 2. Ejecutar cola de OneSignal una vez que el navegador tiene permisos o está en estado apto
-                                                toast.loading('Iniciando proceso de notificación...');
+                                                // 2. Ejecutar cola de OneSignal
+                                                toast.loading('Activando suscripción...');
                                                 if (window.OneSignal) {
                                                     window.OneSignal.push(async () => {
                                                         try {
-                                                            console.log('[ONESIGNAL] Pushed onClick handler to queue.');
-                                                            localStorage.removeItem('onesignal_banner_dismissed');
+                                                            console.log('[ONESIGNAL] Iniciando activación...');
                                                             
-                                                            // Registrar suscripción push en el SDK de OneSignal
-                                                            if (window.OneSignal.Notifications?.requestPermission) {
-                                                                await window.OneSignal.Notifications.requestPermission();
-                                                            } else if (window.OneSignal.registerForPushNotifications) {
-                                                                await window.OneSignal.registerForPushNotifications();
+                                                            // Si el permiso ya está granted, usar optIn() directamente
+                                                            // Si no, usar requestPermission() que también hace optIn
+                                                            if (permission === 'granted') {
+                                                                // optIn() activa la suscripción push cuando el permiso ya está dado
+                                                                if (window.OneSignal.User?.PushSubscription?.optIn) {
+                                                                    await window.OneSignal.User.PushSubscription.optIn();
+                                                                    console.log('[ONESIGNAL] optIn() llamado.');
+                                                                } else if (window.OneSignal.Notifications?.requestPermission) {
+                                                                    await window.OneSignal.Notifications.requestPermission();
+                                                                }
                                                             }
 
-                                                            // Esperar por la asignación del ID de suscripción
+                                                            // Esperar a que OneSignal asigne el ID (con timeout de 15s)
                                                             let subId = window.OneSignal.User?.PushSubscription?.id;
                                                             if (!subId) {
+                                                                console.log('[ONESIGNAL] Esperando ID de suscripción...');
                                                                 subId = await new Promise<string | null>((resolve) => {
                                                                     let resolved = false;
 
                                                                     const cleanup = () => {
                                                                         resolved = true;
-                                                                        if (window.OneSignal.User?.PushSubscription?.removeEventListener) {
-                                                                            window.OneSignal.User.PushSubscription.removeEventListener('change', subChangeHandler);
-                                                                        }
+                                                                        window.OneSignal.User?.PushSubscription?.removeEventListener?.('change', subChangeHandler);
                                                                         clearTimeout(timeoutId);
                                                                     };
 
                                                                     const subChangeHandler = (event: any) => {
-                                                                        const currentId = event?.current?.id || (typeof event === 'string' ? event : null);
+                                                                        console.log('[ONESIGNAL] Evento change recibido:', event);
+                                                                        const currentId = event?.current?.id ?? null;
                                                                         if (currentId && !resolved) {
                                                                             cleanup();
                                                                             resolve(currentId);
                                                                         }
                                                                     };
 
-                                                                    if (window.OneSignal.User?.PushSubscription?.addEventListener) {
-                                                                        window.OneSignal.User.PushSubscription.addEventListener('change', subChangeHandler);
-                                                                    }
+                                                                    window.OneSignal.User?.PushSubscription?.addEventListener?.('change', subChangeHandler);
 
                                                                     const timeoutId = setTimeout(() => {
                                                                         if (!resolved) {
+                                                                            const finalId = window.OneSignal.User?.PushSubscription?.id || null;
+                                                                            console.log('[ONESIGNAL] Timeout. ID final:', finalId);
                                                                             cleanup();
-                                                                            resolve(window.OneSignal.User?.PushSubscription?.id || null);
+                                                                            resolve(finalId);
                                                                         }
-                                                                    }, 10000);
+                                                                    }, 15000);
                                                                 });
                                                             }
 
@@ -570,7 +574,7 @@ export default function ProfilePage() {
                                                             console.log('[ONESIGNAL] ID de Suscripción final:', subId);
 
                                                             if (subId) {
-                                                                toast.loading('Sincronizando suscripción con base de datos...');
+                                                                toast.loading('Sincronizando con base de datos...');
                                                                 const supabase = createClient();
                                                                 const { data: { user } } = await supabase.auth.getUser();
                                                                 if (user && user.email) {
@@ -587,12 +591,11 @@ export default function ProfilePage() {
                                                                     }
                                                                 }
                                                             } else {
-                                                                console.warn('[ONESIGNAL] Subscription ID was not generated.');
-                                                                toast.error('No se pudo generar el ID de suscripción.');
-                                                                (window as any).showOneSignalBanner?.();
+                                                                toast.dismiss();
+                                                                toast.error('OneSignal no generó un ID de suscripción. Verifica la consola del Service Worker.');
                                                             }
                                                         } catch (err: any) {
-                                                            console.error('[ONESIGNAL] Error caught in push handler:', err);
+                                                            console.error('[ONESIGNAL] Error en activación:', err);
                                                             toast.dismiss();
                                                             toast.error(`Error: ${err.message || err}`);
                                                         }

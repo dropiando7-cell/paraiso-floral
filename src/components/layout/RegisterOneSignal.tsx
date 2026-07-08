@@ -44,7 +44,7 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
                             });
                         }
                     }
-                }).catch(err => {
+                }).catch((err: any) => {
                     console.error('[ONESIGNAL] Error limpiando service workers obsoletos:', err);
                 });
             }
@@ -153,10 +153,13 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
         if (window.OneSignal) {
             window.OneSignal.push(async function () {
                 try {
-                    if (window.OneSignal.Notifications?.requestPermission) {
-                        await window.OneSignal.Notifications.requestPermission();
-                    } else if (window.OneSignal.registerForPushNotifications) {
-                        await window.OneSignal.registerForPushNotifications();
+                    // Si el permiso ya está granted, usar optIn() directamente
+                    if (permission === 'granted') {
+                        if (window.OneSignal.User?.PushSubscription?.optIn) {
+                            await window.OneSignal.User.PushSubscription.optIn();
+                        } else if (window.OneSignal.Notifications?.requestPermission) {
+                            await window.OneSignal.Notifications.requestPermission();
+                        }
                     }
 
                     let subscriptionId = window.OneSignal.User?.PushSubscription?.id;
