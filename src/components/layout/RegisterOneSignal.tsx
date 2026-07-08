@@ -61,7 +61,7 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
                     appId: appId,
                     allowLocalhostAsSecureOrigin: true,
                     serviceWorkerParam: { scope: '/' },
-                    serviceWorkerPath: '/OneSignalSDKWorker.js',
+                    serviceWorkerPath: '/sw.js',
                 });
 
                 // Verificar si ya está suscrito
@@ -113,17 +113,61 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
 
         window.OneSignal.push(async function () {
             try {
-                // Solicitar permisos nativos
-                let granted = false;
-                if (window.OneSignal.Notifications?.requestPermission) {
-                    granted = await window.OneSignal.Notifications.requestPermission();
-                } else if (window.OneSignal.registerForPushNotifications) {
-                    await window.OneSignal.registerForPushNotifications();
-                    granted = true; // asumimos true si se completa
-                }
+                let subscriptionId = window.OneSignal.User?.PushSubscription?.id;
 
-                const subscriptionId = window.OneSignal.User?.PushSubscription?.id || 
-                                       (window.OneSignal.getUserId ? await window.OneSignal.getUserId() : null);
+                if (!subscriptionId) {
+                    subscriptionId = await new Promise<string | null>((resolve) => {
+                        let resolved = false;
+
+                        const cleanup = () => {
+                            resolved = true;
+                            if (window.OneSignal.User?.PushSubscription?.removeEventListener) {
+                                window.OneSignal.User.PushSubscription.removeEventListener('change', subChangeHandler);
+                            }
+                            clearTimeout(timeoutId);
+                        };
+
+                        const subChangeHandler = (event: any) => {
+                            const currentId = event?.current?.id || (typeof event === 'string' ? event : null);
+                            if (currentId && !resolved) {
+                                cleanup();
+                                resolve(currentId);
+                            }
+                        };
+
+                        if (window.OneSignal.User?.PushSubscription?.addEventListener) {
+                            window.OneSignal.User.PushSubscription.addEventListener('change', subChangeHandler);
+                        }
+
+                        const timeoutId = setTimeout(() => {
+                            if (!resolved) {
+                                cleanup();
+                                resolve(window.OneSignal.User?.PushSubscription?.id || null);
+                            }
+                        }, 12000);
+
+                        // Trigger native prompt
+                        (async () => {
+                            try {
+                                if (window.OneSignal.Notifications?.requestPermission) {
+                                    await window.OneSignal.Notifications.requestPermission();
+                                } else if (window.OneSignal.registerForPushNotifications) {
+                                    await window.OneSignal.registerForPushNotifications();
+                                }
+                            } catch (e) {
+                                console.error('[ONESIGNAL] Error inside handleAcceptPush requestPermission:', e);
+                                cleanup();
+                                resolve(null);
+                            }
+                        })();
+                    });
+                } else {
+                    if (window.OneSignal.Notifications?.requestPermission) {
+                        await window.OneSignal.Notifications.requestPermission();
+                    } else if (window.OneSignal.registerForPushNotifications) {
+                        await window.OneSignal.registerForPushNotifications();
+                    }
+                }
 
                 if (subscriptionId) {
                     // Sincronizar ID de usuario y registrar en la DB
@@ -131,7 +175,11 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
                     const res = await registerOneSignalSubscription(subscriptionId);
                     if (res.success) {
                         toast.success('¡Suscripción a notificaciones push exitosa!');
+                    } else {
+                        toast.error('Error al registrar la suscripción en base de datos.');
                     }
+                } else {
+                    toast.error('No se pudo generar el ID de suscripción. Asegúrate de dar los permisos.');
                 }
                 
                 setShowBanner(false);
