@@ -30,6 +30,24 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
                 localStorage.removeItem('onesignal_banner_dismissed');
                 setShowBanner(true);
             };
+
+            // Limpieza automática de Service Workers antiguos en conflicto (que no sean /sw.js)
+            if (navigator.serviceWorker) {
+                navigator.serviceWorker.getRegistrations().then((registrations) => {
+                    for (const registration of registrations) {
+                        const scriptURL = registration.active?.scriptURL;
+                        if (scriptURL && !scriptURL.endsWith('/sw.js')) {
+                            registration.unregister().then((success) => {
+                                if (success) {
+                                    console.log('[ONESIGNAL] Se desinstaló service worker obsoleto:', scriptURL);
+                                }
+                            });
+                        }
+                    }
+                }).catch(err => {
+                    console.error('[ONESIGNAL] Error limpiando service workers obsoletos:', err);
+                });
+            }
         }
     }, []);
 
@@ -109,85 +127,93 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
     };
 
     const handleAcceptPush = async () => {
-        if (!window.OneSignal) return;
+        if (typeof window === 'undefined') return;
 
-        window.OneSignal.push(async function () {
-            try {
-                let subscriptionId = window.OneSignal.User?.PushSubscription?.id;
+        // 1. Solicitar permiso nativo de inmediato para preservar el contexto de interacción del usuario (User Gesture)
+        let permission = 'default';
+        if (typeof Notification !== 'undefined') {
+            permission = Notification.permission;
+            if (permission === 'default') {
+                try {
+                    permission = await Notification.requestPermission();
+                    console.log('[ONESIGNAL] Banner accept clicked. Native permission result:', permission);
+                } catch (e) {
+                    console.error('[ONESIGNAL] Error requesting native permission from banner:', e);
+                }
+            }
+        }
 
-                if (!subscriptionId) {
-                    subscriptionId = await new Promise<string | null>((resolve) => {
-                        let resolved = false;
+        if (permission === 'denied') {
+            toast.error('Las notificaciones están bloqueadas en tu navegador.');
+            setShowBanner(false);
+            return;
+        }
 
-                        const cleanup = () => {
-                            resolved = true;
-                            if (window.OneSignal.User?.PushSubscription?.removeEventListener) {
-                                window.OneSignal.User.PushSubscription.removeEventListener('change', subChangeHandler);
-                            }
-                            clearTimeout(timeoutId);
-                        };
-
-                        const subChangeHandler = (event: any) => {
-                            const currentId = event?.current?.id || (typeof event === 'string' ? event : null);
-                            if (currentId && !resolved) {
-                                cleanup();
-                                resolve(currentId);
-                            }
-                        };
-
-                        if (window.OneSignal.User?.PushSubscription?.addEventListener) {
-                            window.OneSignal.User.PushSubscription.addEventListener('change', subChangeHandler);
-                        }
-
-                        const timeoutId = setTimeout(() => {
-                            if (!resolved) {
-                                cleanup();
-                                resolve(window.OneSignal.User?.PushSubscription?.id || null);
-                            }
-                        }, 12000);
-
-                        // Trigger native prompt
-                        (async () => {
-                            try {
-                                if (window.OneSignal.Notifications?.requestPermission) {
-                                    await window.OneSignal.Notifications.requestPermission();
-                                } else if (window.OneSignal.registerForPushNotifications) {
-                                    await window.OneSignal.registerForPushNotifications();
-                                }
-                            } catch (e) {
-                                console.error('[ONESIGNAL] Error inside handleAcceptPush requestPermission:', e);
-                                cleanup();
-                                resolve(null);
-                            }
-                        })();
-                    });
-                } else {
+        // 2. Ejecutar la cola de OneSignal
+        if (window.OneSignal) {
+            window.OneSignal.push(async function () {
+                try {
                     if (window.OneSignal.Notifications?.requestPermission) {
                         await window.OneSignal.Notifications.requestPermission();
                     } else if (window.OneSignal.registerForPushNotifications) {
                         await window.OneSignal.registerForPushNotifications();
                     }
-                }
 
-                if (subscriptionId) {
-                    // Sincronizar ID de usuario y registrar en la DB
-                    await window.OneSignal.login(dbUser.id);
-                    const res = await registerOneSignalSubscription(subscriptionId);
-                    if (res.success) {
-                        toast.success('¡Suscripción a notificaciones push exitosa!');
-                    } else {
-                        toast.error('Error al registrar la suscripción en base de datos.');
+                    let subscriptionId = window.OneSignal.User?.PushSubscription?.id;
+
+                    if (!subscriptionId) {
+                        subscriptionId = await new Promise<string | null>((resolve) => {
+                            let resolved = false;
+
+                            const cleanup = () => {
+                                resolved = true;
+                                if (window.OneSignal.User?.PushSubscription?.removeEventListener) {
+                                    window.OneSignal.User.PushSubscription.removeEventListener('change', subChangeHandler);
+                                }
+                                clearTimeout(timeoutId);
+                            };
+
+                            const subChangeHandler = (event: any) => {
+                                const currentId = event?.current?.id || (typeof event === 'string' ? event : null);
+                                if (currentId && !resolved) {
+                                    cleanup();
+                                    resolve(currentId);
+                                }
+                            };
+
+                            if (window.OneSignal.User?.PushSubscription?.addEventListener) {
+                                window.OneSignal.User.PushSubscription.addEventListener('change', subChangeHandler);
+                            }
+
+                            const timeoutId = setTimeout(() => {
+                                if (!resolved) {
+                                    cleanup();
+                                    resolve(window.OneSignal.User?.PushSubscription?.id || null);
+                                }
+                            }, 10000);
+                        });
                     }
-                } else {
-                    toast.error('No se pudo generar el ID de suscripción. Asegúrate de dar los permisos.');
+
+                    if (subscriptionId) {
+                        // Sincronizar ID de usuario y registrar en la DB
+                        await window.OneSignal.login(dbUser.id);
+                        const res = await registerOneSignalSubscription(subscriptionId);
+                        if (res.success) {
+                            toast.success('¡Suscripción a notificaciones push exitosa!');
+                        } else {
+                            toast.error('Error al registrar la suscripción en base de datos.');
+                        }
+                    } else {
+                        toast.error('No se pudo generar el ID de suscripción. Asegúrate de dar los permisos.');
+                    }
+                    
+                    setShowBanner(false);
+                } catch (err: any) {
+                    console.error('[ONESIGNAL] Error al suscribirse desde banner:', err);
+                    toast.error('Error al activar notificaciones');
                 }
-                
-                setShowBanner(false);
-            } catch (err: any) {
-                console.error('[ONESIGNAL] Error al suscribirse:', err);
-                toast.error('Error al activar notificaciones');
-            }
-        });
+            });
+        }
     };
 
     const handleDismiss = () => {
