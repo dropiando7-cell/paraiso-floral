@@ -490,41 +490,43 @@ export default function ProfilePage() {
                                             disabled={subStatus === 'suscrito' || subStatus === 'cargando'}
                                             onClick={async () => {
                                                 if (typeof window !== 'undefined' && window.OneSignal) {
-                                                    try {
-                                                        localStorage.removeItem('onesignal_banner_dismissed');
-                                                        
-                                                        let granted = false;
-                                                        if (window.OneSignal.Notifications?.requestPermission) {
-                                                            granted = await window.OneSignal.Notifications.requestPermission();
-                                                        } else if (window.OneSignal.registerForPushNotifications) {
-                                                            await window.OneSignal.registerForPushNotifications();
-                                                            granted = true;
-                                                        }
-                                                        
-                                                        const subId = window.OneSignal.User?.PushSubscription?.id || 
-                                                                      (window.OneSignal.getUserId ? await window.OneSignal.getUserId() : null);
-                                                        
-                                                        if (subId) {
-                                                            const supabase = createClient();
-                                                            const { data: { user } } = await supabase.auth.getUser();
-                                                            if (user && user.email) {
-                                                                const dbData = await getUserProfileData(user.email);
-                                                                if (dbData) {
-                                                                    await window.OneSignal.login(dbData.id);
-                                                                    const res = await registerOneSignalSubscription(subId);
-                                                                    if (res.success) {
-                                                                        setSubStatus('suscrito');
-                                                                        toast.success('¡Notificaciones push activadas!');
+                                                    window.OneSignal.push(async () => {
+                                                        try {
+                                                            localStorage.removeItem('onesignal_banner_dismissed');
+                                                            
+                                                            let granted = false;
+                                                            if (window.OneSignal.Notifications?.requestPermission) {
+                                                                granted = await window.OneSignal.Notifications.requestPermission();
+                                                            } else if (window.OneSignal.registerForPushNotifications) {
+                                                                await window.OneSignal.registerForPushNotifications();
+                                                                granted = true;
+                                                            }
+                                                            
+                                                            const subId = window.OneSignal.User?.PushSubscription?.id || 
+                                                                          (window.OneSignal.getUserId ? await window.OneSignal.getUserId() : null);
+                                                            
+                                                            if (subId) {
+                                                                const supabase = createClient();
+                                                                const { data: { user } } = await supabase.auth.getUser();
+                                                                if (user && user.email) {
+                                                                    const dbData = await getUserProfileData(user.email);
+                                                                    if (dbData) {
+                                                                        await window.OneSignal.login(dbData.id);
+                                                                        const res = await registerOneSignalSubscription(subId);
+                                                                        if (res.success) {
+                                                                            setSubStatus('suscrito');
+                                                                            toast.success('¡Notificaciones push activadas!');
+                                                                        }
                                                                     }
                                                                 }
+                                                            } else {
+                                                                (window as any).showOneSignalBanner?.();
                                                             }
-                                                        } else {
-                                                            (window as any).showOneSignalBanner?.();
+                                                        } catch (err) {
+                                                            console.error(err);
+                                                            toast.error('Error al procesar la suscripción.');
                                                         }
-                                                    } catch (err) {
-                                                        console.error(err);
-                                                        toast.error('Error al procesar la suscripción.');
-                                                    }
+                                                    });
                                                 } else {
                                                     toast.error('El servicio de OneSignal no está cargado.');
                                                 }
@@ -532,7 +534,9 @@ export default function ProfilePage() {
                                             className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md ${
                                                 subStatus === 'suscrito' 
                                                     ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 cursor-not-allowed shadow-none' 
-                                                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-100 cursor-pointer'
+                                                    : subStatus === 'cargando'
+                                                        ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-wait shadow-none'
+                                                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-100 cursor-pointer'
                                             }`}
                                         >
                                             {subStatus === 'suscrito' ? 'Ya Activo' : 'Activar en este Dispositivo'}
