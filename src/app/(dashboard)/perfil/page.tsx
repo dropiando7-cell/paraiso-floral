@@ -193,13 +193,17 @@ export default function ProfilePage() {
                 try {
                     const subId = window.OneSignal.User?.PushSubscription?.id || 
                                   (window.OneSignal.getUserId ? await window.OneSignal.getUserId() : null);
+                    
                     const hasPermission = window.OneSignal.Notifications?.permission === true ||
-                                          (window.OneSignal.getNotificationPermission ? (await window.OneSignal.getNotificationPermission() === 'granted') : false);
+                                          (window.OneSignal.getNotificationPermission ? (await window.OneSignal.getNotificationPermission() === 'granted') : false) ||
+                                          (typeof Notification !== 'undefined' && Notification.permission === 'granted');
+                    
+                    const isDenied = (typeof Notification !== 'undefined' && Notification.permission === 'denied') ||
+                                     (window.OneSignal.getNotificationPermission && await window.OneSignal.getNotificationPermission() === 'denied');
                     
                     if (subId && hasPermission) {
                         setSubStatus('suscrito');
-                    } else if (window.OneSignal.Notifications?.permission === false || 
-                               (window.OneSignal.getNotificationPermission && await window.OneSignal.getNotificationPermission() === 'denied')) {
+                    } else if (isDenied) {
                         setSubStatus('bloqueado');
                     } else {
                         setSubStatus('no_suscrito');
