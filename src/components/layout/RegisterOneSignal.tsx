@@ -36,7 +36,7 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
                 navigator.serviceWorker.getRegistrations().then((registrations) => {
                     for (const registration of registrations) {
                         const scriptURL = registration.active?.scriptURL;
-                        if (scriptURL && !scriptURL.endsWith('/sw.js')) {
+                        if (scriptURL && !scriptURL.includes('/sw.js')) {
                             registration.unregister().then((success) => {
                                 if (success) {
                                     console.log('[ONESIGNAL] Se desinstaló service worker obsoleto:', scriptURL);
