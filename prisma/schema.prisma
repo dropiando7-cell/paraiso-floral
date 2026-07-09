@@ -50,6 +50,8 @@ model Organization {
   roleTemplates         RoleTemplate[]
   tasks                 Task[]
   users                 User[]
+  voiceLogs             AsistenteVozLog[]
+
 
   cajaChicaSessions     CajaChicaSession[]
   rentasPagos           RentaPago[]
@@ -139,6 +141,7 @@ model User {
   notifications          Notification[]        @relation("UserNotifications")
   notificationsCreadas   Notification[]        @relation("CreatedNotifications")
   notificationsAnuladas  Notification[]        @relation("AnuladaNotifications")
+  voiceLogs              AsistenteVozLog[]     @relation("CreatedVoiceLogs")
 
   @@map("users")
 }
@@ -1336,5 +1339,22 @@ model Notification {
   @@index([userId])
   @@map("notifications")
 }
+
+model AsistenteVozLog {
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId       String        @db.Uuid
+  transcripcion        String        @db.Text
+  intentDetectado      Json?
+  documentoCreadoId    String?       @db.Uuid
+  estado               String        @default("PROCESADO") // PROCESADO, ERROR, CANCELADO
+  creadoPorId          String?       @db.Uuid
+  creadoPor            User?         @relation("CreatedVoiceLogs", fields: [creadoPorId], references: [id])
+  organization         Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@map("asistente_voz_logs")
+}
+
 
 

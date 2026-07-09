@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^0.78.0",
     "@aws-sdk/client-s3": "^3.1012.0",
     "@aws-sdk/s3-request-presigner": "^3.995.0",
+    "@google/genai": "^2.10.0",
     "@imgly/background-removal": "^1.7.0",
     "@prisma/client": "^5.22.0",
     "@react-email/components": "^1.0.8",

@@ -19,6 +19,9 @@ import {
   TrendingUp,
   AlertTriangle,
   ArrowLeft,
+  Database,
+  MapPin,
+  Barcode,
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -27,6 +30,8 @@ import {
   updatePrecioGrupable,
   crearProducto,
   buscarReferenciaOdoo,
+  getCategoriasParaRegistro,
+  registrarDesdeOdoo,
   type ProductoPricing,
 } from './actions'
 
@@ -82,6 +87,8 @@ interface ModalEditarProps {
 function ModalEditarPrecios({ producto, onClose, onGuardado, onShowImage }: ModalEditarProps) {
   const [costo, setCosto] = useState('')
   const [precio, setPrecio] = useState('')
+  const [factor, setFactor] = useState('3.5')
+  const [precioManual, setPrecioManual] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   // Odoo reference integration states
@@ -89,6 +96,32 @@ function ModalEditarPrecios({ producto, onClose, onGuardado, onShowImage }: Moda
   const [referencias, setReferencias] = useState<any[]>([])
   const [loadingRefs, setLoadingRefs] = useState(false)
   const [selectedRef, setSelectedRef] = useState<any | null>(null)
+
+  // Auto-calcula precio cuando cambia costo o factor (si no ha sido editado manualmente)
+  const handleCostoChange = (val: string) => {
+    setCosto(val)
+    setPrecioManual(false) // reset modo manual al cambiar costo
+    const c = parseFloat(val)
+    const f = parseFloat(factor)
+    if (!isNaN(c) && !isNaN(f) && c > 0) {
+      setPrecio((c * f).toFixed(2))
+    }
+  }
+
+  const handleFactorChange = (val: string) => {
+    setFactor(val)
+    const c = parseFloat(costo)
+    const f = parseFloat(val)
+    if (!isNaN(c) && !isNaN(f) && c > 0) {
+      setPrecio((c * f).toFixed(2))
+      setPrecioManual(false)
+    }
+  }
+
+  const handlePrecioManualChange = (val: string) => {
+    setPrecio(val)
+    setPrecioManual(true)
+  }
 
   useEffect(() => {
     if (producto) {
@@ -258,23 +291,66 @@ function ModalEditarPrecios({ producto, onClose, onGuardado, onShowImage }: Moda
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                   Costo Base (L.)
                 </label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">L.</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={costo}
-                    onChange={(e) => setCosto(e.target.value)}
-                    placeholder="0.00"
-                    className="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-slate-800 text-sm transition-all"
-                  />
+                {/* Costo + Factor en una fila */}
+                <div className="flex gap-2 items-stretch">
+                  <div className="relative flex-1">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">L.</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={costo}
+                      onChange={(e) => handleCostoChange(e.target.value)}
+                      placeholder="0.00"
+                      className="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-slate-800 text-sm transition-all"
+                    />
+                  </div>
+                  {/* Factor multiplicador */}
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold select-none">×</span>
+                      <input
+                        type="number"
+                        min="0.1"
+                        step="0.1"
+                        value={factor}
+                        onChange={(e) => handleFactorChange(e.target.value)}
+                        className="w-20 pl-6 pr-2 py-3 rounded-xl border border-indigo-200 bg-indigo-50/50 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 outline-none text-indigo-700 text-sm font-bold transition-all text-center"
+                      />
+                    </div>
+                    {/* Presets */}
+                    <div className="flex gap-1">
+                      {['2.0','2.5','3.0','3.5','4.0'].map(f => (
+                        <button
+                          key={f}
+                          type="button"
+                          onClick={() => handleFactorChange(f)}
+                          className={`flex-1 text-[9px] font-bold py-0.5 rounded-md transition-colors ${
+                            factor === f
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-slate-100 text-slate-500 hover:bg-indigo-100 hover:text-indigo-700'
+                          }`}
+                        >
+                          {f}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
+                {/* Indicador del cálculo */}
+                {costo && !isNaN(parseFloat(costo)) && parseFloat(costo) > 0 && (
+                  <p className="text-[10px] text-indigo-500 font-semibold mt-1.5 flex items-center gap-1">
+                    <span className="opacity-70">L. {parseFloat(costo).toFixed(2)} × {factor} =</span>
+                    <span className="text-indigo-700">L. {(parseFloat(costo) * parseFloat(factor) || 0).toFixed(2)}</span>
+                    {precioManual && <span className="text-amber-500 ml-1">(precio editado manualmente)</span>}
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                   Precio de Venta (L.) Sin ISV
+                  {!precioManual && costo && <span className="ml-2 text-[9px] text-indigo-400 font-normal normal-case">calculado automáticamente</span>}
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">L.</span>
@@ -283,9 +359,13 @@ function ModalEditarPrecios({ producto, onClose, onGuardado, onShowImage }: Moda
                     min="0"
                     step="0.01"
                     value={precio}
-                    onChange={(e) => setPrecio(e.target.value)}
+                    onChange={(e) => handlePrecioManualChange(e.target.value)}
                     placeholder="0.00"
-                    className="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-slate-800 text-sm transition-all"
+                    className={`w-full pl-9 pr-4 py-3 rounded-xl border focus:ring-2 outline-none text-slate-800 text-sm transition-all ${
+                      precioManual
+                        ? 'border-amber-300 focus:border-amber-400 focus:ring-amber-100 bg-amber-50/30'
+                        : 'border-slate-200 focus:border-blue-400 focus:ring-blue-100'
+                    }`}
                   />
                 </div>
               </div>
@@ -789,6 +869,17 @@ function FilaProducto({ producto, onEditar, onShowImage }: { producto: ProductoP
       className={`group hover:bg-slate-50/80 transition-colors border-b border-slate-100 last:border-0 ${tieneSub ? 'cursor-pointer' : ''}`}
       onClick={() => tieneSub && setExpandido(!expandido)}
     >
+      {/* ── Botón Fijar Precio al inicio ── */}
+      <td className="pl-4 pr-2 py-4 shrink-0">
+        <button
+          onClick={(e) => { e.stopPropagation(); onEditar(producto); }}
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-xs font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap"
+        >
+          <Pencil size={12} />
+          {producto.sinPrecio ? 'Fijar' : 'Editar'}
+        </button>
+      </td>
+
       <td className="px-5 py-4">
         <span className="inline-block px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">
           {producto.codigo}
@@ -872,14 +963,7 @@ function FilaProducto({ producto, onEditar, onShowImage }: { producto: ProductoP
         <PrecioBadge sinPrecio={producto.sinPrecio} parcial={esParcial} />
       </td>
 
-      <td className="px-5 py-4 text-right flex items-center justify-end gap-3">
-        <button
-          onClick={(e) => { e.stopPropagation(); onEditar(producto); }}
-          className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-blue-300 hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-xs font-bold transition-all shadow-sm active:scale-95"
-        >
-          <Pencil size={13} />
-          {producto.sinPrecio ? 'Fijar Precio' : 'Editar Precio'}
-        </button>
+      <td className="px-5 py-4 text-right">
         {tieneSub ? (
           <ChevronRight size={18} className={`text-slate-400 transition-transform ${expandido ? 'rotate-90' : ''}`} />
         ) : (
@@ -990,6 +1074,89 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
   const [productoEditando, setProductoEditando] = useState<ProductoPricing | null>(null)
   const [lightboxImage, setLightboxImage] = useState<string | null>(null)
 
+  // ── Consulta rápida Odoo ──
+  const [modalOdoo, setModalOdoo] = useState(false)
+  const [odooQuery, setOdooQuery] = useState('')
+  const [odooRefs, setOdooRefs] = useState<any[]>([])
+  const [odooLoading, setOdooLoading] = useState(false)
+  const [odooSelected, setOdooSelected] = useState<any | null>(null)
+
+  // ── Registro rápido desde Odoo ──
+  const [showRegistroPanel, setShowRegistroPanel] = useState(false)
+  const [categorias, setCategorias] = useState<{ id: string; nombre: string; color: string | null }[]>([])
+  const [registroForm, setRegistroForm] = useState({
+    nombre: '', descripcionDetallada: '', area: 'ALMACEN', cuentaAct: '1810-00',
+    categoriaId: '', esConsumible: true, cantidad: 1, imprimirEtiqueta: true
+  })
+  const [registrando, setRegistrando] = useState(false)
+  const [registroExitoso, setRegistroExitoso] = useState<{ idQr: string; id: string } | null>(null)
+
+  // Cargar categorías cuando se abre el modal Odoo
+  useEffect(() => {
+    if (modalOdoo && categorias.length === 0) {
+      getCategoriasParaRegistro().then(setCategorias)
+    }
+  }, [modalOdoo, categorias.length])
+
+  // Pre-cargar form cuando se selecciona un item de Odoo
+  useEffect(() => {
+    if (odooSelected) {
+      setShowRegistroPanel(false)
+      setRegistroExitoso(null)
+      setRegistroForm(prev => ({
+        ...prev,
+        nombre: odooSelected.nombre || '',
+        descripcionDetallada: odooSelected.notasInternas || '',
+        cantidad: odooSelected.cantidadOdoo || 1,
+      }))
+    }
+  }, [odooSelected])
+
+  const handleRegistrarDesdeOdoo = async () => {
+    if (!odooSelected) return
+    setRegistrando(true)
+    try {
+      const result = await registrarDesdeOdoo({
+        nombre: registroForm.nombre,
+        descripcionDetallada: registroForm.descripcionDetallada || undefined,
+        imagenUrl: odooSelected.imagenUrl || undefined,
+        codigoBarras: odooSelected.codigoBarras || undefined,
+        cantidad: registroForm.cantidad,
+        referenciaInterna: odooSelected.referenciaInterna || undefined,
+        pasilloEstante: odooSelected.pasilloEstante || undefined,
+        categoriaId: registroForm.categoriaId || undefined,
+        esConsumible: registroForm.esConsumible,
+        area: registroForm.area,
+        cuentaAct: registroForm.cuentaAct,
+        imprimirEtiqueta: registroForm.imprimirEtiqueta,
+      })
+      if (result.success && result.idQr && result.id) {
+        setRegistroExitoso({ idQr: result.idQr, id: result.id })
+        toast.success(`✅ Registrado como ${result.idQr}`)
+      } else {
+        toast.error(result.error || 'Error al registrar')
+      }
+    } finally {
+      setRegistrando(false)
+    }
+  }
+
+  const handleOdooSearch = async (q?: string) => {
+    const query = (q ?? odooQuery).trim()
+    if (!query) return
+    setOdooLoading(true)
+    setOdooSelected(null)
+    try {
+      const res = await buscarReferenciaOdoo(query)
+      setOdooRefs(res)
+      if (res.length > 0) setOdooSelected(res[0])
+    } catch (e) {
+      toast.error('Error al consultar Odoo')
+    } finally {
+      setOdooLoading(false)
+    }
+  }
+
   useEffect(() => {
     const timeout = setTimeout(() => {
       startTransition(async () => {
@@ -1054,13 +1221,24 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
           </div>
         </div>
 
-        <button
-          onClick={() => setModalNuevo(true)}
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold shadow-md shadow-slate-200 transition-all hover:-translate-y-0.5 self-start"
-        >
-          <Plus size={18} />
-          Nuevo Registro Manual
-        </button>
+        <div className="flex items-center gap-2 self-start flex-wrap">
+          {/* Consulta Odoo */}
+          <button
+            onClick={() => { setModalOdoo(true); setOdooRefs([]); setOdooSelected(null); setOdooQuery(''); }}
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-sm font-bold shadow-sm transition-all hover:-translate-y-0.5"
+          >
+            <Database size={16} />
+            Consultar Odoo
+          </button>
+          {/* Nuevo Manual */}
+          <button
+            onClick={() => setModalNuevo(true)}
+            className="inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-bold shadow-md shadow-slate-200 transition-all hover:-translate-y-0.5"
+          >
+            <Plus size={18} />
+            Nuevo Registro Manual
+          </button>
+        </div>
       </div>
 
       <div className="relative mb-8">
@@ -1105,6 +1283,7 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
             <table className="w-full text-left">
               <thead>
                 <tr className="bg-slate-50/50">
+                  <th className="pl-4 pr-2 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Acción</th>
                   <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Código / UUID</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Foto</th>
                   <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Identificador unificado</th>
@@ -1140,6 +1319,367 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
           onClose={() => setModalNuevo(false)}
           onCreado={handleProductoCreado}
         />
+      )}
+
+      {/* ── Modal Consulta Inventario Odoo ── */}
+      {modalOdoo && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(15, 23, 42, 0.55)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setModalOdoo(false)}
+        >
+          <div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600 flex items-center justify-center shadow-sm">
+                  <Database size={20} className="text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-800 text-base">Consulta de Inventario Odoo</h3>
+                  <p className="text-xs text-slate-400 mt-0.5">Búsqueda de referencia cruzada — solo lectura</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalOdoo(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+              >
+                <X size={16} className="text-slate-600" />
+              </button>
+            </div>
+
+            {/* Buscador */}
+            <div className="px-6 pt-5 pb-3 shrink-0">
+              <div className="flex gap-2">
+                <div className="relative flex-1">
+                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Buscar por nombre, SKU, ID o referencia de Odoo..."
+                    value={odooQuery}
+                    onChange={(e) => setOdooQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleOdooSearch() }}
+                    className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 outline-none text-slate-800 text-sm transition-all"
+                  />
+                </div>
+                <button
+                  onClick={() => handleOdooSearch()}
+                  disabled={odooLoading || !odooQuery.trim()}
+                  className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition-colors disabled:opacity-50 flex items-center gap-2 shrink-0"
+                >
+                  {odooLoading ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
+                  Buscar
+                </button>
+              </div>
+            </div>
+
+            {/* Contenido */}
+            <div className="flex-1 overflow-y-auto px-6 pb-6">
+              {odooLoading ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3">
+                  <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
+                  <p className="text-sm text-slate-500">Consultando inventario de Odoo...</p>
+                </div>
+              ) : odooRefs.length === 0 && odooQuery ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                  <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center">
+                    <PackageSearch className="w-7 h-7 text-slate-400" />
+                  </div>
+                  <p className="text-sm font-semibold text-slate-600">Sin resultados en Odoo</p>
+                  <p className="text-xs text-slate-400 max-w-xs">Intenta buscar con otro término, SKU o referencia interna.</p>
+                </div>
+              ) : odooRefs.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+                  <div className="w-14 h-14 rounded-full bg-blue-50 flex items-center justify-center">
+                    <Database className="w-7 h-7 text-blue-300" />
+                  </div>
+                  <p className="text-sm text-slate-500">Escribe un nombre o referencia y presiona Buscar</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  {/* Lista de coincidencias */}
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                      {odooRefs.length} coincidencia{odooRefs.length !== 1 ? 's' : ''}
+                    </p>
+                    <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-1">
+                      {odooRefs.map((ref) => {
+                        const isSel = odooSelected?.id === ref.id
+                        return (
+                          <button
+                            key={ref.id}
+                            type="button"
+                            onClick={() => setOdooSelected(ref)}
+                            className={`w-full flex items-center gap-3 p-2.5 rounded-xl border text-left transition-all ${
+                              isSel
+                                ? 'bg-blue-50 border-blue-200 ring-2 ring-blue-100/60 shadow-sm'
+                                : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200'
+                            }`}
+                          >
+                            <div className="w-10 h-10 rounded-lg border border-slate-100 bg-slate-50 flex-shrink-0 overflow-hidden flex items-center justify-center">
+                              {ref.imagenUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={ref.imagenUrl} alt={ref.nombre} className="w-full h-full object-cover" />
+                              ) : (
+                                <PackageSearch className="w-5 h-5 text-slate-400" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-xs font-semibold truncate ${isSel ? 'text-blue-900' : 'text-slate-700'}`}>
+                                {ref.nombre}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                {ref.odooId && (
+                                  <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-mono">
+                                    ODOO-{ref.odooId}
+                                  </span>
+                                )}
+                                {ref.referenciaInterna && (
+                                  <span className="text-[9px] text-slate-400 font-mono truncate max-w-[80px]">
+                                    {ref.referenciaInterna}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Detalle del seleccionado */}
+                  {odooSelected && (
+                    <div className="bg-slate-50 rounded-2xl border border-slate-100 p-4 space-y-4 animate-in fade-in duration-200">
+                      {/* Imagen + nombre */}
+                      <div className="flex gap-3 items-start">
+                        <div
+                          className="w-20 h-20 rounded-xl border border-slate-200 bg-white flex-shrink-0 overflow-hidden flex items-center justify-center cursor-zoom-in"
+                          onClick={() => odooSelected.imagenUrl && setLightboxImage(odooSelected.imagenUrl)}
+                        >
+                          {odooSelected.imagenUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={odooSelected.imagenUrl} alt={odooSelected.nombre} className="w-full h-full object-cover" />
+                          ) : (
+                            <PackageSearch className="w-8 h-8 text-slate-400" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md inline-block mb-1">
+                            {odooSelected.odooId ? `Odoo ID: ${odooSelected.odooId}` : 'Sin ID'}
+                          </span>
+                          <h5 className="font-bold text-slate-800 text-sm leading-snug">{odooSelected.nombre}</h5>
+                          {odooSelected.referenciaInterna && (
+                            <p className="text-xs text-slate-500 font-mono mt-1">Ref: {odooSelected.referenciaInterna}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Datos clave */}
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="bg-white rounded-xl border border-slate-100 p-3">
+                          <span className="block text-[9px] font-bold text-blue-500 uppercase tracking-wider mb-0.5">Costo Histórico</span>
+                          <span className="text-base font-black text-blue-700">
+                            {odooSelected.costoHistorico !== null ? formatLPS(odooSelected.costoHistorico) : 'N/D'}
+                          </span>
+                        </div>
+                        <div className="bg-white rounded-xl border border-slate-100 p-3">
+                          <span className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Stock Odoo</span>
+                          <span className="text-base font-black text-slate-700">
+                            {odooSelected.cantidadOdoo !== null ? `${odooSelected.cantidadOdoo} uds.` : 'N/D'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        {odooSelected.pasilloEstante && (
+                          <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-white border border-slate-100">
+                            <MapPin size={12} className="text-emerald-500 shrink-0" />
+                            <span className="text-slate-500 shrink-0">Ubicación:</span>
+                            <span className="font-semibold text-slate-700 truncate">{odooSelected.pasilloEstante}</span>
+                          </div>
+                        )}
+                        {odooSelected.codigoBarras && (
+                          <div className="flex items-center gap-2 py-1.5 px-2 rounded-lg bg-white border border-slate-100">
+                            <Barcode size={12} className="text-slate-400 shrink-0" />
+                            <span className="text-slate-500 shrink-0">Código de Barras:</span>
+                            <span className="font-mono text-slate-700 truncate">{odooSelected.codigoBarras}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {odooSelected.notasInternas && (
+                        <div className="bg-amber-50 border border-amber-100 rounded-xl p-3">
+                          <span className="block text-[9px] font-bold text-amber-600 uppercase tracking-wider mb-1">Notas Internas</span>
+                          <p className="text-xs text-amber-800 italic leading-relaxed whitespace-pre-wrap">{odooSelected.notasInternas}</p>
+                        </div>
+                      )}
+
+                      {/* Botón para abrir panel de registro */}
+                      {!registroExitoso && (
+                        <button
+                          type="button"
+                          onClick={() => setShowRegistroPanel(p => !p)}
+                          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold transition-all border ${
+                            showRegistroPanel
+                              ? 'bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+                          }`}
+                        >
+                          <Plus size={15} />
+                          {showRegistroPanel ? 'Cancelar Registro' : 'Registrar en Inventario'}
+                        </button>
+                      )}
+
+                      {/* ── Éxito: QR asignado ── */}
+                      {registroExitoso && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-2 animate-in fade-in duration-200">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 size={18} className="text-emerald-600" />
+                            <span className="text-sm font-bold text-emerald-800">Registrado exitosamente</span>
+                          </div>
+                          <p className="text-xs text-emerald-700">QR asignado:</p>
+                          <span className="block font-mono font-black text-base text-emerald-900 bg-white px-3 py-2 rounded-lg border border-emerald-200">{registroExitoso.idQr}</span>
+                          <div className="flex gap-2 mt-2">
+                            <a
+                              href={`/inventario`}
+                              target="_blank"
+                              className="flex-1 text-center py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors"
+                            >
+                              Ver en Inventario
+                            </a>
+                            <a
+                              href={`/ficha-tecnica/${registroExitoso.idQr}`}
+                              target="_blank"
+                              className="flex-1 text-center py-2 rounded-lg border border-emerald-300 text-emerald-700 text-xs font-bold hover:bg-emerald-50 transition-colors"
+                            >
+                              Ficha Técnica
+                            </a>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* ── Panel de Registro ── */}
+                      {showRegistroPanel && !registroExitoso && (
+                        <div className="border border-emerald-200 bg-emerald-50/50 rounded-xl p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
+                          <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider">Datos del Registro</p>
+
+                          {/* Nombre */}
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Nombre</label>
+                            <input
+                              type="text"
+                              value={registroForm.nombre}
+                              onChange={e => setRegistroForm(p => ({ ...p, nombre: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100 bg-white"
+                            />
+                          </div>
+
+                          {/* Tipo */}
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Tipo</label>
+                            <div className="flex gap-2">
+                              {[{ label: 'Consumible', value: true }, { label: 'Equipo Médico', value: false }].map(opt => (
+                                <button
+                                  key={String(opt.value)}
+                                  type="button"
+                                  onClick={() => setRegistroForm(p => ({ ...p, esConsumible: opt.value }))}
+                                  className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${
+                                    registroForm.esConsumible === opt.value
+                                      ? 'bg-emerald-600 text-white border-emerald-600'
+                                      : 'bg-white text-slate-600 border-slate-200 hover:border-emerald-300'
+                                  }`}
+                                >
+                                  {opt.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Categoría */}
+                          <div>
+                            <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Categoría</label>
+                            <select
+                              value={registroForm.categoriaId}
+                              onChange={e => setRegistroForm(p => ({ ...p, categoriaId: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 outline-none focus:border-emerald-400 bg-white"
+                            >
+                              <option value="">Sin categoría</option>
+                              {categorias.map(c => (
+                                <option key={c.id} value={c.id}>{c.nombre}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Cantidad y Área */}
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Cantidad</label>
+                              <input
+                                type="number" min="1"
+                                value={registroForm.cantidad}
+                                onChange={e => setRegistroForm(p => ({ ...p, cantidad: parseInt(e.target.value) || 1 }))}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 outline-none focus:border-emerald-400 bg-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Área / Ubicación</label>
+                              <input
+                                type="text"
+                                value={registroForm.area}
+                                onChange={e => setRegistroForm(p => ({ ...p, area: e.target.value }))}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-800 outline-none focus:border-emerald-400 bg-white"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Imprimir etiqueta toggle */}
+                          <label className="flex items-center gap-3 cursor-pointer select-none">
+                            <div
+                              onClick={() => setRegistroForm(p => ({ ...p, imprimirEtiqueta: !p.imprimirEtiqueta }))}
+                              className={`w-10 h-5 rounded-full transition-colors relative ${
+                                registroForm.imprimirEtiqueta ? 'bg-emerald-500' : 'bg-slate-200'
+                              }`}
+                            >
+                              <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
+                                registroForm.imprimirEtiqueta ? 'translate-x-5' : 'translate-x-0.5'
+                              }`} />
+                            </div>
+                            <span className="text-xs font-semibold text-slate-600">Encolar etiqueta QR para imprimir</span>
+                          </label>
+
+                          {/* Botón guardar */}
+                          <button
+                            type="button"
+                            onClick={handleRegistrarDesdeOdoo}
+                            disabled={registrando || !registroForm.nombre.trim()}
+                            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                          >
+                            {registrando ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+                            {registrando ? 'Registrando...' : 'Guardar en Inventario'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end shrink-0">
+              <button
+                onClick={() => setModalOdoo(false)}
+                className="px-6 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-100 transition-colors"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Lightbox Modal overlay for images */}

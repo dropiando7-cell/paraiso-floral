@@ -15,7 +15,7 @@ async function getOrgId() {
 }
 
 export type ProductoPricing = {
-  id: string; // Puede ser id de Producto o el idQr/codigoGrupo representativo del grupo
+  id: string;
   codigo: string;
   descripcion: string;
   referencia: string | null;
@@ -33,7 +33,7 @@ export type ProductoPricing = {
 export type ActualizarPrecioInput = {
   id: string;
   tipo: 'PRODUCTO' | 'GRUPO_ACTIVO_FIJO';
-  descripcion?: string; // Para agrupar activos
+  descripcion?: string;
   costoBase: number;
   precioVenta: number;
 };
@@ -60,11 +60,11 @@ function getAccentCombinations(str: string): string[] {
 
     let results = [''];
     let vowelCount = 0;
-    
+
     for (const char of normalizedStr) {
         const options = map[char] || [char];
         if (options.length > 1) vowelCount++;
-        
+
         if (vowelCount > 5) {
             results = results.map(r => r + char);
             continue;
@@ -85,7 +85,6 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
     const orgId = await getOrgId();
     const searchTerms = query ? getAccentCombinations(query) : [];
 
-    // 1. Obtener los productos ya registrados en el catálogo
     const productos = await prisma.producto.findMany({
         where: {
             organizationId: orgId,
@@ -104,8 +103,6 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
         }
     });
 
-    // 2. Obtener los Activos Fijos que NO tienen productoId asignado, agrupados por descripcionCorta
-    // Solo agruparemos los que están VIGENTES
     const activosSinProducto = await prisma.activoFijo.findMany({
         where: {
             organizationId: orgId,
@@ -132,7 +129,6 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
         }
     });
 
-    // Agrupar manualmente en memoria (Prisma groupBy no retorna full select de relaciones tan fácil)
     const grupos = new Map<string, ProductoPricing>();
 
     for (const activo of activosSinProducto) {
@@ -141,7 +137,7 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
 
         if (!grupos.has(desc)) {
             grupos.set(desc, {
-                id: activo.id, // ID representativo
+                id: activo.id,
                 codigo: 'AGRUPADO-' + (activo.idQr.split('-').slice(0, 2).join('-')),
                 descripcion: desc,
                 referencia: activo.referencia,
@@ -165,14 +161,13 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
         }
     }
 
-    // Unificar resultados
     const resultado: ProductoPricing[] = [
         ...productos.map(p => {
              const sumHijos = p.activosFijos ? p.activosFijos.reduce((acc, curr) => acc + (curr.stock || 1), 0) : 0;
              const finalStock = p.activosFijos && p.activosFijos.length > 0 ? sumHijos : (p.stockActual || 0);
              const firstAssetWithImg = p.activosFijos?.find(a => a.imagenUrl);
              const mainImageUrl = firstAssetWithImg?.imagenUrl || null;
-             
+
              return {
                  id: p.id,
                  codigo: p.sku,
@@ -198,7 +193,6 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
         ...Array.from(grupos.values())
     ];
 
-    // Ordenar: primero los que no tienen precio (sinPrecio = true), luego por descripción
     resultado.sort((a, b) => {
         if (a.sinPrecio && !b.sinPrecio) return -1;
         if (!a.sinPrecio && b.sinPrecio) return 1;
@@ -225,13 +219,10 @@ export async function updatePrecioGrupable(input: ActualizarPrecioInput) {
                 }
             });
         } else if (input.tipo === 'GRUPO_ACTIVO_FIJO') {
-            // Es un grupo de Activos Fijos -> Creamos el Producto Maestro en el Catálogo.
             if (!input.descripcion) throw new Error("Falta la descripción para agrupar.");
 
-            // Buscar un SKU que no exista
             const newSku = 'CAT-' + String(Date.now()).slice(-6);
 
-            // Sumar el stock de los activos que se van a agrupar
             const agg = await prisma.activoFijo.aggregate({
                 where: {
                     organizationId: orgId,
@@ -246,15 +237,14 @@ export async function updatePrecioGrupable(input: ActualizarPrecioInput) {
                 data: {
                     organizationId: orgId,
                     sku: newSku,
-                    nombre: input.descripcion, // La descripción corta es el nombre base
+                    nombre: input.descripcion,
                     precioVenta: input.precioVenta,
                     costoBase: input.costoBase,
                     estado: 'ACTIVO',
-                    stockActual: stockTotal // Usar el stock consolidado
+                    stockActual: stockTotal
                 }
             });
 
-            // Asignarle el nuevo `productoId` a todos los activos con esta descripcionCorta
             await prisma.activoFijo.updateMany({
                 where: {
                     organizationId: orgId,
@@ -307,11 +297,9 @@ export async function crearProducto(data: CrearProductoInput) {
 export async function buscarReferenciaOdoo(query: string): Promise<any[]> {
     const orgId = await getOrgId();
     if (!query || query.trim().length === 0) return [];
-
     const searchTerm = query.trim();
     const keywords = searchTerm.split(/\s+/).filter(Boolean);
     if (keywords.length === 0) return [];
-
     const andConditions = keywords.map(keyword => ({
         OR: [
             { nombre: { contains: keyword, mode: 'insensitive' as const } },
@@ -323,53 +311,26 @@ export async function buscarReferenciaOdoo(query: string): Promise<any[]> {
             { descripcionSitioWeb: { contains: keyword, mode: 'insensitive' as const } }
         ]
     }));
-
     try {
-        const odooProducts = await prisma.productoOdoo.findMany({
-            where: {
-                AND: andConditions
-            },
-            take: 30,
-        });
-
+        const odooProducts = await prisma.productoOdoo.findMany({ where: { AND: andConditions }, take: 30 });
         const results = [];
         for (const prod of odooProducts) {
-            // Buscar si hay un costo histórico correspondiente en InventarioHistorico
             let costoHistorico: number | null = null;
             if (prod.odooId) {
                 const hist = await prisma.inventarioHistorico.findFirst({
-                    where: {
-                        organizationId: orgId,
-                        observaciones: {
-                            contains: `ODOO-${prod.odooId}`
-                        }
-                    },
-                    select: {
-                        costoAdquisicion: true
-                    }
+                    where: { organizationId: orgId, observaciones: { contains: `ODOO-${prod.odooId}` } },
+                    select: { costoAdquisicion: true }
                 });
-                if (hist && hist.costoAdquisicion) {
-                    costoHistorico = hist.costoAdquisicion.toNumber();
-                }
+                if (hist?.costoAdquisicion) costoHistorico = hist.costoAdquisicion.toNumber();
             }
-
             results.push({
-                id: prod.id,
-                odooId: prod.odooId,
-                nombre: prod.nombre,
-                nombreMostrar: prod.nombreMostrar,
-                codigoBarras: prod.codigoBarras,
-                notasInternas: prod.notasInternas,
-                cantidadOdoo: prod.cantidadOdoo,
-                descripcionSitioWeb: prod.descripcionSitioWeb,
-                imagenUrl: prod.imagenUrl,
-                pasilloEstante: prod.pasilloEstante,
-                referenciaInterna: prod.referenciaInterna,
-                tipoProducto: prod.tipoProducto,
-                costoHistorico
+                id: prod.id, odooId: prod.odooId, nombre: prod.nombre, nombreMostrar: prod.nombreMostrar,
+                codigoBarras: prod.codigoBarras, notasInternas: prod.notasInternas, cantidadOdoo: prod.cantidadOdoo,
+                descripcionSitioWeb: prod.descripcionSitioWeb, imagenUrl: prod.imagenUrl,
+                pasilloEstante: prod.pasilloEstante, referenciaInterna: prod.referenciaInterna,
+                tipoProducto: prod.tipoProducto, costoHistorico
             });
         }
-
         return results;
     } catch (error) {
         console.error("Error al buscar referencia de Odoo:", error);
@@ -377,3 +338,111 @@ export async function buscarReferenciaOdoo(query: string): Promise<any[]> {
     }
 }
 
+// ─── Categorías para el registro rápido desde Odoo ───────────────────────────
+export async function getCategoriasParaRegistro(): Promise<{ id: string; nombre: string; color: string | null }[]> {
+    try {
+        const orgId = await getOrgId();
+        return await prisma.categoria.findMany({
+            where: { organizationId: orgId },
+            orderBy: { nombre: 'asc' },
+            select: { id: true, nombre: true, color: true }
+        });
+    } catch {
+        return [];
+    }
+}
+
+// ─── Registro rápido de activo desde Odoo ────────────────────────────────────
+export async function registrarDesdeOdoo(input: {
+    nombre: string;
+    descripcionDetallada?: string;
+    imagenUrl?: string;
+    codigoBarras?: string;
+    cantidad: number;
+    referenciaInterna?: string;
+    pasilloEstante?: string;
+    categoriaId?: string;
+    esConsumible: boolean;
+    area: string;
+    cuentaAct: string;
+    imprimirEtiqueta?: boolean;
+}): Promise<{ success: boolean; idQr?: string; id?: string; error?: string }> {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'No autenticado' };
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            select: { id: true, organizationId: true }
+        });
+        if (!dbUser) return { success: false, error: 'Usuario no encontrado' };
+        const { id: userId, organizationId: orgId } = dbUser;
+
+        // Generar idQr
+        const org = await prisma.organization.findUnique({
+            where: { id: orgId },
+            select: { qrPrefix: true }
+        });
+        const prefix = org?.qrPrefix || 'BEA';
+
+        const todos = await prisma.activoFijo.findMany({
+            where: { organizationId: orgId, idQr: { startsWith: `${prefix}-` } },
+            select: { idQr: true }
+        });
+        let maxNum = 0;
+        for (const a of todos) {
+            const parts = a.idQr.split('-');
+            const last = parts[parts.length - 1];
+            if (!isNaN(Number(last)) && Number(last) > maxNum) maxNum = Number(last);
+        }
+        const nextNum = String(maxNum + 1).padStart(6, '0');
+        const idQr = `${prefix}-001-${nextNum}`;
+
+        // Crear el activo
+        const activo = await prisma.activoFijo.create({
+            data: {
+                organizationId: orgId,
+                idQr,
+                descripcionCorta: input.nombre.trim(),
+                descripcionDetallada: input.descripcionDetallada || null,
+                imagenUrl: input.imagenUrl || null,
+                codigoBarras: input.codigoBarras || null,
+                stock: input.cantidad || 1,
+                referencia: input.referenciaInterna || null,
+                observaciones: input.pasilloEstante ? `Ubicación Odoo: ${input.pasilloEstante}` : null,
+                categoriaId: input.categoriaId || null,
+                esConsumible: input.esConsumible,
+                area: input.area.trim().toUpperCase() || 'ALMACEN',
+                cuentaAct: input.cuentaAct || '1810-00',
+                estatusContable: 'VIGENTE',
+                origenActivo: 'ODOO',
+                createdById: userId,
+                updatedById: userId,
+            }
+        });
+
+        // Encolar etiqueta de impresión si se solicitó
+        if (input.imprimirEtiqueta) {
+            const qrText = encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL || 'https://sistema.bioelectronicahn.com'}/ficha-tecnica/${idQr}`);
+            const labelUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=4&eclevel=M&includetext=false`;
+            await prisma.colaImpresion.create({
+                data: {
+                    organizationId: orgId,
+                    activoId: activo.id,
+                    urlImagen: labelUrl,
+                    estado: 'PENDIENTE',
+                    impresora: 'Niimbot',
+                    tamano: '50x30'
+                }
+            });
+        }
+
+        revalidatePath('/inventario');
+        revalidatePath('/precios');
+        return { success: true, idQr, id: activo.id };
+    } catch (e: any) {
+        console.error('Error registrarDesdeOdoo:', e);
+        return { success: false, error: e.message || 'Error interno' };
+    }
+}

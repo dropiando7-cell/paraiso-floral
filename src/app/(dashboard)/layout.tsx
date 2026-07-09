@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ToasterProvider } from "./ToasterProvider";
 import { RegisterOneSignal } from "@/components/layout/RegisterOneSignal";
+import { VoiceAssistant } from "@/components/assistant/VoiceAssistant";
+
 
 export default async function AuthenticatedLayout({
     children,
@@ -73,6 +75,7 @@ export default async function AuthenticatedLayout({
         <DashboardLayout dbUser={combinedUser}>
             <ToasterProvider />
             <RegisterOneSignal dbUser={combinedUser} />
+            <VoiceAssistant />
             {children}
         </DashboardLayout>
     );
