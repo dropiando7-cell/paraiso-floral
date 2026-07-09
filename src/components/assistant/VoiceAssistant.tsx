@@ -70,7 +70,7 @@ export function VoiceAssistant() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (SpeechRecognition) {
                 const rec = new SpeechRecognition();
-                rec.continuous = false;
+                rec.continuous = true;
                 rec.interimResults = true;
                 rec.lang = 'es-HN'; // Español de Honduras / general
 
@@ -82,7 +82,7 @@ export function VoiceAssistant() {
 
                 rec.onresult = (event: any) => {
                     let currentTranscript = '';
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    for (let i = 0; i < event.results.length; ++i) {
                         currentTranscript += event.results[i][0].transcript;
                     }
                     setTranscript(currentTranscript);
