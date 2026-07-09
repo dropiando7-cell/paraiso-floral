@@ -1,7 +1,7 @@
 /**
  * Compresses an image file client-side using Canvas API.
  * Resizes the image to a maximum width/height while maintaining aspect ratio,
- * and converts it to JPEG with a given quality ratio.
+ * and converts it to WebP with a given quality ratio.
  * 
  * @param file The original image file
  * @param options Configuration options
@@ -11,8 +11,8 @@ export function compressImage(
   file: File,
   options: { maxWidth?: number; maxHeight?: number; quality?: number } = {}
 ): Promise<File> {
-  // Configuración predeterminada optimizada: alta resolución y calidad para no perder detalle de la reparación
-  const { maxWidth = 2400, maxHeight = 2400, quality = 0.85 } = options;
+  // Configuración predeterminada: WebP con calidad 90% y hasta 3000px para conservar detalles milimétricos de las placas
+  const { maxWidth = 3000, maxHeight = 3000, quality = 0.90 } = options;
 
   return new Promise(async (resolve) => {
     const isHeic = file.name.toLowerCase().endsWith('.heic') || 
@@ -27,13 +27,13 @@ export function compressImage(
 
     let imageFile = file;
 
-    // Convertir HEIC (iPhone) a JPEG de forma asíncrona
+    // Convertir HEIC (iPhone) a WebP de forma asíncrona
     if (isHeic) {
       try {
         const heic2any = (await import('heic2any')).default;
         const resultBlob = await heic2any({
           blob: file,
-          toType: 'image/jpeg',
+          toType: 'image/jpeg', // Convertimos primero a jpeg (soportado por heic2any)
           quality: quality
         });
         
@@ -50,7 +50,7 @@ export function compressImage(
           return resolve(imageFile);
         }
       } catch (heicErr) {
-        console.error("Error converting HEIC to JPEG during compression:", heicErr);
+        console.error("Error converting HEIC during compression:", heicErr);
       }
     }
 
@@ -98,19 +98,17 @@ export function compressImage(
             if (!blob) {
               return resolve(imageFile);
             }
-            // Cambiar extensión a .jpg si es necesario
+            // Cambiar extensión a .webp
             let newName = imageFile.name;
-            if (!newName.toLowerCase().endsWith('.jpg') && !newName.toLowerCase().endsWith('.jpeg')) {
-              newName = newName.replace(/\.[^/.]+$/, "") + ".jpg";
-            }
+            newName = newName.replace(/\.[^/.]+$/, "") + ".webp";
             
             const compressedFile = new File([blob], newName, {
-              type: 'image/jpeg',
+              type: 'image/webp',
               lastModified: Date.now(),
             });
             resolve(compressedFile);
           },
-          'image/jpeg',
+          'image/webp',
           quality
         );
       };

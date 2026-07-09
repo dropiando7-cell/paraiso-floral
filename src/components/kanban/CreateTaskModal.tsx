@@ -233,8 +233,8 @@ export default function CreateTaskModal({
         if (!file) return;
 
         const isVideo = file.type.startsWith('video/');
-        const limitSize = isVideo ? 150 * 1024 * 1024 : 30 * 1024 * 1024; // 150MB for video, 30MB for others
-        const limitLabel = isVideo ? '150MB' : '30MB';
+        const limitSize = isVideo ? 500 * 1024 * 1024 : 30 * 1024 * 1024; // 500MB for video, 30MB for others
+        const limitLabel = isVideo ? '500MB' : '30MB';
         if (file.size > limitSize) {
             toast.error(`El archivo "${file.name}" supera el límite de ${limitLabel}`);
             return;
