@@ -493,28 +493,19 @@ export default function ProfilePage() {
 
                                                 if (typeof window === 'undefined') return;
 
-                                                // Diagnóstico inicial
-                                                const diagInfo = {
-                                                    notifPermission: typeof Notification !== 'undefined' ? Notification.permission : 'N/A',
-                                                    oneSignalLoaded: !!window.OneSignal,
-                                                    swController: !!navigator.serviceWorker?.controller,
-                                                    currentSubId: window.OneSignal?.User?.PushSubscription?.id || null,
-                                                };
-                                                console.log('[ONESIGNAL] ▶ Botón presionado:', diagInfo);
-
-                                                // 1. Manejo de permisos nativos (debe estar dentro del User Gesture)
+                                                // 1. Manejo de permisos nativos (User Gesture)
                                                 let permission: NotificationPermission = 'default';
                                                 if (typeof Notification !== 'undefined') {
                                                     permission = Notification.permission;
                                                     if (permission === 'default') {
-                                                        toast.loading('Solicitando permiso al navegador...');
+                                                        const nativeToast = toast.loading('Solicitando permiso al navegador...');
                                                         try {
                                                             permission = await Notification.requestPermission();
                                                             console.log('[ONESIGNAL] Permiso nativo resultado:', permission);
                                                         } catch (err: unknown) {
-                                                            console.error('[ONESIGNAL] Error pidiendo permiso:', err);
+                                                            console.error('[ONESIGNAL] Error pidiendo permiso nativo:', err);
                                                         }
-                                                        toast.dismiss();
+                                                        toast.dismiss(nativeToast);
                                                     }
                                                 }
 
@@ -525,67 +516,37 @@ export default function ProfilePage() {
                                                 }
 
                                                 if (!window.OneSignal) {
-                                                    toast.error('SDK de notificaciones no cargado. Recarga la página.');
+                                                    toast.error('El servicio de notificaciones no está listo. Recarga la página.');
                                                     return;
                                                 }
 
-                                                toast.loading('Conectando con el servidor de notificaciones...');
+                                                const connectingToast = toast.loading('Conectando con el servidor de notificaciones...');
 
                                                 try {
-                                                    // 2. Asegurar que el Service Worker esté activo y controlando la página
-                                                    // (sin esto, OneSignal no puede crear la suscripción push)
-                                                    if (navigator.serviceWorker) {
-                                                        if (!navigator.serviceWorker.controller) {
-                                                            console.log('[ONESIGNAL] SW no está controlando la página. Registrando...');
-                                                            try {
-                                                                const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-                                                                console.log('[ONESIGNAL] SW registrado:', reg.scope);
-                                                                // Esperar a que el SW esté activo
-                                                                await navigator.serviceWorker.ready;
-                                                                // Forzar que tome control de la página actual
-                                                                if (reg.active) {
-                                                                    await new Promise<void>((resolve) => {
-                                                                        if (navigator.serviceWorker.controller) { resolve(); return; }
-                                                                        navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true });
-                                                                        setTimeout(resolve, 3000); // max 3s
-                                                                    });
-                                                                }
-                                                            } catch (swErr: unknown) {
-                                                                console.warn('[ONESIGNAL] Error registrando SW:', swErr);
-                                                            }
-                                                        } else {
-                                                            console.log('[ONESIGNAL] SW ya controla la página:', navigator.serviceWorker.controller.scriptURL);
+                                                    // 2. Invocar suscripción de OneSignal de forma segura
+                                                    if (permission === 'granted') {
+                                                        if (window.OneSignal.User?.PushSubscription?.optIn) {
+                                                            console.log('[ONESIGNAL] El permiso ya es granted, llamando optIn()...');
+                                                            await window.OneSignal.User.PushSubscription.optIn();
+                                                        } else if (window.OneSignal.Notifications?.requestPermission) {
+                                                            await window.OneSignal.Notifications.requestPermission();
+                                                        }
+                                                    } else {
+                                                        if (typeof window.OneSignal.Notifications?.requestPermission === 'function') {
+                                                            await window.OneSignal.Notifications.requestPermission();
+                                                        } else if (typeof window.OneSignal.registerForPushNotifications === 'function') {
+                                                            await window.OneSignal.registerForPushNotifications();
                                                         }
                                                     }
 
-                                                    // 3. Usar Notifications.requestPermission() como método principal
-                                                    //    Es el API de alto nivel que maneja el ciclo completo de suscripción
-                                                    //    incluso cuando el permiso ya está concedido
-                                                    console.log('[ONESIGNAL] Llamando OneSignal.Notifications.requestPermission()...');
-                                                    
-                                                    if (typeof window.OneSignal.Notifications?.requestPermission === 'function') {
-                                                        await window.OneSignal.Notifications.requestPermission();
-                                                        console.log('[ONESIGNAL] requestPermission() completado.');
-                                                    } else if (typeof window.OneSignal.User?.PushSubscription?.optIn === 'function') {
-                                                        console.log('[ONESIGNAL] Fallback: llamando optIn()...');
-                                                        await window.OneSignal.User.PushSubscription.optIn();
-                                                    } else if (typeof window.OneSignal.registerForPushNotifications === 'function') {
-                                                        console.log('[ONESIGNAL] Fallback: llamando registerForPushNotifications()...');
-                                                        await window.OneSignal.registerForPushNotifications();
-                                                    } else {
-                                                        console.warn('[ONESIGNAL] Ningún método de suscripción disponible. APIs:', {
-                                                            notifications: Object.keys(window.OneSignal.Notifications || {}),
-                                                            user: Object.keys(window.OneSignal.User || {}),
-                                                            root: Object.keys(window.OneSignal),
-                                                        });
-                                                    }
-
-                                                    // 4. Esperar a que aparezca el ID — polling + evento change (max 25s)
+                                                    // 3. Esperar a obtener el Subscription ID (máximo 15 segundos)
                                                     let subId: string | null = window.OneSignal.User?.PushSubscription?.id || null;
-                                                    console.log('[ONESIGNAL] ID inmediato:', subId);
+                                                    console.log('[ONESIGNAL] ID inmediato obtenido:', subId);
 
                                                     if (!subId) {
-                                                        toast.loading('Esperando confirmación de suscripción...');
+                                                        toast.dismiss(connectingToast);
+                                                        const waitingToast = toast.loading('Generando suscripción push...');
+                                                        
                                                         subId = await new Promise<string | null>((resolve) => {
                                                             let resolved = false;
 
@@ -603,61 +564,62 @@ export default function ProfilePage() {
                                                                 const id = event?.current?.id ?? event?.id ?? null;
                                                                 if (id) finish(id, 'change event');
                                                             };
-                                                            try { window.OneSignal.User?.PushSubscription?.addEventListener?.('change', changeHandler); } catch (_) {}
+                                                            
+                                                            try { 
+                                                                window.OneSignal.User?.PushSubscription?.addEventListener?.('change', changeHandler); 
+                                                            } catch (_) {}
 
-                                                            // Polling cada 500ms
                                                             const pollInterval = setInterval(() => {
                                                                 const id = window.OneSignal.User?.PushSubscription?.id;
                                                                 if (id) finish(id, 'polling');
                                                             }, 500);
 
-                                                            // Timeout de 25s
                                                             const timeoutId = setTimeout(() => {
                                                                 finish(window.OneSignal.User?.PushSubscription?.id || null, 'timeout');
-                                                            }, 25000);
+                                                            }, 15000); // 15s timeout
                                                         });
+
+                                                        toast.dismiss(waitingToast);
+                                                    } else {
+                                                        toast.dismiss(connectingToast);
                                                     }
 
-                                                    toast.dismiss();
-
                                                     if (!subId) {
-                                                        console.error('[ONESIGNAL] Sin ID tras 25s. Estado SW:', {
-                                                            controller: navigator.serviceWorker?.controller?.scriptURL,
-                                                            pushSub: window.OneSignal.User?.PushSubscription,
-                                                        });
-                                                        toast.error('No se pudo completar la suscripción. Intenta recargar la página con Ctrl+Shift+R y volver a activar.');
+                                                        toast.error('No se pudo establecer la suscripción con OneSignal. Intenta recargar la página.');
                                                         return;
                                                     }
 
-                                                    // 5. Sincronizar con base de datos
-                                                    toast.loading('Guardando configuración...');
+                                                    // 4. Sincronizar usuario con base de datos
+                                                    const syncToast = toast.loading('Sincronizando con tu perfil...');
                                                     const supabase = createClient();
-                                                    const { data: { user } } = await supabase.auth.getUser();
+                                                    const { data: { user: authUser } } = await supabase.auth.getUser();
 
-                                                    if (!user?.email) {
+                                                    if (!authUser?.email) {
+                                                        toast.dismiss(syncToast);
                                                         toast.error('Sesión expirada. Recarga la página.');
                                                         return;
                                                     }
 
-                                                    const dbData = await getUserProfileData(user.email);
+                                                    const dbData = await getUserProfileData(authUser.email);
                                                     if (!dbData) {
-                                                        toast.error('No se encontró tu perfil. Contacta al administrador.');
+                                                        toast.dismiss(syncToast);
+                                                        toast.error('No se pudo encontrar tu perfil en el sistema.');
                                                         return;
                                                     }
 
                                                     await window.OneSignal.login(dbData.id);
-                                                    const res = await registerOneSignalSubscription(subId);
+                                                    const dbRes = await registerOneSignalSubscription(subId);
 
-                                                    toast.dismiss();
-                                                    if (res.success) {
+                                                    toast.dismiss(syncToast);
+                                                    if (dbRes.success) {
                                                         setSubStatus('suscrito');
-                                                        toast.success('¡Notificaciones activadas! Ya recibirás alertas en este dispositivo.');
+                                                        toast.success('¡Notificaciones activadas con éxito!');
                                                     } else {
-                                                        toast.error('Error al guardar en servidor. Intenta de nuevo.');
+                                                        toast.error('Suscrito en OneSignal, pero falló el registro en base de datos.');
                                                     }
 
                                                 } catch (err: unknown) {
-                                                    console.error('[ONESIGNAL] Error en activación:', err);
+                                                    console.error('[ONESIGNAL] Error en flujo de activación:', err);
                                                     toast.dismiss();
                                                     const msg = err instanceof Error ? err.message : String(err);
                                                     toast.error(`Error: ${msg}`);
