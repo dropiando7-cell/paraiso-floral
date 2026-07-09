@@ -11,12 +11,23 @@ export function compressImage(
   file: File,
   options: { maxWidth?: number; maxHeight?: number; quality?: number } = {}
 ): Promise<File> {
-  const { maxWidth = 1200, maxHeight = 1200, quality = 0.75 } = options;
+  // Configuración predeterminada optimizada: alta resolución y calidad para no perder detalle de la reparación
+  const { maxWidth = 2400, maxHeight = 2400, quality = 0.85 } = options;
 
   return new Promise(async (resolve) => {
-    let imageFile = file;
-    const isHeic = file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif') || file.type === 'image/heic' || file.type === 'image/heif';
+    const isHeic = file.name.toLowerCase().endsWith('.heic') || 
+                   file.name.toLowerCase().endsWith('.heif') || 
+                   file.type === 'image/heic' || 
+                   file.type === 'image/heif';
 
+    // REGLA: Si la imagen no es HEIC y es menor de 5MB, subirla tal cual para conservar el 100% de detalle
+    if (!isHeic && file.size < 5 * 1024 * 1024) {
+      return resolve(file);
+    }
+
+    let imageFile = file;
+
+    // Convertir HEIC (iPhone) a JPEG de forma asíncrona
     if (isHeic) {
       try {
         const heic2any = (await import('heic2any')).default;
@@ -33,27 +44,39 @@ export function compressImage(
           type: 'image/jpeg',
           lastModified: Date.now()
         });
+
+        // Si después de la conversión el tamaño es menor a 5MB, no requiere más compresión de lienzo (canvas)
+        if (imageFile.size < 5 * 1024 * 1024) {
+          return resolve(imageFile);
+        }
       } catch (heicErr) {
         console.error("Error converting HEIC to JPEG during compression:", heicErr);
       }
     }
 
-    // Only compress images
+    // Solo comprimir archivos de tipo imagen
     if (!imageFile.type.startsWith('image/')) {
       return resolve(imageFile);
     }
 
-    const reader = new FileReader();
-    reader.readAsDataURL(imageFile);
-    reader.onload = (event) => {
+    // USAR URL.createObjectURL en lugar de FileReader.readAsDataURL para prevenir el desbordamiento de memoria (out of memory crash)
+    let objectUrl: string | null = null;
+    try {
+      objectUrl = URL.createObjectURL(imageFile);
       const img = new Image();
-      img.src = event.target?.result as string;
+      img.src = objectUrl;
+
       img.onload = () => {
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = null;
+        }
+
         const canvas = document.createElement('canvas');
         let width = img.width;
         let height = img.height;
 
-        // Calculate aspect ratio resizing
+        // Redimensionar conservando la relación de aspecto
         if (width > maxWidth || height > maxHeight) {
           const ratio = Math.min(maxWidth / width, maxHeight / height);
           width = Math.round(width * ratio);
@@ -75,7 +98,7 @@ export function compressImage(
             if (!blob) {
               return resolve(imageFile);
             }
-            // Replace extension with .jpg if needed
+            // Cambiar extensión a .jpg si es necesario
             let newName = imageFile.name;
             if (!newName.toLowerCase().endsWith('.jpg') && !newName.toLowerCase().endsWith('.jpeg')) {
               newName = newName.replace(/\.[^/.]+$/, "") + ".jpg";
@@ -91,12 +114,22 @@ export function compressImage(
           quality
         );
       };
+
       img.onerror = () => {
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = null;
+        }
         resolve(imageFile);
       };
-    };
-    reader.onerror = () => {
+    } catch (err) {
+      console.error("Error creating Object URL for compression:", err);
+      if (objectUrl) {
+        try {
+          URL.revokeObjectURL(objectUrl);
+        } catch {}
+      }
       resolve(imageFile);
-    };
+    }
   });
 }

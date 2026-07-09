@@ -1357,12 +1357,24 @@ export default function GestionWebClient({
                 return;
             }
 
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = (event) => {
+            // Si es menor a 5MB, no comprimir para evitar procesamiento innecesario y conservar detalle
+            if (file.size < 5 * 1024 * 1024) {
+                resolve(file);
+                return;
+            }
+
+            let objectUrl: string | null = null;
+            try {
+                objectUrl = URL.createObjectURL(file);
                 const img = new Image();
-                img.src = event.target?.result as string;
+                img.src = objectUrl;
+
                 img.onload = () => {
+                    if (objectUrl) {
+                        URL.revokeObjectURL(objectUrl);
+                        objectUrl = null;
+                    }
+
                     let width = img.width;
                     let height = img.height;
 
@@ -1409,9 +1421,22 @@ export default function GestionWebClient({
                         quality
                     );
                 };
-                img.onerror = () => resolve(file);
-            };
-            reader.onerror = () => resolve(file);
+                img.onerror = () => {
+                    if (objectUrl) {
+                        URL.revokeObjectURL(objectUrl);
+                        objectUrl = null;
+                    }
+                    resolve(file);
+                };
+            } catch (err) {
+                console.error("Error compressing web catalog image:", err);
+                if (objectUrl) {
+                    try {
+                        URL.revokeObjectURL(objectUrl);
+                    } catch {}
+                }
+                resolve(file);
+            }
         });
     };
 
