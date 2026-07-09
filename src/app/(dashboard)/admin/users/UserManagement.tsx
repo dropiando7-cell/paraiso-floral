@@ -111,7 +111,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/admin/gestion-web', label: 'Gestión Web / Tienda' },
         { id: '/admin/tarjetas-digitales', label: 'Tarjetas Digitales' },
         { id: '/admin/notificaciones', label: 'Módulo de Notificaciones' },
+        { id: 'asistente_voz', label: 'Asistente de Voz IA' },
     ];
+
 
 
 

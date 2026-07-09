@@ -71,11 +71,13 @@ export default async function AuthenticatedLayout({
         authProvider: user.app_metadata?.providers?.[0] || "email",
     };
 
+    const showVoiceAssistant = combinedUser.role === 'SUPER_ADMIN' || (combinedUser.accessibleModules || []).includes('asistente_voz');
+
     return (
         <DashboardLayout dbUser={combinedUser}>
             <ToasterProvider />
             <RegisterOneSignal dbUser={combinedUser} />
-            <VoiceAssistant />
+            {showVoiceAssistant && <VoiceAssistant />}
             {children}
         </DashboardLayout>
     );
