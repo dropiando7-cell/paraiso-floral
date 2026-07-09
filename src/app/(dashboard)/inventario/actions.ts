@@ -239,22 +239,93 @@ export async function getActivosByIdQr(idQr: string) {
     }
 }
 
+// ─── Helpers de normalización para búsqueda sin tildes ───────────────────────
+function removeAccents(str: string): string {
+    return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function addAccentVariants(str: string): string[] {
+    // Genera variantes: original + sin tildes + con tildes comunes en español
+    const clean = removeAccents(str.toUpperCase());
+    const original = str.toUpperCase();
+    const variants = new Set([original, clean]);
+
+    // Aplicar tildes comunes sobre la versión limpia
+    const withAccents = clean
+        .replace(/\bA\b/g, 'Á').replace(/^A(\s|$)/, 'Á$1') // casos simples
+        .replace('QUIRURGICA', 'QUIRÚRGICA')
+        .replace('QUIRURGICO', 'QUIRÚRGICO')
+        .replace('MEDICA', 'MÉDICA')
+        .replace('MEDICO', 'MÉDICO')
+        .replace('TECNICA', 'TÉCNICA')
+        .replace('TECNICO', 'TÉCNICO')
+        .replace('BASICA', 'BÁSICA')
+        .replace('BASICO', 'BÁSICO')
+        .replace('AUTOMATICA', 'AUTOMÁTICA')
+        .replace('ELECTRICA', 'ELÉCTRICA')
+        .replace('ELECTRICO', 'ELÉCTRICO')
+        .replace('ELECTRONICA', 'ELECTRÓNICA')
+        .replace('ELECTRONICO', 'ELECTRÓNICO')
+        .replace('OPTICA', 'ÓPTICA')
+        .replace('OPTICO', 'ÓPTICO')
+        .replace('CALCULO', 'CÁLCULO')
+        .replace('CAMARA', 'CÁMARA')
+        .replace('COMPUTACION', 'COMPUTACIÓN')
+        .replace('COMUNICACION', 'COMUNICACIÓN')
+        .replace('PROTECCION', 'PROTECCIÓN')
+        .replace('PRODUCCION', 'PRODUCCIÓN')
+        .replace('INSPECCION', 'INSPECCIÓN')
+        .replace('DETECCION', 'DETECCIÓN')
+        .replace('GENERACION', 'GENERACIÓN')
+        .replace('CIRCULACION', 'CIRCULACIÓN')
+        .replace('ESTERILIZACION', 'ESTERILIZACIÓN')
+        .replace('REFRIGERACION', 'REFRIGERACIÓN')
+        .replace('VENTILACION', 'VENTILACIÓN')
+        .replace('ANESTESIA', 'ANESTESIA')
+        .replace('OXIGENO', 'OXÍGENO')
+        .replace('FARMACEUTICA', 'FARMACÉUTICA')
+        .replace('DIAGNOSTICO', 'DIAGNÓSTICO')
+        .replace('ORTOPEDICA', 'ORTOPÉDICA')
+        .replace('ORTOPEDICO', 'ORTOPÉDICO')
+        .replace('TERAPEUTICA', 'TERAPÉUTICA')
+        .replace('NEUMATICA', 'NEUMÁTICA')
+        .replace('NEUMATICO', 'NEUMÁTICO')
+        .replace('HIDRAULICA', 'HIDRÁULICA')
+        .replace('HIDRAULICO', 'HIDRÁULICO')
+        .replace('BIOLOGICA', 'BIOLÓGICA')
+        .replace('BIOLOGICO', 'BIOLÓGICO')
+        .replace('QUIMICA', 'QUÍMICA')
+        .replace('QUIMICO', 'QUÍMICO');
+
+    if (withAccents !== clean) variants.add(withAccents);
+    return Array.from(variants);
+}
+
+function buildSearchOR(variants: string[], fields: string[]) {
+    const conditions: any[] = [];
+    for (const v of variants) {
+        for (const field of fields) {
+            conditions.push({ [field]: { contains: v, mode: 'insensitive' } });
+        }
+    }
+    return conditions;
+}
+
 // ─── Search Activos Globally ─────────────────────────────────────────────────
 export async function searchActivosGlobal(query: string) {
     if (!query) return [];
     try {
         const orgId = await getOrgId();
+        
+        // Generar variantes: con tildes, sin tildes, original
+        const variants = addAccentVariants(query);
+        const fields = ['idQr', 'codigoBarras', 'descripcionCorta', 'modelo', 'area', 'marca', 'referencia', 'serie'];
+        
         const activos = await prisma.activoFijo.findMany({
             where: {
                 organizationId: orgId,
                 esParaRenta: false,
-                OR: [
-                    { idQr: { contains: query, mode: 'insensitive' } },
-                    { codigoBarras: { contains: query, mode: 'insensitive' } },
-                    { descripcionCorta: { contains: query, mode: 'insensitive' } },
-                    { modelo: { contains: query, mode: 'insensitive' } },
-                    { area: { contains: query, mode: 'insensitive' } },
-                ]
+                OR: buildSearchOR(variants, fields)
             },
             orderBy: [{ descripcionCorta: 'asc' }, { area: 'asc' }],
             select: {

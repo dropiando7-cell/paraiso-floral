@@ -16,7 +16,12 @@ import {
     ArrowDownRight,
     Award,
     Activity,
-    AlertCircle
+    AlertCircle,
+    Printer,
+    ExternalLink,
+    MapPin,
+    User,
+    Clock
 } from 'lucide-react';
 import { getGraficasReportData, anularFactura, anularRenta, anularOrden } from './actions';
 
@@ -673,397 +678,526 @@ export default function GraficasClient({ initialData, initialMonth, initialYear 
             </div>
 
             {/* Modal de Detalle */}
-            {activeModal && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-4xl max-h-[85vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
-                        {/* Header */}
-                        <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                            <div>
-                                <h3 className="font-black text-slate-900 text-base uppercase tracking-tight">
-                                    Detalle de {activeModal === 'ventas' ? 'Ventas / POS' : activeModal === 'rentas' ? 'Alquileres' : activeModal === 'soporte' ? 'Soporte Técnico' : activeModal === 'cotizaciones' ? 'Cotizaciones' : 'Caja Chica'}
-                                </h3>
-                                <p className="text-[10px] text-slate-500">
-                                    Historial completo y control de anulaciones para el período seleccionado
-                                </p>
+            {activeModal && (() => {
+                // Calcular stats para el header
+                const modalItems = activeModal === 'cotizaciones' ? rawCotizaciones
+                    : activeModal === 'ventas' ? rawFacturas
+                    : activeModal === 'rentas' ? rawRentas
+                    : activeModal === 'soporte' ? rawOrdenes
+                    : cajaChicaMovimientos;
+
+                const filtered = modalItems.filter((item: any) => {
+                    const q = modalSearch.toLowerCase();
+                    if (!q) return true;
+                    const fields = [item.correlativo, item.cliente, item.creadoPor, item.equipo, item.tecnico, item.categoria, item.descripcion, item.recepcionadoPor].filter(Boolean);
+                    return fields.some((f: string) => f.toLowerCase().includes(q));
+                });
+
+                const totalMonto = activeModal === 'ventas' ? filtered.filter((f:any) => f.estado !== 'ANULADA').reduce((a:number,f:any) => a + (f.total||0), 0)
+                    : activeModal === 'cotizaciones' ? filtered.filter((c:any) => c.estado !== 'ANULADA').reduce((a:number,c:any) => a + (c.total||0), 0)
+                    : activeModal === 'rentas' ? filtered.filter((r:any) => r.estado !== 'ANULADA').reduce((a:number,r:any) => a + (r.costoRenta||0), 0)
+                    : activeModal === 'soporte' ? filtered.filter((o:any) => o.estado !== 'ANULADA').reduce((a:number,o:any) => a + (o.costoRevision||0) + (o.aprobado ? (o.costoReparacion||0) : 0), 0)
+                    : filtered.filter((m:any) => m.tipo === 'EGRESO').reduce((a:number,m:any) => a + (m.total||0), 0);
+
+                const anuladas = filtered.filter((item: any) => item.estado === 'ANULADA').length;
+                const activas = filtered.length - anuladas;
+
+                const modalLabel = activeModal === 'ventas' ? 'Ventas / POS' : activeModal === 'rentas' ? 'Alquileres' : activeModal === 'soporte' ? 'Soporte Técnico' : activeModal === 'cotizaciones' ? 'Cotizaciones' : 'Caja Chica';
+                const modalColor = activeModal === 'ventas' ? 'blue' : activeModal === 'rentas' ? 'emerald' : activeModal === 'soporte' ? 'indigo' : activeModal === 'cotizaciones' ? 'amber' : 'purple';
+
+                return (
+                <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-6" onClick={(e) => { if (e.target === e.currentTarget) setActiveModal(null); }}>
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                        
+                        {/* Header rico con stats */}
+                        <div className={`px-6 pt-5 pb-4 bg-gradient-to-r from-slate-50 to-slate-100/50 border-b border-slate-200`}>
+                            <div className="flex items-start justify-between gap-4">
+                                <div className="flex items-center gap-3">
+                                    <div className={`p-2.5 rounded-xl ${
+                                        modalColor === 'blue' ? 'bg-blue-100' : 
+                                        modalColor === 'emerald' ? 'bg-emerald-100' : 
+                                        modalColor === 'indigo' ? 'bg-indigo-100' : 
+                                        modalColor === 'amber' ? 'bg-amber-100' : 'bg-purple-100'
+                                    }`}>
+                                        <FileText className={`w-5 h-5 ${
+                                            modalColor === 'blue' ? 'text-blue-700' : 
+                                            modalColor === 'emerald' ? 'text-emerald-700' : 
+                                            modalColor === 'indigo' ? 'text-indigo-700' : 
+                                            modalColor === 'amber' ? 'text-amber-700' : 'text-purple-700'
+                                        }`} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-black text-slate-900 text-base tracking-tight">
+                                            Detalle de {modalLabel}
+                                        </h3>
+                                        <p className="text-[10px] text-slate-500 font-medium">
+                                            Período: {new Date(year, month - 1).toLocaleString('es-HN', { month: 'long', year: 'numeric' })}
+                                        </p>
+                                    </div>
+                                </div>
+                                <button 
+                                    onClick={() => setActiveModal(null)}
+                                    className="text-slate-400 hover:text-slate-700 font-bold bg-white hover:bg-slate-100 p-2 rounded-xl border border-slate-200 transition cursor-pointer shadow-sm shrink-0"
+                                >
+                                    ✕
+                                </button>
                             </div>
-                            <button 
-                                onClick={() => setActiveModal(null)}
-                                className="text-slate-400 hover:text-slate-600 font-bold text-sm bg-slate-200/60 hover:bg-slate-200 p-1.5 rounded-lg transition cursor-pointer"
-                            >
-                                ✕
-                            </button>
+
+                            {/* Stats row */}
+                            <div className="mt-4 grid grid-cols-3 gap-3">
+                                <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-sm">
+                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Registros</div>
+                                    <div className="text-lg font-black text-slate-900 mt-0.5">{filtered.length}</div>
+                                </div>
+                                <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-sm">
+                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Activos</div>
+                                    <div className={`text-lg font-black mt-0.5 ${
+                                        modalColor === 'blue' ? 'text-blue-700' : 
+                                        modalColor === 'emerald' ? 'text-emerald-700' : 
+                                        modalColor === 'indigo' ? 'text-indigo-700' : 
+                                        modalColor === 'amber' ? 'text-amber-700' : 'text-purple-700'
+                                    }`}>{activas}</div>
+                                </div>
+                                <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-sm">
+                                    <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Total Neto</div>
+                                    <div className="text-sm font-black text-slate-900 mt-0.5 truncate">{formatCurrency(totalMonto).split(',')[0]}</div>
+                                </div>
+                            </div>
                         </div>
 
-                        {/* Search and Filters */}
-                        <div className="px-6 py-3 border-b border-slate-100 flex items-center gap-3">
-                            <input 
-                                type="text"
-                                placeholder="Buscar por código, cliente o creador..."
-                                className="flex-1 bg-slate-50 border border-slate-200 text-xs px-3 py-2 rounded-xl focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium text-slate-800"
-                                value={modalSearch}
-                                onChange={(e) => setModalSearch(e.target.value)}
-                            />
+                        {/* Search */}
+                        <div className="px-5 py-3 border-b border-slate-100 bg-white flex items-center gap-3">
+                            <div className="relative flex-1">
+                                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                                <input 
+                                    type="text"
+                                    placeholder="Buscar por código, cliente, técnico o creador..."
+                                    className="w-full bg-slate-50 border border-slate-200 text-xs pl-9 pr-3 py-2.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 font-medium text-slate-800 transition-all"
+                                    value={modalSearch}
+                                    onChange={(e) => setModalSearch(e.target.value)}
+                                />
+                            </div>
+                            {anuladas > 0 && (
+                                <div className="flex items-center gap-1.5 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-100 px-2.5 py-1.5 rounded-lg shrink-0">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                                    {anuladas} anulada{anuladas !== 1 ? 's' : ''}
+                                </div>
+                            )}
                         </div>
 
                         {/* Content Area */}
-                        <div className="flex-1 overflow-y-auto p-6">
-                            {/* Cotizaciones List */}
+                        <div className="flex-1 overflow-y-auto p-5 space-y-2 bg-slate-50/40">
+
+                            {/* ── COTIZACIONES ── */}
                             {activeModal === 'cotizaciones' && (
-                                <div className="space-y-3">
-                                    {rawCotizaciones
-                                        .filter((c: any) => 
-                                            c.correlativo.toLowerCase().includes(modalSearch.toLowerCase()) ||
-                                            c.cliente.toLowerCase().includes(modalSearch.toLowerCase()) ||
-                                            c.creadoPor.toLowerCase().includes(modalSearch.toLowerCase())
-                                        )
-                                        .map((c: any) => (
-                                            <div key={c.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-                                                c.estado === 'ANULADA' ? 'bg-rose-50/40 border-rose-100 opacity-75' : 
-                                                c.estado === 'CONVERTIDA' ? 'bg-emerald-50/20 border-emerald-100' :
-                                                'bg-slate-50/50 border-slate-100 hover:bg-slate-50'
-                                            }`}>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-black text-xs text-slate-900">{c.correlativo}</span>
-                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                                            c.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 
-                                                            c.estado === 'CONVERTIDA' ? 'bg-emerald-100 text-emerald-800' :
-                                                            'bg-amber-100 text-amber-800'
-                                                        }`}>
-                                                            {c.estado}
-                                                        </span>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px] text-slate-500 font-semibold">
-                                                        <div><span className="text-slate-400">Cliente:</span> {c.cliente}</div>
-                                                        <div><span className="text-slate-400">Creado por:</span> {c.creadoPor}</div>
-                                                        <div><span className="text-slate-400">Fecha:</span> {new Date(c.fechaEmision).toLocaleDateString('es-HN')}</div>
-                                                        {c.estado === 'CONVERTIDA' && c.convertidoAt && (
-                                                            <div className="col-span-2 text-emerald-700 font-bold bg-emerald-50/80 p-1.5 rounded-lg border border-emerald-100/50 mt-1">
-                                                                ✓ Convertida a Factura Real el {new Date(c.convertidoAt).toLocaleDateString('es-HN')}
-                                                            </div>
-                                                        )}
-                                                        {c.estado === 'ANULADA' && (
-                                                            <div className="col-span-2 text-rose-700 font-bold bg-rose-50/80 p-1.5 rounded-lg border border-rose-100/50 mt-1">
-                                                                🚫 Anulada por: {c.anuladaPor || 'Sistema'} {c.anuladaAt ? `el ${new Date(c.anuladaAt).toLocaleDateString('es-HN')}` : ''}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                <>
+                                    {filtered.length === 0 && (
+                                        <div className="text-center py-16 text-slate-400 text-sm">No se encontraron resultados.</div>
+                                    )}
+                                    {filtered.map((c: any) => (
+                                        <div key={c.id} className={`rounded-2xl border transition-all ${
+                                            c.estado === 'ANULADA' ? 'bg-rose-50/60 border-rose-100 opacity-70' : 
+                                            c.estado === 'CONVERTIDA' ? 'bg-emerald-50/40 border-emerald-200 shadow-sm' :
+                                            'bg-white border-slate-200 hover:border-amber-300 hover:shadow-md shadow-sm'
+                                        }`}>
+                                            {/* Top row */}
+                                            <div className="px-4 pt-4 pb-3 flex flex-wrap items-start justify-between gap-3">
+                                                <div className="flex items-center gap-2.5 flex-wrap">
+                                                    <span className="font-black text-sm text-slate-900 font-mono">{c.correlativo}</span>
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                                        c.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 
+                                                        c.estado === 'CONVERTIDA' ? 'bg-emerald-100 text-emerald-800' :
+                                                        'bg-amber-100 text-amber-800'
+                                                    }`}>{c.estado}</span>
                                                 </div>
-                                                <div className="flex items-center gap-3 justify-between sm:justify-end">
-                                                    <span className={`font-black text-sm ${c.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-950'}`}>
-                                                        {formatCurrency(c.total)}
-                                                    </span>
-                                                    <button
-                                                        onClick={() => {
-                                                            setPreviewDocId(c.id);
-                                                            setPreviewDocCorrelativo(c.correlativo);
-                                                        }}
-                                                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer flex items-center gap-1"
-                                                    >
-                                                        <FileText className="w-3.5 h-3.5 text-slate-500" />
-                                                        <span>Ver / Imprimir</span>
-                                                    </button>
-                                                    {c.estado !== 'ANULADA' && c.estado !== 'CONVERTIDA' && (
-                                                        <button
-                                                            disabled={actionPending}
-                                                            onClick={async () => {
-                                                                if (confirm(`¿Seguro que desea anular la cotización ${c.correlativo}?`)) {
-                                                                    setActionPending(true);
-                                                                    const res = await anularFactura(c.id);
-                                                                    setActionPending(false);
-                                                                    if (res.success) {
-                                                                        handleRefresh();
-                                                                    } else {
-                                                                        alert(res.error || 'Error al anular cotización');
-                                                                    }
-                                                                }
-                                                            }}
-                                                            className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
-                                                        >
-                                                            Anular
-                                                        </button>
-                                                    )}
+                                                <span className={`font-black text-base ${c.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-900'}`}>
+                                                    {formatCurrency(c.total)}
+                                                </span>
+                                            </div>
+                                            {/* Info grid */}
+                                            <div className="px-4 pb-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Cliente:</span> {c.cliente}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Creado por:</span> {c.creadoPor}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Fecha:</span> {new Date(c.fechaEmision).toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
                                                 </div>
                                             </div>
-                                        ))
-                                    }
-                                </div>
+                                            {/* Status notes */}
+                                            {c.estado === 'CONVERTIDA' && c.convertidoAt && (
+                                                <div className="mx-4 mb-3 text-emerald-700 text-[10px] font-bold bg-emerald-50 p-2 rounded-lg border border-emerald-100 flex items-center gap-1.5">
+                                                    ✓ Convertida a factura el {new Date(c.convertidoAt).toLocaleDateString('es-HN')}
+                                                </div>
+                                            )}
+                                            {c.estado === 'ANULADA' && (
+                                                <div className="mx-4 mb-3 text-rose-700 text-[10px] font-bold bg-rose-50 p-2 rounded-lg border border-rose-100 flex items-center gap-1.5">
+                                                    🚫 Anulada por: {c.anuladaPor || 'Sistema'} {c.anuladaAt ? `· ${new Date(c.anuladaAt).toLocaleDateString('es-HN')}` : ''}
+                                                </div>
+                                            )}
+                                            {/* Actions */}
+                                            <div className="px-4 pb-4 flex items-center gap-2 justify-end border-t border-slate-100 pt-3">
+                                                <a
+                                                    href={`/facturas/${c.id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer"
+                                                >
+                                                    <ExternalLink className="w-3 h-3" />
+                                                    Ver Detalle
+                                                </a>
+                                                <button
+                                                    onClick={() => { setPreviewDocId(c.id); setPreviewDocCorrelativo(c.correlativo); }}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-bold text-[10px] rounded-lg transition cursor-pointer shadow-sm"
+                                                >
+                                                    <Printer className="w-3 h-3" />
+                                                    Vista Previa
+                                                </button>
+                                                {c.estado !== 'ANULADA' && c.estado !== 'CONVERTIDA' && (
+                                                    <button
+                                                        disabled={actionPending}
+                                                        onClick={async () => {
+                                                            if (confirm(`¿Anular cotización ${c.correlativo}?`)) {
+                                                                setActionPending(true);
+                                                                const res = await anularFactura(c.id);
+                                                                setActionPending(false);
+                                                                if (res.success) handleRefresh();
+                                                                else alert(res.error || 'Error al anular');
+                                                            }
+                                                        }}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
+                                                    >
+                                                        Anular
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </>
                             )}
 
-                            {/* Ventas List */}
+                            {/* ── VENTAS ── */}
                             {activeModal === 'ventas' && (
-                                <div className="space-y-3">
-                                    {rawFacturas
-                                        .filter((f: any) => 
-                                            f.correlativo.toLowerCase().includes(modalSearch.toLowerCase()) ||
-                                            f.cliente.toLowerCase().includes(modalSearch.toLowerCase()) ||
-                                            f.creadoPor.toLowerCase().includes(modalSearch.toLowerCase())
-                                        )
-                                        .map((f: any) => (
-                                            <div key={f.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-                                                f.estado === 'ANULADA' ? 'bg-rose-50/40 border-rose-100 opacity-75' : 'bg-slate-50/50 border-slate-100 hover:bg-slate-50'
-                                            }`}>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-black text-xs text-slate-900">{f.correlativo}</span>
-                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                                            f.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
-                                                        }`}>
-                                                            {f.estado}
-                                                        </span>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px] text-slate-500 font-semibold">
-                                                        <div><span className="text-slate-400">Cliente:</span> {f.cliente}</div>
-                                                        <div><span className="text-slate-400">Creado por:</span> {f.creadoPor}</div>
-                                                        <div><span className="text-slate-400">Fecha:</span> {new Date(f.fechaEmision).toLocaleDateString('es-HN')}</div>
-                                                        {f.estado === 'ANULADA' && (
-                                                            <div className="col-span-2 text-rose-700 font-bold bg-rose-50/80 p-1.5 rounded-lg border border-rose-100/50 mt-1">
-                                                                🚫 Anulada por: {f.anuladaPor || 'Sistema'} {f.anuladaAt ? `el ${new Date(f.anuladaAt).toLocaleDateString('es-HN')}` : ''}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                <>
+                                    {filtered.length === 0 && (
+                                        <div className="text-center py-16 text-slate-400 text-sm">No se encontraron resultados.</div>
+                                    )}
+                                    {filtered.map((f: any) => (
+                                        <div key={f.id} className={`rounded-2xl border transition-all ${
+                                            f.estado === 'ANULADA' ? 'bg-rose-50/60 border-rose-100 opacity-70' : 
+                                            'bg-white border-slate-200 hover:border-blue-300 hover:shadow-md shadow-sm'
+                                        }`}>
+                                            <div className="px-4 pt-4 pb-3 flex flex-wrap items-start justify-between gap-3">
+                                                <div className="flex items-center gap-2.5 flex-wrap">
+                                                    <span className="font-black text-sm text-slate-900 font-mono">{f.correlativo}</span>
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                                        f.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 'bg-blue-100 text-blue-800'
+                                                    }`}>{f.estado}</span>
                                                 </div>
-                                                <div className="flex items-center gap-3 justify-between sm:justify-end">
-                                                    <span className={`font-black text-sm ${f.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-950'}`}>
-                                                        {formatCurrency(f.total)}
-                                                    </span>
+                                                <span className={`font-black text-base ${f.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-900'}`}>
+                                                    {formatCurrency(f.total)}
+                                                </span>
+                                            </div>
+                                            <div className="px-4 pb-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Cliente:</span> {f.cliente}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Creado por:</span> {f.creadoPor}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Fecha:</span> {new Date(f.fechaEmision).toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                                </div>
+                                            </div>
+                                            {f.estado === 'ANULADA' && (
+                                                <div className="mx-4 mb-3 text-rose-700 text-[10px] font-bold bg-rose-50 p-2 rounded-lg border border-rose-100">
+                                                    🚫 Anulada por: {f.anuladaPor || 'Sistema'} {f.anuladaAt ? `· ${new Date(f.anuladaAt).toLocaleDateString('es-HN')}` : ''}
+                                                </div>
+                                            )}
+                                            <div className="px-4 pb-4 flex items-center gap-2 justify-end border-t border-slate-100 pt-3">
+                                                <a
+                                                    href={`/facturas/${f.id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer"
+                                                >
+                                                    <ExternalLink className="w-3 h-3" />
+                                                    Ver Detalle
+                                                </a>
+                                                <button
+                                                    onClick={() => { setPreviewDocId(f.id); setPreviewDocCorrelativo(f.correlativo); }}
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] rounded-lg transition cursor-pointer shadow-sm"
+                                                >
+                                                    <Printer className="w-3 h-3" />
+                                                    Vista Previa
+                                                </button>
+                                                {f.estado !== 'ANULADA' && (
                                                     <button
-                                                        onClick={() => {
-                                                            setPreviewDocId(f.id);
-                                                            setPreviewDocCorrelativo(f.correlativo);
+                                                        disabled={actionPending}
+                                                        onClick={async () => {
+                                                            if (confirm(`¿Anular factura ${f.correlativo}?`)) {
+                                                                setActionPending(true);
+                                                                const res = await anularFactura(f.id);
+                                                                setActionPending(false);
+                                                                if (res.success) handleRefresh();
+                                                                else alert(res.error || 'Error al anular');
+                                                            }
                                                         }}
-                                                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer flex items-center gap-1"
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
                                                     >
-                                                        <FileText className="w-3.5 h-3.5 text-slate-500" />
-                                                        <span>Ver / Imprimir</span>
+                                                        Anular
                                                     </button>
-                                                    {f.estado !== 'ANULADA' && (
-                                                        <button
-                                                            disabled={actionPending}
-                                                            onClick={async () => {
-                                                                if (confirm(`¿Seguro que desea anular la factura ${f.correlativo}?`)) {
-                                                                    setActionPending(true);
-                                                                    const res = await anularFactura(f.id);
-                                                                    setActionPending(false);
-                                                                    if (res.success) {
-                                                                        handleRefresh();
-                                                                    } else {
-                                                                        alert(res.error || 'Error al anular factura');
-                                                                    }
-                                                                }
-                                                            }}
-                                                            className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
-                                                        >
-                                                            Anular
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                )}
                                             </div>
-                                        ))
-                                    }
-                                </div>
+                                        </div>
+                                    ))}
+                                </>
                             )}
 
-                            {/* Rentas List */}
+                            {/* ── RENTAS ── */}
                             {activeModal === 'rentas' && (
-                                <div className="space-y-3">
-                                    {rawRentas
-                                        .filter((r: any) => 
-                                            r.equipo.toLowerCase().includes(modalSearch.toLowerCase()) ||
-                                            r.cliente.toLowerCase().includes(modalSearch.toLowerCase()) ||
-                                            r.creadoPor.toLowerCase().includes(modalSearch.toLowerCase())
-                                        )
-                                        .map((r: any) => (
-                                            <div key={r.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-                                                r.estado === 'ANULADA' ? 'bg-rose-50/40 border-rose-100 opacity-75' : 'bg-slate-50/50 border-slate-100 hover:bg-slate-50'
-                                            }`}>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-black text-xs text-slate-900">{r.equipo}</span>
-                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                                            r.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
-                                                        }`}>
-                                                            {r.estado}
-                                                        </span>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px] text-slate-500 font-semibold">
-                                                        <div><span className="text-slate-400">Cliente:</span> {r.cliente}</div>
-                                                        <div><span className="text-slate-400">Renta:</span> {formatCurrency(r.costoRenta)}</div>
-                                                        <div><span className="text-slate-400">Creado por:</span> {r.creadoPor}</div>
-                                                        <div><span className="text-slate-400">Inicio:</span> {new Date(r.fechaInicio).toLocaleDateString('es-HN')}</div>
-                                                    </div>
+                                <>
+                                    {filtered.length === 0 && (
+                                        <div className="text-center py-16 text-slate-400 text-sm">No se encontraron resultados.</div>
+                                    )}
+                                    {filtered.map((r: any) => (
+                                        <div key={r.id} className={`rounded-2xl border transition-all ${
+                                            r.estado === 'ANULADA' ? 'bg-rose-50/60 border-rose-100 opacity-70' : 
+                                            'bg-white border-slate-200 hover:border-emerald-300 hover:shadow-md shadow-sm'
+                                        }`}>
+                                            <div className="px-4 pt-4 pb-3 flex flex-wrap items-start justify-between gap-3">
+                                                <div className="flex items-center gap-2.5 flex-wrap">
+                                                    <span className="font-black text-sm text-slate-900">{r.equipo}</span>
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                                        r.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'
+                                                    }`}>{r.estado}</span>
                                                 </div>
-                                                <div className="flex items-center gap-3 justify-between sm:justify-end">
-                                                    <div className="text-right">
-                                                        <span className="text-[9px] text-slate-400 block font-bold">Depósito</span>
-                                                        <span className="font-bold text-xs text-slate-700">{formatCurrency(r.deposito)}</span>
-                                                    </div>
+                                                <div className="text-right">
+                                                    <span className={`font-black text-base ${r.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-900'}`}>
+                                                        {formatCurrency(r.costoRenta)}
+                                                    </span>
+                                                    <span className="text-[9px] text-slate-400 block">+ depósito {formatCurrency(r.deposito)}</span>
+                                                </div>
+                                            </div>
+                                            <div className="px-4 pb-3 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Cliente:</span> {r.cliente}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Creado por:</span> {r.creadoPor}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Inicio:</span> {new Date(r.fechaInicio).toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                                </div>
+                                            </div>
+                                            <div className="px-4 pb-4 flex items-center gap-2 justify-end border-t border-slate-100 pt-3">
+                                                <a
+                                                    href={`/rentas/${r.id}/contrato`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer"
+                                                >
+                                                    <ExternalLink className="w-3 h-3" />
+                                                    Ver Contrato
+                                                </a>
                                                     {r.estado !== 'ANULADA' && (
-                                                        <button
-                                                            disabled={actionPending}
-                                                            onClick={async () => {
-                                                                if (confirm(`¿Seguro que desea anular el contrato de renta de ${r.equipo}?`)) {
-                                                                    setActionPending(true);
-                                                                    const res = await anularRenta(r.id);
-                                                                    setActionPending(false);
-                                                                    if (res.success) {
-                                                                        handleRefresh();
-                                                                    } else {
-                                                                        alert(res.error || 'Error al anular contrato');
-                                                                    }
-                                                                }
-                                                            }}
-                                                            className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
-                                                        >
-                                                            Anular
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                    <button
+                                                        disabled={actionPending}
+                                                        onClick={async () => {
+                                                            if (confirm(`¿Anular contrato de renta de ${r.equipo}?`)) {
+                                                                setActionPending(true);
+                                                                const res = await anularRenta(r.id);
+                                                                setActionPending(false);
+                                                                if (res.success) handleRefresh();
+                                                                else alert(res.error || 'Error al anular');
+                                                            }
+                                                        }}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
+                                                    >
+                                                        Anular
+                                                    </button>
+                                                )}
                                             </div>
-                                        ))
-                                    }
-                                </div>
+                                        </div>
+                                    ))}
+                                </>
                             )}
 
-                            {/* Soporte List */}
+                            {/* ── SOPORTE ── */}
                             {activeModal === 'soporte' && (
-                                <div className="space-y-3">
-                                    {rawOrdenes
-                                        .filter((o: any) => 
-                                            o.equipo.toLowerCase().includes(modalSearch.toLowerCase()) ||
-                                            o.cliente.toLowerCase().includes(modalSearch.toLowerCase()) ||
-                                            o.tecnico.toLowerCase().includes(modalSearch.toLowerCase())
-                                        )
-                                        .map((o: any) => (
-                                            <div key={o.id} className={`p-4 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all ${
-                                                o.estado === 'ANULADA' ? 'bg-rose-50/40 border-rose-100 opacity-75' : 'bg-slate-50/50 border-slate-100 hover:bg-slate-50'
-                                            }`}>
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-black text-xs text-slate-900">{o.equipo}</span>
-                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                                            o.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 'bg-indigo-100 text-indigo-800'
-                                                        }`}>
-                                                            {o.estado}
-                                                        </span>
-                                                    </div>
-                                                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px] text-slate-500 font-semibold">
-                                                        <div><span className="text-slate-400">Cliente:</span> {o.cliente}</div>
-                                                        <div><span className="text-slate-400">Técnico:</span> {o.tecnico}</div>
-                                                        <div><span className="text-slate-400">Recepción:</span> {o.recepcionadoPor}</div>
-                                                        <div><span className="text-slate-400">Fecha:</span> {new Date(o.fechaRecibido).toLocaleDateString('es-HN')}</div>
-                                                    </div>
+                                <>
+                                    {filtered.length === 0 && (
+                                        <div className="text-center py-16 text-slate-400 text-sm">No se encontraron resultados.</div>
+                                    )}
+                                    {filtered.map((o: any) => (
+                                        <div key={o.id} className={`rounded-2xl border transition-all ${
+                                            o.estado === 'ANULADA' ? 'bg-rose-50/60 border-rose-100 opacity-70' : 
+                                            'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-md shadow-sm'
+                                        }`}>
+                                            <div className="px-4 pt-4 pb-3 flex flex-wrap items-start justify-between gap-3">
+                                                <div className="flex items-center gap-2.5 flex-wrap">
+                                                    <span className="font-black text-sm text-slate-900">{o.equipo}</span>
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                                        o.estado === 'ANULADA' ? 'bg-rose-100 text-rose-800' : 'bg-indigo-100 text-indigo-800'
+                                                    }`}>{o.estado}</span>
                                                 </div>
-                                                <div className="flex items-center gap-3 justify-between sm:justify-end">
-                                                    <div className="text-right">
-                                                        <span className="text-[9px] text-slate-400 block font-bold">Total Revisión + Reparación</span>
-                                                        <span className="font-black text-sm text-slate-950">
-                                                            {formatCurrency(o.costoRevision + (o.aprobado ? o.costoReparacion : 0))}
-                                                        </span>
-                                                    </div>
-                                                    {o.estado !== 'ANULADA' && (
-                                                        <button
-                                                            disabled={actionPending}
-                                                            onClick={async () => {
-                                                                if (confirm(`¿Seguro que desea anular la orden de trabajo para ${o.equipo}?`)) {
-                                                                    setActionPending(true);
-                                                                    const res = await anularOrden(o.id);
-                                                                    setActionPending(false);
-                                                                    if (res.success) {
-                                                                        handleRefresh();
-                                                                    } else {
-                                                                        alert(res.error || 'Error al anular orden');
-                                                                    }
-                                                                }
-                                                            }}
-                                                            className="px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
-                                                        >
-                                                            Anular
-                                                        </button>
-                                                    )}
+                                                <div className="text-right">
+                                                    <span className="text-[9px] text-slate-400 block font-bold">Revisión + Reparación</span>
+                                                    <span className={`font-black text-base ${o.estado === 'ANULADA' ? 'text-rose-700 line-through' : 'text-slate-900'}`}>
+                                                        {formatCurrency(o.costoRevision + (o.aprobado ? o.costoReparacion : 0))}
+                                                    </span>
                                                 </div>
                                             </div>
-                                        ))
-                                    }
-                                </div>
+                                            <div className="px-4 pb-3 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Cliente:</span> {o.cliente}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Wrench className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Técnico:</span> {o.tecnico}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Recepción:</span> {o.recepcionadoPor}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock className="w-3 h-3 text-slate-300 shrink-0" />
+                                                    <span className="text-[10px] text-slate-500"><span className="text-slate-400 font-bold">Fecha:</span> {new Date(o.fechaRecibido).toLocaleDateString('es-HN', { day: '2-digit', month: 'short' })}</span>
+                                                </div>
+                                            </div>
+                                            <div className="px-4 pb-4 flex items-center gap-2 justify-end border-t border-slate-100 pt-3">
+                                                <a
+                                                    href={`/soporte/${o.id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-[10px] rounded-lg transition border border-slate-200 cursor-pointer"
+                                                >
+                                                    <ExternalLink className="w-3 h-3" />
+                                                    Ver Orden
+                                                </a>
+                                                {o.estado !== 'ANULADA' && (
+                                                    <button
+                                                        disabled={actionPending}
+                                                        onClick={async () => {
+                                                            if (confirm(`¿Anular orden de trabajo para ${o.equipo}?`)) {
+                                                                setActionPending(true);
+                                                                const res = await anularOrden(o.id);
+                                                                setActionPending(false);
+                                                                if (res.success) handleRefresh();
+                                                                else alert(res.error || 'Error al anular');
+                                                            }
+                                                        }}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] rounded-lg transition disabled:opacity-50 cursor-pointer"
+                                                    >
+                                                        Anular
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </>
                             )}
 
-                            {/* Caja Chica List */}
+                            {/* ── CAJA CHICA ── */}
                             {activeModal === 'cajachica' && (
-                                <div className="space-y-3">
-                                    {cajaChicaMovimientos
-                                        .filter((m: any) => 
-                                            m.categoria.toLowerCase().includes(modalSearch.toLowerCase()) ||
-                                            m.descripcion.toLowerCase().includes(modalSearch.toLowerCase()) ||
-                                            m.creadorPor.toLowerCase().includes(modalSearch.toLowerCase())
-                                        )
-                                        .map((m: any) => (
-                                            <div key={m.id} className="p-4 bg-slate-50/50 border border-slate-100 rounded-xl hover:bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all">
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-black text-xs text-slate-900">{m.categoria}</span>
-                                                        <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase ${
-                                                            m.tipo === 'INGRESO' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                                                        }`}>
-                                                            {m.tipo}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-[11px] text-slate-700 font-medium">{m.descripcion}</p>
-                                                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[10px] text-slate-400 font-semibold">
-                                                        <div>Creado por: {m.creadorPor}</div>
-                                                        <div>Fecha: {new Date(m.createdAt).toLocaleDateString('es-HN')}</div>
-                                                    </div>
+                                <>
+                                    {filtered.length === 0 && (
+                                        <div className="text-center py-16 text-slate-400 text-sm">No se encontraron resultados.</div>
+                                    )}
+                                    {filtered.map((m: any) => (
+                                        <div key={m.id} className={`rounded-2xl border shadow-sm transition-all ${
+                                            m.tipo === 'INGRESO' ? 'bg-emerald-50/40 border-emerald-200 hover:border-emerald-300' : 
+                                            'bg-white border-slate-200 hover:border-rose-200 hover:shadow-md'
+                                        }`}>
+                                            <div className="px-4 pt-4 pb-3 flex flex-wrap items-start justify-between gap-3">
+                                                <div className="flex items-center gap-2.5">
+                                                    <span className="font-black text-sm text-slate-900">{m.categoria}</span>
+                                                    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                                                        m.tipo === 'INGRESO' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                                    }`}>{m.tipo}</span>
                                                 </div>
-                                                <span className={`font-black text-sm ${m.tipo === 'INGRESO' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                                                <span className={`font-black text-base ${
+                                                    m.tipo === 'INGRESO' ? 'text-emerald-700' : 'text-rose-700'
+                                                }`}>
                                                     {m.tipo === 'INGRESO' ? '+' : '-'} {formatCurrency(m.total)}
                                                 </span>
                                             </div>
-                                        ))
-                                    }
-                                </div>
+                                            <p className="px-4 pb-2 text-[11px] text-slate-700 font-medium">{m.descripcion}</p>
+                                            <div className="px-4 pb-4 flex items-center gap-4">
+                                                <div className="flex items-center gap-1.5">
+                                                    <User className="w-3 h-3 text-slate-300" />
+                                                    <span className="text-[10px] text-slate-400 font-semibold">{m.creadorPor}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                    <Clock className="w-3 h-3 text-slate-300" />
+                                                    <span className="text-[10px] text-slate-400 font-semibold">{new Date(m.createdAt).toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </>
                             )}
                         </div>
                     </div>
                 </div>
-            )}
+                );
+            })()}
             {/* Modal de Vista Previa de Factura/Cotización */}
             {previewDocId && (
-                <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
-                    <div className="bg-slate-100 rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
+                <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[60] flex items-center justify-center p-3 sm:p-6">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[94vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
                         {/* Header */}
-                        <div className="px-6 py-4 bg-white border-b border-slate-200 flex items-center justify-between shadow-sm">
+                        <div className="px-5 py-3.5 bg-gradient-to-r from-slate-800 to-slate-900 flex items-center justify-between shadow-lg">
                             <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center">
-                                    <FileText className="w-4 h-4 text-blue-600" />
+                                <div className="w-8 h-8 rounded-lg bg-white/10 border border-white/20 flex items-center justify-center">
+                                    <FileText className="w-4 h-4 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="font-extrabold text-slate-900 text-sm flex items-center gap-2">
-                                        <span>Desglose y Vista Previa de Documento</span>
-                                        <span className="font-mono text-xs bg-slate-100 text-slate-700 px-2 py-0.5 rounded border">
+                                    <h3 className="font-extrabold text-white text-sm flex items-center gap-2">
+                                        Vista Previa
+                                        <span className="font-mono text-xs bg-white/10 text-white/90 px-2 py-0.5 rounded border border-white/20">
                                             {previewDocCorrelativo}
                                         </span>
                                     </h3>
-                                    <p className="text-[10px] text-slate-500">
-                                        Consulta rápida del detalle e impresión para presentar a Gerencia.
-                                    </p>
+                                    <p className="text-[10px] text-slate-400">Listo para imprimir o compartir</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => {
+                                        const iframe = document.querySelector('iframe[title="preview-doc"]') as HTMLIFrameElement;
+                                        if (iframe?.contentWindow) iframe.contentWindow.print();
+                                        else window.open(`/print/${previewDocId}`, '_blank');
+                                    }}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-sm"
+                                >
+                                    <Printer className="w-3.5 h-3.5" />
+                                    Imprimir
+                                </button>
                                 <a 
-                                    href={`/facturas/ver/${previewDocId}`} 
+                                    href={`/print/${previewDocId}`} 
                                     target="_blank" 
                                     rel="noopener noreferrer"
-                                    className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold text-xs rounded-xl transition-all flex items-center gap-1.5 border"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white font-bold text-xs rounded-xl transition-all border border-white/20"
                                 >
-                                    <ArrowUpRight className="w-3.5 h-3.5" />
-                                    <span>Pantalla Completa</span>
+                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    Abrir
                                 </a>
                                 <button 
-                                    onClick={() => {
-                                        setPreviewDocId(null);
-                                        setPreviewDocCorrelativo('');
-                                    }}
-                                    className="text-slate-400 hover:text-slate-600 font-extrabold text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-xl transition cursor-pointer"
+                                    onClick={() => { setPreviewDocId(null); setPreviewDocCorrelativo(''); }}
+                                    className="text-slate-400 hover:text-white font-extrabold text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-xl transition cursor-pointer border border-white/10"
                                 >
                                     ✕ Cerrar
                                 </button>
@@ -1071,11 +1205,11 @@ export default function GraficasClient({ initialData, initialMonth, initialYear 
                         </div>
 
                         {/* Content Area (Iframe) */}
-                        <div className="flex-1 bg-white relative">
+                        <div className="flex-1 bg-slate-100 relative">
                             <iframe 
-                                src={`/facturas/ver/${previewDocId}`} 
+                                src={`/api/pdf/${previewDocId}`} 
                                 className="w-full h-full border-none"
-                                title={`Factura ${previewDocCorrelativo}`}
+                                title="preview-doc"
                             />
                         </div>
                     </div>

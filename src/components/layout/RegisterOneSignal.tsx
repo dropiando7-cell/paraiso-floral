@@ -36,7 +36,7 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
                 navigator.serviceWorker.getRegistrations().then((registrations) => {
                     for (const registration of registrations) {
                         const scriptURL = registration.active?.scriptURL;
-                        if (scriptURL && !scriptURL.includes('/sw.js')) {
+                        if (scriptURL && !/\/sw\.js$/.test(scriptURL)) {
                             registration.unregister().then((success) => {
                                 if (success) {
                                     console.log('[ONESIGNAL] Se desinstaló service worker obsoleto:', scriptURL);
@@ -79,8 +79,9 @@ export function RegisterOneSignal({ dbUser }: RegisterOneSignalProps) {
                     appId: appId,
                     allowLocalhostAsSecureOrigin: true,
                     serviceWorkerParam: { scope: '/' },
-                    serviceWorkerPath: '/sw.js?v=3',
+                    serviceWorkerPath: '/sw.js',
                 });
+                console.log('[ONESIGNAL] init() completado. SW registrado en /sw.js');
 
                 // Verificar si ya está suscrito
                 const subscriptionId = window.OneSignal.User?.PushSubscription?.id || 
