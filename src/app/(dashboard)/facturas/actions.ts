@@ -100,7 +100,7 @@ export async function searchProductos(query: string = "") {
             marca: p.marca,
             stockActual: p.stockActual,
             type: 'producto',
-            imageUrl: undefined
+            imageUrl: p.imagenWeb || (p.imagenes && p.imagenes[0]) || undefined
         }));
 
         const unifiedActivos = activos.map(a => ({
@@ -664,7 +664,7 @@ export async function buscarItemPorCodigo(codigo: string) {
                 name: producto.nombre,
                 description: producto.descripcion || '',
                 price: Number(producto.precioVenta) || 0,
-                imageUrl: undefined
+                imageUrl: producto.imagenWeb || (producto.imagenes && producto.imagenes[0]) || undefined
             };
         }
 

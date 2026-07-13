@@ -479,6 +479,7 @@ export async function getActivoStats(area?: string) {
         Array<{
             total: bigint;
             vigente: bigint;
+            en_transito: bigint;
             depreciado: bigint;
             proceso_baja: bigint;
             con_dano: bigint;
@@ -494,6 +495,7 @@ export async function getActivoStats(area?: string) {
         SELECT 
             COALESCE(SUM("stock"), 0) as total,
             COALESCE(SUM("stock") FILTER (WHERE "estatusContable" = 'VIGENTE'), 0) as vigente,
+            COALESCE(SUM("stock") FILTER (WHERE "estatusContable" = 'EN TRANSITO'), 0) as en_transito,
             COALESCE(SUM("stock") FILTER (WHERE "estatusContable" = 'DEPRECIADO'), 0) as depreciado,
             COALESCE(SUM("stock") FILTER (WHERE "estatusContable" = 'PROCESO DE BAJA'), 0) as proceso_baja,
             COALESCE(SUM("stock") FILTER (WHERE "estadoDano" IS NOT NULL), 0) as con_dano,
@@ -508,6 +510,7 @@ export async function getActivoStats(area?: string) {
     return {
         total: Number(row?.total || 0),
         vigente: Number(row?.vigente || 0),
+        enTransito: Number(row?.en_transito || 0),
         depreciado: Number(row?.depreciado || 0),
         procesoBaja: Number(row?.proceso_baja || 0),
         conDano: Number(row?.con_dano || 0),
@@ -1632,4 +1635,90 @@ export async function encolarLoteImportado(ids: string[]) {
         return { success: false, error: e.message || 'Error al encolar lote de impresión' };
     }
 }
+
+export async function searchWebCatalogProducts(query: string) {
+    const orgId = await getOrgId();
+    if (!query || query.trim().length === 0) return [];
+
+    const searchTerm = query.trim();
+    const keywords = searchTerm.split(/\s+/).filter(Boolean);
+
+    const andConditions = keywords.map(keyword => ({
+        OR: [
+            { nombre: { contains: keyword, mode: 'insensitive' as const } },
+            { sku: { contains: keyword, mode: 'insensitive' as const } },
+            { marca: { contains: keyword, mode: 'insensitive' as const } },
+            { modelo: { contains: keyword, mode: 'insensitive' as const } },
+            { categoria: { contains: keyword, mode: 'insensitive' as const } }
+        ]
+    }));
+
+    try {
+        const results = await prisma.producto.findMany({
+            where: {
+                organizationId: orgId,
+                AND: andConditions
+            },
+            take: 20,
+        });
+        return results;
+    } catch (error) {
+        console.error("Error searching web catalog products:", error);
+        return [];
+    }
+}
+
+export async function generateNextSkuCode(): Promise<string> {
+    try {
+        const orgId = await getOrgId();
+        const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { qrPrefix: true } });
+        const prefijoBase = org?.qrPrefix || 'BEA';
+
+        const items = await prisma.activoFijo.findMany({
+            where: {
+                organizationId: orgId,
+                codigoBarras: { startsWith: `${prefijoBase}-SKU-` }
+            },
+            select: { codigoBarras: true }
+        });
+
+        let maxCorrelativo = 0;
+        const regex = new RegExp(`^${prefijoBase}-SKU-(\\d+)$`);
+        for (const item of items) {
+            if (item.codigoBarras) {
+                const match = item.codigoBarras.match(regex);
+                if (match) {
+                    const num = Number(match[1]);
+                    if (num > maxCorrelativo) maxCorrelativo = num;
+                }
+            }
+        }
+
+        const nextNum = maxCorrelativo + 1;
+        const nextCode = `${prefijoBase}-SKU-${String(nextNum).padStart(5, '0')}`;
+        return nextCode;
+    } catch (err) {
+        console.error("Error generating next SKU code:", err);
+        return `BEA-SKU-00001`;
+    }
+}
+
+export async function recibirActivoEnTransito(id: string) {
+    try {
+        const orgId = await getOrgId();
+        await prisma.activoFijo.updateMany({
+            where: { id, organizationId: orgId },
+            data: {
+                estatusContable: 'VIGENTE'
+            }
+        });
+        revalidatePath('/inventario');
+        return { success: true };
+    } catch (e: any) {
+        console.error("Error in recibirActivoEnTransito:", e);
+        return { success: false, error: e.message || 'Error al actualizar estatus' };
+    }
+}
+
+
 

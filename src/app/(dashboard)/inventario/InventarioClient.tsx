@@ -6,7 +6,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
-    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft, Wrench, Download, FileSpreadsheet
+    TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft, Wrench, Download, FileSpreadsheet,
+    Globe
 } from 'lucide-react';
 import {
     searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, 
@@ -16,13 +17,14 @@ import {
     getActivosByGrupo, updateActivoQuick, checkGrupoExists, getActivosByIdQr, 
     searchActivosGlobal, generateNextServiceCode, getActivosForExport, getInventoryOriginsSetting,
     saveInventoryOriginsSetting, getInventoryConditionsSetting, saveInventoryConditionsSetting,
-    bulkImportActivos, encolarLoteImportado
+    bulkImportActivos, encolarLoteImportado, generateNextSkuCode, recibirActivoEnTransito
 } from './actions';
 import { completarReparacionActivo } from './garantias/actions';
 import toast from 'react-hot-toast';
 import { getEquiposParaRenta, getRentaStats } from '../rentas/equipos/actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 import { RestockModal } from './RestockModal';
+import BuscadorCatWeb, { WebProductAlertPanel } from './BuscadorCatWeb';
 import { AreaSplitInput } from '@/components/ui/AreaSplitInput';
 import { type GS1Fields, gs1DateToISO } from '@/lib/gs1';
 import { removeBackground } from '@imgly/background-removal';
@@ -336,7 +338,7 @@ export const CUENTAS = [
     'Equipo de Audio e Instrumentos', 'Mejoras a Edificios', 'Equipos Diversos',
 ];
 
-const ESTATUS = ['VIGENTE', 'DEPRECIADO', 'PROCESO DE BAJA'];
+const ESTATUS = ['VIGENTE', 'EN TRANSITO', 'DEPRECIADO', 'PROCESO DE BAJA'];
 const ESTADO_DANO = ['DAÑADO', 'FALTANTE', 'NO REGISTRADO', 'INSERVIBLE'];
 const TIPO_INCIDENCIA = ['Faltante', 'Extraviado', 'No Registrado'];
 const ACCION_RECOMENDADA = ['Reparar', 'Mantenimiento', 'Dar de baja', 'Reponer'];
@@ -592,11 +594,12 @@ function StatsCards({ stats }: { stats: any }) {
     const cards = [
         { label: 'Total de Productos', value: stats?.total ?? 0, sub: `${stats?.areasRegistradas ?? 0} áreas localizadas`, icon: Package, color: 'text-[#0500A3]', bg: 'bg-blue-50' },
         { label: 'En Inventario', value: stats?.vigente ?? 0, sub: 'Disponibles para venta/uso', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        { label: 'En Tránsito', value: stats?.enTransito ?? 0, sub: 'Aún no llegan a puerto', icon: ArrowRightLeft, color: 'text-purple-600', bg: 'bg-purple-50' },
         { label: 'Obsoletos', value: (stats?.depreciado ?? 0) + (stats?.procesoBaja ?? 0), sub: `${stats?.procesoBaja ?? 0} en proceso de baja`, icon: TrendingDown, color: 'text-amber-600', bg: 'bg-amber-50' },
         { label: 'Para Reparación', value: stats?.conDano ?? 0, sub: 'Requieren atención', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
     ];
     return (
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-6">
             {cards.map(c => (
                 <div key={c.label} className="bg-white rounded-xl border border-slate-200 p-4 flex items-start gap-3 shadow-sm">
                     <div className={`${c.bg} p-2.5 rounded-lg shrink-0`}><c.icon className={`w-5 h-5 ${c.color}`} /></div>
@@ -614,6 +617,7 @@ function StatsCards({ stats }: { stats: any }) {
 function EstatusBadge({ estatus }: { estatus: string }) {
     const map: Record<string, string> = {
         'VIGENTE': 'bg-emerald-100 text-emerald-700 border border-emerald-200/50',
+        'EN TRANSITO': 'bg-purple-100 text-purple-700 border border-purple-200/50',
         'DEPRECIADO': 'bg-amber-100 text-amber-700 border border-amber-200/50',
         'PROCESO DE BAJA': 'bg-red-100 text-red-700 border border-red-200/50',
         'EN REPARACION': 'bg-blue-100 text-blue-700 border border-blue-200/50',
@@ -861,8 +865,9 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     const [frecuenciaMantenimientoMeses, setFrecuenciaMantenimientoMeses] = useState(editActivo?.frecuenciaMantenimientoMeses ? String(editActivo.frecuenciaMantenimientoMeses) : '');
 
     // Pre-step Registration Type
-    const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso' | 'servicio'>(editActivo ? 'reingreso' : 'seleccion');
+    const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso' | 'servicio' | 'import_web'>(editActivo ? 'reingreso' : 'seleccion');
     const [isServiceMode, setIsServiceMode] = useState(false);
+    const [estatusContable, setEstatusContable] = useState(editActivo?.estatusContable || 'VIGENTE');
 
     useEffect(() => {
         if (tipoRegistro === 'servicio') {
@@ -912,6 +917,48 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     const [serie, setSerie] = useState(editActivo?.serie || '');
 
     const [odooReference, setOdooReference] = useState<any>(null);
+    const [webProductReference, setWebProductReference] = useState<any>(null);
+
+    const handleAutogenerarSku = async () => {
+        try {
+            const nextSku = await generateNextSkuCode();
+            setCodigoBarras(nextSku);
+            toast.success(`Código interno autogenerado: ${nextSku}`);
+        } catch (e) {
+            console.error(e);
+            toast.error("Error al autogenerar código de barras");
+        }
+    };
+
+    const handleWebProductSelect = async (product: any) => {
+        setWebProductReference(product);
+        if (product.nombre) setDescripcionCorta(product.nombre);
+        
+        const img = product.imagenWeb || (product.imagenes && product.imagenes[0]) || '';
+        if (img && !imagenUrl) setImagenUrl(img);
+        if (product.marca && !marca) setMarca(product.marca);
+        if (product.modelo && !modelo) setModelo(product.modelo);
+        if (product.costoBase && !costoAdq) setCostoAdq(String(product.costoBase));
+        if (product.sku && !referencia) setReferencia(product.sku);
+        if (product.categoria) {
+            const matchedCat = categorias.find(c => c.label.toLowerCase() === product.categoria.toLowerCase());
+            if (matchedCat) setCategoriaId(matchedCat.value);
+        }
+
+        // Generate next SKU from our inventory
+        try {
+            const nextSku = await generateNextSkuCode();
+            setCodigoBarras(nextSku);
+            toast.success(`Código interno asignado: ${nextSku}`);
+        } catch (e) {
+            console.error(e);
+        }
+
+        setCompatibilidad(prev => {
+            const nuevas = new Set([...prev, 'CATALOGO-WEB']);
+            return Array.from(nuevas);
+        });
+    };
 
     const handleOdooSelect = (product: any) => {
         setOdooReference(product);
@@ -1261,6 +1308,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setFechaVencimiento(editActivo.fechaVencimiento ? getLocalDateString(editActivo.fechaVencimiento) : '');
             setFechaFabricacion(editActivo.fechaFabricacion ? getLocalDateString(editActivo.fechaFabricacion) : '');
             setSerie(editActivo.serie || '');
+            setEstatusContable(editActivo.estatusContable || 'VIGENTE');
             // For now, not fetching full historic record on edit, just handling its absence.
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
@@ -1270,6 +1318,8 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
             setFechaAdq(getLocalDateString(new Date())); setCostoAdq(''); setOrigenActivo(defaultOrigin); setCondicionActivo(defaultCondition); setCategoriaId(''); setEsConsumible(false); setGarantia(''); setMantenimientosIncluidos(''); setFrecuenciaMantenimientoMeses(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion(''); setSerie('');
             setTipoRegistro('seleccion');
+            setEstatusContable('VIGENTE');
+            setWebProductReference(null);
         }
     }, [editActivo, open, lockedArea, defaultOrigin, defaultCondition]);
 
@@ -1550,6 +1600,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
         if (costoAdq) fd.set('costoAdq', costoAdq);
         if (origenActivo) fd.set('origenActivo', origenActivo);
         if (condicionActivo) fd.set('condicionActivo', condicionActivo);
+        fd.set('estatusContable', estatusContable);
 
         // Show preview and fetch real next code in parallel
         fd.set('shouldPrint', printRef.current ? 'true' : 'false');
@@ -1794,7 +1845,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                 </div>
                             </div>
                         ) : tipoRegistro === 'seleccion' && !isEdit ? (
-                            <div className="p-6 md:p-8 space-y-5">
+                            <div className="p-6 md:p-8 space-y-4">
                                 <button type="button" onClick={() => setTipoRegistro('nuevo')}
                                     className="w-full text-left p-6 border-2 border-slate-100 rounded-2xl hover:border-[#0500A3] hover:bg-[#0500A3]/5 transition-all group flex items-start gap-5">
                                     <div className="w-14 h-14 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
@@ -1804,6 +1855,19 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                         <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#0500A3]">Nuevo Producto</h3>
                                         <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
                                             Registrar un código o producto que no existe actualmente en la base de datos.
+                                        </p>
+                                    </div>
+                                </button>
+
+                                <button type="button" onClick={() => setTipoRegistro('import_web')}
+                                    className="w-full text-left p-6 border-2 border-slate-100 rounded-2xl hover:border-[#0500A3] hover:bg-[#0500A3]/5 transition-all group flex items-start gap-5">
+                                    <div className="w-14 h-14 shrink-0 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                                        <Globe className="w-7 h-7" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#0500A3]">Importar desde Catálogo Web</h3>
+                                        <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                                            Buscar y cargar una referencia importada (Soma, Pukang, Joson, etc.) para registrarla en nuestro inventario físico con un SKU propio.
                                         </p>
                                     </div>
                                 </button>
@@ -1854,6 +1918,14 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                     <>
                                         <BuscadorOdoo onSelect={handleOdooSelect} />
                                         <OdooAlertPanel product={odooReference} />
+                                    </>
+                                )}
+
+                                {/* ── BUSCADOR CATÁLOGO WEB (SOMA/PUKANG/ETC.) ── */}
+                                {!isEdit && tipoRegistro === 'import_web' && !isServiceMode && (
+                                    <>
+                                        <BuscadorCatWeb onSelect={handleWebProductSelect} />
+                                        <WebProductAlertPanel product={webProductReference} />
                                     </>
                                 )}
 
@@ -2093,13 +2165,24 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                 <div className="relative" ref={barcodeRef}>
                                                     <div className="flex items-center justify-between">
                                                         <FieldLabel>Código de Barras / UDI GS1</FieldLabel>
-                                                        <button 
-                                                            type="button"
-                                                            onClick={() => setIsScannerOpen(true)}
-                                                            className="text-[#0500A3] bg-[#0500A3]/10 px-2 py-0.5 rounded-md flex items-center gap-1 text-xs font-semibold hover:bg-[#0500A3] hover:text-white transition-colors border border-[#0500A3]/20 mb-2"
-                                                        >
-                                                            <Camera className="w-3.5 h-3.5" /> Escanear
-                                                        </button>
+                                                        <div className="flex gap-2">
+                                                            <button 
+                                                                type="button"
+                                                                onClick={() => setIsScannerOpen(true)}
+                                                                className="text-[#0500A3] bg-[#0500A3]/10 px-2 py-0.5 rounded-md flex items-center gap-1 text-xs font-semibold hover:bg-[#0500A3] hover:text-white transition-colors border border-[#0500A3]/20 mb-2"
+                                                            >
+                                                                <Camera className="w-3.5 h-3.5" /> Escanear
+                                                            </button>
+                                                            {!isEdit && (
+                                                                <button 
+                                                                    type="button"
+                                                                    onClick={handleAutogenerarSku}
+                                                                    className="text-purple-700 bg-purple-100 px-2 py-0.5 rounded-md flex items-center gap-1 text-xs font-semibold hover:bg-purple-600 hover:text-white transition-colors border border-purple-300 mb-2"
+                                                                >
+                                                                    ⚡ Autogenerar SKU
+                                                                </button>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 <input 
                                                     type="text" 
@@ -2363,7 +2446,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                         </div>
 
                                         {/* Origen y Datos de Adquisición */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4 bg-indigo-50/30 p-4 rounded-xl border border-indigo-100/50">
+                                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-4 bg-indigo-50/30 p-4 rounded-xl border border-indigo-100/50">
                                             <div>
                                                 <div className="flex justify-between items-center">
                                                     <FieldLabel>Origen del Inventario</FieldLabel>
@@ -2408,6 +2491,19 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     {conditionsList.map(c => (
                                                         <option key={c} value={c}>{c}</option>
                                                     ))}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <FieldLabel>Estatus de Inventario</FieldLabel>
+                                                <select
+                                                    value={estatusContable}
+                                                    onChange={e => setEstatusContable(e.target.value)}
+                                                    className={selectCls}
+                                                >
+                                                    <option value="VIGENTE">Vigente (Disponible)</option>
+                                                    <option value="EN TRANSITO">En Tránsito (No recibido)</option>
+                                                    <option value="DEPRECIADO">Depreciado</option>
+                                                    <option value="PROCESO DE BAJA">Proceso de Baja</option>
                                                 </select>
                                             </div>
                                             <div>
@@ -4088,6 +4184,30 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                 <td className="px-3 py-3 max-w-[100px]"><div className="text-[10px] text-slate-600 truncate" title={a.createdBy?.nombre ? `${a.createdBy.nombre} ${a.createdBy.apellido || ''}`.trim() : (a.createdBy?.email?.split('@')[0] || '—')}>{a.createdBy?.nombre ? `${a.createdBy.nombre} ${a.createdBy.apellido || ''}`.trim() : (a.createdBy?.email?.split('@')[0] || '—')}</div></td>
                                 <td className="px-3 py-3 hide-on-print" onClick={e => e.stopPropagation()}>
                                     <div className="flex items-center gap-1">
+                                        {a.estatusContable === 'EN TRANSITO' && (
+                                            <button
+                                                onClick={async (e) => {
+                                                    e.stopPropagation();
+                                                    if (window.confirm(`¿Marcar ${a.descripcionCorta} como VIGENTE / recibido?`)) {
+                                                        try {
+                                                            const res = await recibirActivoEnTransito(a.id);
+                                                            if (res.success) {
+                                                                toast.success('Equipo marcado como VIGENTE');
+                                                                refresh();
+                                                            } else {
+                                                                toast.error(res.error || 'Error al recibir equipo');
+                                                            }
+                                                        } catch (err) {
+                                                            toast.error('Error al recibir equipo');
+                                                        }
+                                                    }
+                                                }}
+                                                className="p-2 hover:bg-purple-50 rounded-lg transition-colors text-purple-500 hover:text-purple-700"
+                                                title="Marcar como recibido / Vigente"
+                                            >
+                                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        )}
                                         <button onClick={(e) => { e.stopPropagation(); setEditActivo(a); setModalOpen(true); }} className="p-2 hover:bg-slate-100 rounded-lg transition-colors opacity-0 group-hover:opacity-100" title="Editar"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
                                         <button onClick={(e) => { e.stopPropagation(); setDeleteActivo(a); }} className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-400 hover:text-red-600" title="Eliminar activo"><Trash2 className="w-3.5 h-3.5" /></button>
                                     </div>
@@ -4442,6 +4562,31 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                     >
                                         <Wrench className="w-4 h-4" />
                                         🛠️ Completar Reparación / Marcar Vigente
+                                    </button>
+                                )}
+                                {viewActivo?.estatusContable === 'EN TRANSITO' && (
+                                    <button
+                                        onClick={async () => {
+                                            const a = viewActivo;
+                                            setViewActivo(null);
+                                            if (window.confirm(`¿Confirmar la recepción de ${a.descripcionCorta}? Cambiará su estatus a VIGENTE.`)) {
+                                                try {
+                                                    const res = await recibirActivoEnTransito(a.id);
+                                                    if (res.success) {
+                                                        toast.success('El equipo ha sido marcado como VIGENTE y disponible en inventario');
+                                                        refresh();
+                                                    } else {
+                                                        toast.error(res.error || 'Error al actualizar estatus');
+                                                    }
+                                                } catch (err) {
+                                                    toast.error('Error al recibir equipo');
+                                                }
+                                            }
+                                        }}
+                                        className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold transition-all active:scale-95 border-2 border-purple-500 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-500 text-sm"
+                                    >
+                                        <CheckCircle2 className="w-4 h-4" />
+                                        📦 Recibir Inventario / Marcar Vigente
                                     </button>
                                 )}
                                 <div className="flex gap-3">
