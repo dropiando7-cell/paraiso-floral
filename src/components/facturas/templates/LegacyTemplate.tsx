@@ -11,7 +11,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  validityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
  handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
  notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent,
- setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode
+ setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode, fechaEmision
  } = props;
 
  const colorMap: Record<string, { bgDark: string, border: string, text: string }> = {
@@ -66,12 +66,32 @@ export default function LegacyTemplate(props: TemplateProps) {
   const imageColWidth = settings?.productImageSize === 'large' ? 'w-24' : settings?.productImageSize === 'medium' ? 'w-16' : 'w-[34px]';
  
  // Use state for the date string to avoid SSR/client hydration mismatch
- const [currentDateStr, setCurrentDateStr] = useState(today.split('-').reverse().join('/'));
+ const [currentDateStr, setCurrentDateStr] = useState(() => {
+   if (fechaEmision) {
+     const d = new Date(fechaEmision);
+     if (!isNaN(d.getTime())) {
+       const dateStr = d.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+       const timeStr = d.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+       return `${dateStr} ${timeStr}`;
+     }
+   }
+   return today.split('-').reverse().join('/');
+ });
+
  useEffect(() => {
- const now = new Date();
- const time = now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
- setCurrentDateStr(`${today.split('-').reverse().join('/')} ${time}`);
- }, [today]);
+   if (fechaEmision) {
+     const d = new Date(fechaEmision);
+     if (!isNaN(d.getTime())) {
+       const dateStr = d.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+       const timeStr = d.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+       setCurrentDateStr(`${dateStr} ${timeStr}`);
+       return;
+     }
+   }
+   const now = new Date();
+   const time = now.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+   setCurrentDateStr(`${today.split('-').reverse().join('/')} ${time}`);
+ }, [today, fechaEmision]);
 
   const isGrouped = settings?.subtotalsBorderStyle === 'grouped';
 

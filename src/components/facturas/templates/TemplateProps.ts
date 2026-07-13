@@ -10,6 +10,7 @@ export interface TemplateProps {
   currentDocType: { label: string; icon: React.ReactNode; color: string; bg: string; description: string };
   docTypeStatusConfig: Record<string, { badge: string; label: string }>;
   today: string;
+  fechaEmision?: string | Date;
   futureDate: (days: number) => string;
   selectedClient: any | null;
   setShowClientModal: (v: boolean) => void;

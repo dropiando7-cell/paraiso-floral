@@ -101,11 +101,6 @@ const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; color: st
 const normalizeText = (text: string) => text ? text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : '';
 const fmt = (n: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 }).format(n);
 const uid = () => Math.random().toString(36).slice(2, 9);
-const today = new Date().toISOString().split('T')[0];
-const futureDate = (days: number) => {
-  const d = new Date(); d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-};
 const formatFecha = (dStr: string | Date | null | undefined) => {
   if (!dStr) return '';
   try {
@@ -983,6 +978,27 @@ export default function DocumentBuilderClient({
   userRole?: string;
 }) {
   const [docType, setDocType] = useState<DocType>('cotizacion');
+
+  const docDate = (initialData?.fechaEmision && (editMode || viewMode))
+    ? new Date(initialData.fechaEmision)
+    : new Date();
+
+  const today = docDate.toISOString().split('T')[0];
+
+  const futureDate = useCallback((days: number) => {
+    const d = new Date(docDate);
+    d.setDate(d.getDate() + days);
+    return d.toISOString().split('T')[0];
+  }, [docDate]);
+
+  const resolvedFechaEmision = (editMode || viewMode) ? initialData?.fechaEmision : null;
+
+  const getOrdenEntregaTodayStr = useCallback(() => {
+    const dateStr = docDate.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const timeStr = docDate.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    return `${dateStr} ${timeStr}`;
+  }, [docDate]);
+
   const [docNumber, setDocNumber] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyLine(), id: 'default-line-hash' }]);
@@ -2395,7 +2411,7 @@ export default function DocumentBuilderClient({
               docNumber={docNumber || 'PENDIENTE'}
               nombreUsuario={resolvedNombreUsuario}
               selectedClient={selectedClient}
-              today={today}
+              today={getOrdenEntregaTodayStr()}
               lineItems={lineItems}
               viewMode={effectiveViewMode}
               ordenEntrega={ordenEntrega}
@@ -2408,7 +2424,7 @@ export default function DocumentBuilderClient({
             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
             nombreUsuario={resolvedNombreUsuario}
             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-            today={today} futureDate={futureDate} selectedClient={selectedClient} 
+            today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
             setPaymentTerms={setPaymentTerms}
             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
@@ -2424,7 +2440,7 @@ export default function DocumentBuilderClient({
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
              nombreUsuario={resolvedNombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-             today={today} futureDate={futureDate} selectedClient={selectedClient} 
+             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms}
              paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
@@ -2440,7 +2456,7 @@ export default function DocumentBuilderClient({
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
              nombreUsuario={resolvedNombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-             today={today} futureDate={futureDate} selectedClient={selectedClient} 
+             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms}
              paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
@@ -2456,7 +2472,7 @@ export default function DocumentBuilderClient({
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
              nombreUsuario={resolvedNombreUsuario}
              docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
-             today={today} futureDate={futureDate} selectedClient={selectedClient} 
+             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
              setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
              setPaymentTerms={setPaymentTerms}
              paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
