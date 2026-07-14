@@ -11,6 +11,7 @@ interface SearchParams {
     brand?: string;
     type?: string;
     category?: string;
+    page?: string;
 }
 
 function cleanString(str: string): string {
@@ -47,11 +48,16 @@ function matchToken(token: string, word: string): number {
     return 0;
 }
 
+const ITEMS_PER_PAGE = 24;
+
 async function getInventory(searchParams: SearchParams, isAdmin = false) {
     const query = searchParams.q || '';
     const selectedBrand = searchParams.brand || '';
     const selectedType = searchParams.type || '';
     const selectedCategory = searchParams.category || '';
+    const page = parseInt(searchParams.page || '1', 10) || 1;
+    const skip = (page - 1) * ITEMS_PER_PAGE;
+    const take = skip + ITEMS_PER_PAGE; // Fetch up to current page's end in merged space
 
     let allowScrapedProducts = true;
     let hideRealInventory = false;
@@ -69,44 +75,142 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
     }
 
     try {
-        let assets: {
-            id: string;
-            descripcionCorta: string;
-            marca: string | null;
-            modelo: string | null;
-            idQr: string | null;
-            imagenUrl: string | null;
-            imagenWeb: string | null;
-            tituloWeb: string | null;
-            costoAdq: Prisma.Decimal | null;
-            categoria: {
-                nombre: string;
-            } | null;
-            estatusContable: string;
-        }[] = [];
+        // Build base filters
+        const assetWhere: Prisma.ActivoFijoWhereInput = {
+            estatusContable: isAdmin ? { in: ['VIGENTE', 'OCULTO'] } : 'VIGENTE',
+            NOT: [
+                { area: { equals: 'SERVICIOS', mode: 'insensitive' } }
+            ]
+        };
 
-        let consumables: {
-            id: string;
-            nombre: string;
-            marca: string | null;
-            modelo: string | null;
-            sku: string;
-            precioVenta: Prisma.Decimal | null;
-            imagenWeb: string | null;
-            tituloWeb: string | null;
-            categoria: string | null;
-            estado: string;
-        }[] = [];
+        const productWhere: Prisma.ProductoWhereInput = {
+            estado: isAdmin ? { in: ['ACTIVO', 'OCULTO'] } : 'ACTIVO',
+            esServicio: false
+        };
 
-        // Query database filtering by type (without brand filter initially, to extract all available brands/categories)
+        // Enforce active catalog configurations
+        if (hideRealInventory) {
+            productWhere.OR = [
+                { sku: { startsWith: 'SOMA-' } },
+                { sku: { startsWith: 'REP-' } },
+                { sku: { startsWith: 'PUKANG-' } },
+                { sku: { startsWith: 'JOSON-' } },
+                { sku: { startsWith: 'AERTI-' } },
+                { sku: { startsWith: 'DRE-' } },
+                { sku: { startsWith: 'AMCARE-' } },
+                { sku: { startsWith: 'RD-' } }
+            ];
+        } else if (!allowScrapedProducts) {
+            productWhere.AND = [
+                { sku: { not: { startsWith: 'SOMA-' } } },
+                { sku: { not: { startsWith: 'REP-' } } },
+                { sku: { not: { startsWith: 'PUKANG-' } } },
+                { sku: { not: { startsWith: 'JOSON-' } } },
+                { sku: { not: { startsWith: 'AERTI-' } } },
+                { sku: { not: { startsWith: 'DRE-' } } },
+                { sku: { not: { startsWith: 'AMCARE-' } } },
+                { sku: { not: { startsWith: 'RD-' } } }
+            ];
+        }
+
+        // Apply filters in database level
+        if (selectedBrand) {
+            assetWhere.marca = { equals: selectedBrand, mode: 'insensitive' };
+            productWhere.marca = { equals: selectedBrand, mode: 'insensitive' };
+        }
+
+        if (selectedCategory) {
+            assetWhere.categoria = {
+                nombre: { equals: selectedCategory, mode: 'insensitive' }
+            };
+            productWhere.categoria = { equals: selectedCategory, mode: 'insensitive' };
+        }
+
+        if (query.trim()) {
+            const queryFilter = { contains: query, mode: 'insensitive' as const };
+            assetWhere.OR = [
+                { descripcionCorta: queryFilter },
+                { marca: queryFilter },
+                { modelo: queryFilter },
+                { idQr: queryFilter }
+            ];
+            
+            if (productWhere.OR) {
+                // If we already have OR from catalog filters, merge it under AND
+                productWhere.AND = [
+                    { OR: productWhere.OR },
+                    {
+                        OR: [
+                            { nombre: queryFilter },
+                            { marca: queryFilter },
+                            { modelo: queryFilter },
+                            { sku: queryFilter }
+                        ]
+                    }
+                ];
+                delete productWhere.OR;
+            } else {
+                productWhere.OR = [
+                    { nombre: queryFilter },
+                    { marca: queryFilter },
+                    { modelo: queryFilter },
+                    { sku: queryFilter }
+                ];
+            }
+        }
+
+        // 1. Fetch count totals and filter options in parallel
+        const [assetBrands, productBrands, assetCategories, productCategories] = await Promise.all([
+            prisma.activoFijo.findMany({
+                where: { estatusContable: 'VIGENTE' },
+                select: { marca: true },
+                distinct: ['marca']
+            }),
+            prisma.producto.findMany({
+                where: { estado: 'ACTIVO' },
+                select: { marca: true },
+                distinct: ['marca']
+            }),
+            prisma.categoria.findMany({
+                select: { nombre: true }
+            }),
+            prisma.producto.findMany({
+                where: { estado: 'ACTIVO', categoria: { not: null } },
+                select: { categoria: true },
+                distinct: ['categoria']
+            })
+        ]);
+
+        const allBrands = Array.from(new Set([
+            ...assetBrands.map(b => (b.marca || 'GENÉRICO').trim().toUpperCase()),
+            ...productBrands.map(b => (b.marca || 'GENÉRICO').trim().toUpperCase())
+        ].filter(Boolean))).sort();
+
+        const allCategories = Array.from(new Set([
+            ...assetCategories.map(c => c.nombre.trim().toUpperCase()),
+            ...productCategories.map(c => (c.categoria || '').trim().toUpperCase())
+        ].filter(Boolean))).sort();
+
+        // Count for pagination
+        const assetsCount = (selectedType === '' || selectedType === 'activo') 
+            ? await prisma.activoFijo.count({ where: assetWhere })
+            : 0;
+
+        const productsCount = (selectedType === '' || selectedType === 'producto')
+            ? await prisma.producto.count({ where: productWhere })
+            : 0;
+
+        const totalItems = assetsCount + productsCount;
+        const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+
+        // 2. Fetch page items with limited take
+        let assets: any[] = [];
+        let consumables: any[] = [];
+
         if (!hideRealInventory && (selectedType === '' || selectedType === 'activo')) {
             assets = await prisma.activoFijo.findMany({
-                where: {
-                    estatusContable: isAdmin ? { in: ['VIGENTE', 'OCULTO'] } : 'VIGENTE',
-                    NOT: [
-                        { area: { equals: 'SERVICIOS', mode: 'insensitive' } }
-                    ]
-                },
+                where: assetWhere,
+                take: take,
                 select: {
                     id: true,
                     descripcionCorta: true,
@@ -128,37 +232,9 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
         }
 
         if (selectedType === '' || selectedType === 'producto') {
-            const productWhere: Prisma.ProductoWhereInput = {
-                estado: isAdmin ? { in: ['ACTIVO', 'OCULTO'] } : 'ACTIVO',
-                esServicio: false
-            };
-
-            if (hideRealInventory) {
-                productWhere.OR = [
-                    { sku: { startsWith: 'SOMA-' } },
-                    { sku: { startsWith: 'REP-' } },
-                    { sku: { startsWith: 'PUKANG-' } },
-                    { sku: { startsWith: 'JOSON-' } },
-                    { sku: { startsWith: 'AERTI-' } },
-                    { sku: { startsWith: 'DRE-' } },
-                    { sku: { startsWith: 'AMCARE-' } },
-                    { sku: { startsWith: 'RD-' } }
-                ];
-            } else if (!allowScrapedProducts) {
-                productWhere.AND = [
-                    { sku: { not: { startsWith: 'SOMA-' } } },
-                    { sku: { not: { startsWith: 'REP-' } } },
-                    { sku: { not: { startsWith: 'PUKANG-' } } },
-                    { sku: { not: { startsWith: 'JOSON-' } } },
-                    { sku: { not: { startsWith: 'AERTI-' } } },
-                    { sku: { not: { startsWith: 'DRE-' } } },
-                    { sku: { not: { startsWith: 'AMCARE-' } } },
-                    { sku: { not: { startsWith: 'RD-' } } }
-                ];
-            }
-
             consumables = await prisma.producto.findMany({
                 where: productWhere,
+                take: take,
                 select: {
                     id: true,
                     nombre: true,
@@ -174,6 +250,7 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
             });
         }
 
+        // Merge and sort in memory, then paginate
         const unifiedItems = [
             ...assets.map(a => ({
                 id: a.id,
@@ -217,119 +294,22 @@ async function getInventory(searchParams: SearchParams, isAdmin = false) {
             }))
         ];
 
-        // Deduplicate and uppercase brands & categories
-        const allBrands = Array.from(new Set(unifiedItems.map(item => item.brand.toUpperCase()).filter(Boolean))).sort();
-        const allCategories = Array.from(new Set(unifiedItems.map(item => item.category.toUpperCase()).filter(Boolean))).sort();
+        // Sort unified alphabetically
+        unifiedItems.sort((a, b) => a.name.localeCompare(b.name));
 
-        // Perform brand and category in-memory filters first
-        let filteredItems = unifiedItems;
-
-        if (selectedBrand) {
-            filteredItems = filteredItems.filter(item => 
-                item.brand.toUpperCase() === selectedBrand.toUpperCase()
-            );
-        }
-
-        if (selectedCategory) {
-            const cleanSelected = cleanString(selectedCategory);
-            filteredItems = filteredItems.filter(item => {
-                const cleanItemCat = cleanString(item.category);
-                
-                // Exact normalized match
-                if (cleanItemCat === cleanSelected) return true;
-                
-                // Partial containment (e.g. "cama de hospital electrica" contains "cama de hospital")
-                if (cleanItemCat.includes(cleanSelected) || cleanSelected.includes(cleanItemCat)) return true;
-                
-                // Custom check for "cama de hospital" parent category to match other beds in database
-                if (cleanSelected === "cama de hospital" || cleanSelected === "camas de hospital") {
-                    return cleanItemCat.includes("cama") || cleanItemCat.includes("uci") || cleanItemCat.includes("examen");
-                }
-                
-                return false;
-            });
-        }
-
-        // Perform smart search algorithm on the filtered items
-        if (query.trim()) {
-            const cleanQuery = cleanString(query);
-            const queryTokens = cleanQuery.split(/\s+/).filter(Boolean);
-
-            if (queryTokens.length > 0) {
-                const scoredItems = filteredItems.map(item => {
-                    const brandWords = cleanString(item.brand).split(/\s+/).filter(Boolean);
-                    const nameWords = cleanString(item.name).split(/\s+/).filter(Boolean);
-                    const modelWords = cleanString(item.model).split(/\s+/).filter(Boolean);
-                    const codeWords = cleanString(item.code).split(/\s+/).filter(Boolean);
-
-                    const allWords = [...brandWords, ...nameWords, ...modelWords, ...codeWords];
-                    const uniqueWords = Array.from(new Set(allWords));
-
-                    let score = 0;
-                    let matchedTokensCount = 0;
-
-                    for (const token of queryTokens) {
-                        let maxTokenScore = 0;
-
-                        // Check word matches
-                        for (const word of uniqueWords) {
-                            const tokenScore = matchToken(token, word);
-                            if (tokenScore > maxTokenScore) {
-                                maxTokenScore = tokenScore;
-                            }
-                        }
-
-                        // Acronym/abbreviation synonyms for GE -> General Electric
-                        if (token === 'ge') {
-                            const hasGeneralElectric = brandWords.includes('general') || brandWords.includes('electric');
-                            if (hasGeneralElectric && maxTokenScore < 15) {
-                                maxTokenScore = 15;
-                            }
-                        }
-
-                        // General acronym detection
-                        if (token.length >= 2 && brandWords.length >= 2) {
-                            const brandAcronym = brandWords.map(w => w[0]).join('');
-                            if (brandAcronym.startsWith(token)) {
-                                if (maxTokenScore < 12) maxTokenScore = 12;
-                            }
-                        }
-
-                        if (maxTokenScore > 0) {
-                            score += maxTokenScore;
-                            matchedTokensCount++;
-                        }
-                    }
-
-                    // Exact query phrase matching bonus
-                    const fullItemString = cleanString(`${item.brand} ${item.name} ${item.model} ${item.code}`);
-                    if (fullItemString.includes(cleanQuery)) {
-                        score += 50;
-                    }
-
-                    // Multiplier bonus for matching all query words
-                    if (matchedTokensCount === queryTokens.length) {
-                        score *= 1.5;
-                    }
-
-                    return { item, score };
-                });
-
-                filteredItems = scoredItems
-                    .filter(si => si.score > 0)
-                    .sort((a, b) => b.score - a.score)
-                    .map(si => si.item);
-            }
-        }
+        const itemsForPage = unifiedItems.slice(skip, skip + ITEMS_PER_PAGE);
 
         return {
-            items: filteredItems,
+            items: itemsForPage,
             brands: allBrands,
-            categories: allCategories
+            categories: allCategories,
+            totalPages,
+            currentPage: page,
+            totalItems
         };
     } catch (e) {
         console.error('Error fetching catalog:', e);
-        return { items: [], brands: [], categories: [] };
+        return { items: [], brands: [], categories: [], totalPages: 0, currentPage: page, totalItems: 0 };
     }
 }
 
@@ -339,6 +319,7 @@ export default async function ProductosPage({
     searchParams: Promise<SearchParams>;
 }) {
     const resolvedParams = await searchParams;
+    const page = parseInt(resolvedParams.page || '1', 10) || 1;
 
     // Check if user is administrator to see hidden items and toggle them
     let isAdmin = false;
@@ -358,7 +339,7 @@ export default async function ProductosPage({
         console.error('Error checking user session in public catalog:', e);
     }
 
-    const { items, brands, categories } = await getInventory(resolvedParams, isAdmin);
+    const { items, brands, categories, totalPages, totalItems } = await getInventory(resolvedParams, isAdmin);
     const query = resolvedParams.q || '';
     const activeBrand = resolvedParams.brand || '';
     const activeType = resolvedParams.type || '';
@@ -368,7 +349,7 @@ export default async function ProductosPage({
         <div className="max-w-7xl mx-auto px-4 sm:px-8 py-12 space-y-8 bg-white text-slate-800">
             <div className="border-l-4 border-cyan-500 pl-4">
                 <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Catálogo de Equipos y Consumibles</h1>
-                <p className="text-xs text-slate-500 mt-1">Busca, filtra y solicita cotizaciones formales para equipos y repuestos médicos.</p>
+                <p className="text-xs text-slate-550 mt-1">Busca, filtra y solicita cotizaciones formales para equipos y repuestos médicos.</p>
             </div>
 
             {/* Catalog Layout */}
@@ -380,7 +361,7 @@ export default async function ProductosPage({
                             <SlidersHorizontal size={14} className="text-cyan-500" />
                             Filtros
                         </span>
-                        {(query || activeBrand || activeType || activeCategory) && (
+                        {(query || activeBrand || activeType || activeCategory || page > 1) && (
                             <Link href="/productos" className="text-[10px] text-cyan-600 font-bold hover:underline">
                                 Limpiar todo
                             </Link>
@@ -389,10 +370,10 @@ export default async function ProductosPage({
 
                     {/* Filter by Category/Type */}
                     <div className="space-y-2">
-                        <label className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest block">Tipo de Producto</label>
+                        <label className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest block">Tipo de Producto</label>
                         <div className="flex flex-col gap-1 text-xs text-slate-605 font-medium">
                             <Link 
-                                href={{ query: { ...resolvedParams, type: undefined } }}
+                                href={{ query: { ...resolvedParams, type: undefined, page: undefined } }}
                                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                     !activeType 
                                         ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
@@ -413,7 +394,7 @@ export default async function ProductosPage({
                                 <span>TODOS</span>
                             </Link>
                             <Link 
-                                href={{ query: { ...resolvedParams, type: activeType === 'activo' ? undefined : 'activo' } }}
+                                href={{ query: { ...resolvedParams, type: activeType === 'activo' ? undefined : 'activo', page: undefined } }}
                                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                     activeType === 'activo' 
                                         ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
@@ -434,7 +415,7 @@ export default async function ProductosPage({
                                 <span>EQUIPOS BIOMÉDICOS</span>
                             </Link>
                             <Link 
-                                href={{ query: { ...resolvedParams, type: activeType === 'producto' ? undefined : 'producto' } }}
+                                href={{ query: { ...resolvedParams, type: activeType === 'producto' ? undefined : 'producto', page: undefined } }}
                                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                     activeType === 'producto' 
                                         ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
@@ -456,14 +437,14 @@ export default async function ProductosPage({
                             </Link>
                         </div>
                     </div>
- 
+
                     {/* Filter by Brand */}
                     {brands.length > 0 && (
                         <div className="space-y-2 border-t border-slate-200 pt-4">
-                            <label className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest block">Marcas Disponibles</label>
+                            <label className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest block">Marcas Disponibles</label>
                             <div className="flex flex-col gap-1 max-h-64 overflow-y-auto custom-scrollbar text-xs text-slate-600 font-medium pr-1">
                                 <Link 
-                                    href={{ query: { ...resolvedParams, brand: undefined } }}
+                                    href={{ query: { ...resolvedParams, brand: undefined, page: undefined } }}
                                     className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                         !activeBrand 
                                             ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
@@ -488,7 +469,7 @@ export default async function ProductosPage({
                                     return (
                                         <Link 
                                             key={brand}
-                                            href={{ query: { ...resolvedParams, brand: isBrandActive ? undefined : brand } }}
+                                            href={{ query: { ...resolvedParams, brand: isBrandActive ? undefined : brand, page: undefined } }}
                                             className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all truncate ${
                                                 isBrandActive 
                                                     ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
@@ -517,10 +498,10 @@ export default async function ProductosPage({
                     {/* Filter by Category */}
                     {categories.length > 0 && (
                         <div className="space-y-2 border-t border-slate-200 pt-4">
-                            <label className="text-[10px] font-extrabold text-slate-450 uppercase tracking-widest block">Categorías Disponibles</label>
+                            <label className="text-[10px] font-extrabold text-slate-455 uppercase tracking-widest block">Categorías Disponibles</label>
                             <div className="flex flex-col gap-1 max-h-64 overflow-y-auto custom-scrollbar text-xs text-slate-600 font-medium pr-1">
                                 <Link 
-                                    href={{ query: { ...resolvedParams, category: undefined } }}
+                                    href={{ query: { ...resolvedParams, category: undefined, page: undefined } }}
                                     className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
                                         !activeCategory 
                                             ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
@@ -545,7 +526,7 @@ export default async function ProductosPage({
                                     return (
                                         <Link 
                                             key={category}
-                                            href={{ query: { ...resolvedParams, category: isCategoryActive ? undefined : category } }}
+                                            href={{ query: { ...resolvedParams, category: isCategoryActive ? undefined : category, page: undefined } }}
                                             className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all truncate ${
                                                 isCategoryActive 
                                                     ? 'bg-cyan-50/70 text-cyan-600 font-bold' 
@@ -599,11 +580,42 @@ export default async function ProductosPage({
 
                     {/* Results Count */}
                     <div className="flex justify-between items-center text-xs text-slate-500">
-                        <span>Se encontraron <strong className="text-slate-900">{items.length}</strong> productos</span>
+                        <span>Se encontraron <strong className="text-slate-900">{totalItems}</strong> productos</span>
                     </div>
 
                     {/* Grid */}
                     <ProductGridClient items={items} isAdmin={isAdmin} />
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                        <div className="flex justify-center items-center gap-2 pt-8 border-t border-slate-100">
+                            {page > 1 && (
+                                <Link
+                                    href={{
+                                        pathname: '/productos',
+                                        query: { ...resolvedParams, page: page - 1 }
+                                    }}
+                                    className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition"
+                                >
+                                    Anterior
+                                </Link>
+                            )}
+                            <span className="text-xs text-slate-550 font-bold px-2">
+                                Página {page} de {totalPages}
+                            </span>
+                            {page < totalPages && (
+                                <Link
+                                    href={{
+                                        pathname: '/productos',
+                                        query: { ...resolvedParams, page: page + 1 }
+                                    }}
+                                    className="px-4 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 transition"
+                                >
+                                    Siguiente
+                                </Link>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
