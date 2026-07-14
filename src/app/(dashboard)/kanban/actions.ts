@@ -243,6 +243,7 @@ export async function getSpaceDetails(spaceId: string) {
                     nombre: `${u.nombre || ''} ${u.apellido || ''}`.trim() || u.email,
                     avatarUrl: u.avatarUrl || null
                 })),
+                ordenTrabajoId: t.ordenTrabajoId || null,
                 createdAt: t.createdAt.toISOString()
             })),
             activities: space.activities.map(act => ({

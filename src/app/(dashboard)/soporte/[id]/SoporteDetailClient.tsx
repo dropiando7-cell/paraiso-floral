@@ -410,7 +410,7 @@ export default function SoporteDetailClient({
               href={`/kanban/${orden.kanbanTasks[0].spaceId}?task=${orden.kanbanTasks[0].id}`}
               className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs md:text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95"
             >
-              <Layout className="w-3.5 h-3.5 text-indigo-500" /> Tarjeta Kanban ({orden.kanbanTasks[0].codigo})
+              <Layout className="w-3.5 h-3.5 text-indigo-500" /> Orden de Trabajo ({orden.kanbanTasks[0].codigo})
             </a>
           )}
           {canDeleteOrder && (

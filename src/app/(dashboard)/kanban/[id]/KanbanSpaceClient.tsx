@@ -65,6 +65,7 @@ interface Task {
         avatarUrl: string | null;
     }[];
     createdAt: string;
+    ordenTrabajoId?: string | null;
 }
 
 interface Activity {

@@ -31,7 +31,8 @@ import {
     RefreshCw,
     Volume2,
     Plus,
-    Package
+    Package,
+    Wrench
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
@@ -83,6 +84,7 @@ interface Task {
         avatarUrl?: string | null;
     }[];
     createdAt: string;
+    ordenTrabajoId?: string | null;
 }
 
 const SIDEBAR_MODULES = [
@@ -1075,6 +1077,17 @@ export default function TaskDetailModal({
                                 <span className="text-xs font-bold font-mono text-brand-600 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-200">
                                     {task.codigo}
                                 </span>
+                                
+                                {task.ordenTrabajoId && (
+                                    <button
+                                        type="button"
+                                        onClick={() => router.push(`/soporte/${task.ordenTrabajoId}`)}
+                                        className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-md transition shadow-sm cursor-pointer"
+                                    >
+                                        <Wrench className="h-3.5 w-3.5 text-indigo-500" />
+                                        Ver Orden Relacionada
+                                    </button>
+                                )}
                                 
                                 {/* Botón para ocultar/mostrar panel lateral en móvil */}
                                 <button
