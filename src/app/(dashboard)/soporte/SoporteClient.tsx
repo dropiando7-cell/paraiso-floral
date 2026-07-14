@@ -278,6 +278,43 @@ export default function SoporteClient({
                                                     </div>
                                                 )}
 
+                                                {/* Asignados (Multi-avatar stack) */}
+                                                <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px]" onClick={(e) => e.stopPropagation()}>
+                                                    <div className="flex items-center gap-1.5 text-slate-500">
+                                                        <div className="flex -space-x-1.5 overflow-hidden">
+                                                            {orden.tecnicosAsignados && orden.tecnicosAsignados.length > 0 ? (
+                                                                orden.tecnicosAsignados.map((u: any) => {
+                                                                    const initials = u.nombre
+                                                                        ? u.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+                                                                        : '?';
+                                                                    return (
+                                                                        <div
+                                                                            key={u.id}
+                                                                            className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-blue-50 border border-blue-100 flex items-center justify-center text-[9px] font-bold text-blue-700 uppercase overflow-hidden relative shrink-0"
+                                                                            title={u.nombre}
+                                                                        >
+                                                                            {u.avatarUrl ? (
+                                                                                <img src={u.avatarUrl} alt={u.nombre} className="h-full w-full object-cover" />
+                                                                            ) : (
+                                                                                <span>{initials}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                            ) : (
+                                                                <div className="h-6 w-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold" title="Sin asignar">
+                                                                    ?
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <span className="truncate max-w-[125px] text-xs font-semibold text-slate-600">
+                                                            {orden.tecnicosAsignados && orden.tecnicosAsignados.length > 0
+                                                                ? (orden.tecnicosAsignados.length === 1 ? orden.tecnicosAsignados[0].nombre : `${orden.tecnicosAsignados.length} asignados`)
+                                                                : 'Sin asignar'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+
                                                 <div className="mt-4 pt-3 text-center border-t border-slate-100/50">
                                                     <span className="text-[10px] uppercase font-bold text-slate-400 group-hover:text-indigo-500 transition-colors">Ver Detalles →</span>
                                                 </div>
@@ -345,6 +382,43 @@ export default function SoporteClient({
                                         <div className="space-y-1.5 text-xs text-slate-500 font-medium">
                                             <div>Cliente: <span className="text-slate-800 font-semibold">{orden.cliente?.nombre || 'Desconocido'}</span></div>
                                             {orden.serie && <div>Serie: <span className="text-slate-700 font-mono text-[11px]">{orden.serie}</span></div>}
+                                            
+                                            {/* Asignados (Multi-avatar stack) */}
+                                            <div className="pt-2 flex items-center justify-between text-[11px]" onClick={(e) => e.stopPropagation()}>
+                                                <div className="flex items-center gap-1.5 text-slate-500">
+                                                    <div className="flex -space-x-1.5 overflow-hidden">
+                                                        {orden.tecnicosAsignados && orden.tecnicosAsignados.length > 0 ? (
+                                                            orden.tecnicosAsignados.map((u: any) => {
+                                                                const initials = u.nombre
+                                                                    ? u.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
+                                                                    : '?';
+                                                                return (
+                                                                    <div
+                                                                        key={u.id}
+                                                                        className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-blue-50 border border-blue-100 flex items-center justify-center text-[9px] font-bold text-blue-700 uppercase overflow-hidden relative shrink-0"
+                                                                        title={u.nombre}
+                                                                    >
+                                                                        {u.avatarUrl ? (
+                                                                            <img src={u.avatarUrl} alt={u.nombre} className="h-full w-full object-cover" />
+                                                                        ) : (
+                                                                            <span>{initials}</span>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })
+                                                        ) : (
+                                                            <div className="h-6 w-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-[10px] text-slate-400 font-bold" title="Sin asignar">
+                                                                ?
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <span className="truncate max-w-[125px] text-xs font-semibold text-slate-650">
+                                                        {orden.tecnicosAsignados && orden.tecnicosAsignados.length > 0
+                                                            ? (orden.tecnicosAsignados.length === 1 ? orden.tecnicosAsignados[0].nombre : `${orden.tecnicosAsignados.length} asignados`)
+                                                            : 'Sin asignar'}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
 

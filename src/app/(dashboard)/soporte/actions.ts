@@ -35,7 +35,8 @@ export async function getOrdenesActivas() {
             estado: { not: 'ENTREGADO' }
         },
         include: {
-            cliente: true
+            cliente: true,
+            tecnicosAsignados: true
         },
         orderBy: { fechaRecibido: 'desc' }
     });
@@ -1247,7 +1248,8 @@ export async function getHistorialEntregados() {
             estado: 'ENTREGADO'
         },
         include: {
-            cliente: true
+            cliente: true,
+            tecnicosAsignados: true
         },
         orderBy: { fechaEntregado: 'desc' }
     });

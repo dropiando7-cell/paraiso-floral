@@ -1,10 +1,11 @@
 import React from 'react';
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { Phone, Mail, MapPin, Clock, Facebook, Instagram } from 'lucide-react';
+import { Phone, Mail, MapPin, Clock, Facebook, Instagram, ShieldAlert, ExternalLink } from 'lucide-react';
 import PublicHeader from './components/PublicHeader';
 import VisitorTracker from './components/VisitorTracker';
 import type { Metadata } from 'next';
+import { createClient } from '@/utils/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -173,6 +174,171 @@ export default async function PublicLayout({
     const hideRealInventory = settings.hideRealInventory === true;
     const allowScrapedProducts = settings.allowScrapedProducts !== false;
     const categories = await getDynamicCategories(hideRealInventory, allowScrapedProducts);
+
+    let isMaintenance = false;
+    try {
+        const mSetting = await prisma.systemSetting.findUnique({
+            where: { key: 'maintenance_mode' }
+        });
+        isMaintenance = mSetting?.value === 'true';
+    } catch (e) {
+        console.error('Error fetching maintenance mode in layout:', e);
+    }
+
+    let isSuperAdmin = false;
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            const profile = await prisma.user.findFirst({
+                where: { email: user.email },
+                select: { role: true }
+            });
+            if (profile) {
+                isSuperAdmin = true;
+            }
+        }
+    } catch (err) {
+        console.error('Error checking user role in layout:', err);
+    }
+
+    if (isMaintenance && !isSuperAdmin) {
+        const wpNum = settings.whatsappNumbers?.[0] || '50431782368';
+        const wpNum2 = settings.whatsappNumbers?.[1] || '50489246108';
+        const contactEmail = settings.contactEmails?.[0] || 'ventas@bioelectronicahn.com';
+        const contactEmail2 = settings.contactEmails?.[1] || 'gerencia@bioelectronicahn.com';
+        const address = settings.physicalAddress || '7 Calle, 9 Avenida NO, San Pedro Sula, Cortés';
+        const hours = settings.workingHours || 'Lunes a Viernes · 8:00 AM - 5:00 PM';
+
+        return (
+            <div className="min-h-screen bg-white text-slate-800 flex flex-col items-center justify-center p-6 font-sans select-none">
+                <div className="max-w-xl w-full flex flex-col items-center text-center space-y-6">
+                    {/* Brand Logo */}
+                    <div className="h-16 flex items-center justify-center overflow-hidden mb-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                            src="/logo-bioelectronica.jpg" 
+                            alt="Bioelectrónica Honduras" 
+                            className="h-14 object-contain" 
+                        />
+                    </div>
+
+                    {/* Main Heading */}
+                    <div className="space-y-2">
+                        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
+                            Sitio Web en <span className="text-blue-600">Construcción</span>
+                        </h1>
+                        <p className="text-xs text-slate-550 max-w-md mx-auto leading-relaxed">
+                            Estamos diseñando una nueva experiencia digital y catálogo de equipos médicos para brindarte el mejor servicio.
+                        </p>
+                    </div>
+
+                    {/* Construction details card */}
+                    <div className="w-full bg-white border border-slate-200 shadow-sm rounded-3xl p-6 sm:p-8 space-y-6">
+                        {/* Status Info */}
+                        <div className="flex items-center gap-3 p-4 rounded-2xl bg-blue-50/50 border border-blue-100 text-left">
+                            <ShieldAlert className="text-blue-600 shrink-0 stroke-[1.5]" size={20} />
+                            <div>
+                                <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider">Catálogo Temporalmente Inactivo</h4>
+                                <p className="text-[11px] text-slate-500 mt-0.5 leading-normal">
+                                    Nuestra tienda web se encuentra en mantenimiento. Puedes contactar a nuestro equipo por cualquiera de las siguientes vías.
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Contact Details Grid */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left">
+                            {/* Dirección */}
+                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 flex-wrap">
+                                    <MapPin size={12} className="text-blue-600" />
+                                    Dirección Física
+                                </span>
+                                <p className="text-xs text-slate-700 font-semibold leading-relaxed">
+                                    {address}
+                                </p>
+                            </div>
+
+                            {/* Horario */}
+                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 flex-wrap">
+                                    <Clock size={12} className="text-blue-600" />
+                                    Horario de Atención
+                                </span>
+                                <p className="text-xs text-slate-700 font-semibold leading-relaxed">
+                                    {hours}
+                                </p>
+                            </div>
+
+                            {/* WhatsApp */}
+                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 flex-wrap">
+                                    <Phone size={12} className="text-blue-600" />
+                                    WhatsApp de Ventas
+                                </span>
+                                <div className="flex flex-col gap-1 pt-0.5">
+                                    <a 
+                                        href={`https://wa.me/${wpNum}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="text-xs text-slate-700 hover:text-blue-600 font-mono font-bold transition-colors flex items-center gap-1"
+                                    >
+                                        +{wpNum.substring(0, 3)} {wpNum.substring(3, 7)}-{wpNum.substring(7)} <ExternalLink size={10} className="opacity-40" />
+                                    </a>
+                                    <a 
+                                        href={`https://wa.me/${wpNum2}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className="text-xs text-slate-700 hover:text-blue-600 font-mono font-bold transition-colors flex items-center gap-1"
+                                    >
+                                        +{wpNum2.substring(0, 3)} {wpNum2.substring(3, 7)}-{wpNum2.substring(7)} <ExternalLink size={10} className="opacity-40" />
+                                    </a>
+                                </div>
+                            </div>
+
+                            {/* Correos */}
+                            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-1">
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1 flex-wrap">
+                                    <Mail size={12} className="text-blue-600" />
+                                    Correos de Contacto
+                                </span>
+                                <div className="flex flex-col gap-1">
+                                    <a 
+                                        href={`mailto:${contactEmail}`} 
+                                        className="text-xs text-slate-700 hover:text-blue-600 font-semibold transition-colors truncate"
+                                    >
+                                        {contactEmail}
+                                    </a>
+                                    <a 
+                                        href={`mailto:${contactEmail2}`} 
+                                        className="text-xs text-slate-700 hover:text-blue-600 font-semibold transition-colors truncate"
+                                    >
+                                        {contactEmail2}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Portal redirection block */}
+                        <div className="pt-4 border-t border-slate-100 flex flex-col items-center">
+                            <a
+                                href="https://sistema.bioelectronicahn.com"
+                                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold bg-blue-600 hover:bg-blue-700 text-white text-xs shadow-md shadow-blue-500/10 active:scale-[0.98] transition-all"
+                            >
+                                Acceder al Portal Operativo (ERP)
+                                <ExternalLink size={12} />
+                            </a>
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <p className="text-[9px] text-slate-400 font-bold tracking-wider uppercase">
+                        © {new Date().getFullYear()} Bioelectrónica Honduras. Todos los derechos reservados.
+                    </p>
+                </div>
+            </div>
+        );
+    }
     
     // Fallbacks from DB organization or settings
     const primaryPhone = org?.telefono || settings.whatsappNumbers?.[0] || '50431782368';

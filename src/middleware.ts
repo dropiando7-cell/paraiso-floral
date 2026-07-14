@@ -64,52 +64,18 @@ export async function middleware(request: NextRequest) {
         return returnResponse(NextResponse.redirect(url))
     }
 
-    // 4. MAINTENANCE MODE & PUBLIC PATH REWRITES
+    // 4. PUBLIC PATH REWRITES
     if (isPublicPath) {
-        let isMaintenance = true;
-        let isSuperAdmin = false;
-        try {
-            const { data: settingData } = await supabase
-                .from('system_settings')
-                .select('value')
-                .eq('key', 'maintenance_mode')
-                .single();
-            if (settingData) {
-                isMaintenance = settingData.value === 'true';
-            }
-
-            if (user) {
-                const { data: profile } = await supabase
-                    .from('users')
-                    .select('role')
-                    .eq('email', user.email)
-                    .single();
-                if (profile) {
-                    isSuperAdmin = true;
-                }
-            }
-        } catch (e) {
-            console.error('Error querying maintenance_mode in middleware:', e);
+        // Rewrite public paths to /landing internally (Next.js structure)
+        const isBio = url.pathname === '/bio' || url.pathname.startsWith('/bio/');
+        const rewritePath = isBio 
+            ? url.pathname 
+            : (url.pathname === '/' ? '/landing' : (url.pathname.startsWith('/landing') ? url.pathname : `/landing${url.pathname}`));
+        if (url.pathname !== rewritePath) {
+            url.pathname = rewritePath;
+            return returnResponse(NextResponse.rewrite(url));
         }
-
-        if (isMaintenance && !isSuperAdmin) {
-            if (url.pathname !== '/landing') {
-                url.pathname = '/landing'
-                return returnResponse(NextResponse.rewrite(url))
-            }
-            return supabaseResponse
-        } else {
-            // Rewrite public paths to /landing internally (Next.js structure)
-            const isBio = url.pathname === '/bio' || url.pathname.startsWith('/bio/');
-            const rewritePath = isBio 
-                ? url.pathname 
-                : (url.pathname === '/' ? '/landing' : (url.pathname.startsWith('/landing') ? url.pathname : `/landing${url.pathname}`));
-            if (url.pathname !== rewritePath) {
-                url.pathname = rewritePath;
-                return returnResponse(NextResponse.rewrite(url));
-            }
-            return supabaseResponse
-        }
+        return supabaseResponse
     }
 
     // 5. PROTECTED ROUTE ENFORCEMENT
