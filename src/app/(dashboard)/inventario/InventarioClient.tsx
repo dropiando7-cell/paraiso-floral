@@ -2458,8 +2458,8 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                         </div>
 
                                         {/* Origen y Datos de Adquisición */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-4 mb-4 bg-indigo-50/30 p-4 rounded-xl border border-indigo-100/50">
-                                            <div>
+                                        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4 bg-indigo-50/30 p-4 rounded-xl border border-indigo-100/50">
+                                            <div className="md:col-span-2">
                                                 <div className="flex justify-between items-center">
                                                     <FieldLabel>Origen del Inventario</FieldLabel>
                                                     <button
@@ -2482,7 +2482,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     ))}
                                                 </select>
                                             </div>
-                                            <div>
+                                            <div className="md:col-span-2">
                                                 <div className="flex justify-between items-center">
                                                     <FieldLabel>Condición del Equipo</FieldLabel>
                                                     <button
@@ -2505,7 +2505,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     ))}
                                                 </select>
                                             </div>
-                                            <div>
+                                            <div className="md:col-span-2">
                                                 <FieldLabel>Estatus de Inventario</FieldLabel>
                                                 <select
                                                     value={estatusContable}
@@ -2518,7 +2518,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     <option value="PROCESO DE BAJA">Proceso de Baja</option>
                                                 </select>
                                             </div>
-                                            <div>
+                                            <div className="md:col-span-3">
                                                 <FieldLabel>Costo Adquisición (Lps)</FieldLabel>
                                                 <input
                                                     type="number"
@@ -2529,7 +2529,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     className={inputCls}
                                                 />
                                             </div>
-                                            <div>
+                                            <div className="md:col-span-3">
                                                 <FieldLabel>Fecha de Ingreso</FieldLabel>
                                                 <DateInput
                                                     value={fechaAdq}
