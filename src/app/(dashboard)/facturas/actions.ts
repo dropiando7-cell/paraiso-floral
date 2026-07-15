@@ -1162,3 +1162,83 @@ export async function updateOrganizationDefaultSettings(settings: any) {
         return { success: false, error: error.message || "Error al guardar" };
     }
 }
+
+// Action for fast creation of service in catalog
+export async function crearServicioRapido(prefix: string) {
+    try {
+        const { generateNextServiceCode } = await import('../inventario/actions');
+        const authUser = await getAuthenticatedUser();
+        const { organizationId, id: userId } = authUser;
+
+        const nextCode = await generateNextServiceCode(prefix);
+
+        // Map prefix to standard names
+        let name = "Servicio";
+        let description = "";
+        let imageUrl = "/services/reparacion.jpg";
+        if (prefix === 'INS') {
+            name = "Servicio de Instalación";
+            description = "Servicios de montaje, configuración inicial y puesta en marcha de equipos.";
+            imageUrl = "/services/instalacion.svg";
+        } else if (prefix === 'REP') {
+            name = "Servicio de Reparación";
+            description = "Reparación de fallas mecánicas, eléctricas o electrónicas en equipos.";
+            imageUrl = "/services/reparacion.jpg";
+        } else if (prefix === 'DIAG') {
+            name = "Servicio de Diagnóstico y Revisión";
+            description = "Inspección técnica, diagnóstico de fallas y revisión de estado.";
+            imageUrl = "/services/soporte.svg";
+        } else if (prefix === 'MPV') {
+            name = "Mantenimiento Preventivo y Certificación";
+            description = "Rutina de mantenimiento preventivo y emisión de certificados de calibración/buen estado.";
+            imageUrl = "/services/mantenimiento.svg";
+        } else if (prefix === 'MCO') {
+            name = "Mantenimiento Correctivo y Certificación";
+            description = "Mantenimiento correctivo planificado con certificación técnica posterior.";
+            imageUrl = "/services/garantia.svg";
+        } else if (prefix === 'MO') {
+            name = "Mano de Obra / Horas de Técnico";
+            description = "Cobro de horas de mano de obra técnica laboradas.";
+            imageUrl = "/services/mano_obra.svg";
+        }
+
+        // Crear en ActivoFijo (el catálogo físico de servicios)
+        const newService = await prisma.activoFijo.create({
+            data: {
+                organizationId,
+                idQr: nextCode,
+                codigoBarras: nextCode,
+                descripcionCorta: name,
+                descripcionDetallada: description,
+                area: 'SERVICIOS',
+                cuentaAct: 'INVENTARIO',
+                estatusContable: 'VIGENTE',
+                stock: 9999,
+                imagenUrl: imageUrl,
+                createdById: userId,
+                updatedById: userId
+            }
+        });
+
+        revalidatePath('/inventario');
+
+        return {
+            success: true,
+            service: {
+                id: newService.id,
+                code: newService.idQr,
+                name: newService.descripcionCorta,
+                description: newService.descripcionDetallada || "",
+                price: 0,
+                category: 'SERVICIOS',
+                stock: 9999,
+                brand: 'BEA',
+                type: 'activo' as const,
+                imageUrl: newService.imagenUrl || undefined
+            }
+        };
+    } catch (e: any) {
+        console.error("Error creating fast service:", e);
+        return { success: false, error: e.message || "Error al crear el servicio" };
+    }
+}

@@ -879,18 +879,20 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
 
     // Obtener el prefijo del código de servicio basado en el icono seleccionado
     const getServicePrefix = (img: string) => {
-        if (img.includes('soporte')) return 'SOP';
-        if (img.includes('envio')) return 'ENV';
-        if (img.includes('garantia')) return 'GAR';
-        if (img.includes('software')) return 'SW';
-        return 'REP'; // Prefijo por defecto para Mantenimiento (MANT.)
+        if (img.includes('instalacion')) return 'INS';
+        if (img.includes('reparacion')) return 'REP';
+        if (img.includes('soporte')) return 'DIAG';
+        if (img.includes('mantenimiento')) return 'MPV';
+        if (img.includes('garantia')) return 'MCO';
+        if (img.includes('mano_obra')) return 'MO';
+        return 'REP'; // Prefijo por defecto
     };
 
     // Auto-generar código correlativo de servicio cuando se entra en modo servicio o cambia el icono
     useEffect(() => {
         console.log('[DEBUG_SERVICE] useEffect triggered. isServiceMode:', isServiceMode, 'isEdit:', isEdit, 'imagenUrl:', imagenUrl);
         if (isServiceMode && !isEdit) {
-            const activeIcon = imagenUrl || '/services/mantenimiento.svg';
+            const activeIcon = imagenUrl || '/services/reparacion.jpg';
             const prefix = getServicePrefix(activeIcon);
             console.log('[DEBUG_SERVICE] calculated prefix:', prefix);
             
@@ -1575,7 +1577,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             return;
         }
         const fd = new FormData(e.currentTarget);
-        fd.set('imagenUrl', isServiceMode ? (imagenUrl || '/services/mantenimiento.svg') : imagenUrl);
+        fd.set('imagenUrl', isServiceMode ? (imagenUrl || '/services/reparacion.jpg') : imagenUrl);
         fd.set('imagenPlacaUrl', isServiceMode ? '' : imagenPlacaUrl);
         fd.set('area', isServiceMode ? 'SERVICIOS' : selectedArea);
         fd.set('cuentaAct', 'INVENTARIO');
@@ -2069,19 +2071,19 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     <FieldLabel>Icono para Facturación</FieldLabel>
                                                     <div className="grid grid-cols-6 gap-2 mt-2 bg-white/60 p-2 rounded-xl">
                                                         {[
-                                                            { id: '/services/mantenimiento.svg', label: 'Mant.' },
-                                                            { id: '/services/soporte.svg', label: 'Soporte' },
+                                                            { id: '/services/instalacion.svg', label: 'Instalación' },
                                                             { id: '/services/reparacion.jpg', label: 'Reparación' },
-                                                            { id: '/services/envio.svg', label: 'Envío' },
-                                                            { id: '/services/garantia.svg', label: 'Garantía' },
-                                                            { id: '/services/software.svg', label: 'Software' }
+                                                            { id: '/services/soporte.svg', label: 'Diagnóstico' },
+                                                            { id: '/services/mantenimiento.svg', label: 'Mant. Prev.' },
+                                                            { id: '/services/garantia.svg', label: 'Mant. Corr.' },
+                                                            { id: '/services/mano_obra.svg', label: 'Mano Obra' }
                                                         ].map(icon => (
                                                             <button
                                                                 type="button"
                                                                 key={icon.id}
                                                                 onClick={() => setImagenUrl(icon.id)}
                                                                 className={`flex flex-col items-center justify-center py-2 px-1 rounded-lg border-2 transition-all ${
-                                                                    (imagenUrl === icon.id || (!imagenUrl && icon.id === '/services/mantenimiento.svg')) 
+                                                                    (imagenUrl === icon.id || (!imagenUrl && icon.id === '/services/reparacion.jpg')) 
                                                                         ? 'border-purple-500 bg-purple-100 shadow-sm scale-105' 
                                                                         : 'border-transparent hover:bg-purple-50 hover:border-purple-200'
                                                                 }`}
@@ -2090,6 +2092,16 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                                 <span className="text-[9px] text-purple-900 font-bold text-center leading-tight uppercase">{icon.label}</span>
                                                             </button>
                                                         ))}
+                                                    </div>
+                                                    
+                                                    {/* Explicación en letra pequeña sobre para qué sirve cada código de servicio */}
+                                                    <div className="mt-2 text-[10px] text-slate-500 bg-purple-50/50 p-2.5 rounded-lg border border-purple-100/50 italic leading-snug">
+                                                        {(!imagenUrl || imagenUrl === '/services/reparacion.jpg') && "* REP: Código de Reparaciones. Para servicios que resuelven fallas mecánicas, eléctricas o electrónicas."}
+                                                        {imagenUrl === '/services/instalacion.svg' && "* INS: Código de Instalación. Para el montaje, configuración inicial y puesta en marcha de nuevos equipos."}
+                                                        {imagenUrl === '/services/soporte.svg' && "* DIAG: Código de Diagnóstico. Para revisiones de estado, inspecciones y diagnósticos técnicos de fallas."}
+                                                        {imagenUrl === '/services/mantenimiento.svg' && "* MPV: Código de Mantenimiento Preventivo. Para rutinas de prevención y emisión de certificados de calibración."}
+                                                        {imagenUrl === '/services/garantia.svg' && "* MCO: Código de Mantenimiento Correctivo. Para mantenimientos correctivos programados con certificación técnica posterior."}
+                                                        {imagenUrl === '/services/mano_obra.svg' && "* MO: Código de Mano de Obra. Para cobro de horas de técnico laboradas y soporte in-situ."}
                                                     </div>
                                                 </div>
                                             </div>

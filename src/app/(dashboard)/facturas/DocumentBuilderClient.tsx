@@ -82,7 +82,7 @@ import LegacyTemplate from '@/components/facturas/templates/LegacyTemplate';
 import OrdenEntregaTemplate from '@/components/facturas/templates/OrdenEntregaTemplate';
 import { InvoiceSettings, DEFAULT_INVOICE_SETTINGS, SignatureItem } from '@/types/invoice';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
-import { convertirDocumento } from './actions';
+import { convertirDocumento, crearServicioRapido } from './actions';
 import { ActivoModal } from '../inventario/InventarioClient';
 import { getAreas } from '../admin/areas/actions';
 
@@ -512,6 +512,48 @@ function LineItemRow({
               No se encontraron coincidencias para "{query}"
             </div>
           )}
+
+          {/* SECCIÓN: CREAR SERVICIO AL INSTANTE */}
+          <div className="border-t border-slate-100 bg-slate-50/70 p-3">
+            <div className="flex items-center gap-1.5 mb-2 px-1">
+              <Zap size={13} className="text-amber-500 fill-amber-500 shrink-0" />
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Crear e Insertar Servicio Rápido</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+              {[
+                { label: 'Instalación (INS)', prefix: 'INS' },
+                { label: 'Reparación (REP)', prefix: 'REP' },
+                { label: 'Diagnóstico (DIAG)', prefix: 'DIAG' },
+                { label: 'Mant. Prev. (MPV)', prefix: 'MPV' },
+                { label: 'Mant. Corr. (MCO)', prefix: 'MCO' },
+                { label: 'Mano Obra (MO)', prefix: 'MO' },
+              ].map((s) => (
+                <button
+                  key={s.prefix}
+                  type="button"
+                  onClick={async () => {
+                    const toastId = toast.loading(`Autogenerando código ${s.prefix} y registrando...`);
+                    try {
+                      const res = await crearServicioRapido(s.prefix);
+                      if (res.success && res.service) {
+                        toast.success(`Código ${res.service.code} reservado y asignado!`, { id: toastId });
+                        // Cerrar autocomplete y notificar al padre
+                        setShowAutocomplete(false);
+                        window.dispatchEvent(new CustomEvent('service-created', { detail: { service: res.service, lineId: item.id } }));
+                      } else {
+                        throw new Error(res.error || 'Error al generar el servicio');
+                      }
+                    } catch (e: any) {
+                      toast.error(e.message || 'Error al generar', { id: toastId });
+                    }
+                  }}
+                  className="flex items-center justify-center text-[10px] font-bold text-slate-700 bg-white border border-slate-200 hover:border-blue-500 hover:bg-blue-50/20 py-2 px-1.5 rounded-lg transition-all text-center leading-tight active:scale-[0.98] cursor-pointer"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
           <button
             type="button"
@@ -1356,8 +1398,32 @@ export default function DocumentBuilderClient({
       setRegisteringLineId(lineId);
       setIsActivoModalOpen(true);
     };
+    const handleServiceCreated = (e: any) => {
+      const { service, lineId } = e.detail;
+      setAllProducts(prev => [service, ...prev]);
+      setLineItems(prev => prev.map(item => {
+        if (item.id === lineId) {
+          return {
+            ...item,
+            code: service.code,
+            shortDesc: service.name,
+            longDesc: service.description || '',
+            unitPrice: service.price || '',
+            activoId: service.id,
+            productoId: undefined,
+            serie: service.serie || null,
+            imageUrl: service.imageUrl || undefined
+          };
+        }
+        return item;
+      }));
+    };
     window.addEventListener('open-activo-modal', handleOpenRegister);
-    return () => window.removeEventListener('open-activo-modal', handleOpenRegister);
+    window.addEventListener('service-created', handleServiceCreated);
+    return () => {
+      window.removeEventListener('open-activo-modal', handleOpenRegister);
+      window.removeEventListener('service-created', handleServiceCreated);
+    };
   }, []);
 
   // Fetch areas for the ActivoModal
@@ -2988,6 +3054,149 @@ export default function DocumentBuilderClient({
                           </div>
                         </>
                       )}
+
+                      {/* Ajustes de Garantía (Warranty Certificate settings) */}
+                      <div className="pt-3 border-t border-slate-200/60 space-y-3">
+                        <h5 className="text-[10px] font-extrabold text-indigo-700 uppercase tracking-widest block pt-2 border-t border-slate-200/60">
+                          🛡️ Ajustes Certificado de Garantía
+                        </h5>
+                        
+                        {/* 1. Alto de Firma Garantía */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs text-slate-600">
+                            <span className="font-semibold">Alto de Firma (Garantía):</span>
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.warrantySignatureHeight ?? 120}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="30"
+                            max="200"
+                            value={settings.warrantySignatureHeight ?? 120}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const newSettings = { ...settings, warrantySignatureHeight: val };
+                              setSettings(newSettings);
+                            }}
+                            onMouseUp={() => handleSaveTemplateSettings(settings)}
+                            onTouchEnd={() => handleSaveTemplateSettings(settings)}
+                            className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+
+                        {/* 2. Ajuste Horizontal Firma (Mover Izq/Der) */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs text-slate-600">
+                            <span className="font-semibold">Firma Horizontal (Izq/Der):</span>
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.warrantySignatureX ?? 0}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="-150"
+                            max="150"
+                            step="1"
+                            value={settings.warrantySignatureX ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const newSettings = { ...settings, warrantySignatureX: val };
+                              setSettings(newSettings);
+                            }}
+                            onMouseUp={() => handleSaveTemplateSettings(settings)}
+                            onTouchEnd={() => handleSaveTemplateSettings(settings)}
+                            className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+
+                        {/* 3. Ajuste Vertical Firma (Subir/Bajar) */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs text-slate-600">
+                            <span className="font-semibold">Firma Vertical (Subir/Bajar):</span>
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.warrantySignatureY ?? 0}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="-60"
+                            max="60"
+                            step="1"
+                            value={settings.warrantySignatureY ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const newSettings = { ...settings, warrantySignatureY: val };
+                              setSettings(newSettings);
+                            }}
+                            onMouseUp={() => handleSaveTemplateSettings(settings)}
+                            onTouchEnd={() => handleSaveTemplateSettings(settings)}
+                            className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+
+                        {/* 4. Tamaño del Sello Garantía */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs text-slate-600">
+                            <span className="font-semibold">Tamaño del Sello (Garantía):</span>
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.warrantySealSize ?? 112}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="50"
+                            max="250"
+                            value={settings.warrantySealSize ?? 112}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const newSettings = { ...settings, warrantySealSize: val };
+                              setSettings(newSettings);
+                            }}
+                            onMouseUp={() => handleSaveTemplateSettings(settings)}
+                            onTouchEnd={() => handleSaveTemplateSettings(settings)}
+                            className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+
+                        {/* 5. Ajuste Horizontal Sello Garantía (Mover Izq/Der) */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs text-slate-600">
+                            <span className="font-semibold">Sello Horizontal (Izq/Der):</span>
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.warrantySealX ?? 0}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="-150"
+                            max="150"
+                            step="1"
+                            value={settings.warrantySealX ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const newSettings = { ...settings, warrantySealX: val };
+                              setSettings(newSettings);
+                            }}
+                            onMouseUp={() => handleSaveTemplateSettings(settings)}
+                            onTouchEnd={() => handleSaveTemplateSettings(settings)}
+                            className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+
+                        {/* 6. Ajuste Vertical Sello Garantía (Subir/Bajar) */}
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-xs text-slate-600">
+                            <span className="font-semibold">Sello Vertical (Subir/Bajar):</span>
+                            <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md font-bold text-[10px]">{settings.warrantySealY ?? 0}px</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="-100"
+                            max="100"
+                            step="1"
+                            value={settings.warrantySealY ?? 0}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              const newSettings = { ...settings, warrantySealY: val };
+                              setSettings(newSettings);
+                            }}
+                            onMouseUp={() => handleSaveTemplateSettings(settings)}
+                            onTouchEnd={() => handleSaveTemplateSettings(settings)}
+                            className="w-full accent-indigo-600 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+                          />
+                        </div>
+                      </div>
 
                       <div className="pt-3 border-t border-slate-200/60">
                         <button

@@ -77,6 +77,14 @@ export interface InvoiceSettings {
   companySealUrl?: string;
   companySealX?: number;
   companySealY?: number;
+  // Warranty specific signature and seal settings
+  warrantySignatureHeight?: number;
+  warrantySignatureX?: number;
+  warrantySignatureY?: number;
+  warrantySealSize?: number;
+  warrantySealX?: number;
+  warrantySealY?: number;
+  warrantySignatureSpacing?: number;
   // Terms and observations for quote
   showTerms?: boolean;
   advancePercentage?: number;
@@ -150,6 +158,13 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
     '/firmas-sellos/SELLO DE CANCELADO.png'
   ],
   companySealUrl: '/firmas-sellos/SELLO DE BIOELECTRONICA.png',
+  warrantySignatureHeight: 120,
+  warrantySignatureX: 0,
+  warrantySignatureY: 0,
+  warrantySealSize: 112,
+  warrantySealX: 0,
+  warrantySealY: 0,
+  warrantySignatureSpacing: 0,
   showTerms: false,
   advancePercentage: 80,
   completionPercentage: 20,

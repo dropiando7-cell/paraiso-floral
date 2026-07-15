@@ -422,20 +422,21 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
           </Text>
         </View>
 
-        {/* Signatures */}
-        <View style={[styles.signaturesContainer, { alignItems: 'flex-end' }]} wrap={false}>
+        <View style={[styles.signaturesContainer, { alignItems: 'flex-end', paddingTop: 15 + (settings?.warrantySignatureSpacing || 0) }]} wrap={false}>
           {/* Gerente General Signature */}
           <View style={[styles.signatureCol, { width: firstQrCode ? '38%' : '45%', position: 'relative' }]}>
-            <View style={{ height: 60, width: '100%', position: 'relative', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 2 }}>
+            <View style={{ height: (settings?.warrantySignatureHeight || 120) * 0.5, width: '100%', position: 'relative', alignItems: 'center', justifyContent: 'flex-end', marginBottom: 2 }}>
               {images['seal_company'] && (
                 <Image 
                   src={images['seal_company']} 
                   style={{ 
                     position: 'absolute', 
-                    width: 70, 
-                    height: 70, 
+                    width: (settings?.warrantySealSize || 112) * 0.65, 
+                    height: (settings?.warrantySealSize || 112) * 0.65, 
                     opacity: 0.75, 
-                    bottom: -12,
+                    bottom: -12 + (settings?.warrantySealY || 0),
+                    left: '50%',
+                    marginLeft: -((settings?.warrantySealSize || 112) * 0.65) / 2 + (settings?.warrantySealX || 0),
                     zIndex: 1
                   }} 
                 />
@@ -445,10 +446,12 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
                   src={images['sig_manuel']} 
                   style={{ 
                     position: 'absolute', 
-                    height: 55, 
+                    height: (settings?.warrantySignatureHeight || 120) * 0.45, 
                     width: 120, 
                     objectFit: 'contain', 
-                    bottom: -8 + manuelOffset,
+                    bottom: -8 + manuelOffset + (settings?.warrantySignatureY || 0),
+                    left: '50%',
+                    marginLeft: -60 + (settings?.warrantySignatureX || 0),
                     zIndex: 2 
                   }} 
                 />
@@ -462,6 +465,7 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
 
           {/* Client Signature */}
           <View style={[styles.signatureCol, { width: firstQrCode ? '38%' : '45%' }]}>
+            <View style={{ height: (settings?.warrantySignatureHeight || 120) * 0.5 }} />
             <View style={styles.signatureLine} />
             <Text style={styles.signatureLabel}>Aceptación del Cliente</Text>
             <Text style={styles.signatureSubLabel}>Firma y Sello del Beneficiario</Text>

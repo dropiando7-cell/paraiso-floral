@@ -272,32 +272,35 @@ const styles = StyleSheet.create({
   }
 });
 
-// Helper to parse warranty string into months
-const parseGarantiaToMonths = (garantia: any): number => {
+// Helper to parse warranty string into days
+const parseGarantiaToDays = (garantia: any): number => {
   if (!garantia) return 0;
   const str = String(garantia).trim().toLowerCase();
   
   // Try to match a decimal or integer number, optional whitespace, and units
-  const match = str.match(/^(\d+(?:\.\d+)?)\s*(a[ñn]o\(s\)|a[ñn]os|a[ñn]o|ano\(s\)|anos|ano|mes\(es\)|meses|mes|m)?/);
+  const match = str.match(/^(\d+(?:\.\d+)?)\s*(a[ñn]o\(s\)|a[ñn]os|a[ñn]o|ano\(s\)|anos|ano|mes\(es\)|meses|mes|m|d[ií]a\(s\)|d[ií]as|d[ií]a|d)?/);
   if (!match) return 0;
 
   const value = parseFloat(match[1]);
   const unit = match[2] || '';
 
   if (unit.startsWith('a') || unit.startsWith('año') || unit.startsWith('ano')) {
-    return Math.round(value * 12);
+    return Math.round(value * 365);
   }
   if (unit.startsWith('m')) {
+    return Math.round(value * 30);
+  }
+  if (unit.startsWith('d')) {
     return Math.round(value);
   }
 
   // Heuristic for pure numbers without unit
   // If the number is <= 5, it is probably years
-  // If the number is > 5, it is probably months
+  // If the number is > 5, it is probably months (converted to days)
   if (value <= 5) {
-    return Math.round(value * 12);
+    return Math.round(value * 365);
   }
-  return Math.round(value);
+  return Math.round(value * 30);
 };
 
 // Helper to format warranty duration nicely
@@ -336,12 +339,25 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
   const [fechaVal = '', ...horaParts] = (today || '').split(' ');
   const horaVal = horaParts.join(' ');
 
-  // Calcular garantía dinámica
-  const maxGarantiaMeses = validItems.reduce((max: number, item: any) => {
-    const gar = parseGarantiaToMonths(item.garantia);
-    return gar > max ? gar : max;
-  }, 0);
-  const maxGarantiaAnios = maxGarantiaMeses > 0 ? Math.round(maxGarantiaMeses / 12) : (ordenEntrega?.aplicaMantenimientos ? 3 : 0);
+  // Calcular garantía dinámica en días y guardar el texto original de la máxima
+  let maxGarantiaDays = 0;
+  let maxGarantiaItemText = '';
+
+  validItems.forEach((item: any) => {
+    const days = parseGarantiaToDays(item.garantia);
+    if (days > maxGarantiaDays) {
+      maxGarantiaDays = days;
+      maxGarantiaItemText = item.garantia;
+    }
+  });
+
+  // Determinar el texto de la garantía final
+  let warrantyLabel = '';
+  if (maxGarantiaDays > 0) {
+    warrantyLabel = `GARANTÍA DE ${formatGarantia(maxGarantiaItemText).toUpperCase()}`;
+  } else if (ordenEntrega?.aplicaMantenimientos) {
+    warrantyLabel = 'GARANTÍA DE 3 AÑOS';
+  }
 
   const nombreUsuario = data.nombreUsuario || '';
 
@@ -531,9 +547,9 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
         )}
 
         {/* Dynamic Warranty Section */}
-        {maxGarantiaAnios > 0 && (
+        {warrantyLabel !== '' && (
           <View style={styles.warrantyBlock} wrap={false}>
-            <Text style={styles.warrantyText}>GARANTÍA DE {maxGarantiaAnios} {maxGarantiaAnios === 1 ? 'AÑO' : 'AÑOS'}</Text>
+            <Text style={styles.warrantyText}>{warrantyLabel}</Text>
           </View>
         )}
 
