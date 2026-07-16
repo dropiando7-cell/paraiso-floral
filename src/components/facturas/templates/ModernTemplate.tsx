@@ -172,12 +172,13 @@ export default function ModernTemplate(props: TemplateProps) {
  <span className={`${theme.headerText} text-sm font-semibold `}>días</span>
  </div>
  </div>
- {docType === 'factura' && (
+ {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
  <div className="w-36">
  <p className={`text-slate-500 ${headerSmallSize} uppercase tracking-wider mb-1 `}>Método de Pago</p>
  <select
  value={paymentMethod}
  onChange={e => setPaymentMethod(e.target.value)}
+ disabled={viewMode}
  className={`bg-transparent ${theme.headerText} text-sm font-semibold border-none outline-none cursor-pointer w-full p-0 focus:ring-0 print:appearance-none `}
  >
  <option value="Efectivo" className="bg-slate-800 text-white">Efectivo</option>

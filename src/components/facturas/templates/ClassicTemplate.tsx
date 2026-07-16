@@ -149,22 +149,23 @@ export default function ClassicTemplate(props: TemplateProps) {
  className="w-16 border-b border-slate-300 text-sm font-semibold text-slate-800 p-0 text-center focus:ring-0 print:border-none"
  />
  </div>
- {docType === 'factura' && (
- <div className="flex flex-col gap-1 mt-1">
- <span className="text-xs text-slate-500 uppercase">Método de Pago:</span>
- <select
- value={paymentMethod}
- onChange={e => setPaymentMethod(e.target.value)}
- className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm p-1.5 focus:ring-0 print:appearance-none print:border-none print:p-0 font-semibold"
- >
- <option value="Efectivo">Efectivo</option>
- <option value="Tarjeta">Tarjeta</option>
- <option value="Transferencia">Transferencia</option>
- <option value="Cheque">Cheque</option>
- <option value="Link de pago de Occidente">Link de pago de Occidente</option>
- </select>
- </div>
- )}
+ {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
+  <div className="flex flex-col gap-1 mt-1">
+  <span className="text-xs text-slate-500 uppercase">Método de Pago:</span>
+  <select
+  value={paymentMethod}
+  onChange={e => setPaymentMethod(e.target.value)}
+  disabled={viewMode}
+  className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm p-1.5 focus:ring-0 print:appearance-none print:border-none print:p-0 font-semibold"
+  >
+  <option value="Efectivo">Efectivo</option>
+  <option value="Tarjeta">Tarjeta</option>
+  <option value="Transferencia">Transferencia</option>
+  <option value="Cheque">Cheque</option>
+  <option value="Link de pago de Occidente">Link de pago de Occidente</option>
+  </select>
+  </div>
+  )}
  </div>
  </div>
  </div>

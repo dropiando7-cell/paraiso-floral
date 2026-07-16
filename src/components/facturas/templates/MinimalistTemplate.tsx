@@ -140,12 +140,13 @@ export default function MinimalistTemplate(props: TemplateProps) {
  className="w-8 border-none bg-transparent text-sm font-medium text-slate-800 p-0 text-right focus:ring-0 print:p-0"
  />
  </div>
- {docType === 'factura' && (
+ {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
   <div className="mt-2">
   <p className="text-[10px] text-slate-400 uppercase mb-1">Método de Pago</p>
   <select
   value={paymentMethod}
   onChange={e => setPaymentMethod(e.target.value)}
+  disabled={viewMode}
   className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium"
   >
   <option value="Efectivo">Efectivo</option>

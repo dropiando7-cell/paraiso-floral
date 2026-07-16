@@ -880,10 +880,16 @@ export async function anularDocumento(id: string) {
 }
 
 // --- CONVERTIR DOCUMENTO (Cotización → ProForma → Factura Oficial) ---
-export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FACTURA') {
+export async function convertirDocumento(
+    id: string, 
+    nuevoTipo: 'PROFORMA' | 'FACTURA',
+    options?: { metodoPago?: string; estado?: 'BORRADOR' | 'EMITIDA' }
+) {
     try {
         const authUser = await getAuthenticatedUser();
         const { organizationId } = authUser;
+
+        const nuevoEstado = options?.estado || 'EMITIDA';
 
         // Check for active caja session
         const activeCaja = await prisma.corteCajaSession.findFirst({
@@ -892,7 +898,7 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
                 estado: 'ABIERTA'
             }
         });
-        const cajaSessionId = (nuevoTipo === 'FACTURA') ? (activeCaja?.id || null) : null;
+        const cajaSessionId = (nuevoTipo === 'FACTURA' && nuevoEstado === 'EMITIDA') ? (activeCaja?.id || null) : null;
 
         const doc = await prisma.factura.findFirst({
             where: { id, organizationId },
@@ -909,8 +915,8 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
             (doc.tipoDocumento === 'COTIZACION' && nuevoTipo === 'FACTURA'); // directo también permitido
         if (!flujoValido) throw new Error(`No se puede convertir ${doc.tipoDocumento} a ${nuevoTipo}.`);
 
-        // ¿Hay que descontar inventario ahora? Solo si no se descontó antes y el nuevo tipo lo requiere
-        const debeDescontar = !doc.inventarioDescontado && (nuevoTipo === 'PROFORMA' || nuevoTipo === 'FACTURA');
+        // ¿Hay que descontar inventario ahora? Solo si no se descontó antes, el nuevo tipo lo requiere, y está siendo emitida
+        const debeDescontar = nuevoEstado === 'EMITIDA' && !doc.inventarioDescontado && (nuevoTipo === 'PROFORMA' || nuevoTipo === 'FACTURA');
 
         const nuevoId = await prisma.$transaction(async (tx) => {
             // Marcar el documento original como CONVERTIDO
@@ -930,7 +936,7 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
                     correlativo: 'TEMP',
                     tipoDocumento: nuevoTipo,
                     tipoOriginal: doc.tipoOriginal || doc.tipoDocumento, // Mantener origen histórico
-                    estado: 'EMITIDA',
+                    estado: nuevoEstado,
                     subTotal: doc.subTotal,
                     descuentos: doc.descuentos,
                     totalExento: doc.totalExento,
@@ -945,7 +951,7 @@ export async function convertirDocumento(id: string, nuevoTipo: 'PROFORMA' | 'FA
                     nombreUsuario: doc.nombreUsuario,
                     inventarioDescontado: doc.inventarioDescontado || debeDescontar,
                     documentoOrigenId: doc.documentoOrigenId || doc.id,
-                    metodoPago: doc.metodoPago || 'Efectivo',
+                    metodoPago: options?.metodoPago || doc.metodoPago || 'Efectivo',
                     cajaSessionId,
                     ordenTrabajoId: doc.ordenTrabajoId || null,
                     detalles: {

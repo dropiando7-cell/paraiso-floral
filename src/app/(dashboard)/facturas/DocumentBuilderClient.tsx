@@ -1538,6 +1538,9 @@ export default function DocumentBuilderClient({
   const [isSaving, setIsSaving] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [showAdminWarningModal, setShowAdminWarningModal] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState<{ nuevoTipo: 'PROFORMA' | 'FACTURA' } | null>(null);
+  const [convertPaymentMethod, setConvertPaymentMethod] = useState('Efectivo');
+  const [convertEstado, setConvertEstado] = useState<'EMITIDA' | 'BORRADOR'>('EMITIDA');
 
   const handleEditClick = () => {
     if (docType === 'factura' && initialData?.estado === 'EMITIDA') {
@@ -2309,46 +2312,9 @@ export default function DocumentBuilderClient({
 
   const handleConvert = (nuevoTipo: 'PROFORMA' | 'FACTURA') => {
     if (!initialData?.id) return;
-    const label = nuevoTipo === 'PROFORMA' ? 'Pro Forma' : 'Factura Oficial';
-    
-    toast.custom((t) => (
-      <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white shadow-2xl rounded-2xl pointer-events-auto flex flex-col overflow-hidden border border-slate-100`}>
-        <div className="p-5 flex items-start gap-4">
-          <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
-             <Sparkles className="w-5 h-5 text-emerald-600" />
-          </div>
-          <div className="flex-1">
-            <h3 className="text-base font-bold text-slate-800">Convertir a {label}</h3>
-            <p className="text-sm text-slate-500 mt-1">El documento actual subirá de categoría a <strong>{label}</strong>. Esta acción bloqueará la edición del documento original.</p>
-          </div>
-        </div>
-        <div className="bg-slate-50 border-t border-slate-100 p-4 flex gap-3">
-          <button onClick={() => toast.dismiss(t.id)} className="flex-1 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors">Cancelar</button>
-          <button 
-            onClick={async () => {
-              toast.dismiss(t.id);
-              setIsConverting(true);
-              try {
-                const res = await convertirDocumento(initialData.id, nuevoTipo);
-                if (res.success) {
-                  toast.success(`Documento convertido a ${label} exitosamente`);
-                  router.push(`/facturas/ver/${res.nuevoId}`);
-                } else {
-                  toast.error(res.error || 'Error al convertir el documento');
-                }
-              } catch (e: any) {
-                toast.error(e.message || 'Error al convertir');
-              } finally {
-                setIsConverting(false);
-              }
-            }}
-            className="flex-1 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
-          >
-            Confirmar
-          </button>
-        </div>
-      </div>
-    ), { duration: Infinity, id: 'convert-confirm' });
+    setConvertPaymentMethod(paymentMethod || initialData?.metodoPago || 'Efectivo');
+    setConvertEstado('EMITIDA');
+    setShowConvertModal({ nuevoTipo });
   };
 
 
@@ -3788,6 +3754,147 @@ export default function DocumentBuilderClient({
           estaVencida={estaVencida}
           isEmitida={initialData?.estado === 'EMITIDA'}
         />
+      )}
+
+      {showConvertModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[3000] flex items-center justify-center animate-in fade-in p-4 print:hidden">
+          <div className="bg-white rounded-[2rem] p-6 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col">
+            
+            {/* Icon and Title */}
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0">
+                <Sparkles size={24} className="stroke-[2]" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-800 tracking-tight">
+                  Convertir a {showConvertModal.nuevoTipo === 'PROFORMA' ? 'Pro Forma' : 'Factura Oficial'}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  El documento actual ({initialData?.correlativo}) cambiará de categoría.
+                </p>
+              </div>
+            </div>
+
+            {/* Inputs */}
+            <div className="space-y-4 my-4">
+              {/* Payment Method Select */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-slate-450 uppercase tracking-widest">
+                  Método de Pago
+                </label>
+                <select
+                  value={convertPaymentMethod}
+                  onChange={(e) => setConvertPaymentMethod(e.target.value)}
+                  className="w-full px-4 py-3 text-sm border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none font-semibold text-slate-800"
+                >
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Tarjeta">Tarjeta</option>
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Link de pago de Occidente">Link de pago de Occidente</option>
+                </select>
+              </div>
+
+              {/* Status Select (only if FACTURA) */}
+              {showConvertModal.nuevoTipo === 'FACTURA' && (
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-450 uppercase tracking-widest">
+                    Estado de la Factura
+                  </label>
+                  <select
+                    value={convertEstado}
+                    onChange={(e) => setConvertEstado(e.target.value as 'EMITIDA' | 'BORRADOR')}
+                    className="w-full px-4 py-3 text-sm border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none font-semibold text-slate-800"
+                  >
+                    <option value="EMITIDA">Emitida (Oficial e inmutable)</option>
+                    <option value="BORRADOR">Borrador (No emitida, editable por Emilia)</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Warning Message */}
+            <div className="text-xs text-slate-650 leading-relaxed mb-6 bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col gap-1.5">
+              {showConvertModal.nuevoTipo === 'FACTURA' && convertEstado === 'EMITIDA' ? (
+                <>
+                  <p className="font-bold text-amber-600 flex items-center gap-1.5">
+                    <span>⚠️</span> Emisión Inmediata
+                  </p>
+                  <p className="text-slate-500 font-medium">
+                    Al emitir la factura se descontará el inventario, se asociará a la caja del turno actual y se bloqueará su edición para roles no administrativos.
+                  </p>
+                </>
+              ) : showConvertModal.nuevoTipo === 'FACTURA' && convertEstado === 'BORRADOR' ? (
+                <>
+                  <p className="font-bold text-indigo-650 flex items-center gap-1.5">
+                    <span>📝</span> Guardar como Borrador
+                  </p>
+                  <p className="text-slate-500 font-medium">
+                    Se creará una factura en borrador. No afectará el inventario ni el cierre de caja actual hasta que Emilia o tú la editen y emitan oficialmente.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-bold text-slate-700 flex items-center gap-1.5">
+                    <span>ℹ️</span> Conversión Pro Forma
+                  </p>
+                  <p className="text-slate-500 font-medium">
+                    Se generará el documento Pro Forma correspondiente a partir de los datos actuales.
+                  </p>
+                </>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 w-full">
+              <button
+                type="button"
+                onClick={() => setShowConvertModal(null)}
+                className="flex-1 py-3.5 bg-white border-2 border-slate-200 text-slate-600 font-bold rounded-2xl hover:bg-slate-50 transition-colors text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={isConverting}
+                onClick={async () => {
+                  setIsConverting(true);
+                  try {
+                    const res = await convertirDocumento(initialData!.id, showConvertModal.nuevoTipo, {
+                      metodoPago: convertPaymentMethod,
+                      estado: convertEstado
+                    });
+                    if (res.success && res.nuevoId) {
+                      toast.success(`Documento convertido exitosamente`);
+                      setShowConvertModal(null);
+                      if (showConvertModal.nuevoTipo === 'FACTURA' && convertEstado === 'BORRADOR') {
+                        router.push(`/facturas/${res.nuevoId}`);
+                      } else {
+                        router.push(`/facturas/ver/${res.nuevoId}`);
+                      }
+                    } else {
+                      toast.error(res.error || 'Error al convertir el documento');
+                    }
+                  } catch (e: any) {
+                    toast.error(e.message || 'Error al convertir');
+                  } finally {
+                    setIsConverting(false);
+                  }
+                }}
+                className="flex-[1.5] py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl transition-all text-xs flex items-center justify-center gap-2"
+              >
+                {isConverting ? (
+                  <>
+                    <Loader2 size={14} className="animate-spin" /> Procesando...
+                  </>
+                ) : (
+                  'Confirmar Conversión'
+                )}
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
 
       {/* Lightbox Modal overlay for images */}

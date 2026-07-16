@@ -163,12 +163,13 @@ export default function LegacyTemplate(props: TemplateProps) {
   <span className="hidden print:flex text-gray-600 mt-1" data-pdf-show>{paymentTerms}</span>
   </div>
 
-  {docType === 'factura' && (
+  {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
   <div className="flex flex-col border-l border-slate-200 pl-3">
   <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Método de pago:</span>
   <select
   value={paymentMethod}
   onChange={e => setPaymentMethod(e.target.value)}
+  disabled={viewMode}
   className="text-gray-600 mt-1 bg-transparent border-b border-gray-200 outline-none print:hidden p-0 cursor-pointer text-xs"
   >
   <option value="Efectivo">Efectivo</option>
