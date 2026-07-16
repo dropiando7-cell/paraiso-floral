@@ -3807,7 +3807,7 @@ export default function DocumentBuilderClient({
                     className="w-full px-4 py-3 text-sm border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all outline-none font-semibold text-slate-800"
                   >
                     <option value="EMITIDA">Emitida (Oficial e inmutable)</option>
-                    <option value="BORRADOR">Borrador (No emitida, editable por Emilia)</option>
+                    <option value="BORRADOR">Borrador (No emitida, editable)</option>
                   </select>
                 </div>
               )}
@@ -3830,7 +3830,7 @@ export default function DocumentBuilderClient({
                     <span>📝</span> Guardar como Borrador
                   </p>
                   <p className="text-slate-500 font-medium">
-                    Se creará una factura en borrador. No afectará el inventario ni el cierre de caja actual hasta que Emilia o tú la editen y emitan oficialmente.
+                    Se creará una factura en borrador. No afectará el inventario ni el cierre de caja actual hasta que sea editada y emitida oficialmente.
                   </p>
                 </>
               ) : (
