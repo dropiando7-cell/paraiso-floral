@@ -3742,7 +3742,7 @@ export default function DocumentBuilderClient({
           onDownloadPDF={handleDownloadPDF}
           onToggleCustomizer={() => setShowCustomizer(!showCustomizer)}
           onShowOrdenEntrega={() => setShowOrdenEntregaPanel(true)}
-          onConvert={(!isLocked && !isAnulada && !isConvertida && effectiveViewMode && initialData?.id) ? handleConvert : undefined}
+          onConvert={(!isLocked && !isAnulada && !isConvertida && initialData?.id) ? handleConvert : undefined}
           isDownloadingPDF={isDownloadingPDF}
           isConverting={isConverting}
           docType={
