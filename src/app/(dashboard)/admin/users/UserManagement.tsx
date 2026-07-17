@@ -29,6 +29,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     // Pagination & Search State
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedOrgId, setSelectedOrgId] = useState('ALL');
+    const [assignableFilter, setAssignableFilter] = useState<'ALL' | 'ASSIGNABLE' | 'NOT_ASSIGNABLE'>('ALL');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
@@ -436,6 +437,12 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         if (selectedOrgId !== 'ALL' && u.organizationId !== selectedOrgId) {
             return false;
         }
+        if (assignableFilter === 'ASSIGNABLE' && u.isAssignable === false) {
+            return false;
+        }
+        if (assignableFilter === 'NOT_ASSIGNABLE' && u.isAssignable !== false) {
+            return false;
+        }
         const query = searchQuery.toLowerCase();
         const customRoleRaw = u.customRoleName || '';
         const puestoRaw = u.puesto || '';
@@ -510,7 +517,24 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 </div>
                 
                 <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
-                    <label htmlFor="org-filter" className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+                    <label htmlFor="assignable-filter" className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 shrink-0">
+                        Asignación:
+                    </label>
+                    <select
+                        id="assignable-filter"
+                        value={assignableFilter}
+                        onChange={(e) => {
+                            setAssignableFilter(e.target.value as any);
+                            setCurrentPage(1);
+                        }}
+                        className="bg-slate-50 border border-slate-200 text-slate-700 py-2 px-3.5 pr-8 rounded-lg text-sm font-medium focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all cursor-pointer"
+                    >
+                        <option value="ALL">Todos</option>
+                        <option value="ASSIGNABLE">Solo Asignables</option>
+                        <option value="NOT_ASSIGNABLE">Solo No Asignables</option>
+                    </select>
+
+                    <label htmlFor="org-filter" className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5 shrink-0 ml-2">
                         <Building2 className="w-3.5 h-3.5 text-slate-400" />
                         Organización:
                     </label>

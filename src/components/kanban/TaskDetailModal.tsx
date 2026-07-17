@@ -252,6 +252,19 @@ export default function TaskDetailModal({
     const [recordedAudioBlob, setRecordedAudioBlob] = useState<Blob | null>(null);
     const audioMediaRecorderRef = useRef<MediaRecorder | null>(null);
     const audioTimerIntervalRef = useRef<any>(null);
+    const assigneeDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(event.target as Node)) {
+                setShowAssigneeDropdown(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     // Cargar comentarios y adjuntos al montar o cuando cambia la tarea/apertura
     useEffect(() => {
@@ -1751,7 +1764,7 @@ export default function TaskDetailModal({
                         </div>
 
                         {/* Personas Asignadas (Multi-select) */}
-                        <div className="space-y-1.5 relative">
+                        <div ref={assigneeDropdownRef} className="space-y-1.5 relative">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
                                 <Users className="h-3.5 w-3.5 text-slate-400" />
                                 Personas Asignadas ({selectedAssigneeIds.length})

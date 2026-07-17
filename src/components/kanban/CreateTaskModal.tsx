@@ -155,10 +155,23 @@ export default function CreateTaskModal({
 
     // Local spaces state to update dynamically when adding new activity types
     const [localSpaces, setLocalSpaces] = useState<Space[]>(spaces);
+    const assigneeDropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setLocalSpaces(spaces);
     }, [spaces]);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (assigneeDropdownRef.current && !assigneeDropdownRef.current.contains(event.target as Node)) {
+                setShowAssigneeDropdown(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
 
     const activeSpace = localSpaces.find(s => s.id === selectedSpaceId) || localSpaces[0];
 
@@ -963,7 +976,7 @@ export default function CreateTaskModal({
                     </div>
 
                     {/* Personas Asignadas (Multi-select personalizado) */}
-                    <div className="space-y-1.5 relative">
+                    <div ref={assigneeDropdownRef} className="space-y-1.5 relative">
                         <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
                             <Users className="h-3.5 w-3.5 text-slate-400" />
                             Personas Asignadas ({selectedAssigneeIds.length})
