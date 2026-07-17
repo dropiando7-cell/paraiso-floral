@@ -20,15 +20,29 @@ export default async function EditDocumentPage({
     const isClone = resolvedSearchParams?.clone === 'true';
     const isNotaCredito = resolvedSearchParams?.notaCredito === 'true';
 
+    let dbUser;
+    try {
+        dbUser = await getAuthenticatedUser();
+    } catch (authError) {
+        redirect('/login');
+    }
+
+    const allowedModules = dbUser.accessibleModules || [];
+    const hasAccess = dbUser.role === 'SUPER_ADMIN' || 
+                      dbUser.role === 'ORG_ADMIN' || 
+                      allowedModules.includes('/facturas') || 
+                      allowedModules.includes('facturas_propias');
+
+    if (!hasAccess) {
+        redirect('/unauthorized');
+    }
+
     let org = null;
     let doc = null;
-    let userRole = 'USER';
+    let userRole = dbUser.role;
     
     try {
-        const authUser = await getAuthenticatedUser();
-        const orgId = authUser.organizationId;
-        userRole = authUser.role;
-
+        const orgId = dbUser.organizationId;
         org = await prisma.organization.findUnique({ 
             where: { id: orgId },
             select: { 
@@ -118,6 +132,14 @@ export default async function EditDocumentPage({
 
     if (!org) redirect('/dashboard');
     if (!doc && id !== 'nuevo') redirect('/facturas');
+
+    const verSoloPropias = dbUser.role !== 'SUPER_ADMIN' && 
+                           dbUser.role !== 'ORG_ADMIN' && 
+                           allowedModules.includes('facturas_propias');
+
+    if (verSoloPropias && doc && doc.creadoPorId !== dbUser.id && id !== 'nuevo') {
+        redirect('/unauthorized');
+    }
 
     // Restricción: Si el documento es una Factura ya Emitida y no es admin, redirigir a ver
     if (doc && doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA' && !isClone && !isNotaCredito) {

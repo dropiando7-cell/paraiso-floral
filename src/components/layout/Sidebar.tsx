@@ -138,6 +138,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         href: '/admin/notificaciones',
         icon: Bell,
         roles: ['SUPER_ADMIN', 'ORG_ADMIN'],
+      },
+      {
+        name: 'Bitácora de Actividad',
+        href: '/admin/logs-actividad',
+        icon: FileText,
+        roles: ['SUPER_ADMIN'],
       }
     ]
   }
@@ -207,6 +213,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
             if (item.subItems) {
               const visibleSubs = item.subItems.filter(subItem => {
                 if (allowed.includes(subItem.href)) return true;
+                if (subItem.href === '/facturas' && allowed.includes('facturas_propias')) return true;
                 if (!subItem.roles) return true;
                 return subItem.roles.includes(dbUser?.role);
               });
@@ -232,9 +239,9 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                   // Filter subItems based on role or explicit module access
                   const visibleSubItems = item.subItems?.filter(subItem => {
                     if (dbUser?.role === 'SUPER_ADMIN') return true;
-                    // Provide fallback if accessibleModules is undefined
                     const allowed = dbUser?.accessibleModules || [];
                     if (allowed.includes(subItem.href)) return true;
+                    if (subItem.href === '/facturas' && allowed.includes('facturas_propias')) return true;
                     if (!subItem.roles) return true;
                     return subItem.roles.includes(dbUser?.role);
                   }) || [];

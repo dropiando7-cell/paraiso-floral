@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { logActivity } from '@/lib/activity-logger';
 
 // Helper for Auth — returns full user object with nombre+apellido
 export async function getAuthenticatedUser() {
@@ -249,6 +250,22 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
             }
 
             return nuevaFactura;
+        });
+
+        // Log activity
+        const creator = await getAuthenticatedUser();
+        await logActivity({
+            userId: creator.id,
+            organizationId,
+            action: 'CREATE',
+            module: '/facturas',
+            description: `Creó documento ${tipoCorrelativo}: ${result.correlativo}`,
+            metadata: {
+                facturaId: result.id,
+                correlativo: result.correlativo,
+                tipoDocumento: tipoCorrelativo,
+                total: facturaData.total
+            }
         });
 
         revalidatePath('/facturas');
@@ -630,6 +647,21 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
             return docFinal;
         });
 
+        // Log activity
+        await logActivity({
+            userId: creadoPorId,
+            organizationId,
+            action: 'CREATE',
+            module: '/facturas',
+            description: `Creó documento ${data.tipoDocumento} (Builder): ${result.correlativo}`,
+            metadata: {
+                facturaId: result.id,
+                correlativo: result.correlativo,
+                tipoDocumento: data.tipoDocumento,
+                total: data.total
+            }
+        });
+
         revalidatePath('/facturas');
         return { success: true, docId: result.id, correlativo: result.correlativo };
 
@@ -702,11 +734,17 @@ export async function buscarItemPorCodigo(codigo: string) {
 }
 
 // --- HISTORIAL DE DOCUMENTOS ---
-export async function getHistorialDocumentos() {
+export async function getHistorialDocumentos(soloPropiosUserId?: string) {
     try {
         const organizationId = await getOrganizationId();
+        
+        const whereClause: any = { organizationId };
+        if (soloPropiosUserId) {
+            whereClause.creadoPorId = soloPropiosUserId;
+        }
+
         const docs = await prisma.factura.findMany({
-            where: { organizationId },
+            where: whereClause,
             include: { 
                 cliente: { select: { nombre: true, rtn: true } },
                 detalles: true 
@@ -871,6 +909,21 @@ export async function anularDocumento(id: string) {
             }
         });
 
+        // Log activity
+        await logActivity({
+            userId: dbUser.id,
+            organizationId,
+            action: 'DELETE',
+            module: '/facturas',
+            description: `Anuló documento ${doc.tipoDocumento}: ${doc.correlativo}`,
+            metadata: {
+                facturaId: doc.id,
+                correlativo: doc.correlativo,
+                tipoDocumento: doc.tipoDocumento,
+                total: Number(doc.total)
+            }
+        });
+
         revalidatePath('/facturas');
         return { success: true };
     } catch (e: any) {
@@ -1007,6 +1060,22 @@ export async function convertirDocumento(
                 }
             }
             return nuevoDoc.id;
+        });
+
+        // Log activity
+        await logActivity({
+            userId: authUser.id,
+            organizationId,
+            action: 'UPDATE',
+            module: '/facturas',
+            description: `Convirtió documento ${doc.tipoDocumento} a ${nuevoTipo} (Correlativo original: ${doc.correlativo})`,
+            metadata: {
+                previousType: doc.tipoDocumento,
+                newType: nuevoTipo,
+                originalId: id,
+                newId: nuevoId,
+                correlativo: doc.correlativo
+            }
         });
 
         revalidatePath('/facturas');

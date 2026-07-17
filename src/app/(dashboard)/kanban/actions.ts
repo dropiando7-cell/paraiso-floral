@@ -174,7 +174,10 @@ export async function getSpaceDetails(spaceId: string) {
 
         // Obtener miembros del equipo para asignación de tareas
         const members = await prisma.user.findMany({
-            where: { organizationId: org.id },
+            where: { 
+                organizationId: org.id,
+                isAssignable: { not: false }
+            },
             select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true, puedeAsignarEspacios: true, role: true }
         });
 
@@ -1324,7 +1327,10 @@ export async function getKanbanInitData() {
         const spaces = await getSpaces();
         
         const members = await prisma.user.findMany({
-            where: { organizationId: org.id },
+            where: { 
+                organizationId: org.id,
+                isAssignable: { not: false }
+            },
             select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
         });
         

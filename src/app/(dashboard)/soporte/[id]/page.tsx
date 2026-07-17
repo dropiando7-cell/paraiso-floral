@@ -30,7 +30,10 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
   }
 
   const organizationUsers = await prisma.user.findMany({
-    where: { organizationId: orden.organizationId },
+    where: { 
+      organizationId: orden.organizationId,
+      isAssignable: { not: false }
+    },
     orderBy: { nombre: 'asc' }
   });
 

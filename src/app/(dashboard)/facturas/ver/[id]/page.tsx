@@ -10,14 +10,29 @@ export const revalidate = 0;
 
 export default async function ViewDocumentPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;
+    let dbUser;
+    try {
+        dbUser = await getAuthenticatedUser();
+    } catch (authError) {
+        redirect('/login');
+    }
+
+    const allowedModules = dbUser.accessibleModules || [];
+    const hasAccess = dbUser.role === 'SUPER_ADMIN' || 
+                      dbUser.role === 'ORG_ADMIN' || 
+                      allowedModules.includes('/facturas') || 
+                      allowedModules.includes('facturas_propias');
+
+    if (!hasAccess) {
+        redirect('/unauthorized');
+    }
+
     let org = null;
     let doc = null;
-    let userRole = 'USER';
+    let userRole = dbUser.role;
     
     try {
-        const authUser = await getAuthenticatedUser();
-        const orgId = authUser.organizationId;
-        userRole = authUser.role;
+        const orgId = dbUser.organizationId;
 
         org = await prisma.organization.findUnique({ 
             where: { id: orgId },
@@ -42,6 +57,14 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
 
     if (!org) redirect('/dashboard');
     if (!doc) redirect('/facturas');
+
+    const verSoloPropias = dbUser.role !== 'SUPER_ADMIN' && 
+                           dbUser.role !== 'ORG_ADMIN' && 
+                           allowedModules.includes('facturas_propias');
+
+    if (verSoloPropias && doc.creadoPorId !== dbUser.id) {
+        redirect('/unauthorized');
+    }
 
     return (
         <div className="bg-slate-50 min-h-screen print:overflow-visible">

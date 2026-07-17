@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
+import { logActivity } from '@/lib/activity-logger';
 
 export async function createRenta(data: FormData) {
     const supabase = await createClient();
@@ -143,6 +144,21 @@ export async function createRenta(data: FormData) {
         data: { 
             estatusContable: 'EN_RENTA',
             ...(horasTrabajoSalida ? { horasTrabajoActuales: horasTrabajoSalida } : {})
+        }
+    });
+
+    // Log activity
+    await logActivity({
+        userId: dbUser.id,
+        organizationId: dbUser.organizationId,
+        action: 'CREATE',
+        module: '/rentas',
+        description: `Registró contrato de renta de equipo (ID: ${renta.id})`,
+        metadata: {
+            rentaId: renta.id,
+            costoRenta,
+            deposito,
+            activoFijoId
         }
     });
 

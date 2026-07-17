@@ -8,6 +8,7 @@ import { Role, EmailTemplateType } from '@prisma/client';
 import { Resend } from 'resend';
 import { render } from '@react-email/render';
 import WelcomeEmailDynamic from '@/emails/WelcomeEmailDynamic';
+import { logActivity } from '@/lib/activity-logger';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -91,6 +92,21 @@ export async function createUser(data: {
                 puedeAsignarEspacios: data.puedeAsignarEspacios ?? false,
                 puesto: data.puesto,
             },
+        });
+
+        // Log activity
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'CREATE',
+            module: '/admin/users',
+            description: `Creado usuario: ${data.email} con rol ${data.customRoleName || data.role}`,
+            metadata: {
+                createdUserEmail: data.email,
+                role: data.role,
+                customRoleName: data.customRoleName,
+                accessibleModules: data.accessibleModules
+            }
         });
 
         // Send Welcome Email asynchronously
@@ -238,6 +254,19 @@ export async function deleteUser(id: string) {
             warning = 'Falta SUPABASE_SERVICE_ROLE_KEY. El usuario se eliminó de la base de datos local, pero no de Supabase Auth.';
         }
 
+        // Log activity
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'DELETE',
+            module: '/admin/users',
+            description: `Eliminado usuario: ${targetUser.email}`,
+            metadata: {
+                deletedUserEmail: targetUser.email,
+                role: targetUser.role
+            }
+        });
+
         // Luego eliminamos de la base de datos de Prisma
         await prisma.user.delete({ where: { id } });
 
@@ -261,6 +290,7 @@ export async function editUser(
         nombre?: string;
         apellido?: string;
         password?: string;
+        isAssignable?: boolean;
     }
 ) {
     try {
@@ -306,7 +336,26 @@ export async function editUser(
                 puesto: data.puesto,
                 nombre: data.nombre,
                 apellido: data.apellido,
+                isAssignable: data.isAssignable,
             },
+        });
+
+        // Log activity
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'UPDATE',
+            module: '/admin/users',
+            description: `Editado usuario: ${updatedUser.email}`,
+            metadata: {
+                updatedUserEmail: updatedUser.email,
+                newData: {
+                    role: data.role,
+                    customRoleName: data.customRoleName,
+                    puesto: data.puesto,
+                    accessibleModules: data.accessibleModules
+                }
+            }
         });
 
         // Also update Supabase Auth if service key is configured
@@ -406,6 +455,20 @@ export async function createRoleTemplate(data: {
             },
         });
 
+        // Log activity
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'CREATE',
+            module: '/admin/users',
+            description: `Creado rol personalizado: ${data.name}`,
+            metadata: {
+                roleName: data.name,
+                baseRole: data.baseRole,
+                accessibleModules: data.accessibleModules
+            }
+        });
+
         revalidatePath('/admin/users');
         return { success: true, template: newTemplate };
     } catch (error: any) {
@@ -472,6 +535,20 @@ export async function updateRoleTemplate(id: string, data: {
             }
         });
 
+        // Log activity
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'UPDATE',
+            module: '/admin/users',
+            description: `Actualizado rol personalizado: ${data.name}`,
+            metadata: {
+                roleName: data.name,
+                baseRole: data.baseRole,
+                accessibleModules: data.accessibleModules
+            }
+        });
+
         revalidatePath('/admin/users');
         return { success: true };
     } catch (error: any) {
@@ -507,6 +584,19 @@ export async function deleteRoleTemplate(id: string, organizationId: string) {
                     customRoleName: null,
                 }
             });
+        });
+
+        // Log activity
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'DELETE',
+            module: '/admin/users',
+            description: `Eliminado rol personalizado: ${existingTemplate.name}`,
+            metadata: {
+                roleName: existingTemplate.name,
+                baseRole: existingTemplate.baseRole
+            }
         });
 
         revalidatePath('/admin/users');

@@ -12,6 +12,7 @@ import {
 } from '@/lib/checkin-notifications';
 import { createClient } from '@/utils/supabase/server';
 import { triggerNotification } from '@/lib/notifications';
+import { logActivity } from '@/lib/activity-logger';
 
 async function getOrgId() {
     const supabase = await createClient();
@@ -321,6 +322,21 @@ export async function createOrdenTrabajo(data: {
         console.error("Error sending work order assignment notification:", notifErr);
     }
 
+    // Log activity
+    await logActivity({
+        userId: data.usuarioRecepcionId || null,
+        organizationId: orgId,
+        action: 'CREATE',
+        module: '/soporte',
+        description: `Creado ticket de soporte para ${orden.equipoDano} (Código: ${orden.codigoSeguridad})`,
+        metadata: {
+            ordenId: orden.id,
+            codigoSeguridad: orden.codigoSeguridad,
+            clienteId: orden.clienteId,
+            equipoDano: orden.equipoDano
+        }
+    });
+
     revalidatePath('/soporte');
     return {
         ...orden,
@@ -380,6 +396,31 @@ export async function updateEstadoOrden(id: string, nuevoEstado: string) {
     
     // Sync with Kanban
     await syncKanbanStatus(id, nuevoEstado);
+
+    // Log activity
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+            const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { id: true }});
+            if (dbUser) {
+                await logActivity({
+                    userId: dbUser.id,
+                    organizationId: updated.organizationId,
+                    action: 'UPDATE',
+                    module: '/soporte',
+                    description: `Actualizó estado de orden #${updated.codigoSeguridad} a: ${nuevoEstado}`,
+                    metadata: {
+                        ordenId: id,
+                        codigoSeguridad: updated.codigoSeguridad,
+                        nuevoEstado
+                    }
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Error logging status update activity:", e);
+    }
 
     return {
         ...updated,
@@ -618,6 +659,32 @@ export async function guardarDiagnostico(
         console.error("Error adding kanban comment for diagnosis:", e);
     }
 
+    // Log activity
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+            const dbUser = await prisma.user.findUnique({ where: { email: user.email }, select: { id: true }});
+            if (dbUser) {
+                await logActivity({
+                    userId: dbUser.id,
+                    organizationId: orgId,
+                    action: 'UPDATE',
+                    module: '/soporte',
+                    description: `Guardó diagnóstico y presupuesto para orden ID: ${ordenId}`,
+                    metadata: {
+                        ordenId,
+                        diagnostico,
+                        costoSugerido,
+                        repuestosCount: repuestos.length
+                    }
+                });
+            }
+        }
+    } catch (e) {
+        console.error("Error logging diagnosis activity:", e);
+    }
+
     revalidatePath('/soporte');
     revalidatePath(`/soporte/${ordenId}`);
     return { success: true };
@@ -717,6 +784,22 @@ export async function aprobarPresupuesto(
         }
     } catch (notifErr) {
         console.error("Error sending budget approval notification:", notifErr);
+    }
+
+    // Log activity
+    if (userId) {
+        await logActivity({
+            userId,
+            organizationId: updatedOrder.organizationId,
+            action: 'UPDATE',
+            module: '/soporte',
+            description: `Aprobó presupuesto para orden #${updatedOrder.codigoSeguridad}`,
+            metadata: {
+                ordenId,
+                codigoSeguridad: updatedOrder.codigoSeguridad,
+                costoFinalReparacion
+            }
+        });
     }
 
     revalidatePath('/soporte');
@@ -1152,7 +1235,7 @@ export async function eliminarOrdenTrabajo(ordenId: string) {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
-        select: { role: true, accessibleModules: true, organizationId: true }
+        select: { id: true, role: true, accessibleModules: true, organizationId: true }
     });
 
     if (!dbUser) {
@@ -1194,6 +1277,18 @@ export async function eliminarOrdenTrabajo(ordenId: string) {
         });
     });
     
+    // Log activity
+    await logActivity({
+        userId: dbUser.id,
+        organizationId: orgId,
+        action: 'DELETE',
+        module: '/soporte',
+        description: `Eliminó permanentemente orden de trabajo ID: ${ordenId}`,
+        metadata: {
+            ordenId
+        }
+    });
+
     revalidatePath('/soporte');
     return { success: true };
 }

@@ -23,7 +23,10 @@ export default async function NuevoSoportePage() {
     });
 
     const users = await prisma.user.findMany({
-        where: { organizationId: orgId },
+        where: { 
+            organizationId: orgId,
+            isAssignable: { not: false }
+        },
         orderBy: { nombre: 'asc' }
     });
 

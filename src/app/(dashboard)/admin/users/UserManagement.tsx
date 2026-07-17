@@ -45,6 +45,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     const [accessibleModules, setAccessibleModules] = useState<string[]>([]);
     const [puedeAsignarEspacios, setPuedeAsignarEspacios] = useState(false);
     const [puesto, setPuesto] = useState('');
+    const [isAssignable, setIsAssignable] = useState(true);
     const [deletingUser, setDeletingUser] = useState<{ id: string; email: string } | null>(null);
 
     // Form State for Role Template
@@ -107,11 +108,13 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: 'eliminar_ordenes', label: 'Soporte - Eliminar Órdenes' },
         { id: '/cotizaciones', label: 'Cotizaciones' },
         { id: '/facturas', label: 'Facturación' },
+        { id: 'facturas_propias', label: 'Facturación - Ver solo cotizaciones/facturas propias' },
         { id: '/caja-chica', label: 'Caja Chica' },
         { id: '/admin/gestion-web', label: 'Gestión Web / Tienda' },
         { id: '/admin/tarjetas-digitales', label: 'Tarjetas Digitales' },
         { id: '/admin/notificaciones', label: 'Módulo de Notificaciones' },
         { id: 'asistente_voz', label: 'Asistente de Voz IA' },
+        { id: '/admin/logs-actividad', label: 'Bitácora de Actividad' },
     ];
 
 
@@ -204,6 +207,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setError(null);
         setPuedeAsignarEspacios(false);
         setPuesto('');
+        setIsAssignable(true);
         setIsModalOpen(true);
     };
 
@@ -220,6 +224,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setAccessibleModules(user.accessibleModules || []);
         setPuedeAsignarEspacios(user.puedeAsignarEspacios || false);
         setPuesto(user.puesto || '');
+        setIsAssignable(user.isAssignable ?? true);
         setError(null);
         setIsModalOpen(true);
     };
@@ -245,7 +250,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                 puesto,
                 nombre: firstName,
                 apellido: lastName,
-                password: password || undefined
+                password: password || undefined,
+                isAssignable
             });
             if (!res.success) {
                 const errMsg = res.error || 'Ocurrió un error al editar';
@@ -560,6 +566,13 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Puede gestionar accesos a espacios restringidos en Kanban">
                                                     <Key className="w-2.5 h-2.5" />
                                                     Acceso Kanban
+                                                </span>
+                                            </div>
+                                        )}
+                                        {u.isAssignable === false && (
+                                            <div className="mt-1">
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200" title="No disponible para asignaciones">
+                                                    No Asignable
                                                 </span>
                                             </div>
                                         )}
@@ -913,6 +926,21 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                         <div>
                                             <span className="text-sm font-semibold text-slate-700 leading-tight">Gestionar Accesos Kanban</span>
                                             <p className="text-xs text-slate-500 mt-0.5">Permite crear espacios restringidos y seleccionar qué usuarios tienen acceso.</p>
+                                        </div>
+                                    </label>
+                                </div>
+
+                                <div>
+                                    <label className="flex items-start gap-3 cursor-pointer p-3 hover:bg-slate-50 rounded-xl transition-colors border border-slate-200 bg-white">
+                                        <input
+                                            type="checkbox"
+                                            checked={isAssignable}
+                                            onChange={(e) => setIsAssignable(e.target.checked)}
+                                            className="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300"
+                                        />
+                                        <div>
+                                            <span className="text-sm font-semibold text-slate-700 leading-tight">Disponible para Asignación</span>
+                                            <p className="text-xs text-slate-500 mt-0.5">El usuario aparecerá en listas de asignación de órdenes de trabajo, Kanban y otras tareas del sistema.</p>
                                         </div>
                                     </label>
                                 </div>

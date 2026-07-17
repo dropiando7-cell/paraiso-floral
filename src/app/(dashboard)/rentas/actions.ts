@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 import { revalidatePath } from 'next/cache';
+import { logActivity } from '@/lib/activity-logger';
 
 
 export async function getRentas() {
@@ -58,6 +59,16 @@ export async function returnRenta(rentaId: string) {
         }
     });
 
+    // Log activity
+    await logActivity({
+        userId: dbUser.id,
+        organizationId: dbUser.organizationId,
+        action: 'UPDATE',
+        module: '/rentas',
+        description: `Retornó equipo de renta (ID Contrato: ${rentaId})`,
+        metadata: { rentaId }
+    });
+
     return true;
 }
 
@@ -85,6 +96,16 @@ export async function editRenta(rentaId: string, payload: {
             ...payload,
             modificadoPorId: dbUser.id,
         },
+    });
+
+    // Log activity
+    await logActivity({
+        userId: dbUser.id,
+        organizationId: dbUser.organizationId,
+        action: 'UPDATE',
+        module: '/rentas',
+        description: `Editó contrato de renta (ID: ${rentaId})`,
+        metadata: { rentaId, payload }
     });
 
     return true;
@@ -116,6 +137,16 @@ export async function cancelRenta(rentaId: string) {
         data: {
             estatusContable: 'VIGENTE',
         }
+    });
+
+    // Log activity
+    await logActivity({
+        userId: dbUser.id,
+        organizationId: dbUser.organizationId,
+        action: 'DELETE',
+        module: '/rentas',
+        description: `Canceló contrato de renta (ID: ${rentaId})`,
+        metadata: { rentaId }
     });
 
     return true;
@@ -188,6 +219,21 @@ export async function processRecepcion(data: FormData) {
         data: {
             estatusContable: nuevoEstadoEquipo,
             ...(horasTrabajoRecibido ? { horasTrabajoActuales: horasTrabajoRecibido } : {})
+        }
+    });
+
+    // Log activity
+    await logActivity({
+        userId: dbUser.id,
+        organizationId: dbUser.organizationId,
+        action: 'UPDATE',
+        module: '/rentas',
+        description: `Procesó recepción / devolución de equipo para renta (ID Contrato: ${rentaId})`,
+        metadata: {
+            rentaId,
+            depositoDevuelto,
+            nuevoEstadoEquipo,
+            horasTrabajoRecibido
         }
     });
 
