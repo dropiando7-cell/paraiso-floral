@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useTransition, useRef } from 'react';
+import { useState, useEffect, useTransition, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
 import {
@@ -2916,17 +2916,20 @@ function ProductSummaryModal({
     const [searchQuery, setSearchQuery] = useState(initialIdQr || '');
     const [activos, setActivos] = useState<any[]>([]);
     const [loading, setLoading] = useState(!!initialIdQr);
-    const [viewMode, setViewMode] = useState<'cards' | 'list' | 'badges'>('list');
+    const [viewMode, setViewMode] = useState<'consolidated' | 'cards' | 'list'>('consolidated');
     const [hasSearched, setHasSearched] = useState(!!initialIdQr);
     const [isScanning, setIsScanning] = useState(false);
+    const [showSold, setShowSold] = useState(false);
+    const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
-    async function handleSearch(evt?: React.FormEvent) {
+    async function handleSearch(evt?: React.FormEvent, customShowSold?: boolean) {
         if (evt) evt.preventDefault();
         if (!searchQuery.trim()) return;
         setLoading(true);
         setHasSearched(true);
         try {
-            const data = await searchActivosGlobal(searchQuery.trim());
+            const activeShowSold = customShowSold !== undefined ? customShowSold : showSold;
+            const data = await searchActivosGlobal(searchQuery.trim(), activeShowSold);
             setActivos(data || []);
         } catch (err) {
             console.error(err);
@@ -2936,10 +2939,8 @@ function ProductSummaryModal({
     }
 
     useEffect(() => {
-        // Prevent clearing if nothing has been typed and it's simply mounting
         if (!searchQuery.trim() && !hasSearched) return;
         
-        // If query is empty and we have already searched, clear instantly
         if (!searchQuery.trim() && hasSearched) {
             setActivos([]);
             setHasSearched(false);
@@ -2947,11 +2948,11 @@ function ProductSummaryModal({
         }
 
         const timeoutId = setTimeout(() => {
-            handleSearch();
+            handleSearch(undefined, showSold);
         }, 350);
 
         return () => clearTimeout(timeoutId);
-    }, [searchQuery]);
+    }, [searchQuery, showSold]);
 
     // Handle scan result directly bypassing standard form submit if needed
     const onScanResult = async (code: string) => {
@@ -2972,7 +2973,7 @@ function ProductSummaryModal({
         setLoading(true);
         setHasSearched(true);
         try {
-            const data = await searchActivosGlobal(cleanCode);
+            const data = await searchActivosGlobal(cleanCode, showSold);
             setActivos(data || []);
         } catch (err) {
             console.error(err);
@@ -2983,6 +2984,38 @@ function ProductSummaryModal({
 
     const totalStock = activos.reduce((acc, a) => acc + (a.stock || 1), 0);
     const totalAreas = new Set(activos.map(a => a.area)).size;
+
+    // Group assets by description for consolidation
+    const consolidated = useMemo(() => {
+        const groups: Record<string, { 
+            descripcionCorta: string; 
+            totalStock: number; 
+            areas: Set<string>; 
+            items: any[]; 
+            imagenUrl: string | null;
+        }> = {};
+        
+        for (const a of activos) {
+            const desc = a.descripcionCorta || 'Sin Descripción';
+            if (!groups[desc]) {
+                groups[desc] = {
+                    descripcionCorta: desc,
+                    totalStock: 0,
+                    areas: new Set<string>(),
+                    items: [],
+                    imagenUrl: a.imagenUrl || null
+                };
+            }
+            groups[desc].totalStock += a.stock ?? 1;
+            if (a.area) groups[desc].areas.add(a.area);
+            groups[desc].items.push(a);
+            if (a.imagenUrl && !groups[desc].imagenUrl) {
+                groups[desc].imagenUrl = a.imagenUrl;
+            }
+        }
+        
+        return Object.values(groups).sort((a, b) => b.totalStock - a.totalStock);
+    }, [activos]);
 
     return (
         <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
@@ -3005,29 +3038,43 @@ function ProductSummaryModal({
                         </button>
                     </div>
  
-                    <form onSubmit={handleSearch} className="relative flex items-center gap-2">
-                        <div className="relative flex-1">
-                            <input
-                                autoFocus={!initialIdQr}
-                                type="text"
-                                placeholder="Ej: BEA-000001, CIRCUITO, C-2-3..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value.toUpperCase().replace(/'/g, '-'))}
-                                className="w-full pl-10 pr-12 py-3 text-sm font-mono tracking-widest text-[#0500A3] border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-slate-50 transition-all placeholder:text-slate-300 placeholder:font-sans placeholder:tracking-normal placeholder:font-normal"
-                            />
-                            <QrCode className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                            <button
-                                type="button"
-                                onClick={() => setIsScanning(true)}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg transition-colors cursor-pointer"
-                                title="Escanear Código"
-                            >
-                                <Camera className="w-4 h-4" />
+                    <form onSubmit={(e) => handleSearch(e)} className="flex flex-col gap-2.5">
+                        <div className="flex items-center gap-2">
+                            <div className="relative flex-1">
+                                <input
+                                    autoFocus={!initialIdQr}
+                                    type="text"
+                                    placeholder="Ej: BEA-000001, CIRCUITO, C-2-3..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value.toUpperCase().replace(/'/g, '-'))}
+                                    className="w-full pl-10 pr-12 py-3 text-sm font-mono tracking-widest text-[#0500A3] border-2 border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-slate-50 transition-all placeholder:text-slate-300 placeholder:font-sans placeholder:tracking-normal placeholder:font-normal"
+                                />
+                                <QrCode className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                                <button
+                                    type="button"
+                                    onClick={() => setIsScanning(true)}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 rounded-lg transition-colors cursor-pointer"
+                                    title="Escanear Código"
+                                >
+                                    <Camera className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <button type="submit" disabled={loading || !searchQuery.trim()} className="bg-[#0500A3] hover:bg-[#0600c2] text-white px-5 py-3 rounded-xl font-bold transition-all disabled:opacity-50 flex items-center gap-2 shrink-0">
+                                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buscar'}
                             </button>
                         </div>
-                        <button type="submit" disabled={loading || !searchQuery.trim()} className="bg-[#0500A3] hover:bg-[#0600c2] text-white px-5 py-3 rounded-xl font-bold transition-all disabled:opacity-50 flex items-center gap-2">
-                            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Buscar'}
-                        </button>
+                        <div className="flex items-center gap-2 pl-1 select-none">
+                            <input
+                                type="checkbox"
+                                id="show-sold-checkbox"
+                                checked={showSold}
+                                onChange={(e) => setShowSold(e.target.checked)}
+                                className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 cursor-pointer"
+                            />
+                            <label htmlFor="show-sold-checkbox" className="text-xs text-slate-600 font-semibold cursor-pointer">
+                                Incluir productos vendidos / entregados
+                            </label>
+                        </div>
                     </form>
                 </div>
  
@@ -3073,24 +3120,109 @@ function ProductSummaryModal({
                             </div>
                             
                             <hr className="border-slate-200" />
-
+ 
                             {/* View Toggle */}
                             <div className="flex items-center justify-between">
                                 <h3 className="font-bold text-slate-800 flex items-center gap-2">
                                     <MapPin className="w-4 h-4 text-slate-400" /> Locaciones Actuales
                                 </h3>
                                 <div className="bg-white border border-slate-200 p-1 rounded-lg flex items-center shrink-0 shadow-sm">
-                                    <button onClick={() => setViewMode('cards')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'cards' ? 'bg-slate-100 text-[#0500A3]' : 'text-slate-400 hover:text-slate-600'}`} title="Cuadrícula">
+                                    <button onClick={() => setViewMode('consolidated')} className={`p-1.5 rounded-md text-xs font-bold transition-colors ${viewMode === 'consolidated' ? 'bg-slate-100 text-[#0500A3]' : 'text-slate-400 hover:text-slate-600'}`} title="Consolidado">
+                                        Consolidado
+                                    </button>
+                                    <button onClick={() => setViewMode('cards')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'cards' ? 'bg-slate-100 text-[#0500A3]' : 'text-slate-400 hover:text-slate-600'}`} title="Cuadrícula Desglosada">
                                         <LayoutGrid className="w-4 h-4" />
                                     </button>
-                                    <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-slate-100 text-[#0500A3]' : 'text-slate-400 hover:text-slate-600'}`} title="Lista">
+                                    <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-slate-100 text-[#0500A3]' : 'text-slate-400 hover:text-slate-600'}`} title="Lista Desglosada">
                                         <List className="w-4 h-4" />
-                                    </button>
-                                    <button onClick={() => setViewMode('badges')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'badges' ? 'bg-slate-100 text-[#0500A3]' : 'text-slate-400 hover:text-slate-600'}`} title="Etiquetas">
-                                        <Tag className="w-4 h-4" />
                                     </button>
                                 </div>
                             </div>
+ 
+                            {/* Consolidated View */}
+                            {viewMode === 'consolidated' && (
+                                <div className="space-y-3.5">
+                                    {consolidated.map((group) => {
+                                        const isExpanded = !!expandedGroups[group.descripcionCorta];
+                                        const ubs = Array.from(group.areas).join(', ');
+                                        return (
+                                            <div key={group.descripcionCorta} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm transition-all hover:border-[#0500A3]/20">
+                                                {/* Header of Consolidated Card */}
+                                                <div 
+                                                    onClick={() => setExpandedGroups(prev => ({ ...prev, [group.descripcionCorta]: !isExpanded }))}
+                                                    className="p-4 flex items-center justify-between gap-4 cursor-pointer hover:bg-slate-50/55 select-none transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                        {group.imagenUrl ? (
+                                                            <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 border border-slate-200 bg-slate-50 relative">
+                                                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                                <img src={group.imagenUrl} alt="" className="w-full h-full object-cover" />
+                                                            </div>
+                                                        ) : (
+                                                            <div className="w-12 h-12 rounded-lg shrink-0 border border-slate-150 bg-slate-100 flex items-center justify-center text-slate-400">
+                                                                <Package className="w-6 h-6" />
+                                                            </div>
+                                                        )}
+                                                        <div className="min-w-0 flex-1">
+                                                            <h4 className="font-extrabold text-sm text-slate-800 leading-snug truncate">
+                                                                {group.descripcionCorta}
+                                                            </h4>
+                                                            <p className="text-xs text-slate-500 truncate mt-1 flex items-center gap-1">
+                                                                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                                                <span className="font-medium">Ubicaciones: </span>
+                                                                <span className="text-slate-600 font-semibold">{ubs || 'Sin ubicación'}</span>
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <div className="shrink-0 flex items-center gap-3">
+                                                        <div className="bg-blue-50 text-[#0500A3] border border-blue-100 font-extrabold text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-sm">
+                                                            <span>{group.totalStock}</span>
+                                                            <span className="text-[10px] uppercase font-bold text-[#0500A3]/75">U.</span>
+                                                        </div>
+                                                        <ChevronRight className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${isExpanded ? 'rotate-90 text-[#0500A3]' : ''}`} />
+                                                    </div>
+                                                </div>
+ 
+                                                {/* Details Breakdown */}
+                                                {isExpanded && (
+                                                    <div className="border-t border-slate-150 bg-slate-50/50 p-3.5 space-y-2 divide-y divide-slate-100">
+                                                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-wider mb-2">Desglose de Equipos Individuales</p>
+                                                        {group.items.map((item) => (
+                                                            <a 
+                                                                key={item.id}
+                                                                href={`/ficha-tecnica/${item.idQr}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center justify-between py-2.5 hover:bg-slate-100/70 rounded-lg px-2 transition-colors gap-3 block cursor-pointer group"
+                                                            >
+                                                                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                                                    <span className="font-mono text-xs font-bold text-[#0500A3] bg-blue-50 border border-blue-100 px-2 py-0.5 rounded shadow-sm group-hover:bg-[#0500A3] group-hover:text-white group-hover:border-[#0500A3] transition-all">
+                                                                        {item.idQr}
+                                                                    </span>
+                                                                    <span className="text-xs font-bold text-slate-700 truncate">
+                                                                        {item.area}
+                                                                    </span>
+                                                                    {item.referencia && (
+                                                                        <span className="text-[10px] text-slate-400 bg-slate-100 border px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                                                                            Ref: {item.referencia}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                                <div className="shrink-0 flex items-center gap-2">
+                                                                    <span className="text-xs text-slate-500 font-semibold bg-white border border-slate-200 px-1.5 py-0.5 rounded shadow-sm">
+                                                                        x{item.stock ?? 1}
+                                                                    </span>
+                                                                    <EstatusBadge estatus={item.estatusContable} />
+                                                                </div>
+                                                            </a>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
 
                             {/* Views */}
                             {viewMode === 'cards' && (
@@ -3145,17 +3277,6 @@ function ProductSummaryModal({
                                                 <div className="scale-90 origin-right"><EstatusBadge estatus={a.estatusContable} /></div>
                                             </div>
                                         </a>
-                                    ))}
-                                </div>
-                            )}
-
-                            {viewMode === 'badges' && (
-                                <div className="flex flex-wrap gap-2">
-                                    {activos.map(a => (
-                                        <div key={a.id} className="flex items-center bg-white border border-slate-200 hover:border-[#0500A3]/30 transition-all rounded-full pl-3 pr-1 py-1 shadow-sm">
-                                            <span className="text-xs font-bold text-slate-700 mr-2 flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-slate-400" /> {a.area}</span>
-                                            <span className="text-[10px] font-black bg-[#0500A3] text-white px-2 py-0.5 rounded-full shadow-inner">{a.stock ?? 1} u.</span>
-                                        </div>
                                     ))}
                                 </div>
                             )}

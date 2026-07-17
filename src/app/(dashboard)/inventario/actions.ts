@@ -312,21 +312,47 @@ function buildSearchOR(variants: string[], fields: string[]) {
 }
 
 // ─── Search Activos Globally ─────────────────────────────────────────────────
-export async function searchActivosGlobal(query: string) {
+export async function searchActivosGlobal(query: string, includeSold: boolean = false) {
     if (!query) return [];
     try {
         const orgId = await getOrgId();
         
-        // Generar variantes: con tildes, sin tildes, original
-        const variants = addAccentVariants(query);
+        // Limpiar consulta
+        const cleanQuery = query.trim().toUpperCase();
+        if (cleanQuery.length < 2) return [];
+
+        // Detectar si parece un código de barras (números únicamente) o un código QR
+        const isExactCode = /^[A-Z]{3,}-[0-9-]+$/i.test(cleanQuery) || /^[0-9]{5,}$/.test(cleanQuery);
+
+        const variants = addAccentVariants(cleanQuery);
         const fields = ['idQr', 'codigoBarras', 'descripcionCorta', 'modelo', 'area', 'marca', 'referencia', 'serie'];
-        
-        const activos = await prisma.activoFijo.findMany({
-            where: {
-                organizationId: orgId,
-                esParaRenta: false,
+
+        const baseWhere: any = {
+            organizationId: orgId,
+            esParaRenta: false,
+        };
+
+        // Excluir vendidos si no está habilitado el flag
+        if (!includeSold) {
+            baseWhere.estatusContable = {
+                notIn: ['VENDIDO', 'VENDIDO/ENTREGADO']
+            };
+        }
+
+        const whereClause = {
+            ...baseWhere,
+            ...(isExactCode ? {
+                OR: [
+                    { idQr: { startsWith: cleanQuery, mode: 'insensitive' as const } },
+                    { codigoBarras: { equals: cleanQuery } }
+                ]
+            } : {
                 OR: buildSearchOR(variants, fields)
-            },
+            })
+        };
+
+        const activos = await prisma.activoFijo.findMany({
+            where: whereClause,
             orderBy: [{ descripcionCorta: 'asc' }, { area: 'asc' }],
             select: {
                 id: true,
@@ -341,11 +367,11 @@ export async function searchActivosGlobal(query: string) {
                 lote: true,
                 createdBy: { select: { nombre: true, apellido: true, email: true } }
             },
-            take: 100
+            take: 150
         });
         return activos;
     } catch (e) {
-        console.error(e);
+        console.error("searchActivosGlobal error:", e);
         return [];
     }
 }
