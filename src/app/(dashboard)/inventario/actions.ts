@@ -324,8 +324,14 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
         // Detectar si parece un código de barras (números únicamente) o un código QR
         const isExactCode = /^[A-Z]{3,}-[0-9-]+$/i.test(cleanQuery) || /^[0-9]{5,}$/.test(cleanQuery);
 
-        const variants = addAccentVariants(cleanQuery);
-        const fields = ['idQr', 'codigoBarras', 'descripcionCorta', 'modelo', 'area', 'marca', 'referencia', 'serie'];
+        const rawWords = cleanQuery.split(/\s+/).filter(Boolean);
+        const words = rawWords.filter(w => w.length >= 3);
+        const searchWords = words.length > 0 ? words : rawWords;
+
+        const isMultiWord = searchWords.length > 1;
+        const searchFields = isMultiWord 
+            ? ['descripcionCorta', 'modelo', 'referencia', 'marca']
+            : ['idQr', 'codigoBarras', 'descripcionCorta', 'modelo', 'area', 'marca', 'referencia', 'serie'];
 
         const baseWhere: any = {
             organizationId: orgId,
@@ -340,6 +346,18 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
             };
         }
 
+        const andConditions: any[] = [];
+        for (const word of searchWords) {
+            const wordVars = addAccentVariants(word);
+            const wordOR: any[] = [];
+            for (const v of wordVars) {
+                for (const field of searchFields) {
+                    wordOR.push({ [field]: { contains: v, mode: 'insensitive' as const } });
+                }
+            }
+            andConditions.push({ OR: wordOR });
+        }
+
         const whereClause = {
             ...baseWhere,
             ...(isExactCode ? {
@@ -348,7 +366,7 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
                     { codigoBarras: { equals: cleanQuery } }
                 ]
             } : {
-                OR: buildSearchOR(variants, fields)
+                AND: andConditions
             })
         };
 
@@ -370,6 +388,7 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
             },
             take: 150
         });
+
         return activos;
     } catch (e) {
         console.error("searchActivosGlobal error:", e);
