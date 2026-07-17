@@ -349,7 +349,7 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                                     </span>
                                 </div>
                                 <div className="col-span-2 border-t border-blue-100/50 pt-2">
-                                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Cliente Comprador</span>
+                                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Cliente Cotizó</span>
                                     <span className="font-bold text-slate-800 text-sm block">{sale.cliente?.nombre || 'Cliente Particular'}</span>
                                     {sale.cliente?.rtn && <span className="block text-slate-500 font-mono text-[11px] mt-0.5">RTN: {sale.cliente.rtn}</span>}
                                     {sale.cliente?.telefono && <span className="block text-slate-500 text-[11px]">Tel: {sale.cliente.telefono}</span>}
