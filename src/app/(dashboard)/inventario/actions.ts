@@ -330,6 +330,7 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
         const baseWhere: any = {
             organizationId: orgId,
             esParaRenta: false,
+            area: { not: 'SERVICIOS' }
         };
 
         // Excluir vendidos si no está habilitado el flag
