@@ -53,6 +53,7 @@ export default function SoporteDetailClient({
   const isRecepcion = isSoporteAdmin || role === 'RECEPCION' || cRole === 'RECEPCION' || cRole.includes('RECEPCION');
   const isTecnico = isSoporteAdmin || role === 'TECNICO' || role === 'INVENTARIO_EDITOR' || cRole === 'TECNICO' || cRole.includes('TECNICO');
   const isGerente = isSoporteAdmin || role === 'GERENTE' || cRole === 'GERENTE' || cRole.includes('GERENTE');
+  const canEditOrder = isGlobal || isRecepcion || accessibleModules.includes('editar_ordenes');
 
   const router = useRouter();
   const [loading, setLoading] = React.useState(false);
@@ -99,6 +100,11 @@ export default function SoporteDetailClient({
   const [savingDatos, setSavingDatos] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
   const cameraRef = React.useRef<HTMLInputElement>(null);
+
+  const [editAplicaMantenimientos, setEditAplicaMantenimientos] = React.useState(false);
+  const [editGarantiaMeses, setEditGarantiaMeses] = React.useState('');
+  const [editFrecuenciaMantenimientoMeses, setEditFrecuenciaMantenimientoMeses] = React.useState('3');
+  const [editCantidadMantenimientos, setEditCantidadMantenimientos] = React.useState('');
   const [lightboxUrl, setLightboxUrl] = React.useState<string | null>(null);
   const [isPreviewRecepcionTwilioOpen, setIsPreviewRecepcionTwilioOpen] = React.useState(false);
   const [isSendingRecepcionTwilio, setIsSendingRecepcionTwilio] = React.useState(false);
@@ -159,6 +165,10 @@ export default function SoporteDetailClient({
     setEditTipoTrabajo(orden.tipoTrabajo || 'NORMAL');
     setEditCobertura(orden.cobertura || 'externa');
     setEditFechaRecibido(formatForDateInput(orden.fechaRecibido));
+    setEditAplicaMantenimientos(orden.aplicaMantenimientos || false);
+    setEditGarantiaMeses(orden.garantiaMeses?.toString() || '');
+    setEditFrecuenciaMantenimientoMeses(orden.frecuenciaMantenimientoMeses?.toString() || '3');
+    setEditCantidadMantenimientos(orden.cantidadMantenimientos?.toString() || '');
     setIsEditModalOpen(true);
   };
 
@@ -234,6 +244,10 @@ export default function SoporteDetailClient({
         tipoTrabajo: editTipoTrabajo,
         cobertura: editCobertura,
         fechaRecibido: editFechaRecibido,
+        aplicaMantenimientos: editAplicaMantenimientos,
+        garantiaMeses: editGarantiaMeses ? parseInt(editGarantiaMeses) : null,
+        frecuenciaMantenimientoMeses: editFrecuenciaMantenimientoMeses ? parseInt(editFrecuenciaMantenimientoMeses) : null,
+        cantidadMantenimientos: editCantidadMantenimientos ? parseInt(editCantidadMantenimientos) : null,
       });
       if (res.success) {
         toast.success("Datos de la orden actualizados con éxito");
@@ -396,7 +410,7 @@ export default function SoporteDetailClient({
               <ArrowLeft className="w-3.5 h-3.5" /> Estado Anterior
             </button>
           )}
-          {(isGlobal || isRecepcion) && (
+          {canEditOrder && (
             <button
               type="button"
               onClick={() => handleOpenEditModal()}
@@ -992,6 +1006,61 @@ export default function SoporteDetailClient({
                     <option value="Cheque">Cheque</option>
                   </select>
                 </div>
+              </div>
+
+              {/* Programación de Garantías y Mantenimientos (Edición) */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="editAplicaMantenimientos"
+                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                    checked={editAplicaMantenimientos}
+                    onChange={(e) => setEditAplicaMantenimientos(e.target.checked)}
+                  />
+                  <label htmlFor="editAplicaMantenimientos" className="text-xs font-bold text-slate-800 cursor-pointer select-none">
+                    Aplica Garantía o Programación de Mantenimiento Preventivo Periódico
+                  </label>
+                </div>
+
+                {editAplicaMantenimientos && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in duration-200">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Garantía (Meses)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        className="w-full px-3 py-2.5 rounded-lg border border-slate-350 text-xs font-semibold focus:ring-2 outline-none focus:ring-indigo-100 bg-white"
+                        value={editGarantiaMeses}
+                        onChange={(e) => setEditGarantiaMeses(e.target.value)}
+                        placeholder="Ej. 12"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cada cuántos meses (Frecuencia) *</label>
+                      <input
+                        type="number"
+                        required
+                        min="1"
+                        className="w-full px-3 py-2.5 rounded-lg border border-slate-350 text-xs font-semibold focus:ring-2 outline-none focus:ring-indigo-100 bg-white"
+                        value={editFrecuenciaMantenimientoMeses}
+                        onChange={(e) => setEditFrecuenciaMantenimientoMeses(e.target.value)}
+                        placeholder="Ej. 3"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cantidad de Mantenimientos</label>
+                      <input
+                        type="number"
+                        min="1"
+                        className="w-full px-3 py-2.5 rounded-lg border border-slate-350 text-xs font-semibold focus:ring-2 outline-none focus:ring-indigo-100 bg-white"
+                        value={editCantidadMantenimientos}
+                        onChange={(e) => setEditCantidadMantenimientos(e.target.value)}
+                        placeholder="Vacío = Permanente / Ilimitado"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Fotos Estado Físico (R2) */}

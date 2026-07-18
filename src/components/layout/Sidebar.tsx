@@ -94,6 +94,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
           { name: 'Cotizaciones', href: '/cotizaciones', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Facturación', href: '/facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Órdenes de Entrega', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Garantías y Mantenimientos', href: '/mantenimientos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Cierre de Caja', href: '/cierre-caja' }
         ]
       },

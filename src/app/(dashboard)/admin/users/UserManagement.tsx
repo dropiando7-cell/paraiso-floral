@@ -107,6 +107,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/contactos', label: 'Directorio de Contactos' },
         { id: '/soporte', label: 'Soporte y Reparaciones' },
         { id: 'eliminar_ordenes', label: 'Soporte - Eliminar Órdenes' },
+        { id: 'editar_ordenes', label: 'Soporte - Editar Órdenes' },
         { id: '/cotizaciones', label: 'Cotizaciones' },
         { id: '/facturas', label: 'Facturación' },
         { id: 'facturas_propias', label: 'Facturación - Ver solo cotizaciones/facturas propias' },

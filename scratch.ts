@@ -3,20 +3,23 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function check() {
-  const code1 = 'BEA-001-000099';
-  const code2 = 'BEA-001-00009';
-  
-  const activo1 = await prisma.activoFijo.findFirst({ where: { idQr: code1 } });
-  const activo2 = await prisma.activoFijo.findFirst({ where: { idQr: code2 } });
-  
-  console.log('Activo BEA-001-000099:', activo1 ? { ...activo1, descripcionCorta: activo1.descripcionCorta, imagenUrl: activo1.imagenUrl } : 'Not found');
-  console.log('Activo BEA-001-00009:', activo2 ? { ...activo2, descripcionCorta: activo2.descripcionCorta, imagenUrl: activo2.imagenUrl } : 'Not found');
+  const email = 'dropiando7@gmail.com';
+  const realOrgId = '2e6b71bb-a475-4dd3-83a4-b5fb6b6193f8';
 
-  const prod1 = await prisma.producto.findFirst({ where: { sku: code1 } });
-  const prod2 = await prisma.producto.findFirst({ where: { sku: code2 } });
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) {
+    console.log(`User ${email} not found.`);
+    return;
+  }
 
-  console.log('Producto BEA-001-000099:', prod1 ? prod1.nombre : 'Not found');
-  console.log('Producto BEA-001-00009:', prod2 ? prod2.nombre : 'Not found');
+  console.log(`Current org of ${email}: ${user.organizationId}`);
+  
+  await prisma.user.update({
+    where: { email },
+    data: { organizationId: realOrgId }
+  });
+
+  console.log(`Updated ${email} organizationId to ${realOrgId}.`);
 }
 
 check().catch(console.error).finally(() => prisma.$disconnect());

@@ -74,6 +74,10 @@ export async function createOrdenTrabajo(data: {
     tipoTrabajo?: string;
     cobertura?: string;
     fechaRecibido?: string | Date;
+    aplicaMantenimientos?: boolean;
+    garantiaMeses?: number;
+    frecuenciaMantenimientoMeses?: number;
+    cantidadMantenimientos?: number;
 }) {
     const orgId = await getOrgId();
 
@@ -143,10 +147,19 @@ export async function createOrdenTrabajo(data: {
             fechaRecibido: data.fechaRecibido ? new Date(data.fechaRecibido) : new Date(),
             tecnicosAsignados: {
                 connect: data.tecnicoIds?.map(id => ({ id })) || []
-            }
+            },
+            aplicaMantenimientos: data.aplicaMantenimientos || false,
+            garantiaMeses: data.garantiaMeses ? parseInt(data.garantiaMeses.toString()) : null,
+            frecuenciaMantenimientoMeses: data.frecuenciaMantenimientoMeses ? parseInt(data.frecuenciaMantenimientoMeses.toString()) : 3,
+            cantidadMantenimientos: data.cantidadMantenimientos ? parseInt(data.cantidadMantenimientos.toString()) : null,
         },
         include: { cliente: true }
     });
+
+    // Sincronizar mantenimientos
+    if (orden.aplicaMantenimientos) {
+        await syncMantenimientosDesdeOrdenTrabajo(orden.id);
+    }
 
     if (clienteRecord.telefono) {
         const phoneWithCountryCode = clienteRecord.telefono.startsWith('+') ? clienteRecord.telefono : `+504${clienteRecord.telefono}`;
@@ -875,6 +888,10 @@ export async function updateDatosOrden(
         tipoTrabajo?: string;
         cobertura?: string;
         fechaRecibido?: string | Date;
+        aplicaMantenimientos?: boolean;
+        garantiaMeses?: number | null;
+        frecuenciaMantenimientoMeses?: number | null;
+        cantidadMantenimientos?: number | null;
     }
 ) {
     const orgId = await getOrgId();
@@ -893,11 +910,17 @@ export async function updateDatosOrden(
             tipoTrabajo: data.tipoTrabajo || undefined,
             cobertura: data.cobertura || undefined,
             fechaRecibido: data.fechaRecibido ? new Date(data.fechaRecibido) : undefined,
+            aplicaMantenimientos: data.aplicaMantenimientos,
+            garantiaMeses: data.garantiaMeses !== undefined ? (data.garantiaMeses ? parseInt(data.garantiaMeses.toString()) : null) : undefined,
+            frecuenciaMantenimientoMeses: data.frecuenciaMantenimientoMeses !== undefined ? (data.frecuenciaMantenimientoMeses ? parseInt(data.frecuenciaMantenimientoMeses.toString()) : null) : undefined,
+            cantidadMantenimientos: data.cantidadMantenimientos !== undefined ? (data.cantidadMantenimientos ? parseInt(data.cantidadMantenimientos.toString()) : null) : undefined,
         },
         include: {
             cliente: true
         }
     });
+
+    await syncMantenimientosDesdeOrdenTrabajo(id);
 
     if (updated.clienteId && (data.clienteNombre || data.clienteTelefono !== undefined)) {
         await prisma.cliente.update({
@@ -1435,5 +1458,128 @@ export async function enviarNotificacionRecepcionTwilio(ordenId: string) {
         return { success: false, error: e.message || "Error al enviar recepción" };
     }
 }
+
+export async function syncMantenimientosDesdeOrdenTrabajo(ordenId: string) {
+    try {
+        const orden = await prisma.ordenTrabajo.findUnique({
+            where: { id: ordenId },
+            include: { cliente: true }
+        });
+        if (!orden) return;
+
+        if (!orden.aplicaMantenimientos) {
+            // Si ya no aplica, eliminar mantenimientos programados que aún no se hayan realizado
+            const eq = await prisma.equipoCliente.findFirst({
+                where: {
+                    organizationId: orden.organizationId,
+                    clienteId: orden.clienteId,
+                    nombre: orden.equipoDano,
+                    serie: orden.serie || undefined
+                }
+            });
+            if (eq) {
+                await prisma.mantenimiento.deleteMany({
+                    where: {
+                        equipoClienteId: eq.id,
+                        estado: "PROGRAMADO"
+                    }
+                });
+            }
+            return;
+        }
+
+        // 1. Encontrar o crear EquipoCliente
+        let equipoCliente = await prisma.equipoCliente.findFirst({
+            where: {
+                organizationId: orden.organizationId,
+                clienteId: orden.clienteId,
+                nombre: orden.equipoDano,
+                serie: orden.serie || undefined
+            }
+        });
+
+        const brandModelSplit = orden.marcaModelo ? orden.marcaModelo.split(" ") : [];
+        const marca = brandModelSplit[0] || null;
+        const modelo = brandModelSplit.slice(1).join(" ") || null;
+
+        let fechaVencimientoGarantia: Date | null = null;
+        if (orden.garantiaMeses) {
+            const baseDate = new Date(orden.fechaRecibido);
+            fechaVencimientoGarantia = new Date(baseDate);
+            fechaVencimientoGarantia.setMonth(fechaVencimientoGarantia.getMonth() + orden.garantiaMeses);
+        }
+
+        if (!equipoCliente) {
+            equipoCliente = await prisma.equipoCliente.create({
+                data: {
+                    organizationId: orden.organizationId,
+                    clienteId: orden.clienteId,
+                    nombre: orden.equipoDano,
+                    marca,
+                    modelo,
+                    serie: orden.serie,
+                    fechaInstalacion: orden.fechaRecibido,
+                    garantiaMeses: orden.garantiaMeses,
+                    fechaVencimientoGarantia,
+                    mantenimientosGratisTotales: orden.cantidadMantenimientos || 0,
+                    mantenimientosGratisRealizados: 0
+                }
+            });
+        } else {
+            equipoCliente = await prisma.equipoCliente.update({
+                where: { id: equipoCliente.id },
+                data: {
+                    garantiaMeses: orden.garantiaMeses,
+                    fechaVencimientoGarantia,
+                    mantenimientosGratisTotales: orden.cantidadMantenimientos || equipoCliente.mantenimientosGratisTotales
+                }
+            });
+        }
+
+        // 2. Generar mantenimientos
+        // Eliminar programados previos
+        await prisma.mantenimiento.deleteMany({
+            where: {
+                equipoClienteId: equipoCliente.id,
+                estado: "PROGRAMADO"
+            }
+        });
+
+        const countMants = orden.cantidadMantenimientos || 12; // Genera 12 mantenimientos si no se especifica
+        const freqMeses = orden.frecuenciaMantenimientoMeses || 3;
+        const baseDate = new Date(orden.fechaRecibido);
+
+        for (let i = 0; i < countMants; i++) {
+            const scheduledDate = new Date(baseDate);
+            scheduledDate.setMonth(scheduledDate.getMonth() + (i * freqMeses));
+
+            // Verificar si ya existe un mantenimiento en esta fecha para no duplicar
+            const extExist = await prisma.mantenimiento.findFirst({
+                where: {
+                    equipoClienteId: equipoCliente.id,
+                    fechaProgramada: scheduledDate
+                }
+            });
+
+            if (!extExist) {
+                await prisma.mantenimiento.create({
+                    data: {
+                        organizationId: orden.organizationId,
+                        equipoClienteId: equipoCliente.id,
+                        fechaProgramada: scheduledDate,
+                        tipo: "PREVENTIVO",
+                        estado: i === 0 ? "REALIZADO" : "PROGRAMADO",
+                        fechaRealizada: i === 0 ? scheduledDate : null,
+                        esGratis: false,
+                        notas: i === 0 ? `Primer mantenimiento (fecha de la orden de trabajo)` : `Mantenimiento preventivo periódico`
+                    }
+                });
+            }
+        }
+    } catch (err) {
+        console.error("Error in syncMantenimientosDesdeOrdenTrabajo:", err);
+    }
+}
+
 
 

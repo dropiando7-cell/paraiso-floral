@@ -26,7 +26,11 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
     tecnicoIds: [] as string[],
     tipoTrabajo: "NORMAL",
     cobertura: "externa",
-    fechaRecibido: getLocalDateString()
+    fechaRecibido: getLocalDateString(),
+    aplicaMantenimientos: false,
+    garantiaMeses: "",
+    frecuenciaMantenimientoMeses: "3",
+    cantidadMantenimientos: ""
   });
   const [photos, setPhotos] = useState<{name: string; file: File; url: string; size: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -140,7 +144,11 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
             tecnicoIds: [],
             tipoTrabajo: "NORMAL",
             cobertura: "externa",
-            fechaRecibido: getLocalDateString()
+            fechaRecibido: getLocalDateString(),
+            aplicaMantenimientos: false,
+            garantiaMeses: "",
+            frecuenciaMantenimientoMeses: "3",
+            cantidadMantenimientos: ""
           });
           setPhotos([]);
       }, 3000);
@@ -309,6 +317,61 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
             <option value="Cheque">Cheque</option>
           </select>
         </div>
+      </div>
+
+      {/* Programación de Garantías y Mantenimientos */}
+      <div className="mb-4 border-t border-slate-100 pt-4 mt-4 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
+        <div className="flex items-center gap-2 mb-3">
+          <input
+            type="checkbox"
+            id="aplicaMantenimientos"
+            className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-550 cursor-pointer"
+            checked={form.aplicaMantenimientos}
+            onChange={e => setForm(p => ({ ...p, aplicaMantenimientos: e.target.checked }))}
+          />
+          <label htmlFor="aplicaMantenimientos" className="text-xs font-bold text-slate-800 cursor-pointer select-none">
+            Aplica Garantía o Programación de Mantenimiento Preventivo Periódico
+          </label>
+        </div>
+
+        {form.aplicaMantenimientos && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 animate-fade-in">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Garantía (Meses)</label>
+              <input
+                type="number"
+                min="0"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold focus:ring-2 outline-none focus:ring-indigo-100"
+                value={form.garantiaMeses}
+                onChange={e => handleChange("garantiaMeses", e.target.value)}
+                placeholder="Ej. 12"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cada cuántos meses (Frecuencia) *</label>
+              <input
+                type="number"
+                required
+                min="1"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold focus:ring-2 outline-none focus:ring-indigo-100"
+                value={form.frecuenciaMantenimientoMeses}
+                onChange={e => handleChange("frecuenciaMantenimientoMeses", e.target.value)}
+                placeholder="Ej. 3"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Cantidad de Mantenimientos</label>
+              <input
+                type="number"
+                min="1"
+                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs font-semibold focus:ring-2 outline-none focus:ring-indigo-100"
+                value={form.cantidadMantenimientos}
+                onChange={e => handleChange("cantidadMantenimientos", e.target.value)}
+                placeholder="Vacío = Permanente / Ilimitado"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Asignación de Técnicos */}

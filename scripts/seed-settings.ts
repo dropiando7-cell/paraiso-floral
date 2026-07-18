@@ -59,6 +59,14 @@ async function main() {
                 heroTitle: 'Equipamiento Médico y Soporte Biomédico Lider en Honduras',
                 heroSubtitle: 'Diseñando soluciones integrales en venta, distribución y soporte técnico especializado para hospitales y clínicas a nivel nacional.'
             })
+        },
+        {
+            key: 'mantenimiento_notificar_dias',
+            value: '5'
+        },
+        {
+            key: 'mantenimiento_whatsapp_template_sid',
+            value: 'HXa363e371108b8cd13811d22b75ccbc74'
         }
     ];
 

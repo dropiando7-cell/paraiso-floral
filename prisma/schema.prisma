@@ -63,6 +63,8 @@ model Organization {
   ordenesEntrega        OrdenEntrega[]
   digitalCards          DigitalCard[]
   activityLogs          ActivityLog[]
+  equiposCliente        EquipoCliente[]
+  mantenimientos        Mantenimiento[]
 
   @@map("organizations")
 }
@@ -150,6 +152,7 @@ model User {
   isIdle                Boolean                @default(false)
   isAssignable          Boolean                @default(true)
   activityLogs          ActivityLog[]          @relation("UserActivityLogs")
+  mantenimientosRealizados Mantenimiento[]     @relation("MantenimientosRealizados")
 
   @@map("users")
 }
@@ -445,12 +448,15 @@ model ActivoFijo {
   ordenesTrabajoRepuesto OrdenTrabajoRepuesto[]
   historial             HistorialActivo[]    @relation("ActivoHistorial")
   kanbanMaterials       KanbanTaskMaterial[]
+  equipoCliente         EquipoCliente?
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
   @@index([organizationId, estatusContable])
   @@index([organizationId, estadoDano])
   @@index([organizationId, area])
+  @@index([organizationId, codigoBarras])
+  @@index([organizationId, serie])
   @@map("activos_fijos")
 }
 
@@ -668,6 +674,7 @@ model Cliente {
   facturas       Factura[]
   ordenesTrabajo OrdenTrabajo[]
   rentasEquipo   RentaEquipo[]
+  equiposCliente EquipoCliente[]
 
   @@index([organizationId])
   @@index([nombre])
@@ -730,6 +737,7 @@ model Factura {
   firmaClienteBase64       String?          @db.Text
   firmaClienteAt           DateTime?
   ordenEntrega             OrdenEntrega?
+  equiposCliente           EquipoCliente[]
 
   @@unique([organizationId, correlativo])
   @@index([organizationId])
@@ -785,6 +793,11 @@ model OrdenTrabajo {
   fotosTecnico       String[]  @default([])
   diagnosticoTecnico String?
   detalleManoObra    Json?
+
+  aplicaMantenimientos         Boolean   @default(false)
+  garantiaMeses                Int?
+  frecuenciaMantenimientoMeses Int?      @default(3)
+  cantidadMantenimientos       Int?
 
   usuarioRecepcionId  String? @db.Uuid
   tecnicoReparacionId String? @db.Uuid
@@ -1383,6 +1396,67 @@ model ActivityLog {
   @@index([userId])
   @@index([createdAt])
   @@map("activity_logs")
+}
+
+model EquipoCliente {
+  id                      String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId          String          @db.Uuid
+  clienteId               String          @db.Uuid
+  activoFijoId            String?         @db.Uuid @unique
+  facturaId               String?         @db.Uuid
+  nombre                  String
+  marca                   String?
+  modelo                  String?
+  serie                   String?
+  codigoEtiqueta          String?
+  fechaInstalacion        DateTime?
+  garantiaMeses           Int?
+  fechaVencimientoGarantia DateTime?
+  mantenimientosGratisTotales Int         @default(0)
+  mantenimientosGratisRealizados Int    @default(0)
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
+
+  cliente                 Cliente         @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  activoFijo              ActivoFijo?     @relation(fields: [activoFijoId], references: [id], onDelete: SetNull)
+  factura                 Factura?        @relation(fields: [facturaId], references: [id], onDelete: SetNull)
+  organization            Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  mantenimientos          Mantenimiento[]
+
+  @@unique([organizationId, serie])
+  @@unique([organizationId, codigoEtiqueta])
+  @@index([organizationId])
+  @@index([clienteId])
+  @@map("equipos_clientes")
+}
+
+model Mantenimiento {
+  id                String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId    String        @db.Uuid
+  equipoClienteId   String        @db.Uuid
+  fechaProgramada   DateTime
+  fechaRealizada    DateTime?
+  tipo              String        @default("PREVENTIVO")
+  estado            String        @default("PROGRAMADO")
+  notas             String?       @db.Text
+  realizadoPorId    String?       @db.Uuid
+  esGratis          Boolean       @default(false)
+  costo             Decimal?      @db.Decimal(12, 2)
+  notificado        Boolean       @default(false)
+  fechaNotificacion DateTime?
+  whatsappSid       String?
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  equipo            EquipoCliente @relation(fields: [equipoClienteId], references: [id], onDelete: Cascade)
+  realizadoPor      User?         @relation("MantenimientosRealizados", fields: [realizadoPorId], references: [id], onDelete: SetNull)
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([equipoClienteId])
+  @@index([fechaProgramada])
+  @@map("mantenimientos")
 }
 
 

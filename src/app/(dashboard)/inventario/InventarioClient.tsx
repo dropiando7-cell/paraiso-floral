@@ -3696,21 +3696,29 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
         }
     }
 
-    async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea, o = filtroOrigen, c = filtroCondicion) {
+    async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea, o = filtroOrigen, c = filtroCondicion, refreshStats = true) {
         setIsRefetching(true);
         setLoading(false); // Make sure blocking loader is off
         try {
             const resolvedAreaFilter = a || (currentLockedArea || undefined);
-            const [data, st] = await Promise.all([
-                isRentaMode 
+            if (refreshStats) {
+                const [data, st] = await Promise.all([
+                    isRentaMode 
+                        ? getEquiposParaRenta(p, s, resolvedAreaFilter, e)
+                        : getActivos(p, s, resolvedAreaFilter, e, o, c),
+                    isRentaMode 
+                        ? getRentaStats(resolvedAreaFilter)
+                        : getActivoStats(currentLockedArea || undefined)
+                ]);
+                setActivos(data.activos as Activo[]);
+                setTotal(data.total); setTotalPages(data.totalPages); setStats(st);
+            } else {
+                const data = await (isRentaMode 
                     ? getEquiposParaRenta(p, s, resolvedAreaFilter, e)
-                    : getActivos(p, s, resolvedAreaFilter, e, o, c),
-                isRentaMode 
-                    ? getRentaStats(resolvedAreaFilter)
-                    : getActivoStats(currentLockedArea || undefined)
-            ]);
-            setActivos(data.activos as Activo[]);
-            setTotal(data.total); setTotalPages(data.totalPages); setStats(st);
+                    : getActivos(p, s, resolvedAreaFilter, e, o, c));
+                setActivos(data.activos as Activo[]);
+                setTotal(data.total); setTotalPages(data.totalPages);
+            }
             router.refresh(); // Forces Next.js to re-fetch Server Components (like gruposDisponibles)
         } catch (error) {
             console.error('Error fetching inventory data on client: ', error);
@@ -3724,7 +3732,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
              hasMounted.current = true;
              return; // Skip initial render since it's SSR hydrated
         }
-        const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion); }, 300);
+        const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion, false); }, 300);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [search, filtroArea, filtroEstatus, filtroOrigen, filtroCondicion]);
@@ -3732,7 +3740,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     function handlePageChange(p: number) {
         setPage(p);
         // We explicitly pass `lockedArea` here to maintain the area context when paginating
-        refresh(p, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion);
+        refresh(p, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion, false);
     }
     const PER_PAGE = 10;
 
