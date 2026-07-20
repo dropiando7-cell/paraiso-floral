@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import {
     Shield, Calendar, Wrench, Clock, Plus, Search, Settings,
     MessageSquare, Smartphone, User, Tag, Trash2, Edit3,
-    AlertTriangle, Activity, CheckCircle2, ChevronRight, X, Info
+    AlertTriangle, Activity, CheckCircle2, ChevronRight, X, Info,
+    Printer
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import {
@@ -18,6 +19,7 @@ import {
     updateConfiguracionMantenimientos,
     enviarNotificacionMantenimientoAction
 } from './actions';
+import PreviewEtiquetaEquipoModal from './PreviewEtiquetaEquipoModal';
 
 type Cliente = {
     id: string;
@@ -119,6 +121,7 @@ export default function MantenimientosClient({
     const [isEquipoModalOpen, setIsEquipoModalOpen] = useState(false);
     const [isMantenimientoModalOpen, setIsMantenimientoModalOpen] = useState(false);
     const [isRealizarModalOpen, setIsRealizarModalOpen] = useState(false);
+    const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
     // Form inputs state
     const [newEquipo, setNewEquipo] = useState({
@@ -1495,29 +1498,46 @@ export default function MantenimientosClient({
                         </div>
 
                         {/* Drawer Footer Actions */}
-                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-150 flex items-center justify-between gap-4">
+                        <div className="px-6 py-4 bg-slate-50 border-t border-slate-150 flex items-center justify-between gap-3">
                             <button
                                 type="button"
                                 onClick={() => handleDeleteEquipo(selectedEquipo.id)}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50 p-2 border border-transparent hover:border-red-100 rounded-xl transition flex items-center gap-1 font-bold text-xs cursor-pointer active:scale-95"
+                                className="text-red-605 hover:text-red-700 hover:bg-red-50 px-3 py-2 border border-transparent hover:border-red-100 rounded-xl transition flex items-center gap-1 font-bold text-xs cursor-pointer active:scale-95"
                             >
                                 <Trash2 className="w-4 h-4" />
-                                Eliminar Equipo
+                                Eliminar
                             </button>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setNewMantenimiento(p => ({ ...p, equipoClienteId: selectedEquipo.id }));
-                                    setIsMantenimientoModalOpen(true);
-                                }}
-                                className="bg-indigo-600 hover:bg-indigo-750 text-white px-4 py-2 rounded-xl font-bold transition text-xs shadow-sm shadow-indigo-100 flex items-center gap-1.5 cursor-pointer active:scale-95"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Programar Mantenimiento
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsPrintModalOpen(true)}
+                                    className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-250 px-3 py-2 rounded-xl font-bold transition text-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+                                >
+                                    <Printer className="w-4 h-4" />
+                                    Imprimir QR
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setNewMantenimiento(p => ({ ...p, equipoClienteId: selectedEquipo.id }));
+                                        setIsMantenimientoModalOpen(true);
+                                    }}
+                                    className="bg-indigo-600 hover:bg-indigo-750 text-white px-3.5 py-2 rounded-xl font-bold transition text-xs shadow-sm shadow-indigo-100 flex items-center gap-1.5 cursor-pointer active:scale-95"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Programar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
+            )}
+
+            {isPrintModalOpen && selectedEquipo && (
+                <PreviewEtiquetaEquipoModal
+                    equipo={selectedEquipo}
+                    onClose={() => setIsPrintModalOpen(false)}
+                />
             )}
         </div>
     );

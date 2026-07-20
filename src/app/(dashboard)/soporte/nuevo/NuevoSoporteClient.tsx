@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, ArrowLeft, Send } from 'lucide-react';
 import { createOrdenTrabajo } from '../actions';
 import ReceptionForm from '../components/ReceptionForm';
@@ -9,7 +9,19 @@ import QRGenerator from '../components/QRGenerator';
 
 export default function NuevoSoporteClient({ userId, clientes = [], users = [] }: { userId: string, clientes?: any[], users?: any[] }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [result, setResult] = useState<any>(null);
+
+    // Obtener parámetros de prellenado desde la URL
+    const prefilledData = {
+        clienteId: searchParams.get('clienteId') || '',
+        clienteNombre: searchParams.get('clienteNombre') || '',
+        equipoDano: searchParams.get('equipoDano') || '',
+        marca: searchParams.get('marca') || '',
+        modelo: searchParams.get('modelo') || '',
+        serie: searchParams.get('serie') || '',
+        tipo: searchParams.get('tipo') || '',
+    };
 
     const handleSave = async (data: any) => {
         // inject user ID
@@ -72,7 +84,7 @@ export default function NuevoSoporteClient({ userId, clientes = [], users = [] }
             >
                 <ArrowLeft className="w-4 h-4" /> Volver al Taller
             </button>
-            <ReceptionForm onSave={handleSave} clientes={clientes} users={users} />
+            <ReceptionForm onSave={handleSave} clientes={clientes} users={users} prefilledData={prefilledData} />
         </div>
     );
 }

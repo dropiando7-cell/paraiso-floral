@@ -4,13 +4,24 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UploadCloud, Check, X, Wrench, Snowflake, Tags } from 'lucide-react';
 import { compressImage } from '@/utils/image';
 
+type PrefilledData = {
+  clienteId?: string;
+  clienteNombre?: string;
+  equipoDano?: string;
+  marca?: string;
+  modelo?: string;
+  serie?: string;
+  tipo?: string;
+};
+
 type ReceptionFormProps = {
   onSave: (data: any) => Promise<void>;
   clientes?: any[];
   users?: any[];
+  prefilledData?: PrefilledData;
 };
 
-export default function ReceptionForm({ onSave, clientes = [], users = [] }: ReceptionFormProps) {
+export default function ReceptionForm({ onSave, clientes = [], users = [], prefilledData }: ReceptionFormProps) {
   const getLocalDateString = () => {
     const d = new Date();
     const year = d.getFullYear();
@@ -19,10 +30,22 @@ export default function ReceptionForm({ onSave, clientes = [], users = [] }: Rec
     return `${year}-${month}-${day}`;
   };
 
+  const matchedClient = prefilledData?.clienteNombre 
+    ? clientes.find(c => c.nombre.toLowerCase() === prefilledData.clienteNombre!.toLowerCase())
+    : null;
+
   const [form, setForm] = useState({
-    cliente: "", telefono: "+504 ", equipo: "medico", nombreEquipo: "", modelo: "", serie: "",
-    marca: "", descripcionFalla: "", prioridad: "normal",
-    costoRevision: "650", metodoPagoRevision: "Ninguno",
+    cliente: prefilledData?.clienteNombre || "", 
+    telefono: matchedClient?.telefono || "+504 ", 
+    equipo: prefilledData?.tipo === 'AIRE' ? 'AIRE' : (prefilledData?.tipo === 'MEDICO' ? 'MEDICO' : 'OTRO'), 
+    nombreEquipo: prefilledData?.equipoDano || "", 
+    modelo: prefilledData?.modelo || "", 
+    serie: prefilledData?.serie || "",
+    marca: prefilledData?.marca || "", 
+    descripcionFalla: "", 
+    prioridad: "normal",
+    costoRevision: "650", 
+    metodoPagoRevision: "Ninguno",
     tecnicoIds: [] as string[],
     tipoTrabajo: "NORMAL",
     cobertura: "externa",

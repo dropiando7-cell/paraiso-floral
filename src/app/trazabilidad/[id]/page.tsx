@@ -15,7 +15,9 @@ import {
   MessageSquare,
   ChevronRight,
   TrendingUp,
-  Tag
+  Tag,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 
 export const metadata = {
@@ -26,6 +28,16 @@ export const metadata = {
 export default async function TrazabilidadPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = await params;
   const uppercaseId = resolvedParams.id.toUpperCase();
+
+  // Fetch authentication status first
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  let dbUser = null;
+  if (user?.email) {
+    dbUser = await prisma.user.findUnique({ where: { email: user.email } });
+  }
+  const isStaff = !!dbUser;
 
   // Try fetching by security code first
   let orden = await prisma.ordenTrabajo.findFirst({
@@ -54,18 +66,383 @@ export default async function TrazabilidadPage({ params }: { params: Promise<{ i
   }
 
   if (!orden) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center text-white">
-        <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 text-red-500 rounded-3xl flex items-center justify-center mb-6">
-          <Wrench className="w-10 h-10" />
+    // Buscar equipo de cliente externo (por codigoEtiqueta o ID UUID)
+    const equipo = await prisma.equipoCliente.findFirst({
+      where: {
+        OR: [
+          { codigoEtiqueta: { equals: resolvedParams.id, mode: 'insensitive' } },
+          { id: resolvedParams.id.length === 36 ? resolvedParams.id : undefined }
+        ]
+      },
+      include: {
+        cliente: true,
+        mantenimientos: {
+          include: {
+            realizadoPor: {
+              select: { id: true, nombre: true, apellido: true }
+            }
+          },
+          orderBy: { fechaProgramada: 'desc' }
+        }
+      }
+    });
+
+    if (!equipo) {
+      return (
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center text-white">
+          <div className="w-20 h-20 bg-red-500/10 border border-red-500/20 text-red-500 rounded-3xl flex items-center justify-center mb-6">
+            <Wrench className="w-10 h-10" />
+          </div>
+          <h1 className="text-3xl font-black tracking-tight mb-2">Equipo o Servicio No Encontrado</h1>
+          <p className="text-slate-400 max-w-md mb-8">
+            El código QR o ID especificado no coincide con ninguna orden o equipo registrado en Bioelectrónica Honduras.
+          </p>
+          <Link href="/" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-2xl transition">
+            Ir al Inicio
+          </Link>
         </div>
-        <h1 className="text-3xl font-black tracking-tight mb-2">Orden No Encontrada</h1>
-        <p className="text-slate-400 max-w-md mb-8">
-          El código QR o ID especificado no coincide con ninguna orden registrada en Bioelectrónica Honduras.
-        </p>
-        <Link href="/" className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-2xl transition">
-          Ir al Inicio
-        </Link>
+      );
+    }
+
+    // Renderizar Ficha de Trazabilidad del Equipo
+    const today = new Date();
+    const tieneGarantiaActiva = equipo.fechaVencimientoGarantia && new Date(equipo.fechaVencimientoGarantia) > today;
+    const clienteDisplay = isStaff ? equipo.cliente.nombre.toUpperCase() : 'CLIENTE REGISTRADO';
+    
+    const cleanSerie = equipo.serie && equipo.serie.trim() !== "" && equipo.serie.trim().toUpperCase() !== "N/A" ? equipo.serie.trim() : null;
+    const cleanEtiqueta = equipo.codigoEtiqueta && equipo.codigoEtiqueta.trim() !== "" ? equipo.codigoEtiqueta.trim() : null;
+
+    const ordenesRelacionadas = await prisma.ordenTrabajo.findMany({
+      where: {
+        OR: [
+          cleanSerie ? { serie: { equals: cleanSerie, mode: 'insensitive' } } : undefined,
+          cleanEtiqueta ? { serie: { equals: cleanEtiqueta, mode: 'insensitive' } } : undefined,
+          { serie: { equals: equipo.id, mode: 'insensitive' } }
+        ].filter(Boolean) as any,
+        organizationId: equipo.organizationId
+      },
+      include: {
+        tecnicoReparacion: true,
+        tecnicosAsignados: true,
+        repuestos: { include: { producto: true, activoFijo: true } }
+      },
+      orderBy: { fechaRecibido: 'desc' }
+    });
+
+    const timelineItems = [
+      ...equipo.mantenimientos.map(m => ({
+        id: m.id,
+        fecha: m.fechaRealizada || m.fechaProgramada,
+        tipoElemento: 'MANTENIMIENTO',
+        tipo: m.tipo,
+        estado: m.estado,
+        notas: m.notas,
+        costo: m.costo ? Number(m.costo) : null,
+        realizadoPor: m.realizadoPor ? { nombre: m.realizadoPor.nombre, apellido: m.realizadoPor.apellido } : null,
+        fotos: [] as string[]
+      })),
+      ...ordenesRelacionadas.map(o => ({
+        id: o.id,
+        fecha: o.fechaListo || o.fechaRecibido,
+        tipoElemento: 'ORDEN_TRABAJO',
+        tipo: o.tipoTrabajo,
+        estado: o.estado,
+        notas: o.diagnosticoTecnico || o.descripcionFalla,
+        costo: o.costoReparacion ? Number(o.costoReparacion) + Number(o.costoRevision) : Number(o.costoRevision),
+        realizadoPor: o.tecnicoReparacion ? { nombre: o.tecnicoReparacion.nombre, apellido: o.tecnicoReparacion.apellido } : (o.tecnicosAsignados[0] ? { nombre: o.tecnicosAsignados[0].nombre, apellido: o.tecnicosAsignados[0].apellido } : null),
+        fotos: (o.fotosTecnico || []).concat(o.fotosEstadoInicial || [])
+      }))
+    ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+
+    // Estadísticas rápidas
+    const totalMants = timelineItems.length;
+    const mantsRealizados = timelineItems.filter(item => item.estado === 'REALIZADO' || item.estado === 'ENTREGADO' || item.estado === 'LISTO_ENTREGA').length;
+    const proximoMant = equipo.mantenimientos
+      .filter(m => m.estado === 'PROGRAMADO' && new Date(m.fechaProgramada) >= today)
+      .sort((a, b) => new Date(a.fechaProgramada).getTime() - new Date(b.fechaProgramada).getTime())[0];
+
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-indigo-500 selection:text-white pb-16 font-sans relative">
+        {/* Background radial effects */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <div className="absolute -top-[40%] -left-[20%] w-[80%] h-[80%] rounded-full bg-indigo-900/15 blur-[120px]" />
+          <div className="absolute top-[30%] -right-[20%] w-[60%] h-[70%] rounded-full bg-emerald-950/20 blur-[100px]" />
+        </div>
+
+        {/* Floating Header */}
+        <header className="relative z-10 w-full max-w-5xl mx-auto px-4 pt-6 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-600/20">
+              <Wrench className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <span className="text-sm font-black tracking-tight text-white block">BIOELECTRÓNICA</span>
+              <span className="text-[10px] text-slate-400 font-bold tracking-widest block uppercase">Honduras</span>
+            </div>
+          </div>
+          {isStaff ? (
+            <Link href={`/mantenimientos?search=${equipo.codigoEtiqueta || equipo.id}`} className="inline-flex items-center gap-2 px-4.5 py-2 bg-indigo-600/10 border border-indigo-500/30 hover:bg-indigo-600 hover:text-white rounded-xl text-xs font-bold text-indigo-400 transition-all">
+              <Shield className="w-3.5 h-3.5" />
+              <span>Panel de Mantenimientos</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          ) : (
+            <Link href="/login" className="inline-flex items-center gap-1.5 px-4.5 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-xl text-xs font-bold text-slate-350 transition-colors">
+              <User className="w-3.5 h-3.5" />
+              <span>Acceso Personal</span>
+            </Link>
+          )}
+        </header>
+
+        {/* Main Content */}
+        <main className="relative z-10 w-full max-w-5xl mx-auto px-4 mt-8 grid grid-cols-12 gap-6">
+          {/* LEFT COLUMN: Equipment Details */}
+          <div className="col-span-12 lg:col-span-7 flex flex-col gap-6">
+            <div className="backdrop-blur-md bg-slate-900/60 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl flex flex-col gap-6">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-850 text-[10px] font-bold text-slate-400 tracking-wide mb-3 border border-slate-700/50 uppercase">
+                  <Tag className="w-3 h-3 text-indigo-400" />
+                  <span>CÓDIGO: {equipo.codigoEtiqueta || 'S/E'}</span>
+                </div>
+                <h2 className="text-2xl md:text-3xl font-black text-white leading-tight">
+                  {equipo.nombre.toUpperCase()}
+                </h2>
+                <p className="text-sm text-slate-400 font-semibold mt-1 uppercase">
+                  {[equipo.marca, equipo.modelo].filter(Boolean).join(' / ') || 'Marca/Modelo no especificado'}
+                </p>
+              </div>
+
+              {/* Warranty Banner */}
+              <div className={`p-5 rounded-2xl border ${
+                tieneGarantiaActiva 
+                  ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-350' 
+                  : 'border-slate-800 bg-slate-900/40 text-slate-400'
+              } flex items-start gap-4`}>
+                <div className="mt-1 flex-shrink-0">
+                  <Shield className={`w-6 h-6 ${tieneGarantiaActiva ? 'text-emerald-400' : 'text-slate-500'}`} />
+                </div>
+                <div>
+                  <span className={`text-xs font-black tracking-wider uppercase block ${tieneGarantiaActiva ? 'text-emerald-450' : 'text-slate-400'}`}>
+                    {tieneGarantiaActiva ? 'Garantía Técnica Activa' : 'Garantía Vencida o No Aplicable'}
+                  </span>
+                  <p className="text-xs text-slate-350 mt-1 font-medium leading-relaxed">
+                    {tieneGarantiaActiva 
+                      ? `Este equipo cuenta con garantía vigente hasta el ${new Date(equipo.fechaVencimientoGarantia!).toLocaleDateString('es-HN', { day: '2-digit', month: 'long', year: 'numeric' })}.` 
+                      : 'El plazo de garantía gratuita ha expirado o no está configurado. Los mantenimientos subsiguientes se cotizan como servicios externos.'
+                    }
+                  </p>
+                </div>
+              </div>
+
+              {/* Specs Grid */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-800/80">
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Número de Serie</span>
+                  <span className="text-sm font-semibold font-mono text-slate-100 mt-0.5 block">{equipo.serie || 'N/A'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Fecha de Instalación</span>
+                  <span className="text-sm font-semibold text-slate-100 mt-0.5 block">
+                    {equipo.fechaInstalacion ? new Date(equipo.fechaInstalacion).toLocaleDateString("es-HN") : 'N/A'}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-505 font-bold uppercase tracking-widest block">Cliente / Empresa</span>
+                  <span className="text-sm font-semibold text-slate-100 mt-0.5 block truncate">
+                    {clienteDisplay}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block">Servicios Registrados</span>
+                  <span className="text-sm font-semibold text-slate-100 mt-0.5 block">
+                    {totalMants} en total ({mantsRealizados} completados)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Staff Only Section */}
+            {isStaff && (
+              <div className="backdrop-blur-md bg-slate-900/60 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-xl flex flex-col gap-5 animate-in fade-in duration-300">
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-indigo-400" />
+                  <span>Información de Control del Taller</span>
+                </h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <span className="text-xs text-slate-450 font-semibold block mb-1">Contacto del Cliente:</span>
+                    <div className="bg-slate-950 p-4 rounded-xl text-sm border border-slate-850 text-slate-300 leading-relaxed font-mono flex flex-col gap-1">
+                      <span>Teléfono: {equipo.cliente.telefono || 'Sin teléfono'}</span>
+                      <span>Email: {equipo.cliente.email || 'Sin email'}</span>
+                      <span>Dirección: {equipo.cliente.direccion || 'Sin dirección'}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-xs text-slate-450 font-semibold block mb-1">Próxima Visita Programada:</span>
+                    {proximoMant ? (
+                      <div className="bg-slate-950/80 p-4 rounded-xl text-sm border border-indigo-900/40 text-slate-300">
+                        <div className="font-bold text-white mb-1 flex items-center gap-1.5 text-xs text-indigo-400">
+                          <Calendar className="w-4.5 h-4.5 text-indigo-400" />
+                          <span>{new Date(proximoMant.fechaProgramada).toLocaleDateString('es-HN', { day: '2-digit', month: 'long', year: 'numeric' })}</span>
+                        </div>
+                        <p className="text-xs text-slate-400 italic">Tipo: {proximoMant.tipo} · Notas: {proximoMant.notas || 'Sin observaciones'}</p>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-500 italic">No hay visitas programadas pendientes.</div>
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-800/60 mt-2">
+                    <Link
+                      href={`/soporte/nuevo?clienteId=${equipo.clienteId}&clienteNombre=${encodeURIComponent(equipo.cliente.nombre)}&equipoDano=${encodeURIComponent(equipo.nombre)}&marca=${encodeURIComponent(equipo.marca || '')}&modelo=${encodeURIComponent(equipo.modelo || '')}&serie=${encodeURIComponent(equipo.codigoEtiqueta || equipo.serie || '')}`}
+                      className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-750 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 text-center shadow-md shadow-indigo-600/10"
+                    >
+                      <Wrench className="w-4 h-4" />
+                      Crear Orden de Trabajo (Visita/Taller)
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Public Section: Quality Assurance */}
+            {!isStaff && (
+              <div className="backdrop-blur-md bg-slate-900/60 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col gap-4">
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <FileText className="w-4.5 h-4.5 text-indigo-400" />
+                  <span>Historial Certificado de Mantenimiento</span>
+                </h3>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Este equipo está bajo el programa de servicio de Bioelectrónica Honduras. Mantener al día sus mantenimientos preventivos previene fallas costosas, optimiza el rendimiento y extiende el tiempo de vida útil.
+                </p>
+                <div className="flex items-center gap-3 p-3 bg-indigo-600/5 border border-indigo-500/10 rounded-xl mt-1">
+                  <span className="text-xs font-bold text-indigo-300">¿Necesitas soporte técnico?</span>
+                  <a href="https://wa.me/50499990000" target="_blank" rel="noopener noreferrer" className="text-xs font-black text-white hover:underline ml-auto flex items-center gap-1">
+                    WhatsApp Directo <ChevronRight className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT COLUMN: Timeline of all maintenances */}
+          <div className="col-span-12 lg:col-span-5 flex flex-col gap-6">
+            <div className="backdrop-blur-md bg-slate-900/60 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col gap-6 animate-in fade-in duration-300">
+              <div>
+                <h3 className="text-lg font-black text-white tracking-tight flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-indigo-400" />
+                  <span>Línea de Tiempo del Equipo</span>
+                </h3>
+                <p className="text-xs text-slate-400 font-medium mt-1">
+                  Bitácora histórica de intervenciones preventivas y correctivas.
+                </p>
+              </div>
+
+                       <div className="relative border-l border-slate-800 ml-3 pl-6 space-y-8 py-2">
+                {timelineItems.map((item) => {
+                  const isCompleted = item.estado === 'REALIZADO' || item.estado === 'ENTREGADO' || item.estado === 'LISTO_ENTREGA';
+                  const dateText = new Date(item.fecha).toLocaleDateString("es-HN", { month: 'short', day: 'numeric', year: 'numeric' });
+                  
+                  const isMaint = item.tipoElemento === 'MANTENIMIENTO';
+                  const isAtrasado = isMaint && !isCompleted && new Date(item.fecha).setHours(23, 59, 59, 999) < today.getTime();
+                  
+                  return (
+                    <div key={item.id} className="relative group">
+                      {/* Timeline bullet */}
+                      <div className={`absolute -left-[31px] top-1.5 w-3.5 h-3.5 rounded-full border-2 transition-all ${
+                        isCompleted 
+                          ? 'bg-emerald-500 border-emerald-400 shadow-md shadow-emerald-500/20' 
+                          : isAtrasado 
+                            ? 'bg-red-500 border-red-400 animate-pulse'
+                            : 'bg-slate-950 border-slate-700 hover:border-slate-500'
+                      }`} />
+
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-black text-slate-400 tracking-wider">
+                            {dateText.toUpperCase()}
+                          </span>
+                          <span className={`px-1.5 py-0.5 rounded text-[8px] font-extrabold tracking-wide uppercase ${
+                            isCompleted 
+                              ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-450' 
+                              : isAtrasado
+                                ? 'bg-red-500/10 border border-red-500/20 text-red-400'
+                                : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-405'
+                          }`}>
+                            {isMaint ? (isCompleted ? 'Completado' : isAtrasado ? 'Vencido' : 'Programado') : `Orden: ${item.estado}`}
+                          </span>
+                        </div>
+                        
+                        <span className="text-sm font-bold text-white leading-tight group-hover:text-indigo-400 transition-colors">
+                          {isMaint ? (item.tipo === 'GARANTIA' ? 'Mantenimiento de Garantía Gratis' : item.tipo) : `Intervención de Taller (${item.tipo})`}
+                        </span>
+
+                        {/* Photos if any */}
+                        {item.fotos && item.fotos.length > 0 && (
+                          <div className="grid grid-cols-3 gap-2 mt-1.5 max-w-sm">
+                            {item.fotos.filter(Boolean).map((fUrl, fIdx) => (
+                              <a key={fIdx} href={fUrl} target="_blank" rel="noopener noreferrer" className="relative aspect-video rounded-lg overflow-hidden border border-slate-800 bg-slate-900 group/img">
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img src={fUrl} alt="Evidencia" className="w-full h-full object-cover group-hover/img:scale-105 transition-transform" />
+                              </a>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Display public vs staff details */}
+                        {isStaff ? (
+                          <div className="text-xs text-slate-405 space-y-1.5 bg-slate-950/40 p-3 rounded-xl border border-slate-850">
+                            {item.realizadoPor && (
+                              <div className="flex items-center justify-between">
+                                <span className="font-semibold text-slate-450 uppercase text-[9px]">Técnico:</span>
+                                <span className="text-slate-200 font-bold">
+                                  {item.realizadoPor.nombre} {item.realizadoPor.apellido}
+                                </span>
+                              </div>
+                            )}
+                            {item.costo !== null && (
+                              <div className="flex items-center justify-between border-t border-slate-900/60 pt-1">
+                                <span className="font-semibold text-slate-450 uppercase text-[9px]">Costo:</span>
+                                <span className="text-emerald-400 font-black">
+                                  L. {Number(item.costo).toFixed(2)}
+                                </span>
+                              </div>
+                            )}
+                            {item.notas && (
+                              <div className="text-[11px] text-slate-300 border-t border-slate-900/60 pt-1.5 italic whitespace-pre-wrap">
+                                "{item.notas}"
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          // Public friendly details
+                          item.notas && (
+                            <div className="text-xs text-slate-400 italic bg-slate-900/20 p-2.5 rounded-lg border border-slate-850 leading-relaxed max-w-sm">
+                              "{item.notas}"
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {totalMants === 0 && (
+                <div className="p-4 bg-slate-950/20 rounded-2xl border border-slate-850 text-center text-xs text-slate-500 italic">
+                  No se registran sesiones de mantenimiento para este equipo.
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+
+        {/* Branded footer */}
+        <footer className="mt-auto w-full text-center text-[10px] text-slate-500 font-bold tracking-widest uppercase">
+          © 2026 Bioelectrónica Honduras · Soluciones Médicas e Industriales
+        </footer>
       </div>
     );
   }
@@ -81,16 +458,6 @@ export default async function TrazabilidadPage({ params }: { params: Promise<{ i
       attachments: true
     }
   });
-
-  // Fetch authentication status
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  let dbUser = null;
-  if (user?.email) {
-    dbUser = await prisma.user.findUnique({ where: { email: user.email } });
-  }
-  const isStaff = !!dbUser;
 
   // Retrieve the device history timeline. We group by serial number (if exists)
   let timelineOrders = [orden];
