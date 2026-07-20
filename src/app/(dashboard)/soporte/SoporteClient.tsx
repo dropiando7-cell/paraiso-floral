@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { 
     Wrench, Plus, MoveRight, Receipt, 
     CheckCircle2, QrCode, Phone, Clock, AlertTriangle, MonitorSmartphone,
-    Trash2, AlertCircle, Search
+    Trash2, AlertCircle, Search, Archive
 } from 'lucide-react';
 import { eliminarOrdenTrabajo } from './actions';
 import { toast } from 'react-hot-toast';
@@ -37,7 +37,7 @@ export default function SoporteClient({
     const router = useRouter();
     const [ordenes, setOrdenes] = useState<Orden[]>(initialData);
     const [entregadas, setEntregadas] = useState<Orden[]>(deliveredData);
-    const [activeView, setActiveView] = useState<'taller' | 'historial'>('taller');
+    const [activeView, setActiveView] = useState<'taller' | 'historial' | 'registro'>('taller');
     const [searchQuery, setSearchQuery] = useState('');
 
     const filterBySearch = (list: Orden[]) => {
@@ -53,7 +53,11 @@ export default function SoporteClient({
         );
     };
 
-    const activeFiltered = filterBySearch(ordenes);
+    const activeTallerOrdenes = ordenes.filter(o => o.estado !== 'REGISTRO');
+    const registroOrdenes = ordenes.filter(o => o.estado === 'REGISTRO');
+
+    const activeFiltered = filterBySearch(activeTallerOrdenes);
+    const registroFiltered = filterBySearch(registroOrdenes);
     const deliveredFiltered = filterBySearch(entregadas);
 
     const role = userRole;
@@ -170,7 +174,19 @@ export default function SoporteClient({
                         }`}
                     >
                         <Wrench className="w-3.5 h-3.5" />
-                        <span>En Taller ({ordenes.length})</span>
+                        <span>En Taller ({activeTallerOrdenes.length})</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveView('registro')}
+                        className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                            activeView === 'registro'
+                                ? "bg-white text-indigo-600 shadow-sm"
+                                : "text-slate-655 hover:text-slate-900 hover:bg-slate-50"
+                        }`}
+                    >
+                        <Archive className="w-3.5 h-3.5" />
+                        <span>Registro de Equipos ({registroOrdenes.length})</span>
                     </button>
                     <button
                         type="button"
@@ -326,6 +342,79 @@ export default function SoporteClient({
                             );
                         })}
                     </div>
+                </div>
+            )}
+
+            {activeView === 'registro' && (
+                <div className="animate-fade-in">
+                    {registroFiltered.length === 0 ? (
+                        <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl py-16 text-center">
+                            <Archive className="w-12 h-12 text-slate-350 mx-auto mb-4 animate-pulse" />
+                            <h3 className="font-extrabold text-slate-800 text-base">No hay equipos registrados</h3>
+                            <p className="text-slate-400 text-xs max-w-sm mx-auto mt-1 leading-normal font-medium">
+                                {searchQuery 
+                                    ? `No hay coincidencias para "${searchQuery}" en el registro.` 
+                                    : 'Aún no se han movido equipos al registro histórico fuera del flujo activo del taller.'}
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {registroFiltered.map(orden => (
+                                <div 
+                                    key={orden.id} 
+                                    onClick={() => router.push(`/soporte/${orden.id}`)}
+                                    className="group bg-white p-5 rounded-2xl border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.04)] relative transition-all hover:shadow-lg hover:border-indigo-300 cursor-pointer flex flex-col justify-between min-h-[180px]"
+                                >
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3.5">
+                                            <span className="text-[10px] font-mono font-black text-indigo-750 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full uppercase">
+                                                #{orden.codigoSeguridad}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="bg-indigo-100 text-indigo-850 px-2.5 py-0.5 rounded-full text-[10px] font-black border border-indigo-200">
+                                                    Registro Histórico
+                                                </span>
+                                                {canDeleteOrder && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            handleEliminarOrden(orden.id, orden.codigoSeguridad);
+                                                        }}
+                                                        className="p-1 text-red-500 hover:text-white hover:bg-red-600 rounded-lg transition-all border border-transparent hover:border-red-600 cursor-pointer active:scale-95"
+                                                        title="Eliminar Registro"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <h4 className="font-extrabold text-slate-850 text-[14px] flex items-center gap-2 mb-1.5">
+                                            <MonitorSmartphone className="w-4 h-4 text-indigo-500 shrink-0" />
+                                            {orden.equipoDano}
+                                        </h4>
+
+                                        <div className="space-y-1.5 text-xs text-slate-505 font-medium">
+                                            <div>Cliente: <span className="text-slate-800 font-semibold">{orden.cliente?.nombre || 'Desconocido'}</span></div>
+                                            {orden.serie && <div>Serie: <span className="text-slate-700 font-mono text-[11px]">{orden.serie}</span></div>}
+                                            {orden.marcaModelo && <div>Especificación: <span className="text-slate-600 font-semibold">{orden.marcaModelo}</span></div>}
+                                        </div>
+                                    </div>
+
+                                    <div className="mt-4 pt-3.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+                                        <div className="flex items-center gap-1.5">
+                                            <Clock className="w-3.5 h-3.5 text-slate-45" />
+                                            <span>Registrado: {orden.fechaRecibido ? new Date(orden.fechaRecibido).toLocaleDateString() : 'N/A'}</span>
+                                        </div>
+                                        <span className="text-[10px] font-bold text-slate-400 group-hover:text-indigo-600 transition-colors uppercase">
+                                            Ver Detalles →
+                                        </span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             )}
 

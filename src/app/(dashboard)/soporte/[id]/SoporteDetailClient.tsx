@@ -6,7 +6,7 @@ import TechnicalWorkbench from '../components/TechnicalWorkbench';
 import ApprovalCard from '../components/ApprovalCard';
 import AprobacionClienteCard from '../components/AprobacionClienteCard';
 import QRGenerator from '../components/QRGenerator';
-import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle, Loader2, Sparkles, Plus, Smartphone, Send } from 'lucide-react';
+import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle, Loader2, Sparkles, Plus, Smartphone, Send, Archive } from 'lucide-react';
 import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden, eliminarOrdenTrabajo, notificarClienteListo, convertirCotizacionAServicioFactura, enviarNotificacionRecepcionTwilio } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
@@ -397,7 +397,7 @@ export default function SoporteDetailClient({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
-          {orden.estado !== 'RECIBIDO' && (isGlobal || isRecepcion || isTecnico || isGerente) && (
+          {orden.estado !== 'RECIBIDO' && orden.estado !== 'REGISTRO' && (isGlobal || isRecepcion || isTecnico || isGerente) && (
             <button
               type="button"
               onClick={() => {
@@ -409,6 +409,53 @@ export default function SoporteDetailClient({
             >
               <ArrowLeft className="w-3.5 h-3.5" /> Estado Anterior
             </button>
+          )}
+          {orden.estado === 'REGISTRO' ? (
+            <button
+              type="button"
+              onClick={() => {
+                showConfirm({
+                  title: '¿Mover a taller activo?',
+                  description: '¿Deseas mover esta orden de regreso al taller activo (como RECIBIDO)? Volverá a aparecer en el tablero Kanban.',
+                  confirmText: 'Mover a Taller',
+                  cancelText: 'Cancelar',
+                  onConfirm: async () => {
+                    setLoading(true);
+                    await updateEstadoOrden(orden.id, 'RECIBIDO');
+                    setLoading(false);
+                    window.location.reload();
+                  }
+                });
+              }}
+              disabled={loading}
+              className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 disabled:opacity-50"
+            >
+              <Wrench className="w-3.5 h-3.5" /> Activar en Taller
+            </button>
+          ) : (
+            (isGlobal || isRecepcion || isGerente) && (
+              <button
+                type="button"
+                onClick={() => {
+                  showConfirm({
+                    title: '¿Mover a Registro de Equipos?',
+                    description: 'Esta orden se moverá fuera del flujo del taller activo al Registro de Equipos Histórico para su seguimiento a largo plazo. Desaparecerá de las columnas del Kanban.',
+                    confirmText: 'Sí, Mover a Registro',
+                    cancelText: 'Cancelar',
+                    onConfirm: async () => {
+                      setLoading(true);
+                      await updateEstadoOrden(orden.id, 'REGISTRO');
+                      setLoading(false);
+                      window.location.reload();
+                    }
+                  });
+                }}
+                disabled={loading}
+                className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 disabled:opacity-50"
+              >
+                <Archive className="w-3.5 h-3.5" /> Archivar en Registro
+              </button>
+            )
           )}
           {canEditOrder && (
             <button
