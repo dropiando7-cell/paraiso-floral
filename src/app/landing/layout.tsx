@@ -15,6 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
     let description = "Estamos diseñando nuestro nuevo sitio corporativo y catálogo médico en línea. Muy pronto podrás explorar todas nuestras soluciones y productos médicos.";
     let keywords = "bioelectronica, equipo medico, honduras, biomedico, soporte tecnico";
     let image = "";
+    let googleVerification = "";
 
     try {
         const setting = await prisma.systemSetting.findUnique({
@@ -26,6 +27,10 @@ export async function generateMetadata(): Promise<Metadata> {
             if (parsed.seoDescription && parsed.seoDescription.trim() !== '') description = parsed.seoDescription;
             if (parsed.seoKeywords && parsed.seoKeywords.trim() !== '') keywords = parsed.seoKeywords;
             if (parsed.seoImage && parsed.seoImage.trim() !== '') image = parsed.seoImage;
+            if (parsed.googleSearchConsole && parsed.googleSearchConsole.trim() !== '') {
+                const match = parsed.googleSearchConsole.match(/content=["']([^"']+)["']/i);
+                googleVerification = match ? match[1] : parsed.googleSearchConsole.trim();
+            }
         }
     } catch (e) {
         console.error('Error generating dynamic metadata:', e);
@@ -37,6 +42,9 @@ export async function generateMetadata(): Promise<Metadata> {
         title: title,
         description: description,
         keywords: keywords,
+        verification: {
+            google: googleVerification || undefined,
+        },
         openGraph: {
             title: title,
             description: description,
@@ -351,8 +359,90 @@ export default async function PublicLayout({
 
     const isSoma = settings.activeTheme === 'SOMA';
 
+    // Tracking & Analytics helpers
+    const rawGA = settings.googleAnalyticsId;
+    const gaMatch = rawGA ? (rawGA.match(/G-[A-Z0-9]{4,15}/i) || rawGA.match(/GTM-[A-Z0-9]{4,12}/i)) : null;
+    const gaId = gaMatch ? gaMatch[0].toUpperCase() : (rawGA && (rawGA.trim().toUpperCase().startsWith('G-') || rawGA.trim().toUpperCase().startsWith('GTM-')) ? rawGA.trim().toUpperCase() : null);
+
+    const rawFB = settings.facebookPixelId;
+    const fbMatch = rawFB ? (rawFB.match(/fbq\s*\(\s*['"]init['"]\s*,\s*['"]?(\d+)['"]?\s*\)/i) || rawFB.match(/\b\d{13,17}\b/)) : null;
+    const fbId = fbMatch ? (Array.isArray(fbMatch) && fbMatch[1] ? fbMatch[1] : fbMatch[0]) : (rawFB && /^\d+$/.test(rawFB.trim()) ? rawFB.trim() : null);
+
+    const customHeaderScripts = settings.customHeaderScripts;
+
     return (
         <div className={`min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-cyan-500/10 ${isSoma ? 'theme-soma' : ''}`}>
+            {/* Analytics & Tracking Scripts */}
+            {gaId && gaId.startsWith('G-') && (
+                <>
+                    <script async src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`} />
+                    <script
+                        dangerouslySetInnerHTML={{
+                            __html: `
+                                window.dataLayer = window.dataLayer || [];
+                                function gtag(){dataLayer.push(arguments);}
+                                gtag('js', new Date());
+                                gtag('config', '${gaId}');
+                            `
+                        }}
+                    />
+                </>
+            )}
+            {gaId && gaId.startsWith('GTM-') && (
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+                            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+                            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+                            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+                            })(window,document,'script','dataLayer','${gaId}');
+                        `
+                    }}
+                />
+            )}
+            {fbId && (
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            !function(f,b,e,v,n,t,s)
+                            {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+                            n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+                            if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+                            n.queue=[];t=b.createElement(e);t.async=!0;
+                            t.src=v;s=b.getElementsByTagName(e)[0];
+                            s.parentNode.insertBefore(t,s)}(window, document,'script',
+                            'https://connect.facebook.net/en_US/fbevents.js');
+                            fbq('init', '${fbId}');
+                            fbq('track', 'PageView');
+                        `
+                    }}
+                />
+            )}
+            {customHeaderScripts && (
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html: `
+                            (function(){
+                                try {
+                                    var div = document.createElement('div');
+                                    div.innerHTML = ${JSON.stringify(customHeaderScripts)};
+                                    Array.from(div.children).forEach(function(el){
+                                        if (el.tagName === 'SCRIPT') {
+                                            var s = document.createElement('script');
+                                            Array.from(el.attributes).forEach(function(attr){ s.setAttribute(attr.name, attr.value); });
+                                            s.innerHTML = el.innerHTML;
+                                            document.head.appendChild(s);
+                                        } else {
+                                            document.head.appendChild(el);
+                                        }
+                                    });
+                                } catch(e) { console.error('Tracking script error:', e); }
+                            })();
+                        `
+                    }}
+                />
+            )}
             {isSoma && (
                 <>
                     {/* Google Font Manrope Injection */}

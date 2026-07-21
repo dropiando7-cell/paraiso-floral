@@ -52,7 +52,9 @@ import {
     RefreshCw,
     X,
     List,
-    ExternalLink
+    ExternalLink,
+    Code,
+    TrendingUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import RD_CATEGORIES from './rd-categories.json';
@@ -498,6 +500,10 @@ interface LandingSettings {
     seoDescription?: string;
     seoKeywords?: string;
     seoImage?: string;
+    googleSearchConsole?: string;
+    googleAnalyticsId?: string;
+    facebookPixelId?: string;
+    customHeaderScripts?: string;
     activeTheme?: string;
     allowScrapedProducts?: boolean;
     defaultScrapedStock?: number;
@@ -2543,6 +2549,141 @@ export default function GestionWebClient({
                                             </p>
                                         </div>
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* HERRAMIENTAS DE RASTREO Y PÍXELES (Analytics, Search Console, Pixels) */}
+                        <div className="border-t border-slate-200 pt-6 mt-6 space-y-4 font-sans">
+                            <div>
+                                <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                                    <Activity className="w-5 h-5 text-cyan-600" />
+                                    <span>Herramientas de Rastreo, Analytics y Píxeles de Seguimiento</span>
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-0.5">
+                                    Conecta tu página web con Google Search Console, Google Analytics, Facebook / Meta Pixel y otras redes para medir visitas y conversiones. Pegar el script o el ID; el sistema los detectará automáticamente.
+                                </p>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                                {/* Google Search Console */}
+                                <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2 shadow-sm">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <Search className="w-3.5 h-3.5 text-blue-600" />
+                                            Google Search Console (Código / Meta Tag)
+                                        </label>
+                                        {(() => {
+                                            const input = landingSettings.googleSearchConsole;
+                                            if (!input || !input.trim()) return null;
+                                            const match = input.match(/content=["']([^"']+)["']/i);
+                                            const label = match && match[1] ? match[1] : (input.includes('google-site-verification') ? 'Meta tag detectado' : (input.trim().length > 8 && !input.includes('<') ? input.trim() : 'Código cargado'));
+                                            return (
+                                                <span className="text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full truncate max-w-[180px]">
+                                                    Detectado ✓: {label}
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                    <textarea 
+                                        value={landingSettings.googleSearchConsole || ''}
+                                        onChange={(e) => handleGeneralFieldChange('googleSearchConsole', e.target.value)}
+                                        placeholder='Pega aquí el código o la etiqueta HTML de Google. Ej: <meta name="google-site-verification" content="abc123xyz" />'
+                                        rows={3}
+                                        className="w-full text-xs p-2.5 border border-slate-200 rounded-xl font-mono bg-slate-50 focus:bg-white focus:ring-2 focus:ring-cyan-100 outline-none leading-relaxed transition-all"
+                                    />
+                                    <span className="text-[10px] text-slate-400 block font-sans">
+                                        Pega la etiqueta HTML completa o la clave de verificación de Google Search Console para verificar la propiedad del dominio.
+                                    </span>
+                                </div>
+
+                                {/* Google Analytics / GTM */}
+                                <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2 shadow-sm">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <TrendingUp className="w-3.5 h-3.5 text-amber-500" />
+                                            Google Analytics 4 / GTM (ID o Script)
+                                        </label>
+                                        {(() => {
+                                            const input = landingSettings.googleAnalyticsId;
+                                            if (!input || !input.trim()) return null;
+                                            const gaMatch = input.match(/G-[A-Z0-9]{4,15}/i);
+                                            const gtmMatch = input.match(/GTM-[A-Z0-9]{4,12}/i);
+                                            const label = gaMatch ? gaMatch[0].toUpperCase() : (gtmMatch ? gtmMatch[0].toUpperCase() : (input.trim().toUpperCase().startsWith('G-') || input.trim().toUpperCase().startsWith('GTM-') ? input.trim().toUpperCase() : 'Script cargado'));
+                                            return (
+                                                <span className="text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full truncate max-w-[180px]">
+                                                    Detectado ✓: {label}
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                    <textarea 
+                                        value={landingSettings.googleAnalyticsId || ''}
+                                        onChange={(e) => handleGeneralFieldChange('googleAnalyticsId', e.target.value)}
+                                        placeholder='Pega tu ID de Google Analytics (ej: G-XYZ123456) o el script completo de Google Tag Manager (GTM).'
+                                        rows={3}
+                                        className="w-full text-xs p-2.5 border border-slate-200 rounded-xl font-mono bg-slate-50 focus:bg-white focus:ring-2 focus:ring-cyan-100 outline-none leading-relaxed transition-all"
+                                    />
+                                    <span className="text-[10px] text-slate-400 block font-sans">
+                                        Soporta IDs tipo <code className="font-mono bg-slate-100 px-1 rounded">G-XXXXXXXX</code> o <code className="font-mono bg-slate-100 px-1 rounded">GTM-XXXXXXX</code> o el bloque de código script.
+                                    </span>
+                                </div>
+
+                                {/* Meta / Facebook Pixel */}
+                                <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2 shadow-sm">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <Globe className="w-3.5 h-3.5 text-blue-600" />
+                                            Meta / Facebook Pixel (ID o Script)
+                                        </label>
+                                        {(() => {
+                                            const input = landingSettings.facebookPixelId;
+                                            if (!input || !input.trim()) return null;
+                                            const fbMatch = input.match(/fbq\s*\(\s*['"]init['"]\s*,\s*['"]?(\d+)['"]?\s*\)/i);
+                                            const numMatch = input.match(/\b\d{13,17}\b/);
+                                            const label = fbMatch && fbMatch[1] ? fbMatch[1] : (numMatch ? numMatch[0] : (/^\d+$/.test(input.trim()) ? input.trim() : 'Píxel cargado'));
+                                            return (
+                                                <span className="text-[9px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full truncate max-w-[180px]">
+                                                    Detectado ✓: {label}
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
+                                    <textarea 
+                                        value={landingSettings.facebookPixelId || ''}
+                                        onChange={(e) => handleGeneralFieldChange('facebookPixelId', e.target.value)}
+                                        placeholder="Pega tu Píxel ID de Facebook (ej: 123456789012345) o el script completo de Meta Pixel."
+                                        rows={3}
+                                        className="w-full text-xs p-2.5 border border-slate-200 rounded-xl font-mono bg-slate-50 focus:bg-white focus:ring-2 focus:ring-cyan-100 outline-none leading-relaxed transition-all"
+                                    />
+                                    <span className="text-[10px] text-slate-400 block font-sans">
+                                        Extrae automáticamente el Píxel ID para rastrear visitas y anuncios de Facebook e Instagram.
+                                    </span>
+                                </div>
+
+                                {/* Custom Header Scripts */}
+                                <div className="bg-white border border-slate-200 rounded-2xl p-4 space-y-2 shadow-sm">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                            <Code className="w-3.5 h-3.5 text-indigo-600" />
+                                            Scripts Personalizados (Head / Tracking Adicional)
+                                        </label>
+                                        {landingSettings.customHeaderScripts?.trim() && (
+                                            <span className="text-[9px] font-extrabold bg-cyan-50 text-cyan-700 border border-cyan-200 px-2 py-0.5 rounded-full">
+                                                Script Activo ✓
+                                            </span>
+                                        )}
+                                    </div>
+                                    <textarea 
+                                        value={landingSettings.customHeaderScripts || ''}
+                                        onChange={(e) => handleGeneralFieldChange('customHeaderScripts', e.target.value)}
+                                        placeholder='Pega aquí cualquier otro script o píxel adicional (ej: Hotjar, TikTok Pixel, LinkedIn Insight, Microsoft Clarity).'
+                                        rows={3}
+                                        className="w-full text-xs p-2.5 border border-slate-200 rounded-xl font-mono bg-slate-50 focus:bg-white focus:ring-2 focus:ring-cyan-100 outline-none leading-relaxed transition-all"
+                                    />
+                                    <span className="text-[10px] text-slate-400 block font-sans">
+                                        Se inyectará de forma transparente en la cabecera pública de tu sitio web.
+                                    </span>
                                 </div>
                             </div>
                         </div>
