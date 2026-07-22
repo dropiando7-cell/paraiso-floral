@@ -1775,5 +1775,33 @@ export async function recibirActivoEnTransito(id: string) {
     }
 }
 
+export async function getFacturaByActivoId(activoId: string) {
+    try {
+        const orgId = await getOrgId();
+        const detalle = await prisma.detalleFactura.findFirst({
+            where: {
+                activoId,
+                factura: {
+                    organizationId: orgId,
+                    estado: { not: 'ANULADA' }
+                }
+            },
+            include: {
+                factura: {
+                    select: {
+                        id: true,
+                        correlativo: true,
+                        estado: true
+                    }
+                }
+            }
+        });
+        return { success: true, factura: detalle?.factura || null };
+    } catch (e: any) {
+        console.error("Error in getFacturaByActivoId:", e);
+        return { success: false, error: e.message || 'Error al obtener la factura del activo' };
+    }
+}
+
 
 

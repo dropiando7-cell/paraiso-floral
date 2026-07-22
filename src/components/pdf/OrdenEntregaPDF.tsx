@@ -18,25 +18,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     paddingLeft: 45,
     paddingRight: 45,
-    paddingTop: 30,
-    paddingBottom: 70, // Space for footer
+    paddingTop: 20,
+    paddingBottom: 65, // Space for footer
     fontFamily: 'Inter',
-    fontSize: 9.5,
+    fontSize: 9,
     color: '#000000',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 8,
   },
   logo: {
-    height: 50,
-    width: 120,
+    height: 40,
+    width: 100,
     objectFit: 'contain',
   },
   title: {
-    fontSize: 30,
+    fontSize: 22,
     fontWeight: 700,
     color: '#0d608e',
     textTransform: 'uppercase',
@@ -44,13 +44,13 @@ const styles = StyleSheet.create({
   sectionTitleContainer: {
     borderBottomWidth: 1.5,
     borderBottomColor: '#000000',
-    paddingBottom: 1,
-    marginTop: 10,
-    marginBottom: 5,
+    paddingBottom: 0.5,
+    marginTop: 6,
+    marginBottom: 3,
     width: '100%',
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 9.5,
     fontWeight: 700,
     color: '#000000',
     textTransform: 'uppercase',
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     width: '100%',
-    marginBottom: 4,
+    marginBottom: 2,
   },
   infoCol: {
     width: '48%',
@@ -74,17 +74,17 @@ const styles = StyleSheet.create({
   fieldRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    marginBottom: 4,
-    minHeight: 14,
+    marginBottom: 2,
+    minHeight: 12,
   },
   fieldLabelContainer: {
-    width: 74,
+    width: 68,
     borderBottomWidth: 1.5,
     borderBottomColor: '#000000',
     paddingBottom: 1,
   },
   fieldLabelText: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: 500,
     color: '#000000',
     textTransform: 'uppercase',
@@ -96,10 +96,10 @@ const styles = StyleSheet.create({
     borderBottomColor: '#000000',
     paddingBottom: 1,
     marginLeft: 6,
-    minHeight: 11,
+    minHeight: 10,
   },
   fieldValueText: {
-    fontSize: 9,
+    fontSize: 8.5,
     color: '#000000',
   },
   table: {
@@ -112,8 +112,8 @@ const styles = StyleSheet.create({
     borderLeftColor: '#000000',
     borderRightWidth: 0.75,
     borderRightColor: '#000000',
-    marginTop: 6,
-    marginBottom: 10,
+    marginTop: 4,
+    marginBottom: 6,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -124,24 +124,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     borderBottomWidth: 0.75,
     borderBottomColor: '#000000',
-    minHeight: 24,
+    minHeight: 20,
   },
   tableCell: {
     borderRightWidth: 0.75,
     borderRightColor: '#000000',
-    paddingVertical: 4,
+    paddingVertical: 3,
     paddingHorizontal: 4,
     justifyContent: 'center',
   },
   thText: {
-    fontSize: 9.5,
+    fontSize: 9,
     fontWeight: 500,
     textTransform: 'uppercase',
     color: '#000000',
     textAlign: 'center',
   },
   tdText: {
-    fontSize: 9,
+    fontSize: 8.5,
     color: '#000000',
     textAlign: 'center',
   },
@@ -154,13 +154,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     borderBottomColor: '#000000',
     paddingBottom: 2,
-    marginTop: 6,
-    marginBottom: 10,
+    marginTop: 4,
+    marginBottom: 6,
     alignSelf: 'flex-start',
     width: '100%',
   },
   warrantyText: {
-    fontSize: 11,
+    fontSize: 9.5,
     fontWeight: 700,
     color: '#000000',
     textTransform: 'uppercase',
@@ -168,55 +168,55 @@ const styles = StyleSheet.create({
   diagnosticoBox: {
     borderWidth: 0.75,
     borderColor: '#000000',
-    padding: 8,
-    marginBottom: 10,
+    padding: 6,
+    marginBottom: 6,
     width: '100%',
   },
   diagnosticoTitle: {
     fontWeight: 700,
     color: '#000000',
-    marginBottom: 3,
-    fontSize: 9.5,
+    marginBottom: 2,
+    fontSize: 9,
     textTransform: 'uppercase',
   },
   diagnosticoText: {
-    fontSize: 8.5,
+    fontSize: 8,
     color: '#000000',
-    lineHeight: 1.25,
+    lineHeight: 1.2,
   },
   evidenciasTitle: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 700,
     color: '#000000',
-    marginBottom: 6,
+    marginBottom: 4,
     textTransform: 'uppercase',
   },
   evidenciasGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'flex-start',
-    gap: 8,
-    marginBottom: 10,
+    gap: 6,
+    marginBottom: 6,
   },
   evidenciaContainer: {
     flexDirection: 'column',
     alignItems: 'center',
-    width: '23.5%',
-    marginBottom: 6,
+    width: '18.5%',
+    marginBottom: 4,
   },
   evidenciaImage: {
-    width: 75,
-    height: 75,
+    width: 58,
+    height: 58,
     borderWidth: 0.75,
     borderColor: '#000000',
     objectFit: 'contain',
     backgroundColor: '#f8fafc',
   },
   evidenciaText: {
-    fontSize: 7,
+    fontSize: 6.5,
     color: '#000000',
     textAlign: 'center',
-    marginTop: 3,
+    marginTop: 2,
     lineHeight: 1.1,
   },
   signaturesContainer: {
@@ -224,8 +224,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     alignItems: 'flex-end',
     marginTop: 'auto',
-    paddingTop: 15,
-    marginBottom: 20,
+    paddingTop: 10,
+    marginBottom: 10,
     position: 'relative',
   },
   signatureCol: {
@@ -369,6 +369,16 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
 
   const activeSigs = (ordenEntrega?.mostrarFirmas !== false) ? signaturesList.filter((sig: any) => sig.enabled) : [];
   const showSeals = (ordenEntrega?.mostrarSello !== false);
+
+  // Dynamic sizing adjustments for signatures to prevent overflow onto a second page
+  const rawSigHeight = settings?.signatureHeight;
+  const finalSigHeight = rawSigHeight === 120 || !rawSigHeight ? 64 : Math.min(rawSigHeight, 80);
+  const scaleFactor = rawSigHeight ? (finalSigHeight / rawSigHeight) : (64 / 120);
+
+  const finalSigSpacing = (typeof settings?.signatureSpacing === 'number' ? settings.signatureSpacing : 39) * scaleFactor;
+  const finalSealSize = (settings?.sealSize || 180) * scaleFactor;
+  const finalSealX = (settings?.companySealX || 0) * scaleFactor;
+  const finalSealY = (settings?.companySealY || 0) * scaleFactor;
 
   return (
     <Document>
@@ -567,23 +577,23 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
                     src={images['seal_company']} 
                     style={{ 
                       position: 'absolute', 
-                      top: -20 + (typeof settings.signatureSpacing === 'number' ? settings.signatureSpacing : 39) + (settings.companySealY || 0), 
-                      left: (settings.companySealX || 0),
-                      width: settings.sealSize || 180, 
-                      height: settings.sealSize || 180, 
+                      top: -10 + finalSigSpacing + finalSealY, 
+                      left: finalSealX,
+                      width: finalSealSize, 
+                      height: finalSealSize, 
                       opacity: 0.75 
                     }} 
                   />
                 )}
-                 <View style={{ height: settings.signatureHeight || 120, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
+                 <View style={{ height: finalSigHeight, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
                   {images[`sig_${sig.id}`] && (
                     <Image 
                       src={images[`sig_${sig.id}`]} 
                       style={{ 
-                        height: settings.signatureHeight || 120, 
+                        height: finalSigHeight, 
                         objectFit: 'contain', 
                         position: 'relative', 
-                        top: (typeof settings.signatureSpacing === 'number' ? settings.signatureSpacing : 39) + (sig.offsetY || 0)
+                        top: finalSigSpacing + (sig.offsetY || 0) * scaleFactor
                       }} 
                     />
                   )}
@@ -598,13 +608,13 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
           {/* Sello de la Empresa cuando no hay firmas pero el sello está activo */}
           {activeSigs.length === 0 && showSeals && settings.showCompanySeal !== false && images['seal_company'] && (
             <View style={{ alignItems: 'center', justifyContent: 'center', width: '45%' }}>
-              <Image src={images['seal_company']} style={{ width: settings.sealSize || 180, height: settings.sealSize || 180, opacity: 0.8 }} />
+              <Image src={images['seal_company']} style={{ width: finalSealSize, height: finalSealSize, opacity: 0.8 }} />
             </View>
           )}
 
           {/* Client Signature Column */}
           <View style={[styles.signatureCol, { width: activeSigs.length <= 1 ? '45%' : '30%' }]}>
-            <View style={{ height: settings.signatureHeight || 120 }} />
+            <View style={{ height: finalSigHeight }} />
             <View style={styles.signatureLine} />
             <Text style={[styles.signatureLabel, { fontSize: 10 }]}>RECIBE:</Text>
             <Text style={styles.signatureSubLabel}>Cliente / Solicitante</Text>

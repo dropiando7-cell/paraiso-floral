@@ -17,7 +17,8 @@ import {
     getActivosByGrupo, updateActivoQuick, checkGrupoExists, getActivosByIdQr, 
     searchActivosGlobal, generateNextServiceCode, getActivosForExport, getInventoryOriginsSetting,
     saveInventoryOriginsSetting, getInventoryConditionsSetting, saveInventoryConditionsSetting,
-    bulkImportActivos, encolarLoteImportado, generateNextSkuCode, recibirActivoEnTransito
+    bulkImportActivos, encolarLoteImportado, generateNextSkuCode, recibirActivoEnTransito,
+    getFacturaByActivoId
 } from './actions';
 import { completarReparacionActivo } from './garantias/actions';
 import toast from 'react-hot-toast';
@@ -3329,6 +3330,31 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const [showFilters, setShowFilters] = useState(false);
 
     const [viewActivo, setViewActivo] = useState<Activo | null>(null);
+    const [soldInvoiceInfo, setSoldInvoiceInfo] = useState<{ id: string; correlativo: string } | null>(null);
+    const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
+
+    useEffect(() => {
+        if (viewActivo && (viewActivo.estatusContable === 'VENDIDO' || viewActivo.estatusContable === 'VENDIDO/ENTREGADO')) {
+            setIsLoadingInvoice(true);
+            getFacturaByActivoId(viewActivo.id)
+                .then(res => {
+                    if (res?.success && res?.factura) {
+                        setSoldInvoiceInfo(res.factura);
+                    } else {
+                        setSoldInvoiceInfo(null);
+                    }
+                })
+                .catch(() => {
+                    setSoldInvoiceInfo(null);
+                })
+                .finally(() => {
+                    setIsLoadingInvoice(false);
+                });
+        } else {
+            setSoldInvoiceInfo(null);
+        }
+    }, [viewActivo]);
+
     const [previewActivo, setPreviewActivo] = useState<Activo | null>(null);
     const [searchModalOpen, setSearchModalOpen] = useState(false);
     const [searchModalQuery, setSearchModalQuery] = useState<string | null>(null);
@@ -4673,6 +4699,57 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                         </div>
                                     )}
                                 </div>
+
+                                {/* Sección de Venta (Factura y Entrega) */}
+                                {viewActivo && (viewActivo.estatusContable === 'VENDIDO' || viewActivo.estatusContable === 'VENDIDO/ENTREGADO') && (
+                                    <div className="mt-6 p-4 rounded-xl border border-blue-200 bg-blue-50/40 flex flex-col gap-3">
+                                        <div className="flex items-start gap-2.5">
+                                            <div className="p-1.5 bg-blue-100 text-[#0500A3] rounded-lg mt-0.5 shrink-0">
+                                                <Globe className="w-4 h-4" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Información de Venta</h5>
+                                                {isLoadingInvoice ? (
+                                                    <div className="flex items-center gap-1.5 mt-1 text-slate-400 text-xs">
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#0500A3]" />
+                                                        <span>Cargando datos de venta...</span>
+                                                    </div>
+                                                ) : soldInvoiceInfo ? (
+                                                    <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                                                        Equipo vendido mediante la factura <strong className="font-bold text-[#0500A3]">{soldInvoiceInfo.correlativo}</strong>. Puedes ver los documentos correspondientes abajo:
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-xs text-slate-400 mt-1 italic">
+                                                        No se encontró el registro de la factura para este equipo.
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {soldInvoiceInfo && (
+                                            <div className="grid grid-cols-2 gap-3 mt-1">
+                                                <a
+                                                    href={`/facturas/ver/${soldInvoiceInfo.id}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center justify-center gap-1.5 py-2 px-3 border-2 border-[#0500A3]/30 text-[#0500A3] bg-white hover:bg-blue-50/50 hover:border-[#0500A3]/50 rounded-lg text-xs font-bold transition-all active:scale-95"
+                                                >
+                                                    <ExternalLink className="w-3.5 h-3.5" />
+                                                    Ver Factura
+                                                </a>
+                                                <a
+                                                    href={`/api/pdf/${soldInvoiceInfo.id}?type=entrega`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="flex items-center justify-center gap-1.5 py-2 px-3 bg-[#0500A3] hover:bg-[#0600c2] text-white rounded-lg text-xs font-bold transition-all active:scale-95 shadow-xs"
+                                                >
+                                                    <Download className="w-3.5 h-3.5" />
+                                                    Orden de Entrega
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-3">
                                 {/* Botón ficha técnica */}

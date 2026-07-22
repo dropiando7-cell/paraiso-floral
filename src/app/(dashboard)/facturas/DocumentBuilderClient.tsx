@@ -9,9 +9,10 @@ import {
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
   Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, Pencil,
-  Smartphone, Loader2, UploadCloud
+  Smartphone, Loader2, UploadCloud, PenTool, RefreshCw
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
+import SignatureCanvas from 'react-signature-canvas';
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
 
@@ -271,6 +272,16 @@ function LineItemRow({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDraggable, setIsDraggable] = useState(false);
+  const [isSyncingCatalog, setIsSyncingCatalog] = useState(false);
+
+  const handleSyncCatalogClick = () => {
+    setIsSyncingCatalog(true);
+    window.dispatchEvent(new CustomEvent('reload-catalog'));
+    setTimeout(() => {
+      setIsSyncingCatalog(false);
+      toast.success('Catálogo de inventario sincronizado');
+    }, 850);
+  };
   const [isDragOver, setIsDragOver] = useState(false);
   const shortDescRef = useRef<HTMLTextAreaElement>(null);
   const longDescRef = useRef<HTMLTextAreaElement>(null);
@@ -438,7 +449,21 @@ function LineItemRow({
     return (
       <div className="absolute top-[calc(100%+4px)] left-0 w-[500px] md:w-[540px] z-[60] bg-white border border-slate-200 rounded-xl shadow-2xl max-h-72 overflow-y-auto print:hidden">
         <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0 z-[65]">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coincidencias en catálogo</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coincidencias en catálogo</span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSyncCatalogClick();
+              }}
+              disabled={isSyncingCatalog}
+              className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-700 transition active:scale-95 flex items-center justify-center cursor-pointer"
+              title="Sincronizar catálogo desde la base de datos sin recargar la página"
+            >
+              <RefreshCw className={`w-3 h-3 ${isSyncingCatalog ? 'animate-spin text-blue-600' : ''}`} />
+            </button>
+          </div>
           <span className="text-[10px] font-medium text-slate-400">{filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'}</span>
         </div>
         <div className="p-1">
@@ -1095,6 +1120,16 @@ export default function DocumentBuilderClient({
   const [activeSealField, setActiveSealField] = useState<'company' | 'status' | null>(null);
   const [uploading, setUploading] = useState(false);
   const [showShareSignatureModal, setShowShareSignatureModal] = useState(false);
+  const [showDirectSignatureModal, setShowDirectSignatureModal] = useState(false);
+  const [hasDirectSignatureDrawn, setHasDirectSignatureDrawn] = useState(false);
+  const [isSavingDirectSignature, setIsSavingDirectSignature] = useState(false);
+  const sigCanvasRef = useRef<SignatureCanvas>(null);
+
+  useEffect(() => {
+    if (showDirectSignatureModal) {
+      setHasDirectSignatureDrawn(false);
+    }
+  }, [showDirectSignatureModal]);
 
   const signaturesList = settings.signaturesList || [
     { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: settings.showEmiliaZapata !== false },
@@ -1951,6 +1986,32 @@ export default function DocumentBuilderClient({
       }
     };
     loadData();
+
+    const handleForceReloadCatalog = async () => {
+      try {
+        const prd = await searchProductos('');
+        setAllProducts(prd.map((p: any) => ({
+          id: p.id,
+          code: p.sku || '',
+          name: p.nombre,
+          description: p.descripcion || '',
+          price: Number(p.precioVenta) || 0,
+          category: p.marca || 'General',
+          stock: p.stockActual || 0,
+          brand: p.marca || '',
+          type: p.type || 'producto',
+          imageUrl: p.imageUrl || p.imagenUrl || null,
+          fechaVencimiento: p.fechaVencimiento || null,
+          serie: p.serie || null,
+        })));
+      } catch (e) {
+        console.error("Error reloading catalog:", e);
+      }
+    };
+    window.addEventListener('reload-catalog', handleForceReloadCatalog);
+    return () => {
+      window.removeEventListener('reload-catalog', handleForceReloadCatalog);
+    };
   }, [docType]);
 
   // Safety net: resolve missing asset serial numbers against loaded catalog
@@ -2655,6 +2716,32 @@ export default function DocumentBuilderClient({
 
             {ordenEntrega ? (
               <>
+                {/* PDF generation list */}
+                <div className="space-y-3 pb-4 border-b border-slate-100 flex flex-col gap-2">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                    📄 Documentos Adicionales
+                  </h4>
+                  <button
+                    onClick={() => handleDownloadPDF('entrega')}
+                    disabled={isDownloadingPDF}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black shadow transition-all hover:shadow-lg disabled:opacity-50 animate-pulse-subtle"
+                  >
+                    <Download size={13} /> Descargar Orden de Entrega
+                  </button>
+                  <button
+                    onClick={() => handleDownloadPDF('garantia')}
+                    disabled={isDownloadingPDF}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl text-xs font-black shadow transition-all hover:shadow-lg disabled:opacity-50"
+                  >
+                    <Download size={13} /> Descargar Certificado de Garantía
+                  </button>
+                  {!ordenEntrega.aplicaMantenimientos && (
+                    <p className="text-[10px] text-amber-500 font-medium text-center">
+                      * Habilita el calendario de mantenimientos para incluir el cronograma de visitas preventivas
+                    </p>
+                  )}
+                </div>
+
                 {/* Selector de Lienzo */}
                 <div className="space-y-2">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Vista del Canvas</span>
@@ -2777,14 +2864,26 @@ export default function DocumentBuilderClient({
 
                     {ordenEntrega.mostrarFirmas !== false && (
                       <div className="space-y-3 pt-2 border-t border-slate-200/60">
-                        <div className="flex justify-between items-center">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lista de Firmantes</span>
-                          <button
-                            onClick={() => setShowShareSignatureModal(true)}
-                            className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-all active:scale-95"
-                          >
-                            <Smartphone size={10} /> Firma de Cliente (Móvil)
-                          </button>
+                        <div className="flex justify-between items-center gap-2">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Lista de Firmantes</span>
+                          <div className="flex gap-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => setShowDirectSignatureModal(true)}
+                              className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-all active:scale-95 border border-emerald-200/50"
+                              title="Firmar directamente en esta pantalla"
+                            >
+                              <PenTool size={10} /> Firmar en Pantalla
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setShowShareSignatureModal(true)}
+                              className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-all active:scale-95 border border-indigo-200/50"
+                              title="Enviar enlace al celular del cliente para firmar"
+                            >
+                              <Smartphone size={10} /> Celular
+                            </button>
+                          </div>
                         </div>
 
                         <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
@@ -3334,32 +3433,6 @@ export default function DocumentBuilderClient({
                       </label>
                     </div>
                   </div>
-
-                {/* PDF generation list */}
-                <div className="space-y-3 pt-4 border-t border-slate-100 flex flex-col gap-2">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-                    📄 Documentos Adicionales
-                  </h4>
-                  <button
-                    onClick={() => handleDownloadPDF('entrega')}
-                    disabled={isDownloadingPDF}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl text-xs font-black shadow transition-all hover:shadow-lg disabled:opacity-50"
-                  >
-                    <Download size={13} /> Descargar Orden de Entrega
-                  </button>
-                  <button
-                    onClick={() => handleDownloadPDF('garantia')}
-                    disabled={isDownloadingPDF}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-violet-600 hover:bg-violet-700 text-white rounded-2xl text-xs font-black shadow transition-all hover:shadow-lg disabled:opacity-50"
-                  >
-                    <Download size={13} /> Descargar Certificado de Garantía
-                  </button>
-                  {!ordenEntrega.aplicaMantenimientos && (
-                    <p className="text-[10px] text-amber-500 font-medium text-center">
-                      * Habilita el calendario de mantenimientos para incluir el cronograma de visitas preventivas
-                    </p>
-                  )}
-                </div>
               </>
             ) : (
               <div className="flex flex-col items-center justify-center py-6 text-center">
@@ -4112,6 +4185,125 @@ export default function DocumentBuilderClient({
                 className="w-full py-3 bg-[#0500A3] hover:bg-[#040080] text-white font-bold rounded-2xl transition-all text-xs active:scale-98"
               >
                 Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDirectSignatureModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[5000] flex items-center justify-center animate-in fade-in p-4 print:hidden">
+          <div className="bg-white rounded-[2rem] p-6 max-w-md w-full shadow-2xl animate-in zoom-in-95 duration-200 border border-slate-100 flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-emerald-50 text-emerald-650 rounded-full flex items-center justify-center">
+                  <PenTool size={16} className="stroke-[2.5]" />
+                </div>
+                <h3 className="text-base font-black text-slate-900 tracking-tight">Firma del Cliente en Pantalla</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDirectSignatureModal(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <p className="text-xs text-slate-500 mb-4 font-medium leading-relaxed">
+              Por favor, solicite al cliente que dibuje su firma en el recuadro gris de abajo para firmar la entrega de la factura/orden de entrega.
+            </p>
+            
+            <div className="space-y-3 mb-6">
+              <div className="flex justify-between items-end">
+                <span className="text-xs font-bold text-slate-700">Dibuja la firma aquí *</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sigCanvasRef.current?.clear();
+                    setHasDirectSignatureDrawn(false);
+                  }}
+                  className="text-[10px] text-indigo-600 hover:text-indigo-850 font-extrabold flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-all active:scale-95"
+                >
+                  Limpiar
+                </button>
+              </div>
+              
+              <div 
+                className="border-2 border-dashed border-slate-300 rounded-2xl bg-slate-50 overflow-hidden relative touch-none h-[220px]"
+              >
+                <SignatureCanvas
+                  ref={sigCanvasRef}
+                  penColor="#0500A3"
+                  canvasProps={{
+                    width: 400,
+                    height: 220,
+                    className: 'sigCanvas touch-none w-full h-full'
+                  }}
+                  onBegin={() => setHasDirectSignatureDrawn(true)}
+                />
+                {!hasDirectSignatureDrawn && (
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30 select-none">
+                    <span className="font-serif italic text-sm text-slate-400">Firmar aquí</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDirectSignatureModal(false)}
+                className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer"
+                disabled={isSavingDirectSignature}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  if (!hasDirectSignatureDrawn || sigCanvasRef.current?.isEmpty()) {
+                    toast.error('Por favor dibuja la firma antes de guardar.');
+                    return;
+                  }
+                  
+                  setIsSavingDirectSignature(true);
+                  const toastId = toast.loading('Guardando firma del cliente...');
+                  try {
+                    const dataUrl = sigCanvasRef.current?.getTrimmedCanvas().toDataURL('image/png');
+                    const res = await fetch('/api/facturas/firmar-entrega', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ facturaId: initialData?.id, firmaDataUrl: dataUrl })
+                    });
+                    
+                    if (res.ok) {
+                      toast.success('¡Firma guardada correctamente!', { id: toastId });
+                      setShowDirectSignatureModal(false);
+                      // Recargar la página para que la firma aparezca en el PDF / entrega
+                      window.location.reload();
+                    } else {
+                      const errData = await res.json();
+                      throw new Error(errData.error || 'Ocurrió un error al guardar.');
+                    }
+                  } catch (e: any) {
+                    toast.error(e.message || 'Error al conectar con el servidor.', { id: toastId });
+                  } finally {
+                    setIsSavingDirectSignature(false);
+                  }
+                }}
+                className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                disabled={isSavingDirectSignature || !hasDirectSignatureDrawn}
+              >
+                {isSavingDirectSignature ? (
+                  <>
+                    <Loader2 size={13} className="animate-spin" /> Guardando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={13} /> Guardar Firma
+                  </>
+                )}
               </button>
             </div>
           </div>

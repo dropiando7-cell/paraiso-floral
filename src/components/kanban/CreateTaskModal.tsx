@@ -21,7 +21,10 @@ import {
     Paperclip,
     Trash2,
     Image as ImageIcon,
-    Plus
+    Plus,
+    Download,
+    Pencil,
+    FileText
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
@@ -124,6 +127,25 @@ export default function CreateTaskModal({
     // Attachments & Upload states
     const [attachments, setAttachments] = useState<{ nombre: string; url: string; tipo: string; tamano: number; descripcion: string }[]>([]);
     const [isUploading, setIsUploading] = useState(false);
+
+    // Lightbox states
+    const [lightboxItem, setLightboxItem] = useState<{ nombre: string; url: string; tipo: string; tamano: number; descripcion: string } | null>(null);
+    const [lightboxDescText, setLightboxDescText] = useState('');
+    const [isEditingLightboxDesc, setIsEditingLightboxDesc] = useState(false);
+
+    useEffect(() => {
+        if (lightboxItem) {
+            setLightboxDescText(lightboxItem.descripcion || '');
+            setIsEditingLightboxDesc(!lightboxItem.descripcion);
+        }
+    }, [lightboxItem]);
+
+    const getFileIcon = (tipo: string) => {
+        if (tipo.startsWith('image/')) return <ImageIcon className="h-6 w-6 text-blue-500" />;
+        if (tipo.includes('pdf')) return <FileText className="h-6 w-6 text-red-500" />;
+        if (tipo.includes('excel') || tipo.includes('spreadsheet') || tipo.includes('sheet') || tipo.includes('csv')) return <FileText className="h-6 w-6 text-emerald-500" />;
+        return <FileText className="h-6 w-6 text-slate-400" />;
+    };
 
     // Estados para cámara web
     const [showCameraModal, setShowCameraModal] = useState(false);
@@ -345,6 +367,18 @@ export default function CreateTaskModal({
 
     const handleRemoveAttachment = (index: number) => {
         setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
+    const handleRemoveAttachmentByUrl = (url: string) => {
+        setAttachments(prev => prev.filter(att => att.url !== url));
+        setLightboxItem(null);
+    };
+
+    const handleUpdateAttachmentDescriptionByUrl = (url: string, desc: string) => {
+        setAttachments(prev => prev.map(att => att.url === url ? { ...att, descripcion: desc } : att));
+        if (lightboxItem && lightboxItem.url === url) {
+            setLightboxItem(prev => prev ? { ...prev, descripcion: desc } : null);
+        }
     };
 
     // Camera Web handlers
@@ -825,12 +859,23 @@ export default function CreateTaskModal({
                                     const isImage = att.tipo.startsWith('image/');
                                     return (
                                         <div key={index} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center bg-white p-2.5 rounded-lg border border-slate-150 shadow-sm relative group">
-                                            <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                            <div 
+                                                onClick={() => setLightboxItem(att)}
+                                                className="flex items-center gap-2.5 flex-1 min-w-0 cursor-pointer hover:opacity-80 transition duration-150"
+                                                title="Haga clic para previsualizar"
+                                            >
                                                 {isImage ? (
                                                     <img src={att.url} alt={att.nombre} className="h-10 w-10 rounded object-cover border border-slate-200 shrink-0" />
+                                                ) : att.tipo.startsWith('video/') ? (
+                                                    <div className="h-10 w-10 bg-black rounded flex items-center justify-center border border-slate-200 shrink-0 relative overflow-hidden">
+                                                        <video src={att.url} className="h-full w-full object-cover opacity-80" preload="metadata" />
+                                                        <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+                                                            <Play className="h-4 w-4 text-white fill-white" />
+                                                        </div>
+                                                    </div>
                                                 ) : (
                                                     <div className="h-10 w-10 bg-slate-100 rounded flex items-center justify-center border border-slate-200 shrink-0">
-                                                        <Paperclip className="h-5 w-5 text-slate-500" />
+                                                        {getFileIcon(att.tipo)}
                                                     </div>
                                                 )}
                                                 <div className="flex-1 min-w-0">
@@ -1493,6 +1538,154 @@ export default function CreateTaskModal({
                     </div>
                 )}
             </div>
+
+            {/* Lightbox Modal de Imágenes y Descripción */}
+            {lightboxItem && (
+                <div 
+                    className="fixed inset-0 z-[10005] flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-md p-4 md:p-8 animate-in fade-in duration-200"
+                    onClick={() => setLightboxItem(null)}
+                >
+                    {/* Botón de Eliminar */}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            if (confirm('¿Eliminar este archivo adjunto permanentemente?')) {
+                                handleRemoveAttachmentByUrl(lightboxItem.url);
+                            }
+                        }}
+                        className="absolute top-4 right-20 z-[10010] p-3 rounded-full bg-red-600/20 text-red-200 hover:bg-red-650/35 transition-all hover:scale-105 shadow-md active:scale-95 cursor-pointer border border-red-500/20"
+                        title="Eliminar archivo"
+                    >
+                        <Trash2 className="h-6 w-6" />
+                    </button>
+
+                    {/* Botón de Cerrar */}
+                    <button
+                        type="button"
+                        onClick={() => setLightboxItem(null)}
+                        className="absolute top-4 right-4 z-[10010] p-3 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all hover:scale-105 shadow-md active:scale-95 cursor-pointer"
+                        title="Cerrar vista previa"
+                    >
+                        <X className="h-6 w-6" />
+                    </button>
+
+                    {/* Contenedor del Adjunto */}
+                    <div 
+                        className="relative max-w-4xl w-full max-h-[70vh] flex items-center justify-center animate-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {lightboxItem.tipo.startsWith('image/') ? (
+                            <img 
+                                src={lightboxItem.url} 
+                                alt={lightboxItem.nombre} 
+                                className="max-w-full max-h-[70vh] object-contain rounded-2xl shadow-2xl border border-white/10" 
+                            />
+                        ) : lightboxItem.tipo.startsWith('video/') ? (
+                            <video 
+                                src={lightboxItem.url} 
+                                controls 
+                                autoPlay 
+                                className="max-w-full max-h-[70vh] object-contain rounded-2xl shadow-2xl border border-white/10" 
+                            />
+                        ) : lightboxItem.tipo.startsWith('audio/') ? (
+                            <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-8 shadow-2xl flex flex-col items-center justify-center gap-4 w-full max-w-md backdrop-blur-sm">
+                                <div className="h-16 w-16 bg-brand-500/10 border border-brand-500/20 text-brand-400 rounded-full flex items-center justify-center">
+                                    <Mic className="h-8 w-8" />
+                                </div>
+                                <span className="text-white text-sm font-semibold font-mono">Audio Grabado</span>
+                                <audio src={lightboxItem.url} controls autoPlay className="w-full mt-2" />
+                            </div>
+                        ) : (
+                            <div className="bg-slate-900/80 border border-white/10 rounded-2xl p-8 shadow-2xl flex flex-col items-center justify-center gap-4 w-full max-w-md backdrop-blur-sm">
+                                <div className="h-16 w-16 bg-white/5 border border-white/10 text-slate-400 rounded-full flex items-center justify-center">
+                                    {getFileIcon(lightboxItem.tipo)}
+                                </div>
+                                <span className="text-white text-sm font-semibold text-center truncate w-full">{lightboxItem.nombre}</span>
+                                <a 
+                                    href={lightboxItem.url} 
+                                    download={lightboxItem.nombre} 
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="mt-2 flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-sm transition active:scale-95"
+                                >
+                                    <Download className="h-4 w-4" />
+                                    Descargar / Abrir Archivo
+                                </a>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Barra de Información (Nombre + Descripción) */}
+                    <div 
+                        className="max-w-2xl w-full text-center mt-6 space-y-2.5 select-text animate-in slide-in-from-bottom-3 duration-200"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h4 className="text-white text-base font-bold tracking-tight truncate px-4" title={lightboxItem.nombre}>
+                            {lightboxItem.nombre}
+                        </h4>
+                        
+                        {isEditingLightboxDesc ? (
+                            <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 shadow-inner max-w-xl mx-auto space-y-3 text-left">
+                                <textarea
+                                    value={lightboxDescText}
+                                    onChange={(e) => setLightboxDescText(e.target.value)}
+                                    placeholder="Escribe una descripción para este archivo..."
+                                    rows={5}
+                                    className="w-full bg-slate-950/80 border border-white/10 rounded-xl p-3 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500/30 resize-y font-medium leading-relaxed min-h-[120px]"
+                                    autoFocus
+                                />
+                                <div className="flex justify-end gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            handleUpdateAttachmentDescriptionByUrl(lightboxItem.url, lightboxDescText);
+                                            setIsEditingLightboxDesc(false);
+                                        }}
+                                        className="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer"
+                                    >
+                                        Guardar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setLightboxDescText(lightboxItem.descripcion || "");
+                                            setIsEditingLightboxDesc(false);
+                                        }}
+                                        className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer"
+                                    >
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+                        ) : (
+                            <div 
+                                onClick={() => {
+                                    setLightboxDescText(lightboxItem.descripcion || "");
+                                    setIsEditingLightboxDesc(true);
+                                }}
+                                className="group relative bg-white/5 border border-white/10 hover:border-white/20 rounded-2xl p-4 shadow-inner max-h-[25vh] overflow-y-auto max-w-xl mx-auto transition-all text-left cursor-pointer hover:bg-white/10"
+                            >
+                                <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap select-text selection:bg-brand-500/30 selection:text-white pr-8">
+                                    {lightboxItem.descripcion || <span className="text-slate-500 italic">Sin descripción adjunta. Toca o haz clic aquí para añadir una.</span>}
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setLightboxDescText(lightboxItem.descripcion || "");
+                                        setIsEditingLightboxDesc(true);
+                                    }}
+                                    className="absolute top-2.5 right-2.5 p-1.5 rounded-lg bg-white/10 text-white/60 hover:text-white hover:bg-white/20 transition duration-200 cursor-pointer"
+                                    title="Editar descripción"
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
