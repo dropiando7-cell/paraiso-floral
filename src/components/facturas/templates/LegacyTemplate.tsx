@@ -94,6 +94,8 @@ export default function LegacyTemplate(props: TemplateProps) {
  }, [today, fechaEmision]);
 
   const isGrouped = settings?.subtotalsBorderStyle === 'grouped';
+  const [datePart = '', ...timeParts] = (currentDateStr || '').split(' ');
+  const timePart = timeParts.join(' ');
 
  return (
  <div className={`flex flex-col min-h-[1056px] print:min-h-[26.2cm] space-y-4 print:space-y-0 print:m-0 print:pb-24 ${fontClass} bg-white max-w-4xl mx-auto shadow-md border border-slate-300 print:border-none print:shadow-none`} style={templateStyles}>
@@ -139,7 +141,8 @@ export default function LegacyTemplate(props: TemplateProps) {
   <br/>
   <span className="text-slate-800">{docNumber}</span>
   </span>
-  <span className="text-gray-600 mt-1 whitespace-nowrap">Fecha: {currentDateStr}</span>
+  <span className="text-gray-600 mt-1 whitespace-nowrap">Fecha: {datePart}</span>
+  {timePart && <span className="text-gray-500 text-[10px] mt-0.5 whitespace-nowrap">{timePart}</span>}
   </div>
   
   <div className="flex flex-col border-l border-slate-200 pl-3">
