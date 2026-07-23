@@ -132,7 +132,7 @@ export default function LegacyTemplate(props: TemplateProps) {
  </div>
 
  {/* Metadata Grid (Compressed into columns) */}
-  <div className={`grid ${docType === 'factura' ? 'grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_0.8fr]' : 'grid-cols-[1.3fr_0.9fr_0.9fr_0.9fr]'} gap-3 mb-4 text-xs`}>
+  <div className={`grid ${(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') ? 'grid-cols-[1.2fr_0.8fr_0.8fr_0.8fr_1fr]' : 'grid-cols-[1.3fr_0.9fr_0.9fr_0.9fr]'} gap-3 mb-4 text-xs`}>
   <div className="flex flex-col">
   <span className={`font-bold ${headerBaseSize} ${theme.text} leading-tight uppercase`}>
   {currentDocType.label}
