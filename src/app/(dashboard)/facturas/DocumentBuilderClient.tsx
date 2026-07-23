@@ -231,8 +231,10 @@ function ProductSearchItem({ product, onAdd }: { product: Product; onAdd: (p: Pr
       onClick={() => onAdd(product)}
       className="w-full flex items-start gap-3 p-3 hover:bg-blue-50/70 rounded-xl transition-all group text-left"
     >
-      <div className={`w-8 h-8 rounded-lg group-hover:bg-blue-100 flex items-center justify-center shrink-0 transition-colors ${product.type === 'activo' ? 'bg-indigo-50' : 'bg-slate-100'}`}>
-        {product.type === 'activo' ? (
+      <div className="w-9 h-9 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0 relative transition-colors group-hover:border-blue-300">
+        {product.imageUrl ? (
+          <img src={product.imageUrl} alt="" className="w-full h-full object-cover" />
+        ) : product.type === 'activo' ? (
           <Stethoscope size={14} className="text-indigo-400 group-hover:text-blue-500" />
         ) : (
           <Package size={14} className="text-slate-400 group-hover:text-blue-500" />
@@ -1129,12 +1131,12 @@ export default function DocumentBuilderClient({
     ? new Date(initialData.fechaEmision)
     : new Date();
 
-  const today = docDate.toISOString().split('T')[0];
+  const today = `${docDate.getFullYear()}-${String(docDate.getMonth() + 1).padStart(2, '0')}-${String(docDate.getDate()).padStart(2, '0')}`;
 
   const futureDate = useCallback((days: number) => {
     const d = new Date(docDate);
     d.setDate(d.getDate() + days);
-    return d.toISOString().split('T')[0];
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, [docDate]);
 
   const resolvedFechaEmision = (editMode || viewMode) ? initialData?.fechaEmision : null;
