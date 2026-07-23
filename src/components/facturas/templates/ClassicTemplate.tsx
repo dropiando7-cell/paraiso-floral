@@ -134,7 +134,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  onChange={e => setPaymentTerms(e.target.value)}
  className="w-full bg-slate-50 border border-slate-200 text-slate-800 text-sm p-1.5 focus:ring-0 print:appearance-none print:border-none print:p-0 font-semibold"
  >
- <option value="Contado">Contado</option>
+ <option value="Pago inmediato">Pago inmediato</option>
  <option value="15 días netos">15 días netos</option>
  <option value="30 días netos">30 días netos</option>
  <option value="60 días netos">60 días netos</option>

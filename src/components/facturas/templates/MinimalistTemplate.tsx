@@ -125,7 +125,7 @@ export default function MinimalistTemplate(props: TemplateProps) {
  onChange={e => setPaymentTerms(e.target.value)}
  className="w-full sm:text-right print:text-right bg-transparent text-slate-800 text-sm p-0 border-none focus:ring-0 print:appearance-none cursor-pointer font-medium mb-1"
  >
- <option value="Contado">Contado</option>
+ <option value="Pago inmediato">Pago inmediato</option>
  <option value="15 días netos">15 días netos</option>
  <option value="30 días netos">30 días netos</option>
  <option value="60 días netos">60 días netos</option>

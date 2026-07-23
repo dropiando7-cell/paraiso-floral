@@ -153,7 +153,7 @@ export default function ModernTemplate(props: TemplateProps) {
  onChange={e => setPaymentTerms(e.target.value)}
  className={`bg-transparent ${theme.headerText} text-sm font-semibold border-none outline-none cursor-pointer w-full p-0 focus:ring-0 print:appearance-none `}
  >
- <option value="Contado" className="bg-slate-800 text-white">Contado</option>
+ <option value="Pago inmediato" className="bg-slate-800 text-white">Pago inmediato</option>
  <option value="15 días netos" className="bg-slate-800 text-white">15 días</option>
  <option value="30 días netos" className="bg-slate-800 text-white">30 días</option>
  <option value="60 días netos" className="bg-slate-800 text-white">60 días</option>

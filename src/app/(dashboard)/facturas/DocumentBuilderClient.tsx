@@ -1150,7 +1150,7 @@ export default function DocumentBuilderClient({
   const [docNumber, setDocNumber] = useState('');
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [lineItems, setLineItems] = useState<LineItem[]>([{ ...emptyLine(), id: 'default-line-hash' }]);
-  const [paymentTerms, setPaymentTerms] = useState('30 días netos');
+  const [paymentTerms, setPaymentTerms] = useState('Pago inmediato');
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
   const [validityDays, setValidityDays] = useState(30);
   const [notes, setNotes] = useState('');
@@ -1960,7 +1960,7 @@ export default function DocumentBuilderClient({
       const isClone = !editMode && !viewMode && !isNotaCredito;
       setDocNumber(isClone ? '' : initialData.correlativo);
       
-      setPaymentTerms(initialData.terminosPago || '30 días netos');
+      setPaymentTerms(initialData.terminosPago || 'Pago inmediato');
       setPaymentMethod(initialData.metodoPago || 'Efectivo');
       setValidityDays(initialData.validezDias || 30);
       // Extraemos totales manuales si la suma no cuaja, pero como no sabemos de donde vino, tomamos el valor guardado y restamos lo calculado por lineas.
