@@ -351,12 +351,36 @@ function LineItemRow({
 
   const query = focusedField === 'code' ? (item.code || '') : (item.shortDesc || '');
   const nQuery = normalizeText(query);
-  const filteredProducts = query.trim().length >= 2 ? allProducts.filter(p => 
+  const matchedProducts = query.trim().length >= 2 ? allProducts.filter(p => 
     normalizeText(p.name).includes(nQuery) || 
     normalizeText(p.code).includes(nQuery) ||
     (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery)) ||
     (p.serie && normalizeText(p.serie).includes(nQuery))
-  ).slice(0, 15) : [];
+  ) : [];
+
+  const filteredProducts = matchedProducts.sort((a, b) => {
+    const aName = normalizeText(a.name);
+    const bName = normalizeText(b.name);
+    
+    // 1st Priority: Name starts with search query
+    const aStarts = aName.startsWith(nQuery);
+    const bStarts = bName.startsWith(nQuery);
+    if (aStarts && !bStarts) return -1;
+    if (!aStarts && bStarts) return 1;
+    
+    // 2nd Priority: Name has a word starting with query (word boundary matching)
+    const aWordStarts = aName.split(/\s+/).some(word => word.startsWith(nQuery));
+    const bWordStarts = bName.split(/\s+/).some(word => word.startsWith(nQuery));
+    if (aWordStarts && !bWordStarts) return -1;
+    if (!aWordStarts && bWordStarts) return 1;
+    
+    // 3rd Priority: Shorter names first (exact/closer match)
+    if (aName.includes(nQuery) && bName.includes(nQuery)) {
+      return aName.length - bName.length;
+    }
+    
+    return 0;
+  }).slice(0, 25);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -393,7 +417,30 @@ function LineItemRow({
       } catch (e) {}
     }
     
-    if (!item.longDesc) onChange(item.id, 'longDesc', product.description);
+    let targetDescription = product.description || '';
+    if (product.type === 'activo' && product.serie) {
+      const hasSerieAlready = targetDescription.toLowerCase().includes(product.serie.toLowerCase()) ||
+                              targetDescription.toLowerCase().includes('s/n:');
+      if (!hasSerieAlready) {
+        if (targetDescription.trim()) {
+          targetDescription += `\nS/N: ${product.serie}`;
+        } else {
+          targetDescription = `S/N: ${product.serie}`;
+        }
+      }
+    }
+    
+    if (!item.longDesc || item.longDesc.trim() === '') {
+      onChange(item.id, 'longDesc', targetDescription);
+    } else {
+      const currentDesc = item.longDesc || '';
+      const hasSerieAlready = currentDesc.toLowerCase().includes(product.serie?.toLowerCase() || '') ||
+                              currentDesc.toLowerCase().includes('s/n:');
+      if (product.type === 'activo' && product.serie && !hasSerieAlready) {
+        onChange(item.id, 'longDesc', currentDesc.trim() + `\nS/N: ${product.serie}`);
+      }
+    }
+
     if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', product.price);
     
     if (product.type === 'producto') {
@@ -431,10 +478,42 @@ function LineItemRow({
             const res = await buscarItemPorCodigo(val);
             if (res) {
               onChange(item.id, 'shortDesc', res.name);
-              if (!item.longDesc) onChange(item.id, 'longDesc', res.description);
+              
+              let targetDescription = res.description || '';
+              if (res.type === 'activo' && res.serie) {
+                const hasSerieAlready = targetDescription.toLowerCase().includes(res.serie.toLowerCase()) ||
+                                        targetDescription.toLowerCase().includes('s/n:');
+                if (!hasSerieAlready) {
+                  if (targetDescription.trim()) {
+                    targetDescription += `\nS/N: ${res.serie}`;
+                  } else {
+                    targetDescription = `S/N: ${res.serie}`;
+                  }
+                }
+              }
+              
+              if (!item.longDesc || item.longDesc.trim() === '') {
+                onChange(item.id, 'longDesc', targetDescription);
+              } else {
+                const currentDesc = item.longDesc || '';
+                const hasSerieAlready = currentDesc.toLowerCase().includes(res.serie?.toLowerCase() || '') ||
+                                        currentDesc.toLowerCase().includes('s/n:');
+                if (res.type === 'activo' && res.serie && !hasSerieAlready) {
+                  onChange(item.id, 'longDesc', currentDesc.trim() + `\nS/N: ${res.serie}`);
+                }
+              }
+
               if (Number(item.unitPrice) === 0) onChange(item.id, 'unitPrice', res.price);
-              if (res.type === 'producto') onChange(item.id, 'productoId', res.id);
-              if (res.type === 'activo') onChange(item.id, 'activoId', res.id);
+              if (res.type === 'producto') {
+                onChange(item.id, 'productoId', res.id);
+                onChange(item.id, 'activoId', undefined);
+                onChange(item.id, 'serie', null);
+              }
+              if (res.type === 'activo') {
+                onChange(item.id, 'activoId', res.id);
+                onChange(item.id, 'productoId', undefined);
+                onChange(item.id, 'serie', res.serie || null);
+              }
               if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
             }
           } catch(e) { console.error('Error in code lookup:', e); }
@@ -1499,12 +1578,24 @@ export default function DocumentBuilderClient({
       if (registeringLineId && newlyCreatedProduct) {
         setLineItems(prev => prev.map(item => {
           if (item.id === registeringLineId) {
+            let targetDescription = newlyCreatedProduct.description || '';
+            if (newlyCreatedProduct.type === 'activo' && newlyCreatedProduct.serie) {
+              const hasSerieAlready = targetDescription.toLowerCase().includes(newlyCreatedProduct.serie.toLowerCase()) ||
+                                      targetDescription.toLowerCase().includes('s/n:');
+              if (!hasSerieAlready) {
+                if (targetDescription.trim()) {
+                  targetDescription += `\nS/N: ${newlyCreatedProduct.serie}`;
+                } else {
+                  targetDescription = `S/N: ${newlyCreatedProduct.serie}`;
+                }
+              }
+            }
             return {
               ...item,
               code: newlyCreatedProduct.code,
               shortDesc: newlyCreatedProduct.name,
               imageUrl: newlyCreatedProduct.imageUrl || item.imageUrl,
-              longDesc: newlyCreatedProduct.description,
+              longDesc: targetDescription,
               unitPrice: (Number(item.unitPrice) === 0 || !item.unitPrice) ? newlyCreatedProduct.price : item.unitPrice,
               productoId: newlyCreatedProduct.type === 'producto' ? newlyCreatedProduct.id : undefined,
               activoId: newlyCreatedProduct.type === 'activo' ? newlyCreatedProduct.id : undefined,
