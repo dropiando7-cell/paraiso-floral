@@ -59,7 +59,6 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
       { name: 'Portal Bioelectrónica', href: '/', icon: LayoutDashboard },
       { name: 'Proyectos & Tareas', href: '/kanban', icon: Trello },
       { name: 'Órdenes de Trabajo', href: '/soporte', icon: Wrench, roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-      { name: 'Inventario IA', href: '/inventario-ia', icon: Sparkles, badge: 'NUEVO', badgeColor: 'bg-green-500/20 text-green-700' },
       { name: 'Marketing IA', href: '#', icon: Megaphone, badge: 'PLANIFICADO', badgeColor: 'bg-amber-500/10 text-amber-700' },
       { name: 'Rentas de Equipos', href: '/rentas', icon: Box },
       { name: 'Control de Caja Chica', href: '/caja-chica', icon: CircleDollarSign },
