@@ -32,6 +32,38 @@ import { removeBackground } from '@imgly/background-removal';
 import { DateInput } from '@/components/ui/DateInput';
 import BuscadorOdoo, { OdooAlertPanel } from './BuscadorOdoo';
 
+// ─── Debounced Search Input Component ─────────────────────────────────────────
+interface DebouncedInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+    value: string;
+    onChange: (value: string) => void;
+    debounce?: number;
+}
+
+function DebouncedInput({
+    value: initialValue,
+    onChange,
+    debounce = 300,
+    ...props
+}: DebouncedInputProps) {
+    const [value, setValue] = useState(initialValue);
+
+    useEffect(() => {
+        setValue(initialValue);
+    }, [initialValue]);
+
+    useEffect(() => {
+        const timeout = setTimeout(() => {
+            onChange(value);
+        }, debounce);
+
+        return () => clearTimeout(timeout);
+    }, [value, debounce, onChange]);
+
+    return (
+        <input {...props} value={value} onChange={e => setValue(e.target.value)} />
+    );
+}
+
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
 function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number, size: string, impresora: string) => void; isPrinting: boolean }) {
     const [cantidad, setCantidad] = useState(1);
@@ -4220,8 +4252,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
             <div className="flex gap-2 mb-3 hide-on-print">
                 <div className="relative flex-1">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input type="text" placeholder="Buscar por ID, descripción, serie, responsable..."
-                        value={search} onChange={e => setSearch(e.target.value)}
+                    <DebouncedInput type="text" placeholder="Buscar por ID, descripción, serie, responsable..."
+                        value={search} onChange={setSearch}
                         className="w-full pl-10 pr-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-white" />
                 </div>
                 <button onClick={() => setShowFilters(f => !f)}

@@ -29,6 +29,7 @@ export async function getEquiposParaRenta(page = 1, search = '', area = '', esta
             OR: [
                 { descripcionCorta: { contains: search, mode: 'insensitive' as const } },
                 { idQr: { contains: search, mode: 'insensitive' as const } },
+                { codigoBarras: { contains: search, mode: 'insensitive' as const } },
                 { serie: { contains: search, mode: 'insensitive' as const } },
                 { modelo: { contains: search, mode: 'insensitive' as const } },
             ],

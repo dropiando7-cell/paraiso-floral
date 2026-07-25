@@ -362,8 +362,8 @@ export async function searchActivosGlobal(query: string, includeSold: boolean = 
             ...baseWhere,
             ...(isExactCode ? {
                 OR: [
-                    { idQr: { startsWith: cleanQuery, mode: 'insensitive' as const } },
-                    { codigoBarras: { equals: cleanQuery } }
+                    { idQr: { contains: cleanQuery, mode: 'insensitive' as const } },
+                    { codigoBarras: { contains: cleanQuery, mode: 'insensitive' as const } }
                 ]
             } : {
                 AND: andConditions
@@ -425,21 +425,15 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
     const skip = (page - 1) * PER_PAGE;
 
     const cleanSearch = search.trim();
-    const isCodeSearch = /^[A-Z0-9-]+$/i.test(cleanSearch) && cleanSearch.length >= 2;
 
     const where = {
         organizationId: orgId,
         esParaRenta: false,
         ...(search && {
-            OR: isCodeSearch ? [
-                { idQr: { startsWith: cleanSearch, mode: 'insensitive' as const } },
-                { codigoBarras: { startsWith: cleanSearch, mode: 'insensitive' as const } },
-                { serie: { startsWith: cleanSearch, mode: 'insensitive' as const } },
-                { descripcionCorta: { contains: cleanSearch, mode: 'insensitive' as const } },
-                { modelo: { contains: cleanSearch, mode: 'insensitive' as const } },
-            ] : [
+            OR: [
                 { descripcionCorta: { contains: cleanSearch, mode: 'insensitive' as const } },
                 { idQr: { contains: cleanSearch, mode: 'insensitive' as const } },
+                { codigoBarras: { contains: cleanSearch, mode: 'insensitive' as const } },
                 { serie: { contains: cleanSearch, mode: 'insensitive' as const } },
                 { modelo: { contains: cleanSearch, mode: 'insensitive' as const } },
                 { responsable: { contains: cleanSearch, mode: 'insensitive' as const } },
@@ -489,6 +483,7 @@ export async function getActivosForExport(search = '', area = '', estatus = '', 
                 OR: [
                     { descripcionCorta: { contains: search, mode: 'insensitive' as const } },
                     { idQr: { contains: search, mode: 'insensitive' as const } },
+                    { codigoBarras: { contains: search, mode: 'insensitive' as const } },
                     { serie: { contains: search, mode: 'insensitive' as const } },
                     { modelo: { contains: search, mode: 'insensitive' as const } },
                     { responsable: { contains: search, mode: 'insensitive' as const } },

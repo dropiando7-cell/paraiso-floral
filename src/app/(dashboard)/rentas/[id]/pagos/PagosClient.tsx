@@ -6,6 +6,35 @@ import { ArrowLeft, Save, Loader2, Calendar, DollarSign, Plus, Trash2, FileText,
 import Link from 'next/link';
 import { registrarPagoRenta, eliminarPagoRenta, editarPagoRenta } from './actions';
 
+const BANCOS_HONDURAS = [
+    'BANCO FICOHSA',
+    'BANCO ATLÁNTIDA',
+    'BANCO OCCIDENTE',
+    'BANCO DAVIVIENDA',
+    'BANCO BANPAÍS',
+    'BANCO FICENSA',
+    'BANHCAFÉ',
+    'BANCO LAFISE',
+    'BANCO CUSCATLÁN',
+    'BAC HONDURAS'
+];
+
+function parseMetodoPago(metodo: string) {
+    if (!metodo) return { base: 'Efectivo', bank: '' };
+    if (metodo.startsWith('Transferencia')) {
+        const match = metodo.match(/\(([^)]+)\)/);
+        return { base: 'Transferencia', bank: match ? match[1].toUpperCase() : '' };
+    }
+    if (metodo.startsWith('Link de pago')) {
+        const match = metodo.match(/\(([^)]+)\)/);
+        return { base: 'Link de pago', bank: match ? match[1].toUpperCase() : '' };
+    }
+    if (metodo === 'Link de pago de Occidente') {
+        return { base: 'Link de pago', bank: 'BANCO OCCIDENTE' };
+    }
+    return { base: metodo, bank: '' };
+}
+
 export default function PagosClient({ renta }: { renta: any }) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -16,6 +45,33 @@ export default function PagosClient({ renta }: { renta: any }) {
     const [monto, setMonto] = useState('');
     const [fechaPago, setFechaPago] = useState(() => new Date().toISOString().split('T')[0]);
     const [metodoPago, setMetodoPago] = useState('Transferencia');
+    const [notas, setNotas] = useState('');
+    const [banco, setBanco] = useState('BANCO FICOHSA');
+    const [otroBanco, setOtroBanco] = useState('');
+    const [selectedCycle, setSelectedCycle] = useState<number | null>(null);
+
+    const [editMetodoPago, setEditMetodoPago] = useState('Transferencia');
+    const [editBanco, setEditBanco] = useState('BANCO FICOHSA');
+    const [editOtroBanco, setEditOtroBanco] = useState('');
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleStartEdit = (pago: any) => {
+        const parsed = parseMetodoPago(pago.metodoPago);
+        setEditMetodoPago(parsed.base);
+        if (parsed.bank) {
+            if (BANCOS_HONDURAS.includes(parsed.bank)) {
+                setEditBanco(parsed.bank);
+                setEditOtroBanco('');
+            } else {
+                setEditBanco('OTRO');
+                setEditOtroBanco(parsed.bank);
+            }
+        } else {
+            setEditBanco('BANCO FICOHSA');
+            setEditOtroBanco('');
+        }
+        setEditModalOpen(pago);
+    };
 
     // Cálculos
     const msPerDay = 1000 * 60 * 60 * 24;
@@ -35,6 +91,69 @@ export default function PagosClient({ renta }: { renta: any }) {
     const saldoPendiente = Math.max(0, deudaEstimada - totalPagado); // No mostramos saldo negativo si pagan por adelantado, o sí?
     const pagoAdelantado = totalPagado > deudaEstimada ? totalPagado - deudaEstimada : 0;
 
+    const getCycleInfo = (index: number) => {
+        const startDate = new Date(renta.fechaInicio);
+        const cycleDate = new Date(startDate);
+        
+        if (renta.tipoAlquiler === 'Quincenal') {
+            cycleDate.setUTCDate(startDate.getUTCDate() + (index * 15));
+        } else if (renta.tipoAlquiler === 'Anual') {
+            cycleDate.setUTCFullYear(startDate.getUTCFullYear() + index);
+        } else { // 'Mensual'
+            cycleDate.setUTCMonth(startDate.getUTCMonth() + index);
+        }
+        
+        const day = String(cycleDate.getUTCDate()).padStart(2, '0');
+        const month = String(cycleDate.getUTCMonth() + 1).padStart(2, '0');
+        const year = cycleDate.getUTCFullYear();
+        const formattedDate = `${day}/${month}/${year}`;
+        const inputDateValue = `${year}-${month}-${day}`;
+        
+        const monthsName = [
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
+        const monthName = monthsName[cycleDate.getUTCMonth()];
+        
+        const cycleStartThreshold = index * pagoMensual;
+        const cycleEndThreshold = (index + 1) * pagoMensual;
+        
+        let status: 'pagado' | 'parcial' | 'pendiente' = 'pendiente';
+        if (totalPagado >= cycleEndThreshold) {
+            status = 'pagado';
+        } else if (totalPagado > cycleStartThreshold) {
+            status = 'parcial';
+        }
+        
+        let label = `${monthName} (${day}/${month})`;
+        if (renta.tipoAlquiler === 'Quincenal') {
+            label = `Q${index + 1}: ${day}/${month}`;
+        } else if (renta.tipoAlquiler === 'Anual') {
+            label = `Año ${index + 1} (${year})`;
+        }
+        
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        
+        const cycleDateZero = new Date(cycleDate);
+        cycleDateZero.setHours(0,0,0,0);
+        const isOverdue = status !== 'pagado' && cycleDateZero < today;
+        
+        return {
+            index,
+            date: cycleDate,
+            formattedDate,
+            inputDateValue,
+            monthName,
+            status,
+            label,
+            isOverdue
+        };
+    };
+
+    const numCyclesToShow = Math.max(renta.mesesRenta || 1, Math.ceil(mesesTranscurridos) + 2);
+    const cycles = Array.from({ length: Math.min(numCyclesToShow, 24) }, (_, i) => getCycleInfo(i));
+
     async function handleAddPago(e: React.FormEvent<HTMLFormElement>) {
         e.preventDefault();
         const fd = new FormData(e.currentTarget);
@@ -45,6 +164,9 @@ export default function PagosClient({ renta }: { renta: any }) {
                 await registrarPagoRenta(fd);
                 setMonto('');
                 setFechaPago(new Date().toISOString().split('T')[0]);
+                setNotas('');
+                setSelectedCycle(null);
+                setOtroBanco('');
             } catch (err: any) {
                 alert(err.message || 'Error al registrar pago');
             }
@@ -152,6 +274,52 @@ export default function PagosClient({ renta }: { renta: any }) {
                                     <Plus className="w-4 h-4" /> Registrar Nuevo Abono
                                 </h2>
                                 <form onSubmit={handleAddPago} className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="block text-xs font-bold text-slate-700">Seleccionar Mes / Ciclo de Renta</label>
+                                        <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 border border-slate-150 rounded-xl bg-slate-50">
+                                            {cycles.map((cycle) => {
+                                                let btnClass = "";
+                                                if (cycle.status === 'pagado') {
+                                                    btnClass = "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100/70";
+                                                } else if (cycle.status === 'parcial') {
+                                                    btnClass = "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100/70";
+                                                } else if (cycle.isOverdue) {
+                                                    btnClass = "bg-red-50 text-red-700 border-red-200 hover:bg-red-100/70";
+                                                } else {
+                                                    btnClass = "bg-white text-slate-600 border-slate-200 hover:bg-slate-50";
+                                                }
+                                                
+                                                const isSelected = selectedCycle === cycle.index;
+                                                
+                                                return (
+                                                    <button
+                                                        key={cycle.index}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedCycle(cycle.index);
+                                                            setMonto(pagoMensual.toString());
+                                                            setFechaPago(cycle.inputDateValue);
+                                                            let computedNote = `Correspondiente al mes de ${cycle.monthName.toLowerCase()} le tocaba pagar el ${cycle.formattedDate}`;
+                                                            if (renta.tipoAlquiler === 'Quincenal') {
+                                                                computedNote = `Pago Quincena ${cycle.index + 1} (${cycle.formattedDate})`;
+                                                            } else if (renta.tipoAlquiler === 'Anual') {
+                                                                computedNote = `Pago Anualidad ${cycle.index + 1} (${cycle.formattedDate})`;
+                                                            }
+                                                            setNotas(computedNote);
+                                                        }}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer select-none ${btnClass} ${
+                                                            isSelected ? 'ring-2 ring-[#0500A3] border-transparent shadow-sm' : ''
+                                                        }`}
+                                                    >
+                                                        {cycle.status === 'pagado' && <CheckCircle2 className="w-3.5 h-3.5" />}
+                                                        {cycle.isOverdue && <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping inline-block" />}
+                                                        <span>{cycle.label}</span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
                                     <div className="grid md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-xs font-bold text-slate-700 mb-1">Monto (L.) *</label>
@@ -181,7 +349,6 @@ export default function PagosClient({ renta }: { renta: any }) {
                                         <div>
                                             <label className="block text-xs font-bold text-slate-700 mb-1">Método de Pago</label>
                                             <select 
-                                                name="metodoPago" 
                                                 value={metodoPago} 
                                                 onChange={e => setMetodoPago(e.target.value)}
                                                 className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]"
@@ -190,8 +357,17 @@ export default function PagosClient({ renta }: { renta: any }) {
                                                 <option value="Transferencia">Transferencia</option>
                                                 <option value="Tarjeta">Tarjeta</option>
                                                 <option value="Cheque">Cheque</option>
-                                                <option value="Link de pago de Occidente">Link de pago de Occidente</option>
+                                                <option value="Link de pago">Link de pago</option>
                                             </select>
+                                            <input 
+                                                type="hidden" 
+                                                name="metodoPago" 
+                                                value={
+                                                    (metodoPago === 'Transferencia' || metodoPago === 'Link de pago')
+                                                        ? `${metodoPago} (${banco === 'OTRO' ? (otroBanco || 'OTRO') : banco})`
+                                                        : metodoPago
+                                                } 
+                                            />
                                         </div>
                                         <div>
                                             <label className="block text-xs font-bold text-slate-700 mb-1">Referencia / Recibo</label>
@@ -202,12 +378,42 @@ export default function PagosClient({ renta }: { renta: any }) {
                                                 className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
                                             />
                                         </div>
+                                        {(metodoPago === 'Transferencia' || metodoPago === 'Link de pago') && (
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-700 mb-1">Banco *</label>
+                                                <select 
+                                                    value={banco} 
+                                                    onChange={e => setBanco(e.target.value)}
+                                                    className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]"
+                                                >
+                                                    {BANCOS_HONDURAS.map(b => (
+                                                        <option key={b} value={b}>{b}</option>
+                                                    ))}
+                                                    <option value="OTRO">OTRO</option>
+                                                </select>
+                                            </div>
+                                        )}
+                                        {(metodoPago === 'Transferencia' || metodoPago === 'Link de pago') && banco === 'OTRO' && (
+                                            <div>
+                                                <label className="block text-xs font-bold text-slate-700 mb-1">Especificar Banco *</label>
+                                                <input 
+                                                    type="text" 
+                                                    value={otroBanco} 
+                                                    onChange={e => setOtroBanco(e.target.value.toUpperCase())}
+                                                    required
+                                                    placeholder="Ej. BANCO AZTECA" 
+                                                    className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="block text-xs font-bold text-slate-700 mb-1">Notas</label>
                                         <input 
                                             type="text" 
                                             name="notas" 
+                                            value={notas}
+                                            onChange={e => setNotas(e.target.value)}
                                             placeholder="Ej. Pago correspondiente al mes de Febrero..." 
                                             className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
                                         />
@@ -282,7 +488,7 @@ export default function PagosClient({ renta }: { renta: any }) {
                                                 <td className="px-6 py-4 text-right">
                                                     <div className="flex justify-end items-center gap-1">
                                                         <button 
-                                                            onClick={() => setEditModalOpen(pago)}
+                                                            onClick={() => handleStartEdit(pago)}
                                                             className="text-slate-400 hover:text-blue-600 p-2 rounded-md hover:bg-blue-50 transition-colors"
                                                             title="Editar Abono"
                                                         >
@@ -367,16 +573,25 @@ export default function PagosClient({ renta }: { renta: any }) {
                                 <div className="col-span-2 sm:col-span-1">
                                     <label className="block text-xs font-bold text-slate-700 mb-1">Método de Pago</label>
                                     <select 
-                                        name="metodoPago" 
-                                        defaultValue={editModalOpen.metodoPago}
+                                        value={editMetodoPago} 
+                                        onChange={e => setEditMetodoPago(e.target.value)}
                                         className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]"
                                     >
                                         <option value="Efectivo">Efectivo</option>
                                         <option value="Transferencia">Transferencia</option>
                                         <option value="Tarjeta">Tarjeta</option>
                                         <option value="Cheque">Cheque</option>
-                                        <option value="Link de pago de Occidente">Link de pago de Occidente</option>
+                                        <option value="Link de pago">Link de pago</option>
                                     </select>
+                                    <input 
+                                        type="hidden" 
+                                        name="metodoPago" 
+                                        value={
+                                            (editMetodoPago === 'Transferencia' || editMetodoPago === 'Link de pago')
+                                                ? `${editMetodoPago} (${editBanco === 'OTRO' ? (editOtroBanco || 'OTRO') : editBanco})`
+                                                : editMetodoPago
+                                        } 
+                                    />
                                 </div>
                                 <div className="col-span-2 sm:col-span-1">
                                     <label className="block text-xs font-bold text-slate-700 mb-1">Referencia / Recibo</label>
@@ -386,6 +601,34 @@ export default function PagosClient({ renta }: { renta: any }) {
                                         className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
                                     />
                                 </div>
+                                {(editMetodoPago === 'Transferencia' || editMetodoPago === 'Link de pago') && (
+                                    <div className="col-span-2 sm:col-span-1">
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">Banco *</label>
+                                        <select 
+                                            value={editBanco} 
+                                            onChange={e => setEditBanco(e.target.value)}
+                                            className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]"
+                                        >
+                                            {BANCOS_HONDURAS.map(b => (
+                                                <option key={b} value={b}>{b}</option>
+                                            ))}
+                                            <option value="OTRO">OTRO</option>
+                                        </select>
+                                    </div>
+                                )}
+                                {(editMetodoPago === 'Transferencia' || editMetodoPago === 'Link de pago') && editBanco === 'OTRO' && (
+                                    <div className="col-span-2 sm:col-span-1">
+                                        <label className="block text-xs font-bold text-slate-700 mb-1">Especificar Banco *</label>
+                                        <input 
+                                            type="text" 
+                                            value={editOtroBanco} 
+                                            onChange={e => setEditOtroBanco(e.target.value.toUpperCase())}
+                                            required
+                                            placeholder="Ej. BANCO AZTECA" 
+                                            className="w-full border-2 border-slate-200 rounded-xl px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
+                                        />
+                                    </div>
+                                )}
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-slate-700 mb-1">Notas</label>
