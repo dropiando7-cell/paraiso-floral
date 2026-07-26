@@ -585,15 +585,16 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
                     }} 
                   />
                 )}
-                 <View style={{ height: finalSigHeight, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
+                <View style={{ height: sig.height ? Math.min(sig.height, 120) * scaleFactor : finalSigHeight, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
                   {images[`sig_${sig.id}`] && (
                     <Image 
                       src={images[`sig_${sig.id}`]} 
                       style={{ 
-                        height: finalSigHeight, 
+                        height: sig.height ? Math.min(sig.height, 120) * scaleFactor : finalSigHeight, 
                         objectFit: 'contain', 
                         position: 'relative', 
-                        top: finalSigSpacing + (sig.offsetY || 0) * scaleFactor
+                        top: finalSigSpacing + (sig.offsetY || 0) * scaleFactor,
+                        left: (sig.offsetX || 0) * scaleFactor
                       }} 
                     />
                   )}

@@ -299,6 +299,7 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
   ];
   const manuelSig = signaturesList.find((s: any) => s.id === 'manuel');
   const manuelOffset = manuelSig?.offsetY || 0;
+  const manuelOffsetX = manuelSig?.offsetX || 0;
 
   return (
     <Document>
@@ -446,12 +447,12 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
                   src={images['sig_manuel']} 
                   style={{ 
                     position: 'absolute', 
-                    height: (settings?.warrantySignatureHeight || 120) * 0.45, 
+                    height: (manuelSig?.height || settings?.warrantySignatureHeight || 120) * 0.45, 
                     width: 120, 
                     objectFit: 'contain', 
                     bottom: -8 + manuelOffset + (settings?.warrantySignatureY || 0),
                     left: '50%',
-                    marginLeft: -60 + (settings?.warrantySignatureX || 0),
+                    marginLeft: -60 + manuelOffsetX + (settings?.warrantySignatureX || 0),
                     zIndex: 2 
                   }} 
                 />

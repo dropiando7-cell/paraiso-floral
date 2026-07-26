@@ -30,6 +30,10 @@ export default async function RentasPage() {
         costoRenta: Number(renta.costoRenta),
         deposito: Number(renta.deposito),
         depositoDevuelto: renta.depositoDevuelto ? Number(renta.depositoDevuelto) : null,
+        pagos: (renta as any).pagos ? (renta as any).pagos.map((pago: any) => ({
+            ...pago,
+            monto: Number(pago.monto),
+        })) : [],
     }));
 
     return <RentasClient initialRentas={initialRentas} />;

@@ -1235,6 +1235,32 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
                                 className="w-full accent-blue-600 cursor-pointer h-1 bg-slate-200 rounded-lg appearance-none"
                               />
                             </div>
+                            <div className="space-y-1 pt-1.5">
+                              <div className="flex justify-between items-center text-[10px] text-slate-500">
+                                <span>Alineación Horizontal Individual:</span>
+                                <span className="font-bold text-slate-700">{sig.offsetX ?? 0}px</span>
+                              </div>
+                              <input 
+                                type="range" 
+                                min="-60" max="60" step="1"
+                                value={sig.offsetX ?? 0}
+                                onChange={e => updateSignature(idx, 'offsetX', Number(e.target.value))}
+                                className="w-full accent-blue-600 cursor-pointer h-1 bg-slate-200 rounded-lg appearance-none"
+                              />
+                            </div>
+                            <div className="space-y-1 pt-1.5">
+                              <div className="flex justify-between items-center text-[10px] text-slate-500">
+                                <span>Alto de la Firma Individual:</span>
+                                <span className="font-bold text-slate-700">{sig.height ?? settings.signatureHeight ?? 64}px</span>
+                              </div>
+                              <input 
+                                type="range" 
+                                min="30" max="200" step="2"
+                                value={sig.height ?? settings.signatureHeight ?? 64}
+                                onChange={e => updateSignature(idx, 'height', Number(e.target.value))}
+                                className="w-full accent-blue-600 cursor-pointer h-1 bg-slate-200 rounded-lg appearance-none"
+                              />
+                            </div>
                           </div>
                         )}
                       </div>

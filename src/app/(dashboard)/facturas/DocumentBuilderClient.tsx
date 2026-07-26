@@ -1243,7 +1243,8 @@ export default function DocumentBuilderClient({
       role: 'Cargo',
       imageUrl: '/firmas-sellos/firma emilia zapata.png',
       enabled: true,
-      offsetY: 0
+      offsetY: 0,
+      offsetX: 0
     };
     const newSettings = { ...settings, signaturesList: [...signaturesList, newSig] };
     setSettings(newSettings);
@@ -2957,24 +2958,24 @@ export default function DocumentBuilderClient({
 
                     {ordenEntrega.mostrarFirmas !== false && (
                       <div className="space-y-3 pt-2 border-t border-slate-200/60">
-                        <div className="flex justify-between items-center gap-2">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest shrink-0">Lista de Firmantes</span>
-                          <div className="flex gap-1.5 shrink-0">
+                        <div className="flex flex-col gap-2">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Lista de Firmantes</span>
+                          <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
                               onClick={() => setShowDirectSignatureModal(true)}
-                              className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2 py-1 rounded-md transition-all active:scale-95 border border-emerald-200/50"
+                              className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 py-2 rounded-xl transition-all active:scale-95 border border-emerald-200/50 w-full"
                               title="Firmar directamente en esta pantalla"
                             >
-                              <PenTool size={10} /> Firmar en Pantalla
+                              <PenTool size={11} /> Firmar en Pantalla
                             </button>
                             <button
                               type="button"
                               onClick={() => setShowShareSignatureModal(true)}
-                              className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-2 py-1 rounded-md transition-all active:scale-95 border border-indigo-200/50"
+                              className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 py-2 rounded-xl transition-all active:scale-95 border border-indigo-200/50 w-full"
                               title="Enviar enlace al celular del cliente para firmar"
                             >
-                              <Smartphone size={10} /> Celular
+                              <Smartphone size={11} /> Celular
                             </button>
                           </div>
                         </div>
@@ -3061,6 +3062,32 @@ export default function DocumentBuilderClient({
                                       className="w-full accent-indigo-600 cursor-pointer h-1 bg-slate-200 rounded-lg appearance-none"
                                     />
                                   </div>
+                                  <div className="space-y-1 pt-1.5">
+                                    <div className="flex justify-between items-center text-[10px] text-slate-500">
+                                      <span>Alineación Horizontal Individual:</span>
+                                      <span className="font-bold text-slate-700">{sig.offsetX ?? 0}px</span>
+                                    </div>
+                                    <input 
+                                      type="range" 
+                                      min="-60" max="60" step="1"
+                                      value={sig.offsetX ?? 0}
+                                      onChange={e => updateSignature(idx, 'offsetX', Number(e.target.value))}
+                                      className="w-full accent-indigo-600 cursor-pointer h-1 bg-slate-200 rounded-lg appearance-none"
+                                    />
+                                  </div>
+                                  <div className="space-y-1 pt-1.5">
+                                    <div className="flex justify-between items-center text-[10px] text-slate-500">
+                                      <span>Alto de la Firma Individual:</span>
+                                      <span className="font-bold text-slate-700">{sig.height ?? settings.signatureHeight ?? 64}px</span>
+                                    </div>
+                                    <input 
+                                      type="range" 
+                                      min="30" max="200" step="2"
+                                      value={sig.height ?? settings.signatureHeight ?? 64}
+                                      onChange={e => updateSignature(idx, 'height', Number(e.target.value))}
+                                      className="w-full accent-indigo-600 cursor-pointer h-1 bg-slate-200 rounded-lg appearance-none"
+                                    />
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -3142,7 +3169,7 @@ export default function DocumentBuilderClient({
                             <input
                               type="range"
                               min="50"
-                              max="180"
+                              max="230"
                               value={settings.sealSize ?? 112}
                               onChange={(e) => {
                                 const val = Number(e.target.value);
@@ -3754,8 +3781,17 @@ export default function DocumentBuilderClient({
       {showCustomizer && (
         <InvoiceCustomizerSidebar
           settings={settings}
-          onChange={(key, val) => setSettings(p => ({ ...p, [key]: val }))}
-          onLoadTemplate={(tplSettings) => setSettings(tplSettings)}
+          onChange={(key, val) => {
+            setSettings(p => {
+              const next = { ...p, [key]: val };
+              handleSaveTemplateSettings(next);
+              return next;
+            });
+          }}
+          onLoadTemplate={(tplSettings) => {
+            setSettings(tplSettings);
+            handleSaveTemplateSettings(tplSettings);
+          }}
           onApplyTerms={handleApplyTerms}
           onClose={() => setShowCustomizer(false)}
         />

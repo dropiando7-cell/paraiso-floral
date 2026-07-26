@@ -574,15 +574,16 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                       }} 
                     />
                   )}
-                  <View style={{ height: 64, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
+                  <View style={{ height: sig.height || settings.signatureHeight || 64, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
                     {images[`sig_${sig.id}`] && (
                       <Image 
                         src={images[`sig_${sig.id}`]} 
                         style={{ 
-                          height: settings.signatureHeight || 64, 
+                          height: sig.height || settings.signatureHeight || 64, 
                           objectFit: 'contain', 
                           position: 'relative', 
-                          top: (settings.signatureSpacing || 0) + (sig.offsetY || 0)
+                          top: (settings.signatureSpacing || 0) + (sig.offsetY || 0),
+                          left: sig.offsetX || 0
                         }} 
                       />
                     )}

@@ -9,6 +9,8 @@ export interface SignatureItem {
   imageUrl: string;
   enabled: boolean;
   offsetY?: number;
+  offsetX?: number;
+  height?: number;
 }
 
 export interface InvoiceSettings {

@@ -23,6 +23,7 @@ export async function getRentas() {
         include: {
             cliente: true,
             activoFijo: true,
+            pagos: true,
         },
         orderBy: { createdAt: 'desc' },
     });

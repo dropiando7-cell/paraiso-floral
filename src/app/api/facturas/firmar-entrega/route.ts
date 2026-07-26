@@ -45,7 +45,8 @@ export async function POST(req: NextRequest) {
             role: 'Cliente (Recibido Conforme)',
             imageUrl: publicUrl,
             enabled: true,
-            offsetY: 0
+            offsetY: 0,
+            offsetX: 0
         };
 
         if (existingClientSigIndex >= 0) {

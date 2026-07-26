@@ -11,7 +11,7 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
     const [isPending, startTransition] = useTransition();
     const [editingRenta, setEditingRenta] = useState<any | null>(null);
     const [confirmCancelId, setConfirmCancelId] = useState<string | null>(null);
-    const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+    const [selectedStatus, setSelectedStatus] = useState<string>('EN_RENTA');
     const [searchTerm, setSearchTerm] = useState('');
 
     const getRentaFilterStatus = (renta: any) => {
@@ -30,8 +30,95 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
         return 'ACTIVA';
     };
 
+    const getOverdueDays = (renta: any) => {
+        if (renta.estado === 'CANCELADA' || renta.estado === 'DEVUELTO') return 0;
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        const dueDate = new Date(renta.fechaFinEsperada);
+        dueDate.setHours(0,0,0,0);
+        if (today > dueDate) {
+            const diffTime = today.getTime() - dueDate.getTime();
+            return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+        }
+        return 0;
+    };
+
+    const getPaymentDelays = (renta: any) => {
+        const pagos = [...(renta.pagos || [])]
+            .filter((p: any) => !p.notes?.includes('Depósito en Garantía') && !p.notas?.includes('Depósito en Garantía'))
+            .sort((a: any, b: any) => new Date(a.fechaPago).getTime() - new Date(b.fechaPago).getTime());
+
+        const pagoMensual = renta.costoRenta / (renta.mesesRenta || 1);
+        const startDate = new Date(renta.fechaInicio);
+        
+        let runningTotal = 0;
+        const delays: { cycleIndex: number; dueDate: Date; paidDate: Date; daysLate: number }[] = [];
+
+        let paymentIndex = 0;
+        
+        const msPerDay = 1000 * 60 * 60 * 24;
+        const endDate = renta.fechaDevolucion ? new Date(renta.fechaDevolucion) : new Date();
+        const diasTranscurridos = Math.max(0, Math.floor((endDate.getTime() - startDate.getTime()) / msPerDay));
+        const mesesTranscurridos = diasTranscurridos / 30.44;
+        const numCyclesToCheck = Math.max(renta.mesesRenta || 1, Math.ceil(mesesTranscurridos));
+
+        for (let i = 0; i < numCyclesToCheck; i++) {
+            const cycleDueDate = new Date(startDate);
+            if (renta.tipoAlquiler === 'Quincenal') {
+                cycleDueDate.setUTCDate(startDate.getUTCDate() + (i * 15));
+            } else if (renta.tipoAlquiler === 'Anual') {
+                cycleDueDate.setUTCFullYear(startDate.getUTCFullYear() + i);
+            } else { // 'Mensual'
+                cycleDueDate.setUTCMonth(startDate.getUTCMonth() + i);
+            }
+            cycleDueDate.setUTCHours(0,0,0,0);
+
+            const targetAmount = (i + 1) * pagoMensual;
+            
+            while (runningTotal < targetAmount && paymentIndex < pagos.length) {
+                runningTotal += Number(pagos[paymentIndex].monto);
+                paymentIndex++;
+            }
+
+            if (runningTotal >= targetAmount) {
+                const paymentDate = new Date(pagos[paymentIndex - 1].fechaPago);
+                paymentDate.setUTCHours(0,0,0,0);
+                
+                const diffTime = paymentDate.getTime() - cycleDueDate.getTime();
+                const daysLate = Math.floor(diffTime / msPerDay);
+                if (daysLate > 0) {
+                    delays.push({
+                        cycleIndex: i,
+                        dueDate: cycleDueDate,
+                        paidDate: paymentDate,
+                        daysLate
+                    });
+                }
+            }
+        }
+        return delays;
+    };
+
+    const getCycleLabel = (renta: any, index: number) => {
+        const startDate = new Date(renta.fechaInicio);
+        const cycleDate = new Date(startDate);
+        if (renta.tipoAlquiler === 'Quincenal') {
+            cycleDate.setUTCDate(startDate.getUTCDate() + (index * 15));
+        } else if (renta.tipoAlquiler === 'Anual') {
+            cycleDate.setUTCFullYear(startDate.getUTCFullYear() + index);
+        } else { // 'Mensual'
+            cycleDate.setUTCMonth(startDate.getUTCMonth() + index);
+        }
+        const monthsName = [
+            'Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun',
+            'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'
+        ];
+        return `${monthsName[cycleDate.getUTCMonth()]} (${cycleDate.getUTCDate()}/${cycleDate.getUTCMonth() + 1})`;
+    };
+
     const counts = {
         ALL: initialRentas.filter(r => r.estado !== 'CANCELADA').length,
+        EN_RENTA: initialRentas.filter(r => r.estado !== 'DEVUELTO' && r.estado !== 'CANCELADA').length,
         ACTIVA: initialRentas.filter(r => getRentaFilterStatus(r) === 'ACTIVA').length,
         PENDIENTE_FIRMA: initialRentas.filter(r => getRentaFilterStatus(r) === 'PENDIENTE_FIRMA').length,
         POR_VENCER: initialRentas.filter(r => getRentaFilterStatus(r) === 'POR_VENCER').length,
@@ -42,9 +129,14 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
 
     const displayedRentas = initialRentas.filter(r => {
         const status = getRentaFilterStatus(r);
-        const matchesStatus = selectedStatus === 'ALL' 
-            ? r.estado !== 'CANCELADA' 
-            : status === selectedStatus;
+        let matchesStatus = false;
+        if (selectedStatus === 'ALL') {
+            matchesStatus = r.estado !== 'CANCELADA';
+        } else if (selectedStatus === 'EN_RENTA') {
+            matchesStatus = r.estado !== 'DEVUELTO' && r.estado !== 'CANCELADA';
+        } else {
+            matchesStatus = status === selectedStatus;
+        }
 
         const matchesSearch = searchTerm.trim() === '' || 
             r.cliente?.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -185,13 +277,13 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
     }
 
     const statuses = [
-        { id: 'ALL', label: 'Todos', colorClass: 'bg-slate-100 text-slate-800 hover:bg-slate-200 border-slate-200', activeClass: 'bg-[#0500A3] text-white border-[#0500A3]' },
-        { id: 'ACTIVA', label: 'Activas', colorClass: 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200', activeClass: 'bg-blue-600 text-white border-blue-600' },
-        { id: 'PENDIENTE_FIRMA', label: 'Pend. Firma', colorClass: 'bg-amber-50 text-amber-700 hover:bg-amber-100 border-amber-200', activeClass: 'bg-amber-600 text-white border-amber-600' },
-        { id: 'POR_VENCER', label: 'Por Vencer', colorClass: 'bg-orange-50 text-orange-700 hover:bg-orange-100 border-orange-200', activeClass: 'bg-orange-600 text-white border-orange-600' },
-        { id: 'VENCIDA', label: 'Vencidas', colorClass: 'bg-red-50 text-red-700 hover:bg-red-100 border-red-200', activeClass: 'bg-red-600 text-white border-red-600' },
-        { id: 'DEVUELTO', label: 'Devueltas', colorClass: 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200', activeClass: 'bg-slate-700 text-white border-slate-700' },
-        { id: 'CANCELADA', label: 'Anuladas', colorClass: 'bg-rose-50 text-rose-600 hover:bg-rose-100 border-rose-200', activeClass: 'bg-rose-600 text-white border-rose-600' },
+        { id: 'EN_RENTA', label: 'En Renta', icon: Package, activeColor: 'bg-[#0500A3] text-white', inactiveColor: 'text-slate-600 hover:text-[#0500A3] hover:bg-blue-50/50' },
+        { id: 'ALL', label: 'Todos', icon: ArrowRightLeft, activeColor: 'bg-slate-700 text-white', inactiveColor: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' },
+        { id: 'PENDIENTE_FIRMA', label: 'Pend. Firma', icon: FileText, activeColor: 'bg-amber-600 text-white', inactiveColor: 'text-amber-700 hover:text-amber-900 hover:bg-amber-50' },
+        { id: 'POR_VENCER', label: 'Por Vencer', icon: Clock, activeColor: 'bg-orange-600 text-white', inactiveColor: 'text-orange-700 hover:text-orange-900 hover:bg-orange-50' },
+        { id: 'VENCIDA', label: 'Vencidas', icon: AlertTriangle, activeColor: 'bg-red-600 text-white', inactiveColor: 'text-red-700 hover:text-red-900 hover:bg-red-50' },
+        { id: 'DEVUELTO', label: 'Devueltas', icon: CheckCircle2, activeColor: 'bg-slate-700 text-white', inactiveColor: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100' },
+        { id: 'CANCELADA', label: 'Anuladas', icon: XCircle, activeColor: 'bg-rose-600 text-white', inactiveColor: 'text-rose-600 hover:text-rose-800 hover:bg-rose-50' },
     ];
 
     return (
@@ -225,76 +317,85 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
 
             {/* Filtros y Buscador */}
             <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-4">
-                <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-                    {/* Buscador */}
-                    <div className="relative w-full lg:max-w-xs">
-                        <input
-                            type="text"
-                            placeholder="Buscar por cliente o equipo..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl pl-10 pr-10 py-2 text-sm outline-none focus:border-[#0500A3] focus:bg-white transition-all text-slate-700"
-                        />
-                        <svg
-                            className="absolute left-3 top-3 h-4 w-4 text-slate-400"
-                            xmlns="http://www.w3.org/2000/svg"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                <div className="flex flex-col gap-4">
+                    {/* Fila superior: buscador e historial */}
+                    <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
+                        {/* Buscador */}
+                        <div className="relative w-full sm:max-w-md">
+                            <input
+                                type="text"
+                                placeholder="Buscar por cliente o equipo..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full bg-slate-50 border-2 border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-sm outline-none focus:border-[#0500A3] focus:bg-white transition-all text-slate-700 shadow-sm"
                             />
-                        </svg>
-                        {searchTerm && (
-                            <button
-                                onClick={() => setSearchTerm('')}
-                                className="absolute right-3 top-2 text-slate-400 hover:text-slate-600 text-lg font-bold"
+                            <svg
+                                className="absolute left-3 top-3.5 h-4 w-4 text-slate-400"
+                                xmlns="http://www.w3.org/2000/svg"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
                             >
-                                &times;
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Pills de Estado */}
-                    <div className="flex flex-wrap gap-2 items-center w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0">
-                        {statuses.map(status => {
-                            const isActive = selectedStatus === status.id;
-                            const count = counts[status.id as keyof typeof counts] || 0;
-                            return (
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                                />
+                            </svg>
+                            {searchTerm && (
                                 <button
-                                    key={status.id}
-                                    onClick={() => setSelectedStatus(status.id)}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border shadow-sm active:scale-95 whitespace-nowrap ${
-                                        isActive ? status.activeClass : status.colorClass
-                                    }`}
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-3 top-3.5 text-slate-400 hover:text-slate-600 text-lg font-bold"
                                 >
-                                    {status.label}
-                                    <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                                        isActive ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-600 border border-slate-200'
-                                    }`}>
-                                        {count}
-                                    </span>
+                                    &times;
                                 </button>
-                            );
-                        })}
+                            )}
+                        </div>
+
+                        {/* Botón Historial de Anuladas */}
+                        <button 
+                            onClick={() => setSelectedStatus(selectedStatus === 'CANCELADA' ? 'ALL' : 'CANCELADA')}
+                            className={`flex items-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm active:scale-95 border shrink-0 w-full sm:w-auto justify-center ${
+                                selectedStatus === 'CANCELADA'
+                                    ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' 
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                            }`}
+                        >
+                            <XCircle className="w-4 h-4" />
+                            {selectedStatus === 'CANCELADA' ? 'Ocultar Anuladas' : 'Ver Historial de Anuladas'}
+                        </button>
                     </div>
 
-                    {/* Botón Historial de Anuladas */}
-                    <button 
-                        onClick={() => setSelectedStatus(selectedStatus === 'CANCELADA' ? 'ALL' : 'CANCELADA')}
-                        className={`flex items-center gap-2 text-sm font-semibold px-4 py-2 rounded-xl transition-all shadow-sm active:scale-95 border shrink-0 w-full lg:w-auto justify-center ${
-                            selectedStatus === 'CANCELADA'
-                                ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100' 
-                                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                        }`}
-                    >
-                        <XCircle className="w-4 h-4" />
-                        {selectedStatus === 'CANCELADA' ? 'Ocultar Anuladas' : 'Ver Historial de Anuladas'}
-                    </button>
+                    {/* Fila inferior: Segmented Control en una sola línea */}
+                    <div className="bg-slate-50 p-1 rounded-xl border border-slate-100">
+                        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 py-0.5">
+                            {statuses.map(status => {
+                                const Icon = status.icon;
+                                const isActive = selectedStatus === status.id;
+                                const count = counts[status.id as keyof typeof counts] || 0;
+                                return (
+                                    <button
+                                        key={status.id}
+                                        onClick={() => setSelectedStatus(status.id)}
+                                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 whitespace-nowrap active:scale-95 shrink-0 ${
+                                            isActive 
+                                                ? `${status.activeColor} shadow-sm` 
+                                                : `${status.inactiveColor}`
+                                        }`}
+                                    >
+                                        <Icon className="w-3.5 h-3.5 shrink-0" />
+                                        {status.label}
+                                        <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                                            isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600 border border-slate-350/10'
+                                        }`}>
+                                            {count}
+                                        </span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -317,14 +418,22 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                     <td colSpan={6} className="px-5 py-12 text-center text-slate-500">
                                         <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
                                         <p className="font-semibold text-lg text-slate-700">
-                                            No hay rentas {selectedStatus === 'CANCELADA' ? 'anuladas' : selectedStatus !== 'ALL' ? 'con este estado' : 'activas'}
+                                            {selectedStatus === 'CANCELADA' 
+                                                ? 'No hay rentas anuladas' 
+                                                : selectedStatus === 'EN_RENTA'
+                                                    ? 'No hay equipos rentados actualmente'
+                                                    : selectedStatus !== 'ALL' 
+                                                        ? 'No hay rentas con este estado' 
+                                                        : 'No hay rentas registradas'}
                                         </p>
                                         <p className="text-sm mt-1">
                                             {selectedStatus === 'CANCELADA' 
                                                 ? 'Aquí aparecerá el historial de rentas que han sido canceladas.' 
-                                                : selectedStatus !== 'ALL'
-                                                    ? 'No se encontraron registros de renta con el estado seleccionado.'
-                                                    : 'Presiona "Nueva Renta" para registrar un arrendamiento.'}
+                                                : selectedStatus === 'EN_RENTA'
+                                                    ? 'Todos los equipos alquilados han sido devueltos al inventario.'
+                                                    : selectedStatus !== 'ALL'
+                                                        ? 'No se encontraron registros de renta con el estado seleccionado.'
+                                                        : 'Presiona "Nueva Renta" para registrar un arrendamiento.'}
                                         </p>
                                     </td>
                                 </tr>
@@ -346,6 +455,36 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                         <div className="flex flex-col gap-1 text-xs">
                                             <span className="text-slate-600"><span className="font-semibold text-slate-400">Sale:</span> {new Date(renta.fechaInicio).toLocaleDateString()}</span>
                                             <span className="text-slate-800 font-semibold"><span className="font-semibold text-slate-400">Vence:</span> {new Date(renta.fechaFinEsperada).toLocaleDateString()}</span>
+                                            {(() => {
+                                                const overdueDays = getOverdueDays(renta);
+                                                const delays = getPaymentDelays(renta);
+                                                return (
+                                                    <>
+                                                        {overdueDays > 0 && (
+                                                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-red-600 bg-red-50 border border-red-100 rounded px-1.5 py-0.5 mt-1 w-fit">
+                                                                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                                                                Vencida por {overdueDays} {overdueDays === 1 ? 'día' : 'días'}
+                                                            </span>
+                                                        )}
+                                                        {delays.length > 0 && (
+                                                            <div className="flex flex-col gap-0.5 mt-1 border-t border-slate-100 pt-1">
+                                                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Abonos Tardíos:</span>
+                                                                {delays.slice(-2).map((delay, idx) => (
+                                                                    <span key={idx} className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 rounded px-1.5 py-0.5 w-fit">
+                                                                        <Clock className="w-3 h-3 text-amber-500 shrink-0" />
+                                                                        +{delay.daysLate} {delay.daysLate === 1 ? 'día' : 'días'} ({getCycleLabel(renta, delay.cycleIndex)})
+                                                                    </span>
+                                                                ))}
+                                                                {delays.length > 2 && (
+                                                                    <span className="text-[9px] text-slate-400 italic pl-1">
+                                                                        ... y {delays.length - 2} más
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()}
                                         </div>
                                     </td>
                                     <td className="px-5 py-4 whitespace-nowrap">

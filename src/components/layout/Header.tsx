@@ -26,7 +26,7 @@ interface SearchItem {
 
 const searchItems: SearchItem[] = [
     { name: 'Portal Bioelectrónica', category: 'General', href: '/', keywords: ['dashboard', 'portal', 'inicio', 'home', 'main'] },
-    { name: 'Proyectos & Tareas (Kanban)', category: 'Core', href: '/kanban', keywords: ['kanban', 'tareas', 'proyectos', 'board', 'tasks', 'projects', 'desarrollo', 'actividades'] },
+    { name: 'Proyectos & Tareas', category: 'Core', href: '/kanban', keywords: ['kanban', 'tareas', 'proyectos', 'board', 'tasks', 'projects', 'desarrollo', 'actividades'] },
     { name: 'Órdenes de Trabajo', category: 'Core', href: '/soporte', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['soporte', 'mantenimiento', 'reparaciones', 'tickets', 'taller', 'repair', 'ordenes'] },
     { name: 'Rentas de Equipos', category: 'Core', href: '/rentas', keywords: ['rentas', 'alquiler', 'equipos', 'rent', 'lease'] },
     { name: 'Control de Caja Chica', category: 'Core', href: '/caja-chica', keywords: ['caja', 'chica', 'gastos', 'flujo', 'dinero', 'petty cash'] },

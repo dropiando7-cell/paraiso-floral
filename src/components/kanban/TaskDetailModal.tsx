@@ -1114,9 +1114,9 @@ export default function TaskDetailModal({
                             </div>
                             <button 
                                 onClick={onClose}
-                                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-700 transition md:hidden"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-bold rounded-xl text-xs transition border border-red-200 shadow-sm md:hidden"
                             >
-                                <X className="h-5 w-5" />
+                                <X className="h-4 w-4 shrink-0" /> Cerrar
                             </button>
                         </div>
 
@@ -1743,9 +1743,9 @@ export default function TaskDetailModal({
                         <div className="hidden md:flex justify-end pb-2 border-b border-slate-200">
                             <button 
                                 onClick={onClose}
-                                className="p-1 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-slate-700 transition"
+                                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-bold rounded-xl text-xs transition border border-red-200 shadow-sm"
                             >
-                                <X className="h-5 w-5" />
+                                <X className="h-4 w-4 shrink-0" /> Cerrar Ventana
                             </button>
                         </div>
 
@@ -1916,45 +1916,6 @@ export default function TaskDetailModal({
                             </select>
                         </div>
 
-                        {/* Equipo (Team) */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Equipo (Team)</label>
-                            <input
-                                type="text"
-                                value={team}
-                                onChange={(e) => setTeam(e.target.value)}
-                                onBlur={() => {
-                                    if (team !== (task.team || '')) {
-                                        handleFieldChange('team', team.trim() || null);
-                                    }
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        if (team !== (task.team || '')) {
-                                            handleFieldChange('team', team.trim() || null);
-                                        }
-                                    }
-                                }}
-                                placeholder="ej: Mantenimiento, Software"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
-                            />
-                        </div>
-
-                        {/* Módulo / Área Afectada */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Módulo / Área Afectada</label>
-                            <select
-                                value={selectedModulo}
-                                onChange={(e) => handleFieldChange('modulo', e.target.value || null)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
-                            >
-                                <option value="">Ninguno (General / Otro)</option>
-                                {SIDEBAR_MODULES.map(mod => (
-                                    <option key={mod} value={mod}>{mod}</option>
-                                ))}
-                            </select>
-                        </div>
-
                         {/* Fecha de Inicio */}
                         <div className="space-y-1.5">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
@@ -1980,34 +1941,6 @@ export default function TaskDetailModal({
                                 value={dueDate}
                                 onChange={(e) => handleFieldChange('dueDate', e.target.value || null)}
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
-                            />
-                        </div>
-
-                        {/* Etiquetas */}
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Etiquetas (Separadas por comas)</label>
-                            <input
-                                type="text"
-                                value={etiquetasInput}
-                                onChange={(e) => setEtiquetasInput(e.target.value)}
-                                onBlur={() => {
-                                    const arrayVal = etiquetasInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
-                                    const oldArrayVal = task.etiquetas || [];
-                                    if (JSON.stringify(arrayVal) !== JSON.stringify(oldArrayVal)) {
-                                        handleFieldChange('etiquetas', arrayVal);
-                                    }
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter') {
-                                        const arrayVal = etiquetasInput.split(',').map(t => t.trim()).filter(t => t.length > 0);
-                                        const oldArrayVal = task.etiquetas || [];
-                                        if (JSON.stringify(arrayVal) !== JSON.stringify(oldArrayVal)) {
-                                            handleFieldChange('etiquetas', arrayVal);
-                                        }
-                                    }
-                                }}
-                                placeholder="ej: urgente, soporte, base-de-datos"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
                             />
                         </div>
                     </div>

@@ -785,9 +785,9 @@ export default function CreateTaskModal({
                     <button 
                         type="button"
                         onClick={onClose}
-                        className="p-1.5 hover:bg-slate-250 rounded-xl text-slate-400 hover:text-slate-700 transition"
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 font-bold rounded-xl text-xs transition border border-red-200 shadow-sm"
                     >
-                        <X className="h-5 w-5" />
+                        <X className="h-4 w-4 shrink-0" /> Cerrar Ventana
                     </button>
                 </div>
 
@@ -1105,46 +1105,19 @@ export default function CreateTaskModal({
                         )}
                     </div>
 
-                    {/* Fila 3: Tarea Principal (Parent) & Equipo (Team) */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Tarea Principal (Principal)</label>
-                            <select
-                                value={parentId}
-                                onChange={(e) => setParentId(e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none transition shadow-sm"
-                            >
-                                <option value="">Ninguna (Tarea raíz)</option>
-                                {tasks.map(t => (
-                                    <option key={t.id} value={t.id}>{t.codigo} - {t.title}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Módulo / Área Afectada</label>
-                            <select
-                                value={selectedModulo}
-                                onChange={(e) => setSelectedModulo(e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none transition shadow-sm"
-                            >
-                                <option value="">Ninguno (General / Otro)</option>
-                                {SIDEBAR_MODULES.map(mod => (
-                                    <option key={mod} value={mod}>{mod}</option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Equipo (Team)</label>
-                            <input
-                                type="text"
-                                value={team}
-                                onChange={(e) => setTeam(e.target.value)}
-                                placeholder="ej: Mantenimiento, Software"
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none transition shadow-sm"
-                            />
-                        </div>
+                    {/* Fila 3: Tarea Principal (Parent) */}
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Tarea Principal (Principal)</label>
+                        <select
+                            value={parentId}
+                            onChange={(e) => setParentId(e.target.value)}
+                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none transition shadow-sm"
+                        >
+                            <option value="">Ninguna (Tarea raíz)</option>
+                            {tasks.map(t => (
+                                <option key={t.id} value={t.id}>{t.codigo} - {t.title}</option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Fila 4: Fecha de Inicio & Fecha de Vencimiento */}
@@ -1174,18 +1147,6 @@ export default function CreateTaskModal({
                                 className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none transition shadow-sm"
                             />
                         </div>
-                    </div>
-
-                    {/* Etiquetas (Tags) */}
-                    <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Etiquetas (Separadas por comas)</label>
-                        <input
-                            type="text"
-                            value={etiquetasInput}
-                            onChange={(e) => setEtiquetasInput(e.target.value)}
-                            placeholder="ej: urgente, soporte, base-de-datos"
-                            className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-brand-500 focus:outline-none transition shadow-sm"
-                        />
                     </div>
 
 
