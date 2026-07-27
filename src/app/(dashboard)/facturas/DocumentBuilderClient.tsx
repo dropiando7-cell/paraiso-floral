@@ -127,26 +127,57 @@ const emptySectionLine = (): LineItem => ({
   }
 });
 
-const calcLine = (item: LineItem) => {
+const calcLine = (item: LineItem, pricesIncludeTax?: boolean) => {
   const q = Number(item.qty) || 0;
   const p = Number(item.unitPrice) || 0;
   const dVal = Number(item.discount) || 0;
-  
-  let dAmount = 0;
-  if (item.discountType === 'amount') {
-    dAmount = dVal; 
+
+  let tasaImpuesto = 0;
+  if (item.tax === 'isv15') tasaImpuesto = 0.15;
+  if (item.tax === 'isv18') tasaImpuesto = 0.18;
+
+  if (pricesIncludeTax) {
+    const baseConImpuesto = q * p;
+    const baseNeta = baseConImpuesto / (1 + tasaImpuesto);
+    
+    let dAmount = 0;
+    if (item.discountType === 'amount') {
+      dAmount = dVal / (1 + tasaImpuesto);
+    } else {
+      dAmount = baseNeta * (dVal / 100);
+    }
+    
+    const baseAfterDiscount = baseNeta - dAmount;
+    const tax = baseAfterDiscount * tasaImpuesto;
+    const total = baseAfterDiscount + tax;
+
+    return { 
+      base: baseNeta, 
+      dAmount, 
+      baseAfterDiscount, 
+      tax, 
+      total 
+    };
   } else {
-    dAmount = (q * p) * (dVal / 100);
+    let dAmount = 0;
+    if (item.discountType === 'amount') {
+      dAmount = dVal;
+    } else {
+      dAmount = (q * p) * (dVal / 100);
+    }
+    
+    const base = q * p;
+    const baseAfterDiscount = base - dAmount;
+    const tax = baseAfterDiscount * tasaImpuesto;
+
+    return { 
+      base, 
+      dAmount, 
+      baseAfterDiscount, 
+      tax, 
+      total: baseAfterDiscount + tax 
+    };
   }
-  
-  const base = q * p;
-  const baseAfterDiscount = base - dAmount;
-
-  let tax = 0;
-  if (item.tax === 'isv15') tax = baseAfterDiscount * 0.15;
-  if (item.tax === 'isv18') tax = baseAfterDiscount * 0.18;
-
-  return { base, dAmount, baseAfterDiscount, tax, total: baseAfterDiscount + tax };
 };
 
 // ─── SUB COMPONENTS ────────────────────────────────────────────────────────
@@ -268,7 +299,7 @@ function LineItemRow({
   viewMode?: boolean;
   settings?: any;
 }) {
-  const { base, tax, total } = calcLine(item);
+  const { base, tax, total } = calcLine(item, settings?.pricesIncludeTax);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [focusedField, setFocusedField] = useState<'code' | 'desc' | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -2474,15 +2505,19 @@ export default function DocumentBuilderClient({
 
 
   const totals = {
-    get subtotal() { return lineItems.reduce((acc, item) => acc + calcLine(item).base, 0); },
-    get descuentos() { return lineItems.reduce((acc, item) => acc + calcLine(item).dAmount, 0); },
-    get exento() { return lineItems.reduce((acc, item) => item.tax === 'exento' ? acc + calcLine(item).baseAfterDiscount : acc, 0); },
-    get exonerado() { return lineItems.reduce((acc, item) => item.tax === 'exonerado' ? acc + calcLine(item).baseAfterDiscount : acc, 0); },
-    get gravado15() { return lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item).baseAfterDiscount : acc, 0); },
-    get isv15() { return lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item).tax : acc, 0); },
-    get gravado18() { return lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item).baseAfterDiscount : acc, 0); },
-    get isv18() { return lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item).tax : acc, 0); },
-    get total() { return this.subtotal - this.descuentos + this.isv15 + this.isv18; }
+    get subtotal() { return lineItems.reduce((acc, item) => acc + calcLine(item, settings?.pricesIncludeTax).base, 0); },
+    get descuentos() { return lineItems.reduce((acc, item) => acc + calcLine(item, settings?.pricesIncludeTax).dAmount, 0); },
+    get exento() { return lineItems.reduce((acc, item) => item.tax === 'exento' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0); },
+    get exonerado() { return lineItems.reduce((acc, item) => item.tax === 'exonerado' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0); },
+    get gravado15() { return lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0); },
+    get isv15() { return lineItems.reduce((acc, item) => item.tax === 'isv15' ? acc + calcLine(item, settings?.pricesIncludeTax).tax : acc, 0); },
+    get gravado18() { return lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0); },
+    get isv18() { return lineItems.reduce((acc, item) => item.tax === 'isv18' ? acc + calcLine(item, settings?.pricesIncludeTax).tax : acc, 0); },
+    get total() { 
+      const netTotal = this.subtotal - this.descuentos + this.isv15 + this.isv18;
+      const adjustment = Number(settings?.roundAdjustment) || 0;
+      return netTotal + adjustment;
+    }
   };
 
   const baseDocType = DOC_TYPES.find(d => d.key === docType) || DOC_TYPES.find(d => d.key === 'cotizacion')!;

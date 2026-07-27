@@ -19,25 +19,51 @@ const fmt = (val: number) => {
 };
 
 // Helper to calculate line totals
-const calcLine = (item: any) => {
+const calcLine = (item: any, pricesIncludeTax?: boolean) => {
   const q = Number(item.qty) || 0;
   const p = Number(item.unitPrice) || 0;
   const dVal = Number(item.discount) || 0;
   
-  let dAmount = 0;
-  if (item.discountType === 'amount') {
-    dAmount = dVal; 
+  let tasaImpuesto = 0;
+  if (item.taxType === '15%') tasaImpuesto = 0.15;
+  if (item.taxType === '18%') tasaImpuesto = 0.18;
+
+  if (pricesIncludeTax) {
+    const baseConImpuesto = q * p;
+    const baseNeta = baseConImpuesto / (1 + tasaImpuesto);
+    
+    let dAmount = 0;
+    if (item.discountType === 'amount') {
+      dAmount = dVal / (1 + tasaImpuesto);
+    } else {
+      dAmount = baseNeta * (dVal / 100);
+    }
+    
+    const baseAfterDiscount = baseNeta - dAmount;
+    const tax = baseAfterDiscount * tasaImpuesto;
+    const total = baseAfterDiscount + tax;
+
+    return { 
+      base: baseNeta, 
+      dAmount, 
+      baseAfterDiscount, 
+      tax, 
+      total 
+    };
   } else {
-    dAmount = (q * p) * (dVal / 100);
+    let dAmount = 0;
+    if (item.discountType === 'amount') {
+      dAmount = dVal; 
+    } else {
+      dAmount = (q * p) * (dVal / 100);
+    }
+    
+    const base = q * p;
+    const baseAfterDiscount = base - dAmount;
+    const tax = baseAfterDiscount * tasaImpuesto;
+    
+    return { base, dAmount, baseAfterDiscount, tax, total: baseAfterDiscount + tax };
   }
-  
-  const base = q * p;
-  const baseAfterDiscount = base - dAmount;
-  let tax = 0;
-  if (item.taxType === '15%') tax = baseAfterDiscount * 0.15;
-  if (item.taxType === '18%') tax = baseAfterDiscount * 0.18;
-  
-  return { base, dAmount, baseAfterDiscount, tax, total: baseAfterDiscount + tax };
 };
 
 // Helper to extract brand and model from description text when relations are null
@@ -187,18 +213,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       };
     }));
     
-    const totals = {
-      subtotal: lineItems.reduce((acc: number, item: any) => acc + calcLine(item).base, 0),
-      descuentos: lineItems.reduce((acc: number, item: any) => acc + calcLine(item).dAmount, 0),
-      exento: lineItems.reduce((acc: number, item: any) => item.taxType === 'exento' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
-      exonerado: lineItems.reduce((acc: number, item: any) => item.taxType === 'exonerado' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
-      gravado15: lineItems.reduce((acc: number, item: any) => item.taxType === '15%' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
-      isv15: lineItems.reduce((acc: number, item: any) => item.taxType === '15%' ? acc + calcLine(item).tax : acc, 0),
-      gravado18: lineItems.reduce((acc: number, item: any) => item.taxType === '18%' ? acc + calcLine(item).baseAfterDiscount : acc, 0),
-      isv18: lineItems.reduce((acc: number, item: any) => item.taxType === '18%' ? acc + calcLine(item).tax : acc, 0),
-      get total() { return this.subtotal - this.descuentos + this.isv15 + this.isv18; }
-    };
-
     const DOC_TYPES = [
       { key: 'cotizacion', label: 'COTIZACIÓN' },
       { key: 'proforma', label: 'PRO FORMA' },
@@ -222,6 +236,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const docSettings = (doc as any).templateSettings || {};
     const orgSettings = (org as any).invoiceSettings || {};
     const settings = { ...DEFAULT_INVOICE_SETTINGS, ...orgSettings, ...docSettings };
+
+    const totals = {
+      subtotal: lineItems.reduce((acc: number, item: any) => acc + calcLine(item, settings?.pricesIncludeTax).base, 0),
+      descuentos: lineItems.reduce((acc: number, item: any) => acc + calcLine(item, settings?.pricesIncludeTax).dAmount, 0),
+      exento: lineItems.reduce((acc: number, item: any) => item.taxType === 'exento' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0),
+      exonerado: lineItems.reduce((acc: number, item: any) => item.taxType === 'exonerado' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0),
+      gravado15: lineItems.reduce((acc: number, item: any) => item.taxType === '15%' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0),
+      isv15: lineItems.reduce((acc: number, item: any) => item.taxType === '15%' ? acc + calcLine(item, settings?.pricesIncludeTax).tax : acc, 0),
+      gravado18: lineItems.reduce((acc: number, item: any) => item.taxType === '18%' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0),
+      isv18: lineItems.reduce((acc: number, item: any) => item.taxType === '18%' ? acc + calcLine(item, settings?.pricesIncludeTax).tax : acc, 0),
+      get total() { 
+        const netTotal = this.subtotal - this.descuentos + this.isv15 + this.isv18;
+        const adjustment = Number(settings?.roundAdjustment) || 0;
+        return netTotal + adjustment;
+      }
+    };
 
     // Build the data object 
     const templateData = {

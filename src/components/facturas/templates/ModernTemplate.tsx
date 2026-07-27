@@ -342,6 +342,19 @@ export default function ModernTemplate(props: TemplateProps) {
  <span className={`${subtotalSizeClass} font-semibold text-amber-600 ${monoClass}`} style={subtotalStyle}>{fmt(totals.isv18)}</span>
  </div>
  </div>
+
+ {settings.roundAdjustment && Number(settings.roundAdjustment) !== 0 ? (
+   <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+     <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
+       <span className={`${subtotalSizeClass} text-slate-500`} style={subtotalStyle}>Ajuste L.</span>
+     </div>
+     <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : ''}`}>
+       <span className={`${subtotalSizeClass} font-semibold ${Number(settings.roundAdjustment) < 0 ? 'text-red-500' : 'text-slate-700'} ${monoClass}`} style={subtotalStyle}>
+         {Number(settings.roundAdjustment) > 0 ? '+' : ''}{fmt(Number(settings.roundAdjustment))}
+       </span>
+     </div>
+   </div>
+ ) : null}
  </div>
 
  <div className="border-t border-slate-200 pt-3">

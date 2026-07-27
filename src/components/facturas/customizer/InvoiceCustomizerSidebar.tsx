@@ -676,6 +676,46 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
                   </div>
                 </div>
               </div>
+
+              {/* ── CALCULATIONS & TAXES ── */}
+              <div className="flex flex-col p-3 bg-white border border-slate-200 rounded-xl space-y-3">
+                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cálculos e Impuestos</h4>
+                
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Precios incluyen ISV</p>
+                    <p className="text-[10px] text-slate-400">Ingresar precios con impuesto incluido</p>
+                  </div>
+                  <button
+                    onClick={() => onChange('pricesIncludeTax', !settings.pricesIncludeTax)}
+                    className={`w-10 h-5 rounded-full transition-all relative ${
+                      settings.pricesIncludeTax ? 'bg-blue-600' : 'bg-slate-300'
+                    }`}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all ${
+                      settings.pricesIncludeTax ? 'left-5' : 'left-0.5'
+                    }`} />
+                  </button>
+                </div>
+                
+                <div className="flex flex-col border-t border-slate-100 pt-3 gap-1.5">
+                  <div>
+                    <p className="text-xs font-bold text-slate-700">Ajuste de Redondeo (L)</p>
+                    <p className="text-[10px] text-slate-400">Sumar/restar centavos para redondear el TOTAL</p>
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={settings.roundAdjustment ?? ''}
+                    onChange={e => {
+                      const val = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                      onChange('roundAdjustment', val);
+                    }}
+                    className="w-full text-xs border border-slate-200 rounded-xl px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all text-slate-700 placeholder:text-slate-300"
+                  />
+                </div>
+              </div>
             </div>
             
           </div>

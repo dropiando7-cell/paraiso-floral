@@ -72,7 +72,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   tableColHeader: {
-    fontSize: 8,
     fontWeight: 700,
     textTransform: 'uppercase',
     textAlign: 'center',
@@ -80,22 +79,16 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   tableCol: {
-    fontSize: 8,
     textAlign: 'center',
     paddingHorizontal: 2,
-    paddingVertical: 4,
   },
   tableColLeft: {
-    fontSize: 8,
     textAlign: 'left',
     paddingHorizontal: 2,
-    paddingVertical: 4,
   },
   tableColRight: {
-    fontSize: 8,
     textAlign: 'right',
     paddingHorizontal: 2,
-    paddingVertical: 4,
   },
   // Column Widths
   colCode: { width: '15%' },
@@ -214,6 +207,53 @@ const styles = StyleSheet.create({
   }
 });
 
+const calcLine = (item: any, pricesIncludeTax?: boolean) => {
+  const q = Number(item.qty) || 0;
+  const p = Number(item.unitPrice) || 0;
+  const dVal = Number(item.discount) || 0;
+  
+  let tasaImpuesto = 0;
+  if (item.taxType === '15%') tasaImpuesto = 0.15;
+  if (item.taxType === '18%') tasaImpuesto = 0.18;
+
+  if (pricesIncludeTax) {
+    const baseConImpuesto = q * p;
+    const baseNeta = baseConImpuesto / (1 + tasaImpuesto);
+    
+    let dAmount = 0;
+    if (item.discountType === 'amount') {
+      dAmount = dVal / (1 + tasaImpuesto);
+    } else {
+      dAmount = baseNeta * (dVal / 100);
+    }
+    
+    const baseAfterDiscount = baseNeta - dAmount;
+    const tax = baseAfterDiscount * tasaImpuesto;
+    const total = baseAfterDiscount + tax;
+
+    return { 
+      base: baseNeta, 
+      dAmount, 
+      baseAfterDiscount, 
+      tax, 
+      total 
+    };
+  } else {
+    let dAmount = 0;
+    if (item.discountType === 'amount') {
+      dAmount = dVal; 
+    } else {
+      dAmount = (q * p) * (dVal / 100);
+    }
+    
+    const base = q * p;
+    const baseAfterDiscount = base - dAmount;
+    const tax = baseAfterDiscount * tasaImpuesto;
+    
+    return { base, dAmount, baseAfterDiscount, tax, total: baseAfterDiscount + tax };
+  }
+};
+
 interface LegacyTemplatePDFProps {
   data: any;
   images: Record<string, string>; // base64 strings mapped by item ID or URL
@@ -256,6 +296,43 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
   
   const totalBgColor = settings?.totalBgColor || '#0f172a';
   const totalTextColor = settings?.totalTextColor || '#ffffff';
+
+  // Dynamic layout values matching the canvas
+  let headerFontSizePdf = 8;
+  if (typeof settings?.tableHeaderFontSize === 'number') {
+    headerFontSizePdf = settings.tableHeaderFontSize * 0.75;
+  } else if (settings?.tableHeaderFontSize === 'large') {
+    headerFontSizePdf = 10;
+  } else if (settings?.tableHeaderFontSize === 'small') {
+    headerFontSizePdf = 7;
+  }
+
+  let descFontSizePdf = 8;
+  if (typeof settings?.itemDescFontSize === 'number') {
+    descFontSizePdf = settings.itemDescFontSize * 0.75;
+  } else if (settings?.itemDescFontSize === 'large') {
+    descFontSizePdf = 10;
+  } else if (settings?.itemDescFontSize === 'small') {
+    descFontSizePdf = 7;
+  }
+
+  const paddingVerticalMap = [0, 2, 4, 8, 12];
+  const tableCellPaddingY = paddingVerticalMap[settings?.tableRowPadding ?? 2] ?? 4;
+
+  const imgSize = settings?.productImageSize === 'large' ? 72 : 
+                  settings?.productImageSize === 'medium' ? 48 : 26;
+
+  const dynamicImageContainer = {
+    width: imgSize,
+    height: imgSize,
+    marginRight: 4,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+  };
+
+  const headerTextCol1 = settings?.showItemCode !== false 
+    ? 'Código' 
+    : (settings?.showProductImages ? 'Imagen' : '');
 
   return (
     <Document>
@@ -354,13 +431,15 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             borderBottomWidth: showTableBorders ? tableBorderThickness : 0,
             borderBottomColor: tableBorderColor,
           }}>
-            <Text style={[styles.tableColHeader, styles.colCode, { paddingVertical: 4 }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Código</Text>
-            <Text style={[styles.tableColHeader, styles.colDesc, { paddingVertical: 4 }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Descripción</Text>
-            <Text style={[styles.tableColHeader, styles.colQty, { paddingVertical: 4 }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Cant.</Text>
-            <Text style={[styles.tableColHeader, styles.colPrice, { paddingVertical: 4 }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Precio</Text>
-            <Text style={[styles.tableColHeader, styles.colDiscount, { paddingVertical: 4 }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Desc.</Text>
-            <Text style={[styles.tableColHeader, styles.colTax, { paddingVertical: 4 }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Imp.</Text>
-            <Text style={[styles.tableColHeader, styles.colTotal, { paddingVertical: 4 }]}>Monto</Text>
+            <Text style={[styles.tableColHeader, styles.colCode, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>
+              {headerTextCol1}
+            </Text>
+            <Text style={[styles.tableColHeader, styles.colDesc, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Descripción</Text>
+            <Text style={[styles.tableColHeader, styles.colQty, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Cant.</Text>
+            <Text style={[styles.tableColHeader, styles.colPrice, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Precio</Text>
+            <Text style={[styles.tableColHeader, styles.colDiscount, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Desc.</Text>
+            <Text style={[styles.tableColHeader, styles.colTax, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>Imp.</Text>
+            <Text style={[styles.tableColHeader, styles.colTotal, { paddingVertical: 4, fontSize: headerFontSizePdf }]}>Monto</Text>
           </View>
 
           {/* Table Rows */}
@@ -393,45 +472,112 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                   borderBottomWidth: (!item.showLongDesc && showTableBorders && i < lineItems.length - 1) ? tableBorderThickness : 0,
                   borderBottomColor: tableBorderColor,
                 }}>
-                  <View style={[styles.colCode, { flexDirection: 'row', alignItems: 'center' }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>
-                    {hasImage && settings?.productImagePosition === 'firstColumn' && (
-                      <View style={styles.imageContainer}>
-                        <Image src={images[item.id]} style={styles.productImage} />
-                      </View>
+                  {/* First Column (Code / Image) */}
+                  <View style={[
+                    styles.colCode, 
+                    { 
+                      flexDirection: 'row', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      paddingVertical: tableCellPaddingY 
+                    }, 
+                    showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
+                  ]}>
+                    {settings?.showItemCode !== false ? (
+                      <>
+                        {hasImage && settings?.productImagePosition === 'firstColumn' && (
+                          <View style={dynamicImageContainer}>
+                            <Image src={images[item.id]} style={styles.productImage} />
+                          </View>
+                        )}
+                        <Text style={[styles.tableCol, { flex: 1, fontSize: descFontSizePdf }]}>{item.code || '-'}</Text>
+                      </>
+                    ) : (
+                      settings?.showProductImages && hasImage && (
+                        <View style={dynamicImageContainer}>
+                          <Image src={images[item.id]} style={styles.productImage} />
+                        </View>
+                      )
                     )}
-                    <Text style={[styles.tableCol, { flex: 1 }]}>{item.code || '-'}</Text>
                   </View>
                   
-                  <View style={[styles.colDesc, { flexDirection: 'row', alignItems: 'center' }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>
-                    {hasImage && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && (
-                      <View style={styles.imageContainer}>
+                  {/* Description Column */}
+                  <View style={[
+                    styles.colDesc, 
+                    { 
+                      flexDirection: 'row', 
+                      alignItems: 'center',
+                      paddingVertical: tableCellPaddingY
+                    }, 
+                    showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
+                  ]}>
+                    {hasImage && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && settings?.showItemCode !== false && (
+                      <View style={dynamicImageContainer}>
                         <Image src={images[item.id]} style={styles.productImage} />
                       </View>
                     )}
                     <View style={{ flex: 1, justifyContent: 'center' }}>
-                      <Text style={[styles.tableColLeft, styles.descText]}>{item.shortDesc || '-'}</Text>
+                      <Text style={[styles.tableColLeft, styles.descText, { fontSize: descFontSizePdf }]}>{item.shortDesc || '-'}</Text>
                     </View>
                   </View>
 
-                  <View style={[styles.colQty, { justifyContent: 'center' }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>
-                    <Text style={styles.tableCol}>{item.qty}</Text>
+                  <View style={[
+                    styles.colQty, 
+                    { 
+                      justifyContent: 'center',
+                      paddingVertical: tableCellPaddingY 
+                    }, 
+                    showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
+                  ]}>
+                    <Text style={[styles.tableCol, { fontSize: descFontSizePdf }]}>{item.qty}</Text>
                   </View>
-                  <View style={[styles.colPrice, { justifyContent: 'center' }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>
-                    <Text style={styles.tableColRight}>{fmt ? fmt(item.unitPrice || 0) : item.unitPrice}</Text>
+                  
+                  <View style={[
+                    styles.colPrice, 
+                    { 
+                      justifyContent: 'center',
+                      paddingVertical: tableCellPaddingY 
+                    }, 
+                    showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
+                  ]}>
+                    <Text style={[styles.tableColRight, { fontSize: descFontSizePdf }]}>{fmt ? fmt(item.unitPrice || 0) : item.unitPrice}</Text>
                   </View>
-                  <View style={[styles.colDiscount, { justifyContent: 'center' }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>
-                    <Text style={styles.tableColRight}>
+                  
+                  <View style={[
+                    styles.colDiscount, 
+                    { 
+                      justifyContent: 'center',
+                      paddingVertical: tableCellPaddingY 
+                    }, 
+                    showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
+                  ]}>
+                    <Text style={[styles.tableColRight, { fontSize: descFontSizePdf }]}>
                       {Number(item.discount) > 0 
                         ? (item.discountType === 'percentage' ? `${item.discount}%` : (fmt ? fmt(item.discount) : item.discount))
                         : '-'}
                     </Text>
                   </View>
-                  <View style={[styles.colTax, { justifyContent: 'center' }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>
-                    <Text style={styles.tableCol}>{item.taxType === 'exento' ? 'EX' : item.taxType === '15%' ? 'ISV 15%' : 'ISV 18%'}</Text>
+                  
+                  <View style={[
+                    styles.colTax, 
+                    { 
+                      justifyContent: 'center',
+                      paddingVertical: tableCellPaddingY 
+                    }, 
+                    showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}
+                  ]}>
+                    <Text style={[styles.tableCol, { fontSize: descFontSizePdf }]}>{item.taxType === 'exento' ? 'EX' : item.taxType === '15%' ? 'ISV 15%' : 'ISV 18%'}</Text>
                   </View>
-                  <View style={[styles.colTotal, { justifyContent: 'center' }]}>
-                    <Text style={styles.tableColRight}>
-                      {fmt ? fmt((item.qty * item.unitPrice) - (item.discountType === 'percentage' ? (item.qty * item.unitPrice * item.discount / 100) : Number(item.discount))) : 0}
+                  
+                  <View style={[
+                    styles.colTotal, 
+                    { 
+                      justifyContent: 'center',
+                      paddingVertical: tableCellPaddingY 
+                    }
+                  ]}>
+                    <Text style={[styles.tableColRight, { fontSize: descFontSizePdf }]}>
+                      {fmt ? fmt(calcLine(item, settings?.pricesIncludeTax).total) : 0}
                     </Text>
                   </View>
                 </View>
@@ -486,6 +632,15 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
               <Text style={styles.totalValue}>{fmt ? fmt(totals?.isv15 || 0) : totals?.isv15}</Text>
             </View>
             
+            {settings?.roundAdjustment && Number(settings.roundAdjustment) !== 0 ? (
+              <View style={styles.totalRow}>
+                <Text style={styles.totalLabel}>Ajuste</Text>
+                <Text style={[styles.totalValue, { color: Number(settings.roundAdjustment) < 0 ? '#dc2626' : '#4b5563' }]}>
+                  {Number(settings.roundAdjustment) > 0 ? '+' : ''}{fmt ? fmt(Number(settings.roundAdjustment)) : settings.roundAdjustment}
+                </Text>
+              </View>
+            ) : null}
+
             <View style={[styles.grandTotalRow, { backgroundColor: totalBgColor, borderRadius: 2 }]}>
               <Text style={[styles.grandTotalLabel, { color: totalTextColor }]}>TOTAL</Text>
               <Text style={[styles.grandTotalValue, { color: totalTextColor }]}>{fmt ? fmt(totals?.total || 0) : totals?.total}</Text>

@@ -93,6 +93,8 @@ export interface InvoiceSettings {
   completionPercentage?: number;
   termsTextDefault1?: string;
   termsTextDefault2?: string;
+  pricesIncludeTax?: boolean;
+  roundAdjustment?: number;
 }
 
 export interface CustomInvoiceTemplate {
@@ -171,5 +173,7 @@ export const DEFAULT_INVOICE_SETTINGS: InvoiceSettings = {
   advancePercentage: 80,
   completionPercentage: 20,
   termsTextDefault1: 'Para iniciar los trabajos aquí descritos se deberá cancelar el {p1}% del valor total y el {p2}% restante al finalizar.',
-  termsTextDefault2: 'Favor someter a consideración esta cotización y le rogamos sea devuelta con firma y sello de aceptación en caso que la misma sea aceptada.'
+  termsTextDefault2: 'Favor someter a consideración esta cotización y le rogamos sea devuelta con firma y sello de aceptación en caso que la misma sea aceptada.',
+  pricesIncludeTax: false,
+  roundAdjustment: undefined
 };
