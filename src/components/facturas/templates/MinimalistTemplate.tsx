@@ -261,15 +261,6 @@ export default function MinimalistTemplate(props: TemplateProps) {
  <span>{fmt(totals.isv18)}</span>
  </div>
 
- {settings.roundAdjustment && Number(settings.roundAdjustment) !== 0 ? (
-   <div className="flex justify-between text-slate-500 pb-3 border-b border-slate-100">
-     <span>Ajuste L.</span>
-     <span className={Number(settings.roundAdjustment) < 0 ? 'text-red-500' : 'text-slate-700'}>
-       {Number(settings.roundAdjustment) > 0 ? '+' : ''}{fmt(Number(settings.roundAdjustment))}
-     </span>
-   </div>
- ) : null}
-
  <div className="flex justify-between items-end pt-1">
  <span className="text-[11px] text-slate-400 uppercase mb-1">Total L.</span>
  <span className={`text-2xl font-light ${themeText}`}>{fmt(totals.total)}</span>

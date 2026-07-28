@@ -632,14 +632,6 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
               <Text style={styles.totalValue}>{fmt ? fmt(totals?.isv15 || 0) : totals?.isv15}</Text>
             </View>
             
-            {settings?.roundAdjustment && Number(settings.roundAdjustment) !== 0 ? (
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Ajuste</Text>
-                <Text style={[styles.totalValue, { color: Number(settings.roundAdjustment) < 0 ? '#dc2626' : '#4b5563' }]}>
-                  {Number(settings.roundAdjustment) > 0 ? '+' : ''}{fmt ? fmt(Number(settings.roundAdjustment)) : settings.roundAdjustment}
-                </Text>
-              </View>
-            ) : null}
 
             <View style={[styles.grandTotalRow, { backgroundColor: totalBgColor, borderRadius: 2 }]}>
               <Text style={[styles.grandTotalLabel, { color: totalTextColor }]}>TOTAL</Text>

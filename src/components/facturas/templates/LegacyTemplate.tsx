@@ -333,18 +333,6 @@ export default function LegacyTemplate(props: TemplateProps) {
  </div>
  </div>
 
-  {settings.roundAdjustment && Number(settings.roundAdjustment) !== 0 ? (
-    <div className={`flex items-stretch ${settings?.subtotalsBorder ? 'border-b' : 'justify-between items-center border-b border-slate-200 pb-1'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
-      <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-0.5' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
-        <span className={`${subtotalSizeClass} text-gray-600 font-medium`} style={subtotalStyle}>Ajuste</span>
-      </div>
-      <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-0.5' : ''}`}>
-        <span className={`${subtotalSizeClass} ${monoClass} ${Number(settings.roundAdjustment) < 0 ? 'text-red-600' : 'text-slate-700'}`} style={subtotalStyle}>
-          {Number(settings.roundAdjustment) > 0 ? '+' : ''}{fmt(Number(settings.roundAdjustment))}
-        </span>
-      </div>
-    </div>
-  ) : null}
  
     <div 
     className={`flex justify-between items-center px-3 py-1.5 mt-1 rounded-sm shadow-sm print:border-t-2 print:border-b-2 print:border-solid print:py-1 print:px-3 ${settings?.subtotalsBorder && isGrouped ? 'border-x border-b border-t rounded-t-none mt-0' : ''}`}

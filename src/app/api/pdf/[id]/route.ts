@@ -240,16 +240,42 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const totals = {
       subtotal: lineItems.reduce((acc: number, item: any) => acc + calcLine(item, settings?.pricesIncludeTax).base, 0),
       descuentos: lineItems.reduce((acc: number, item: any) => acc + calcLine(item, settings?.pricesIncludeTax).dAmount, 0),
-      exento: lineItems.reduce((acc: number, item: any) => item.taxType === 'exento' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0),
-      exonerado: lineItems.reduce((acc: number, item: any) => item.taxType === 'exonerado' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0),
-      gravado15: lineItems.reduce((acc: number, item: any) => item.taxType === '15%' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0),
-      isv15: lineItems.reduce((acc: number, item: any) => item.taxType === '15%' ? acc + calcLine(item, settings?.pricesIncludeTax).tax : acc, 0),
-      gravado18: lineItems.reduce((acc: number, item: any) => item.taxType === '18%' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0),
-      isv18: lineItems.reduce((acc: number, item: any) => item.taxType === '18%' ? acc + calcLine(item, settings?.pricesIncludeTax).tax : acc, 0),
-      get total() { 
-        const netTotal = this.subtotal - this.descuentos + this.isv15 + this.isv18;
+      get exento() {
+        const val = lineItems.reduce((acc: number, item: any) => item.taxType === 'exento' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0);
         const adjustment = Number(settings?.roundAdjustment) || 0;
-        return netTotal + adjustment;
+        if (this.isv15 === 0 && this.isv18 === 0 && val > 0) {
+          return val + adjustment;
+        }
+        return val;
+      },
+      get exonerado() {
+        const val = lineItems.reduce((acc: number, item: any) => item.taxType === 'exonerado' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0);
+        const adjustment = Number(settings?.roundAdjustment) || 0;
+        if (this.isv15 === 0 && this.isv18 === 0 && this.exento === 0 && val > 0) {
+          return val + adjustment;
+        }
+        return val;
+      },
+      gravado15: lineItems.reduce((acc: number, item: any) => item.taxType === '15%' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0),
+      get isv15() {
+        const val = lineItems.reduce((acc: number, item: any) => item.taxType === '15%' ? acc + calcLine(item, settings?.pricesIncludeTax).tax : acc, 0);
+        const adjustment = Number(settings?.roundAdjustment) || 0;
+        if (val > 0) {
+          return val + adjustment;
+        }
+        return val;
+      },
+      gravado18: lineItems.reduce((acc: number, item: any) => item.taxType === '18%' ? acc + calcLine(item, settings?.pricesIncludeTax).baseAfterDiscount : acc, 0),
+      get isv18() {
+        const val = lineItems.reduce((acc: number, item: any) => item.taxType === '18%' ? acc + calcLine(item, settings?.pricesIncludeTax).tax : acc, 0);
+        const adjustment = Number(settings?.roundAdjustment) || 0;
+        if (val > 0 && this.isv15 === 0) {
+          return val + adjustment;
+        }
+        return val;
+      },
+      get total() { 
+        return this.subtotal - this.descuentos + this.isv15 + this.isv18;
       }
     };
 

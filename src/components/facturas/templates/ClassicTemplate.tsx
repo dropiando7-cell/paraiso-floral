@@ -331,19 +331,6 @@ export default function ClassicTemplate(props: TemplateProps) {
  </div>
  </div>
 
- {settings.roundAdjustment && Number(settings.roundAdjustment) !== 0 ? (
-    <div className={`flex items-stretch text-slate-600 ${settings?.subtotalsBorder ? 'border-b' : 'justify-between border-b border-slate-200 pb-1'}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
-      <div className={`flex-1 flex items-center ${settings?.subtotalsBorder ? 'border-r px-2 py-1' : ''}`} style={settings?.subtotalsBorder ? { borderColor: settings.tableBorderColor || '#1e293b' } : {}}>
-        <span>Ajuste L.</span>
-      </div>
-      <div className={`w-[110px] flex items-center justify-end ${settings?.subtotalsBorder ? 'px-2 py-1' : ''}`}>
-        <span className={`${subtotalSizeClass} ${monoClass} ${Number(settings.roundAdjustment) < 0 ? 'text-red-600' : 'text-slate-700'}`} style={subtotalStyle}>
-          {Number(settings.roundAdjustment) > 0 ? '+' : ''}{fmt(Number(settings.roundAdjustment))}
-        </span>
-      </div>
-    </div>
-  ) : null}
-
  <div className="flex justify-between items-end pt-2">
  <span className="font-bold uppercase text-slate-800">TOTAL L.</span>
  <span className={`${totalSizeClass} font-bold ${monoClass} ${baseColor}`} style={totalStyle}>{fmt(totals.total)}</span>
