@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { getAuthenticatedUser } from './actions';
 import { Resend } from 'resend';
+import { headers } from 'next/headers';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -111,9 +112,10 @@ export async function enviarDocumentoPorEmail(
       : '';
 
     // 3. Fetch PDF from route handler as buffer
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const headersList = await headers();
+    const host = headersList.get('host') || 'sistema.bioelectronicahn.com';
+    const protocol = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
     
     const pdfUrl = `${baseUrl}/api/pdf/${documentoId}?type=${tipoDoc === 'cotizacion' && doc.ordenTrabajoId ? 'cotizacion' : tipoDoc}`;
     
