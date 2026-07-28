@@ -2235,7 +2235,7 @@ export default function DocumentBuilderClient({
       setSelectedClient(newClientObj);
       setShowNewClientModal(false);
       setShowClientModal(false);
-      setNewClientData({ nombre: '', email: '', telefono: '', rtn: '', direccion: '' });
+      setNewClientData({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
       toast.success('Cliente registrado correctamente');
     } catch (e: any) {
       toast.error('Error al registrar cliente');
