@@ -85,11 +85,13 @@ const styles = StyleSheet.create({
   },
   tableColLeft: {
     textAlign: 'left',
-    paddingHorizontal: 2,
+    paddingLeft: 6,
+    paddingRight: 2,
   },
   tableColRight: {
     textAlign: 'right',
-    paddingHorizontal: 2,
+    paddingLeft: 2,
+    paddingRight: 6,
   },
   // Column Widths
   colCode: { width: '15%' },
