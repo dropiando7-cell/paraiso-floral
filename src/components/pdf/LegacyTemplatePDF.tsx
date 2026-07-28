@@ -386,20 +386,20 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
 
         {/* Metadata Grid */}
         <View style={styles.metadataGrid}>
-          <View style={styles.metaColumnFirst}>
+          <View style={[styles.metaColumnFirst, { flex: 0.9 }]}>
             <Text style={[styles.metaLabel, { color: primaryColor, fontSize: 11 }]}>{currentDocType?.label}</Text>
             <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 11, marginBottom: 4, color: '#1f2937' }}>{docNumber}</Text>
             <Text style={styles.metaValue}>Fecha: {today}</Text>
           </View>
-          <View style={styles.metaColumn}>
+          <View style={[styles.metaColumn, { flex: 0.7 }]}>
             <Text style={styles.metaLabel}>Elaborado por:</Text>
             <Text style={styles.metaValue}>{data.nombreUsuario || 'Administrador'}</Text>
           </View>
-          <View style={styles.metaColumn}>
+          <View style={[styles.metaColumn, { flex: 0.7 }]}>
             <Text style={styles.metaLabel}>Términos de pago:</Text>
             <Text style={styles.metaValue}>{paymentTerms}</Text>
           </View>
-          <View style={styles.metaColumn}>
+          <View style={[styles.metaColumn, { flex: 1.7 }]}>
             <Text style={styles.metaLabel}>Cliente:</Text>
             {selectedClient ? (
               <View style={styles.clientBox}>
