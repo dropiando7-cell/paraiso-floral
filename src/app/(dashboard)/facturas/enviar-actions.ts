@@ -6,6 +6,71 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+export interface EmailTemplateSettings {
+  bccList: string;
+  address: string;
+  phone: string;
+  email: string;
+  defaultSubject: string;
+  defaultBody: string;
+}
+
+const DEFAULT_SETTINGS: EmailTemplateSettings = {
+  bccList: 'administracion@bioelectronicahn.com, gerencia@bioelectronicahn.com',
+  address: 'Bo. Guamilito, 7 Calle, 9 Avenida NO, San Pedro Sula, Cortés',
+  phone: '+504 3178-2368 | +504 8924-6108',
+  email: 'administracion@bioelectronicahn.com',
+  defaultSubject: '{docType} {correlativo} - Bioelectrónica Honduras',
+  defaultBody: 'Le hacemos llegar su {docType} número {correlativo} por un monto total de {total}, emitida el {fecha}.\n\nEn el archivo adjunto encontrará el documento PDF correspondiente.'
+};
+
+export async function getEmailSettings() {
+  try {
+    const authUser = await getAuthenticatedUser();
+    const org = await prisma.organization.findUnique({
+      where: { id: authUser.organizationId },
+      select: { invoiceSettings: true }
+    });
+
+    const currentSettings = (org?.invoiceSettings as any) || {};
+    const emailSettings = {
+      ...DEFAULT_SETTINGS,
+      ...(currentSettings.emailTemplateSettings || {})
+    };
+
+    return { success: true, settings: emailSettings };
+  } catch (error: any) {
+    console.error('Error fetching email settings:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function saveEmailSettings(settings: EmailTemplateSettings) {
+  try {
+    const authUser = await getAuthenticatedUser();
+    const org = await prisma.organization.findUnique({
+      where: { id: authUser.organizationId },
+      select: { invoiceSettings: true }
+    });
+
+    const currentSettings = (org?.invoiceSettings as any) || {};
+    const updatedInvoiceSettings = {
+      ...currentSettings,
+      emailTemplateSettings: settings
+    };
+
+    await prisma.organization.update({
+      where: { id: authUser.organizationId },
+      data: { invoiceSettings: updatedInvoiceSettings }
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error saving email settings:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function enviarDocumentoPorEmail(
   documentoId: string,
   emailDestino: string,
@@ -30,6 +95,10 @@ export async function enviarDocumentoPorEmail(
     if (!doc) {
       return { success: false, error: 'Documento no encontrado' };
     }
+
+    // Fetch dynamic template settings
+    const settingsRes = await getEmailSettings();
+    const emailSettings = settingsRes.success && settingsRes.settings ? settingsRes.settings : DEFAULT_SETTINGS;
 
     const correlativo = doc.correlativo || doc.id;
     const tipoDoc = doc.tipoDocumento.toLowerCase();
@@ -105,7 +174,7 @@ export async function enviarDocumentoPorEmail(
             <div class="content">
               <div class="greeting">Estimado(a) ${doc.cliente.nombre},</div>
               <div class="message">
-                ${cleanMsg || `Le hacemos llegar su <strong>${docLabel.toLowerCase()}</strong> número <strong>${correlativo}</strong> emitida el ${fechaEmision}. En el archivo adjunto encontrará el documento PDF vectorial correspondiente.`}
+                ${cleanMsg}
               </div>
               <div class="summary-box">
                 <div class="summary-title">Resumen del Documento</div>
@@ -128,8 +197,8 @@ export async function enviarDocumentoPorEmail(
             </div>
             <div class="footer">
               <p><strong>Bioelectrónica Honduras S. de R.L. de C.V.</strong></p>
-              <p>Barrio Paz Barahona, San Pedro Sula, Honduras</p>
-              <p>Tel: +504 3178-2368 | <a href="mailto:administracion@bioelectronicahn.com">administracion@bioelectronicahn.com</a></p>
+              <p>${emailSettings.address}</p>
+              <p>Tel: ${emailSettings.phone} | <a href="mailto:${emailSettings.email}">${emailSettings.email}</a></p>
             </div>
           </div>
         </body>
@@ -139,12 +208,17 @@ export async function enviarDocumentoPorEmail(
     // 5. Send using Resend
     const filename = `${docLabel.replace(/\s+/g, '_')}_${correlativo}.pdf`;
 
+    // Parse BCC list (split by comma and trim whitespace)
+    const bccList = emailSettings.bccList
+      ? emailSettings.bccList.split(',').map((e: string) => e.trim()).filter((e: string) => e.length > 0)
+      : [];
+
     console.log(`Sending email to ${emailDestino} for ${docLabel} ${correlativo}...`);
     const sendResult = await resend.emails.send({
       from: 'Bioelectrónica Honduras <notificaciones@mail.bioelectronicahn.com>',
       to: emailDestino,
-      bcc: ['administracion@bioelectronicahn.com', 'gerencia@bioelectronicahn.com'],
-      replyTo: 'administracion@bioelectronicahn.com',
+      bcc: bccList.length > 0 ? bccList : undefined,
+      replyTo: emailSettings.email || 'administracion@bioelectronicahn.com',
       subject: asunto || `${docLabel} ${correlativo} - Bioelectrónica Honduras`,
       html: emailHtml,
       attachments: [
