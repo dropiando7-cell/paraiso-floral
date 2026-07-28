@@ -1011,6 +1011,8 @@ export async function convertirDocumento(
                     metodoPago: options?.metodoPago || doc.metodoPago || 'Efectivo',
                     cajaSessionId,
                     ordenTrabajoId: doc.ordenTrabajoId || null,
+                    notas: doc.notas,
+                    terminosPago: doc.terminosPago || '30 días netos',
                     detalles: {
                         create: doc.detalles.map((d) => ({
                             descripcion: d.descripcion,
