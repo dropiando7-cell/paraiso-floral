@@ -195,6 +195,42 @@ const calcLine = (item: LineItem, pricesIncludeTax?: boolean) => {
   }
 };
 
+// Helper to calculate Unit Price backwards from target line Total (Option 1)
+const calculateUnitPriceFromTotal = (
+  targetTotal: number,
+  qty: number,
+  taxType: TaxType,
+  discount: number,
+  discountType: 'percentage' | 'amount',
+  pricesIncludeTax?: boolean
+): number => {
+  const q = qty || 1; // avoid division by zero
+  const dVal = discount || 0;
+  
+  let tasaImpuesto = 0;
+  if (taxType === 'isv15') tasaImpuesto = 0.15;
+  if (taxType === 'isv18') tasaImpuesto = 0.18;
+  
+  if (pricesIncludeTax) {
+    if (discountType === 'amount') {
+      return (targetTotal + dVal) / q;
+    } else {
+      const pct = dVal / 100;
+      if (pct >= 1) return 0;
+      return targetTotal / (1 - pct) / q;
+    }
+  } else {
+    const netTarget = targetTotal / (1 + tasaImpuesto);
+    if (discountType === 'amount') {
+      return (netTarget + dVal) / q;
+    } else {
+      const pct = dVal / 100;
+      if (pct >= 1) return 0;
+      return (netTarget / (1 - pct)) / q;
+    }
+  }
+};
+
 // ─── SUB COMPONENTS ────────────────────────────────────────────────────────
 
 function DocTypeSelector({ value, onChange }: { value: DocType; onChange: (v: DocType) => void }) {
@@ -325,7 +361,8 @@ function LineItemRow({
   const adjustment = (isLastNonSection && mounted) ? (Number(settings?.roundAdjustment) || 0) : 0;
   const displayTotal = total + adjustment;
   const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [focusedField, setFocusedField] = useState<'code' | 'desc' | null>(null);
+  const [focusedField, setFocusedField] = useState<'code' | 'desc' | 'monto' | null>(null);
+  const [montoInputValue, setMontoInputValue] = useState<string>('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDraggable, setIsDraggable] = useState(false);
@@ -1052,9 +1089,45 @@ function LineItemRow({
 
             {/* Monto / Subtotal — vertically centered, centered */}
             <div className={`min-w-0 flex items-center justify-end ${padClass}`}>
-              <p className={`${descSizeClass} font-bold text-slate-800 text-right ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} pr-2`} style={descStyle}>
+              {!viewMode ? (
+                <div className="relative w-full print:hidden">
+                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] font-bold">L</span>
+                  <input
+                    type="number"
+                    step="any"
+                    value={focusedField === 'monto' ? montoInputValue : displayTotal.toFixed(2)}
+                    onFocus={() => {
+                      setFocusedField('monto');
+                      setMontoInputValue(displayTotal.toFixed(2));
+                    }}
+                    onChange={e => {
+                      const valStr = e.target.value;
+                      setMontoInputValue(valStr);
+                      const val = parseFloat(valStr);
+                      if (!isNaN(val)) {
+                        const calculatedPrice = calculateUnitPriceFromTotal(
+                          val,
+                          Number(item.qty) || 1,
+                          item.tax,
+                          Number(item.discount) || 0,
+                          item.discountType,
+                          settings?.pricesIncludeTax
+                        );
+                        const roundedPrice = Math.round((calculatedPrice + Number.EPSILON) * 100) / 100;
+                        onChange(item.id, 'unitPrice', roundedPrice);
+                      }
+                    }}
+                    onBlur={() => {
+                      setFocusedField(null);
+                    }}
+                    className={`w-full h-[34px] ${inputDescSizeClass} ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-right pl-4 pr-1.5 border border-slate-200 rounded-lg bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none font-bold text-slate-800`}
+                    style={descStyle}
+                  />
+                </div>
+              ) : null}
+              <span className={`${descSizeClass} font-bold text-slate-800 text-right ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} ${!viewMode ? 'hidden print:inline' : 'inline'} pr-2`} style={descStyle}>
                 {fmt(displayTotal)}
-              </p>
+              </span>
             </div>
           </div>
         )}
@@ -1062,7 +1135,7 @@ function LineItemRow({
         {/* Actions */}
         <div className={`relative w-[24px] shrink-0 print:hidden flex items-center justify-center ${padClass}`} data-pdf-hide>
           {!viewMode && (
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 flex flex-row gap-0.5 items-center justify-end opacity-0 group-hover:opacity-100 transition-all bg-white/95 backdrop-blur-sm px-1 py-0.5 rounded-md shadow-sm border border-slate-200 z-[60]">
+            <div className="absolute right-0 top-[-12px] flex flex-row gap-0.5 items-center justify-end opacity-0 group-hover:opacity-100 transition-all bg-white/95 backdrop-blur-sm px-1 py-0.5 rounded-md shadow-sm border border-slate-200 z-[60]">
               {item.isSection ? (
                 <button
                   onClick={() => onToggleLongDesc(item.id)}
