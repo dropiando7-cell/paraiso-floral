@@ -321,6 +321,75 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
     descFontSizePdf = 7;
   }
 
+  const subtotalsBorder = settings?.subtotalsBorder === true;
+  const isGrouped = settings?.subtotalsBorderStyle === 'grouped';
+  const borderCol = settings?.tableBorderColor || '#1e293b';
+
+  const totalSizeVal = typeof settings?.totalFontSize === 'number'
+    ? settings.totalFontSize * 0.75
+    : settings?.totalFontSize === 'large'
+      ? 22
+      : settings?.totalFontSize === 'small'
+        ? 14
+        : 18;
+
+  const totalLabelSizeVal = typeof settings?.totalFontSize === 'number'
+    ? Math.max((settings.totalFontSize as number) * 0.75 * 0.75, 8)
+    : settings?.totalFontSize === 'large'
+      ? 15
+      : settings?.totalFontSize === 'small'
+        ? 10
+        : 12;
+
+  const renderSubtotalRow = (label: string, value: string, isNegative: boolean = false) => {
+    if (subtotalsBorder) {
+      return (
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'stretch',
+          borderBottomWidth: 1,
+          borderBottomColor: borderCol,
+          minHeight: 18,
+        }}>
+          <View style={{
+            flex: 1,
+            justifyContent: 'center',
+            paddingLeft: 6,
+            paddingVertical: 2,
+            borderRightWidth: isGrouped ? 0 : 1,
+            borderRightColor: borderCol,
+          }}>
+            <Text style={{
+              fontSize: descFontSizePdf,
+              color: '#4b5563',
+              fontFamily: 'Helvetica-Bold',
+            }}>{label}</Text>
+          </View>
+          <View style={{
+            width: 100,
+            justifyContent: 'center',
+            alignItems: 'flex-end',
+            paddingRight: 6,
+            paddingVertical: 2,
+          }}>
+            <Text style={{
+              fontSize: descFontSizePdf,
+              color: isNegative ? '#dc2626' : '#1f2937',
+              fontFamily: 'Helvetica',
+            }}>{value}</Text>
+          </View>
+        </View>
+      );
+    } else {
+      return (
+        <View style={styles.totalRow}>
+          <Text style={[styles.totalLabel, { fontSize: descFontSizePdf }]}>{label}</Text>
+          <Text style={[styles.totalValue, { fontSize: descFontSizePdf }, isNegative ? { color: '#dc2626' } : {}]}>{value}</Text>
+        </View>
+      );
+    }
+  };
+
   const paddingVerticalMap = [0, 2, 4, 8, 12];
   const tableCellPaddingY = paddingVerticalMap[settings?.tableRowPadding ?? 2] ?? 4;
 
@@ -637,38 +706,37 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             <Text style={styles.notesText}>{notes || paymentTerms}</Text>
           </View>
           
-          <View style={styles.totalsSection}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Sub-Total</Text>
-              <Text style={styles.totalValue}>{fmt ? fmt(totals?.subtotal || 0) : totals?.subtotal}</Text>
-            </View>
-            {(totals?.descuentos || 0) > 0 && (
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total Descuento</Text>
-                <Text style={[styles.totalValue, { color: '#dc2626' }]}>-{fmt ? fmt(totals.descuentos) : totals.descuentos}</Text>
-              </View>
-            )}
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Exento</Text>
-              <Text style={styles.totalValue}>{fmt ? fmt(totals?.exento || 0) : totals?.exento}</Text>
-            </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Exonerado</Text>
-              <Text style={styles.totalValue}>{fmt ? fmt(totals?.exonerado || 0) : totals?.exonerado}</Text>
-            </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total Gravado 15%</Text>
-              <Text style={styles.totalValue}>{fmt ? fmt(totals?.gravado15 || 0) : totals?.gravado15}</Text>
-            </View>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total ISV 15%</Text>
-              <Text style={styles.totalValue}>{fmt ? fmt(totals?.isv15 || 0) : totals?.isv15}</Text>
-            </View>
-            
+          <View style={[
+            styles.totalsSection, 
+            subtotalsBorder ? { 
+              borderWidth: 1, 
+              borderBottomWidth: 0, 
+              borderColor: borderCol, 
+              paddingTop: 0, 
+              borderTopWidth: 0 
+            } : {}
+          ]}>
+            {renderSubtotalRow("Sub-Total", fmt ? fmt(totals?.subtotal || 0) : String(totals?.subtotal || 0))}
+            {(totals?.descuentos || 0) > 0 && renderSubtotalRow("Total Descuento", `-${fmt ? fmt(totals.descuentos) : String(totals.descuentos)}`, true)}
+            {renderSubtotalRow("Total Exento", fmt ? fmt(totals?.exento || 0) : String(totals?.exento || 0))}
+            {renderSubtotalRow("Total Exonerado", fmt ? fmt(totals?.exonerado || 0) : String(totals?.exonerado || 0))}
+            {renderSubtotalRow("Total Gravado 15%", fmt ? fmt(totals?.gravado15 || 0) : String(totals?.gravado15 || 0))}
+            {renderSubtotalRow("Total ISV 15%", fmt ? fmt(totals?.isv15 || 0) : String(totals?.isv15 || 0))}
 
-            <View style={[styles.grandTotalRow, { backgroundColor: totalBgColor, borderRadius: 2 }]}>
-              <Text style={[styles.grandTotalLabel, { color: totalTextColor }]}>TOTAL</Text>
-              <Text style={[styles.grandTotalValue, { color: totalTextColor }]}>{fmt ? fmt(totals?.total || 0) : totals?.total}</Text>
+            <View style={[
+              styles.grandTotalRow, 
+              { 
+                backgroundColor: totalBgColor, 
+                borderRadius: 2,
+                marginTop: subtotalsBorder ? 4 : 4,
+                paddingVertical: subtotalsBorder ? 4 : 6,
+              },
+              settings?.subtotalsBorder && isGrouped ? { borderWidth: 1, borderTopWidth: 1, borderColor: borderCol, borderRadius: 0, marginTop: 0 } : {}
+            ]}>
+              <Text style={[styles.grandTotalLabel, { color: totalTextColor, fontSize: totalLabelSizeVal }]}>TOTAL</Text>
+              <Text style={[styles.grandTotalValue, { color: totalTextColor, fontSize: totalSizeVal }]}>
+                {fmt ? fmt(totals?.total || 0) : String(totals?.total || 0)}
+              </Text>
             </View>
           </View>
         </View>
