@@ -18,7 +18,7 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 36,
-    paddingVertical: 24,
+    paddingVertical: 18,
     fontFamily: 'Inter',
   },
   companyInfo: {
@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
   footerSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: 8,
   },
   notesSection: {
     width: '50%',
@@ -281,7 +281,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
   const primaryColor = colorMap[settings?.colorTheme] || '#111827';
   
   // Extract settings
-  const logoSizePx = settings?.logoSize === 'small' ? 64 : settings?.logoSize === 'large' ? 144 : 112;
+  const logoSizePx = settings?.logoSize === 'small' ? 52 : settings?.logoSize === 'large' ? 112 : 88;
   const isCenter = settings?.logoPosition === 'center';
   const isRight = settings?.logoPosition === 'right';
 
@@ -394,11 +394,11 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
     }
   };
 
-  const paddingVerticalMap = [0, 2, 4, 8, 12];
-  const tableCellPaddingY = paddingVerticalMap[settings?.tableRowPadding ?? 2] ?? 4;
+  const paddingVerticalMap = [0, 1.5, 2.5, 6, 9];
+  const tableCellPaddingY = paddingVerticalMap[settings?.tableRowPadding ?? 2] ?? 2.5;
 
-  const imgSize = settings?.productImageSize === 'large' ? 72 : 
-                  settings?.productImageSize === 'medium' ? 48 : 26;
+  const imgSize = settings?.productImageSize === 'large' ? 60 : 
+                  settings?.productImageSize === 'medium' ? 42 : 24;
 
   const dynamicImageContainer = {
     width: imgSize,
@@ -414,7 +414,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size="LETTER" style={styles.page}>
         {/* Header Block */}
         <View style={{
           flexDirection: isCenter ? 'column' : (isRight ? 'row-reverse' : 'row'),
@@ -752,7 +752,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
 
         {/* Signatures and Seals Section */}
         {settings?.showSignatures && activeSigs.length > 0 && (
-          <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', marginTop: 35, marginBottom: 15, position: 'relative' }} wrap={false}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', marginTop: 20, marginBottom: 8, position: 'relative' }} wrap={false}>
             {/* Company Seal (Center) */}
             {settings.showSeals && settings.showCompanySeal !== false && (settings.companySealPosition === 'center') && images['seal_company'] && (
               <Image 
