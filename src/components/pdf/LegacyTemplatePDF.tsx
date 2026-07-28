@@ -341,13 +341,16 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
         ? 10
         : 12;
 
-  const renderSubtotalRow = (label: string, value: string, isNegative: boolean = false) => {
+  const renderSubtotalRow = (label: string, value: string, position: 'first' | 'middle' | 'last', isNegative: boolean = false) => {
     if (subtotalsBorder) {
+      const showBottomBorder = position === 'first' || position === 'last' || !isGrouped;
+      const showRightBorder = !isGrouped;
+
       return (
         <View style={{
           flexDirection: 'row',
           alignItems: 'stretch',
-          borderBottomWidth: 1,
+          borderBottomWidth: showBottomBorder ? 1 : 0,
           borderBottomColor: borderCol,
           minHeight: 18,
         }}>
@@ -356,7 +359,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             justifyContent: 'center',
             paddingLeft: 6,
             paddingVertical: 2,
-            borderRightWidth: isGrouped ? 0 : 1,
+            borderRightWidth: showRightBorder ? 1 : 0,
             borderRightColor: borderCol,
           }}>
             <Text style={{
@@ -713,25 +716,30 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
               borderBottomWidth: 0, 
               borderColor: borderCol, 
               paddingTop: 0, 
-              borderTopWidth: 0 
             } : {}
           ]}>
-            {renderSubtotalRow("Sub-Total", fmt ? fmt(totals?.subtotal || 0) : String(totals?.subtotal || 0))}
-            {(totals?.descuentos || 0) > 0 && renderSubtotalRow("Total Descuento", `-${fmt ? fmt(totals.descuentos) : String(totals.descuentos)}`, true)}
-            {renderSubtotalRow("Total Exento", fmt ? fmt(totals?.exento || 0) : String(totals?.exento || 0))}
-            {renderSubtotalRow("Total Exonerado", fmt ? fmt(totals?.exonerado || 0) : String(totals?.exonerado || 0))}
-            {renderSubtotalRow("Total Gravado 15%", fmt ? fmt(totals?.gravado15 || 0) : String(totals?.gravado15 || 0))}
-            {renderSubtotalRow("Total ISV 15%", fmt ? fmt(totals?.isv15 || 0) : String(totals?.isv15 || 0))}
+            {renderSubtotalRow("Sub-Total", fmt ? fmt(totals?.subtotal || 0) : String(totals?.subtotal || 0), "first")}
+            {(totals?.descuentos || 0) > 0 && renderSubtotalRow("Total Descuento", `-${fmt ? fmt(totals.descuentos) : String(totals.descuentos)}`, "middle", true)}
+            {renderSubtotalRow("Total Exento", fmt ? fmt(totals?.exento || 0) : String(totals?.exento || 0), "middle")}
+            {renderSubtotalRow("Total Exonerado", fmt ? fmt(totals?.exonerado || 0) : String(totals?.exonerado || 0), "middle")}
+            {renderSubtotalRow("Total Gravado 15%", fmt ? fmt(totals?.gravado15 || 0) : String(totals?.gravado15 || 0), "middle")}
+            {renderSubtotalRow("Total ISV 15%", fmt ? fmt(totals?.isv15 || 0) : String(totals?.isv15 || 0), "last")}
 
             <View style={[
               styles.grandTotalRow, 
               { 
                 backgroundColor: totalBgColor, 
-                borderRadius: 2,
-                marginTop: subtotalsBorder ? 4 : 4,
+                borderRadius: subtotalsBorder && isGrouped ? 0 : 2,
+                marginTop: subtotalsBorder && isGrouped ? 0 : 4,
                 paddingVertical: subtotalsBorder ? 4 : 6,
               },
-              settings?.subtotalsBorder && isGrouped ? { borderWidth: 1, borderTopWidth: 1, borderColor: borderCol, borderRadius: 0, marginTop: 0 } : {}
+              settings?.subtotalsBorder && isGrouped ? { 
+                borderWidth: 1, 
+                borderTopWidth: 0, 
+                borderColor: borderCol, 
+                borderBottomLeftRadius: 2,
+                borderBottomRightRadius: 2,
+              } : {}
             ]}>
               <Text style={[styles.grandTotalLabel, { color: totalTextColor, fontSize: totalLabelSizeVal }]}>TOTAL</Text>
               <Text style={[styles.grandTotalValue, { color: totalTextColor, fontSize: totalSizeVal }]}>
