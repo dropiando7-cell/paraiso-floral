@@ -695,6 +695,9 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                   <View style={{
                     paddingVertical: 6,
                     paddingHorizontal: 8,
+                    borderTopWidth: tableBorderThickness,
+                    borderTopColor: tableBorderColor,
+                    borderStyle: settings?.descriptionBorderDashed !== false ? 'dashed' : 'solid',
                     borderBottomWidth: (showTableBorders && i < lineItems.length - 1) ? tableBorderThickness : 0,
                     borderBottomColor: tableBorderColor,
                   }}>

@@ -18,6 +18,12 @@ const fmt = (val: number) => {
   }).format(val).replace('HNL', 'L').trim();
 };
 
+// Helper to remove emojis that react-pdf does not support
+const cleanEmojis = (text: string) => {
+  if (!text) return '';
+  return text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu, '');
+};
+
 // Helper to calculate line totals
 const calcLine = (item: any, pricesIncludeTax?: boolean) => {
   const q = Number(item.qty) || 0;
@@ -143,13 +149,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     // 2. Prepare Data Model for the PDF Component
     const lineItems = await Promise.all(doc.detalles.map(async (d: any) => {
-      let shortDesc = d.descripcion;
+      let shortDesc = d.descripcion || '';
       let longDesc = '';
       if (d.descripcion && d.descripcion.includes('\n')) {
         const parts = d.descripcion.split('\n');
         shortDesc = parts[0];
         longDesc = parts.slice(1).join('\n');
       }
+      
+      shortDesc = cleanEmojis(shortDesc);
+      longDesc = cleanEmojis(longDesc);
       
       let isSection = false;
       let sectionStyle;
@@ -317,7 +326,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       paymentTerms: doc.terminosPago || '30 días netos',
       paymentMethod: doc.metodoPago || 'Efectivo',
       docType: resolvedDocType,
-      notes: doc.notas || '',
+      notes: cleanEmojis(doc.notas || ''),
       lineItems,
       totals,
       today: (() => {
