@@ -37,8 +37,6 @@ const styles = StyleSheet.create({
   metaColumn: {
     flex: 1,
     flexDirection: 'column',
-    borderLeftWidth: 1,
-    borderLeftColor: '#e5e7eb',
     paddingLeft: 8,
   },
   metaColumnFirst: {
@@ -394,7 +392,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             <Text style={styles.metaValue}>Fecha: {today}</Text>
           </View>
           <View style={styles.metaColumn}>
-            <Text style={styles.metaLabel}>Comercial:</Text>
+            <Text style={styles.metaLabel}>Elaborado por:</Text>
             <Text style={styles.metaValue}>{data.nombreUsuario || 'Administrador'}</Text>
           </View>
           <View style={styles.metaColumn}>
@@ -408,6 +406,8 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                 <Text style={[styles.clientName, { color: primaryColor }]}>{selectedClient.name}</Text>
                 <Text style={styles.clientAddress}>{selectedClient.address || selectedClient.city}</Text>
                 {selectedClient.rtn && <Text style={styles.clientAddress}>RTN: {selectedClient.rtn}</Text>}
+                {selectedClient.nombreContacto && <Text style={styles.clientAddress}>Contacto: {selectedClient.nombreContacto}</Text>}
+                {selectedClient.telefonoContacto && <Text style={styles.clientAddress}>Tel. Contacto: {selectedClient.telefonoContacto}</Text>}
               </View>
             ) : (
               <Text style={styles.metaValue}>-</Text>

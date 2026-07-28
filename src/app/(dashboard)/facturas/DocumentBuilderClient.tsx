@@ -53,6 +53,8 @@ interface Client {
   address: string;
   city: string;
   category: string;
+  nombreContacto?: string | null;
+  telefonoContacto?: string | null;
 }
 
 interface Product {
@@ -2017,7 +2019,9 @@ export default function DocumentBuilderClient({
           phone: initialData.cliente.telefono || '',
           address: initialData.cliente.direccion || '',
           city: '',
-          category: 'Cliente'
+          category: 'Cliente',
+          nombreContacto: initialData.cliente.nombreContacto || '',
+          telefonoContacto: initialData.cliente.telefonoContacto || '',
         });
       }
 
@@ -2099,7 +2103,9 @@ export default function DocumentBuilderClient({
           phone: c.telefono || '',
           address: c.direccion || '',
           city: '',
-          category: 'Cliente'
+          category: 'Cliente',
+          nombreContacto: c.nombreContacto || '',
+          telefonoContacto: c.telefonoContacto || '',
         })));
         setAllProducts(prd.map((p: any) => ({
           id: p.id,
@@ -2229,7 +2235,9 @@ export default function DocumentBuilderClient({
         phone: created.telefono || '',
         address: created.direccion || '',
         city: '',
-        category: 'Cliente'
+        category: 'Cliente',
+        nombreContacto: created.nombreContacto || '',
+        telefonoContacto: created.telefonoContacto || '',
       };
       setAllClients(prev => [...prev, newClientObj]);
       setSelectedClient(newClientObj);

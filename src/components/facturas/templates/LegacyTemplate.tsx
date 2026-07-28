@@ -145,12 +145,12 @@ export default function LegacyTemplate(props: TemplateProps) {
   {timePart && <span className="text-gray-500 text-[10px] mt-0.5 whitespace-nowrap">{timePart}</span>}
   </div>
   
-  <div className="flex flex-col border-l border-slate-200 pl-3">
-  <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Comercial:</span>
+  <div className="flex flex-col pl-3">
+  <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Elaborado por:</span>
   <span className="text-gray-600 mt-1">{props.nombreUsuario || 'Administrador (BEA)'}</span>
   </div>
   
-  <div className="flex flex-col border-l border-slate-200 pl-3">
+  <div className="flex flex-col pl-3">
   <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Términos de pago:</span>
   <select
   value={paymentTerms}
@@ -167,7 +167,7 @@ export default function LegacyTemplate(props: TemplateProps) {
   </div>
 
   {(docType === 'factura' || docType === 'cotizacion' || docType === 'proforma') && (
-  <div className="flex flex-col border-l border-slate-200 pl-3">
+  <div className="flex flex-col pl-3">
   <span className={`font-bold uppercase text-slate-800 ${headerSmallSize}`}>Método de pago:</span>
   <select
   value={paymentMethod}
@@ -185,13 +185,15 @@ export default function LegacyTemplate(props: TemplateProps) {
   </div>
   )}
 
- <div className="flex flex-col border-l border-slate-200 pl-3 cursor-pointer" onClick={() => setShowClientModal(true)}>
+ <div className="flex flex-col pl-3 cursor-pointer" onClick={() => setShowClientModal(true)}>
  <span className={`font-bold uppercase text-slate-800 mb-1 ${headerSmallSize}`}>Cliente:</span>
  {selectedClient ? (
  <div className="text-[10px] leading-tight text-slate-700">
  <span className={`font-bold text-xs ${theme.text} block mb-0.5`}>{selectedClient.name}</span>
  <span className="block line-clamp-2">{selectedClient.address || selectedClient.city}</span>
  {selectedClient.rtn && <span className={`block mt-0.5 ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''}`}>RTN: {selectedClient.rtn}</span>}
+ {selectedClient.nombreContacto && <span className="block mt-0.5 text-slate-500 font-medium">Contacto: {selectedClient.nombreContacto}</span>}
+ {selectedClient.telefonoContacto && <span className="block mt-0.5 text-slate-700 font-semibold">Tel. Contacto: {selectedClient.telefonoContacto}</span>}
  </div>
  ) : (
  <span className="font-bold text-rose-600 italic print:hidden mt-1">Seleccionar...</span>

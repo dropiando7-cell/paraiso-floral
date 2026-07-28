@@ -298,6 +298,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         city: (doc.cliente as any).ciudad || (doc.cliente as any).city || '',
         rtn: (doc.cliente as any).rtn || '',
         phone: (doc.cliente as any).telefono || '',
+        nombreContacto: (doc.cliente as any).nombreContacto || '',
+        telefonoContacto: (doc.cliente as any).telefonoContacto || '',
       } : null,
       nombreUsuario: (doc.creadoPor ? [doc.creadoPor.nombre, doc.creadoPor.apellido].filter(Boolean).join(' ') : null) || (doc as any).nombreUsuario || (doc as any).creadoPor?.email || 'Sistema',
       paymentTerms: doc.terminosPago || '30 días netos',
