@@ -11,6 +11,7 @@ interface DocumentActionsModalProps {
   onToggleCustomizer: () => void;
   onConvert?: (targetType: 'PROFORMA' | 'FACTURA') => void;
   onShowOrdenEntrega?: () => void;
+  onSendEmail?: () => void;
   isDownloadingPDF?: boolean;
   isConverting?: boolean;
   docType?: string; // 'cotizacion', 'proforma', etc
@@ -24,6 +25,7 @@ export default function DocumentActionsModal({
   onToggleCustomizer,
   onConvert,
   onShowOrdenEntrega,
+  onSendEmail,
   isDownloadingPDF,
   isConverting,
   docType,
@@ -152,12 +154,21 @@ export default function DocumentActionsModal({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
               
               {/* Email */}
-              <button disabled className="group flex flex-col items-center justify-center gap-3 p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl transition-all opacity-70 relative">
-                <div className="absolute top-2 right-2 bg-slate-200 text-slate-500 text-[9px] font-black uppercase px-2 py-1 rounded-md">Pronto</div>
-                <div className="w-14 h-14 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center">
+              <button 
+                onClick={() => onSendEmail && handleAction(onSendEmail)}
+                disabled={!onSendEmail}
+                className={`group flex flex-col items-center justify-center gap-3 p-4 bg-white border-2 rounded-2xl transition-all ${
+                  onSendEmail 
+                    ? 'border-blue-100 hover:border-blue-500 hover:shadow-lg cursor-pointer' 
+                    : 'border-slate-100 opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-transform ${
+                  onSendEmail ? 'bg-blue-50 text-blue-600 group-hover:scale-110' : 'bg-slate-50 text-slate-400'
+                }`}>
                   <Mail size={28} />
                 </div>
-                <span className="font-bold text-slate-500 text-sm text-center">Por Correo</span>
+                <span className={`font-bold text-sm text-center ${onSendEmail ? 'text-slate-700' : 'text-slate-500'}`}>Por Correo</span>
               </button>
 
               {/* WhatsApp */}

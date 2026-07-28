@@ -12,6 +12,7 @@ import {
   Smartphone, Loader2, UploadCloud, PenTool, RefreshCw
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
+import SendEmailModal from '@/components/facturas/SendEmailModal';
 import SignatureCanvas from 'react-signature-canvas';
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────
@@ -1287,6 +1288,8 @@ export default function DocumentBuilderClient({
   const [showProductModal, setShowProductModal] = useState(false);
   const [showClientModal, setShowClientModal] = useState(false);
   const [showActionsModal, setShowActionsModal] = useState(false);
+  const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
+  const [sendEmailDocId, setSendEmailDocId] = useState('');
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientData, setNewClientData] = useState({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
@@ -4156,6 +4159,10 @@ export default function DocumentBuilderClient({
           onToggleCustomizer={() => setShowCustomizer(!showCustomizer)}
           onShowOrdenEntrega={() => setShowOrdenEntregaPanel(true)}
           onConvert={(!isLocked && !isAnulada && !isConvertida && initialData?.id) ? handleConvert : undefined}
+          onSendEmail={initialData?.id ? () => {
+            setSendEmailDocId(initialData.id);
+            setSendEmailModalOpen(true);
+          } : undefined}
           isDownloadingPDF={isDownloadingPDF}
           isConverting={isConverting}
           docType={
@@ -4166,6 +4173,17 @@ export default function DocumentBuilderClient({
           }
           estaVencida={estaVencida}
           isEmitida={initialData?.estado === 'EMITIDA'}
+        />
+      )}
+
+      {sendEmailModalOpen && (
+        <SendEmailModal
+          isOpen={sendEmailModalOpen}
+          onClose={() => {
+            setSendEmailModalOpen(false);
+            setSendEmailDocId('');
+          }}
+          documentoId={sendEmailDocId}
         />
       )}
 

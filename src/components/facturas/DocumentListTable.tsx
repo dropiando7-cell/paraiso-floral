@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo } from 'lucide-react';
+import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
 import { anularDocumento } from '@/app/(dashboard)/facturas/actions';
+import SendEmailModal from '@/components/facturas/SendEmailModal';
 
 export interface DocumentRecord {
   id: string;
@@ -37,6 +38,15 @@ export default function DocumentListTable({ data, type }: Props) {
   const [isAnulando, setIsAnulando] = useState<string | null>(null);
   const [docToAnul, setDocToAnul] = useState<DocumentRecord | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  
+  // Email modal states
+  const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
+  const [sendEmailDocId, setSendEmailDocId] = useState('');
+
+  const handleSendEmail = (id: string) => {
+    setSendEmailDocId(id);
+    setSendEmailModalOpen(true);
+  };
 
   // Sorting state
   const [sortField, setSortField] = useState<'fechaEmision' | 'total' | 'correlativo' | null>(null);
@@ -271,6 +281,13 @@ export default function DocumentListTable({ data, type }: Props) {
                     >
                       <MessageCircle size={16} />
                     </button>
+                    <button 
+                      onClick={() => handleSendEmail(doc.id)} 
+                      title="Enviar por Correo" 
+                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                    >
+                      <Mail size={16} />
+                    </button>
                     {doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA' && (
                       <Link href={`/facturas/${doc.id}?notaCredito=true`} title="Generar Nota de Crédito" className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-100 rounded-lg transition-colors">
                         <Undo size={16} />
@@ -424,6 +441,16 @@ export default function DocumentListTable({ data, type }: Props) {
             </div>
           </div>
         </div>
+      )}
+      {sendEmailModalOpen && (
+        <SendEmailModal
+          isOpen={sendEmailModalOpen}
+          onClose={() => {
+            setSendEmailModalOpen(false);
+            setSendEmailDocId('');
+          }}
+          documentoId={sendEmailDocId}
+        />
       )}
     </div>
   );
