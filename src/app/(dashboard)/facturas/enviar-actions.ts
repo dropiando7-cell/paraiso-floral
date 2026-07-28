@@ -56,6 +56,13 @@ export async function enviarDocumentoPorEmail(
       return { success: false, error: 'No se pudo generar el archivo PDF del documento' };
     }
 
+    const contentType = pdfRes.headers.get('content-type') || '';
+    if (!contentType.includes('application/pdf')) {
+      const bodyText = await pdfRes.text().catch(() => '');
+      console.error('Received non-PDF response:', contentType, bodyText.substring(0, 500));
+      return { success: false, error: 'La respuesta del servidor no es un archivo PDF válido' };
+    }
+
     const arrayBuffer = await pdfRes.arrayBuffer();
     const pdfBuffer = Buffer.from(arrayBuffer);
 
