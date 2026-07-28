@@ -315,6 +315,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       } : null,
       nombreUsuario: (doc.creadoPor ? [doc.creadoPor.nombre, doc.creadoPor.apellido].filter(Boolean).join(' ') : null) || (doc as any).nombreUsuario || (doc as any).creadoPor?.email || 'Sistema',
       paymentTerms: doc.terminosPago || '30 días netos',
+      paymentMethod: doc.metodoPago || 'Efectivo',
+      docType: resolvedDocType,
       notes: doc.notas || '',
       lineItems,
       totals,

@@ -17,57 +17,60 @@ const styles = StyleSheet.create({
   page: {
     flexDirection: 'column',
     backgroundColor: '#FFFFFF',
-    padding: 40,
+    paddingHorizontal: 36,
+    paddingVertical: 24,
     fontFamily: 'Inter',
   },
   companyInfo: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#374151',
   },
   companyName: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: 700,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   metadataGrid: {
     flexDirection: 'row',
-    marginBottom: 16,
-    fontSize: 9,
+    marginBottom: 10,
+    fontSize: 8.5,
   },
   metaColumn: {
     flex: 1,
     flexDirection: 'column',
-    paddingLeft: 8,
+    paddingLeft: 6,
   },
   metaColumnFirst: {
     flex: 1,
     flexDirection: 'column',
-    paddingRight: 8,
+    paddingRight: 6,
   },
   metaLabel: {
     fontWeight: 700,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    fontSize: 7.5,
+    marginBottom: 2,
     color: '#1f2937',
   },
   metaValue: {
     color: '#4b5563',
+    fontSize: 8,
   },
   clientBox: {
-    marginTop: 8,
+    marginTop: 4,
   },
   clientName: {
     fontWeight: 700,
-    fontSize: 10,
+    fontSize: 8.5,
     color: '#1f2937',
   },
   clientAddress: {
-    fontSize: 9,
+    fontSize: 8,
     color: '#4b5563',
   },
   table: {
     width: 'auto',
-    marginTop: 10,
+    marginTop: 6,
   },
   tableColHeader: {
     fontWeight: 700,
@@ -121,7 +124,7 @@ const styles = StyleSheet.create({
   footerSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 20,
+    marginTop: 12,
   },
   notesSection: {
     width: '50%',
@@ -144,7 +147,7 @@ const styles = StyleSheet.create({
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 2.5,
   },
   totalLabel: {
     fontSize: 9,
@@ -260,7 +263,7 @@ interface LegacyTemplatePDFProps {
 export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFProps) {
   const {
     organization, settings, docNumber, currentDocType, 
-    selectedClient, paymentTerms, lineItems, notes, totals, today, fmt
+    selectedClient, paymentTerms, paymentMethod, docType, lineItems, notes, totals, today, fmt
   } = data;
 
   const lastNonSectionIndex = lineItems ? lineItems.reduceRight((acc: number, it: any, idx: number) => acc !== -1 ? acc : (!it.isSection ? idx : -1), -1) : -1;
@@ -298,7 +301,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
   const totalTextColor = settings?.totalTextColor || '#ffffff';
 
   // Dynamic layout values matching the canvas
-  let headerFontSizePdf = 8;
+  let headerFontSizePdf = 7.5;
   if (typeof settings?.tableHeaderFontSize === 'number') {
     headerFontSizePdf = settings.tableHeaderFontSize * 0.75;
   } else if (settings?.tableHeaderFontSize === 'large') {
@@ -307,7 +310,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
     headerFontSizePdf = 7;
   }
 
-  let descFontSizePdf = 8;
+  let descFontSizePdf = 7.5;
   if (typeof settings?.itemDescFontSize === 'number') {
     descFontSizePdf = settings.itemDescFontSize * 0.75;
   } else if (settings?.itemDescFontSize === 'large') {
@@ -342,7 +345,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
           flexDirection: isCenter ? 'column' : (isRight ? 'row-reverse' : 'row'),
           justifyContent: isCenter ? 'flex-start' : 'space-between',
           alignItems: isCenter ? 'center' : 'flex-start',
-          marginBottom: 32,
+          marginBottom: 18,
         }}>
           {/* Logo */}
           <View style={{ 
@@ -386,33 +389,47 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
 
         {/* Metadata Grid */}
         <View style={styles.metadataGrid}>
-          <View style={[styles.metaColumnFirst, { flex: 0.9 }]}>
-            <Text style={[styles.metaLabel, { color: primaryColor, fontSize: 11 }]}>{currentDocType?.label}</Text>
-            <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 11, marginBottom: 4, color: '#1f2937' }}>{docNumber}</Text>
-            <Text style={styles.metaValue}>Fecha: {today}</Text>
-          </View>
-          <View style={[styles.metaColumn, { flex: 0.7 }]}>
-            <Text style={styles.metaLabel}>Elaborado por:</Text>
-            <Text style={styles.metaValue}>{data.nombreUsuario || 'Administrador'}</Text>
-          </View>
-          <View style={[styles.metaColumn, { flex: 0.7 }]}>
-            <Text style={styles.metaLabel}>Términos de pago:</Text>
-            <Text style={styles.metaValue}>{paymentTerms}</Text>
-          </View>
-          <View style={[styles.metaColumn, { flex: 1.7 }]}>
-            <Text style={styles.metaLabel}>Cliente:</Text>
-            {selectedClient ? (
-              <View style={styles.clientBox}>
-                <Text style={[styles.clientName, { color: primaryColor }]}>{selectedClient.name}</Text>
-                <Text style={styles.clientAddress}>{selectedClient.address || selectedClient.city}</Text>
-                {selectedClient.rtn && <Text style={styles.clientAddress}>RTN: {selectedClient.rtn}</Text>}
-                {selectedClient.nombreContacto && <Text style={styles.clientAddress}>Contacto: {selectedClient.nombreContacto}</Text>}
-                {selectedClient.telefonoContacto && <Text style={styles.clientAddress}>Tel. Contacto: {selectedClient.telefonoContacto}</Text>}
-              </View>
-            ) : (
-              <Text style={styles.metaValue}>-</Text>
-            )}
-          </View>
+          {(() => {
+            const hasPaymentMethod = docType === 'factura' || docType === 'cotizacion' || docType === 'proforma';
+            const method = paymentMethod || 'Efectivo';
+            return (
+              <>
+                <View style={[styles.metaColumnFirst, { flex: hasPaymentMethod ? 0.8 : 0.9 }]}>
+                  <Text style={[styles.metaLabel, { color: primaryColor, fontSize: 9.5 }]}>{currentDocType?.label}</Text>
+                  <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 9.5, marginBottom: 4, color: '#1f2937' }}>{docNumber}</Text>
+                  <Text style={styles.metaValue}>Fecha: {today}</Text>
+                </View>
+                <View style={[styles.metaColumn, { flex: hasPaymentMethod ? 0.6 : 0.7 }]}>
+                  <Text style={styles.metaLabel}>Elaborado por:</Text>
+                  <Text style={styles.metaValue}>{data.nombreUsuario || 'Administrador'}</Text>
+                </View>
+                <View style={[styles.metaColumn, { flex: hasPaymentMethod ? 0.6 : 0.7 }]}>
+                  <Text style={styles.metaLabel}>Términos de pago:</Text>
+                  <Text style={styles.metaValue}>{paymentTerms}</Text>
+                </View>
+                {hasPaymentMethod && (
+                  <View style={[styles.metaColumn, { flex: 0.6 }]}>
+                    <Text style={styles.metaLabel}>Método de pago:</Text>
+                    <Text style={styles.metaValue}>{method}</Text>
+                  </View>
+                )}
+                <View style={[styles.metaColumn, { flex: hasPaymentMethod ? 1.8 : 1.7 }]}>
+                  <Text style={styles.metaLabel}>Cliente:</Text>
+                  {selectedClient ? (
+                    <View style={styles.clientBox}>
+                      <Text style={[styles.clientName, { color: primaryColor }]}>{selectedClient.name}</Text>
+                      <Text style={styles.clientAddress}>{selectedClient.address || selectedClient.city}</Text>
+                      {selectedClient.rtn && <Text style={styles.clientAddress}>RTN: {selectedClient.rtn}</Text>}
+                      {selectedClient.nombreContacto && <Text style={styles.clientAddress}>Contacto: {selectedClient.nombreContacto}</Text>}
+                      {selectedClient.telefonoContacto && <Text style={styles.clientAddress}>Tel. Contacto: {selectedClient.telefonoContacto}</Text>}
+                    </View>
+                  ) : (
+                    <Text style={styles.metaValue}>-</Text>
+                  )}
+                </View>
+              </>
+            );
+          })()}
         </View>
 
         {/* Table Area */}
@@ -449,6 +466,11 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             const hasImage = settings?.showProductImages && item.imageUrl && images[item.id];
             
             if (item.isSection) {
+              const bg = item.sectionStyle?.bg || settings?.sectionBgColor || '#f8fafc';
+              const color = item.sectionStyle?.color || settings?.sectionTextColor || '#0f172a';
+              const align = item.sectionStyle?.align || 'left';
+              const isBold = item.sectionStyle?.bold !== false;
+
               return (
                 <View key={`sec-${i}`} style={{
                   flexDirection: 'row',
@@ -456,11 +478,18 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                   minHeight: 24,
                   paddingVertical: 6,
                   paddingHorizontal: 8,
-                  backgroundColor: '#f8fafc',
+                  backgroundColor: bg,
                   borderBottomWidth: (showTableBorders && i < lineItems.length - 1) ? tableBorderThickness : 0,
                   borderBottomColor: tableBorderColor,
+                  justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'
                 }} wrap={false}>
-                  <Text style={{ fontWeight: 700, fontSize: 9, color: '#0f172a' }}>{item.shortDesc}</Text>
+                  <Text style={{ 
+                    fontWeight: isBold ? 700 : 400, 
+                    fontSize: 8.5, 
+                    color: color, 
+                    textAlign: align,
+                    textTransform: 'uppercase'
+                  }}>{item.shortDesc ? item.shortDesc.toUpperCase() : ''}</Text>
                 </View>
               );
             }
