@@ -344,7 +344,8 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
   const renderSubtotalRow = (label: string, value: string, position: 'first' | 'middle' | 'last', isNegative: boolean = false) => {
     if (subtotalsBorder) {
       const showBottomBorder = position === 'first' || position === 'last' || !isGrouped;
-      const showRightBorder = !isGrouped;
+      const showRightBorder = position === 'first' ? !isGrouped : true;
+      const isMiddleGrouped = isGrouped && position === 'middle';
 
       return (
         <View style={{
@@ -352,13 +353,13 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
           alignItems: 'stretch',
           borderBottomWidth: showBottomBorder ? 1 : 0,
           borderBottomColor: borderCol,
-          minHeight: 18,
+          minHeight: isMiddleGrouped ? 13 : 15,
         }}>
           <View style={{
             flex: 1,
             justifyContent: 'center',
             paddingLeft: 6,
-            paddingVertical: 2,
+            paddingVertical: isMiddleGrouped ? 1 : 2.2,
             borderRightWidth: showRightBorder ? 1 : 0,
             borderRightColor: borderCol,
           }}>
@@ -373,7 +374,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             justifyContent: 'center',
             alignItems: 'flex-end',
             paddingRight: 6,
-            paddingVertical: 2,
+            paddingVertical: isMiddleGrouped ? 1 : 2.2,
           }}>
             <Text style={{
               fontSize: descFontSizePdf,
