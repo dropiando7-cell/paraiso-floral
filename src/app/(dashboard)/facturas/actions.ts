@@ -454,9 +454,11 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
             }
 
             if (data.templateSettings) {
+                const orgSettings = JSON.parse(JSON.stringify(data.templateSettings));
+                delete orgSettings.roundAdjustment;
                 await tx.organization.update({
                     where: { id: organizationId },
-                    data: { invoiceSettings: data.templateSettings ? JSON.parse(JSON.stringify(data.templateSettings)) : null }
+                    data: { invoiceSettings: orgSettings }
                 });
             }
 
@@ -638,9 +640,11 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
             }
 
             if (data.templateSettings) {
+                const orgSettings = JSON.parse(JSON.stringify(data.templateSettings));
+                delete orgSettings.roundAdjustment;
                 await tx.organization.update({
                     where: { id: organizationId },
-                    data: { invoiceSettings: JSON.parse(JSON.stringify(data.templateSettings)) }
+                    data: { invoiceSettings: orgSettings }
                 });
             }
 
@@ -1224,10 +1228,15 @@ export async function updateOrganizationDefaultSettings(settings: any) {
         const user = await getAuthenticatedUser();
         const organizationId = user.organizationId;
 
+        const orgSettings = settings ? JSON.parse(JSON.stringify(settings)) : null;
+        if (orgSettings) {
+            delete orgSettings.roundAdjustment;
+        }
+
         await prisma.organization.update({
             where: { id: organizationId },
             data: {
-                invoiceSettings: settings ? JSON.parse(JSON.stringify(settings)) : null
+                invoiceSettings: orgSettings
             }
         });
 

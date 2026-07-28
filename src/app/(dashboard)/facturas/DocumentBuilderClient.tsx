@@ -1247,7 +1247,11 @@ export default function DocumentBuilderClient({
   const [settings, setSettings] = useState<InvoiceSettings>(() => {
     // Always merge organization settings (available on both server and client as a prop).
     // localStorage preferences are loaded in useEffect to avoid hydration mismatch.
-    if (organization?.invoiceSettings) return { ...DEFAULT_INVOICE_SETTINGS, ...organization.invoiceSettings };
+    if (organization?.invoiceSettings) {
+      const orgSettings = { ...organization.invoiceSettings };
+      delete orgSettings.roundAdjustment;
+      return { ...DEFAULT_INVOICE_SETTINGS, ...orgSettings };
+    }
     return DEFAULT_INVOICE_SETTINGS;
   });
 
@@ -1687,7 +1691,10 @@ export default function DocumentBuilderClient({
           const saved = localStorage.getItem('bea_invoice_template_settings');
           if (saved) {
             const parsed = JSON.parse(saved);
-            setSettings(prev => ({ ...prev, ...parsed }));
+            delete parsed.roundAdjustment;
+            setSettings(prev => ({ ...prev, ...parsed, roundAdjustment: undefined }));
+          } else {
+            setSettings(prev => ({ ...prev, roundAdjustment: undefined }));
           }
         }
       } catch (e) {
@@ -1703,6 +1710,8 @@ export default function DocumentBuilderClient({
             : initialData.templateSettings;
           setSettings(prev => ({ ...prev, ...tSettings }));
         } catch (e) {}
+      } else {
+        setSettings(prev => ({ ...prev, roundAdjustment: undefined }));
       }
       setIsLoaded(true);
     }
@@ -1711,7 +1720,9 @@ export default function DocumentBuilderClient({
   // Save preferences when they change
   useEffect(() => {
     if (typeof window !== 'undefined' && !effectiveViewMode && isLoaded) {
-      localStorage.setItem('bea_invoice_template_settings', JSON.stringify(settings));
+      const localSettings = { ...settings };
+      delete localSettings.roundAdjustment;
+      localStorage.setItem('bea_invoice_template_settings', JSON.stringify(localSettings));
     }
   }, [settings, effectiveViewMode, isLoaded]);
 
