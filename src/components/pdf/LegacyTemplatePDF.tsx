@@ -180,10 +180,10 @@ const styles = StyleSheet.create({
   },
   pageFooter: {
     position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    fontSize: 8,
+    bottom: 24,
+    left: 30,
+    right: 30,
+    fontSize: 6.5,
     color: '#9ca3af',
     textAlign: 'center',
     borderTopWidth: 1,
@@ -880,7 +880,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
         )}
 
         <View style={[styles.pageFooter, { paddingTop: 4 }]} fixed>
-          <Text style={{ fontSize: settings?.footerFontSize || 8 }}>
+          <Text style={{ fontSize: settings?.footerFontSize || 6.5 }}>
             {[
               settings?.footerTelefono || organization?.telefono ? `Tel.: ${settings?.footerTelefono || organization?.telefono}` : '',
               settings?.footerCorreo || organization?.correoContacto ? `Correo: ${settings?.footerCorreo || organization?.correoContacto}` : '',
@@ -888,10 +888,10 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             ].filter(Boolean).join('   ')}
           </Text>
           {settings?.footerNota && (
-            <Text style={{ fontSize: (settings?.footerFontSize || 8) - 1, marginTop: 2 }}>{settings.footerNota}</Text>
+            <Text style={{ fontSize: (settings?.footerFontSize || 6.5) - 0.5, marginTop: 2 }}>{settings.footerNota}</Text>
           )}
           {settings?.footerMostrarPagina !== false && (
-            <Text style={{ fontSize: (settings?.footerFontSize || 8) - 1, marginTop: 2 }} render={({ pageNumber, totalPages }) => (`Página: ${pageNumber}/${totalPages}`)} fixed />
+            <Text style={{ fontSize: (settings?.footerFontSize || 6.5) - 0.5, marginTop: 2 }} render={({ pageNumber, totalPages }) => (`Página: ${pageNumber}/${totalPages}`)} fixed />
           )}
         </View>
       </Page>

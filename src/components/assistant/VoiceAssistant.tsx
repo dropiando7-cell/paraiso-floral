@@ -301,7 +301,7 @@ export function VoiceAssistant() {
         return (
             <button
                 onClick={startListening}
-                className="fixed bottom-6 right-6 z-[9999] w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 transition-transform duration-200 border border-white/20 active:scale-95 group focus:outline-none"
+                className="fixed bottom-6 right-6 z-[9999] w-14 h-14 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-full flex items-center justify-center text-white shadow-xl hover:scale-105 transition-transform duration-200 border border-white/20 active:scale-95 group focus:outline-none print:hidden"
                 title="Asistente de Voz IA"
                 aria-label="Abrir asistente de voz"
             >
