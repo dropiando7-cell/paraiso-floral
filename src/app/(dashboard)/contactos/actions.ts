@@ -31,6 +31,8 @@ export async function fetchContactos(query: string, page: number = 1) {
                 { email: { contains: query, mode: 'insensitive' as any } },
                 { telefono: { contains: query, mode: 'insensitive' as any } },
                 { rtn: { contains: query, mode: 'insensitive' as any } },
+                { nombreContacto: { contains: query, mode: 'insensitive' as any } },
+                { telefonoContacto: { contains: query, mode: 'insensitive' as any } },
             ],
         } : {}),
     };
@@ -46,7 +48,15 @@ export async function fetchContactos(query: string, page: number = 1) {
     return { params: data, totalPages: Math.ceil(count / pageSize), count };
 }
 
-export async function createContacto(data: { nombre: string; email?: string; telefono?: string; rtn?: string; direccion?: string }) {
+export async function createContacto(data: { 
+    nombre: string; 
+    email?: string; 
+    telefono?: string; 
+    rtn?: string; 
+    direccion?: string;
+    nombreContacto?: string;
+    telefonoContacto?: string;
+}) {
     const orgId = await getOrgId();
 
     const cleanNombre = data.nombre.trim();
@@ -76,7 +86,15 @@ export async function createContacto(data: { nombre: string; email?: string; tel
     return created;
 }
 
-export async function updateContacto(id: string, data: { nombre: string; email?: string; telefono?: string; rtn?: string; direccion?: string }) {
+export async function updateContacto(id: string, data: { 
+    nombre: string; 
+    email?: string; 
+    telefono?: string; 
+    rtn?: string; 
+    direccion?: string;
+    nombreContacto?: string;
+    telefonoContacto?: string;
+}) {
     const updated = await prisma.cliente.update({
         where: { id },
         data,

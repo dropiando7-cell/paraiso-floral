@@ -287,7 +287,7 @@ function ProductSearchItem({ product, onAdd }: { product: Product; onAdd: (p: Pr
 }
 
 function LineItemRow({
-  item, index, onChange, onDelete, onDuplicate, onToggleLongDesc, allProducts, viewMode, settings
+  item, index, onChange, onDelete, onDuplicate, onToggleLongDesc, allProducts, viewMode, settings, lineItems
 }: {
   item: LineItem;
   index: number;
@@ -298,8 +298,17 @@ function LineItemRow({
   allProducts: Product[];
   viewMode?: boolean;
   settings?: any;
+  lineItems?: LineItem[];
 }) {
   const { base, tax, total } = calcLine(item, settings?.pricesIncludeTax);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+  const lastNonSectionIndex = lineItems ? lineItems.reduceRight((acc: number, it: any, idx: number) => acc !== -1 ? acc : (!it.isSection ? idx : -1), -1) : -1;
+  const isLastNonSection = index === lastNonSectionIndex;
+  const adjustment = (isLastNonSection && mounted) ? (Number(settings?.roundAdjustment) || 0) : 0;
+  const displayTotal = total + adjustment;
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [focusedField, setFocusedField] = useState<'code' | 'desc' | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -1029,7 +1038,7 @@ function LineItemRow({
             {/* Monto / Subtotal — vertically centered, centered */}
             <div className={`min-w-0 flex items-center justify-end ${padClass}`}>
               <p className={`${descSizeClass} font-bold text-slate-800 text-right ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} pr-2`} style={descStyle}>
-                {fmt(total)}
+                {fmt(displayTotal)}
               </p>
             </div>
           </div>
@@ -1192,7 +1201,7 @@ export default function DocumentBuilderClient({
   const [showActionsModal, setShowActionsModal] = useState(false);
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
-  const [newClientData, setNewClientData] = useState({ nombre: '', email: '', telefono: '', rtn: '', direccion: '' });
+  const [newClientData, setNewClientData] = useState({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [activeTab, setActiveTab] = useState<'clients' | 'products'>('clients');
   const [showPreview, setShowPreview] = useState(false);
@@ -2208,7 +2217,9 @@ export default function DocumentBuilderClient({
         email: newClientData.email || undefined,
         telefono: newClientData.telefono || undefined,
         rtn: newClientData.rtn || undefined,
-        direccion: newClientData.direccion || undefined
+        direccion: newClientData.direccion || undefined,
+        nombreContacto: newClientData.nombreContacto || undefined,
+        telefonoContacto: newClientData.telefonoContacto || undefined
       });
       const newClientObj: Client = {
         id: created.id,
@@ -2542,7 +2553,14 @@ export default function DocumentBuilderClient({
       return val;
     },
     get total() { 
-      return this.subtotal - this.descuentos + this.isv15 + this.isv18;
+      const baseTotal = this.subtotal - this.descuentos + this.isv15 + this.isv18;
+      if (this.isv15 === 0 && this.isv18 === 0) {
+        const adjustment = Number(settings?.roundAdjustment) || 0;
+        if (this.exento > 0 || this.exonerado > 0) {
+          return baseTotal + adjustment;
+        }
+      }
+      return baseTotal;
     }
   };
 
@@ -3780,7 +3798,7 @@ export default function DocumentBuilderClient({
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Teléfono</label>
+                            <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Teléfono Empresa</label>
                             <input
                                 type="tel"
                                 placeholder="+504 0000..."
@@ -3798,6 +3816,33 @@ export default function DocumentBuilderClient({
                                 value={newClientData.rtn}
                                 onChange={e => setNewClientData({ ...newClientData, rtn: e.target.value })}
                             />
+                        </div>
+                    </div>
+                    
+                    {/* Contact Person Details Section */}
+                    <div className="border-t border-slate-100 pt-4 mt-2 space-y-4">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Datos del Contacto Directo (Encargado)</span>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Nombre de Contacto</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ej: Encargado de Compras"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                                    value={newClientData.nombreContacto || ''}
+                                    onChange={e => setNewClientData({ ...newClientData, nombreContacto: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Teléfono Contacto</label>
+                                <input
+                                    type="tel"
+                                    placeholder="Celular o Directo"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                                    value={newClientData.telefonoContacto || ''}
+                                    onChange={e => setNewClientData({ ...newClientData, telefonoContacto: e.target.value })}
+                                />
+                            </div>
                         </div>
                     </div>
                     <div>

@@ -224,6 +224,7 @@ export default function ModernTemplate(props: TemplateProps) {
  allProducts={allProducts}
  viewMode={viewMode}
  settings={settings}
+ lineItems={lineItems}
  />
  ))}
  </div>

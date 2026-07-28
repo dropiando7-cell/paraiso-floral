@@ -120,7 +120,8 @@ function CardContextMenu({
     onClose,
     onStatusChange,
     onSpaceChange,
-    onDeleteClick
+    onDeleteClick,
+    onEditClick
 }: {
     task: any;
     columnas: string[];
@@ -130,6 +131,7 @@ function CardContextMenu({
     onStatusChange: (status: string) => void;
     onSpaceChange: (spaceId: string) => void;
     onDeleteClick: () => void;
+    onEditClick: () => void;
 }) {
     const [activeSubmenu, setActiveSubmenu] = useState<'main' | 'status' | 'space'>('main');
     const menuRef = useRef<HTMLDivElement>(null);
@@ -176,6 +178,12 @@ function CardContextMenu({
                     >
                         <span>Mover actividad</span>
                         <ChevronRight className="h-3.5 w-3.5 sm:h-3 sm:w-3" />
+                    </button>
+                    <button
+                        onClick={onEditClick}
+                        className="w-full text-left px-4 py-2.5 sm:px-3 sm:py-1.5 text-sm sm:text-xs text-slate-700 hover:bg-slate-50 hover:text-brand-600 transition flex items-center justify-between cursor-pointer"
+                    >
+                        Editar tarea
                     </button>
                     <button
                         onClick={onDeleteClick}
@@ -371,6 +379,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
     // Modal de Creación Avanzada
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [createModalDefaultStatus, setCreateModalDefaultStatus] = useState<string | undefined>(undefined);
+    const [editingTask, setEditingTask] = useState<any | null>(null);
 
     // Menú de 3 puntos en tarjeta
     const [activeCardMenuTaskId, setActiveCardMenuTaskId] = useState<string | null>(null);
@@ -1363,6 +1372,10 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                                     handleDeleteTaskFromModal(task.id);
                                                                                 }
                                                                             }}
+                                                                            onEditClick={() => {
+                                                                                setEditingTask(task);
+                                                                                setActiveCardMenuTaskId(null);
+                                                                            }}
                                                                         />
                                                                     )}
                                                                 </div>
@@ -1737,14 +1750,19 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
             {/* Modal de Creación de Tarea */}
             <CreateTaskModal
-                isOpen={isCreateModalOpen}
-                onClose={() => setIsCreateModalOpen(false)}
+                isOpen={isCreateModalOpen || !!editingTask}
+                onClose={() => {
+                    setIsCreateModalOpen(false);
+                    setEditingTask(null);
+                }}
                 currentSpaceId={space.id}
                 spaces={initialData.spaces || []}
                 members={members}
-                tasks={tasks.map(t => ({ id: t.id, codigo: t.codigo, title: t.title }))}
+                tasks={tasks.filter(t => editingTask ? t.id !== editingTask.id : true).map(t => ({ id: t.id, codigo: t.codigo, title: t.title }))}
                 defaultStatus={createModalDefaultStatus}
                 onCreate={handleCreateTaskFromModal}
+                taskToEdit={editingTask}
+                onUpdate={handleUpdateTaskFromModal}
             />
             {/* Modal de confirmación para eliminar columna */}
             {columnToDelete && (

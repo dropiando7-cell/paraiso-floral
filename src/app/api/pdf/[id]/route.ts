@@ -275,7 +275,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         return val;
       },
       get total() { 
-        return this.subtotal - this.descuentos + this.isv15 + this.isv18;
+        const baseTotal = this.subtotal - this.descuentos + this.isv15 + this.isv18;
+        if (this.isv15 === 0 && this.isv18 === 0) {
+          const adjustment = Number(settings?.roundAdjustment) || 0;
+          if (this.exento > 0 || this.exonerado > 0) {
+            return baseTotal + adjustment;
+          }
+        }
+        return baseTotal;
       }
     };
 

@@ -29,7 +29,13 @@ import {
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
 import { useRouter } from 'next/navigation';
-import { addActivityTypeToSpace } from '@/app/(dashboard)/kanban/actions';
+import { 
+    addActivityTypeToSpace,
+    getTaskCommentsAndAttachments,
+    createKanbanAttachment,
+    deleteKanbanAttachment,
+    updateKanbanAttachmentDescription
+} from '@/app/(dashboard)/kanban/actions';
 
 
 const SIDEBAR_MODULES = [
@@ -86,6 +92,8 @@ interface CreateTaskModalProps {
     tasks: Task[]; // Para asociar a tarea principal
     defaultStatus?: string;
     onCreate: (taskData: any) => Promise<boolean>;
+    taskToEdit?: any;
+    onUpdate?: (taskId: string, taskData: any) => Promise<boolean>;
 }
 
 export default function CreateTaskModal({
@@ -96,7 +104,9 @@ export default function CreateTaskModal({
     members,
     tasks,
     defaultStatus,
-    onCreate
+    onCreate,
+    taskToEdit,
+    onUpdate
 }: CreateTaskModalProps) {
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
@@ -125,7 +135,7 @@ export default function CreateTaskModal({
     const [selectedModulo, setSelectedModulo] = useState('');
     
     // Attachments & Upload states
-    const [attachments, setAttachments] = useState<{ nombre: string; url: string; tipo: string; tamano: number; descripcion: string }[]>([]);
+    const [attachments, setAttachments] = useState<any[]>([]);
     const [isUploading, setIsUploading] = useState(false);
 
     // Lightbox states
@@ -213,26 +223,56 @@ export default function CreateTaskModal({
     // Initialize/Reset form on open
     useEffect(() => {
         if (isOpen) {
-            setSelectedSpaceId(currentSpaceId);
-            setTitle('');
-            setDescription('');
-            setPriority('MEDIUM');
-            setSelectedAssigneeIds([]);
-            setParentId('');
-            setDueDate('');
-            setStartDate('');
-            setEtiquetasInput('');
-            setTeam('');
-            setSelectedModulo('');
-            setAttachments([]);
+            if (taskToEdit) {
+                setSelectedSpaceId(taskToEdit.spaceId || currentSpaceId);
+                setTitle(taskToEdit.title || '');
+                setDescription(taskToEdit.description || '');
+                setPriority(taskToEdit.priority || 'MEDIUM');
+                setSelectedAssigneeIds(taskToEdit.asignados?.map((a: any) => a.id) || (taskToEdit.asignadoId ? [taskToEdit.asignadoId] : []));
+                setParentId(taskToEdit.parentId || '');
+                setDueDate(taskToEdit.dueDate ? taskToEdit.dueDate.split('T')[0] : '');
+                setStartDate(taskToEdit.startDate ? taskToEdit.startDate.split('T')[0] : '');
+                setEtiquetasInput(taskToEdit.etiquetas?.join(', ') || '');
+                setTeam(taskToEdit.team || '');
+                setSelectedModulo(taskToEdit.modulo || '');
+                setStatus(taskToEdit.status || '');
+                setType(taskToEdit.type || 'Tarea');
+
+                // Cargar adjuntos desde el servidor
+                const fetchAttachments = async () => {
+                    try {
+                        const res = await getTaskCommentsAndAttachments(taskToEdit.id);
+                        if (res.success && res.attachments) {
+                            setAttachments(res.attachments);
+                        }
+                    } catch (e) {
+                        console.error("Error loading task attachments:", e);
+                    }
+                };
+                fetchAttachments();
+            } else {
+                setSelectedSpaceId(currentSpaceId);
+                setTitle('');
+                setDescription('');
+                setPriority('MEDIUM');
+                setSelectedAssigneeIds([]);
+                setParentId('');
+                setDueDate('');
+                setStartDate('');
+                setEtiquetasInput('');
+                setTeam('');
+                setSelectedModulo('');
+                setAttachments([]);
+                setType('Tarea');
+                if (defaultStatus) {
+                    setStatus(defaultStatus);
+                } else if (activeSpace) {
+                    setStatus(activeSpace.columnas[0] || 'Por hacer');
+                }
+            }
+
             setShowAssigneeDropdown(false);
             setAssigneeSearch('');
-
-            if (defaultStatus) {
-                setStatus(defaultStatus);
-            } else if (activeSpace) {
-                setStatus(activeSpace.columnas[0] || 'Por hacer');
-            }
 
             // Clean up media streams if open
             if (cameraStream) {
@@ -251,7 +291,7 @@ export default function CreateTaskModal({
             }
             setShowAudioRecordModal(false);
         }
-    }, [isOpen, currentSpaceId, defaultStatus]);
+    }, [isOpen, currentSpaceId, defaultStatus, taskToEdit]);
 
     // Cleanup media on unmount
     useEffect(() => {
@@ -309,13 +349,28 @@ export default function CreateTaskModal({
             if (!uploadResponse.ok) throw new Error('Error al subir el archivo');
 
             // 3. Agregar a adjuntos locales
-            const newAttachment = {
+            let newAttachment: any = {
                 nombre: fileToUpload.name,
                 url: publicUrl,
                 tipo: fileToUpload.type,
                 tamano: fileToUpload.size,
                 descripcion: ''
             };
+
+            if (taskToEdit) {
+                const dbRes = await createKanbanAttachment({
+                    taskId: taskToEdit.id,
+                    nombre: fileToUpload.name,
+                    url: publicUrl,
+                    tipo: fileToUpload.type,
+                    tamano: fileToUpload.size
+                });
+                if (dbRes.success && dbRes.attachment) {
+                    newAttachment = dbRes.attachment;
+                } else {
+                    throw new Error(dbRes.error || 'Error al guardar adjunto en la base de datos');
+                }
+            }
 
             setAttachments(prev => [newAttachment, ...prev]);
             toast.success(`Archivo "${file.name}" cargado`);
@@ -357,7 +412,15 @@ export default function CreateTaskModal({
         };
     }, [isOpen]);
 
-    const handleUpdateAttachmentDescription = (index: number, desc: string) => {
+    const handleUpdateAttachmentDescription = async (index: number, desc: string) => {
+        const att = attachments[index];
+        if (taskToEdit && att.id) {
+            const res = await updateKanbanAttachmentDescription(att.id, desc);
+            if (!res.success) {
+                toast.error(res.error || "Error al actualizar descripción");
+                return;
+            }
+        }
         setAttachments(prev => {
             const updated = [...prev];
             updated[index] = { ...updated[index], descripcion: desc };
@@ -365,16 +428,40 @@ export default function CreateTaskModal({
         });
     };
 
-    const handleRemoveAttachment = (index: number) => {
+    const handleRemoveAttachment = async (index: number) => {
+        const att = attachments[index];
+        if (taskToEdit && att.id) {
+            const res = await deleteKanbanAttachment(att.id);
+            if (!res.success) {
+                toast.error(res.error || "Error al eliminar adjunto");
+                return;
+            }
+        }
         setAttachments(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleRemoveAttachmentByUrl = (url: string) => {
+    const handleRemoveAttachmentByUrl = async (url: string) => {
+        const att = attachments.find(a => a.url === url);
+        if (taskToEdit && att && att.id) {
+            const res = await deleteKanbanAttachment(att.id);
+            if (!res.success) {
+                toast.error(res.error || "Error al eliminar adjunto");
+                return;
+            }
+        }
         setAttachments(prev => prev.filter(att => att.url !== url));
         setLightboxItem(null);
     };
 
-    const handleUpdateAttachmentDescriptionByUrl = (url: string, desc: string) => {
+    const handleUpdateAttachmentDescriptionByUrl = async (url: string, desc: string) => {
+        const att = attachments.find(a => a.url === url);
+        if (taskToEdit && att && att.id) {
+            const res = await updateKanbanAttachmentDescription(att.id, desc);
+            if (!res.success) {
+                toast.error(res.error || "Error al actualizar descripción");
+                return;
+            }
+        }
         setAttachments(prev => prev.map(att => att.url === url ? { ...att, descripcion: desc } : att));
         if (lightboxItem && lightboxItem.url === url) {
             setLightboxItem(prev => prev ? { ...prev, descripcion: desc } : null);
@@ -748,7 +835,7 @@ export default function CreateTaskModal({
             .map(t => t.trim())
             .filter(t => t.length > 0);
 
-        const taskData = {
+        const taskData: any = {
             spaceId: selectedSpaceId,
             title: title.trim(),
             description: description.trim() || undefined,
@@ -766,9 +853,18 @@ export default function CreateTaskModal({
         };
 
         startTransition(async () => {
-            const success = await onCreate(taskData);
-            if (success) {
-                onClose();
+            if (taskToEdit && onUpdate) {
+                // Exclude attachments as they are managed directly
+                const { attachments: _, ...updateFields } = taskData;
+                const success = await onUpdate(taskToEdit.id, updateFields);
+                if (success) {
+                    onClose();
+                }
+            } else {
+                const success = await onCreate(taskData);
+                if (success) {
+                    onClose();
+                }
             }
         });
     };
@@ -779,8 +875,8 @@ export default function CreateTaskModal({
                 {/* Cabecera */}
                 <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50 rounded-t-2xl shrink-0">
                     <div>
-                        <h3 className="text-base font-extrabold text-slate-900">Crear Incidencia / Actividad</h3>
-                        <p className="text-[11px] text-slate-400 mt-0.5">Define los detalles y asigna recursos en tu espacio de trabajo</p>
+                        <h3 className="text-base font-extrabold text-slate-900">{taskToEdit ? 'Editar Incidencia / Actividad' : 'Crear Incidencia / Actividad'}</h3>
+                        <p className="text-[11px] text-slate-400 mt-0.5">{taskToEdit ? 'Edita los detalles y reasigna recursos de tu tarea' : 'Define los detalles y asigna recursos en tu espacio de trabajo'}</p>
                     </div>
                     <button 
                         type="button"
@@ -1171,10 +1267,10 @@ export default function CreateTaskModal({
                         {isPending ? (
                             <>
                                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                Creando...
+                                {taskToEdit ? 'Guardando...' : 'Creando...'}
                             </>
                         ) : (
-                            'Crear Tarea'
+                            taskToEdit ? 'Guardar Cambios' : 'Crear Tarea'
                         )}
                     </button>
                 </div>

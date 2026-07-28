@@ -265,6 +265,8 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
     selectedClient, paymentTerms, lineItems, notes, totals, today, fmt
   } = data;
 
+  const lastNonSectionIndex = lineItems ? lineItems.reduceRight((acc: number, it: any, idx: number) => acc !== -1 ? acc : (!it.isSection ? idx : -1), -1) : -1;
+
   const colorMap: Record<string, string> = {
     'blue-600': '#1e40af',
     'emerald-600': '#065f46',
@@ -577,7 +579,7 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                     }
                   ]}>
                     <Text style={[styles.tableColRight, { fontSize: descFontSizePdf }]}>
-                      {fmt ? fmt(calcLine(item, settings?.pricesIncludeTax).total) : 0}
+                      {fmt ? fmt(calcLine(item, settings?.pricesIncludeTax).total + (i === lastNonSectionIndex ? (Number(settings?.roundAdjustment) || 0) : 0)) : 0}
                     </Text>
                   </View>
                 </View>

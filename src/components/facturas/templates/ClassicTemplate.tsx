@@ -233,6 +233,7 @@ export default function ClassicTemplate(props: TemplateProps) {
  allProducts={allProducts}
  viewMode={viewMode}
  settings={settings}
+ lineItems={lineItems}
  />
  ))}
  </div>
