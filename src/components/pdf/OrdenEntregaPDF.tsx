@@ -11,6 +11,9 @@ Font.register({
   ]
 });
 
+// Disable word hyphenation globally to keep whole words together
+Font.registerHyphenationCallback((word) => [word]);
+
 // Styles
 const styles = StyleSheet.create({
   page: {
