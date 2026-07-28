@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   metaLabel: {
     fontWeight: 700,
     textTransform: 'uppercase',
-    fontSize: 7.5,
+    fontSize: 6,
     marginBottom: 2,
     color: '#1f2937',
   },
