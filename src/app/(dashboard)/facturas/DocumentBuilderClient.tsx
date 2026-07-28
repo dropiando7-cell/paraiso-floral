@@ -2077,7 +2077,7 @@ export default function DocumentBuilderClient({
             discountType,
             productoId: d.productoId || undefined,
             activoId: d.activoId || undefined,
-            imageUrl: d.activo?.imagenUrl || undefined,
+            imageUrl: d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || d.activo?.imagenUrl || undefined,
             serie: d.activo?.serie || null
           };
         });

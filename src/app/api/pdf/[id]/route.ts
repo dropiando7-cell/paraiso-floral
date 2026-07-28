@@ -203,7 +203,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         discountType: 'amount',
         isSection: isSection,
         sectionStyle: sectionStyle,
-        imageUrl: d.producto?.imageUrl || resolvedActivo?.imagenUrl || null,
+        imageUrl: d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || resolvedActivo?.imagenUrl || null,
         garantia: resolvedActivo?.garantia || extractWarrantyFromDesc(d.descripcion || '') || null,
         mantenimientosIncluidos: resolvedActivo?.mantenimientosIncluidos || null,
         frecuenciaMantenimientoMeses: resolvedActivo?.frecuenciaMantenimientoMeses || null,
