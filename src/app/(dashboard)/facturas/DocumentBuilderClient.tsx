@@ -104,6 +104,19 @@ const DOC_TYPES: { key: DocType; label: string; icon: React.ReactNode; color: st
 const normalizeText = (text: string) => text ? text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() : '';
 const fmt = (n: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 }).format(n);
 const uid = () => Math.random().toString(36).slice(2, 9);
+
+const resolveServiceImageUrl = (desc: string | null | undefined): string | undefined => {
+  if (!desc) return undefined;
+  const lower = desc.toLowerCase();
+  if (lower.includes('servicio de instalacion') || lower.includes('servicio de instalación')) return '/services/instalacion.svg';
+  if (lower.includes('servicio de reparacion') || lower.includes('servicio de reparación')) return '/services/reparacion.jpg';
+  if (lower.includes('servicio de diagnostico') || lower.includes('servicio de diagnóstico') || lower.includes('revision') || lower.includes('revisión')) return '/services/soporte.svg';
+  if (lower.includes('mantenimiento preventivo')) return '/services/mantenimiento.svg';
+  if (lower.includes('mantenimiento correctivo')) return '/services/garantia.svg';
+  if (lower.includes('mano de obra') || lower.includes('horas de tecnico') || lower.includes('horas de técnico')) return '/services/mano_obra.svg';
+  return undefined;
+};
+
 const formatFecha = (dStr: string | Date | null | undefined) => {
   if (!dStr) return '';
   try {
@@ -2077,7 +2090,7 @@ export default function DocumentBuilderClient({
             discountType,
             productoId: d.productoId || undefined,
             activoId: d.activoId || undefined,
-            imageUrl: d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || d.activo?.imagenUrl || undefined,
+            imageUrl: d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || d.activo?.imagenUrl || resolveServiceImageUrl(shortDesc) || undefined,
             serie: d.activo?.serie || null
           };
         });

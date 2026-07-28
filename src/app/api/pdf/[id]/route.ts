@@ -84,6 +84,18 @@ const extractWarrantyFromDesc = (desc: string) => {
   return match ? match[1].trim() : null;
 };
 
+const resolveServiceImageUrl = (desc: string | null | undefined): string | null => {
+  if (!desc) return null;
+  const lower = desc.toLowerCase();
+  if (lower.includes('servicio de instalacion') || lower.includes('servicio de instalación')) return '/services/instalacion.svg';
+  if (lower.includes('servicio de reparacion') || lower.includes('servicio de reparación')) return '/services/reparacion.jpg';
+  if (lower.includes('servicio de diagnostico') || lower.includes('servicio de diagnóstico') || lower.includes('revision') || lower.includes('revisión')) return '/services/soporte.svg';
+  if (lower.includes('mantenimiento preventivo')) return '/services/mantenimiento.svg';
+  if (lower.includes('mantenimiento correctivo')) return '/services/garantia.svg';
+  if (lower.includes('mano de obra') || lower.includes('horas de tecnico') || lower.includes('horas de técnico')) return '/services/mano_obra.svg';
+  return null;
+};
+
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
@@ -203,7 +215,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         discountType: 'amount',
         isSection: isSection,
         sectionStyle: sectionStyle,
-        imageUrl: d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || resolvedActivo?.imagenUrl || null,
+        imageUrl: d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || resolvedActivo?.imagenUrl || resolveServiceImageUrl(shortDesc) || null,
         garantia: resolvedActivo?.garantia || extractWarrantyFromDesc(d.descripcion || '') || null,
         mantenimientosIncluidos: resolvedActivo?.mantenimientosIncluidos || null,
         frecuenciaMantenimientoMeses: resolvedActivo?.frecuenciaMantenimientoMeses || null,

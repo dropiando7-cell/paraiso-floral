@@ -66,19 +66,24 @@ export default function LegacyTemplate(props: TemplateProps) {
   const imageColWidth = settings?.productImageSize === 'large' ? 'w-24' : settings?.productImageSize === 'medium' ? 'w-16' : 'w-[34px]';
  
  // Use state for the date string to avoid SSR/client hydration mismatch
- const [currentDateStr, setCurrentDateStr] = useState(() => {
-   if (fechaEmision) {
-     const d = new Date(fechaEmision);
-     if (!isNaN(d.getTime())) {
-       const dateStr = d.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-       const timeStr = d.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-       return `${dateStr} ${timeStr}`;
-     }
-   }
-   return today.split('-').reverse().join('/');
- });
+  const [currentDateStr, setCurrentDateStr] = useState(() => {
+    if (fechaEmision) {
+      const d = new Date(fechaEmision);
+      if (!isNaN(d.getTime())) {
+        const dateStr = d.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        const timeStr = d.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        return `${dateStr} ${timeStr}`;
+      }
+    }
+    return today.split('-').reverse().join('/');
+  });
 
- useEffect(() => {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
    if (fechaEmision) {
      const d = new Date(fechaEmision);
      if (!isNaN(d.getTime())) {
@@ -142,7 +147,7 @@ export default function LegacyTemplate(props: TemplateProps) {
   <span className="text-slate-800">{docNumber}</span>
   </span>
   <span className="text-gray-600 mt-1 whitespace-nowrap">Fecha: {datePart}</span>
-  {timePart && <span className="text-gray-500 text-[10px] mt-0.5 whitespace-nowrap">{timePart}</span>}
+  {mounted && timePart && <span className="text-gray-500 text-[10px] mt-0.5 whitespace-nowrap">{timePart}</span>}
   </div>
   
   <div className="flex flex-col pl-3">
