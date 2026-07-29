@@ -21,11 +21,20 @@ export default function NuevoSoporteClient({ userId, clientes = [], users = [] }
         modelo: searchParams.get('modelo') || '',
         serie: searchParams.get('serie') || '',
         tipo: searchParams.get('tipo') || '',
+        activoId: searchParams.get('activoId') || '',
+        tipoOrden: searchParams.get('tipoOrden') || 'TALLER',
+        requiereAprobacion: searchParams.get('requiereAprobacion') !== 'false'
     };
 
     const handleSave = async (data: any) => {
         // inject user ID
-        const finalData = { ...data, usuarioRecepcionId: userId };
+        const finalData = { 
+            ...data, 
+            usuarioRecepcionId: userId,
+            activoId: prefilledData.activoId || data.activoId,
+            tipoOrden: prefilledData.tipoOrden || data.tipoOrden,
+            requiereAprobacion: prefilledData.requiereAprobacion
+        };
         const orden = await createOrdenTrabajo(finalData);
         setResult(orden);
     };

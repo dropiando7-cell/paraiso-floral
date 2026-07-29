@@ -449,6 +449,10 @@ model ActivoFijo {
   historial             HistorialActivo[]    @relation("ActivoHistorial")
   kanbanMaterials       KanbanTaskMaterial[]
   equipoCliente         EquipoCliente?
+  esEquipoCliente       Boolean              @default(false)
+  clienteId             String?              @db.Uuid
+  cliente               Cliente?             @relation("ActivoCliente", fields: [clienteId], references: [id])
+  ordenesTrabajo        OrdenTrabajo[]
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -677,6 +681,7 @@ model Cliente {
   ordenesTrabajo OrdenTrabajo[]
   rentasEquipo   RentaEquipo[]
   equiposCliente EquipoCliente[]
+  activosClientes ActivoFijo[]   @relation("ActivoCliente")
 
   @@index([organizationId])
   @@index([nombre])
@@ -808,6 +813,10 @@ model OrdenTrabajo {
   metodoPagoRevision  String?
   cajaSessionId       String?                @db.Uuid
   cajaSession         CorteCajaSession?      @relation(fields: [cajaSessionId], references: [id])
+  activoId           String?                @db.Uuid
+  activo             ActivoFijo?            @relation(fields: [activoId], references: [id])
+  tipoOrden          String                 @default("TALLER")
+  requiereAprobacion Boolean                @default(true)
 
   cliente           Cliente                @relation(fields: [clienteId], references: [id])
   organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)

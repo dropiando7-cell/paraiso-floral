@@ -74,7 +74,7 @@ interface Product {
 }
 
 import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings } from './actions';
-import { createContacto } from '../contactos/actions';
+import { createContacto, updateContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -1294,6 +1294,7 @@ export default function DocumentBuilderClient({
   const [showNewClientModal, setShowNewClientModal] = useState(false);
   const [newClientData, setNewClientData] = useState({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
   const [isCreatingClient, setIsCreatingClient] = useState(false);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'clients' | 'products'>('clients');
   const [showPreview, setShowPreview] = useState(false);
   const [showCustomizer, setShowCustomizer] = useState(false);
@@ -2369,35 +2370,73 @@ export default function DocumentBuilderClient({
     }
     setIsCreatingClient(true);
     try {
-      const created = await createContacto({
-        nombre: newClientData.nombre,
-        email: newClientData.email || undefined,
-        telefono: newClientData.telefono || undefined,
-        rtn: newClientData.rtn || undefined,
-        direccion: newClientData.direccion || undefined,
-        nombreContacto: newClientData.nombreContacto || undefined,
-        telefonoContacto: newClientData.telefonoContacto || undefined
-      });
-      const newClientObj: Client = {
-        id: created.id,
-        name: created.nombre,
-        rtn: created.rtn || '',
-        email: created.email || '',
-        phone: created.telefono || '',
-        address: created.direccion || '',
-        city: '',
-        category: 'Cliente',
-        nombreContacto: created.nombreContacto || '',
-        telefonoContacto: created.telefonoContacto || '',
-      };
-      setAllClients(prev => [...prev, newClientObj]);
-      setSelectedClient(newClientObj);
-      setShowNewClientModal(false);
-      setShowClientModal(false);
-      setNewClientData({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
-      toast.success('Cliente registrado correctamente');
+      if (editingClientId) {
+        // Edit mode
+        await updateContacto(editingClientId, {
+          nombre: newClientData.nombre,
+          email: newClientData.email || undefined,
+          telefono: newClientData.telefono || undefined,
+          rtn: newClientData.rtn || undefined,
+          direccion: newClientData.direccion || undefined,
+          nombreContacto: newClientData.nombreContacto || undefined,
+          telefonoContacto: newClientData.telefonoContacto || undefined
+        });
+
+        const updatedClientObj: Client = {
+          id: editingClientId,
+          name: newClientData.nombre,
+          rtn: newClientData.rtn || '',
+          email: newClientData.email || '',
+          phone: newClientData.telefono || '',
+          address: newClientData.direccion || '',
+          city: '',
+          category: 'Cliente',
+          nombreContacto: newClientData.nombreContacto || '',
+          telefonoContacto: newClientData.telefonoContacto || '',
+        };
+
+        // Update in lists
+        setAllClients(prev => prev.map(c => c.id === editingClientId ? updatedClientObj : c));
+        // If it was the selected client, update it as well
+        if (selectedClient?.id === editingClientId) {
+          setSelectedClient(updatedClientObj);
+        }
+        setShowNewClientModal(false);
+        setEditingClientId(null);
+        setNewClientData({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
+        toast.success('Cliente actualizado correctamente');
+      } else {
+        // Create mode
+        const created = await createContacto({
+          nombre: newClientData.nombre,
+          email: newClientData.email || undefined,
+          telefono: newClientData.telefono || undefined,
+          rtn: newClientData.rtn || undefined,
+          direccion: newClientData.direccion || undefined,
+          nombreContacto: newClientData.nombreContacto || undefined,
+          telefonoContacto: newClientData.telefonoContacto || undefined
+        });
+        const newClientObj: Client = {
+          id: created.id,
+          name: created.nombre,
+          rtn: created.rtn || '',
+          email: created.email || '',
+          phone: created.telefono || '',
+          address: created.direccion || '',
+          city: '',
+          category: 'Cliente',
+          nombreContacto: created.nombreContacto || '',
+          telefonoContacto: created.telefonoContacto || '',
+        };
+        setAllClients(prev => [...prev, newClientObj]);
+        setSelectedClient(newClientObj);
+        setShowNewClientModal(false);
+        setShowClientModal(false);
+        setNewClientData({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
+        toast.success('Cliente registrado correctamente');
+      }
     } catch (e: any) {
-      toast.error('Error al registrar cliente');
+      toast.error(editingClientId ? 'Error al actualizar cliente' : 'Error al registrar cliente');
     } finally {
       setIsCreatingClient(false);
     }
@@ -3855,6 +3894,56 @@ export default function DocumentBuilderClient({
               </div>
             </div>
             <div className="overflow-y-auto p-2 bg-slate-50/50 flex-1">
+              {/* Cliente Seleccionado en la parte superior */}
+              {selectedClient && !clientSearch && (
+                <div className="mb-3 pb-3 border-b border-slate-200">
+                  <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider px-2 block mb-1.5">Cliente Seleccionado</span>
+                  <div
+                    className="w-full flex items-center justify-between p-3 rounded-xl transition-all text-left bg-blue-50 ring-1 ring-blue-200"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowClientModal(false);
+                      }}
+                      className="flex-1 flex items-center gap-4 text-left min-w-0"
+                    >
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-blue-600 text-white shadow-sm">
+                        <Building2 size={16} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-slate-800 truncate">{selectedClient.name}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{selectedClient.rtn || 'Sin RTN'} • {selectedClient.category}</p>
+                      </div>
+                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingClientId(selectedClient.id);
+                          setNewClientData({
+                            nombre: selectedClient.name,
+                            email: selectedClient.email || '',
+                            telefono: selectedClient.phone || '',
+                            rtn: selectedClient.rtn || '',
+                            direccion: selectedClient.address || '',
+                            nombreContacto: selectedClient.nombreContacto || '',
+                            telefonoContacto: selectedClient.telefonoContacto || ''
+                          });
+                          setShowNewClientModal(true);
+                        }}
+                        className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"
+                        title="Editar Contacto"
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <CheckCircle2 size={18} className="text-blue-600 shrink-0 mx-1" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {filteredClients.length === 0 ? (
                 <div className="p-8 text-center text-slate-400">
                   <p>No se encontraron clientes.</p>
@@ -3862,23 +3951,51 @@ export default function DocumentBuilderClient({
               ) : (
                 <div className="space-y-1">
                   {filteredClients.map(client => (
-                    <button
+                    <div
                       key={client.id}
-                      onClick={() => {
-                        setSelectedClient(client);
-                        setShowClientModal(false);
-                      }}
-                      className={`w-full flex items-center gap-4 p-3 hover:bg-blue-50 rounded-xl transition-all text-left group ${selectedClient?.id === client.id ? 'bg-blue-50 ring-1 ring-blue-200' : 'bg-white border border-slate-100'}`}
+                      className={`w-full flex items-center justify-between p-3 rounded-xl transition-all text-left group ${selectedClient?.id === client.id ? 'bg-blue-50 ring-1 ring-blue-200' : 'bg-white border border-slate-100 hover:bg-blue-50/30'}`}
                     >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${selectedClient?.id === client.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>
-                        <Building2 size={16} />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedClient(client);
+                          setShowClientModal(false);
+                        }}
+                        className="flex-1 flex items-center gap-4 text-left min-w-0"
+                      >
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${selectedClient?.id === client.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-blue-100 group-hover:text-blue-600'}`}>
+                          <Building2 size={16} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-800 truncate">{client.name}</p>
+                          <p className="text-xs text-slate-500 mt-0.5">{client.rtn || 'Sin RTN'} • {client.category}</p>
+                        </div>
+                      </button>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingClientId(client.id);
+                            setNewClientData({
+                              nombre: client.name,
+                              email: client.email || '',
+                              telefono: client.phone || '',
+                              rtn: client.rtn || '',
+                              direccion: client.address || '',
+                              nombreContacto: client.nombreContacto || '',
+                              telefonoContacto: client.telefonoContacto || ''
+                            });
+                            setShowNewClientModal(true);
+                          }}
+                          className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-blue-600 transition-colors"
+                          title="Editar Contacto"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        {selectedClient?.id === client.id && <CheckCircle2 size={18} className="text-blue-600 shrink-0 mx-1" />}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-bold text-slate-800 truncate">{client.name}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">{client.rtn || 'Sin RTN'} • {client.category}</p>
-                      </div>
-                      {selectedClient?.id === client.id && <CheckCircle2 size={18} className="text-blue-600 shrink-0 mx-2" />}
-                    </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -4030,8 +4147,8 @@ export default function DocumentBuilderClient({
                 </div>
                 <div className="px-6 py-5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
                     <button
-                        onClick={() => setShowNewClientModal(false)}
-                        className="px-5 py-2.5 rounded-xl font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+                        onClick={() => { setShowNewClientModal(false); setEditingClientId(null); setNewClientData({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' }); }}
+                        className="px-5 py-2.5 rounded-xl font-semibold text-slate-550 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
                     >
                         Cancelar
                     </button>

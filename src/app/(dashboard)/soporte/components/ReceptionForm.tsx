@@ -12,6 +12,9 @@ type PrefilledData = {
   modelo?: string;
   serie?: string;
   tipo?: string;
+  activoId?: string;
+  tipoOrden?: string;
+  requiereAprobacion?: boolean;
 };
 
 type ReceptionFormProps = {
@@ -53,7 +56,10 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
     aplicaMantenimientos: false,
     garantiaMeses: "",
     frecuenciaMantenimientoMeses: "3",
-    cantidadMantenimientos: ""
+    cantidadMantenimientos: "",
+    activoId: prefilledData?.activoId || "",
+    tipoOrden: prefilledData?.tipoOrden || "TALLER",
+    requiereAprobacion: prefilledData?.requiereAprobacion !== false
   });
   const [photos, setPhotos] = useState<{name: string; file: File; url: string; size: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);

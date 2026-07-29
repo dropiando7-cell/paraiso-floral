@@ -5,8 +5,8 @@ import { getOrdenesActivas, getHistorialEntregados } from './actions';
 import SoporteClient from './SoporteClient';
 
 export const metadata = {
-    title: 'Soporte y Reparaciones | Bioelectrónica',
-    description: 'Gestión de taller y reparaciones de equipo',
+    title: 'Soporte y Taller | Bioelectrónica',
+    description: 'Gestión unificada de taller, mantenimiento y reparaciones de equipo',
 };
 
 export default async function SoportePage() {
@@ -16,12 +16,38 @@ export default async function SoportePage() {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
-        select: { role: true, customRoleName: true, accessibleModules: true }
+        select: { id: true, role: true, customRoleName: true, accessibleModules: true, organizationId: true }
     });
 
-    const [ordenes, entregadas] = await Promise.all([
+    if (!dbUser) redirect('/login');
+
+    const orgId = dbUser.organizationId;
+
+    const [ordenes, entregadas, clientes, activosClientes] = await Promise.all([
         getOrdenesActivas(),
-        getHistorialEntregados()
+        getHistorialEntregados(),
+        prisma.cliente.findMany({
+            where: { organizationId: orgId },
+            orderBy: { nombre: 'asc' }
+        }),
+        prisma.activoFijo.findMany({
+            where: {
+                organizationId: orgId,
+                esEquipoCliente: true
+            },
+            include: {
+                cliente: true,
+                ordenesTrabajo: {
+                    include: {
+                        tecnicosAsignados: {
+                            select: { id: true, nombre: true, avatarUrl: true }
+                        }
+                    },
+                    orderBy: { fechaRecibido: 'desc' }
+                }
+            },
+            orderBy: { descripcionCorta: 'asc' }
+        })
     ]);
     
     const safeOrdenes = ordenes.map((orden: any) => ({
@@ -40,10 +66,12 @@ export default async function SoportePage() {
         <SoporteClient 
             initialData={safeOrdenes} 
             deliveredData={safeEntregadas}
-            userRole={dbUser?.role || 'USER'}
-            customRoleName={dbUser?.customRoleName || ''}
-            accessibleModules={dbUser?.accessibleModules || []}
+            clientes={clientes}
+            activosClientes={activosClientes}
+            userRole={dbUser.role}
+            customRoleName={dbUser.customRoleName || ''}
+            accessibleModules={dbUser.accessibleModules || []}
+            userId={dbUser.id}
         />
     );
 }
-

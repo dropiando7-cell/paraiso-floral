@@ -62,6 +62,11 @@ export default async function InventarioPage() {
     });
     const disableAiVision = disableAiSetting ? disableAiSetting.value === 'true' : false;
 
+    const clientes = await prisma.cliente.findMany({
+        where: { organizationId: orgId },
+        orderBy: { nombre: 'asc' },
+    });
+
     return (
         <InventarioClient 
             initialData={initialData} 
@@ -73,6 +78,7 @@ export default async function InventarioPage() {
             initialConditions={customConditions}
             initialDefaultCondition={defaultCondition}
             disableAiVision={disableAiVision}
+            clientes={clientes}
         />
     );
 }

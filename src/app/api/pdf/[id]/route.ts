@@ -6,6 +6,9 @@ import LegacyTemplatePDF from '@/components/pdf/LegacyTemplatePDF';
 import OrdenEntregaPDF from '@/components/pdf/OrdenEntregaPDF';
 import GarantiaLimitadaPDF from '@/components/pdf/GarantiaLimitadaPDF';
 import { DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
+import HistorialPDF from '@/components/pdf/HistorialPDF';
+import path from 'path';
+import fs from 'fs';
 
 // We need to set max duration since Vercel's default 10s might be too short 
 export const maxDuration = 60;
@@ -115,6 +118,74 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     const url = new URL(req.url);
     const type = url.searchParams.get('type') || 'factura';
+
+    if (type === 'historial') {
+      const activo = await prisma.activoFijo.findUnique({
+        where: { id },
+        include: {
+          cliente: true,
+          ordenesTrabajo: {
+            include: {
+              tecnicosAsignados: {
+                select: { id: true, nombre: true }
+              },
+              repuestos: true,
+              kanbanTasks: {
+                include: {
+                  attachments: true,
+                  comments: {
+                    include: {
+                      usuario: {
+                        select: { nombre: true }
+                      }
+                    },
+                    orderBy: { createdAt: 'desc' }
+                  }
+                }
+              }
+            },
+            orderBy: { fechaRecibido: 'desc' }
+          }
+        }
+      });
+
+      if (!activo) {
+        return new Response('Activo not found', { status: 404 });
+      }
+
+      // Convert local logo file to base64 Data URI
+      const logoPath = path.join(process.cwd(), 'public', 'logo-bioelectronica-jpg' || 'logo-bioelectronica.jpg');
+      const logoAlternativePath = path.join(process.cwd(), 'public', 'logo-bioelectronica.jpg');
+      let logoBase64 = '';
+      try {
+        const targetPath = fs.existsSync(logoAlternativePath) ? logoAlternativePath : logoPath;
+        if (fs.existsSync(targetPath)) {
+          const logoBuffer = fs.readFileSync(targetPath);
+          logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
+        }
+      } catch (err) {
+        console.error('Error loading logo for PDF:', err);
+      }
+
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sistema.bioelectronica.hn';
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${appUrl}/ficha-tecnica/${activo.idQr}`)}`;
+
+      const stream = await renderToStream(
+        React.createElement(HistorialPDF, {
+          activo,
+          logoUrl: logoBase64 || undefined,
+          qrCodeUrl
+        }) as any
+      );
+
+      return new Response(stream as any, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `inline; filename="historial-mantenimiento-${activo.idQr}.pdf"`,
+        }
+      });
+    }
 
     // 1. Fetch document and organization data
     const doc = await prisma.factura.findUnique({

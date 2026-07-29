@@ -7,8 +7,9 @@ import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft, Wrench, Download, FileSpreadsheet,
-    Globe
+    Globe, UserPlus, Laptop
 } from 'lucide-react';
+import { crearClienteAction } from '../soporte/actions';
 import {
     searchActivosForAutocomplete, getActivoDetailsByBarcode, getActivos, getActivoStats, 
     createActivo, updateActivo, deleteActivo, previewIdQr, closeArea, clearPrintQueue, 
@@ -860,13 +861,14 @@ function CropModal({ imageSrc, onConfirm, onCancel }: {
 }
 
 // ─── Modal Form (iPad-first + AI vision) ─────────────────────────────────────
-export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions, disableAiVision = false }: {
-    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void; disableAiVision?: boolean;
+export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, dbAreas = [], onSelectRestock, isRentaMode, originsList = ["Americano", "Chino", "Otro"], defaultOrigin = "", onManageOrigins, conditionsList = ["Nuevo", "Usado", "Remanufacturado"], defaultCondition = "", onManageConditions, disableAiVision = false, clientes = [] }: {
+    open: boolean; onClose: () => void; editActivo?: Activo | null; onSuccess: () => void; lockedArea?: string | null; dbAreas?: any[]; onSelectRestock?: () => void; isRentaMode?: boolean; originsList?: string[]; defaultOrigin?: string; onManageOrigins?: () => void; conditionsList?: string[]; defaultCondition?: string; onManageConditions?: () => void; disableAiVision?: boolean; clientes?: any[];
 }) {
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
         label: a.description ? `${a.name} — ${a.description}` : a.name
     })) : [{ value: 'TEST-AREA', label: '🧪 TEST-AREA — Área genérica' }];
+    const searchParams = useSearchParams();
     const [isPending, startTransition] = useTransition();
     const [imagenUrl, setImagenUrl] = useState(editActivo?.imagenUrl || '');
     const [uploadPhase, setUploadPhase] = useState<'idle' | 'uploading' | 'analyzing' | 'done'>('idle');
@@ -897,8 +899,23 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     const [mantenimientosIncluidos, setMantenimientosIncluidos] = useState(editActivo?.mantenimientosIncluidos ? String(editActivo.mantenimientosIncluidos) : '');
     const [frecuenciaMantenimientoMeses, setFrecuenciaMantenimientoMeses] = useState(editActivo?.frecuenciaMantenimientoMeses ? String(editActivo.frecuenciaMantenimientoMeses) : '');
 
+    // Clientes list state & registration modal states
+    const [clientesList, setClientesList] = useState<any[]>(clientes || []);
+    const [selectedClienteId, setSelectedClienteId] = useState<string>(editActivo?.clienteId || '');
+    const [isClienteModalOpen, setIsClienteModalOpen] = useState(false);
+    const [newClienteData, setNewClienteData] = useState({
+        nombre: '',
+        rtn: '',
+        telefono: '',
+        email: '',
+        direccion: '',
+        notas: '',
+        nombreContacto: '',
+        telefonoContacto: ''
+    });
+
     // Pre-step Registration Type
-    const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso' | 'servicio' | 'import_web'>(editActivo ? 'reingreso' : 'seleccion');
+    const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso' | 'servicio' | 'import_web' | 'equipo_cliente'>(editActivo ? (editActivo.esEquipoCliente ? 'equipo_cliente' : 'reingreso') : 'seleccion');
     const [isServiceMode, setIsServiceMode] = useState(false);
     const [estatusContable, setEstatusContable] = useState(editActivo?.estatusContable || 'VIGENTE');
 
@@ -909,6 +926,52 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setIsServiceMode(false);
         }
     }, [tipoRegistro]);
+
+    useEffect(() => {
+        const reg = searchParams.get('register');
+        if (reg === 'equipo_cliente' && open) {
+            setTipoRegistro('equipo_cliente');
+        }
+    }, [searchParams, open]);
+
+    const handleCreateCliente = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newClienteData.nombre) {
+            toast.error("Por favor ingresa el nombre del cliente.");
+            return;
+        }
+
+        try {
+            const res = await crearClienteAction(newClienteData);
+
+            if (res.success) {
+                toast.success("Cliente registrado exitosamente.");
+                const newCli = res.cliente;
+                setClientesList(prev => [...prev, newCli].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+                
+                // Pre-seleccionar el cliente creado
+                setSelectedClienteId(newCli.id);
+                
+                // Reset form
+                setNewClienteData({
+                    nombre: '',
+                    rtn: '',
+                    telefono: '',
+                    email: '',
+                    direccion: '',
+                    notas: '',
+                    nombreContacto: '',
+                    telefonoContacto: ''
+                });
+                setIsClienteModalOpen(false);
+            } else {
+                toast.error(res.error || "No se pudo registrar el cliente.");
+            }
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.message || "Error al registrar el cliente.");
+        }
+    };
 
     // Obtener el prefijo del código de servicio basado en el icono seleccionado
     const getServicePrefix = (img: string) => {
@@ -1610,6 +1673,14 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             return;
         }
         const fd = new FormData(e.currentTarget);
+        if (tipoRegistro === 'equipo_cliente') {
+            if (!selectedClienteId) {
+                alert("Por favor selecciona un cliente propietario.");
+                return;
+            }
+            fd.set('esEquipoCliente', 'true');
+            fd.set('clienteId', selectedClienteId);
+        }
         fd.set('imagenUrl', isServiceMode ? (imagenUrl || '/services/reparacion.jpg') : imagenUrl);
         fd.set('imagenPlacaUrl', isServiceMode ? '' : imagenPlacaUrl);
         fd.set('area', isServiceMode ? 'SERVICIOS' : selectedArea);
@@ -1932,9 +2003,53 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                         </p>
                                     </div>
                                 </button>
+
+                                <button type="button" onClick={() => setTipoRegistro('equipo_cliente')}
+                                    className="w-full text-left p-6 border-2 border-slate-100 rounded-2xl hover:border-[#0500A3] hover:bg-[#0500A3]/5 transition-all group flex items-start gap-5">
+                                    <div className="w-14 h-14 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
+                                        <Laptop className="w-7 h-7" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#0500A3]">Equipo de Cliente (Externo)</h3>
+                                        <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
+                                            Registrar un equipo propiedad de un cliente externo para dar seguimiento a revisiones, garantías y mantenimientos.
+                                        </p>
+                                    </div>
+                                </button>
                             </div>
                         ) : (
                             <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
+
+                                {/* ── PROPIETARIO DEL EQUIPO (CLIENTE) ── */}
+                                {tipoRegistro === 'equipo_cliente' && (
+                                    <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-3" style={{ backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }}>
+                                        <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wider">Cliente Propietario *</label>
+                                        <div className="flex gap-2 items-center">
+                                            <div className="flex-1 min-w-0">
+                                                <select
+                                                    required
+                                                    value={selectedClienteId}
+                                                    onChange={(e) => setSelectedClienteId(e.target.value)}
+                                                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:border-indigo-600"
+                                                >
+                                                    <option value="">-- Seleccionar Cliente --</option>
+                                                    {clientesList.map(c => (
+                                                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsClienteModalOpen(true)}
+                                                className="bg-indigo-600 text-white hover:bg-indigo-700 px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 transition active:scale-95 cursor-pointer"
+                                                title="Registrar Nuevo Cliente"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                                <span>Nuevo</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* ── SWITCH SERVICIO ── */}
                                 <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-2xl p-4">
@@ -2802,6 +2917,131 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                 onClose={() => setIsScannerOpen(false)}
                 onScanSuccess={handleScanSuccess}
             />
+
+            {isClienteModalOpen && (
+                <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 max-h-[90vh]">
+                        
+                        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-lg font-black text-slate-800 tracking-tight flex items-center gap-2">
+                                <UserPlus className="w-5 h-5 text-indigo-600" />
+                                Registrar Nuevo Cliente / Contacto
+                            </h3>
+                            <button 
+                                type="button"
+                                onClick={() => setIsClienteModalOpen(false)}
+                                className="text-slate-400 hover:text-slate-650 text-sm font-bold bg-slate-100 hover:bg-slate-200 h-8 w-8 rounded-full flex items-center justify-center cursor-pointer transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleCreateCliente} className="p-6 overflow-y-auto space-y-4">
+                            
+                            {/* Nombre o Razón Social */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1">Nombre o Empresa *</label>
+                                <input
+                                    required
+                                    type="text"
+                                    placeholder="Ej. Hospital Bendaña S.A. o Juan Pérez"
+                                    value={newClienteData.nombre}
+                                    onChange={(e) => setNewClienteData(p => ({ ...p, nombre: e.target.value }))}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-indigo-600"
+                                />
+                            </div>
+
+                            {/* RTN y Teléfono */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1">RTN (Opcional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej. 08011990123456"
+                                        value={newClienteData.rtn}
+                                        onChange={(e) => setNewClienteData(p => ({ ...p, rtn: e.target.value }))}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-indigo-600"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1">Teléfono</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej. +504 9999-8888"
+                                        value={newClienteData.telefono}
+                                        onChange={(e) => setNewClienteData(p => ({ ...p, telefono: e.target.value }))}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-indigo-600"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Email */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1">Correo Electrónico</label>
+                                <input
+                                    type="email"
+                                    placeholder="Ej. compras@hospital.hn"
+                                    value={newClienteData.email}
+                                    onChange={(e) => setNewClienteData(p => ({ ...p, email: e.target.value }))}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-indigo-600"
+                                />
+                            </div>
+
+                            {/* Dirección */}
+                            <div>
+                                <label className="block text-xs font-bold text-slate-600 mb-1">Dirección Completa</label>
+                                <textarea
+                                    rows={2}
+                                    placeholder="Ej. Colonia Altamira, 12 Calle, San Pedro Sula"
+                                    value={newClienteData.direccion}
+                                    onChange={(e) => setNewClienteData(p => ({ ...p, direccion: e.target.value }))}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-indigo-600 resize-none"
+                                />
+                            </div>
+
+                            {/* Contacto Interno */}
+                            <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1">Persona de Contacto</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej. Ing. Carlos Aguilar"
+                                        value={newClienteData.nombreContacto}
+                                        onChange={(e) => setNewClienteData(p => ({ ...p, nombreContacto: e.target.value }))}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-indigo-600"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-slate-600 mb-1">Teléfono Contacto</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej. 9988-7766"
+                                        value={newClienteData.telefonoContacto}
+                                        onChange={(e) => setNewClienteData(p => ({ ...p, telefonoContacto: e.target.value }))}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-indigo-600"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsClienteModalOpen(false)}
+                                    className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-750 font-bold rounded-xl text-xs transition active:scale-95 cursor-pointer"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs transition active:scale-95 shadow-sm shadow-indigo-150 cursor-pointer"
+                                >
+                                    Guardar Cliente
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </>
     );
 }
@@ -3325,12 +3565,13 @@ function ProductSummaryModal({
                     onClose={() => setIsScanning(false)}
                 />
             )}
+
         </div>
     );
 }
 
 // ─── Main Client Component ───────────────────────────────────────────────────
-export function InventarioClient({ initialData, initialStats, dbAreas, userRole, isRentaMode = false, initialOrigins = ["Americano", "Chino", "Otro"], initialDefaultOrigin = "", initialConditions = ["Nuevo", "Usado", "Remanufacturado"], initialDefaultCondition = "", disableAiVision = false }: { initialData: any, initialStats: any, dbAreas: any[], userRole: string, isRentaMode?: boolean, initialOrigins?: string[], initialDefaultOrigin?: string, initialConditions?: string[], initialDefaultCondition?: string, disableAiVision?: boolean }) {
+export function InventarioClient({ initialData, initialStats, dbAreas, userRole, isRentaMode = false, initialOrigins = ["Americano", "Chino", "Otro"], initialDefaultOrigin = "", initialConditions = ["Nuevo", "Usado", "Remanufacturado"], initialDefaultCondition = "", disableAiVision = false, clientes = [] }: { initialData: any, initialStats: any, dbAreas: any[], userRole: string, isRentaMode?: boolean, initialOrigins?: string[], initialDefaultOrigin?: string, initialConditions?: string[], initialDefaultCondition?: string, disableAiVision?: boolean, clientes?: any[] }) {
     const router = useRouter();   
     const AREAS = dbAreas.length > 0 ? dbAreas.map(a => ({
         value: a.name,
@@ -4551,6 +4792,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 conditionsList={conditionsList}
                 defaultCondition={defaultCondition}
                 onManageConditions={() => setManageConditionsOpen(true)}
+                clientes={clientes}
             />
             {/* No Area Open Modal */}
             {noAreaModalOpen && (

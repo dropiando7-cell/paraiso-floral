@@ -28,11 +28,13 @@ export default async function FichaTecnicaPage({ params }: Props) {
     const activo = await prisma.activoFijo.findFirst({
         where: { idQr: decodeURIComponent(idQr) },
         select: {
+            id: true,
             idQr: true,
             descripcionCorta: true,
             descripcionDetallada: true,
             serie: true,
             modelo: true,
+            marca: true,
             area: true,
             cuentaAct: true,
             estatusContable: true,
@@ -54,6 +56,42 @@ export default async function FichaTecnicaPage({ params }: Props) {
             garantia: true,
             mantenimientosIncluidos: true,
             frecuenciaMantenimientoMeses: true,
+            esEquipoCliente: true,
+            clienteId: true,
+            cliente: {
+                select: {
+                    id: true,
+                    nombre: true,
+                    telefono: true,
+                    direccion: true,
+                }
+            },
+            ordenesTrabajo: {
+                include: {
+                    tecnicosAsignados: {
+                        select: {
+                            id: true,
+                            nombre: true,
+                            avatarUrl: true
+                        }
+                    },
+                    repuestos: true,
+                    kanbanTasks: {
+                        include: {
+                            attachments: true,
+                            comments: {
+                                include: {
+                                    usuario: {
+                                        select: { nombre: true, avatarUrl: true }
+                                    }
+                                },
+                                orderBy: { createdAt: 'desc' }
+                            }
+                        }
+                    }
+                },
+                orderBy: { fechaRecibido: 'desc' }
+            },
             detallesFactura: {
                 select: {
                     factura: {

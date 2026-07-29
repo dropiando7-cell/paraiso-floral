@@ -6,16 +6,20 @@ import {
     Package, MapPin, Tag, Calendar, Hash,
     User, CheckCircle2, AlertTriangle, TrendingDown,
     FileText, Layers, ChevronLeft, ChevronRight, X,
-    QrCode, Building2, Shield, Barcode
+    QrCode, Building2, Shield, Barcode, Laptop, Plus,
+    Printer, Clock, MessageSquare, Paperclip, Wrench, Download, Image, Play, Music
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
 type Activo = {
+    id: string;
     idQr: string;
     descripcionCorta: string;
     descripcionDetallada?: string | null;
     serie?: string | null;
     codigoBarras?: string | null;
     modelo?: string | null;
+    marca?: string | null;
     area: string;
     cuentaAct: string;
     estatusContable: string;
@@ -34,6 +38,15 @@ type Activo = {
     garantia?: string | null;
     mantenimientosIncluidos?: number | null;
     frecuenciaMantenimientoMeses?: number | null;
+    esEquipoCliente: boolean;
+    clienteId?: string | null;
+    cliente?: {
+        id: string;
+        nombre: string;
+        telefono?: string | null;
+        direccion?: string | null;
+    } | null;
+    ordenesTrabajo?: any[];
     detallesFactura?: {
         factura: {
             id: string;
@@ -60,7 +73,15 @@ type Activo = {
     }[];
 };
 
-function EstatusBadge({ estatus }: { estatus: string }) {
+function EstatusBadge({ estatus, esCliente }: { estatus: string, esCliente: boolean }) {
+    if (esCliente) {
+        return (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold border bg-indigo-50 text-indigo-700 border-indigo-200">
+                <Laptop className="w-3.5 h-3.5" />
+                Equipo de Cliente
+            </span>
+        );
+    }
     const configs: Record<string, { color: string; icon: typeof CheckCircle2; label: string }> = {
         'VIGENTE': { color: 'bg-emerald-100 text-emerald-700 border-emerald-200', icon: CheckCircle2, label: 'Vigente' },
         'DEPRECIADO': { color: 'bg-amber-100 text-amber-700 border-amber-200', icon: TrendingDown, label: 'Depreciado' },
@@ -84,12 +105,12 @@ function Field({ label, value, mono, icon: Icon }: {
 }) {
     if (!value) return null;
     return (
-        <div className="flex flex-col gap-0.5">
-            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
+        <div className="flex flex-col gap-0.5 text-left">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 {Icon && <Icon className="w-3 h-3" />}
                 {label}
             </div>
-            <div className={`text-sm font-medium text-slate-800 ${mono ? 'font-mono' : ''}`}>
+            <div className={`text-xs font-semibold text-slate-800 ${mono ? 'font-mono' : ''}`}>
                 {value}
             </div>
         </div>
@@ -101,18 +122,19 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
     distribucion?: { idQr: string, serie?: string | null, area: string, stock: number, estatusContable: string }[] 
 }) {
     const router = useRouter();
+    const [downloadingReport, setDownloadingReport] = useState(false);
 
     const handleBack = () => {
         const hasHistory = typeof window !== 'undefined' && window.history.length > 1 && document.referrer && document.referrer.includes(window.location.host);
         if (hasHistory) {
             router.back();
         } else {
-            router.push('/');
+            router.push('/soporte');
         }
     };
 
     const handleClose = () => {
-        router.push('/');
+        router.push('/soporte');
     };
 
     useEffect(() => {
@@ -120,11 +142,10 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
         const hasHistory = typeof window !== 'undefined' && window.history.length > 1 && document.referrer && document.referrer.includes(window.location.host);
         
         if (!hasHistory) {
-            // Push dummy state so browser back button pops it instead of exiting the page/app
             window.history.pushState({ prevented: true }, '');
             
             const handlePopState = () => {
-                router.push('/');
+                router.push('/soporte');
             };
             
             window.addEventListener('popstate', handlePopState);
@@ -176,13 +197,28 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
         }
     }
 
+    const handleDownloadReport = async () => {
+        setDownloadingReport(true);
+        try {
+            // Invocar la descarga del PDF del historial
+            const reportUrl = `/api/pdf/${activo.id}?type=historial`;
+            window.open(reportUrl, '_blank');
+            toast.success("Generando reporte de historial...");
+        } catch (err) {
+            console.error(err);
+            toast.error("Error al descargar el informe histórico.");
+        } finally {
+            setDownloadingReport(false);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-start py-8 px-4">
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-start py-6 px-4">
 
             {/* Lightbox */}
             {lightbox && allImages.length > 0 && (
                 <div
-                    className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4"
+                    className="fixed inset-0 z-[250] bg-black/95 flex items-center justify-center p-4"
                     onClick={() => setLightbox(false)}
                 >
                     <button className="absolute top-4 right-4 p-3 text-white/70 hover:text-white bg-white/10 rounded-full transition-colors" onClick={() => setLightbox(false)}>
@@ -192,7 +228,7 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                     <img
                         src={allImages[lightboxIdx]}
                         alt="Vista ampliada"
-                        className="w-[600px] max-w-full h-auto max-h-[80vh] object-contain bg-white p-4 rounded-xl shadow-2xl"
+                        className="w-[600px] max-w-full h-auto max-h-[80vh] object-contain bg-white p-4 rounded-xl shadow-2xl animate-in zoom-in-95 duration-200"
                         onClick={e => e.stopPropagation()}
                     />
                     {allImages.length > 1 && (
@@ -209,11 +245,11 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                 </div>
             )}
 
-            {/* Card */}
-            <div className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden">
+            {/* Ficha Card */}
+            <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200">
 
                 {/* Header */}
-                <div className="relative bg-gradient-to-r from-blue-600 to-blue-800 px-6 py-6 text-white">
+                <div className="relative bg-gradient-to-r from-blue-700 to-indigo-800 px-6 py-6 text-white text-left">
                     {/* Navigation Actions */}
                     <div className="flex items-center justify-between mb-6">
                         <button
@@ -243,19 +279,19 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                     {/* ID QR */}
                     <div className="flex items-center gap-2 mb-3">
                         <div className="rounded-lg px-2.5 py-1">
-                            <span className="text-sm font-mono font-bold tracking-widest text-white">{activo.idQr}</span>
+                            <span className="text-sm font-mono font-black tracking-widest text-white">{activo.idQr}</span>
                         </div>
-                        <QrCode className="w-4 h-4 text-white/60" />
+                        <QrCode className="w-4 h-4 text-white/60 animate-pulse" />
                     </div>
 
                     {/* Asset name */}
-                    <h1 className="text-2xl font-bold leading-tight mb-3">{activo.descripcionCorta}</h1>
+                    <h1 className="text-2xl font-black leading-tight mb-3 tracking-tight">{activo.descripcionCorta}</h1>
 
                     {/* Status */}
                     <div className="flex items-center gap-2 flex-wrap">
-                        <EstatusBadge estatus={activo.estatusContable} />
+                        <EstatusBadge estatus={activo.estatusContable} esCliente={activo.esEquipoCliente} />
                         {hasDano && (
-                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-red-500/20 text-red-200 border border-red-400/30">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold bg-red-500/20 text-red-200 border border-red-450/30">
                                 <AlertTriangle className="w-3.5 h-3.5" />
                                 {activo.estadoDano}
                             </span>
@@ -269,7 +305,7 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
 
                 {/* Photo */}
                 {images.length > 0 && (
-                    <div className="relative bg-slate-900 h-56 overflow-hidden">
+                    <div className="relative bg-slate-950 h-64 overflow-hidden flex items-center justify-center border-b border-slate-100">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                             src={images[imgIdx]}
@@ -284,13 +320,13 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                             <>
                                 <button
                                     onClick={() => setImgIdx(i => (i - 1 + images.length) % images.length)}
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors cursor-pointer"
                                 >
                                     <ChevronLeft className="w-4 h-4" />
                                 </button>
                                 <button
                                     onClick={() => setImgIdx(i => (i + 1) % images.length)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-colors cursor-pointer"
                                 >
                                     <ChevronRight className="w-4 h-4" />
                                 </button>
@@ -304,14 +340,43 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                                 </div>
                             </>
                         )}
-                        <div className="absolute top-3 right-3 bg-black/50 text-white text-[10px] font-medium px-2 py-1 rounded-full backdrop-blur-sm">
-                            {imgIdx === 0 ? '📷 Foto del activo' : '🏷️ Placa / Número de serie'}
+                        <div className="absolute top-3 right-3 bg-black/60 text-white text-[9px] font-black px-2.5 py-1 rounded-full backdrop-blur-sm">
+                            {imgIdx === 0 ? '📷 Foto de Evidencia' : '🏷️ Placa Técnica / Serie'}
                         </div>
                     </div>
                 )}
 
                 {/* Body */}
-                <div className="px-6 py-6 space-y-6">
+                <div className="px-6 py-6 space-y-6 text-left">
+
+                    {/* Banner Cliente Externo (SI APLICA) */}
+                    {activo.esEquipoCliente && activo.cliente && (
+                        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
+                            <div>
+                                <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold uppercase px-2 py-0.5 rounded">Propietario Externo</span>
+                                <h3 className="text-sm font-black text-slate-800 mt-1 tracking-tight">{activo.cliente.nombre}</h3>
+                                {activo.cliente.telefono && <p className="text-xs text-slate-500 font-semibold mt-1">Teléfono: {activo.cliente.telefono}</p>}
+                                {activo.cliente.direccion && <p className="text-[11px] text-slate-450 leading-relaxed font-semibold mt-0.5">Ubicación: {activo.cliente.direccion}</p>}
+                            </div>
+                            <div className="flex flex-row sm:flex-col gap-2 shrink-0">
+                                <button
+                                    onClick={handleDownloadReport}
+                                    disabled={downloadingReport}
+                                    className="flex-1 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-[10px] font-black px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
+                                >
+                                    <Download className="w-3.5 h-3.5" />
+                                    Descargar PDF
+                                </button>
+                                <button
+                                    onClick={() => router.push(`/soporte/nuevo?activoId=${activo.id}&clienteId=${activo.cliente?.id}&clienteNombre=${encodeURIComponent(activo.cliente?.nombre || '')}&equipoDano=${encodeURIComponent(activo.descripcionCorta)}&marca=${encodeURIComponent(activo.marca || '')}&modelo=${encodeURIComponent(activo.modelo || '')}&serie=${encodeURIComponent(activo.serie || '')}`)}
+                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer shadow-blue-150"
+                                >
+                                    <Plus className="w-3.5 h-3.5" />
+                                    Generar ODT
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Descripción detallada */}
                     {activo.descripcionDetallada && (
@@ -320,19 +385,194 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                                 <FileText className="w-3 h-3" />
                                 Descripción Detallada
                             </div>
-                            <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{activo.descripcionDetallada}</p>
+                            <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap font-medium">{activo.descripcionDetallada}</p>
                         </div>
                     )}
 
-                    {/* Trazabilidad de Venta y Entrega */}
-                    {sale && (
+                    {/* Identificación Técnica */}
+                    <div>
+                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3.5 flex items-center gap-2">
+                            <div className="h-px flex-1 bg-slate-100" />
+                            Datos Técnicos del Activo
+                            <div className="h-px flex-1 bg-slate-100" />
+                        </h2>
+                        <div className="grid grid-cols-2 gap-4">
+                            <Field label="Marca / Modelo" value={[activo.marca, activo.modelo].filter(Boolean).join(" ") || "No especificado"} icon={Tag} />
+                            <Field label="Número de Serie" value={activo.serie || "Sin Serie"} mono icon={Hash} />
+                            {activo.codigoBarras && (
+                                <div className="col-span-2">
+                                    <Field label="Cód. Barras Fábrica" value={activo.codigoBarras} mono icon={Barcode} />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* TIMELINE HISTÓRICO DE MANTENIMIENTO (Soporte Técnico) */}
+                    {activo.ordenesTrabajo && activo.ordenesTrabajo.length > 0 && (
+                        <div className="animate-in fade-in duration-300">
+                            <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-5 flex items-center gap-2">
+                                <div className="h-px flex-1 bg-slate-100" />
+                                Historial de Servicios y ODTs ({activo.ordenesTrabajo.length})
+                                <div className="h-px flex-1 bg-slate-100" />
+                            </h2>
+
+                            <div className="relative border-l-2 border-slate-200 ml-4 space-y-6">
+                                {activo.ordenesTrabajo.map((orden, idx) => {
+                                    const task = orden.kanbanTasks?.[0];
+                                    const attachments = task?.attachments || [];
+                                    const comments = task?.comments || [];
+                                    
+                                    const statusColors: Record<string, string> = {
+                                        'RECIBIDO': 'bg-slate-100 text-slate-700 border-slate-200',
+                                        'EN_EVALUACION': 'bg-yellow-50 text-yellow-800 border-yellow-250',
+                                        'REPARACION': 'bg-blue-50 text-blue-800 border-blue-200',
+                                        'LISTO_ENTREGA': 'bg-emerald-50 text-emerald-800 border-emerald-250',
+                                        'ENTREGADO': 'bg-green-100 text-green-800 border-green-200',
+                                    };
+                                    
+                                    return (
+                                        <div key={orden.id} className="relative pl-6">
+                                            {/* Circulo indicador en la linea temporal */}
+                                            <div className="absolute -left-[7px] top-1.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-blue-600 shadow-sm" />
+                                            
+                                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 transition-all hover:border-slate-350">
+                                                
+                                                {/* Header ODT */}
+                                                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-2 mb-3">
+                                                    <div>
+                                                        <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded mr-2">
+                                                            #{orden.codigoSeguridad}
+                                                        </span>
+                                                        <span className="text-[10px] font-bold text-slate-400">
+                                                            {new Date(orden.fechaRecibido).toLocaleDateString()}
+                                                        </span>
+                                                    </div>
+                                                    <span className={`text-[9px] font-bold border rounded px-2 py-0.5 ${statusColors[orden.estado] || 'bg-slate-100 text-slate-700'}`}>
+                                                        {orden.estado}
+                                                    </span>
+                                                </div>
+
+                                                {/* Fallas y diagnósticos */}
+                                                <div className="space-y-2 text-xs">
+                                                    <div>
+                                                        <span className="block text-slate-450 font-bold text-[9px] uppercase tracking-wider">Reporte de Falla</span>
+                                                        <p className="text-slate-700 font-medium">{orden.descripcionFalla}</p>
+                                                    </div>
+                                                    {orden.diagnosticoTecnico && (
+                                                        <div className="border-t border-slate-200/50 pt-1.5">
+                                                            <span className="block text-slate-450 font-bold text-[9px] uppercase tracking-wider">Diagnóstico Técnico</span>
+                                                            <p className="text-slate-800 font-semibold">{orden.diagnosticoTecnico}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Componentes/Materiales Utilizados */}
+                                                {orden.repuestos && orden.repuestos.length > 0 && (
+                                                    <div className="mt-3 pt-2.5 border-t border-slate-200/50">
+                                                        <span className="block text-slate-450 font-bold text-[9px] uppercase tracking-wider mb-1.5">Materiales / Repuestos Utilizados</span>
+                                                        <div className="space-y-1">
+                                                            {orden.repuestos.map((rep: any) => (
+                                                                <div key={rep.id} className="flex justify-between text-[11px] font-bold text-slate-700 bg-white border border-slate-100 rounded px-2 py-1">
+                                                                    <span>{rep.descripcion}</span>
+                                                                    <span className="text-slate-500">x{rep.cantidad}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Evidencias multimedia (Fotos / Videos / Audios del Kanban) */}
+                                                {attachments.length > 0 && (
+                                                    <div className="mt-3 pt-2.5 border-t border-slate-200/50">
+                                                        <span className="block text-slate-450 font-bold text-[9px] uppercase tracking-wider mb-2">Adjuntos de Evidencia</span>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {attachments.map((att: any) => {
+                                                                const isImage = att.tipo?.startsWith('image/') || att.url?.match(/\.(jpeg|jpg|gif|png)$/i);
+                                                                const isVideo = att.tipo?.startsWith('video/') || att.url?.match(/\.(mp4|webm)$/i);
+                                                                const isAudio = att.tipo?.startsWith('audio/') || att.url?.match(/\.(mp3|wav|ogg)$/i);
+                                                                
+                                                                if (isImage) {
+                                                                    return (
+                                                                        <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="relative w-12 h-12 rounded-lg overflow-hidden border border-slate-200 hover:border-blue-500 transition-colors flex shrink-0">
+                                                                            <img src={att.url} alt={att.nombre} className="w-full h-full object-cover" />
+                                                                        </a>
+                                                                    );
+                                                                } else if (isVideo) {
+                                                                    return (
+                                                                        <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-lg border border-slate-200 hover:border-blue-500 transition-colors flex items-center justify-center bg-slate-900 text-white shrink-0" title={att.nombre}>
+                                                                            <Play className="w-5 h-5 text-indigo-400" />
+                                                                        </a>
+                                                                    );
+                                                                } else if (isAudio) {
+                                                                    return (
+                                                                        <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-lg border border-slate-200 hover:border-blue-500 transition-colors flex items-center justify-center bg-slate-100 text-slate-600 shrink-0" title={att.nombre}>
+                                                                            <Music className="w-5 h-5 text-emerald-500" />
+                                                                        </a>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <a key={att.id} href={att.url} target="_blank" rel="noopener noreferrer" className="w-12 h-12 rounded-lg border border-slate-200 hover:border-blue-500 transition-colors flex items-center justify-center bg-slate-200 text-slate-500 shrink-0" title={att.nombre}>
+                                                                        <Paperclip className="w-4 h-4" />
+                                                                    </a>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Comentarios del equipo (Jira/Slack style) */}
+                                                {comments.length > 0 && (
+                                                    <div className="mt-3 pt-2.5 border-t border-slate-200/50">
+                                                        <span className="block text-slate-450 font-bold text-[9px] uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                            <MessageSquare className="w-3 h-3" />
+                                                            Comentarios de Ejecución
+                                                        </span>
+                                                        <div className="space-y-1.5 max-h-40 overflow-y-auto no-scrollbar">
+                                                            {comments.map((com: any) => (
+                                                                <div key={com.id} className="bg-white border border-slate-100 rounded-lg p-2 text-[10px]">
+                                                                    <div className="flex items-center justify-between text-slate-400 font-bold mb-0.5">
+                                                                        <span>{com.usuario?.nombre || 'Técnico'}</span>
+                                                                        <span>{new Date(com.createdAt).toLocaleDateString()}</span>
+                                                                    </div>
+                                                                    <p className="text-slate-650 font-medium leading-relaxed">{com.contenido}</p>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                
+                                                {/* Técnicos Asignados */}
+                                                <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-450 font-bold">
+                                                    <span>Técnico Responsable:</span>
+                                                    <div className="flex -space-x-1.5 overflow-hidden">
+                                                        {orden.tecnicosAsignados && orden.tecnicosAsignados.length > 0 ? (
+                                                            orden.tecnicosAsignados.map((u: any) => (
+                                                                <div key={u.id} className="inline-block h-5 w-5 rounded-full ring-2 ring-slate-50 bg-blue-50 border border-blue-100 flex items-center justify-center text-[7px] text-blue-700 uppercase" title={u.nombre}>
+                                                                    {u.avatarUrl ? <img src={u.avatarUrl} alt={u.nombre} className="h-full w-full object-cover" /> : u.nombre[0]}
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <span className="text-slate-500 font-normal">Sin asignar</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Trazabilidad de Venta (SI NO ES EQUIPO CLIENTE Y TIENE VENTA) */}
+                    {!activo.esEquipoCliente && sale && (
                         <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 space-y-4">
                             <h2 className="text-xs font-bold text-blue-800 uppercase tracking-widest flex items-center gap-1.5 border-b border-blue-100 pb-2">
                                 <Building2 className="w-3.5 h-3.5 text-blue-600" />
                                 Trazabilidad de Venta y Entrega
                             </h2>
                             
-                            {/* Info Grid */}
                             <div className="grid grid-cols-2 gap-4 text-xs">
                                 <div>
                                     <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Orden de Entrega</span>
@@ -351,9 +591,6 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                                 <div className="col-span-2 border-t border-blue-100/50 pt-2">
                                     <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Cliente Cotizó</span>
                                     <span className="font-bold text-slate-800 text-sm block">{sale.cliente?.nombre || 'Cliente Particular'}</span>
-                                    {sale.cliente?.rtn && <span className="block text-slate-500 font-mono text-[11px] mt-0.5">RTN: {sale.cliente.rtn}</span>}
-                                    {sale.cliente?.telefono && <span className="block text-slate-500 text-[11px]">Tel: {sale.cliente.telefono}</span>}
-                                    {sale.cliente?.direccion && <span className="block text-slate-500 text-[11px] leading-relaxed mt-0.5">{sale.cliente.direccion}</span>}
                                 </div>
                                 
                                 {activo.garantia && (
@@ -362,88 +599,15 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                                             <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Garantía de Fábrica</span>
                                             <span className="font-bold text-emerald-700 text-sm">{activo.garantia} meses</span>
                                         </div>
-                                        {ordenEntrega?.aplicaMantenimientos && (
-                                            <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-1 rounded-md">
-                                                <Shield className="w-3 h-3" />
-                                                Garantía Activa
-                                            </span>
-                                        )}
                                     </div>
                                 )}
                             </div>
-                            
-                            {/* Evidence Photos */}
-                            {ordenEntrega?.evidenciaFotos && ordenEntrega.evidenciaFotos.length > 0 && (
-                                <div className="border-t border-blue-100/50 pt-3">
-                                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px] mb-2">Evidencias de Entrega (R2)</span>
-                                    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-200">
-                                        {ordenEntrega.evidenciaFotos.map((foto, i) => {
-                                            const combinedIndex = allImages.indexOf(foto);
-                                            return (
-                                                <button
-                                                    key={i}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setLightboxIdx(combinedIndex !== -1 ? combinedIndex : 0);
-                                                        setLightbox(true);
-                                                    }}
-                                                    className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-100 border border-slate-200 flex-shrink-0 hover:border-blue-500 transition-colors"
-                                                >
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    <img src={foto} alt={`Evidencia ${i + 1}`} className="w-full h-full object-cover" />
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
- 
-                            {/* Maintenance Calendar */}
-                            {ordenEntrega?.aplicaMantenimientos && maintenanceDates.length > 0 && (
-                                <div className="border-t border-blue-100/50 pt-3">
-                                    <span className="block text-slate-400 font-semibold uppercase tracking-wider text-[10px] mb-2">Calendario de Mantenimientos Preventivos</span>
-                                    <div className="space-y-2">
-                                        {maintenanceDates.map((m) => (
-                                            <div key={m.num} className="flex items-center justify-between bg-white/60 rounded-xl p-2.5 border border-slate-100">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="bg-blue-100 text-blue-700 rounded-lg p-1.5">
-                                                        <Calendar className="w-3.5 h-3.5" />
-                                                    </div>
-                                                    <div className="text-left">
-                                                        <span className="block text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">Mantenimiento #{m.num}</span>
-                                                        <span className="text-xs font-semibold text-slate-700">{m.date}</span>
-                                                    </div>
-                                                </div>
-                                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
-                                                    Programado
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
                         </div>
                     )}
-                    <div>
-                        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                            <div className="h-px flex-1 bg-slate-100" />
-                            Identificación
-                            <div className="h-px flex-1 bg-slate-100" />
-                        </h2>
-                        <div className="grid grid-cols-2 gap-4">
-                            <Field label="Modelo / Marca" value={activo.modelo} icon={Tag} />
-                            <Field label="Número de Serie" value={activo.serie} mono icon={Hash} />
-                            {activo.codigoBarras && (
-                                <div className="col-span-2">
-                                    <Field label="Cód. Barras Fábrica" value={activo.codigoBarras} mono icon={Barcode} />
-                                </div>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* Ubicación y Contabilidad */}
+                    {/* Ubicación Contable */}
                     <div>
-                        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3.5 flex items-center gap-2">
                             <div className="h-px flex-1 bg-slate-100" />
                             Ubicación y Clasificación
                             <div className="h-px flex-1 bg-slate-100" />
@@ -456,126 +620,24 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                                 <Field label="Cuenta Contable" value={activo.cuentaAct} icon={Layers} />
                             </div>
                             <Field label="Responsable / Custodio" value={activo.responsable} icon={User} />
-                            {activo.integrado && (
-                                <div className="flex flex-col gap-0.5">
-                                    <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tipo</div>
-                                    <span className="inline-flex items-center gap-1 text-sm font-medium text-blue-600">
-                                        <Shield className="w-3.5 h-3.5" />
-                                        Activo Integrado
-                                    </span>
-                                </div>
-                            )}
                         </div>
                     </div>
-
-                    {/* Fechas */}
-                    {(fecha(activo.fechaAdq) || fecha(activo.fechaLevantamiento)) && (
-                        <div>
-                            <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                <div className="h-px flex-1 bg-slate-100" />
-                                Fechas
-                                <div className="h-px flex-1 bg-slate-100" />
-                            </h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                <Field label="Fecha de Adquisición" value={fecha(activo.fechaAdq)} icon={Calendar} />
-                                <Field label="Levantamiento" value={fecha(activo.fechaLevantamiento)} icon={Calendar} />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Estado físico (si aplica) */}
-                    {(hasDano || activo.tipoIncidencia || activo.accionRecomendada) && (
-                        <div className="bg-red-50 border border-red-200 rounded-2xl p-4">
-                            <h2 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                                <AlertTriangle className="w-3.5 h-3.5" />
-                                Estado / Incidencia Reportada
-                            </h2>
-                            <div className="grid grid-cols-2 gap-4">
-                                {activo.estadoDano && (
-                                    <div>
-                                        <div className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-0.5">Estado</div>
-                                        <div className="text-sm font-semibold text-red-700">{activo.estadoDano}</div>
-                                    </div>
-                                )}
-                                {activo.tipoIncidencia && (
-                                    <div>
-                                        <div className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-0.5">Incidencia</div>
-                                        <div className="text-sm font-medium text-red-700">{activo.tipoIncidencia}</div>
-                                    </div>
-                                )}
-                                {activo.accionRecomendada && (
-                                    <div className="col-span-2">
-                                        <div className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-0.5">Acción Recomendada</div>
-                                        <div className="text-sm font-medium text-red-700">{activo.accionRecomendada}</div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Distribucion de Inventario Físico */}
-                    {distribucion && distribucion.length > 0 && (
-                        <div className="bg-emerald-50 border border-emerald-100 rounded-2xl p-4">
-                            <h2 className="text-xs font-bold text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-1.5">
-                                <Package className="w-3.5 h-3.5" />
-                                Existencias Físicas ({distribucion.length > 1 ? 'Múltiples unidades' : 'Unidad única'})
-                            </h2>
-                            <div className="flex flex-col gap-3">
-                                {Object.entries(groupedDistribucion).map(([area, data], i) => (
-                                    <div key={i} className="bg-white border border-emerald-200 rounded-xl overflow-hidden shadow-sm">
-                                        <div className="flex items-center justify-between px-3 py-2 bg-emerald-100/30 border-b border-emerald-100/50">
-                                            <div className="flex items-center gap-2 text-emerald-800 text-sm font-bold">
-                                                <MapPin className="w-4 h-4 text-emerald-600" />
-                                                {area}
-                                            </div>
-                                            <span className="bg-emerald-100 text-emerald-800 rounded-md px-2 py-0.5 text-xs font-black">
-                                                {data.stockTotal} ud.
-                                            </span>
-                                        </div>
-                                        <div className="px-3 py-2 flex flex-col gap-1.5">
-                                            {data.items.map((item, idx) => (
-                                                <div key={idx} className={`flex items-center justify-between text-xs font-medium ${item.idQr === activo.idQr ? 'text-blue-600 bg-blue-50 px-2 py-1 -mx-2 rounded' : 'text-slate-600'}`}>
-                                                    <div className="flex items-center gap-2">
-                                                        <QrCode className="w-3 h-3 opacity-60" />
-                                                        <span>{item.idQr}</span>
-                                                        {item.idQr === activo.idQr && <span className="bg-blue-200 text-blue-800 text-[9px] uppercase px-1.5 py-0.5 rounded-sm font-bold">Actual</span>}
-                                                    </div>
-                                                    {item.serie && (
-                                                        <div className="flex items-center gap-1 font-mono text-slate-500">
-                                                            <Hash className="w-3 h-3" />
-                                                            {item.serie}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <div className="mt-4 pt-3 border-t border-emerald-200/50 flex justify-between items-center text-xs font-bold text-emerald-800">
-                                <span className="uppercase tracking-widest">Total Global en Institución:</span>
-                                <span className="text-sm bg-emerald-600 text-white px-2.5 py-0.5 rounded-md shadow-sm">
-                                    {distribucion.reduce((acc, d) => acc + (d.stock || 0), 0)}
-                                </span>
-                            </div>
-                        </div>
-                    )}
 
                     {/* Observaciones */}
                     {activo.observaciones && (
                         <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4">
                             <div className="text-xs font-bold text-amber-500 uppercase tracking-wider mb-1.5">Observaciones</div>
-                            <p className="text-sm text-amber-800 whitespace-pre-wrap">{activo.observaciones}</p>
+                            <p className="text-xs text-amber-800 whitespace-pre-wrap font-medium">{activo.observaciones}</p>
                         </div>
                     )}
                 </div>
 
                 {/* Footer */}
                 <div className="px-6 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                    <div className="text-xs text-slate-400">
+                    <div className="text-xs text-slate-405 font-bold">
                         Registrado: {fecha(activo.createdAt)}
                     </div>
-                    <div className="flex items-center gap-1.5 text-sm font-semibold text-blue-600">
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-blue-600">
                         <Building2 className="w-4 h-4" />
                         bioelectronicahn.com
                     </div>
@@ -583,8 +645,8 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
             </div>
 
             {/* Sub-brand */}
-            <p className="mt-6 text-xs text-slate-400 text-center">
-                Inventario Comercial · Bioelectrónica Honduras
+            <p className="mt-6 text-xs text-slate-400 text-center font-medium">
+                Inventario Comercial & Taller · Bioelectrónica Honduras
             </p>
         </div>
     );

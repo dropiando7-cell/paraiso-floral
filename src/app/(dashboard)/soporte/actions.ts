@@ -78,6 +78,9 @@ export async function createOrdenTrabajo(data: {
     garantiaMeses?: number;
     frecuenciaMantenimientoMeses?: number;
     cantidadMantenimientos?: number;
+    activoId?: string;
+    tipoOrden?: string;
+    requiereAprobacion?: boolean;
 }) {
     const orgId = await getOrgId();
 
@@ -125,6 +128,9 @@ export async function createOrdenTrabajo(data: {
 
     const firstTecnicoId = data.tecnicoIds?.[0] || null;
 
+    const requiereAprobacion = data.requiereAprobacion !== false;
+    const estadoInicial = requiereAprobacion ? 'RECIBIDO' : 'REPARACION';
+
     const orden = await prisma.ordenTrabajo.create({
         data: {
             organizationId: orgId,
@@ -141,7 +147,7 @@ export async function createOrdenTrabajo(data: {
             costoRevision,
             metodoPagoRevision,
             cajaSessionId,
-            estado: 'RECIBIDO',
+            estado: estadoInicial,
             usuarioRecepcionId: data.usuarioRecepcionId || null,
             tecnicoReparacionId: firstTecnicoId,
             fechaRecibido: data.fechaRecibido ? new Date(data.fechaRecibido) : new Date(),
@@ -152,6 +158,9 @@ export async function createOrdenTrabajo(data: {
             garantiaMeses: data.garantiaMeses ? parseInt(data.garantiaMeses.toString()) : null,
             frecuenciaMantenimientoMeses: data.frecuenciaMantenimientoMeses ? parseInt(data.frecuenciaMantenimientoMeses.toString()) : 3,
             cantidadMantenimientos: data.cantidadMantenimientos ? parseInt(data.cantidadMantenimientos.toString()) : null,
+            activoId: data.activoId || null,
+            tipoOrden: data.tipoOrden || 'TALLER',
+            requiereAprobacion: requiereAprobacion,
         },
         include: { cliente: true }
     });
@@ -316,6 +325,14 @@ export async function createOrdenTrabajo(data: {
         }
     } catch (kanbanErr) {
         console.error("[Kanban Sync Error]: No se pudo auto-crear la tarea en Kanban:", kanbanErr);
+    }
+
+    if (!requiereAprobacion) {
+        try {
+            await syncKanbanStatus(orden.id, 'REPARACION', data.usuarioRecepcionId);
+        } catch (syncErr) {
+            console.error("[Kanban Sync Error in quick flow]:", syncErr);
+        }
     }
 
     // Notificar a los técnicos asignados sobre el nuevo trabajo
@@ -1580,6 +1597,130 @@ export async function syncMantenimientosDesdeOrdenTrabajo(ordenId: string) {
         console.error("Error in syncMantenimientosDesdeOrdenTrabajo:", err);
     }
 }
+
+export async function crearEquipoClienteAction(data: {
+    clienteId: string;
+    nombre: string;
+    marca?: string | null;
+    modelo?: string | null;
+    serie?: string | null;
+    idQr?: string | null;
+    observaciones?: string | null;
+    createdById?: string | null;
+}) {
+    try {
+        const orgId = await getOrgId();
+        
+        const finalIdQr = data.idQr?.trim() || `EQ-${randomBytes(4).toString('hex').toUpperCase()}`;
+
+        // Verificar duplicados de idQr
+        const duplicate = await prisma.activoFijo.findFirst({
+            where: {
+                organizationId: orgId,
+                idQr: finalIdQr
+            }
+        });
+
+        if (duplicate) {
+            return { success: false, error: `Ya existe un equipo/activo registrado con el QR ${finalIdQr}` };
+        }
+
+        const newAsset = await prisma.activoFijo.create({
+            data: {
+                organizationId: orgId,
+                idQr: finalIdQr,
+                descripcionCorta: data.nombre.trim(),
+                marca: data.marca?.trim() || null,
+                modelo: data.modelo?.trim() || null,
+                serie: data.serie?.trim() || null,
+                observaciones: data.observaciones?.trim() || null,
+                area: 'Clientes Externos',
+                cuentaAct: 'Activo de Cliente',
+                esEquipoCliente: true,
+                clienteId: data.clienteId,
+                createdById: data.createdById || null
+            }
+        });
+
+        // Crear una entrada en EquipoCliente para sincronización con el módulo de mantenimientos previos si es necesario
+        try {
+            await prisma.equipoCliente.create({
+                data: {
+                    organizationId: orgId,
+                    clienteId: data.clienteId,
+                    activoFijoId: newAsset.id,
+                    nombre: data.nombre.trim(),
+                    marca: data.marca?.trim() || null,
+                    modelo: data.modelo?.trim() || null,
+                    serie: data.serie?.trim() || null,
+                    codigoEtiqueta: finalIdQr
+                }
+            });
+        } catch (eqErr) {
+            console.error("Error creating mirrored EquipoCliente record:", eqErr);
+        }
+
+        revalidatePath('/soporte');
+        return { success: true, asset: newAsset };
+    } catch (e: any) {
+        console.error("Error creating client equipment asset:", e);
+        return { success: false, error: e.message || "Error al crear el equipo de cliente" };
+    }
+}
+
+export async function crearClienteAction(data: {
+    nombre: string;
+    rtn?: string | null;
+    telefono?: string | null;
+    email?: string | null;
+    direccion?: string | null;
+    notas?: string | null;
+    nombreContacto?: string | null;
+    telefonoContacto?: string | null;
+}) {
+    try {
+        const orgId = await getOrgId();
+        
+        const cleanNombre = data.nombre.trim();
+
+        // Verificar duplicado por nombre
+        const existing = await prisma.cliente.findFirst({
+            where: {
+                organizationId: orgId,
+                nombre: {
+                    equals: cleanNombre,
+                    mode: 'insensitive'
+                }
+            }
+        });
+
+        if (existing) {
+            return { success: false, error: `Ya existe un cliente con el nombre "${cleanNombre}"` };
+        }
+
+        const newCliente = await prisma.cliente.create({
+            data: {
+                organizationId: orgId,
+                nombre: cleanNombre,
+                rtn: data.rtn?.trim() || null,
+                telefono: data.telefono?.trim() || null,
+                email: data.email?.trim() || null,
+                direccion: data.direccion?.trim() || null,
+                notas: data.notas?.trim() || null,
+                nombreContacto: data.nombreContacto?.trim() || null,
+                telefonoContacto: data.telefonoContacto?.trim() || null,
+            }
+        });
+
+        revalidatePath('/soporte');
+        return { success: true, cliente: newCliente };
+    } catch (e: any) {
+        console.error("Error creating cliente:", e);
+        return { success: false, error: e.message || "Error al crear el cliente" };
+    }
+}
+
+
 
 
 

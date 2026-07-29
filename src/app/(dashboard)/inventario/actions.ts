@@ -785,7 +785,9 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
         // ── Retail fields ──
         codigoBarras,
         stock: cantidadRegistros,
-        esParaRenta
+        esParaRenta,
+        esEquipoCliente: formData.get('esEquipoCliente') === 'true',
+        clienteId: (formData.get('clienteId') as string) || null
     };
 
     // ── Master-Data Integrity Constraint ──
@@ -881,6 +883,26 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
         }
     }
 
+    if (formData.get('esEquipoCliente') === 'true' && firstCreatedId) {
+        const cId = formData.get('clienteId') as string;
+        try {
+            await prisma.equipoCliente.create({
+                data: {
+                    organizationId: orgId,
+                    clienteId: cId,
+                    activoFijoId: firstCreatedId,
+                    nombre: (formData.get('descripcionCorta') as string || '').trim(),
+                    marca: (formData.get('marca') as string || '').trim() || null,
+                    modelo: (formData.get('modelo') as string || '').trim() || null,
+                    serie: (formData.get('serie') as string || '').trim() || null,
+                    codigoEtiqueta: finalIdQrs[0]
+                }
+            });
+        } catch (eqErr) {
+            console.error("Error creating mirrored EquipoCliente record in createActivo:", eqErr);
+        }
+    }
+
     revalidatePath('/inventario');
 
     return { success: true, idQr: finalIdQrs[0], id: firstCreatedId, count: cantidadRegistros };
@@ -970,6 +992,8 @@ export async function updateActivo(id: string, formData: FormData): Promise<{ su
                 valorLibros: deprec?.valorLibros ?? null,
                 // ── Retail fields ──
                 codigoBarras: (formData.get('codigoBarras') as string) || null,
+                esEquipoCliente: formData.get('esEquipoCliente') === 'true',
+                clienteId: (formData.get('clienteId') as string) || null
             },
         });
 
