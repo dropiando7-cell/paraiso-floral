@@ -323,7 +323,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         telefonoContacto: (doc.cliente as any).telefonoContacto || '',
       } : null,
       nombreUsuario: (doc.creadoPor ? [doc.creadoPor.nombre, doc.creadoPor.apellido].filter(Boolean).join(' ') : null) || (doc as any).nombreUsuario || (doc as any).creadoPor?.email || 'Sistema',
-      paymentTerms: doc.terminosPago || '30 días netos',
+      paymentTerms: doc.terminosPago || 'Pago inmediato',
       paymentMethod: doc.metodoPago || 'Efectivo',
       docType: resolvedDocType,
       notes: cleanEmojis(doc.notas || ''),

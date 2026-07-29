@@ -50,4 +50,5 @@ export interface TemplateProps {
   fmt: (n: number) => string;
   LineItemRowComponent: React.FC<any>;
   setSettings?: React.Dispatch<React.SetStateAction<InvoiceSettings>>;
+  onToggleTerms?: (enabled: boolean) => void;
 }

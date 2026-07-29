@@ -11,7 +11,8 @@ export default function MinimalistTemplate(props: TemplateProps) {
  paymentMethod, setPaymentMethod,
  validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
  handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
- notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode
+ notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode,
+ onToggleTerms
  } = props;
 
  const fontClass = settings.fontFamily || 'font-sans';
@@ -205,7 +206,26 @@ export default function MinimalistTemplate(props: TemplateProps) {
  {/* Footer Minimal */}
  <div className="pt-8 print:pt-1 print:flex print:break-inside-avoid">
  <div className="flex-1 print:float-left print:w-[50%]">
- <p className="text-[10px] text-slate-400 uppercase mb-2">Notas</p>
+  <div className="flex items-center justify-between mb-2 print:hidden">
+    <p className="text-[10px] text-slate-400 uppercase">Notas</p>
+    {!viewMode && (
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-slate-400 font-normal">Notas predeterminadas</span>
+        <button
+          type="button"
+          onClick={() => onToggleTerms?.(!settings.showTerms)}
+          className={`w-8 h-4 rounded-full transition-colors relative shrink-0 focus:outline-none ${
+            settings.showTerms ? 'bg-blue-600' : 'bg-slate-300'
+          }`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform ${
+            settings.showTerms ? 'translate-x-4' : 'translate-x-0'
+          }`} />
+        </button>
+      </div>
+    )}
+  </div>
+  <p className="text-[10px] text-slate-400 uppercase mb-2 hidden print:block">Notas</p>
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}

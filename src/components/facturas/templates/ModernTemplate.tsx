@@ -11,7 +11,8 @@ export default function ModernTemplate(props: TemplateProps) {
  paymentMethod, setPaymentMethod,
  validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
  handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
- notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode, nombreUsuario
+ notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode, nombreUsuario,
+ onToggleTerms
  } = props;
 
  // Derive dynamic classes from settings
@@ -254,7 +255,26 @@ export default function ModernTemplate(props: TemplateProps) {
 
  {/* Notes */}
  <div className="px-5 pb-5 print:pb-1">
- <p className="text-[10px] font-bold text-slate-400 uppercase mb-2">Notas y Condiciones</p>
+  <div className="flex items-center justify-between mb-2 print:hidden">
+    <p className="text-[10px] font-bold text-slate-400 uppercase">Notas y Condiciones</p>
+    {!viewMode && (
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-slate-400 font-normal">Notas predeterminadas</span>
+        <button
+          type="button"
+          onClick={() => onToggleTerms?.(!settings.showTerms)}
+          className={`w-8 h-4 rounded-full transition-colors relative shrink-0 focus:outline-none ${
+            settings.showTerms ? 'bg-blue-600' : 'bg-slate-300'
+          }`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform ${
+            settings.showTerms ? 'translate-x-4' : 'translate-x-0'
+          }`} />
+        </button>
+      </div>
+    )}
+  </div>
+  <p className="text-[10px] font-bold text-slate-400 uppercase mb-2 hidden print:block">Notas y Condiciones</p>
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}

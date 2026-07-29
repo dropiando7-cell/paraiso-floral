@@ -11,7 +11,8 @@ export default function LegacyTemplate(props: TemplateProps) {
  validityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
  handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
  notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent,
- setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode, fechaEmision
+ setShowClientModal, docTypeStatusConfig, setValidityDays, setPaymentTerms, viewMode, fechaEmision,
+ onToggleTerms
  } = props;
 
  const colorMap: Record<string, { bgDark: string, border: string, text: string }> = {
@@ -274,7 +275,26 @@ export default function LegacyTemplate(props: TemplateProps) {
  {/* Notes section left */}
  <div className="flex-1 print:w-[400px] mt-auto">
  <div className="text-sm">
- <p className="font-bold mb-1 text-xs">Nota / Plazo de pago:</p>
+  <div className="flex items-center justify-between mb-1 print:hidden">
+    <p className="font-bold text-xs">Nota / Plazo de pago:</p>
+    {!viewMode && (
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-slate-400 font-normal">Notas predeterminadas</span>
+        <button
+          type="button"
+          onClick={() => onToggleTerms?.(!settings.showTerms)}
+          className={`w-8 h-4 rounded-full transition-colors relative shrink-0 focus:outline-none ${
+            settings.showTerms ? 'bg-blue-600' : 'bg-slate-300'
+          }`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform ${
+            settings.showTerms ? 'translate-x-4' : 'translate-x-0'
+          }`} />
+        </button>
+      </div>
+    )}
+  </div>
+  <p className="font-bold mb-1 text-xs hidden print:block">Nota / Plazo de pago:</p>
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}

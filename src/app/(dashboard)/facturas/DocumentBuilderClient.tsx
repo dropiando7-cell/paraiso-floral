@@ -1326,9 +1326,9 @@ export default function DocumentBuilderClient({
     if (organization?.invoiceSettings) {
       const orgSettings = { ...organization.invoiceSettings };
       delete orgSettings.roundAdjustment;
-      return { ...DEFAULT_INVOICE_SETTINGS, ...orgSettings };
+      return { ...DEFAULT_INVOICE_SETTINGS, ...orgSettings, showTerms: false };
     }
-    return DEFAULT_INVOICE_SETTINGS;
+    return { ...DEFAULT_INVOICE_SETTINGS, showTerms: false };
   });
 
   const [activeLibraryType, setActiveLibraryType] = useState<'signature' | 'seal' | null>(null);
@@ -1468,6 +1468,15 @@ export default function DocumentBuilderClient({
       return `${prev}\n\n${compiledTerms}`;
     });
     toast.success("Términos aplicados al campo de Notas");
+  };
+
+  const handleToggleTerms = (enabled: boolean) => {
+    const nextSettings = { ...settings, showTerms: enabled };
+    setSettings(nextSettings);
+    handleSaveTemplateSettings(nextSettings);
+    if (enabled) {
+      handleApplyTerms(nextSettings);
+    }
   };
 
   const isAnulada = initialData?.estado === 'ANULADA';
@@ -1762,15 +1771,15 @@ export default function DocumentBuilderClient({
           const tSettings = typeof initialData.templateSettings === 'string'
             ? JSON.parse(initialData.templateSettings)
             : initialData.templateSettings;
-          setSettings(prev => ({ ...prev, ...tSettings }));
+          setSettings(prev => ({ ...prev, ...tSettings, showTerms: false }));
         } else {
           const saved = localStorage.getItem('bea_invoice_template_settings');
           if (saved) {
             const parsed = JSON.parse(saved);
             delete parsed.roundAdjustment;
-            setSettings(prev => ({ ...prev, ...parsed, roundAdjustment: undefined }));
+            setSettings(prev => ({ ...prev, ...parsed, showTerms: false, roundAdjustment: undefined }));
           } else {
-            setSettings(prev => ({ ...prev, roundAdjustment: undefined }));
+            setSettings(prev => ({ ...prev, showTerms: false, roundAdjustment: undefined }));
           }
         }
       } catch (e) {
@@ -1784,10 +1793,10 @@ export default function DocumentBuilderClient({
           const tSettings = typeof initialData.templateSettings === 'string'
             ? JSON.parse(initialData.templateSettings)
             : initialData.templateSettings;
-          setSettings(prev => ({ ...prev, ...tSettings }));
+          setSettings(prev => ({ ...prev, ...tSettings, showTerms: false }));
         } catch (e) {}
       } else {
-        setSettings(prev => ({ ...prev, roundAdjustment: undefined }));
+        setSettings(prev => ({ ...prev, showTerms: false, roundAdjustment: undefined }));
       }
       setIsLoaded(true);
     }
@@ -1875,6 +1884,45 @@ export default function DocumentBuilderClient({
     }
   };
 
+  const handleSilentSave = async () => {
+    const docId = reservedDocId || initialData?.id;
+    if (!docId || docId === 'nuevo' || effectiveViewMode) return;
+    try {
+      const validItems = lineItems.filter((i, index) => {
+        if (index === lineItems.length - 1 && !i.shortDesc && !i.code && Number(i.unitPrice) === 0) return false;
+        return true;
+      });
+      const savePayload = {
+        clienteId: selectedClient?.id,
+        tipoDocumento: docType === 'cotizacion' ? 'COTIZACION' : 
+                       docType === 'proforma' ? 'PROFORMA' : 
+                       docType === 'nota_credito' ? 'NOTA_CREDITO' : 
+                       docType === 'presupuesto_reparacion' ? 'PRESUPUESTO_REPARACION' :
+                       docType === 'presupuesto_mantenimiento' ? 'PRESUPUESTO_MANTENIMIENTO' :
+                       'FACTURA',
+        notas: notes,
+        terminosPago: paymentTerms,
+        metodoPago: paymentMethod,
+        validezDias: validityDays,
+        subTotal: totals.subtotal,
+        descuentos: totals.descuentos,
+        totalExento: totals.exento,
+        totalExonerado: totals.exonerado,
+        totalGravado15: totals.gravado15,
+        isv15: totals.isv15,
+        totalGravado18: totals.gravado18,
+        isv18: totals.isv18,
+        total: totals.total,
+        templateSettings: settings,
+        documentoOrigenId: isNotaCredito ? initialData?.id : undefined,
+        ordenTrabajoId: initialData?.ordenTrabajoId || searchParams.get('ordenTrabajoId') || undefined
+      };
+      await actualizarDocumentoBuilder(docId, savePayload, validItems);
+    } catch (err) {
+      console.error('Error in silent save:', err);
+    }
+  };
+
   // PDF Download handler
   const handleDownloadPDF = async (pdfType: 'factura' | 'entrega' | 'garantia' = 'factura') => {
     const container = templateContainerRef.current;
@@ -1889,6 +1937,9 @@ export default function DocumentBuilderClient({
       toast.error('Debes GUARDAR EL DOCUMENTO antes de poder exportarlo en formato PDF.');
       return;
     }
+
+    // Guardar cambios silenciosamente antes de descargar
+    await handleSilentSave();
 
     if (pdfType === 'entrega' || pdfType === 'garantia') {
       window.open(`/api/pdf/${docId}?type=${pdfType}`, '_blank');
@@ -2809,6 +2860,7 @@ export default function DocumentBuilderClient({
             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
             LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
             setSettings={setSettings}
+            onToggleTerms={handleToggleTerms}
           />}
           {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -2825,6 +2877,7 @@ export default function DocumentBuilderClient({
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
              setSettings={setSettings}
+             onToggleTerms={handleToggleTerms}
           />}
           {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -2841,6 +2894,7 @@ export default function DocumentBuilderClient({
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
              setSettings={setSettings}
+             onToggleTerms={handleToggleTerms}
           />}
           {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
              settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
@@ -2857,6 +2911,7 @@ export default function DocumentBuilderClient({
              setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
              LineItemRowComponent={LineItemRow} viewMode={effectiveViewMode} clienteSignature={clienteSignaturePayload}
              setSettings={setSettings}
+             onToggleTerms={handleToggleTerms}
           />}
           </div>
 
@@ -4159,7 +4214,8 @@ export default function DocumentBuilderClient({
           onToggleCustomizer={() => setShowCustomizer(!showCustomizer)}
           onShowOrdenEntrega={() => setShowOrdenEntregaPanel(true)}
           onConvert={(!isLocked && !isAnulada && !isConvertida && initialData?.id) ? handleConvert : undefined}
-          onSendEmail={initialData?.id ? () => {
+          onSendEmail={initialData?.id ? async () => {
+            await handleSilentSave();
             setSendEmailDocId(initialData.id);
             setSendEmailModalOpen(true);
           } : undefined}

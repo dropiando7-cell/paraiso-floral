@@ -1012,7 +1012,7 @@ export async function convertirDocumento(
                     cajaSessionId,
                     ordenTrabajoId: doc.ordenTrabajoId || null,
                     notas: doc.notas,
-                    terminosPago: doc.terminosPago || '30 días netos',
+                    terminosPago: doc.terminosPago || 'Pago inmediato',
                     detalles: {
                         create: doc.detalles.map((d) => ({
                             descripcion: d.descripcion,

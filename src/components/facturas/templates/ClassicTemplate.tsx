@@ -11,7 +11,8 @@ export default function ClassicTemplate(props: TemplateProps) {
  paymentMethod, setPaymentMethod,
  validityDays, setValidityDays, lineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
  handleToggleLongDesc, allProducts, emptyLine, emptySectionLine, setLineItems, setShowProductModal,
- notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode
+ notes, setNotes, totals, handleSave, isSaving, fmt, LineItemRowComponent, viewMode,
+ onToggleTerms
  } = props;
 
  const fontClass = settings.fontFamily || 'font-serif';
@@ -250,7 +251,26 @@ export default function ClassicTemplate(props: TemplateProps) {
  <div className="pt-6 print:pt-1 border-t border-slate-300 print:flex print:break-inside-avoid">
  {/* Notes */}
  <div className="flex-1 print:float-left print:w-[50%]">
- <h3 className="text-xs font-bold uppercase mb-2 border-b border-slate-200 pb-1">Términos y Condiciones</h3>
+  <div className="flex items-center justify-between mb-2 border-b border-slate-200 pb-1 print:hidden">
+    <h3 className="text-xs font-bold uppercase">Términos y Condiciones</h3>
+    {!viewMode && (
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] text-slate-400 font-normal normal-case">Notas predeterminadas</span>
+        <button
+          type="button"
+          onClick={() => onToggleTerms?.(!settings.showTerms)}
+          className={`w-8 h-4 rounded-full transition-colors relative shrink-0 focus:outline-none ${
+            settings.showTerms ? 'bg-blue-600' : 'bg-slate-300'
+          }`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transform transition-transform ${
+            settings.showTerms ? 'translate-x-4' : 'translate-x-0'
+          }`} />
+        </button>
+      </div>
+    )}
+  </div>
+  <h3 className="text-xs font-bold uppercase mb-2 border-b border-slate-200 pb-1 hidden print:block">Términos y Condiciones</h3>
  <textarea
  value={notes}
  onChange={e => setNotes(e.target.value)}
