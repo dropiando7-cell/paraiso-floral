@@ -420,6 +420,8 @@ type Activo = {
     mantenimientosIncluidos?: number | null;
     frecuenciaMantenimientoMeses?: number | null;
     stock?: number;
+    esEquipoCliente?: boolean;
+    clienteId?: string | null;
 };
 
 const CATEGORIAS_DEPRECIACION = [
@@ -944,7 +946,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
         try {
             const res = await crearClienteAction(newClienteData);
 
-            if (res.success) {
+            if (res.success && res.cliente) {
                 toast.success("Cliente registrado exitosamente.");
                 const newCli = res.cliente;
                 setClientesList(prev => [...prev, newCli].sort((a, b) => a.nombre.localeCompare(b.nombre)));

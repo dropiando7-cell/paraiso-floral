@@ -154,13 +154,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }
 
       // Convert local logo file to base64 Data URI
-      const logoPath = path.join(process.cwd(), 'public', 'logo-bioelectronica-jpg' || 'logo-bioelectronica.jpg');
-      const logoAlternativePath = path.join(process.cwd(), 'public', 'logo-bioelectronica.jpg');
+      const logoPath = path.join(process.cwd(), 'public', 'logo-bioelectronica.jpg');
       let logoBase64 = '';
       try {
-        const targetPath = fs.existsSync(logoAlternativePath) ? logoAlternativePath : logoPath;
-        if (fs.existsSync(targetPath)) {
-          const logoBuffer = fs.readFileSync(targetPath);
+        if (fs.existsSync(logoPath)) {
+          const logoBuffer = fs.readFileSync(logoPath);
           logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
         }
       } catch (err) {

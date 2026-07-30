@@ -243,7 +243,7 @@ export default function SoporteClient({
         try {
             const res = await crearClienteAction(newClienteData);
 
-            if (res.success) {
+            if (res.success && res.cliente) {
                 toast.success("Cliente registrado exitosamente.");
                 const newCli = res.cliente;
                 setClientesList(prev => [...prev, newCli].sort((a, b) => a.nombre.localeCompare(b.nombre)));

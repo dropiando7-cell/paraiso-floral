@@ -177,7 +177,10 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
             aplicaMantenimientos: false,
             garantiaMeses: "",
             frecuenciaMantenimientoMeses: "3",
-            cantidadMantenimientos: ""
+            cantidadMantenimientos: "",
+            activoId: "",
+            tipoOrden: "TALLER",
+            requiereAprobacion: true
           });
           setPhotos([]);
       }, 3000);
