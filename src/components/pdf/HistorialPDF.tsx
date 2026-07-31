@@ -456,7 +456,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
             const comments = task?.comments || [];
 
             return (
-              <View key={orden.id} style={styles.odtCard}>
+              <View key={orden.id} style={styles.odtCard} wrap={false}>
                 {/* ODT Header */}
                 <View style={styles.odtHeader}>
                   <Text style={styles.odtCode}>Orden #{orden.codigoSeguridad}</Text>
