@@ -3063,7 +3063,16 @@ function DeleteConfirm({ activo, onClose, onSuccess }: { activo: Activo; onClose
                 </div>
                 <p className="text-sm text-slate-600 mb-6">¿Estás seguro que deseas eliminar <strong>{activo.descripcionCorta}</strong>? Esta acción no se puede deshacer.</p>
                 <div className="flex flex-col gap-3">
-                    <button onClick={() => startTransition(async () => { await deleteActivo(activo.id); onSuccess(); onClose(); })}
+                    <button onClick={() => startTransition(async () => {
+                        const res = await deleteActivo(activo.id);
+                        if (res && !res.success) {
+                            toast.error(res.error || 'Error al eliminar el activo');
+                        } else {
+                            toast.success('Activo de renta eliminado correctamente');
+                            onSuccess();
+                            onClose();
+                        }
+                    })}
                         disabled={isPending}
                         className="flex items-center justify-center gap-2 text-base font-bold bg-red-600 text-white rounded-2xl py-4 hover:bg-red-700 active:scale-[0.98] transition-all disabled:opacity-60">
                         {isPending && <Loader2 className="w-5 h-5 animate-spin" />} Sí, eliminar

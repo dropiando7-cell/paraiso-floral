@@ -1007,10 +1007,46 @@ export async function updateActivo(id: string, formData: FormData): Promise<{ su
 
 // ─── DELETE ──────────────────────────────────────────────────────────────────
 export async function deleteActivo(id: string) {
-    const orgId = await getOrgId();
-    await prisma.activoFijo.deleteMany({ where: { id, organizationId: orgId } });
-    revalidatePath('/inventario');
-    return { success: true };
+    try {
+        const orgId = await getOrgId();
+        
+        await prisma.$transaction(async (tx) => {
+            // 1. Set references to null in DetalleFactura (optional relation)
+            await tx.detalleFactura.updateMany({
+                where: { activoId: id },
+                data: { activoId: null }
+            });
+
+            // 2. Set references to null in OrdenTrabajoRepuesto (optional relation)
+            await tx.ordenTrabajoRepuesto.updateMany({
+                where: { activoFijoId: id },
+                data: { activoFijoId: null }
+            });
+
+            // 3. Set references to null in OrdenTrabajo (optional relation)
+            await tx.ordenTrabajo.updateMany({
+                where: { activoId: id },
+                data: { activoId: null }
+            });
+
+            // 4. Delete associated RentaEquipo records (which cascade deletes RentaPago)
+            await tx.rentaEquipo.deleteMany({
+                where: { activoFijoId: id, organizationId: orgId }
+            });
+
+            // 5. Finally delete the ActivoFijo record
+            await tx.activoFijo.deleteMany({
+                where: { id, organizationId: orgId }
+            });
+        });
+
+        revalidatePath('/inventario');
+        revalidatePath('/rentas/equipos');
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error in deleteActivo:', error);
+        return { success: false, error: error.message || 'Error al eliminar el activo' };
+    }
 }
 
 // ─── UPLOAD IMAGE to R2 ──────────────────────────────────────────────────────
