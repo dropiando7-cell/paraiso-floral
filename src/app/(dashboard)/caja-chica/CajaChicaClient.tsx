@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, updateCajaChicaMovimiento, updateCajaChicaSaldoInicial, getUploadUrlCajaChica, anularCajaChicaMovimiento, openAndFundCajaChicaSession } from './actions';
+import { getOpenSession, openCajaChicaSession, closeCajaChicaSession, registerCajaChicaMovimiento, updateCajaChicaMovimiento, updateCajaChicaSaldoInicial, getUploadUrlCajaChica, anularCajaChicaMovimiento, openAndFundCajaChicaSession, getClosedSessions } from './actions';
 import toast from 'react-hot-toast';
 import {
   Wallet, Plus, Lock, Unlock, TrendingUp, TrendingDown, DollarSign,
@@ -33,6 +33,10 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
   const [showModalNuevo, setShowModalNuevo] = useState(false);
   const [showModalCierre, setShowModalCierre] = useState(false);
   const [showModalApertura, setShowModalApertura] = useState(false);
+  const [saldoRealCierre, setSaldoRealCierre] = useState('');
+  const [observacionesCierre, setObservacionesCierre] = useState('');
+  const [sesionesCerradas, setSesionesCerradas] = useState<any[]>([]);
+  const [sesionExpandidaId, setSesionExpandidaId] = useState<string | null>(null);
   const [filtroTipo, setFiltroTipo] = useState('TODOS');
   const [busqueda, setBusqueda] = useState('');
   const [tipoMovimiento, setTipoMovimiento] = useState<'INGRESO' | 'SALIDA' | 'APERTURA'>('SALIDA');
@@ -94,6 +98,12 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
       setSaldoInicial(0);
       setMovimientos([]);
     }
+
+    const resCerradas = await getClosedSessions(organization?.id || dbUser?.organizationId);
+    if (resCerradas.success) {
+      setSesionesCerradas(resCerradas.sessions || []);
+    }
+
     setCargando(false);
   };
 
@@ -381,9 +391,21 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
 
   const handleCerrarCaja = async () => {
     if (!sesionActiva) return;
-    const res = await closeCajaChicaSession(sesionActiva.id, stats.saldoFinal, 'Cierre por sistema', dbUser.id);
+    const realAmt = parseFloat(saldoRealCierre);
+    if (isNaN(realAmt) || realAmt < 0) {
+      alert("Por favor ingrese el efectivo físico contado válido.");
+      return;
+    }
+    const res = await closeCajaChicaSession(
+      sesionActiva.id, 
+      realAmt, 
+      observacionesCierre || 'Cierre de período', 
+      dbUser.id
+    );
     if (res.success) {
       setShowModalCierre(false);
+      setSaldoRealCierre('');
+      setObservacionesCierre('');
       await cargarSesion();
     } else {
       alert(res.error || 'Error al cerrar la caja');
@@ -477,7 +499,11 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                      setShowModalSinPrivilegios(true);
                      return;
                   }
-                  if (cajaAbierta) setShowModalCierre(true);
+                  if (cajaAbierta) {
+                    setSaldoRealCierre(stats.saldoFinal.toFixed(2));
+                    setObservacionesCierre('');
+                    setShowModalCierre(true);
+                  }
                 }}
                 className={`flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all ${
                   (!cajaAbierta || !['SUPER_ADMIN', 'ORG_ADMIN'].includes(userRole))
@@ -810,6 +836,134 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
             </table>
           </div>
         </div>
+
+        {/* ============== HISTORIAL DE PERÍODOS DE CAJA CHICA ============== */}
+        {sesionesCerradas.length > 0 && (
+          <div className="mt-8 bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <div className="p-5 border-b border-gray-150 bg-gray-50/50 flex items-center gap-2.5">
+              <History className="w-5 h-5 text-gray-550" />
+              <div>
+                <h2 className="text-base font-bold text-gray-900">Historial de Períodos Cerrados</h2>
+                <p className="text-xs text-gray-550">Auditoría y conciliación de ciclos de caja anteriores</p>
+              </div>
+            </div>
+            
+            <div className="divide-y divide-gray-150">
+              {sesionesCerradas.map((session) => {
+                const isExpanded = sesionExpandidaId === session.id;
+                const diff = session.diferencia || 0;
+                
+                return (
+                  <div key={session.id} className="p-5 hover:bg-slate-50/30 transition-colors">
+                    {/* Encabezado del Período */}
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-bold text-gray-800">
+                            Período: {new Date(session.createdAt).toLocaleDateString('es-HN')} – {session.cerradaAt ? new Date(session.cerradaAt).toLocaleDateString('es-HN') : '—'}
+                          </span>
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase bg-gray-100 text-gray-600 border border-gray-200">
+                            Cerrada
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          Apertura por: <span className="font-semibold text-gray-700">{session.creadoPor ? `${session.creadoPor.nombre || ''} ${session.creadoPor.apellido || ''}`.trim() : '—'}</span> · 
+                          Cierre por: <span className="font-semibold text-gray-700">{session.cerradoPor ? `${session.cerradoPor.nombre || ''} ${session.cerradoPor.apellido || ''}`.trim() : '—'}</span>
+                        </p>
+                      </div>
+                      
+                      {/* Valores */}
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 text-right">
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-gray-400">Saldo Inicial</span>
+                          <span className="text-xs font-semibold text-gray-700 tabular-nums">L. {formatMoneda(session.saldoInicial)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-gray-400">Saldo Esperado</span>
+                          <span className="text-xs font-semibold text-gray-700 tabular-nums">L. {formatMoneda(session.saldoFinal || 0)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-gray-400">Efectivo Real</span>
+                          <span className="text-xs font-bold text-gray-900 tabular-nums">L. {formatMoneda(session.saldoReal || 0)}</span>
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase font-bold text-gray-400">Diferencia</span>
+                          {diff < 0 ? (
+                            <span className="text-xs font-bold text-red-600 tabular-nums">L. {formatMoneda(diff)} (Faltante)</span>
+                          ) : diff > 0 ? (
+                            <span className="text-xs font-bold text-green-600 tabular-nums">+L. {formatMoneda(diff)} (Sobrante)</span>
+                          ) : (
+                            <span className="text-xs font-semibold text-gray-500 tabular-nums">L. 0.00 (OK)</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Notas y Botones */}
+                    <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-dashed border-gray-150">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                        <Info className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                        <span>Obs: <span className="italic font-medium text-gray-600">{session.observaciones || 'Sin observaciones'}</span></span>
+                      </div>
+                      
+                      <button
+                        onClick={() => setSesionExpandidaId(isExpanded ? null : session.id)}
+                        className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        {isExpanded ? 'Ocultar movimientos ↑' : 'Ver movimientos ↓'}
+                      </button>
+                    </div>
+                    
+                    {/* Sección Expandible de Movimientos */}
+                    {isExpanded && (
+                      <div className="mt-4 bg-slate-50/50 border border-gray-200 rounded-xl p-4 animate-in fade-in duration-200">
+                        <h4 className="text-xs font-bold text-gray-600 uppercase tracking-wider mb-2.5">Detalle de Movimientos en el Período</h4>
+                        {session.movimientos && session.movimientos.length > 0 ? (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-left text-xs text-gray-600">
+                              <thead>
+                                <tr className="border-b border-gray-250 pb-2">
+                                  <th className="py-2 font-semibold">Fecha</th>
+                                  <th className="py-2 font-semibold">Tipo</th>
+                                  <th className="py-2 font-semibold">Categoría</th>
+                                  <th className="py-2 font-semibold">Descripción</th>
+                                  <th className="py-2 font-semibold">Documento</th>
+                                  <th className="py-2 font-semibold text-right">Importe</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-150">
+                                {session.movimientos.map((m: any) => (
+                                  <tr key={m.id} className="hover:bg-slate-100/50 transition-colors">
+                                    <td className="py-2.5 font-mono">{new Date(m.createdAt).toLocaleDateString('es-HN')}</td>
+                                    <td className="py-2.5">
+                                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                                        m.tipo === 'INGRESO' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                                      }`}>
+                                        {m.tipo === 'INGRESO' ? 'Ingreso' : 'Salida'}
+                                      </span>
+                                    </td>
+                                    <td className="py-2.5 font-medium">{m.categoria}</td>
+                                    <td className="py-2.5 truncate max-w-xs" title={m.descripcion}>{m.descripcion}</td>
+                                    <td className="py-2.5 font-mono">{m.documento} {m.nroDoc ? `(${m.nroDoc})` : ''}</td>
+                                    <td className={`py-2.5 text-right font-bold tabular-nums ${m.tipo === 'INGRESO' ? 'text-green-700' : 'text-gray-800'}`}>
+                                      {m.tipo === 'INGRESO' ? '+' : '−'} L. {formatMoneda(m.total)}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-400 italic">No se registraron movimientos en este ciclo.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ============== FOOTER INFORMATIVO ============== */}
         <div className="mt-6 flex items-center justify-between text-xs text-gray-400">
@@ -1353,12 +1507,14 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
 
               <div className="pt-2">
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                  Efectivo Físico Contado en Caja
+                  Efectivo Físico Contado en Caja <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
                   step="0.01"
                   placeholder="0.00"
+                  value={saldoRealCierre}
+                  onChange={(e) => setSaldoRealCierre(e.target.value)}
                   className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 tabular-nums"
                 />
                 <p className="text-xs text-gray-400 mt-1">
@@ -1373,6 +1529,8 @@ export default function CajaChicaClient({ dbUser }: { dbUser: any }) {
                 <textarea
                   rows={2}
                   placeholder="Notas o comentarios sobre el cierre..."
+                  value={observacionesCierre}
+                  onChange={(e) => setObservacionesCierre(e.target.value)}
                   className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-400 resize-none"
                 />
               </div>

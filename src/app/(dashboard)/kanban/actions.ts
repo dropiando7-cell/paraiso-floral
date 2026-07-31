@@ -199,6 +199,7 @@ export async function getSpaceDetails(spaceId: string) {
 
         return {
             currentUserRole: user.role,
+            currentUserAccessibleModules: user.accessibleModules || [],
             currentUserCanManageAccess: isPrivileged || user.puedeAsignarEspacios === true || space.creadoPorId === user.id,
             space: {
                 id: space.id,
@@ -584,6 +585,41 @@ export async function updateTaskFields(taskId: string, data: {
         });
 
         // Sync back to OrdenTrabajo if it is associated with a support order
+        if (oldTask.ordenTrabajoId && data.description !== undefined) {
+            try {
+                const desc = data.description || '';
+                const marker = "**Falla Reportada:**";
+                const index = desc.indexOf(marker);
+                let cleanedFalla = '';
+                if (index !== -1) {
+                    cleanedFalla = desc.substring(index + marker.length).trim();
+                } else {
+                    const marker2 = "Falla Reportada:";
+                    const index2 = desc.indexOf(marker2);
+                    if (index2 !== -1) {
+                        cleanedFalla = desc.substring(index2 + marker2.length).trim();
+                    } else {
+                        cleanedFalla = desc.trim();
+                    }
+                }
+
+                if (cleanedFalla) {
+                    const htmlFalla = cleanedFalla.split('\n').map(line => `<p>${line}</p>`).join('');
+                    await prisma.ordenTrabajo.update({
+                        where: { id: oldTask.ordenTrabajoId },
+                        data: {
+                            descripcionFalla: htmlFalla
+                        }
+                    });
+                    revalidatePath('/soporte');
+                    revalidatePath(`/soporte/${oldTask.ordenTrabajoId}`);
+                }
+            } catch (syncErr) {
+                console.error("[Support Description Sync Error in updateTask]:", syncErr);
+            }
+        }
+
+        // Sync back to OrdenTrabajo if it is associated with a support order
         if (oldTask.ordenTrabajoId && (data.asignadoIds !== undefined || data.asignadoId !== undefined)) {
             try {
                 let finalTecnicoIds: string[] = [];
@@ -663,8 +699,9 @@ export async function deleteKanbanTask(taskId: string) {
     try {
         const { user } = await getCurrentUserAndOrg();
 
-        if (user.role !== 'SUPER_ADMIN' && user.role !== 'ORG_ADMIN') {
-            throw new Error('No autorizado. Solo los administradores pueden eliminar tareas.');
+        const canDelete = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN' || (user.accessibleModules || []).includes('eliminar_tareas');
+        if (!canDelete) {
+            throw new Error('No autorizado. Solo los administradores o usuarios autorizados pueden eliminar tareas.');
         }
 
         const task = await prisma.kanbanTask.findUnique({
@@ -1110,6 +1147,30 @@ export async function createKanbanAttachment(data: {
             }
         });
 
+        // Sync back to OrdenTrabajo if it is associated with a support order and is an image
+        if (task.ordenTrabajoId && (data.tipo.startsWith('image/') || data.nombre.match(/\.(jpeg|jpg|gif|png|webp)$/i))) {
+            try {
+                const orden = await prisma.ordenTrabajo.findUnique({
+                    where: { id: task.ordenTrabajoId }
+                });
+                if (orden) {
+                    const currentPhotos = orden.fotosEstadoInicial || [];
+                    if (!currentPhotos.includes(data.url)) {
+                        await prisma.ordenTrabajo.update({
+                            where: { id: task.ordenTrabajoId },
+                            data: {
+                                fotosEstadoInicial: [...currentPhotos, data.url]
+                            }
+                        });
+                        revalidatePath('/soporte');
+                        revalidatePath(`/soporte/${task.ordenTrabajoId}`);
+                    }
+                }
+            } catch (syncErr) {
+                console.error("[Support Attachment Sync Error]:", syncErr);
+            }
+        }
+
         revalidatePath(`/kanban/${task.spaceId}`);
         return {
             success: true,
@@ -1169,6 +1230,31 @@ export async function deleteKanbanAttachment(attachmentId: string) {
                 detalles
             }
         });
+
+        // Sync back to OrdenTrabajo if it is associated with a support order
+        if (attachment.task.ordenTrabajoId) {
+            try {
+                const orden = await prisma.ordenTrabajo.findUnique({
+                    where: { id: attachment.task.ordenTrabajoId }
+                });
+                if (orden) {
+                    const currentPhotos = orden.fotosEstadoInicial || [];
+                    const updatedPhotos = currentPhotos.filter(url => url !== attachment.url);
+                    if (updatedPhotos.length !== currentPhotos.length) {
+                        await prisma.ordenTrabajo.update({
+                            where: { id: attachment.task.ordenTrabajoId },
+                            data: {
+                                fotosEstadoInicial: updatedPhotos
+                            }
+                        });
+                        revalidatePath('/soporte');
+                        revalidatePath(`/soporte/${attachment.task.ordenTrabajoId}`);
+                    }
+                }
+            } catch (syncErr) {
+                console.error("[Support Attachment Sync Deletion Error]:", syncErr);
+            }
+        }
 
         revalidatePath(`/kanban/${attachment.task.spaceId}`);
         return { success: true };

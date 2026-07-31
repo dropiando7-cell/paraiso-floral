@@ -280,3 +280,29 @@ export async function getUploadUrlCajaChica(fileName: string, contentType: strin
     return { success: false, error: 'Error al generar URL de carga' };
   }
 }
+
+export async function getClosedSessions(organizationId: string) {
+  try {
+    const sessions = await prisma.cajaChicaSession.findMany({
+      where: {
+        organizationId,
+        estado: 'CERRADA'
+      },
+      include: {
+        creadoPor: { select: { nombre: true, apellido: true } },
+        cerradoPor: { select: { nombre: true, apellido: true } },
+        movimientos: {
+          where: { estado: 'REGISTRADO' },
+          orderBy: { createdAt: 'desc' }
+        }
+      },
+      orderBy: { cerradaAt: 'desc' },
+      take: 20
+    });
+
+    return { success: true, sessions };
+  } catch (error) {
+    console.error('Error in getClosedSessions:', error);
+    return { success: false, error: 'Error al obtener las sesiones cerradas' };
+  }
+}

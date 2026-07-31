@@ -54,7 +54,7 @@ export default function AprobacionClienteCard({ orderData, budgetFactura, onAppr
       `*Bioelectrónica Honduras*\n\n` +
       `📋 Orden: ${orderData?.codigoSeguridad || "SVC-0000"}\n` +
       `🏥 Equipo: ${orderData?.equipoDano || "Equipo"}\n` +
-      `🔧 Falla: ${orderData?.descripcionFalla || "Evaluación"}\n\n` +
+      `🔧 Falla: ${(orderData?.descripcionFalla || "Evaluación").replace(/<[^>]*>/g, '')}\n\n` +
       `💰 *Presupuesto de Reparación*\n` +
       `*Total a Pagar: L ${Number(budgetFactura.total).toFixed(2)}*\n\n` +
       `Para ver el detalle completo y FIRMAR su aprobación, ingrese aquí:\n` +
@@ -240,7 +240,7 @@ export default function AprobacionClienteCard({ orderData, budgetFactura, onAppr
               {/* WhatsApp Chat Bubble */}
               <div className="bg-emerald-50 rounded-2xl p-4 shadow-sm border border-emerald-100 max-w-sm ml-0 mr-auto relative">
                 <div className="text-slate-800 text-xs md:text-sm whitespace-pre-wrap leading-relaxed">
-                  Estimado/a *{orderData.cliente?.nombre || 'Cliente'}*, su equipo *{orderData.equipoDano} {orderData.marcaModelo || ''}* (Orden: *{orderData.codigoSeguridad}*) con falla de *{orderData.descripcionFalla || 'Mantenimiento Correctivo'}* ya cuenta con presupuesto de reparación por un total de *L {Number(budgetFactura.total).toFixed(2)}*. *Bioelectrónica Honduras*
+                  Estimado/a *{orderData.cliente?.nombre || 'Cliente'}*, su equipo *{orderData.equipoDano} {orderData.marcaModelo || ''}* (Orden: *{orderData.codigoSeguridad}*) con falla de *{(orderData.descripcionFalla || 'Mantenimiento Correctivo').replace(/<[^>]*>/g, '')}* ya cuenta con presupuesto de reparación por un total de *L {Number(budgetFactura.total).toFixed(2)}*. *Bioelectrónica Honduras*
                 </div>
                 
                 {/* Dynamic Button Preview */}

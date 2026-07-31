@@ -7,7 +7,7 @@ import {
     CheckCircle2, QrCode, Phone, Clock, AlertTriangle, MonitorSmartphone,
     Trash2, AlertCircle, Search, Archive, Laptop, UserPlus, ChevronDown, 
     ChevronRight, Filter, FolderPlus, BookOpen, FileText, LayoutGrid, 
-    FolderArchive, Printer, Building2, ClipboardList
+    FolderArchive, Printer, Building2, ClipboardList, Trello
 } from 'lucide-react';
 import { eliminarOrdenTrabajo, crearEquipoClienteAction, crearClienteAction } from './actions';
 import { toast } from 'react-hot-toast';
@@ -281,7 +281,7 @@ export default function SoporteClient({
             ...cli,
             equipos: eqDeCliente
         };
-    }).filter(cli => cli.equipos.length > 0 || !searchQuery); // Ocultar si no coincide en búsqueda
+    }).filter(cli => cli.equipos.length > 0);
 
     return (
         <div className="px-0 py-4 md:p-8 max-w-[1600px] mx-auto relative min-h-screen">
@@ -299,11 +299,11 @@ export default function SoporteClient({
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <button
-                        onClick={() => router.push('/soporte/escaner')}
-                        className="flex-1 sm:flex-initial bg-white border-2 border-slate-200 hover:border-blue-600 hover:text-blue-600 text-slate-700 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer"
+                        onClick={() => router.push('/kanban')}
+                        className="flex-1 sm:flex-initial bg-white border-2 border-slate-200 hover:border-indigo-650 hover:text-indigo-600 text-slate-700 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer"
                     >
-                        <QrCode className="w-4 h-4" />
-                        Escanear QR
+                        <Trello className="w-4 h-4 text-indigo-500" />
+                        Proyectos y Tareas
                     </button>
                     <button
                         onClick={() => router.push('/inventario?register=equipo_cliente')}
@@ -452,23 +452,23 @@ export default function SoporteClient({
                         </div>
                     </div>
 
-                    {/* Card 3: Escáner QR de Campo */}
+                    {/* Card 3: Proyectos y Tareas (Kanban) */}
                     <div 
-                        onClick={() => router.push('/soporte/escaner')}
-                        className="bg-white p-6 rounded-3xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-emerald-400 hover:-translate-y-0.5 transition-all cursor-pointer group flex flex-col justify-between h-[200px]"
+                        onClick={() => router.push('/kanban')}
+                        className="bg-white p-6 rounded-3xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-indigo-400 hover:-translate-y-0.5 transition-all cursor-pointer group flex flex-col justify-between h-[200px]"
                     >
                         <div className="flex justify-between items-start">
-                            <div className="bg-emerald-50 p-3 rounded-2xl border border-emerald-100 text-emerald-600">
-                                <QrCode className="w-6 h-6" />
+                            <div className="bg-indigo-50 p-3 rounded-2xl border border-indigo-100 text-indigo-600">
+                                <Trello className="w-6 h-6" />
                             </div>
-                            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-bold uppercase px-2.5 py-1 rounded-full border border-emerald-200">
-                                Escáner
+                            <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold uppercase px-2.5 py-1 rounded-full border border-indigo-200">
+                                Kanban
                             </span>
                         </div>
                         <div>
-                            <h3 className="text-lg font-black text-slate-800 tracking-tight">Escanear QR de Equipo</h3>
+                            <h3 className="text-lg font-black text-slate-800 tracking-tight">Proyectos y Tareas</h3>
                             <p className="text-xs text-slate-500 mt-1.5 leading-relaxed font-medium">
-                                Escanea el QR del activo para consultar ficha técnica, timeline histórico o levantar una nueva ODT.
+                                Gestiona el tablero Kanban general, asigna tareas y consulta diagramas de avance del equipo.
                             </p>
                         </div>
                     </div>

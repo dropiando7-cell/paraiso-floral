@@ -98,7 +98,7 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
         include: {
             activosFijos: {
                 where: { estatusContable: 'VIGENTE' },
-                select: { idQr: true, serie: true, area: true, stock: true, imagenUrl: true }
+                select: { idQr: true, serie: true, area: true, stock: true, imagenUrl: true, imagenWeb: true }
             }
         }
     });
@@ -125,7 +125,8 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
             area: true,
             serie: true,
             categoria: { select: { nombre: true } },
-            imagenUrl: true
+            imagenUrl: true,
+            imagenWeb: true
         }
     });
 
@@ -133,7 +134,8 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
 
     for (const activo of activosSinProducto) {
         const desc = activo.descripcionCorta || 'Sin Descripción';
-        const subItem = { idQr: activo.idQr, serie: activo.serie, ubicacion: activo.area || 'Sin asignar', stock: activo.stock || 1, imagenUrl: activo.imagenUrl };
+        const activeImg = activo.imagenUrl || activo.imagenWeb || null;
+        const subItem = { idQr: activo.idQr, serie: activo.serie, ubicacion: activo.area || 'Sin asignar', stock: activo.stock || 1, imagenUrl: activeImg };
 
         if (!grupos.has(desc)) {
             grupos.set(desc, {
@@ -148,15 +150,15 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
                 estado: 'VIGENTE',
                 sinPrecio: true,
                 tipo: 'GRUPO_ACTIVO_FIJO',
-                imagenUrl: activo.imagenUrl || null,
+                imagenUrl: activeImg,
                 subActivos: [subItem]
             });
         } else {
             const actual = grupos.get(desc)!;
             actual.stock += (activo.stock || 1);
             actual.subActivos!.push(subItem);
-            if (!actual.imagenUrl && activo.imagenUrl) {
-                actual.imagenUrl = activo.imagenUrl;
+            if (!actual.imagenUrl && activeImg) {
+                actual.imagenUrl = activeImg;
             }
         }
     }
@@ -165,8 +167,8 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
         ...productos.map(p => {
              const sumHijos = p.activosFijos ? p.activosFijos.reduce((acc, curr) => acc + (curr.stock || 1), 0) : 0;
              const finalStock = p.activosFijos && p.activosFijos.length > 0 ? sumHijos : (p.stockActual || 0);
-             const firstAssetWithImg = p.activosFijos?.find(a => a.imagenUrl);
-             const mainImageUrl = firstAssetWithImg?.imagenUrl || null;
+             const firstAssetWithImg = p.activosFijos?.find(a => a.imagenUrl || a.imagenWeb);
+             const mainImageUrl = p.imagenWeb || (p.imagenes && p.imagenes[0]) || firstAssetWithImg?.imagenUrl || firstAssetWithImg?.imagenWeb || null;
 
              return {
                  id: p.id,
@@ -186,7 +188,7 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
                      serie: a.serie,
                      ubicacion: a.area || 'Sin asignar',
                      stock: a.stock || 1,
-                     imagenUrl: a.imagenUrl
+                     imagenUrl: a.imagenUrl || a.imagenWeb || null
                  })) : []
              };
         }),

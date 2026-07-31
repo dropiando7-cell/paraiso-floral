@@ -93,6 +93,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     const availableModules = [
         { id: '/', label: 'Portal Bioelectrónica' },
         { id: '/kanban', label: 'Proyectos & Kanban' },
+        { id: 'eliminar_tareas', label: 'Proyectos & Kanban - Eliminar Tareas' },
         { id: '/inventario-ia', label: 'Inventario IA' },
         { id: '/rentas', label: 'Rentas de Equipos' },
         { id: '/graficas', label: 'Gráficas e Informes' },
@@ -106,8 +107,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/inventario/historico', label: 'Inventario Histórico (Odoo)' },
         { id: '/contactos', label: 'Directorio de Contactos' },
         { id: '/soporte', label: 'Soporte y Reparaciones' },
-        { id: 'eliminar_ordenes', label: 'Soporte - Eliminar Órdenes' },
+        { id: 'eliminar_ordenes', label: 'Soporte - Eliminar Órdenes de Trabajo' },
         { id: 'editar_ordenes', label: 'Soporte - Editar Órdenes' },
+        { id: 'editar_ordenes_ficha', label: 'Ficha Técnica - Editar Órdenes desde Ficha' },
         { id: '/cotizaciones', label: 'Cotizaciones' },
         { id: '/facturas', label: 'Facturación' },
         { id: 'facturas_propias', label: 'Facturación - Ver solo cotizaciones/facturas propias' },

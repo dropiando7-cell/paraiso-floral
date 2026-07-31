@@ -7,6 +7,7 @@ import {
     Calendar, 
     User as UserIcon, 
     AlertTriangle, 
+    AlertCircle,
     Tag, 
     Clock, 
     Check, 
@@ -32,11 +33,16 @@ import {
     Volume2,
     Plus,
     Package,
-    Wrench
+    Wrench,
+    RotateCcw,
+    PenTool,
+    Sparkles
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
 import { useRouter } from 'next/navigation';
+import SignatureCanvas from 'react-signature-canvas';
+import { getOrdenDetalleSimplificado, guardarFirmaOrden } from '@/app/(dashboard)/soporte/actions';
 import { 
     getTaskCommentsAndAttachments, 
     createKanbanComment, 
@@ -123,6 +129,7 @@ interface Props {
     onDelete: (taskId: string) => Promise<boolean>;
     activities: any[];
     userRole?: string;
+    userAccessibleModules?: string[];
     tasks: { id: string; codigo: string; title: string }[];
     spaceId: string;
 }
@@ -138,10 +145,20 @@ export default function TaskDetailModal({
     onDelete,
     activities,
     userRole,
+    userAccessibleModules,
     tasks,
     spaceId
 }: Props) {
     const router = useRouter();
+    const isDoneColumn = (columnName: string) => {
+        const lower = (columnName || '').toLowerCase();
+        return lower === 'listo' || lower === 'completado' || lower === 'done' || lower === 'terminado' || lower === 'finalizado';
+    };
+
+    const isDone = isDoneColumn(task.status);
+    const canReopenCompletedOrders = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || (userAccessibleModules || []).includes('reabrir_ordenes_completadas');
+    const isLocked = isDone && !!task.ordenTrabajoId && !canReopenCompletedOrders;
+
     const [isPending, startTransition] = useTransition();
     const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN';
     const [title, setTitle] = useState(task.title);
@@ -173,7 +190,54 @@ export default function TaskDetailModal({
     const [assigneeSearch, setAssigneeSearch] = useState('');
 
     // Estados para colaboración
-    const [activeTab, setActiveTab] = useState<'comentarios' | 'actividad' | 'materiales'>('comentarios');
+    const [activeTab, setActiveTab] = useState<'comentarios' | 'actividad' | 'materiales' | 'firmas'>('comentarios');
+    const [ordenDetalle, setOrdenDetalle] = useState<any | null>(null);
+    const [loadingOrdenDetalle, setLoadingOrdenDetalle] = useState(false);
+
+    // Client signature states
+    const sigClientCanvasRef = useRef<SignatureCanvas>(null);
+    const [clientSignerName, setClientSignerName] = useState('');
+    const [saveFirmaFuture, setSaveFirmaFuture] = useState(false);
+    const [clientHasDrawn, setClientHasDrawn] = useState(false);
+    const [isSavingClientFirma, setIsSavingClientFirma] = useState(false);
+    const [clientFirmaOverride, setClientFirmaOverride] = useState(false);
+
+    // Technician signature states
+    const sigTechCanvasRef = useRef<SignatureCanvas>(null);
+    const [techSignerName, setTechSignerName] = useState('');
+    const [techHasDrawn, setTechHasDrawn] = useState(false);
+    const [isSavingTechFirma, setIsSavingTechFirma] = useState(false);
+    const [techFirmaOverride, setTechFirmaOverride] = useState(false);
+
+    const loadOrdenDetalle = async () => {
+        if (!task.ordenTrabajoId) return;
+        setLoadingOrdenDetalle(true);
+        try {
+            const res = await getOrdenDetalleSimplificado(task.ordenTrabajoId);
+            if (res.success && res.orden) {
+                setOrdenDetalle(res.orden);
+                setClientSignerName(res.orden.firmaClienteNombre || res.orden.cliente?.nombreContacto || res.orden.cliente?.nombre || '');
+                if (res.orden.firmaTecnicoNombre) {
+                    setTechSignerName(res.orden.firmaTecnicoNombre);
+                } else if (res.orden.tecnicosAsignados?.length > 0) {
+                    const firstTech = res.orden.tecnicosAsignados[0];
+                    const name = [firstTech.nombre, firstTech.apellido].filter(Boolean).join(' ') || firstTech.email;
+                    setTechSignerName(name);
+                }
+            }
+        } catch (error) {
+            console.error("Error al cargar orden para firmas:", error);
+        } finally {
+            setLoadingOrdenDetalle(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isOpen && task.ordenTrabajoId) {
+            loadOrdenDetalle();
+        }
+    }, [isOpen, task.ordenTrabajoId]);
+
     const [comments, setComments] = useState<any[]>([]);
     const [attachments, setAttachments] = useState<any[]>([]);
     const [loadingCollab, setLoadingCollab] = useState(false);
@@ -644,6 +708,145 @@ export default function TaskDetailModal({
         setIsRecordingAudio(false);
     };
 
+    const dataURLtoBlob = (dataurl: string) => {
+        const arr = dataurl.split(',');
+        const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+        }
+        return new Blob([u8arr], { type: mime });
+    };
+
+    const uploadSignatureToR2 = async (dataUrl: string) => {
+        const blob = dataURLtoBlob(dataUrl);
+        const filename = `signature-${task.ordenTrabajoId}-${Date.now()}.png`;
+        
+        const res = await fetch('/api/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName: filename, contentType: 'image/png' })
+        });
+        if (!res.ok) throw new Error("Error al obtener URL de subida");
+        const { uploadUrl, publicUrl } = await res.json();
+        
+        const uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            body: blob,
+            headers: { 'Content-Type': 'image/png' }
+        });
+        if (!uploadRes.ok) throw new Error("Error al subir a Cloudflare R2");
+        
+        return publicUrl;
+    };
+
+    const handleSaveClientFirma = async () => {
+        if (!clientHasDrawn || !sigClientCanvasRef.current || sigClientCanvasRef.current.isEmpty()) {
+            toast.error('Por favor dibuja tu firma en el recuadro.');
+            return;
+        }
+        if (!clientSignerName.trim()) {
+            toast.error('Por favor escribe el nombre de la persona que firma.');
+            return;
+        }
+        if (!task.ordenTrabajoId) return;
+
+        setIsSavingClientFirma(true);
+        try {
+            const dataUrl = sigClientCanvasRef.current.getTrimmedCanvas().toDataURL('image/png');
+            const publicUrl = await uploadSignatureToR2(dataUrl);
+            
+            const res = await guardarFirmaOrden({
+                ordenId: task.ordenTrabajoId,
+                tipo: 'cliente',
+                firmaUrl: publicUrl,
+                nombreSigner: clientSignerName.trim(),
+                guardarDigital: saveFirmaFuture
+            });
+
+            if (res.success) {
+                toast.success('Firma del cliente guardada exitosamente.');
+                setClientFirmaOverride(false);
+                loadOrdenDetalle();
+            } else {
+                toast.error(res.error || 'Error al guardar la firma.');
+            }
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.message || 'Error de conexión.');
+        } finally {
+            setIsSavingClientFirma(false);
+        }
+    };
+
+    const handleUseSavedFirma = async () => {
+        if (!ordenDetalle?.cliente?.firmaDigitalUrl || !task.ordenTrabajoId) return;
+        
+        setIsSavingClientFirma(true);
+        try {
+            const res = await guardarFirmaOrden({
+                ordenId: task.ordenTrabajoId,
+                tipo: 'cliente',
+                firmaUrl: ordenDetalle.cliente.firmaDigitalUrl,
+                nombreSigner: ordenDetalle.cliente.firmaDigitalNombre || ordenDetalle.cliente.nombreContacto || ordenDetalle.cliente.nombre || 'Cliente',
+                guardarDigital: false
+            });
+
+            if (res.success) {
+                toast.success('Firma guardada del cliente aplicada exitosamente.');
+                setClientFirmaOverride(false);
+                loadOrdenDetalle();
+            } else {
+                toast.error(res.error || 'Error al aplicar la firma guardada.');
+            }
+        } catch (err: any) {
+            console.error(err);
+            toast.error('Error de conexión.');
+        } finally {
+            setIsSavingClientFirma(false);
+        }
+    };
+
+    const handleSaveTechFirma = async () => {
+        if (!techHasDrawn || !sigTechCanvasRef.current || sigTechCanvasRef.current.isEmpty()) {
+            toast.error('Por favor dibuja tu firma en el recuadro.');
+            return;
+        }
+        if (!techSignerName.trim()) {
+            toast.error('Por favor ingresa o selecciona el nombre del técnico biomédico.');
+            return;
+        }
+        if (!task.ordenTrabajoId) return;
+
+        setIsSavingTechFirma(true);
+        try {
+            const dataUrl = sigTechCanvasRef.current.getTrimmedCanvas().toDataURL('image/png');
+            const publicUrl = await uploadSignatureToR2(dataUrl);
+            
+            const res = await guardarFirmaOrden({
+                ordenId: task.ordenTrabajoId,
+                tipo: 'tecnico',
+                firmaUrl: publicUrl,
+                nombreSigner: techSignerName.trim()
+            });
+
+            if (res.success) {
+                toast.success('Firma del técnico guardada exitosamente.');
+                setTechFirmaOverride(false);
+                loadOrdenDetalle();
+            } else {
+                toast.error(res.error || 'Error al guardar la firma.');
+            }
+        } catch (err: any) {
+            console.error(err);
+            toast.error(err.message || 'Error de conexión.');
+        } finally {
+            setIsSavingTechFirma(false);
+        }
+    };
+
     const loadCommentsAndAttachments = async () => {
         setLoadingCollab(true);
         try {
@@ -994,6 +1197,29 @@ export default function TaskDetailModal({
 
     // Actualizar campo individual de forma inmediata
     const handleFieldChange = (fieldName: string, value: any) => {
+        if (fieldName === 'status' && task.ordenTrabajoId) {
+            const currentStatus = status;
+            const targetStatus = value;
+            const isReopening = isDoneColumn(currentStatus) && !isDoneColumn(targetStatus);
+            const isCompleting = !isDoneColumn(currentStatus) && isDoneColumn(targetStatus);
+
+            if (isReopening) {
+                if (!canReopenCompletedOrders) {
+                    toast.error("No tienes privilegios para reabrir órdenes de trabajo completadas.");
+                    return;
+                }
+                if (!window.confirm("¿Estás seguro de reabrir esta orden de trabajo completada y moverla a un estado activo?")) {
+                    return;
+                }
+            }
+
+            if (isCompleting) {
+                if (!window.confirm("¿Estás seguro de completar esta tarea? La orden de trabajo se cerrará y no podrás revertir su estado o seguir editándola sin privilegios especiales.")) {
+                    return;
+                }
+            }
+        }
+
         startTransition(async () => {
             const success = await onUpdate(task.id, { [fieldName]: value });
             if (success) {
@@ -1013,6 +1239,7 @@ export default function TaskDetailModal({
     };
 
     const handleToggleAssignee = (id: string) => {
+        if (isLocked) return;
         const updatedIds = selectedAssigneeIds.includes(id)
             ? selectedAssigneeIds.filter(aId => aId !== id)
             : [...selectedAssigneeIds, id];
@@ -1028,6 +1255,7 @@ export default function TaskDetailModal({
 
     // Guardar Título
     const handleSaveTitle = () => {
+        if (isLocked) return;
         if (!title.trim()) {
             setTitle(task.title);
             return;
@@ -1039,6 +1267,7 @@ export default function TaskDetailModal({
 
     // Guardar Descripción
     const handleSaveDescription = () => {
+        if (isLocked) return;
         if (description !== task.description) {
             handleFieldChange('description', description);
         }
@@ -1092,14 +1321,25 @@ export default function TaskDetailModal({
                                 </span>
                                 
                                 {task.ordenTrabajoId && (
-                                    <button
-                                        type="button"
-                                        onClick={() => router.push(`/soporte/${task.ordenTrabajoId}`)}
-                                        className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-md transition shadow-sm cursor-pointer"
-                                    >
-                                        <Wrench className="h-3.5 w-3.5 text-indigo-500" />
-                                        Ver Orden Relacionada
-                                    </button>
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => router.push(`/soporte/${task.ordenTrabajoId}`)}
+                                            className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-md transition shadow-sm cursor-pointer"
+                                        >
+                                            <Wrench className="h-3.5 w-3.5 text-indigo-500" />
+                                            Ver Orden Relacionada
+                                        </button>
+                                        <a
+                                            href={`/api/pdf/${task.ordenTrabajoId}?type=historial`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-md transition shadow-sm cursor-pointer"
+                                        >
+                                            <FileText className="h-3.5 w-3.5 text-emerald-500" />
+                                            Generar Reporte
+                                        </a>
+                                    </>
                                 )}
                                 
                                 {/* Botón para ocultar/mostrar panel lateral en móvil */}
@@ -1125,12 +1365,22 @@ export default function TaskDetailModal({
                             <input
                                 type="text"
                                 value={title}
+                                disabled={isLocked}
                                 onChange={(e) => setTitle(e.target.value)}
                                 onBlur={handleSaveTitle}
                                 onKeyDown={(e) => e.key === 'Enter' && handleSaveTitle()}
-                                className="w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-brand-500 text-2xl font-bold text-slate-800 px-1 py-0.5 focus:outline-none transition"
+                                className={`w-full bg-transparent border-b border-transparent hover:border-slate-200 focus:border-brand-500 text-2xl font-bold text-slate-800 px-1 py-0.5 focus:outline-none transition ${isLocked ? 'opacity-70 cursor-not-allowed hover:border-transparent' : ''}`}
                             />
                         </div>
+
+                        {isLocked && (
+                            <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-3.5 flex items-start gap-2.5 shadow-sm text-xs font-semibold animate-fadeIn mt-2">
+                                <AlertCircle className="h-4.5 w-4.5 text-amber-600 shrink-0 mt-0.5 animate-pulse" />
+                                <div>
+                                    Esta orden de trabajo está completada y cerrada. No se permite la edición ni reabrir el estado sin privilegios especiales.
+                                </div>
+                            </div>
+                        )}
 
                         {/* Descripción */}
                         <div className="space-y-2">
@@ -1171,8 +1421,8 @@ export default function TaskDetailModal({
                                 </div>
                             ) : (
                                 <div 
-                                    onClick={() => setIsEditingDesc(true)}
-                                    className="w-full min-h-[80px] bg-slate-50/50 border border-slate-100 hover:border-slate-200 rounded-xl p-3 text-sm text-slate-700 cursor-pointer transition whitespace-pre-wrap"
+                                    onClick={() => !isLocked && setIsEditingDesc(true)}
+                                    className={`w-full min-h-[80px] bg-slate-50/50 border border-slate-100 hover:border-slate-200 rounded-xl p-3 text-sm text-slate-700 transition whitespace-pre-wrap ${isLocked ? 'opacity-60 cursor-not-allowed hover:border-slate-100' : 'cursor-pointer'}`}
                                 >
                                     {description || <span className="text-slate-400 italic">No hay descripción detallada. Haz clic aquí para añadir una.</span>}
                                 </div>
@@ -1215,6 +1465,19 @@ export default function TaskDetailModal({
                                 >
                                     Materiales ({materials.length})
                                 </button>
+                                {task.ordenTrabajoId && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('firmas')}
+                                        className={`text-xs font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                            activeTab === 'firmas' 
+                                                ? 'border-brand-600 text-brand-600' 
+                                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                                        }`}
+                                    >
+                                        Firmas
+                                    </button>
+                                )}
                             </div>
 
                             {activeTab === 'actividad' ? (
@@ -1239,129 +1502,134 @@ export default function TaskDetailModal({
                                 </div>
                             ) : activeTab === 'materiales' ? (
                                 <div className="space-y-4 animate-fadeIn">
-                                    {/* Buscar Componentes en el Inventario */}
-                                    <div className="bg-slate-50/50 border border-slate-200/60 rounded-2xl p-4 space-y-3.5 shadow-sm">
-                                        <div className="flex items-center justify-between">
-                                            <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
-                                                <Package className="h-4 w-4 text-brand-600 animate-pulse" />
-                                                Descargar Componente / Material
-                                            </h5>
-                                            <span className="text-[10px] text-slate-400 font-medium">Búsqueda rápida en inventario</span>
-                                        </div>
-                                        
-                                        <div className="relative">
-                                            <input
-                                                type="text"
-                                                placeholder="Buscar por descripción, barras o código QR..."
-                                                value={materialSearchQuery}
-                                                onChange={(e) => handleSearchMaterials(e.target.value)}
-                                                className="w-full h-10 pl-3 pr-10 bg-white border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm transition-all shadow-sm outline-none"
-                                            />
-                                            {searchingMaterials && (
-                                                <div className="absolute right-3 top-2.5">
-                                                    <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
+                                    {!isLocked ? (
+                                        <div className="bg-slate-50/50 border border-slate-200/60 rounded-2xl p-4 space-y-3.5 shadow-sm">
+                                            <div className="flex items-center justify-between">
+                                                <h5 className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <Package className="h-4 w-4 text-brand-600 animate-pulse" />
+                                                    Descargar Componente / Material
+                                                </h5>
+                                                <span className="text-[10px] text-slate-400 font-medium">Búsqueda rápida en inventario</span>
+                                            </div>
+                                            
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Buscar por descripción, barras o código QR..."
+                                                    value={materialSearchQuery}
+                                                    onChange={(e) => handleSearchMaterials(e.target.value)}
+                                                    className="w-full h-10 pl-3 pr-10 bg-white border border-slate-200 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 rounded-xl text-sm transition-all shadow-sm outline-none"
+                                                />
+                                                {searchingMaterials && (
+                                                    <div className="absolute right-3 top-2.5">
+                                                        <Loader2 className="h-5 w-5 animate-spin text-brand-500" />
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Resultados de la búsqueda */}
+                                            {materialSearchResults.length > 0 && (
+                                                <div className="border border-slate-150 rounded-xl overflow-hidden bg-white max-h-[220px] overflow-y-auto divide-y divide-slate-100 shadow-inner">
+                                                    {materialSearchResults.map((item) => (
+                                                        <button
+                                                            key={item.id}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSelectedInventoryItem(item);
+                                                                setConsumeQuantity(1);
+                                                            }}
+                                                            className={`w-full px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between text-left hover:bg-slate-50 transition-colors ${selectedInventoryItem?.id === item.id ? 'bg-brand-50/50 hover:bg-brand-50' : ''}`}
+                                                        >
+                                                            <div className="min-w-0 pr-2">
+                                                                <p className="text-xs font-bold text-slate-800 truncate">{item.descripcionCorta}</p>
+                                                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                                                    SKU: <span className="font-mono">{item.codigoBarras || 'N/A'}</span> • QR: <span className="font-mono">{item.idQr}</span>
+                                                                </p>
+                                                            </div>
+                                                            <div className="mt-1 sm:mt-0 flex items-center gap-2 shrink-0">
+                                                                <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                                                                    📍 {item.area}
+                                                                </span>
+                                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.stock > 0 ? 'bg-green-55 text-green-700' : 'bg-red-55 text-red-700'}`}>
+                                                                    {item.stock} disp.
+                                                                </span>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+
+                                            {/* Formulario de consumo del ítem seleccionado */}
+                                            {selectedInventoryItem && (
+                                                <div className="bg-brand-50/30 border border-brand-100 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
+                                                    <div className="min-w-0 pr-2">
+                                                        <p className="text-xs font-bold text-brand-900 truncate">Seleccionado: {selectedInventoryItem.descripcionCorta}</p>
+                                                        <p className="text-[10px] text-brand-700/80 mt-0.5">
+                                                            Ubicación: <span className="font-semibold">{selectedInventoryItem.area}</span> (Disponibles: {selectedInventoryItem.stock})
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <div className="flex items-center border border-slate-200 rounded-lg bg-white overflow-hidden h-9 shadow-sm">
+                                                            <button
+                                                                type="button"
+                                                                disabled={consumeQuantity <= 1}
+                                                                onClick={() => setConsumeQuantity(prev => Math.max(1, prev - 1))}
+                                                                className="w-8 h-full flex items-center justify-center hover:bg-slate-50 text-slate-500 disabled:opacity-50 disabled:hover:bg-transparent transition-colors font-bold text-sm border-r border-slate-100"
+                                                            >
+                                                                -
+                                                            </button>
+                                                            <input
+                                                                type="number"
+                                                                min={1}
+                                                                max={selectedInventoryItem.stock}
+                                                                value={consumeQuantity}
+                                                                onChange={(e) => {
+                                                                    const val = parseInt(e.target.value);
+                                                                    if (!isNaN(val)) {
+                                                                        setConsumeQuantity(Math.max(1, Math.min(selectedInventoryItem.stock, val)));
+                                                                    }
+                                                                }}
+                                                                className="w-12 h-full text-center text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-none outline-none"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                disabled={consumeQuantity >= selectedInventoryItem.stock}
+                                                                onClick={() => setConsumeQuantity(prev => Math.min(selectedInventoryItem.stock, prev + 1))}
+                                                                className="w-8 h-full flex items-center justify-center hover:bg-slate-50 text-slate-500 disabled:opacity-50 disabled:hover:bg-transparent transition-colors font-bold text-sm border-l border-slate-100"
+                                                            >
+                                                                +
+                                                            </button>
+                                                        </div>
+
+                                                        <button
+                                                            type="button"
+                                                            disabled={consumingMaterial}
+                                                            onClick={handleConsumeMaterial}
+                                                            className="h-9 px-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold text-xs transition shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                                        >
+                                                            {consumingMaterial ? (
+                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                            ) : (
+                                                                <Check className="h-3.5 w-3.5" />
+                                                            )}
+                                                            Descargar
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setSelectedInventoryItem(null)}
+                                                            className="h-9 px-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg text-xs transition"
+                                                        >
+                                                            Cancelar
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
-
-                                        {/* Resultados de la búsqueda */}
-                                        {materialSearchResults.length > 0 && (
-                                            <div className="border border-slate-150 rounded-xl overflow-hidden bg-white max-h-[220px] overflow-y-auto divide-y divide-slate-100 shadow-inner">
-                                                {materialSearchResults.map((item) => (
-                                                    <button
-                                                        key={item.id}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSelectedInventoryItem(item);
-                                                            setConsumeQuantity(1);
-                                                        }}
-                                                        className={`w-full px-3.5 py-2.5 flex flex-col sm:flex-row sm:items-center sm:justify-between text-left hover:bg-slate-50 transition-colors ${selectedInventoryItem?.id === item.id ? 'bg-brand-50/50 hover:bg-brand-50' : ''}`}
-                                                    >
-                                                        <div className="min-w-0 pr-2">
-                                                            <p className="text-xs font-bold text-slate-800 truncate">{item.descripcionCorta}</p>
-                                                            <p className="text-[10px] text-slate-400 mt-0.5">
-                                                                SKU: <span className="font-mono">{item.codigoBarras || 'N/A'}</span> • QR: <span className="font-mono">{item.idQr}</span>
-                                                            </p>
-                                                        </div>
-                                                        <div className="mt-1 sm:mt-0 flex items-center gap-2 shrink-0">
-                                                            <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                                                                📍 {item.area}
-                                                            </span>
-                                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.stock > 0 ? 'bg-green-55 text-green-700' : 'bg-red-55 text-red-700'}`}>
-                                                                {item.stock} disp.
-                                                            </span>
-                                                        </div>
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
-
-                                        {/* Formulario de consumo del ítem seleccionado */}
-                                        {selectedInventoryItem && (
-                                            <div className="bg-brand-50/30 border border-brand-100 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fadeIn">
-                                                <div className="min-w-0 pr-2">
-                                                    <p className="text-xs font-bold text-brand-900 truncate">Seleccionado: {selectedInventoryItem.descripcionCorta}</p>
-                                                    <p className="text-[10px] text-brand-700/80 mt-0.5">
-                                                        Ubicación: <span className="font-semibold">{selectedInventoryItem.area}</span> (Disponibles: {selectedInventoryItem.stock})
-                                                    </p>
-                                                </div>
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    <div className="flex items-center border border-slate-200 rounded-lg bg-white overflow-hidden h-9 shadow-sm">
-                                                        <button
-                                                            type="button"
-                                                            disabled={consumeQuantity <= 1}
-                                                            onClick={() => setConsumeQuantity(prev => Math.max(1, prev - 1))}
-                                                            className="w-8 h-full flex items-center justify-center hover:bg-slate-50 text-slate-500 disabled:opacity-50 disabled:hover:bg-transparent transition-colors font-bold text-sm border-r border-slate-100"
-                                                        >
-                                                            -
-                                                        </button>
-                                                        <input
-                                                            type="number"
-                                                            min={1}
-                                                            max={selectedInventoryItem.stock}
-                                                            value={consumeQuantity}
-                                                            onChange={(e) => {
-                                                                const val = parseInt(e.target.value);
-                                                                if (!isNaN(val)) {
-                                                                    setConsumeQuantity(Math.max(1, Math.min(selectedInventoryItem.stock, val)));
-                                                                }
-                                                            }}
-                                                            className="w-12 h-full text-center text-xs font-bold focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none border-none outline-none"
-                                                        />
-                                                        <button
-                                                            type="button"
-                                                            disabled={consumeQuantity >= selectedInventoryItem.stock}
-                                                            onClick={() => setConsumeQuantity(prev => Math.min(selectedInventoryItem.stock, prev + 1))}
-                                                            className="w-8 h-full flex items-center justify-center hover:bg-slate-50 text-slate-500 disabled:opacity-50 disabled:hover:bg-transparent transition-colors font-bold text-sm border-l border-slate-100"
-                                                        >
-                                                            +
-                                                        </button>
-                                                    </div>
-
-                                                    <button
-                                                        type="button"
-                                                        disabled={consumingMaterial}
-                                                        onClick={handleConsumeMaterial}
-                                                        className="h-9 px-3.5 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-semibold text-xs transition shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                                    >
-                                                        {consumingMaterial ? (
-                                                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                        ) : (
-                                                            <Check className="h-3.5 w-3.5" />
-                                                        )}
-                                                        Descargar
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setSelectedInventoryItem(null)}
-                                                        className="h-9 px-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-650 rounded-lg text-xs transition"
-                                                    >
-                                                        Cancelar
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                    ) : (
+                                        <div className="text-center py-4 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-xs font-bold text-slate-400">
+                                            La asignación y descarga de materiales en esta orden cerrada están inhabilitadas.
+                                        </div>
+                                    )}
 
                                     {/* Listado de Materiales Usados */}
                                     <div className="space-y-2">
@@ -1400,19 +1668,248 @@ export default function TaskDetailModal({
                                                                 <span>{new Date(m.createdAt).toLocaleDateString()}</span>
                                                             </div>
                                                         </div>
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleCancelMaterial(m.id)}
-                                                            className="p-1.5 border border-slate-150 hover:border-red-100 hover:bg-red-50 text-slate-450 hover:text-red-650 rounded-lg shadow-sm transition"
-                                                            title="Anular descarga y regresar a inventario"
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                        </button>
+                                                        {!isLocked && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleCancelMaterial(m.id)}
+                                                                className="p-1.5 border border-slate-150 hover:border-red-100 hover:bg-red-50 text-slate-450 hover:text-red-650 rounded-lg shadow-sm transition"
+                                                                title="Anular descarga y regresar a inventario"
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 ))}
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                            ) : activeTab === 'firmas' && task.ordenTrabajoId ? (
+                                <div className="space-y-6 pt-2">
+                                    {loadingOrdenDetalle ? (
+                                        <div className="flex items-center justify-center py-10">
+                                            <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                                        </div>
+                                    ) : !ordenDetalle ? (
+                                        <div className="text-center text-xs text-slate-400 py-6">
+                                            No se pudo cargar el detalle de la orden de trabajo para las firmas.
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left">
+                                            {/* A. Firma del Cliente */}
+                                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3.5 shadow-sm">
+                                                <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <PenTool size={12} className="text-indigo-600" />
+                                                    Firma Cliente de Recibido
+                                                </h4>
+                                                
+                                                {ordenDetalle.firmaClienteUrl && !clientFirmaOverride ? (
+                                                    <div className="space-y-2 flex-1 flex flex-col justify-between">
+                                                        <div className="border border-slate-200 rounded-lg p-2 bg-white flex items-center justify-center h-32">
+                                                            <img src={ordenDetalle.firmaClienteUrl} alt="Firma del Cliente" className="max-h-full max-w-full object-contain" />
+                                                        </div>
+                                                        <div className="text-center bg-green-50 text-green-800 text-[10px] p-2.5 rounded-xl border border-green-200 font-semibold shadow-sm">
+                                                            Firmado por {ordenDetalle.firmaClienteNombre} el {new Date(ordenDetalle.firmaClienteFecha).toLocaleString('es-HN')}
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setClientFirmaOverride(true)}
+                                                            className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px] transition active:scale-95 cursor-pointer mt-1"
+                                                        >
+                                                            Volver a firmar / Cambiar firma
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-3.5 flex-1 flex flex-col justify-between">
+                                                        {ordenDetalle.cliente?.firmaDigitalUrl && (
+                                                            <button
+                                                                type="button"
+                                                                disabled={isSavingClientFirma}
+                                                                onClick={handleUseSavedFirma}
+                                                                className="w-full py-2 px-2.5 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold rounded-lg text-[10px] flex items-center justify-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer"
+                                                            >
+                                                                <Sparkles className="w-3.5 h-3.5 text-indigo-500 animate-pulse" />
+                                                                Usar Firma Guardada ({ordenDetalle.cliente.firmaDigitalNombre})
+                                                            </button>
+                                                        )}
+
+                                                        <div className="space-y-1">
+                                                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nombre del Firmante</label>
+                                                            <input
+                                                                type="text"
+                                                                value={clientSignerName}
+                                                                onChange={e => setClientSignerName(e.target.value)}
+                                                                placeholder="Nombre del cliente..."
+                                                                className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all text-slate-700 font-semibold shadow-sm"
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-1">
+                                                            <div className="flex justify-between items-end">
+                                                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Dibuja la firma</label>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        sigClientCanvasRef.current?.clear();
+                                                                        setClientHasDrawn(false);
+                                                                    }}
+                                                                    className="text-[9px] text-indigo-600 font-semibold flex items-center gap-0.5 bg-indigo-50 px-1.5 py-0.5 rounded hover:bg-indigo-100 transition-colors cursor-pointer"
+                                                                >
+                                                                    <RotateCcw size={8} /> Limpiar
+                                                                </button>
+                                                            </div>
+                                                            <div className="border border-dashed border-slate-300 rounded-xl bg-white h-32 relative touch-none overflow-hidden shadow-inner">
+                                                                <SignatureCanvas
+                                                                    ref={sigClientCanvasRef}
+                                                                    penColor="#0600c2"
+                                                                    canvasProps={{
+                                                                        className: 'w-full h-full cursor-crosshair touch-none'
+                                                                    }}
+                                                                    onBegin={() => setClientHasDrawn(true)}
+                                                                />
+                                                                {!clientHasDrawn && (
+                                                                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
+                                                                        <span className="font-serif italic text-xs text-slate-400">Firmar aquí</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex items-center gap-1.5">
+                                                            <input
+                                                                type="checkbox"
+                                                                id="modalSaveFirmaFuture"
+                                                                checked={saveFirmaFuture}
+                                                                onChange={e => setSaveFirmaFuture(e.target.checked)}
+                                                                className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5 cursor-pointer"
+                                                            />
+                                                            <label htmlFor="modalSaveFirmaFuture" className="text-[11px] text-slate-500 font-medium select-none cursor-pointer">
+                                                                Guardar firma de cliente
+                                                            </label>
+                                                        </div>
+
+                                                        <div className="flex gap-2">
+                                                            {ordenDetalle.firmaClienteUrl && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setClientFirmaOverride(false);
+                                                                        setClientHasDrawn(false);
+                                                                    }}
+                                                                    className="w-1/3 py-2 bg-white hover:bg-slate-50 border border-slate-205 text-slate-700 rounded-lg text-xs font-bold transition active:scale-95 cursor-pointer font-semibold shadow-sm"
+                                                                >
+                                                                    Cancelar
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                disabled={isSavingClientFirma}
+                                                                onClick={handleSaveClientFirma}
+                                                                className={`py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow flex items-center justify-center gap-1 active:scale-95 disabled:opacity-50 cursor-pointer ${ordenDetalle.firmaClienteUrl ? 'w-2/3' : 'w-full'}`}
+                                                            >
+                                                                {isSavingClientFirma ? <Loader2 size={12} className="animate-spin" /> : <PenTool size={12} />}
+                                                                Guardar Firma
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* B. Firma del Técnico */}
+                                            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3.5 shadow-sm">
+                                                <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                                                    <PenTool size={12} className="text-indigo-600" />
+                                                    Firma Técnico / Biomédico
+                                                </h4>
+                                                
+                                                {ordenDetalle.firmaTecnicoUrl && !techFirmaOverride ? (
+                                                    <div className="space-y-2 flex-1 flex flex-col justify-between">
+                                                        <div className="border border-slate-200 rounded-lg p-2 bg-white flex items-center justify-center h-32">
+                                                            <img src={ordenDetalle.firmaTecnicoUrl} alt="Firma del Técnico" className="max-h-full max-w-full object-contain" />
+                                                        </div>
+                                                        <div className="text-center bg-green-50 text-green-800 text-[10px] p-2.5 rounded-xl border border-green-200 font-semibold shadow-sm">
+                                                            Firmado por {ordenDetalle.firmaTecnicoNombre} el {new Date(ordenDetalle.firmaTecnicoFecha).toLocaleString('es-HN')}
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setTechFirmaOverride(true)}
+                                                            className="w-full py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-[10px] transition active:scale-95 cursor-pointer mt-1"
+                                                        >
+                                                            Volver a firmar / Cambiar firma
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-3.5 flex-1 flex flex-col justify-between">
+                                                        <div className="space-y-1">
+                                                            <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Nombre del Técnico</label>
+                                                            <input
+                                                                type="text"
+                                                                value={techSignerName}
+                                                                onChange={e => setTechSignerName(e.target.value)}
+                                                                placeholder="Nombre del técnico..."
+                                                                className="w-full text-xs border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all text-slate-700 font-semibold shadow-sm"
+                                                            />
+                                                        </div>
+
+                                                        <div className="space-y-1">
+                                                            <div className="flex justify-between items-end">
+                                                                <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-wider">Firma</label>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        sigTechCanvasRef.current?.clear();
+                                                                        setTechHasDrawn(false);
+                                                                    }}
+                                                                    className="text-[9px] text-indigo-600 font-semibold flex items-center gap-0.5 bg-indigo-50 px-1.5 py-0.5 rounded hover:bg-indigo-100 transition-colors cursor-pointer"
+                                                                >
+                                                                    <RotateCcw size={8} /> Limpiar
+                                                                </button>
+                                                            </div>
+                                                            <div className="border border-dashed border-slate-300 rounded-xl bg-white h-32 relative touch-none overflow-hidden shadow-inner">
+                                                                <SignatureCanvas
+                                                                    ref={sigTechCanvasRef}
+                                                                    penColor="#0600c2"
+                                                                    canvasProps={{
+                                                                        className: 'w-full h-full cursor-crosshair touch-none'
+                                                                    }}
+                                                                    onBegin={() => setTechHasDrawn(true)}
+                                                                />
+                                                                {!techHasDrawn && (
+                                                                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
+                                                                        <span className="font-serif italic text-xs text-slate-400">Firmar aquí</span>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex gap-2">
+                                                            {ordenDetalle.firmaTecnicoUrl && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        setTechFirmaOverride(false);
+                                                                        setTechHasDrawn(false);
+                                                                    }}
+                                                                    className="w-1/3 py-2 bg-white hover:bg-slate-50 border border-slate-205 text-slate-700 rounded-lg text-xs font-bold transition active:scale-95 cursor-pointer font-semibold shadow-sm"
+                                                                >
+                                                                    Cancelar
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                disabled={isSavingTechFirma}
+                                                                onClick={handleSaveTechFirma}
+                                                                className={`py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold transition-all shadow flex items-center justify-center gap-1 active:scale-95 disabled:opacity-50 cursor-pointer ${ordenDetalle.firmaTecnicoUrl ? 'w-2/3' : 'w-full'}`}
+                                                            >
+                                                                {isSavingTechFirma ? <Loader2 size={12} className="animate-spin" /> : <PenTool size={12} />}
+                                                                Guardar Firma
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -1504,14 +2001,16 @@ export default function TaskDetailModal({
                                                                 >
                                                                     <Download className="h-3 w-3" />
                                                                 </a>
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => handleDeleteAttachment(att.id)}
-                                                                    className="p-1 bg-white border border-slate-150 hover:border-red-100 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 shadow-sm transition"
-                                                                    title="Eliminar"
-                                                                >
-                                                                    <Trash2 className="h-3 w-3" />
-                                                                </button>
+                                                                {!isLocked && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleDeleteAttachment(att.id)}
+                                                                        className="p-1 bg-white border border-slate-150 hover:border-red-100 hover:bg-red-50 rounded-md text-slate-400 hover:text-red-600 shadow-sm transition"
+                                                                        title="Eliminar"
+                                                                    >
+                                                                        <Trash2 className="h-3 w-3" />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     );
@@ -1587,7 +2086,7 @@ export default function TaskDetailModal({
                                                                     <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed mt-1 pr-14 pb-1.5">{comm.contenido}</p>
                                                                 )}
                                                                 
-                                                                {editingCommentId !== comm.id && (
+                                                                {editingCommentId !== comm.id && !isLocked && (
                                                                     <div className="absolute bottom-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition flex gap-1.5 md:gap-1 z-10">
                                                                         <button
                                                                             type="button"
@@ -1620,80 +2119,86 @@ export default function TaskDetailModal({
 
                                     {/* Editor de comentarios */}
                                     <div className="space-y-2">
-                                        <form onSubmit={handleAddComment} className="flex gap-2 items-end pt-2">
-                                            <div className="flex-1 bg-slate-50 hover:bg-slate-100/75 border border-slate-200 focus-within:border-brand-500 focus-within:bg-white rounded-xl px-3 py-1.5 transition flex items-end gap-2">
-                                                <textarea
-                                                    value={newComment}
-                                                    onChange={(e) => setNewComment(e.target.value)}
-                                                    placeholder="Escribe los hallazgos o comentarios aquí..."
-                                                    rows={3}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                                            e.preventDefault();
-                                                            handleAddComment(e);
-                                                        }
-                                                    }}
-                                                    className="flex-1 bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none resize-none min-h-[75px] max-h-[200px] py-1"
-                                                />
-                                                
-                                                <input 
-                                                    type="file" 
-                                                    accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
-                                                    id="kanban-file-upload" 
-                                                    multiple 
-                                                    className="hidden" 
-                                                    onChange={async (e) => {
-                                                        const files = e.target.files;
-                                                        if (files && files.length > 0) {
-                                                            for (let i = 0; i < files.length; i++) {
-                                                                await handleFileUpload(files[i]);
+                                        {!isLocked ? (
+                                            <form onSubmit={handleAddComment} className="flex gap-2 items-end pt-2">
+                                                <div className="flex-1 bg-slate-50 hover:bg-slate-100/75 border border-slate-200 focus-within:border-brand-500 focus-within:bg-white rounded-xl px-3 py-1.5 transition flex items-end gap-2">
+                                                    <textarea
+                                                        value={newComment}
+                                                        onChange={(e) => setNewComment(e.target.value)}
+                                                        placeholder="Escribe los hallazgos o comentarios aquí..."
+                                                        rows={3}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                                e.preventDefault();
+                                                                handleAddComment(e);
                                                             }
-                                                        }
-                                                    }}
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={openVideoRecorder}
-                                                    className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
-                                                    title="Grabar video"
-                                                >
-                                                    <Video className="h-3.5 w-3.5" />
-                                                </button>
+                                                        }}
+                                                        className="flex-1 bg-transparent text-xs text-slate-800 placeholder-slate-400 focus:outline-none resize-none min-h-[75px] max-h-[200px] py-1"
+                                                    />
+                                                    
+                                                    <input 
+                                                        type="file" 
+                                                        accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.zip,.rar"
+                                                        id="kanban-file-upload" 
+                                                        multiple 
+                                                        className="hidden" 
+                                                        onChange={async (e) => {
+                                                            const files = e.target.files;
+                                                            if (files && files.length > 0) {
+                                                                for (let i = 0; i < files.length; i++) {
+                                                                    await handleFileUpload(files[i]);
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={openVideoRecorder}
+                                                        className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
+                                                        title="Grabar video"
+                                                    >
+                                                        <Video className="h-3.5 w-3.5" />
+                                                    </button>
 
-                                                <button
-                                                    type="button"
-                                                    onClick={openAudioRecorder}
-                                                    className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
-                                                    title="Grabar audio"
-                                                >
-                                                    <Mic className="h-3.5 w-3.5" />
-                                                </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={openAudioRecorder}
+                                                        className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
+                                                        title="Grabar audio"
+                                                    >
+                                                        <Mic className="h-3.5 w-3.5" />
+                                                    </button>
 
-                                                <button
-                                                    type="button"
-                                                    onClick={openCamera}
-                                                    className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
-                                                    title="Tomar fotografía"
-                                                >
-                                                    <Camera className="h-3.5 w-3.5" />
-                                                </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={openCamera}
+                                                        className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg transition shrink-0"
+                                                        title="Tomar fotografía"
+                                                    >
+                                                        <Camera className="h-3.5 w-3.5" />
+                                                    </button>
 
-                                                <label 
-                                                    htmlFor="kanban-file-upload"
-                                                    className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer transition shrink-0"
-                                                    title="Adjuntar archivos"
+                                                    <label 
+                                                        htmlFor="kanban-file-upload"
+                                                        className="p-1.5 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer transition shrink-0"
+                                                        title="Adjuntar archivos"
+                                                    >
+                                                        <Paperclip className="h-3.5 w-3.5" />
+                                                    </label>
+                                                </div>
+                                                <button
+                                                    type="submit"
+                                                    disabled={!newComment.trim()}
+                                                    className="p-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-100 text-white disabled:text-slate-300 rounded-xl transition shadow-sm shrink-0"
                                                 >
-                                                    <Paperclip className="h-3.5 w-3.5" />
-                                                </label>
+                                                    <Send className="h-3.5 w-3.5" />
+                                                </button>
+                                            </form>
+                                        ) : (
+                                            <div className="text-center py-4 bg-slate-50 border border-dashed border-slate-200 rounded-2xl text-xs font-bold text-slate-400">
+                                                Los comentarios y evidencias en esta orden cerrada están inhabilitados.
                                             </div>
-                                            <button
-                                                type="submit"
-                                                disabled={!newComment.trim()}
-                                                className="p-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-slate-100 text-white disabled:text-slate-300 rounded-xl transition shadow-sm shrink-0"
-                                            >
-                                                <Send className="h-3.5 w-3.5" />
-                                            </button>
-                                        </form>
+                                        )}
 
                                         {isUploading && (
                                             <div className="text-[10px] text-slate-500 flex items-center gap-1.5 justify-center py-1">
@@ -1754,8 +2259,9 @@ export default function TaskDetailModal({
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Estado</label>
                             <select
                                 value={status}
+                                disabled={isLocked}
                                 onChange={(e) => handleFieldChange('status', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 {columnas.map((col) => (
                                     <option key={col} value={col}>{col}</option>
@@ -1771,8 +2277,8 @@ export default function TaskDetailModal({
                             </label>
                             
                             <div 
-                                onClick={() => setShowAssigneeDropdown(!showAssigneeDropdown)}
-                                className="min-h-[42px] w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 cursor-pointer focus:border-brand-500 transition shadow-sm flex flex-wrap gap-1.5 items-center justify-between"
+                                onClick={() => !isLocked && setShowAssigneeDropdown(!showAssigneeDropdown)}
+                                className={`min-h-[42px] w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 transition shadow-sm flex flex-wrap gap-1.5 items-center justify-between ${isLocked ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-50 focus:border-brand-500'}`}
                             >
                                 {selectedAssigneeIds.length === 0 ? (
                                     <span className="text-slate-400 text-xs">Seleccionar responsables...</span>
@@ -1785,9 +2291,9 @@ export default function TaskDetailModal({
                                             return (
                                                 <div 
                                                     key={id} 
-                                                    onClick={(e) => { e.stopPropagation(); handleToggleAssignee(id); }}
-                                                    className="inline-flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg pl-1 pr-1.5 py-0.5 text-[10px] text-slate-700 hover:bg-red-50 hover:text-red-600 hover:border-red-200 transition"
-                                                    title="Haga clic para remover"
+                                                    onClick={(e) => { e.stopPropagation(); if (!isLocked) handleToggleAssignee(id); }}
+                                                    className={`inline-flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-lg pl-1 pr-1.5 py-0.5 text-[10px] text-slate-700 transition ${isLocked ? 'cursor-not-allowed' : 'hover:bg-red-50 hover:text-red-600 hover:border-red-200'}`}
+                                                    title={isLocked ? "" : "Haga clic para remover"}
                                                 >
                                                     <div className="h-3.5 w-3.5 rounded-full bg-brand-50 border border-brand-100 flex items-center justify-center text-[6px] font-bold text-brand-700 uppercase overflow-hidden relative shrink-0">
                                                         {member.avatarUrl ? (
@@ -1855,19 +2361,22 @@ export default function TaskDetailModal({
                                     <Tag className="h-3 w-3" />
                                     Tipo de Actividad
                                 </label>
-                                <button
-                                    type="button"
-                                    onClick={handleAddActivityTypePrompt}
-                                    className="p-1 hover:bg-slate-100 rounded-lg text-brand-600 hover:text-brand-700 transition flex items-center justify-center cursor-pointer"
-                                    title="Agregar nuevo tipo de actividad"
-                                >
-                                    <Plus className="h-3.5 w-3.5" />
-                                </button>
+                                {!isLocked && (
+                                    <button
+                                        type="button"
+                                        onClick={handleAddActivityTypePrompt}
+                                        className="p-1 hover:bg-slate-100 rounded-lg text-brand-600 hover:text-brand-700 transition flex items-center justify-center cursor-pointer"
+                                        title="Agregar nuevo tipo de actividad"
+                                    >
+                                        <Plus className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
                             </div>
                             <select
                                 value={type}
+                                disabled={isLocked}
                                 onChange={(e) => handleFieldChange('type', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 {localTiposActividad.map((t) => {
                                     const translateType = (typeStr: string) => {
@@ -1891,8 +2400,9 @@ export default function TaskDetailModal({
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Prioridad</label>
                             <select
                                 value={priority}
+                                disabled={isLocked}
                                 onChange={(e) => handleFieldChange('priority', e.target.value)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <option value="LOW" className="text-slate-500">Baja</option>
                                 <option value="MEDIUM" className="text-blue-600 font-semibold">Media</option>
@@ -1906,8 +2416,9 @@ export default function TaskDetailModal({
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Tarea Principal</label>
                             <select
                                 value={parentId}
+                                disabled={isLocked}
                                 onChange={(e) => handleFieldChange('parentId', e.target.value || null)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                             >
                                 <option value="">Ninguna (Tarea raíz)</option>
                                 {tasks.map(t => (
@@ -1925,8 +2436,9 @@ export default function TaskDetailModal({
                             <input
                                 type="date"
                                 value={startDate}
+                                disabled={isLocked}
                                 onChange={(e) => handleFieldChange('startDate', e.target.value || null)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                             />
                         </div>
 
@@ -1939,14 +2451,15 @@ export default function TaskDetailModal({
                             <input
                                 type="date"
                                 value={dueDate}
+                                disabled={isLocked}
                                 onChange={(e) => handleFieldChange('dueDate', e.target.value || null)}
-                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none"
+                                className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 focus:border-brand-500 focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
                             />
                         </div>
                     </div>
 
                     {/* Botones de acción inferior */}
-                    {isAdmin && (
+                    {isAdmin && !isLocked && (
                         <div className="pt-6 border-t border-slate-200 mt-5">
                             {showDeleteConfirm ? (
                                 <div className="bg-red-50 border border-red-100 rounded-xl p-3 space-y-2.5">

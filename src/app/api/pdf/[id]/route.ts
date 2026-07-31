@@ -120,10 +120,45 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const type = url.searchParams.get('type') || 'factura';
 
     if (type === 'historial') {
-      const activo = await prisma.activoFijo.findUnique({
+      let targetActivoId = id;
+      const checkOrden = await prisma.ordenTrabajo.findUnique({
         where: { id },
         include: {
           cliente: true,
+          tecnicoReparacion: {
+            select: { nombre: true, apellido: true }
+          },
+          tecnicosAsignados: {
+            select: { id: true, nombre: true }
+          },
+          repuestos: true,
+          kanbanTasks: {
+            include: {
+              attachments: true,
+              comments: {
+                include: {
+                  usuario: {
+                    select: { nombre: true }
+                  }
+                },
+                orderBy: { createdAt: 'desc' }
+              }
+            }
+          }
+        }
+      });
+
+      if (checkOrden && checkOrden.activoId) {
+        targetActivoId = checkOrden.activoId;
+      }
+
+      let activo = await prisma.activoFijo.findUnique({
+        where: { id: targetActivoId },
+        include: {
+          cliente: true,
+          createdBy: {
+            select: { nombre: true, apellido: true }
+          },
           ordenesTrabajo: {
             include: {
               tecnicosAsignados: {
@@ -148,6 +183,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           }
         }
       });
+
+      if (!activo && checkOrden) {
+        activo = {
+          id: checkOrden.id,
+          idQr: checkOrden.codigoSeguridad || 'N/A',
+          descripcionCorta: checkOrden.equipoDano || 'Equipo Externo',
+          marca: checkOrden.marcaModelo?.split(' ')[0] || '',
+          modelo: checkOrden.marcaModelo?.split(' ').slice(1).join(' ') || '',
+          serie: checkOrden.serie || 'N/A',
+          fechaAdq: checkOrden.fechaRecibido,
+          createdAt: checkOrden.fechaRecibido,
+          createdBy: checkOrden.tecnicoReparacion || null,
+          cliente: checkOrden.cliente,
+          ordenesTrabajo: [checkOrden]
+        } as any;
+      }
 
       if (!activo) {
         return new Response('Activo not found', { status: 404 });

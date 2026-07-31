@@ -108,6 +108,7 @@ interface Props {
         activities: Activity[];
         members: Member[];
         currentUserRole?: string;
+        currentUserAccessibleModules?: string[];
         currentUserCanManageAccess?: boolean;
     };
 }
@@ -121,7 +122,8 @@ function CardContextMenu({
     onStatusChange,
     onSpaceChange,
     onDeleteClick,
-    onEditClick
+    onEditClick,
+    canDelete
 }: {
     task: any;
     columnas: string[];
@@ -132,6 +134,7 @@ function CardContextMenu({
     onSpaceChange: (spaceId: string) => void;
     onDeleteClick: () => void;
     onEditClick: () => void;
+    canDelete?: boolean;
 }) {
     const [activeSubmenu, setActiveSubmenu] = useState<'main' | 'status' | 'space'>('main');
     const menuRef = useRef<HTMLDivElement>(null);
@@ -185,12 +188,14 @@ function CardContextMenu({
                     >
                         Editar tarea
                     </button>
-                    <button
-                        onClick={onDeleteClick}
-                        className="w-full text-left px-4 py-2.5 sm:px-3 sm:py-1.5 text-sm sm:text-xs text-red-650 hover:bg-red-50 hover:text-red-750 transition cursor-pointer"
-                    >
-                        Eliminar tarea
-                    </button>
+                    {canDelete && (
+                        <button
+                            onClick={onDeleteClick}
+                            className="w-full text-left px-4 py-2.5 sm:px-3 sm:py-1.5 text-sm sm:text-xs text-red-650 hover:bg-red-50 hover:text-red-750 transition cursor-pointer"
+                        >
+                            Eliminar tarea
+                        </button>
+                    )}
                 </>
             )}
 
@@ -289,6 +294,9 @@ const getCardStatusStyles = (status: string) => {
 
 export default function KanbanSpaceClient({ initialData }: Props) {
     const space = initialData.space;
+    const userRole = initialData.currentUserRole;
+    const userAccessibleModules = initialData.currentUserAccessibleModules || [];
+    const canDeleteTask = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userAccessibleModules.includes('eliminar_tareas');
     const router = useRouter();
     const [spaceName, setSpaceName] = useState(space.nombre);
     const [tasks, setTasks] = useState<Task[]>(initialData.tasks);
@@ -392,8 +400,31 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
     // Helper para identificar si es una columna "LISTO" (completado)
     const isDoneColumn = (columnName: string) => {
-        const lower = columnName.toLowerCase();
+        const lower = (columnName || '').toLowerCase();
         return lower === 'listo' || lower === 'completado' || lower === 'done' || lower === 'terminado' || lower === 'finalizado';
+    };
+
+    const canReopenCompletedOrders = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userAccessibleModules.includes('reabrir_ordenes_completadas');
+
+    const validateStatusChange = (task: any, currentStatus: string, targetStatus: string): boolean => {
+        if (!task.ordenTrabajoId) return true;
+
+        const isReopening = isDoneColumn(currentStatus) && !isDoneColumn(targetStatus);
+        const isCompleting = !isDoneColumn(currentStatus) && isDoneColumn(targetStatus);
+
+        if (isReopening) {
+            if (!canReopenCompletedOrders) {
+                toast.error("No tienes privilegios para reabrir órdenes de trabajo completadas.");
+                return false;
+            }
+            return window.confirm("¿Estás seguro de reabrir esta orden de trabajo completada y moverla a un estado activo?");
+        }
+
+        if (isCompleting) {
+            return window.confirm("¿Estás seguro de completar esta tarea? La orden de trabajo se cerrará y no podrás revertir su estado o seguir editándola sin privilegios especiales.");
+        }
+
+        return true;
     };
 
     // Agregar nueva columna
@@ -669,6 +700,8 @@ export default function KanbanSpaceClient({ initialData }: Props) {
         const taskToMove = tasks.find(t => t.id === taskId);
         if (!taskToMove || taskToMove.status === targetColumn) return;
 
+        if (!validateStatusChange(taskToMove, taskToMove.status, targetColumn)) return;
+
         // 1. Optimistic Update en UI para respuesta instantánea
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: targetColumn } : t));
 
@@ -755,6 +788,22 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
     // 4. Actualizar Tarea desde el Modal
     const handleUpdateTaskFromModal = async (taskId: string, fields: any): Promise<boolean> => {
+        const task = tasks.find(t => t.id === taskId);
+        if (task && task.ordenTrabajoId) {
+            if (fields.status !== undefined && fields.status !== task.status) {
+                if (!validateStatusChange(task, task.status, fields.status)) {
+                    return false;
+                }
+            }
+            const isCompleted = isDoneColumn(task.status);
+            if (isCompleted && fields.status === undefined) {
+                if (!canReopenCompletedOrders) {
+                    toast.error("Esta orden está completada y cerrada. No se permite realizar modificaciones.");
+                    return false;
+                }
+            }
+        }
+
         const res = await updateTaskFields(taskId, fields);
         if (res.success && res.task) {
             setTasks(prev => prev.map(t => {
@@ -820,6 +869,8 @@ export default function KanbanSpaceClient({ initialData }: Props) {
         const originalTasks = [...tasks];
         const taskToMove = tasks.find(t => t.id === taskId);
         if (!taskToMove || taskToMove.status === targetStatus) return;
+
+        if (!validateStatusChange(taskToMove, taskToMove.status, targetStatus)) return;
 
         setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: targetStatus } : t));
 
@@ -1376,6 +1427,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                                 setEditingTask(task);
                                                                                 setActiveCardMenuTaskId(null);
                                                                             }}
+                                                                            canDelete={canDeleteTask}
                                                                         />
                                                                     )}
                                                                 </div>
@@ -1743,6 +1795,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     onDelete={handleDeleteTaskFromModal}
                     activities={activities}
                     userRole={initialData.currentUserRole}
+                    userAccessibleModules={initialData.currentUserAccessibleModules}
                     tasks={tasks.filter(t => t.id !== selectedTask.id).map(t => ({ id: t.id, codigo: t.codigo, title: t.title }))}
                     spaceId={space.id}
                 />

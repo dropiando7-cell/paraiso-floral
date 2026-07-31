@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { Metadata } from 'next';
 import FichaTecnicaClient from './FichaTecnicaClient';
+import { createClient } from '@/utils/supabase/server';
 
 type Props = { params: Promise<{ idQr: string }> };
 
@@ -24,6 +25,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function FichaTecnicaPage({ params }: Props) {
     const { idQr } = await params;
+
+    // Obtener información del usuario logueado para verificar permisos
+    let userPermissions: string[] = [];
+    let isSuperAdmin = false;
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user && user.email) {
+            const dbUser = await prisma.user.findUnique({
+                where: { email: user.email },
+                select: { role: true, accessibleModules: true }
+            });
+            if (dbUser) {
+                userPermissions = dbUser.accessibleModules || [];
+                isSuperAdmin = dbUser.role === 'SUPER_ADMIN';
+            }
+        }
+    } catch (e) {
+        console.error("Auth check failed in FichaTecnicaPage:", e);
+    }
 
     const activo = await prisma.activoFijo.findFirst({
         where: { idQr: decodeURIComponent(idQr) },
@@ -148,5 +169,12 @@ export default async function FichaTecnicaPage({ params }: Props) {
 
     const distribucion = JSON.parse(JSON.stringify(activosSimilares));
 
-    return <FichaTecnicaClient activo={data} distribucion={distribucion} />;
+    return (
+        <FichaTecnicaClient 
+            activo={data} 
+            distribucion={distribucion} 
+            userPermissions={userPermissions}
+            isSuperAdmin={isSuperAdmin}
+        />
+    );
 }

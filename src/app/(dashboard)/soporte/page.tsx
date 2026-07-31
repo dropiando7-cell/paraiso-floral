@@ -52,14 +52,30 @@ export default async function SoportePage() {
     
     const safeOrdenes = ordenes.map((orden: any) => ({
         ...orden,
-        costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
-        costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
+        costoRevision: orden.costoRevision !== null && orden.costoRevision !== undefined ? Number(orden.costoRevision) : null,
+        costoReparacion: orden.costoReparacion !== null && orden.costoReparacion !== undefined ? Number(orden.costoReparacion) : null,
     }));
 
     const safeEntregadas = entregadas.map((orden: any) => ({
         ...orden,
-        costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
-        costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
+        costoRevision: orden.costoRevision !== null && orden.costoRevision !== undefined ? Number(orden.costoRevision) : null,
+        costoReparacion: orden.costoReparacion !== null && orden.costoReparacion !== undefined ? Number(orden.costoReparacion) : null,
+    }));
+
+    const safeActivosClientes = activosClientes.map((activo: any) => ({
+        ...activo,
+        costoAdq: activo.costoAdq !== null && activo.costoAdq !== undefined ? Number(activo.costoAdq) : null,
+        vidaUtilOverride: activo.vidaUtilOverride !== null && activo.vidaUtilOverride !== undefined ? Number(activo.vidaUtilOverride) : null,
+        valResidual: activo.valResidual !== null && activo.valResidual !== undefined ? Number(activo.valResidual) : null,
+        baseDeprec: activo.baseDeprec !== null && activo.baseDeprec !== undefined ? Number(activo.baseDeprec) : null,
+        deprecMensual: activo.deprecMensual !== null && activo.deprecMensual !== undefined ? Number(activo.deprecMensual) : null,
+        deprecAcum: activo.deprecAcum !== null && activo.deprecAcum !== undefined ? Number(activo.deprecAcum) : null,
+        valorLibros: activo.valorLibros !== null && activo.valorLibros !== undefined ? Number(activo.valorLibros) : null,
+        ordenesTrabajo: (activo.ordenesTrabajo || []).map((o: any) => ({
+            ...o,
+            costoRevision: o.costoRevision !== null && o.costoRevision !== undefined ? Number(o.costoRevision) : null,
+            costoReparacion: o.costoReparacion !== null && o.costoReparacion !== undefined ? Number(o.costoReparacion) : null,
+        }))
     }));
 
     return (
@@ -67,7 +83,7 @@ export default async function SoportePage() {
             initialData={safeOrdenes} 
             deliveredData={safeEntregadas}
             clientes={clientes}
-            activosClientes={activosClientes}
+            activosClientes={safeActivosClientes}
             userRole={dbUser.role}
             customRoleName={dbUser.customRoleName || ''}
             accessibleModules={dbUser.accessibleModules || []}

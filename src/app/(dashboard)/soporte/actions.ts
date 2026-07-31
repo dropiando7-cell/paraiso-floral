@@ -129,7 +129,9 @@ export async function createOrdenTrabajo(data: {
     const firstTecnicoId = data.tecnicoIds?.[0] || null;
 
     const requiereAprobacion = data.requiereAprobacion !== false;
-    const estadoInicial = requiereAprobacion ? 'RECIBIDO' : 'REPARACION';
+    const estadoInicial = data.cobertura === 'externa' 
+        ? 'REGISTRO' 
+        : (requiereAprobacion ? 'RECIBIDO' : 'REPARACION');
 
     const orden = await prisma.ordenTrabajo.create({
         data: {
@@ -939,6 +941,67 @@ export async function updateDatosOrden(
 
     await syncMantenimientosDesdeOrdenTrabajo(id);
 
+    // Sync back to KanbanTask
+    try {
+        const relatedTask = await prisma.kanbanTask.findFirst({
+            where: { ordenTrabajoId: id }
+        });
+
+        if (relatedTask) {
+            let cleanFalla = updated.descripcionFalla || '';
+            if (cleanFalla.includes('<')) {
+                cleanFalla = cleanFalla
+                    .replace(/<li>\s*<p>/g, '\n- ')
+                    .replace(/<li>/g, '\n- ')
+                    .replace(/<\/li>/g, '')
+                    .replace(/<\/p>/g, '\n')
+                    .replace(/<br\s*\/?>/g, '\n')
+                    .replace(/<[^>]*>/g, '')
+                    .replace(/\n\s*\n\s*\n/g, '\n\n')
+                    .trim();
+            }
+
+            const updatedDescLines = [
+                `**Equipo:** ${updated.equipoDano}`,
+                updated.marcaModelo ? `**Marca/Modelo:** ${updated.marcaModelo}` : null,
+                updated.serie ? `**Serie:** ${updated.serie}` : null,
+                `**Cliente:** ${updated.cliente?.nombre || 'Desconocido'}`,
+                cleanFalla ? `\n**Falla Reportada:**\n${cleanFalla}` : null
+            ].filter(Boolean).join('\n');
+
+            await prisma.kanbanTask.update({
+                where: { id: relatedTask.id },
+                data: {
+                    title: `Orden #${updated.codigoSeguridad} - ${updated.equipoDano}`,
+                    description: updatedDescLines
+                }
+            });
+
+            // Sync photos to KanbanAttachments
+            const existingAttachments = await prisma.kanbanAttachment.findMany({
+                where: { taskId: relatedTask.id }
+            });
+            const existingUrls = existingAttachments.map(att => att.url);
+
+            const newUrls = (updated.fotosEstadoInicial || []).filter(url => !existingUrls.includes(url));
+            for (const url of newUrls) {
+                const nombre = url.split('/').pop() || 'evidencia.png';
+                await prisma.kanbanAttachment.create({
+                    data: {
+                        taskId: relatedTask.id,
+                        url,
+                        nombre,
+                        tipo: 'image/png',
+                        tamano: 0,
+                        subidoPorId: relatedTask.creadoPorId || updated.tecnicoReparacionId || updated.clienteId || ''
+                    }
+                });
+            }
+        }
+    } catch (syncErr) {
+        console.error("[Soporte to Kanban Task Sync Error]:", syncErr);
+    }
+
     if (updated.clienteId && (data.clienteNombre || data.clienteTelefono !== undefined)) {
         await prisma.cliente.update({
             where: { id: updated.clienteId },
@@ -951,6 +1014,7 @@ export async function updateDatosOrden(
 
     revalidatePath('/soporte');
     revalidatePath(`/soporte/${id}`);
+    revalidatePath('/kanban');
     return { success: true };
 }
 
@@ -1720,7 +1784,92 @@ export async function crearClienteAction(data: {
     }
 }
 
+export async function guardarFirmaOrden(data: {
+    ordenId: string;
+    tipo: 'cliente' | 'tecnico';
+    firmaUrl: string;
+    nombreSigner: string;
+    guardarDigital?: boolean;
+}) {
+    try {
+        if (!data.ordenId || !data.firmaUrl || !data.nombreSigner) {
+            throw new Error("Datos incompletos para guardar la firma.");
+        }
 
+        if (data.tipo === 'cliente') {
+            const updated = await prisma.ordenTrabajo.update({
+                where: { id: data.ordenId },
+                data: {
+                    firmaClienteUrl: data.firmaUrl,
+                    firmaClienteNombre: data.nombreSigner,
+                    firmaClienteFecha: new Date()
+                }
+            });
 
+            if (data.guardarDigital && updated.clienteId) {
+                await prisma.cliente.update({
+                    where: { id: updated.clienteId },
+                    data: {
+                        firmaDigitalUrl: data.firmaUrl,
+                        firmaDigitalNombre: data.nombreSigner
+                    }
+                });
+            }
+        } else {
+            await prisma.ordenTrabajo.update({
+                where: { id: data.ordenId },
+                data: {
+                    firmaTecnicoUrl: data.firmaUrl,
+                    firmaTecnicoNombre: data.nombreSigner,
+                    firmaTecnicoFecha: new Date()
+                }
+            });
+        }
 
+        revalidatePath('/soporte');
+        revalidatePath(`/soporte/${data.ordenId}`);
+        revalidatePath('/kanban');
+        return { success: true };
+    } catch (e: any) {
+        console.error("Error en guardarFirmaOrden:", e);
+        return { success: false, error: e.message || "Error al guardar la firma." };
+    }
+}
 
+export async function getOrdenDetalleSimplificado(id: string) {
+    try {
+        const orden = await prisma.ordenTrabajo.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                firmaClienteUrl: true,
+                firmaClienteNombre: true,
+                firmaClienteFecha: true,
+                firmaTecnicoUrl: true,
+                firmaTecnicoNombre: true,
+                firmaTecnicoFecha: true,
+                clienteId: true,
+                cliente: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        firmaDigitalUrl: true,
+                        firmaDigitalNombre: true,
+                        nombreContacto: true
+                    }
+                },
+                tecnicosAsignados: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        apellido: true,
+                        email: true
+                    }
+                }
+            }
+        });
+        return { success: true, orden };
+    } catch (e: any) {
+        return { success: false, error: e.message || "Error al obtener la orden" };
+    }
+}

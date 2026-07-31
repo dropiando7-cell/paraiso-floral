@@ -7,7 +7,7 @@ import {
     User, CheckCircle2, AlertTriangle, TrendingDown,
     FileText, Layers, ChevronLeft, ChevronRight, X,
     QrCode, Building2, Shield, Barcode, Laptop, Plus,
-    Printer, Clock, MessageSquare, Paperclip, Wrench, Download, Image, Play, Music
+    Printer, Clock, MessageSquare, Paperclip, Wrench, Download, Image, Play, Music, Pencil
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -117,12 +117,21 @@ function Field({ label, value, mono, icon: Icon }: {
     );
 }
 
-export default function FichaTecnicaClient({ activo, distribucion }: { 
+export default function FichaTecnicaClient({ 
+    activo, 
+    distribucion,
+    userPermissions = [],
+    isSuperAdmin = false
+}: { 
     activo: Activo, 
-    distribucion?: { idQr: string, serie?: string | null, area: string, stock: number, estatusContable: string }[] 
+    distribucion?: { idQr: string, serie?: string | null, area: string, stock: number, estatusContable: string }[],
+    userPermissions?: string[],
+    isSuperAdmin?: boolean
 }) {
     const router = useRouter();
     const [downloadingReport, setDownloadingReport] = useState(false);
+
+    const canEdit = isSuperAdmin || userPermissions.includes('editar_ordenes_ficha') || userPermissions.includes('editar_ordenes');
 
     const handleBack = () => {
         const hasHistory = typeof window !== 'undefined' && window.history.length > 1 && document.referrer && document.referrer.includes(window.location.host);
@@ -439,13 +448,22 @@ export default function FichaTecnicaClient({ activo, distribucion }: {
                                                 
                                                 {/* Header ODT */}
                                                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200/60 pb-2 mb-3">
-                                                    <div>
-                                                        <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded mr-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-200 px-2 py-0.5 rounded">
                                                             #{orden.codigoSeguridad}
                                                         </span>
                                                         <span className="text-[10px] font-bold text-slate-400">
                                                             {new Date(orden.fechaRecibido).toLocaleDateString()}
                                                         </span>
+                                                        {canEdit && (
+                                                            <button
+                                                                onClick={() => router.push(`/soporte/${orden.id}`)}
+                                                                className="text-[10px] text-blue-600 hover:text-blue-800 font-extrabold flex items-center gap-0.5 ml-2 transition-colors cursor-pointer border-0 bg-transparent py-0.5 px-1 hover:bg-blue-50 rounded"
+                                                            >
+                                                                <Pencil className="w-3 h-3" />
+                                                                Editar
+                                                            </button>
+                                                        )}
                                                     </div>
                                                     <span className={`text-[9px] font-bold border rounded px-2 py-0.5 ${statusColors[orden.estado] || 'bg-slate-100 text-slate-700'}`}>
                                                         {orden.estado}

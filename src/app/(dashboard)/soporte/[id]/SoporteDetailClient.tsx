@@ -1,16 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import StatusStepper from '../components/StatusStepper';
 import TechnicalWorkbench from '../components/TechnicalWorkbench';
 import ApprovalCard from '../components/ApprovalCard';
 import AprobacionClienteCard from '../components/AprobacionClienteCard';
 import QRGenerator from '../components/QRGenerator';
-import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle, Loader2, Sparkles, Plus, Smartphone, Send, Archive } from 'lucide-react';
-import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden, eliminarOrdenTrabajo, notificarClienteListo, convertirCotizacionAServicioFactura, enviarNotificacionRecepcionTwilio } from '../actions';
+import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
+import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle, Loader2, Sparkles, Plus, Smartphone, Send, Archive, Building2, Phone, Calendar, Shield, Tag, Package, Hash, FileText, RotateCcw, PenTool } from 'lucide-react';
+import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden, eliminarOrdenTrabajo, notificarClienteListo, convertirCotizacionAServicioFactura, enviarNotificacionRecepcionTwilio, guardarFirmaOrden } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
+import SignatureCanvas from 'react-signature-canvas';
 
 type Orden = any;
 
@@ -109,6 +111,75 @@ export default function SoporteDetailClient({
   const [isPreviewRecepcionTwilioOpen, setIsPreviewRecepcionTwilioOpen] = React.useState(false);
   const [isSendingRecepcionTwilio, setIsSendingRecepcionTwilio] = React.useState(false);
   const [recepcionTwilioSent, setRecepcionTwilioSent] = React.useState(false);
+
+  // Client signature states
+  const sigClientCanvasRef = useRef<SignatureCanvas>(null);
+  const [clientSignerName, setClientSignerName] = useState(orden.firmaClienteNombre || orden.cliente?.nombreContacto || orden.cliente?.nombre || '');
+  const [saveFirmaFuture, setSaveFirmaFuture] = useState(false);
+  const [clientHasDrawn, setClientHasDrawn] = useState(false);
+  const [isSavingClientFirma, setIsSavingClientFirma] = useState(false);
+  const [clientFirmaOverride, setClientFirmaOverride] = useState(false);
+
+  // Technician signature states
+  const sigTechCanvasRef = useRef<SignatureCanvas>(null);
+  const [techSignerName, setTechSignerName] = useState(orden.firmaTecnicoNombre || '');
+  const [techHasDrawn, setTechHasDrawn] = useState(false);
+  const [isSavingTechFirma, setIsSavingTechFirma] = useState(false);
+  const [techFirmaOverride, setTechFirmaOverride] = useState(false);
+
+  // Pre-fill default tech from assigned techs if not signed
+  useEffect(() => {
+    if (!orden.firmaTecnicoNombre && assignedTecnicos.length > 0) {
+      const firstTech = assignedTecnicos[0];
+      const name = [firstTech.nombre, firstTech.apellido].filter(Boolean).join(' ') || firstTech.email;
+      setTechSignerName(name);
+    } else if (!orden.firmaTecnicoNombre) {
+      const currentUser = organizationUsers.find((u: any) => u.email === userEmail);
+      if (currentUser) {
+        const name = [currentUser.nombre, currentUser.apellido].filter(Boolean).join(' ') || currentUser.email;
+        setTechSignerName(name);
+      }
+    }
+  }, [assignedTecnicos, organizationUsers, userEmail, orden.firmaTecnicoNombre]);
+
+  React.useEffect(() => {
+    if (!isEditModalOpen) return;
+    
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            files.push(file);
+          }
+        }
+      }
+      
+      if (files.length > 0) {
+        const newPhotos = files.map(f => {
+          const name = f.name && f.name !== 'image.png' 
+            ? f.name 
+            : `pegado-${Date.now()}-${Math.floor(Math.random() * 1000)}.png`;
+          return {
+            name,
+            file: f,
+            url: URL.createObjectURL(f),
+            size: (f.size / 1024).toFixed(0)
+          };
+        });
+        setEditPhotos(p => [...p, ...newPhotos]);
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [isEditModalOpen]);
 
   const [confirmModal, setConfirmModal] = React.useState<{
     isOpen: boolean;
@@ -284,6 +355,140 @@ export default function SoporteDetailClient({
     }
   };
 
+  const dataURLtoBlob = (dataurl: string) => {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  };
+
+  const uploadSignatureToR2 = async (dataUrl: string) => {
+    const blob = dataURLtoBlob(dataUrl);
+    const filename = `signature-${orden.id}-${Date.now()}.png`;
+    
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fileName: filename, contentType: 'image/png' })
+    });
+    if (!res.ok) throw new Error("Error al obtener URL de subida");
+    const { uploadUrl, publicUrl } = await res.json();
+    
+    const uploadRes = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: blob,
+      headers: { 'Content-Type': 'image/png' }
+    });
+    if (!uploadRes.ok) throw new Error("Error al subir a Cloudflare R2");
+    
+    return publicUrl;
+  };
+
+  const handleSaveClientFirma = async () => {
+    if (!clientHasDrawn || !sigClientCanvasRef.current || sigClientCanvasRef.current.isEmpty()) {
+      toast.error('Por favor dibuja tu firma en el recuadro.');
+      return;
+    }
+    if (!clientSignerName.trim()) {
+      toast.error('Por favor escribe el nombre de la persona que firma.');
+      return;
+    }
+
+    setIsSavingClientFirma(true);
+    try {
+      const dataUrl = sigClientCanvasRef.current.getTrimmedCanvas().toDataURL('image/png');
+      const publicUrl = await uploadSignatureToR2(dataUrl);
+      
+      const res = await guardarFirmaOrden({
+        ordenId: orden.id,
+        tipo: 'cliente',
+        firmaUrl: publicUrl,
+        nombreSigner: clientSignerName.trim(),
+        guardarDigital: saveFirmaFuture
+      });
+
+      if (res.success) {
+        toast.success('Firma del cliente guardada exitosamente.');
+        window.location.reload();
+      } else {
+        toast.error(res.error || 'Error al guardar la firma.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Error de conexión.');
+    } finally {
+      setIsSavingClientFirma(false);
+    }
+  };
+
+  const handleUseSavedFirma = async () => {
+    if (!orden.cliente?.firmaDigitalUrl) return;
+    
+    setIsSavingClientFirma(true);
+    try {
+      const res = await guardarFirmaOrden({
+        ordenId: orden.id,
+        tipo: 'cliente',
+        firmaUrl: orden.cliente.firmaDigitalUrl,
+        nombreSigner: orden.cliente.firmaDigitalNombre || orden.cliente.nombreContacto || orden.cliente.nombre || 'Cliente',
+        guardarDigital: false
+      });
+
+      if (res.success) {
+        toast.success('Firma guardada del cliente aplicada exitosamente.');
+        window.location.reload();
+      } else {
+        toast.error(res.error || 'Error al aplicar la firma guardada.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Error de conexión.');
+    } finally {
+      setIsSavingClientFirma(false);
+    }
+  };
+
+  const handleSaveTechFirma = async () => {
+    if (!techHasDrawn || !sigTechCanvasRef.current || sigTechCanvasRef.current.isEmpty()) {
+      toast.error('Por favor dibuja tu firma en el recuadro.');
+      return;
+    }
+    if (!techSignerName.trim()) {
+      toast.error('Por favor ingresa o selecciona el nombre del técnico biomédico.');
+      return;
+    }
+
+    setIsSavingTechFirma(true);
+    try {
+      const dataUrl = sigTechCanvasRef.current.getTrimmedCanvas().toDataURL('image/png');
+      const publicUrl = await uploadSignatureToR2(dataUrl);
+      
+      const res = await guardarFirmaOrden({
+        ordenId: orden.id,
+        tipo: 'tecnico',
+        firmaUrl: publicUrl,
+        nombreSigner: techSignerName.trim()
+      });
+
+      if (res.success) {
+        toast.success('Firma del técnico guardada exitosamente.');
+        window.location.reload();
+      } else {
+        toast.error(res.error || 'Error al guardar la firma.');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Error de conexión.');
+    } finally {
+      setIsSavingTechFirma(false);
+    }
+  };
+
   const handleAvanzar = async (nuevoEstado: string) => {
     setLoading(true);
     if (nuevoEstado === 'LISTO_ENTREGA') {
@@ -357,6 +562,21 @@ export default function SoporteDetailClient({
     });
   };
 
+  const FichaField = ({ label, value, icon: Icon }: { label: string; value?: string | null; icon?: any }) => {
+    if (!value) return null;
+    return (
+      <div className="flex flex-col gap-1 p-4 bg-slate-50 border border-slate-100 rounded-2xl">
+        <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+          {Icon && <Icon className="w-3.5 h-3.5 text-slate-400" />}
+          {label}
+        </div>
+        <div className="text-sm font-semibold text-slate-800">
+          {value}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="px-0 py-4 md:p-8 max-w-[1600px] mx-auto min-h-screen bg-slate-50">
       <button 
@@ -386,9 +606,17 @@ export default function SoporteDetailClient({
                   ? 'bg-green-50 text-green-700 border-green-200' 
                   : orden.tipoTrabajo === 'RECLAMO'
                   ? 'bg-rose-50 text-rose-700 border-rose-200'
+                  : orden.tipoTrabajo === 'MANTENIMIENTO'
+                  ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
                   : 'bg-slate-50 text-slate-700 border-slate-200'
               }`}>
-                {orden.tipoTrabajo === 'GARANTIA' ? '🎖️ Garantía' : orden.tipoTrabajo === 'RECLAMO' ? '⚠️ Reclamo' : '⚙️ Normal'}
+                {orden.tipoTrabajo === 'GARANTIA' 
+                  ? '🎖️ Garantía' 
+                  : orden.tipoTrabajo === 'RECLAMO' 
+                  ? '⚠️ Reclamo' 
+                  : orden.tipoTrabajo === 'MANTENIMIENTO' 
+                  ? '🔧 Mantenimiento' 
+                  : '⚙️ Normal'}
               </span>
             </h1>
             <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">
@@ -474,6 +702,16 @@ export default function SoporteDetailClient({
               <Layout className="w-3.5 h-3.5 text-indigo-500" /> Orden de Trabajo ({orden.kanbanTasks[0].codigo})
             </a>
           )}
+          {orden.activoId && (
+            <a
+              href={`/api/pdf/${orden.activoId}?type=historial`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs md:text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5 text-emerald-500" /> Historial de Mantenimientos
+            </a>
+          )}
           {canDeleteOrder && (
             <button
               type="button"
@@ -487,13 +725,60 @@ export default function SoporteDetailClient({
         </div>
       </div>
 
-      <StatusStepper 
-        estadoActual={orden.estado} 
-        ordenId={orden.codigoSeguridad} 
-        equipoInfo={`${orden.equipoDano} — S/N: ${orden.serie || 'N/A'}`}
-      />
+      {orden.cobertura === 'externa' ? (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)] p-6 md:p-8 animate-in fade-in duration-200 mb-6">
+          <div className="border-b border-slate-100 pb-4 mb-6">
+            <h2 className="text-lg font-bold text-slate-800">Ficha de Registro de Orden Externa</h2>
+            <p className="text-xs text-slate-500 mt-1">Detalle de registro para contratos de mantenimiento y soporte externo.</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-5">
+            <FichaField label="Cliente / Empresa" value={orden.cliente?.nombre} icon={Building2} />
+            <FichaField label="Teléfono / WhatsApp" value={orden.cliente?.telefono} icon={Phone} />
+            <FichaField label="Fecha de Recepción" value={new Date(orden.fechaRecibido).toLocaleDateString()} icon={Calendar} />
+            
+            <FichaField label="Cobertura de Orden" value={orden.cobertura === 'interna' ? '🏢 Interna' : '🌍 Externa'} icon={Shield} />
+            <FichaField label="Tipo de Trabajo" value={orden.tipoTrabajo === 'MANTENIMIENTO' ? '🔧 Mantenimiento' : orden.tipoTrabajo === 'GARANTIA' ? '🎖️ Garantía' : orden.tipoTrabajo === 'RECLAMO' ? '⚠️ Reclamo' : '⚙️ Normal'} icon={Tag} />
+            <FichaField label="Tipo de Equipo" value={orden.tipoAparato === 'MEDICO' ? '🏥 Médico' : orden.tipoAparato === 'AIRE' ? '❄️ Aire Acond.' : '🔧 Otro'} icon={Wrench} />
+            
+            <FichaField label="Nombre del Equipo" value={orden.equipoDano} icon={Package} />
+            <FichaField label="Marca / Modelo" value={orden.marcaModelo || "No especificado"} icon={Tag} />
+            <FichaField label="Número de Serie" value={orden.serie} icon={Hash} />
+          </div>
+          
+          <div className="mt-6 border-t border-slate-100 pt-6">
+            <span className="block text-slate-400 font-bold text-[10px] uppercase tracking-wider mb-2">Descripción de Falla o Trabajo Realizado</span>
+            <div className="bg-slate-50 border border-slate-150 rounded-2xl p-4">
+              <RichDescriptionEditor content={orden.descripcionFalla || ''} readOnly onChange={() => {}} />
+            </div>
+          </div>
+          
+          {orden.fotosEstadoInicial && orden.fotosEstadoInicial.length > 0 && (
+            <div className="mt-6 border-t border-slate-100 pt-6">
+              <span className="block text-slate-400 font-bold text-[10px] uppercase tracking-wider mb-3">Fotos de Evidencia ({orden.fotosEstadoInicial.length})</span>
+              <div className="flex flex-wrap gap-3">
+                {orden.fotosEstadoInicial.map((img: string, idx: number) => (
+                  <div 
+                    key={idx} 
+                    onClick={() => setLightboxUrl(img)}
+                    className="w-20 h-20 rounded-xl overflow-hidden border border-slate-200 cursor-pointer hover:border-indigo-500 transition-colors shadow-sm"
+                  >
+                    <img src={img} alt={`Evidencia ${idx + 1}`} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          <StatusStepper 
+            estadoActual={orden.estado} 
+            ordenId={orden.codigoSeguridad} 
+            equipoInfo={`${orden.equipoDano} — S/N: ${orden.serie || 'N/A'}`}
+          />
 
-      <div className="grid grid-cols-12 gap-4 md:gap-5">
+          <div className="grid grid-cols-12 gap-4 md:gap-5">
         
         {/* Column 1: Primary Action & Tech Assignment (left) */}
         <div className="col-span-12 lg:col-span-8 flex flex-col gap-4">
@@ -832,7 +1117,251 @@ export default function SoporteDetailClient({
             />
           )}
         </div>
+      </div>
+      </>
+      )}
 
+      {/* ================= SECCIÓN DE FIRMAS DIGITALES ================= */}
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)] p-6 md:p-8 mt-6 mb-6">
+        <div className="border-b border-slate-100 pb-4 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+              <PenTool className="text-indigo-600 w-5 h-5" />
+              Firma Digital de Trabajo Realizado
+            </h2>
+            <p className="text-xs text-slate-500 mt-1">Registra la conformidad del cliente y del técnico biomédico asignado.</p>
+          </div>
+          
+          <a
+            href={`/api/pdf/${orden.id}?type=historial`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 cursor-pointer self-start sm:self-auto"
+          >
+            <FileText className="w-4 h-4 text-emerald-500" /> Generar Informe Técnico
+          </a>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+          {/* A. Firma del Cliente */}
+          <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-5 flex flex-col gap-4">
+            <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <span>Firma del Cliente de Recibido</span>
+            </h3>
+            
+            {orden.firmaClienteUrl && !clientFirmaOverride ? (
+              <div className="space-y-3 flex-1 flex flex-col justify-between">
+                <div className="border border-slate-200 rounded-xl p-3 bg-white flex items-center justify-center h-40">
+                  <img src={orden.firmaClienteUrl} alt="Firma del Cliente" className="max-h-full max-w-full object-contain" />
+                </div>
+                <div className="text-center bg-green-50 text-green-800 text-[11px] p-2.5 rounded-xl border border-green-200 font-semibold shadow-sm">
+                  Firmado por {orden.firmaClienteNombre} el {new Date(orden.firmaClienteFecha).toLocaleString('es-HN')}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setClientFirmaOverride(true)}
+                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition active:scale-95 cursor-pointer mt-1"
+                >
+                  Volver a firmar / Cambiar firma
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4 flex-1 flex flex-col justify-between">
+                {orden.cliente?.firmaDigitalUrl && (
+                  <button
+                    type="button"
+                    disabled={isSavingClientFirma}
+                    onClick={handleUseSavedFirma}
+                    className="w-full py-2.5 px-3 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition active:scale-95 cursor-pointer"
+                  >
+                    <Sparkles className="w-4 h-4 text-indigo-500 animate-pulse" />
+                    Utilizar Firma Digital Guardada de {orden.cliente.firmaDigitalNombre}
+                  </button>
+                )}
+
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nombre del Firmante *</label>
+                  <input
+                    type="text"
+                    value={clientSignerName}
+                    onChange={e => setClientSignerName(e.target.value)}
+                    placeholder="Escribe el nombre del cliente..."
+                    className="w-full text-xs border border-slate-200 rounded-xl px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all text-slate-700 font-semibold shadow-sm"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between items-end">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dibuje la firma abajo</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sigClientCanvasRef.current?.clear();
+                        setClientHasDrawn(false);
+                      }}
+                      className="text-[10px] text-indigo-600 font-semibold flex items-center gap-0.5 bg-indigo-50 px-2 py-0.5 rounded-md hover:bg-indigo-100 transition-colors cursor-pointer"
+                    >
+                      <RotateCcw size={10} /> Limpiar
+                    </button>
+                  </div>
+                  <div className="border border-dashed border-slate-300 rounded-2xl bg-white h-40 relative touch-none overflow-hidden shadow-inner">
+                    <SignatureCanvas
+                      ref={sigClientCanvasRef}
+                      penColor="#0600c2"
+                      canvasProps={{
+                        className: 'w-full h-full cursor-crosshair touch-none'
+                      }}
+                      onBegin={() => setClientHasDrawn(true)}
+                    />
+                    {!clientHasDrawn && (
+                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
+                        <span className="font-serif italic text-xs text-slate-400">Firmar aquí</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="saveFirmaFuture"
+                    checked={saveFirmaFuture}
+                    onChange={e => setSaveFirmaFuture(e.target.checked)}
+                    className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer"
+                  />
+                  <label htmlFor="saveFirmaFuture" className="text-xs text-slate-600 font-medium select-none cursor-pointer">
+                    Guardar firma para futuros servicios de este cliente
+                  </label>
+                </div>
+
+                <div className="flex gap-2">
+                  {orden.firmaClienteUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClientFirmaOverride(false);
+                        setClientHasDrawn(false);
+                      }}
+                      className="w-1/3 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer font-semibold shadow-sm"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isSavingClientFirma}
+                    onClick={handleSaveClientFirma}
+                    className={`py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer ${orden.firmaClienteUrl ? 'w-2/3' : 'w-full'}`}
+                  >
+                    {isSavingClientFirma ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <PenTool size={14} />
+                    )}
+                    Registrar Firma del Cliente
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* B. Firma del Técnico */}
+          <div className="bg-slate-50/50 border border-slate-150 rounded-2xl p-5 flex flex-col gap-4">
+            <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+              <span>Firma del Técnico Biomédico</span>
+            </h3>
+
+            {orden.firmaTecnicoUrl && !techFirmaOverride ? (
+              <div className="space-y-3 flex-1 flex flex-col justify-between">
+                <div className="border border-slate-200 rounded-xl p-3 bg-white flex items-center justify-center h-40">
+                  <img src={orden.firmaTecnicoUrl} alt="Firma del Técnico" className="max-h-full max-w-full object-contain" />
+                </div>
+                <div className="text-center bg-green-50 text-green-800 text-[11px] p-2.5 rounded-xl border border-green-200 font-semibold shadow-sm">
+                  Firmado por {orden.firmaTecnicoNombre} el {new Date(orden.firmaTecnicoFecha).toLocaleString('es-HN')}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTechFirmaOverride(true)}
+                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition active:scale-95 cursor-pointer mt-1"
+                >
+                  Volver a firmar / Cambiar firma
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4 flex-1 flex flex-col justify-between">
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Nombre del Biomédico Asignado *</label>
+                  <input
+                    type="text"
+                    value={techSignerName}
+                    onChange={e => setTechSignerName(e.target.value)}
+                    placeholder="Nombre completo del técnico..."
+                    className="w-full text-xs border border-slate-200 rounded-xl px-4 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-100 focus:border-indigo-400 transition-all text-slate-700 font-semibold shadow-sm"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between items-end">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Dibuje la firma abajo</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        sigTechCanvasRef.current?.clear();
+                        setTechHasDrawn(false);
+                      }}
+                      className="text-[10px] text-indigo-600 font-semibold flex items-center gap-0.5 bg-indigo-50 px-2 py-0.5 rounded-md hover:bg-indigo-100 transition-colors cursor-pointer"
+                    >
+                      <RotateCcw size={10} /> Limpiar
+                    </button>
+                  </div>
+                  <div className="border border-dashed border-slate-300 rounded-2xl bg-white h-40 relative touch-none overflow-hidden shadow-inner">
+                    <SignatureCanvas
+                      ref={sigTechCanvasRef}
+                      penColor="#0600c2"
+                      canvasProps={{
+                        className: 'w-full h-full cursor-crosshair touch-none'
+                      }}
+                      onBegin={() => setTechHasDrawn(true)}
+                    />
+                    {!techHasDrawn && (
+                      <div className="absolute inset-0 pointer-events-none flex items-center justify-center opacity-30">
+                        <span className="font-serif italic text-xs text-slate-400">Firmar aquí</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-2">
+                  {orden.firmaTecnicoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTechFirmaOverride(false);
+                        setTechHasDrawn(false);
+                      }}
+                      className="w-1/3 py-3 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition active:scale-95 cursor-pointer font-semibold shadow-sm"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    disabled={isSavingTechFirma}
+                    onClick={handleSaveTechFirma}
+                    className={`py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer ${orden.firmaTecnicoUrl ? 'w-2/3' : 'w-full'}`}
+                  >
+                    {isSavingTechFirma ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <PenTool size={14} />
+                    )}
+                    Registrar Firma del Técnico
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Modal para Editar Datos de la Orden */}
@@ -903,7 +1432,13 @@ export default function SoporteDetailClient({
                       <button 
                         type="button" 
                         key={v} 
-                        onClick={() => setEditCobertura(v)} 
+                        onClick={() => {
+                          setEditCobertura(v);
+                          if (v === 'externa') {
+                            setEditCostoRevision('0');
+                            setEditMetodoPagoRevision('Ninguno');
+                          }
+                        }} 
                         className={`flex-1 py-3 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${
                           editCobertura === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
                         }`}
@@ -918,12 +1453,12 @@ export default function SoporteDetailClient({
                     Tipo de Trabajo
                   </label>
                   <div className="flex gap-2">
-                    {[["NORMAL","Normal"],["GARANTIA","Garantía"],["RECLAMO","Reclamo"]].map(([v,l]) => (
+                    {[["NORMAL","Normal"],["GARANTIA","Garantía"],["RECLAMO","Reclamo"],["MANTENIMIENTO","Mantenimiento"]].map(([v,l]) => (
                       <button 
                         type="button" 
                         key={v} 
                         onClick={() => setEditTipoTrabajo(v)} 
-                        className={`flex-1 py-3 rounded-xl border-2 text-xs sm:text-sm font-bold transition-all ${
+                        className={`flex-1 py-3 rounded-xl border-2 text-[10px] sm:text-xs font-bold transition-all ${
                           editTipoTrabajo === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
                         }`}
                       >
@@ -1010,50 +1545,49 @@ export default function SoporteDetailClient({
 
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Descripción de Falla (Recibido) *
+                  Descripción de Falla o Trabajo Realizado *
                 </label>
-                <textarea
-                  required
-                  value={editDescripcionFalla}
-                  onChange={(e) => setEditDescripcionFalla(e.target.value)}
+                <RichDescriptionEditor 
+                  content={editDescripcionFalla} 
+                  onChange={(html) => setEditDescripcionFalla(html)} 
                   placeholder="¿Qué reporta el cliente?"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors h-32 resize-none bg-white shadow-sm"
                 />
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Costo de Revisión / Diagnóstico (L.)
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    required
-                    value={editCostoRevision}
-                    onChange={(e) => setEditCostoRevision(e.target.value)}
-                    placeholder="Ej. 650"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors font-bold text-slate-800 bg-white shadow-sm"
-                  />
+              {editCobertura === 'interna' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                      Costo de Revisión / Diagnóstico (L.)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={editCostoRevision}
+                      onChange={(e) => setEditCostoRevision(e.target.value)}
+                      placeholder="Ej. 650"
+                      className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors font-bold text-slate-800 bg-white shadow-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                      Método de Pago (Revisión)
+                    </label>
+                    <select
+                      value={editMetodoPagoRevision}
+                      onChange={(e) => setEditMetodoPagoRevision(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-semibold shadow-sm"
+                    >
+                      <option value="Ninguno">Ninguno / Pendiente</option>
+                      <option value="Efectivo">Efectivo</option>
+                      <option value="Tarjeta">Tarjeta</option>
+                      <option value="Transferencia">Transferencia</option>
+                      <option value="Link de pago de Occidente">Link de pago de Occidente</option>
+                      <option value="Cheque">Cheque</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                    Método de Pago (Revisión)
-                  </label>
-                  <select
-                    value={editMetodoPagoRevision}
-                    onChange={(e) => setEditMetodoPagoRevision(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 text-base focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-semibold shadow-sm"
-                  >
-                    <option value="Ninguno">Ninguno / Pendiente</option>
-                    <option value="Efectivo">Efectivo</option>
-                    <option value="Tarjeta">Tarjeta</option>
-                    <option value="Transferencia">Transferencia</option>
-                    <option value="Link de pago de Occidente">Link de pago de Occidente</option>
-                    <option value="Cheque">Cheque</option>
-                  </select>
-                </div>
-              </div>
+              )}
 
               {/* Programación de Garantías y Mantenimientos (Edición) */}
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
@@ -1134,48 +1668,57 @@ export default function SoporteDetailClient({
                   onChange={(e) => handleFiles(e.target.files)}
                 />
 
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => fileRef.current?.click()}
-                    className="flex items-center justify-center gap-2.5 px-3 py-3.5 bg-slate-50 border border-slate-200 hover:bg-slate-100 hover:border-slate-300 text-slate-700 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-sm active:scale-[0.98]"
-                  >
-                    <ImageIcon className="w-4 h-4 sm:w-5 h-5 text-slate-500" />
-                    <span>Subir de Galería</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => cameraRef.current?.click()}
-                    className="flex items-center justify-center gap-2.5 px-3 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md active:scale-[0.98]"
-                  >
-                    <Camera className="w-4 h-4 sm:w-5 h-5" />
-                    <span>Tomar Foto</span>
-                  </button>
+                <div
+                  onDrop={handleDrop}
+                  onDragOver={e => e.preventDefault()}
+                  className="border-2 border-dashed border-slate-200 bg-slate-50 rounded-xl p-5 text-center transition-colors mb-4"
+                >
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => cameraRef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer border-0"
+                    >
+                      <Camera className="w-4 h-4" />
+                      Usar Cámara (Celular)
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() => fileRef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer"
+                    >
+                      <ImageIcon className="w-4 h-4 text-slate-400" />
+                      Subir desde Galería / PC
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-400 font-medium mt-3 mb-0">
+                    O arrastra y suelta tus imágenes directamente aquí. Puedes pegar con Ctrl+V.
+                  </p>
                 </div>
 
                 {/* Previsualización de imágenes */}
                 {(editExistingPhotos.length > 0 || editPhotos.length > 0) && (
-                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 mt-3">
+                  <div className="flex flex-wrap gap-2.5 mt-3 items-center">
                     {/* Fotos Existentes */}
                     {editExistingPhotos.map((url, i) => (
                       <div 
                         key={`existing-${i}`} 
-                        className="aspect-square rounded-xl overflow-hidden border border-slate-200 relative group cursor-pointer bg-slate-100 shadow-sm"
+                        className="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer"
                         onClick={() => setLightboxUrl(url)}
                       >
-                        <img src={url} alt={`Evidencia existente ${i + 1}`} className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"/>
+                        <img src={url} alt={`Evidencia existente ${i + 1}`} className="w-full h-full object-cover"/>
                         <button 
                           type="button"
                           onClick={(e) => { 
                             e.stopPropagation(); 
                             setEditExistingPhotos(prev => prev.filter((_, j) => j !== i)); 
                           }}
-                          className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md z-10"
+                          className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <X className="w-2.5 h-2.5" />
                         </button>
-                        <div className="absolute bottom-0 inset-x-0 bg-slate-900/60 text-white text-[9px] text-center font-bold py-1 pointer-events-none">
+                        <div className="absolute bottom-0 inset-x-0 bg-slate-900/60 text-white text-[8px] text-center font-bold py-0.5 pointer-events-none">
                           Guardada
                         </div>
                       </div>
@@ -1185,25 +1728,32 @@ export default function SoporteDetailClient({
                     {editPhotos.map((p, i) => (
                       <div 
                         key={`new-${i}`} 
-                        className="aspect-square rounded-xl overflow-hidden border border-indigo-200 relative group cursor-pointer bg-slate-100 shadow-sm"
+                        className="w-14 h-14 rounded-lg overflow-hidden border border-indigo-200 relative group cursor-pointer"
                         onClick={() => setLightboxUrl(p.url)}
                       >
-                        <img src={p.url} alt={p.name} className="w-full h-full object-cover hover:scale-105 transition-transform duration-200"/>
+                        <img src={p.url} alt={p.name} className="w-full h-full object-cover"/>
                         <button 
                           type="button"
                           onClick={(e) => { 
                             e.stopPropagation(); 
                             setEditPhotos(prev => prev.filter((_, j) => j !== i)); 
                           }}
-                          className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors shadow-md z-10"
+                          className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <X className="w-2.5 h-2.5" />
                         </button>
-                        <div className="absolute bottom-0 inset-x-0 bg-indigo-600/80 text-white text-[9px] text-center font-bold py-1 pointer-events-none">
-                          Nueva
-                        </div>
                       </div>
                     ))}
+                    
+                    {/* Botón rápido de cámara al final de las miniaturas */}
+                    <button
+                      type="button"
+                      onClick={() => cameraRef.current?.click()}
+                      className="w-14 h-14 rounded-lg border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 transition-all cursor-pointer animate-in fade-in"
+                      title="Tomar otra foto con la cámara"
+                    >
+                      <Camera className="w-5 h-5" />
+                    </button>
                   </div>
                 )}
               </div>

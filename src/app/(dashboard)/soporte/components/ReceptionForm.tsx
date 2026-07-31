@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { UploadCloud, Check, X, Wrench, Snowflake, Tags } from 'lucide-react';
+import { UploadCloud, Check, X, Wrench, Snowflake, Tags, Camera } from 'lucide-react';
 import { compressImage } from '@/utils/image';
+import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
 
 type PrefilledData = {
   clienteId?: string;
@@ -47,7 +48,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
     marca: prefilledData?.marca || "", 
     descripcionFalla: "", 
     prioridad: "normal",
-    costoRevision: "650", 
+    costoRevision: "0", 
     metodoPagoRevision: "Ninguno",
     tecnicoIds: [] as string[],
     tipoTrabajo: "NORMAL",
@@ -65,7 +66,11 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
+  const [showValidationModal, setShowValidationModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -76,6 +81,43 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          if (file) {
+            files.push(file);
+          }
+        }
+      }
+      
+      if (files.length > 0) {
+        const newPhotos = files.map(f => {
+          const name = f.name && f.name !== 'image.png' 
+            ? f.name 
+            : `pegado-${Date.now()}-${Math.floor(Math.random() * 1000)}.png`;
+          return {
+            name,
+            file: f,
+            url: URL.createObjectURL(f),
+            size: (f.size / 1024).toFixed(0)
+          };
+        });
+        setPhotos(p => [...p, ...newPhotos]);
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
   }, []);
 
   const filteredClientes = form.cliente 
@@ -91,6 +133,14 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
         setForm(p => ({ ...p, cliente: v, telefono: matched.telefono }));
         return;
       }
+    }
+    if (k === 'cobertura') {
+      setForm(p => ({ 
+        ...p, 
+        cobertura: v, 
+        costoRevision: v === 'externa' ? '0' : '650'
+      }));
+      return;
     }
     setForm(p => ({ ...p, [k]: v }));
   };
@@ -109,7 +159,12 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
   };
 
   const handleSubmit = async () => {
-    if (!form.cliente || !form.nombreEquipo || !form.descripcionFalla) return alert("Faltan campos obligatorios");
+    const isFallaEmpty = !form.descripcionFalla || form.descripcionFalla.replace(/<[^>]*>/g, '').trim() === '';
+    if (!form.cliente || !form.nombreEquipo || isFallaEmpty) {
+      setShowErrors(true);
+      setShowValidationModal(true);
+      return;
+    }
     setIsSubmitting(true);
     try {
       // Upload photos to R2 first
@@ -158,6 +213,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
       setSaved(true);
       setTimeout(() => {
           setSaved(false);
+          setShowErrors(false);
           setForm({ 
             cliente: "", 
             telefono: "+504 ", 
@@ -168,7 +224,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
             marca: "", 
             descripcionFalla: "", 
             prioridad: "normal", 
-            costoRevision: "650",
+            costoRevision: "0",
             metodoPagoRevision: "Ninguno",
             tecnicoIds: [],
             tipoTrabajo: "NORMAL",
@@ -208,16 +264,23 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
         <div className="relative" ref={dropdownRef}>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Cliente / Empresa *</label>
           <input 
-             className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white"
-             value={form.cliente} 
-             onChange={e => {
-                 handleChange("cliente", e.target.value);
-                 setShowDropdown(true);
-             }}
-             onFocus={() => setShowDropdown(true)}
-             placeholder="Ej. Hospital Centro"
-             autoComplete="off"
-          />
+             className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:ring-2 outline-none transition-colors bg-white ${
+             (showErrors && !form.cliente) 
+               ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
+               : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-600'
+           }`}
+           value={form.cliente} 
+           onChange={e => {
+               handleChange("cliente", e.target.value);
+               setShowDropdown(true);
+           }}
+           onFocus={() => setShowDropdown(true)}
+           placeholder="Ej. Hospital Centro"
+           autoComplete="off"
+        />
+        {showErrors && !form.cliente && (
+          <p className="text-red-500 text-[10px] font-bold mt-1">Este campo es requerido.</p>
+        )}
           {showDropdown && filteredClientes.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto py-1">
                   {filteredClientes.map((c: any) => (
@@ -269,8 +332,8 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Trabajo</label>
           <div className="flex gap-1.5">
-            {[["NORMAL","Normal"],["GARANTIA","Garantía"],["RECLAMO","Reclamo"]].map(([v,l]) => (
-              <button type="button" key={v} onClick={() => handleChange("tipoTrabajo", v)} className={`flex-1 py-2.5 rounded-lg border-2 text-[11px] font-semibold transition-all ${
+            {[["NORMAL","Normal"],["GARANTIA","Garantía"],["RECLAMO","Reclamo"],["MANTENIMIENTO","Mantenimiento"]].map(([v,l]) => (
+              <button type="button" key={v} onClick={() => handleChange("tipoTrabajo", v)} className={`flex-1 py-2.5 rounded-lg border-2 text-[10px] font-semibold transition-all ${
                   form.tipoTrabajo === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
               }`}>{l}</button>
             ))}
@@ -291,12 +354,19 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
       <div className="mb-4">
         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nombre del Equipo *</label>
         <input 
-           className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+           className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:ring-2 outline-none transition-colors bg-white font-medium ${
+             (showErrors && !form.nombreEquipo) 
+               ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
+               : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-600'
+           }`}
            value={form.nombreEquipo} 
            onChange={e => handleChange("nombreEquipo", e.target.value)} 
            placeholder="Ej. Concentrador de Oxígeno"
            required
         />
+        {showErrors && !form.nombreEquipo && (
+          <p className="text-red-500 text-[10px] font-bold mt-1">Este campo es requerido.</p>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
@@ -312,44 +382,55 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
       </div>
 
       <div className="mb-4">
-        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Descripción de Falla (Recibido) *</label>
-        <textarea 
-          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors h-16 resize-none"
-          value={form.descripcionFalla} onChange={e => handleChange("descripcionFalla", e.target.value)}
-          placeholder="¿Qué reporta el cliente?"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 border-t border-slate-100 pt-4 mt-4">
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
-            Costo de Revisión / Diagnóstico (L.)
-          </label>
-          <input 
-            type="number"
-            step="0.01"
-            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors font-bold text-slate-800"
-            value={form.costoRevision} 
-            onChange={e => handleChange("costoRevision", e.target.value)} 
-            placeholder="Ej. 650"
+        <label className="block text-xs font-semibold text-slate-700 mb-1.5">Descripción de Falla o Trabajo Realizado *</label>
+        <div className={
+          (showErrors && (!form.descripcionFalla || form.descripcionFalla.replace(/<[^>]*>/g, '').trim() === '')) 
+            ? 'border-red-500 ring-2 ring-red-100 rounded-lg overflow-hidden' 
+            : ''
+        }>
+          <RichDescriptionEditor 
+            content={form.descripcionFalla} 
+            onChange={(html) => handleChange("descripcionFalla", html)} 
+            placeholder="¿Qué reporta el cliente?"
           />
         </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Método de Pago (Revisión)</label>
-          <select 
-            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-semibold"
-            value={form.metodoPagoRevision}
-            onChange={e => handleChange("metodoPagoRevision", e.target.value)}
-          >
-            <option value="Ninguno">Ninguno / Pendiente</option>
-            <option value="Efectivo">Efectivo</option>
-            <option value="Tarjeta">Tarjeta</option>
-            <option value="Transferencia">Transferencia</option>
-            <option value="Link de pago de Occidente">Link de pago de Occidente</option>
-            <option value="Cheque">Cheque</option>
-          </select>
-        </div>
+        {showErrors && (!form.descripcionFalla || form.descripcionFalla.replace(/<[^>]*>/g, '').trim() === '') && (
+          <p className="text-red-500 text-[10px] font-bold mt-1">Este campo es requerido.</p>
+        )}
       </div>
+
+      {form.cobertura === 'interna' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 border-t border-slate-100 pt-4 mt-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5 flex items-center gap-1">
+              Costo de Revisión / Diagnóstico (L.)
+            </label>
+            <input 
+              type="number"
+              step="0.01"
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors font-bold text-slate-800"
+              value={form.costoRevision} 
+              onChange={e => handleChange("costoRevision", e.target.value)} 
+              placeholder="Ej. 650"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">Método de Pago (Revisión)</label>
+            <select 
+              className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-semibold"
+              value={form.metodoPagoRevision}
+              onChange={e => handleChange("metodoPagoRevision", e.target.value)}
+            >
+              <option value="Ninguno">Ninguno / Pendiente</option>
+              <option value="Efectivo">Efectivo</option>
+              <option value="Tarjeta">Tarjeta</option>
+              <option value="Transferencia">Transferencia</option>
+              <option value="Link de pago de Occidente">Link de pago de Occidente</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+          </div>
+        </div>
+      )}
 
       {/* Programación de Garantías y Mantenimientos */}
       <div className="mb-4 border-t border-slate-100 pt-4 mt-4 bg-slate-50/50 p-4 rounded-xl border border-slate-200">
@@ -467,27 +548,63 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
         <div
           onDrop={handleDrop}
           onDragOver={e => e.preventDefault()}
-          onClick={() => fileRef.current?.click()}
-          className="border-2 border-dashed border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/50 bg-slate-50 rounded-xl p-4 text-center cursor-pointer transition-colors"
+          className="border-2 border-dashed border-slate-200 bg-slate-50 rounded-xl p-5 text-center transition-colors"
         >
           <input ref={fileRef} type="file" multiple accept="image/*" className="hidden" onChange={e => handleFiles(e.target.files)}/>
-          <UploadCloud className="w-6 h-6 mx-auto mb-2 text-slate-400" />
-          <p className="text-xs text-slate-500 font-medium m-0">
-            Click o arrastra fotos. <span className="text-indigo-600 font-bold">Evidencia física.</span>
+          <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={e => handleFiles(e.target.files)}/>
+          
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer"
+            >
+              <Camera className="w-4 h-4" />
+              Usar Cámara (Celular)
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-lg transition-colors shadow-sm cursor-pointer"
+            >
+              <UploadCloud className="w-4 h-4 text-slate-400" />
+              Subir desde Galería / PC
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-400 font-medium mt-3 mb-0">
+            O arrastra y suelta tus imágenes directamente aquí.
           </p>
         </div>
         
         {photos.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-3">
+          <div className="flex flex-wrap gap-2 mt-3 items-center">
             {photos.map((p, i) => (
-              <div key={i} className="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 relative group">
+              <div 
+                key={i} 
+                className="w-14 h-14 rounded-lg overflow-hidden border border-slate-200 relative group cursor-pointer"
+                onClick={() => setLightboxUrl(p.url)}
+              >
                 <img src={p.url} alt={p.name} className="w-full h-full object-cover"/>
-                <button onClick={(e) => { e.stopPropagation(); setPhotos(pp => pp.filter((_,j) => j !== i)); }}
-                    className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <X className="w-3 h-3" />
+                <button 
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setPhotos(pp => pp.filter((_,j) => j !== i)); }}
+                  className="absolute top-1 right-1 w-4 h-4 bg-red-500 rounded-full text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                >
+                  <X className="w-2.5 h-2.5" />
                 </button>
               </div>
             ))}
+            
+            {/* Botón rápido de cámara al final de las miniaturas */}
+            <button
+              type="button"
+              onClick={() => cameraRef.current?.click()}
+              className="w-14 h-14 rounded-lg border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/50 flex flex-col items-center justify-center text-slate-400 hover:text-indigo-600 transition-all cursor-pointer"
+              title="Tomar otra foto con la cámara"
+            >
+              <Camera className="w-5 h-5" />
+            </button>
           </div>
         )}
       </div>
@@ -500,6 +617,51 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
           {isSubmitting ? "Guardando archivos y enviando..." : saved ? <><Check className="w-4 h-4"/> Orden de Servicio Creada</> : "Crear Orden de Servicio"}
         </button>
       </div>
+
+      {/* Lightbox Modal */}
+      {lightboxUrl && (
+        <div 
+          className="fixed inset-0 bg-black/85 z-[99999] flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <div className="relative max-w-4xl max-h-[90vh] w-full h-full flex items-center justify-center">
+            <button 
+              onClick={() => setLightboxUrl(null)}
+              className="absolute top-4 right-4 bg-white/10 hover:bg-white/20 text-white rounded-full p-2.5 transition-colors cursor-pointer border-0"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <img 
+              src={lightboxUrl} 
+              alt="Evidencia Ampliada" 
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl select-none"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </div>
+      )}
+      {/* Modal: Error de Validación */}
+      {showValidationModal && (
+        <div className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center animate-in fade-in zoom-in duration-200 border border-slate-100">
+            <div className="w-16 h-16 rounded-full bg-red-50 mx-auto flex items-center justify-center mb-4 border border-red-100">
+              <X className="w-8 h-8 text-red-500" />
+            </div>
+            <h3 className="text-xl font-bold text-slate-800 mb-2">
+              Campos Incompletos
+            </h3>
+            <p className="text-sm text-slate-500 mb-6 leading-relaxed font-medium">
+              Por favor, completa todos los campos obligatorios marcados en rojo antes de crear la orden.
+            </p>
+            <button
+              onClick={() => setShowValidationModal(false)}
+              className="w-full py-3 text-sm font-bold text-white bg-slate-900 hover:bg-slate-800 rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer border-0"
+            >
+              Revisar Formulario
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

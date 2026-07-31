@@ -244,6 +244,41 @@ const styles = StyleSheet.create({
     fontWeight: 500,
     width: 110,
     lineHeight: 1.1,
+  },
+  signaturesContainer: {
+    flexDirection: 'row',
+    gap: 15,
+    marginTop: 8,
+    borderTopWidth: 0.5,
+    borderTopColor: '#f3f4f6',
+    paddingTop: 6,
+  },
+  signatureCard: {
+    flex: 1,
+    borderWidth: 0.5,
+    borderColor: '#e5e7eb',
+    borderRadius: 4,
+    padding: 4,
+    backgroundColor: '#f9fafb',
+  },
+  signatureTitle: {
+    fontSize: 6.5,
+    fontWeight: 700,
+    color: '#4b5563',
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  signatureImage: {
+    height: 35,
+    width: '100%',
+    objectFit: 'contain',
+    marginVertical: 2,
+  },
+  signatureFooter: {
+    fontSize: 5.5,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginTop: 2,
   }
 });
 
@@ -251,6 +286,31 @@ type HistorialPDFProps = {
   activo: any;
   logoUrl?: string;
   qrCodeUrl: string;
+};
+
+const parseHtmlToReactPdf = (html: string | null | undefined, style: any) => {
+  if (!html) return null;
+  
+  if (!html.includes('<')) {
+    return <Text style={style}>{html}</Text>;
+  }
+  
+  let formatted = html;
+  formatted = formatted.replace(/<li>\s*<p>/g, '\n • ');
+  formatted = formatted.replace(/<li>/g, '\n • ');
+  formatted = formatted.replace(/<\/li>/g, '');
+  formatted = formatted.replace(/<\/p>/g, '\n');
+  formatted = formatted.replace(/<br\s*\/?>/g, '\n');
+  
+  formatted = formatted.replace(/<[^>]*>/g, '');
+  
+  formatted = formatted.replace(/\n\s*\n\s*\n/g, '\n\n');
+  formatted = formatted.replace(/^\s*\n/g, ''); 
+  formatted = formatted.replace(/\n\s*$/g, ''); 
+  
+  if (formatted.trim() === '') return null;
+  
+  return <Text style={style}>{formatted}</Text>;
 };
 
 export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPDFProps) {
@@ -312,6 +372,18 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
               <Text style={styles.infoLabel}>Código QR:</Text>
               <Text style={[styles.infoValue, { fontWeight: 700 }]}>{activo.idQr}</Text>
             </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>F. Registro:</Text>
+              <Text style={styles.infoValue}>
+                {new Date(activo.fechaAdq || activo.createdAt).toLocaleDateString('es-HN')}
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Registrado Por:</Text>
+              <Text style={styles.infoValue}>
+                {activo.createdBy ? [activo.createdBy.nombre, activo.createdBy.apellido].filter(Boolean).join(" ").toUpperCase() : 'SISTEMA'}
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -326,10 +398,13 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
           ordenes.map((orden: any) => {
             const task = orden.kanbanTasks?.[0];
             const attachments = task?.attachments || [];
-            // filter only images
-            const imageAttachments = attachments.filter((att: any) => 
-              att.tipo?.startsWith('image/') || att.url?.match(/\.(jpeg|jpg|gif|png)$/i)
-            );
+            
+            // Filter out images that are already present in fotosEstadoInicial to prevent duplication
+            const receptionUrls = new Set(orden.fotosEstadoInicial || []);
+            const imageAttachments = attachments.filter((att: any) => {
+              const isImg = att.tipo?.startsWith('image/') || att.url?.match(/\.(jpeg|jpg|gif|png)$/i);
+              return isImg && !receptionUrls.has(att.url);
+            });
             const comments = task?.comments || [];
 
             return (
@@ -345,13 +420,13 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                 <View style={styles.odtBody}>
                   {/* Falla */}
                   <Text style={styles.textLabel}>Falla Reportada:</Text>
-                  <Text style={styles.textValue}>{orden.descripcionFalla}</Text>
+                  {parseHtmlToReactPdf(orden.descripcionFalla, styles.textValue)}
 
                   {/* Diagnóstico */}
                   {orden.diagnosticoTecnico && (
                     <>
                       <Text style={styles.textLabel}>Diagnóstico Técnico:</Text>
-                      <Text style={styles.textValue}>{orden.diagnosticoTecnico}</Text>
+                      {parseHtmlToReactPdf(orden.diagnosticoTecnico, styles.textValue)}
                     </>
                   )}
 
@@ -383,6 +458,18 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                     </View>
                   )}
 
+                  {/* Evidencias fotográficas (Estado Inicial) */}
+                  {orden.fotosEstadoInicial && orden.fotosEstadoInicial.length > 0 && (
+                    <View style={{ marginTop: 4, marginBottom: 4 }}>
+                      <Text style={styles.textLabel}>Fotos de Evidencia de Recepción:</Text>
+                      <View style={styles.imagesGrid}>
+                        {orden.fotosEstadoInicial.slice(0, 6).map((imgUrl: string, idx: number) => (
+                          <Image key={idx} style={styles.evidencePhoto} src={imgUrl} />
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
                   {/* Evidencias fotográficas */}
                   {imageAttachments.length > 0 && (
                     <View style={{ marginTop: 4 }}>
@@ -392,6 +479,30 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                           <Image key={img.id} style={styles.evidencePhoto} src={img.url} />
                         ))}
                       </View>
+                    </View>
+                  )}
+
+                  {/* Firmas de Aceptación */}
+                  {(orden.firmaClienteUrl || orden.firmaTecnicoUrl) && (
+                    <View style={styles.signaturesContainer}>
+                      {orden.firmaClienteUrl && (
+                        <View style={styles.signatureCard}>
+                          <Text style={styles.signatureTitle}>4. Firma Cliente</Text>
+                          <Image style={styles.signatureImage} src={orden.firmaClienteUrl} />
+                          <Text style={styles.signatureFooter}>
+                            {orden.firmaClienteFecha ? new Date(orden.firmaClienteFecha).toLocaleString('es-HN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''} Por {orden.firmaClienteNombre || 'Cliente'}
+                          </Text>
+                        </View>
+                      )}
+                      {orden.firmaTecnicoUrl && (
+                        <View style={styles.signatureCard}>
+                          <Text style={styles.signatureTitle}>5. Firma Técnico / Biomédico</Text>
+                          <Image style={styles.signatureImage} src={orden.firmaTecnicoUrl} />
+                          <Text style={styles.signatureFooter}>
+                            {orden.firmaTecnicoFecha ? new Date(orden.firmaTecnicoFecha).toLocaleString('es-HN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''} Por {orden.firmaTecnicoNombre || 'Técnico'}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   )}
                 </View>

@@ -124,6 +124,7 @@ model User {
   corteMovsAnulados     CorteCajaMovimiento[]  @relation("AnuladaCorteMovs")
   
   avatarUrl             String?
+  firmaDigitalUrl       String?
   kanbanSpacesCreados   KanbanSpace[]          @relation("CreatedKanbanSpaces")
   kanbanTasksAsignadas  KanbanTask[]           @relation("AssignedKanbanTasks")
   kanbanTasksCreadas    KanbanTask[]           @relation("CreatedKanbanTasks")
@@ -672,6 +673,8 @@ model Cliente {
   email          String?
   direccion      String?
   notas          String?
+  firmaDigitalUrl    String?
+  firmaDigitalNombre String?
   nombreContacto   String?
   telefonoContacto String?
   createdAt      DateTime       @default(now())
@@ -800,6 +803,14 @@ model OrdenTrabajo {
   fotosTecnico       String[]  @default([])
   diagnosticoTecnico String?
   detalleManoObra    Json?
+
+  firmaClienteUrl      String?
+  firmaClienteNombre   String?
+  firmaClienteFecha    DateTime?
+  
+  firmaTecnicoUrl      String?
+  firmaTecnicoNombre   String?
+  firmaTecnicoFecha    DateTime?
 
   aplicaMantenimientos         Boolean   @default(false)
   garantiaMeses                Int?
