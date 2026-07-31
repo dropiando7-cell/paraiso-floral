@@ -2426,3 +2426,29 @@ export async function eliminarActivoSimple(id: string) {
         return { success: false, error: e.message || "Error al eliminar el equipo." };
     }
 }
+
+export async function getUltimaConfiguracionGarantia(activoId: string) {
+    if (!activoId) return null;
+    try {
+        const orgId = await getOrgId();
+        const ultimaOrden = await prisma.ordenTrabajo.findFirst({
+            where: {
+                activoId,
+                organizationId: orgId
+            },
+            orderBy: {
+                fechaRecibido: 'desc'
+            },
+            select: {
+                aplicaMantenimientos: true,
+                garantiaMeses: true,
+                frecuenciaMantenimientoMeses: true,
+                cantidadMantenimientos: true
+            }
+        });
+        return ultimaOrden;
+    } catch (e) {
+        console.error("Error in getUltimaConfiguracionGarantia:", e);
+        return null;
+    }
+}

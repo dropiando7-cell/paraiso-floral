@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { UploadCloud, Check, X, Wrench, Snowflake, Tags, Camera } from 'lucide-react';
 import { compressImage } from '@/utils/image';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
+import { getUltimaConfiguracionGarantia } from '../actions';
 
 type PrefilledData = {
   clienteId?: string;
@@ -83,6 +84,22 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (prefilledData?.activoId) {
+      getUltimaConfiguracionGarantia(prefilledData.activoId).then(config => {
+        if (config) {
+          setForm(prev => ({
+            ...prev,
+            aplicaMantenimientos: config.aplicaMantenimientos || false,
+            garantiaMeses: config.garantiaMeses !== null && config.garantiaMeses !== undefined ? config.garantiaMeses.toString() : "",
+            frecuenciaMantenimientoMeses: config.frecuenciaMantenimientoMeses !== null && config.frecuenciaMantenimientoMeses !== undefined ? config.frecuenciaMantenimientoMeses.toString() : "3",
+            cantidadMantenimientos: config.cantidadMantenimientos !== null && config.cantidadMantenimientos !== undefined ? config.cantidadMantenimientos.toString() : ""
+          }));
+        }
+      });
+    }
+  }, [prefilledData?.activoId]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -266,19 +283,27 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
         <div className="relative" ref={dropdownRef}>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Cliente / Empresa *</label>
           <input 
-             className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:ring-2 outline-none transition-colors bg-white ${
-             (showErrors && !form.cliente) 
-               ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
-               : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-600'
-           }`}
-           value={form.cliente} 
-           onChange={e => {
-               handleChange("cliente", e.target.value);
-               setShowDropdown(true);
-           }}
-           onFocus={() => setShowDropdown(true)}
-           placeholder="Ej. Hospital Centro"
-           autoComplete="off"
+             className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:ring-2 outline-none transition-colors ${
+               prefilledData?.clienteNombre
+                 ? 'border-slate-200 bg-slate-50 cursor-not-allowed text-slate-500 font-semibold'
+                 : (showErrors && !form.cliente) 
+                   ? 'border-red-500 bg-white focus:border-red-500 focus:ring-red-100' 
+                   : 'border-slate-200 bg-white focus:ring-indigo-100 focus:border-indigo-600'
+             }`}
+             value={form.cliente} 
+             onChange={e => {
+                 if (prefilledData?.clienteNombre) return;
+                 handleChange("cliente", e.target.value);
+                 setShowDropdown(true);
+             }}
+             onFocus={() => {
+                 if (!prefilledData?.clienteNombre) {
+                     setShowDropdown(true);
+                 }
+             }}
+             placeholder="Ej. Hospital Centro"
+             autoComplete="off"
+             readOnly={!!prefilledData?.clienteNombre}
         />
         {showErrors && !form.cliente && (
           <p className="text-red-500 text-[10px] font-bold mt-1">Este campo es requerido.</p>
