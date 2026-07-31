@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, ArrowLeft, Send } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { createOrdenTrabajo } from '../actions';
 import ReceptionForm from '../components/ReceptionForm';
 import QRGenerator from '../components/QRGenerator';
@@ -36,6 +37,10 @@ export default function NuevoSoporteClient({ userId, clientes = [], users = [] }
             requiereAprobacion: prefilledData.requiereAprobacion
         };
         const orden = await createOrdenTrabajo(finalData);
+        if (orden && 'error' in orden) {
+            toast.error(orden.error);
+            return;
+        }
         setResult(orden);
     };
 

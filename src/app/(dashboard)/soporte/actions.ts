@@ -85,315 +85,320 @@ export async function createOrdenTrabajo(data: {
     requiereAprobacion?: boolean;
     leyendaEstado?: string;
 }) {
-    const orgId = await getOrgId();
+    try {
+        const orgId = await getOrgId();
 
-    if (data.activoId) {
-        const activeOrder = await prisma.ordenTrabajo.findFirst({
-            where: {
-                activoId: data.activoId,
+        if (data.activoId) {
+            const activeOrder = await prisma.ordenTrabajo.findFirst({
+                where: {
+                    activoId: data.activoId,
+                    organizationId: orgId,
+                    estado: {
+                        notIn: ['ENTREGADO', 'REGISTRO']
+                    }
+                }
+            });
+            if (activeOrder) {
+                throw new Error(`Este equipo ya cuenta con una orden de trabajo activa (#${activeOrder.codigoSeguridad || activeOrder.id}).`);
+            }
+        }
+
+        const cleanNombre = data.cliente.trim();
+        // Find or create cliente
+        let clienteRecord = await prisma.cliente.findFirst({
+            where: { 
                 organizationId: orgId,
-                estado: {
-                    notIn: ['ENTREGADO', 'REGISTRO']
+                nombre: {
+                    equals: cleanNombre,
+                    mode: 'insensitive'
                 }
             }
         });
-        if (activeOrder) {
-            throw new Error(`Este equipo ya cuenta con una orden de trabajo activa (#${activeOrder.codigoSeguridad || activeOrder.id}).`);
-        }
-    }
 
-    const cleanNombre = data.cliente.trim();
-    // Find or create cliente
-    let clienteRecord = await prisma.cliente.findFirst({
-        where: { 
-            organizationId: orgId,
-            nombre: {
-                equals: cleanNombre,
-                mode: 'insensitive'
-            }
+        if (!clienteRecord) {
+            clienteRecord = await prisma.cliente.create({
+                data: {
+                    nombre: cleanNombre,
+                    telefono: data.telefono?.trim() || null,
+                    organizationId: orgId
+                }
+            });
         }
-    });
 
-    if (!clienteRecord) {
-        clienteRecord = await prisma.cliente.create({
+        // Generar un código criptográfico corto para el QR 
+        const codigoSeguridad = randomBytes(4).toString('hex').toUpperCase();
+
+        const marcaModelo = [data.marca, data.modelo].filter(Boolean).join(" ") || null;
+
+        const costoRevision = data.costoRevision !== undefined ? parseFloat(data.costoRevision.toString()) : 650;
+        const metodoPagoRevision = data.metodoPagoRevision || 'Ninguno';
+
+        // Check for active caja session
+        let cajaSessionId = null;
+        if (metodoPagoRevision !== 'Ninguno') {
+            const activeCaja = await prisma.corteCajaSession.findFirst({
+                where: {
+                    organizationId: orgId,
+                    estado: 'ABIERTA'
+                }
+            });
+            cajaSessionId = activeCaja?.id || null;
+        }
+
+        const firstTecnicoId = data.tecnicoIds?.[0] || null;
+
+        const requiereAprobacion = data.requiereAprobacion !== false;
+        const estadoInicial = data.cobertura === 'externa' 
+            ? 'REGISTRO' 
+            : (requiereAprobacion ? 'RECIBIDO' : 'REPARACION');
+
+        const orden = await prisma.ordenTrabajo.create({
             data: {
-                nombre: cleanNombre,
-                telefono: data.telefono?.trim() || null,
-                organizationId: orgId
-            }
-        });
-    }
-
-    // Generar un código criptográfico corto para el QR 
-    const codigoSeguridad = randomBytes(4).toString('hex').toUpperCase();
-
-    const marcaModelo = [data.marca, data.modelo].filter(Boolean).join(" ") || null;
-
-    const costoRevision = data.costoRevision !== undefined ? parseFloat(data.costoRevision.toString()) : 650;
-    const metodoPagoRevision = data.metodoPagoRevision || 'Ninguno';
-
-    // Check for active caja session
-    let cajaSessionId = null;
-    if (metodoPagoRevision !== 'Ninguno') {
-        const activeCaja = await prisma.corteCajaSession.findFirst({
-            where: {
                 organizationId: orgId,
-                estado: 'ABIERTA'
-            }
-        });
-        cajaSessionId = activeCaja?.id || null;
-    }
-
-    const firstTecnicoId = data.tecnicoIds?.[0] || null;
-
-    const requiereAprobacion = data.requiereAprobacion !== false;
-    const estadoInicial = data.cobertura === 'externa' 
-        ? 'REGISTRO' 
-        : (requiereAprobacion ? 'RECIBIDO' : 'REPARACION');
-
-    const orden = await prisma.ordenTrabajo.create({
-        data: {
-            organizationId: orgId,
-            clienteId: clienteRecord.id,
-            equipoDano: data.nombreEquipo?.trim() || (data.equipo.toLowerCase() === 'medico' ? 'Equipo Médico' : data.equipo.toLowerCase() === 'aire' ? 'Aire Acondicionado' : 'Otro'),
-            tipoAparato: data.equipo.toUpperCase(),
-            tipoTrabajo: data.tipoTrabajo || 'NORMAL',
-            cobertura: data.cobertura || 'externa',
-            marcaModelo,
-            serie: data.serie || null,
-            descripcionFalla: data.descripcionFalla,
-            codigoSeguridad,
-            fotosEstadoInicial: data.fotosEstadoInicial || [],
-            costoRevision,
-            metodoPagoRevision,
-            cajaSessionId,
-            estado: estadoInicial,
-            leyendaEstado: data.leyendaEstado || null,
-            usuarioRecepcionId: data.usuarioRecepcionId || null,
-            tecnicoReparacionId: firstTecnicoId,
-            fechaRecibido: data.fechaRecibido ? new Date(data.fechaRecibido) : new Date(),
-            tecnicosAsignados: {
-                connect: data.tecnicoIds?.map(id => ({ id })) || []
-            },
-            aplicaMantenimientos: data.aplicaMantenimientos || false,
-            garantiaMeses: data.garantiaMeses ? parseInt(data.garantiaMeses.toString()) : null,
-            frecuenciaMantenimientoMeses: data.frecuenciaMantenimientoMeses ? parseInt(data.frecuenciaMantenimientoMeses.toString()) : 3,
-            cantidadMantenimientos: data.cantidadMantenimientos ? parseInt(data.cantidadMantenimientos.toString()) : null,
-            activoId: data.activoId || null,
-            tipoOrden: data.tipoOrden || 'TALLER',
-            requiereAprobacion: requiereAprobacion,
-        },
-        include: { cliente: true }
-    });
-
-    // Sincronizar mantenimientos
-    if (orden.aplicaMantenimientos) {
-        await syncMantenimientosDesdeOrdenTrabajo(orden.id);
-    }
-
-    if (clienteRecord.telefono) {
-        const phoneWithCountryCode = clienteRecord.telefono.startsWith('+') ? clienteRecord.telefono : `+504${clienteRecord.telefono}`;
-        try {
-            await sendSoporteRecepcion(
-                clienteRecord.nombre,
-                phoneWithCountryCode,
-                orden.codigoSeguridad,
-                orden.equipoDano,
-                orden.serie || 'No especificado',
-                'Por asignar'
-            );
-        } catch (e) {
-            console.error("Twilio Recepcion Error:", e);
-        }
-    }
-
-    // ----------------------------------------------------
-    // SINCRONIZACIÓN AUTOMÁTICA CON KANBAN (ORDENES DE TRABAJO)
-    // ----------------------------------------------------
-    try {
-        // 1. Buscar o crear el espacio "ORDENES DE TRABAJO"
-        let space = await prisma.kanbanSpace.findFirst({
-            where: {
-                nombre: {
-                    equals: 'ORDENES DE TRABAJO',
-                    mode: 'insensitive'
+                clienteId: clienteRecord.id,
+                equipoDano: data.nombreEquipo?.trim() || (data.equipo.toLowerCase() === 'medico' ? 'Equipo Médico' : data.equipo.toLowerCase() === 'aire' ? 'Aire Acondicionado' : 'Otro'),
+                tipoAparato: data.equipo.toUpperCase(),
+                tipoTrabajo: data.tipoTrabajo || 'NORMAL',
+                cobertura: data.cobertura || 'externa',
+                marcaModelo,
+                serie: data.serie || null,
+                descripcionFalla: data.descripcionFalla,
+                codigoSeguridad,
+                fotosEstadoInicial: data.fotosEstadoInicial || [],
+                costoRevision,
+                metodoPagoRevision,
+                cajaSessionId,
+                estado: estadoInicial,
+                leyendaEstado: data.leyendaEstado || null,
+                usuarioRecepcionId: data.usuarioRecepcionId || null,
+                tecnicoReparacionId: firstTecnicoId,
+                fechaRecibido: data.fechaRecibido ? new Date(data.fechaRecibido) : new Date(),
+                tecnicosAsignados: {
+                    connect: data.tecnicoIds?.map(id => ({ id })) || []
                 },
-                organizationId: orgId
-            }
+                aplicaMantenimientos: data.aplicaMantenimientos || false,
+                garantiaMeses: data.garantiaMeses ? parseInt(data.garantiaMeses.toString()) : null,
+                frecuenciaMantenimientoMeses: data.frecuenciaMantenimientoMeses ? parseInt(data.frecuenciaMantenimientoMeses.toString()) : 3,
+                cantidadMantenimientos: data.cantidadMantenimientos ? parseInt(data.cantidadMantenimientos.toString()) : null,
+                activoId: data.activoId || null,
+                tipoOrden: data.tipoOrden || 'TALLER',
+                requiereAprobacion: requiereAprobacion,
+            },
+            include: { cliente: true }
         });
 
-        if (!space) {
-            // Generar clave única para el espacio
-            const baseClave = 'ODT';
-            let spaceClave = baseClave;
-            let counter = 1;
-            
-            // Asegurarnos de que la clave de espacio sea única
-            while (true) {
-                const dup = await prisma.kanbanSpace.findFirst({
-                    where: {
+        // Sincronizar mantenimientos
+        if (orden.aplicaMantenimientos) {
+            await syncMantenimientosDesdeOrdenTrabajo(orden.id);
+        }
+
+        if (clienteRecord.telefono) {
+            const phoneWithCountryCode = clienteRecord.telefono.startsWith('+') ? clienteRecord.telefono : `+504${clienteRecord.telefono}`;
+            try {
+                await sendSoporteRecepcion(
+                    clienteRecord.nombre,
+                    phoneWithCountryCode,
+                    orden.codigoSeguridad,
+                    orden.equipoDano,
+                    orden.serie || 'No especificado',
+                    'Por asignar'
+                );
+            } catch (e) {
+                console.error("Twilio Recepcion Error:", e);
+            }
+        }
+
+        // ----------------------------------------------------
+        // SINCRONIZACIÓN AUTOMÁTICA CON KANBAN (ORDENES DE TRABAJO)
+        // ----------------------------------------------------
+        try {
+            // 1. Buscar o crear el espacio "ORDENES DE TRABAJO"
+            let space = await prisma.kanbanSpace.findFirst({
+                where: {
+                    nombre: {
+                        equals: 'ORDENES DE TRABAJO',
+                        mode: 'insensitive'
+                    },
+                    organizationId: orgId
+                }
+            });
+
+            if (!space) {
+                // Generar clave única para el espacio
+                const baseClave = 'ODT';
+                let spaceClave = baseClave;
+                let counter = 1;
+                
+                // Asegurarnos de que la clave de espacio sea única
+                while (true) {
+                    const dup = await prisma.kanbanSpace.findFirst({
+                        where: {
+                            organizationId: orgId,
+                            clave: spaceClave
+                        }
+                    });
+                    if (!dup) break;
+                    spaceClave = `${baseClave}${counter}`;
+                    counter++;
+                }
+
+                space = await prisma.kanbanSpace.create({
+                    data: {
                         organizationId: orgId,
-                        clave: spaceClave
+                        nombre: 'ORDENES DE TRABAJO',
+                        clave: spaceClave,
+                        tiposActividad: ["Tarea", "Historia", "Funcionalidad", "Error / Falla", "Orden de Trabajo", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Calibración", "Instalación", "Diagnóstico", "Soporte Técnico"],
+                        columnas: ["Por hacer", "En curso", "En revisión", "Listo"],
+                        acceso: 'Abierto'
                     }
                 });
-                if (!dup) break;
-                spaceClave = `${baseClave}${counter}`;
-                counter++;
             }
 
-            space = await prisma.kanbanSpace.create({
-                data: {
-                    organizationId: orgId,
-                    nombre: 'ORDENES DE TRABAJO',
-                    clave: spaceClave,
-                    tiposActividad: ["Tarea", "Historia", "Funcionalidad", "Error / Falla", "Orden de Trabajo", "Mantenimiento Preventivo", "Mantenimiento Correctivo", "Calibración", "Instalación", "Diagnóstico", "Soporte Técnico"],
-                    columnas: ["Por hacer", "En curso", "En revisión", "Listo"],
-                    acceso: 'Abierto'
-                }
-            });
-        }
+            if (space) {
+                // Transacción para incrementar correlativo y crear la tarea de Kanban
+                const nextNumber = space.lastTaskNumber + 1;
+                const taskCodigo = `${space.clave}-${nextNumber}`;
 
-        if (space) {
-            // Transacción para incrementar correlativo y crear la tarea de Kanban
-            const nextNumber = space.lastTaskNumber + 1;
-            const taskCodigo = `${space.clave}-${nextNumber}`;
+                // Actualizar el correlativo
+                await prisma.kanbanSpace.update({
+                    where: { id: space.id },
+                    data: { lastTaskNumber: nextNumber }
+                });
 
-            // Actualizar el correlativo
-            await prisma.kanbanSpace.update({
-                where: { id: space.id },
-                data: { lastTaskNumber: nextNumber }
-            });
+                // Determinar descripción para la tarea
+                const descLines = [
+                    `**Equipo:** ${orden.equipoDano}`,
+                    orden.marcaModelo ? `**Marca/Modelo:** ${orden.marcaModelo}` : null,
+                    orden.serie ? `**Serie:** ${orden.serie}` : null,
+                    `**Cliente:** ${clienteRecord.nombre}`,
+                    data.descripcionFalla ? `\n**Falla Reportada:**\n${data.descripcionFalla}` : null
+                ].filter(Boolean).join('\n');
 
-            // Determinar descripción para la tarea
-            const descLines = [
-                `**Equipo:** ${orden.equipoDano}`,
-                orden.marcaModelo ? `**Marca/Modelo:** ${orden.marcaModelo}` : null,
-                orden.serie ? `**Serie:** ${orden.serie}` : null,
-                `**Cliente:** ${clienteRecord.nombre}`,
-                data.descripcionFalla ? `\n**Falla Reportada:**\n${data.descripcionFalla}` : null
-            ].filter(Boolean).join('\n');
+                // Determinar responsable primario para compatibilidad
+                const primaryAsignadoId = firstTecnicoId || null;
 
-            // Determinar responsable primario para compatibilidad
-            const primaryAsignadoId = firstTecnicoId || null;
-
-            // Crear la tarea en Kanban asociada a esta orden de trabajo
-            const task = await prisma.kanbanTask.create({
-                data: {
-                    spaceId: space.id,
-                    organizationId: orgId,
-                    codigo: taskCodigo,
-                    title: `Orden #${orden.codigoSeguridad} - ${orden.equipoDano}`,
-                    description: descLines,
-                    status: space.columnas[0] || 'Por hacer',
-                    type: 'Orden de Trabajo',
-                    priority: 'MEDIUM',
-                    creadoPorId: data.usuarioRecepcionId || null,
-                    asignadoId: primaryAsignadoId,
-                    ordenTrabajoId: orden.id,
-                    asignados: data.tecnicoIds && data.tecnicoIds.length > 0 ? {
-                        connect: data.tecnicoIds.map(id => ({ id }))
-                    } : undefined
-                }
-            });
-
-            // Registrar actividad del Kanban
-            let fallbackUserId = '';
-            if (data.usuarioRecepcionId) {
-                fallbackUserId = data.usuarioRecepcionId;
-            } else if (firstTecnicoId) {
-                fallbackUserId = firstTecnicoId;
-            } else {
-                const firstUser = await prisma.user.findFirst({ where: { organizationId: orgId } });
-                fallbackUserId = firstUser?.id || '';
-            }
-
-            if (fallbackUserId) {
-                await prisma.kanbanActivity.create({
+                // Crear la tarea en Kanban asociada a esta orden de trabajo
+                const task = await prisma.kanbanTask.create({
                     data: {
                         spaceId: space.id,
-                        taskId: task.id,
-                        usuarioId: fallbackUserId,
-                        accion: 'CREACION_TAREA',
-                        detalles: `Creó automáticamente la tarea ${task.codigo} vinculada a la Orden #${orden.codigoSeguridad}`
+                        organizationId: orgId,
+                        codigo: taskCodigo,
+                        title: `Orden #${orden.codigoSeguridad} - ${orden.equipoDano}`,
+                        description: descLines,
+                        status: space.columnas[0] || 'Por hacer',
+                        type: 'Orden de Trabajo',
+                        priority: 'MEDIUM',
+                        creadoPorId: data.usuarioRecepcionId || null,
+                        asignadoId: primaryAsignadoId,
+                        ordenTrabajoId: orden.id,
+                        asignados: data.tecnicoIds && data.tecnicoIds.length > 0 ? {
+                            connect: data.tecnicoIds.map(id => ({ id }))
+                        } : undefined
                     }
                 });
-            }
 
-            // Sincronizar fotos iniciales como adjuntos del Kanban
-            if (data.fotosEstadoInicial && data.fotosEstadoInicial.length > 0) {
-                for (let i = 0; i < data.fotosEstadoInicial.length; i++) {
-                    const url = data.fotosEstadoInicial[i];
-                    // Obtener nombre simple a partir de URL
-                    let nombre = `foto_inicial_${i + 1}.jpg`;
-                    try {
-                        const parts = url.split('/');
-                        const lastPart = parts[parts.length - 1];
-                        if (lastPart) nombre = decodeURIComponent(lastPart);
-                    } catch (err) {}
+                // Registrar actividad del Kanban
+                let fallbackUserId = '';
+                if (data.usuarioRecepcionId) {
+                    fallbackUserId = data.usuarioRecepcionId;
+                } else if (firstTecnicoId) {
+                    fallbackUserId = firstTecnicoId;
+                } else {
+                    const firstUser = await prisma.user.findFirst({ where: { organizationId: orgId } });
+                    fallbackUserId = firstUser?.id || '';
+                }
 
-                    await prisma.kanbanAttachment.create({
+                if (fallbackUserId) {
+                    await prisma.kanbanActivity.create({
                         data: {
+                            spaceId: space.id,
                             taskId: task.id,
-                            nombre: nombre,
-                            url: url,
-                            tipo: 'image/jpeg',
-                            tamano: 0,
-                            subidoPorId: fallbackUserId
+                            usuarioId: fallbackUserId,
+                            accion: 'CREACION_TAREA',
+                            detalles: `Creó automáticamente la tarea ${task.codigo} vinculada a la Orden #${orden.codigoSeguridad}`
                         }
                     });
                 }
+
+                // Sincronizar fotos iniciales como adjuntos del Kanban
+                if (data.fotosEstadoInicial && data.fotosEstadoInicial.length > 0) {
+                    for (let i = 0; i < data.fotosEstadoInicial.length; i++) {
+                        const url = data.fotosEstadoInicial[i];
+                        // Obtener nombre simple a partir de URL
+                        let nombre = `foto_inicial_${i + 1}.jpg`;
+                        try {
+                            const parts = url.split('/');
+                            const lastPart = parts[parts.length - 1];
+                            if (lastPart) nombre = decodeURIComponent(lastPart);
+                        } catch (err) {}
+
+                        await prisma.kanbanAttachment.create({
+                            data: {
+                                taskId: task.id,
+                                nombre: nombre,
+                                url: url,
+                                tipo: 'image/jpeg',
+                                tamano: 0,
+                                subidoPorId: fallbackUserId
+                            }
+                        });
+                    }
+                }
+            }
+        } catch (kanbanErr) {
+            console.error("[Kanban Sync Error]: No se pudo auto-crear la tarea en Kanban:", kanbanErr);
+        }
+
+        if (!requiereAprobacion) {
+            try {
+                await syncKanbanStatus(orden.id, 'REPARACION', data.usuarioRecepcionId);
+            } catch (syncErr) {
+                console.error("[Kanban Sync Error in quick flow]:", syncErr);
             }
         }
-    } catch (kanbanErr) {
-        console.error("[Kanban Sync Error]: No se pudo auto-crear la tarea en Kanban:", kanbanErr);
-    }
 
-    if (!requiereAprobacion) {
+        // Notificar a los técnicos asignados sobre el nuevo trabajo
         try {
-            await syncKanbanStatus(orden.id, 'REPARACION', data.usuarioRecepcionId);
-        } catch (syncErr) {
-            console.error("[Kanban Sync Error in quick flow]:", syncErr);
+            const techIds = data.tecnicoIds || [];
+            for (const techId of techIds) {
+                await triggerNotification(
+                    techId,
+                    "Nueva Orden de Trabajo Asignada",
+                    `Se te ha asignado la Orden #${orden.codigoSeguridad} para reparar: ${orden.equipoDano}.`,
+                    `/soporte/${orden.id}`,
+                    'WORK_ORDER',
+                    data.usuarioRecepcionId || undefined
+                );
+            }
+        } catch (notifErr) {
+            console.error("Error sending work order assignment notification:", notifErr);
         }
+
+        // Log activity
+        await logActivity({
+            userId: data.usuarioRecepcionId || null,
+            organizationId: orgId,
+            action: 'CREATE',
+            module: '/soporte',
+            description: `Creado ticket de soporte para ${orden.equipoDano} (Código: ${orden.codigoSeguridad})`,
+            metadata: {
+                ordenId: orden.id,
+                codigoSeguridad: orden.codigoSeguridad,
+                clienteId: orden.clienteId,
+                equipoDano: orden.equipoDano
+            }
+        });
+
+        revalidatePath('/soporte');
+        return {
+            ...orden,
+            costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
+            costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
+        };
+    } catch (e: any) {
+        console.error("Error in createOrdenTrabajo:", e);
+        return { error: e.message || "Error al crear la orden de trabajo." };
     }
-
-    // Notificar a los técnicos asignados sobre el nuevo trabajo
-    try {
-        const techIds = data.tecnicoIds || [];
-        for (const techId of techIds) {
-            await triggerNotification(
-                techId,
-                "Nueva Orden de Trabajo Asignada",
-                `Se te ha asignado la Orden #${orden.codigoSeguridad} para reparar: ${orden.equipoDano}.`,
-                `/soporte/${orden.id}`,
-                'WORK_ORDER',
-                data.usuarioRecepcionId || undefined
-            );
-        }
-    } catch (notifErr) {
-        console.error("Error sending work order assignment notification:", notifErr);
-    }
-
-    // Log activity
-    await logActivity({
-        userId: data.usuarioRecepcionId || null,
-        organizationId: orgId,
-        action: 'CREATE',
-        module: '/soporte',
-        description: `Creado ticket de soporte para ${orden.equipoDano} (Código: ${orden.codigoSeguridad})`,
-        metadata: {
-            ordenId: orden.id,
-            codigoSeguridad: orden.codigoSeguridad,
-            clienteId: orden.clienteId,
-            equipoDano: orden.equipoDano
-        }
-    });
-
-    revalidatePath('/soporte');
-    return {
-        ...orden,
-        costoRevision: orden.costoRevision ? Number(orden.costoRevision) : null,
-        costoReparacion: orden.costoReparacion ? Number(orden.costoReparacion) : null,
-    };
 }
 
 export async function updateEstadoOrden(id: string, nuevoEstado: string) {
