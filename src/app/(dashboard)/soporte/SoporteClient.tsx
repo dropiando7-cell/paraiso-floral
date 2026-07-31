@@ -383,7 +383,7 @@ export default function SoporteClient({
                         Proyectos y Tareas
                     </button>
                     <button
-                        onClick={() => router.push('/inventario?register=equipo_cliente')}
+                        onClick={() => router.push('/soporte/nuevo?cobertura=externa')}
                         className="flex-1 sm:flex-initial bg-white border-2 border-emerald-500 text-emerald-600 hover:bg-emerald-50 px-4 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer"
                     >
                         <Laptop className="w-4 h-4" />
@@ -594,7 +594,7 @@ export default function SoporteClient({
 
                     {/* Card 6: Registrar Activo Cliente */}
                     <div 
-                        onClick={() => router.push('/inventario?register=equipo_cliente')}
+                        onClick={() => router.push('/soporte/nuevo?cobertura=externa')}
                         className="bg-white p-6 rounded-3xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)] hover:shadow-lg hover:border-emerald-400 hover:-translate-y-0.5 transition-all cursor-pointer group flex flex-col justify-between h-[200px]"
                     >
                         <div className="flex justify-between items-start">

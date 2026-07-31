@@ -24,7 +24,8 @@ export default function NuevoSoporteClient({ userId, clientes = [], users = [] }
         tipo: searchParams.get('tipo') || '',
         activoId: searchParams.get('activoId') || '',
         tipoOrden: searchParams.get('tipoOrden') || 'TALLER',
-        requiereAprobacion: searchParams.get('requiereAprobacion') !== 'false'
+        requiereAprobacion: searchParams.get('requiereAprobacion') !== 'false',
+        cobertura: searchParams.get('cobertura') || ''
     };
 
     const handleSave = async (data: any) => {

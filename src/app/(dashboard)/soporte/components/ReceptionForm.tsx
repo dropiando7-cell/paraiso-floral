@@ -17,6 +17,7 @@ type PrefilledData = {
   activoId?: string;
   tipoOrden?: string;
   requiereAprobacion?: boolean;
+  cobertura?: string;
 };
 
 type ReceptionFormProps = {
@@ -53,7 +54,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
     metodoPagoRevision: "Ninguno",
     tecnicoIds: [] as string[],
     tipoTrabajo: "NORMAL",
-    cobertura: "externa",
+    cobertura: prefilledData?.cobertura || "interna",
     fechaRecibido: getLocalDateString(),
     aplicaMantenimientos: false,
     garantiaMeses: "",
