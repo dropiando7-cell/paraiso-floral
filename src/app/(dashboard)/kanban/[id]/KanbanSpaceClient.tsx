@@ -308,6 +308,13 @@ export default function KanbanSpaceClient({ initialData }: Props) {
     const [isAddingColumn, setIsAddingColumn] = useState(false);
     const [newColumnName, setNewColumnName] = useState('');
     const [columnToDelete, setColumnToDelete] = useState<string | null>(null);
+    const [pendingMovement, setPendingMovement] = useState<{
+        taskId: string;
+        targetStatus: string;
+        isCompleting: boolean;
+        isReopening: boolean;
+        executeCallback: () => void;
+    } | null>(null);
 
     const [activeTab, setActiveTab] = useState<'tablero' | 'resumen'>('tablero');
     const [isPending, startTransition] = useTransition();
@@ -406,8 +413,11 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
     const canReopenCompletedOrders = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userAccessibleModules.includes('reabrir_ordenes_completadas');
 
-    const validateStatusChange = (task: any, currentStatus: string, targetStatus: string): boolean => {
-        if (!task.ordenTrabajoId) return true;
+    const checkAndExecuteStatusChange = (task: any, currentStatus: string, targetStatus: string, executeCallback: () => void) => {
+        if (!task.ordenTrabajoId) {
+            executeCallback();
+            return;
+        }
 
         const isReopening = isDoneColumn(currentStatus) && !isDoneColumn(targetStatus);
         const isCompleting = !isDoneColumn(currentStatus) && isDoneColumn(targetStatus);
@@ -415,16 +425,30 @@ export default function KanbanSpaceClient({ initialData }: Props) {
         if (isReopening) {
             if (!canReopenCompletedOrders) {
                 toast.error("No tienes privilegios para reabrir órdenes de trabajo completadas.");
-                return false;
+                return;
             }
-            return window.confirm("¿Estás seguro de reabrir esta orden de trabajo completada y moverla a un estado activo?");
+            setPendingMovement({
+                taskId: task.id,
+                targetStatus,
+                isReopening: true,
+                isCompleting: false,
+                executeCallback
+            });
+            return;
         }
 
         if (isCompleting) {
-            return window.confirm("¿Estás seguro de completar esta tarea? La orden de trabajo se cerrará y no podrás revertir su estado o seguir editándola sin privilegios especiales.");
+            setPendingMovement({
+                taskId: task.id,
+                targetStatus,
+                isReopening: false,
+                isCompleting: true,
+                executeCallback
+            });
+            return;
         }
 
-        return true;
+        executeCallback();
     };
 
     // Agregar nueva columna
@@ -700,30 +724,30 @@ export default function KanbanSpaceClient({ initialData }: Props) {
         const taskToMove = tasks.find(t => t.id === taskId);
         if (!taskToMove || taskToMove.status === targetColumn) return;
 
-        if (!validateStatusChange(taskToMove, taskToMove.status, targetColumn)) return;
+        checkAndExecuteStatusChange(taskToMove, taskToMove.status, targetColumn, () => {
+            // 1. Optimistic Update en UI para respuesta instantánea
+            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: targetColumn } : t));
 
-        // 1. Optimistic Update en UI para respuesta instantánea
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: targetColumn } : t));
-
-        // 2. Enviar cambio al servidor
-        startTransition(async () => {
-            const res = await updateTaskStatus(taskId, targetColumn);
-            if (res.success && res.task) {
-                // Registrar nueva actividad localmente en la lista de actividades
-                const newAct: Activity = {
-                    id: Math.random().toString(),
-                    taskId: taskId,
-                    usuario: 'Tú',
-                    accion: 'MOVIMIENTO',
-                    detalles: `Mover de "${taskToMove.status}" a "${targetColumn}"`,
-                    createdAt: new Date().toISOString()
-                };
-                setActivities(prev => [newAct, ...prev].slice(0, 30));
-            } else {
-                // Revertir en caso de fallo
-                setTasks(originalTasks);
-                toast.error('Error al actualizar el estado de la tarea.');
-            }
+            // 2. Enviar cambio al servidor
+            startTransition(async () => {
+                const res = await updateTaskStatus(taskId, targetColumn);
+                if (res.success && res.task) {
+                    // Registrar nueva actividad localmente en la lista de actividades
+                    const newAct: Activity = {
+                        id: Math.random().toString(),
+                        taskId: taskId,
+                        usuario: 'Tú',
+                        accion: 'MOVIMIENTO',
+                        detalles: `Mover de "${taskToMove.status}" a "${targetColumn}"`,
+                        createdAt: new Date().toISOString()
+                    };
+                    setActivities(prev => [newAct, ...prev].slice(0, 30));
+                } else {
+                    // Revertir en caso de fallo
+                    setTasks(originalTasks);
+                    toast.error('Error al actualizar el estado de la tarea.');
+                }
+            });
         });
     };
 
@@ -791,7 +815,9 @@ export default function KanbanSpaceClient({ initialData }: Props) {
         const task = tasks.find(t => t.id === taskId);
         if (task && task.ordenTrabajoId) {
             if (fields.status !== undefined && fields.status !== task.status) {
-                if (!validateStatusChange(task, task.status, fields.status)) {
+                const isReopening = isDoneColumn(task.status) && !isDoneColumn(fields.status);
+                if (isReopening && !canReopenCompletedOrders) {
+                    toast.error("No tienes privilegios para reabrir órdenes de trabajo completadas.");
                     return false;
                 }
             }
@@ -870,27 +896,27 @@ export default function KanbanSpaceClient({ initialData }: Props) {
         const taskToMove = tasks.find(t => t.id === taskId);
         if (!taskToMove || taskToMove.status === targetStatus) return;
 
-        if (!validateStatusChange(taskToMove, taskToMove.status, targetStatus)) return;
+        checkAndExecuteStatusChange(taskToMove, taskToMove.status, targetStatus, () => {
+            setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: targetStatus } : t));
 
-        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: targetStatus } : t));
-
-        startTransition(async () => {
-            const res = await updateTaskStatus(taskId, targetStatus);
-            if (res.success && res.task) {
-                const newAct: Activity = {
-                    id: Math.random().toString(),
-                    taskId: taskId,
-                    usuario: 'Tú',
-                    accion: 'MOVIMIENTO',
-                    detalles: `Mover de "${taskToMove.status}" a "${targetStatus}"`,
-                    createdAt: new Date().toISOString()
-                };
-                setActivities(prev => [newAct, ...prev].slice(0, 30));
-                toast.success(`Tarea movida a "${targetStatus}"`);
-            } else {
-                setTasks(originalTasks);
-                toast.error('Error al mover la tarea.');
-            }
+            startTransition(async () => {
+                const res = await updateTaskStatus(taskId, targetStatus);
+                if (res.success && res.task) {
+                    const newAct: Activity = {
+                        id: Math.random().toString(),
+                        taskId: taskId,
+                        usuario: 'Tú',
+                        accion: 'MOVIMIENTO',
+                        detalles: `Mover de "${taskToMove.status}" a "${targetStatus}"`,
+                        createdAt: new Date().toISOString()
+                    };
+                    setActivities(prev => [newAct, ...prev].slice(0, 30));
+                    toast.success(`Tarea movida a "${targetStatus}"`);
+                } else {
+                    setTasks(originalTasks);
+                    toast.error('Error al mover la tarea.');
+                }
+            });
         });
     };
 
@@ -1817,6 +1843,47 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                 taskToEdit={editingTask}
                 onUpdate={handleUpdateTaskFromModal}
             />
+            {/* Modal de confirmación para movimiento de tarjeta */}
+            {pendingMovement && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
+                            pendingMovement.isReopening ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+                        }`}>
+                            <AlertCircle className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-950">
+                            {pendingMovement.isReopening ? '¿Reabrir Orden de Trabajo?' : '¿Completar Orden de Trabajo?'}
+                        </h3>
+                        <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
+                            {pendingMovement.isReopening 
+                                ? '¿Estás seguro de reabrir esta orden de trabajo completada y moverla a un estado activo?'
+                                : 'La orden de trabajo se cerrará y no podrás revertir su estado o seguir editándola sin privilegios especiales.'
+                            }
+                        </p>
+                        <div className="flex gap-2 w-full mt-6">
+                            <button
+                                onClick={() => {
+                                    const cb = pendingMovement.executeCallback;
+                                    setPendingMovement(null);
+                                    cb();
+                                }}
+                                className={`flex-1 font-bold py-2.5 px-4 rounded-xl text-xs text-white transition-colors ${
+                                    pendingMovement.isReopening ? 'bg-blue-600 hover:bg-blue-700' : 'bg-amber-600 hover:bg-amber-700'
+                                }`}
+                            >
+                                {pendingMovement.isReopening ? 'Sí, reabrir' : 'Sí, completar'}
+                            </button>
+                            <button
+                                onClick={() => setPendingMovement(null)}
+                                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
             {/* Modal de confirmación para eliminar columna */}
             {columnToDelete && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[9999] flex items-center justify-center p-4">

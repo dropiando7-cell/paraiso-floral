@@ -180,6 +180,7 @@ export default function TaskDetailModal({
     const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.split('T')[0] : '');
     const [isEditingDesc, setIsEditingDesc] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [pendingStatusChange, setPendingStatusChange] = useState<{ value: string; isCompleting: boolean; isReopening: boolean } | null>(null);
     const [showSidebar, setShowSidebar] = useState(true);
 
     // Advanced fields
@@ -1199,31 +1200,7 @@ export default function TaskDetailModal({
         });
     };
 
-    // Actualizar campo individual de forma inmediata
-    const handleFieldChange = (fieldName: string, value: any) => {
-        if (fieldName === 'status' && task.ordenTrabajoId) {
-            const currentStatus = status;
-            const targetStatus = value;
-            const isReopening = isDoneColumn(currentStatus) && !isDoneColumn(targetStatus);
-            const isCompleting = !isDoneColumn(currentStatus) && isDoneColumn(targetStatus);
-
-            if (isReopening) {
-                if (!canReopenCompletedOrders) {
-                    toast.error("No tienes privilegios para reabrir órdenes de trabajo completadas.");
-                    return;
-                }
-                if (!window.confirm("¿Estás seguro de reabrir esta orden de trabajo completada y moverla a un estado activo?")) {
-                    return;
-                }
-            }
-
-            if (isCompleting) {
-                if (!window.confirm("¿Estás seguro de completar esta tarea? La orden de trabajo se cerrará y no podrás revertir su estado o seguir editándola sin privilegios especiales.")) {
-                    return;
-                }
-            }
-        }
-
+    const executeFieldChange = (fieldName: string, value: any) => {
         startTransition(async () => {
             const success = await onUpdate(task.id, { [fieldName]: value });
             if (success) {
@@ -1240,6 +1217,32 @@ export default function TaskDetailModal({
                 if (fieldName === 'parentId') setParentId(value);
             }
         });
+    };
+
+    // Actualizar campo individual de forma inmediata
+    const handleFieldChange = (fieldName: string, value: any) => {
+        if (fieldName === 'status' && task.ordenTrabajoId) {
+            const currentStatus = status;
+            const targetStatus = value;
+            const isReopening = isDoneColumn(currentStatus) && !isDoneColumn(targetStatus);
+            const isCompleting = !isDoneColumn(currentStatus) && isDoneColumn(targetStatus);
+
+            if (isReopening) {
+                if (!canReopenCompletedOrders) {
+                    toast.error("No tienes privilegios para reabrir órdenes de trabajo completadas.");
+                    return;
+                }
+                setPendingStatusChange({ value, isCompleting: false, isReopening: true });
+                return;
+            }
+
+            if (isCompleting) {
+                setPendingStatusChange({ value, isCompleting: true, isReopening: false });
+                return;
+            }
+        }
+
+        executeFieldChange(fieldName, value);
     };
 
     const handleToggleAssignee = (id: string) => {
@@ -3078,6 +3081,47 @@ export default function TaskDetailModal({
                     equipoDano={ordenDetalle?.equipoDano || 'Equipo'}
                     marcaModelo={ordenDetalle?.marcaModelo}
                 />
+            )}
+            {/* Modal de confirmación para cambiar estado de orden */}
+            {pendingStatusChange && (
+                <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-100 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${
+                            pendingStatusChange.isReopening ? 'bg-blue-100 text-blue-600' : 'bg-amber-100 text-amber-600'
+                        }`}>
+                            <AlertCircle className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-950">
+                            {pendingStatusChange.isReopening ? '¿Reabrir Orden de Trabajo?' : '¿Completar Orden de Trabajo?'}
+                        </h3>
+                        <p className="text-slate-500 text-xs mt-2 leading-relaxed font-medium">
+                            {pendingStatusChange.isReopening 
+                                ? '¿Estás seguro de reabrir esta orden de trabajo completada y moverla a un estado activo?'
+                                : 'La orden de trabajo se cerrará y no podrás revertir su estado o seguir editándola sin privilegios especiales.'
+                            }
+                        </p>
+                        <div className="flex gap-2 w-full mt-6">
+                            <button
+                                onClick={() => {
+                                    const val = pendingStatusChange.value;
+                                    setPendingStatusChange(null);
+                                    executeFieldChange('status', val);
+                                }}
+                                className={`flex-1 font-bold py-2.5 px-4 rounded-xl text-xs text-white transition-colors ${
+                                    pendingStatusChange.isReopening ? 'bg-blue-600 hover:bg-blue-700' : 'bg-amber-600 hover:bg-amber-700'
+                                }`}
+                            >
+                                {pendingStatusChange.isReopening ? 'Sí, reabrir' : 'Sí, completar'}
+                            </button>
+                            <button
+                                onClick={() => setPendingStatusChange(null)}
+                                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 px-4 rounded-xl text-xs transition-colors"
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
