@@ -474,12 +474,18 @@ export default function FichaTecnicaClient({
                                                 <div className="space-y-2 text-xs">
                                                     <div>
                                                         <span className="block text-slate-450 font-bold text-[9px] uppercase tracking-wider">Reporte de Falla</span>
-                                                        <p className="text-slate-700 font-medium">{orden.descripcionFalla}</p>
+                                                        <div 
+                                                            className="text-slate-700 font-medium whitespace-pre-wrap prose prose-xs max-w-none"
+                                                            dangerouslySetInnerHTML={{ __html: orden.descripcionFalla || '' }}
+                                                        />
                                                     </div>
                                                     {orden.diagnosticoTecnico && (
                                                         <div className="border-t border-slate-200/50 pt-1.5">
                                                             <span className="block text-slate-450 font-bold text-[9px] uppercase tracking-wider">Diagnóstico Técnico</span>
-                                                            <p className="text-slate-800 font-semibold">{orden.diagnosticoTecnico}</p>
+                                                            <div 
+                                                                className="text-slate-800 font-semibold whitespace-pre-wrap prose prose-xs max-w-none"
+                                                                dangerouslySetInnerHTML={{ __html: orden.diagnosticoTecnico || '' }}
+                                                            />
                                                         </div>
                                                     )}
                                                 </div>

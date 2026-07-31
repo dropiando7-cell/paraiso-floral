@@ -2298,3 +2298,109 @@ export async function getUsuarioActual() {
         return null;
     }
 }
+
+export async function editarActivoSimple(id: string, data: { descripcionCorta: string, marca?: string, modelo?: string, serie?: string, observaciones?: string }) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Usuario no autenticado' };
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email || '' },
+            select: { id: true, role: true, accessibleModules: true, organizationId: true }
+        });
+        if (!dbUser) return { success: false, error: 'Usuario no encontrado' };
+
+        // Authorization check
+        const hasAccess = dbUser.role === 'SUPER_ADMIN' || (dbUser.accessibleModules || []).includes('editar_equipos');
+        if (!hasAccess) return { success: false, error: 'No tienes privilegios para editar equipos.' };
+
+        const activo = await prisma.activoFijo.update({
+            where: { id, organizationId: dbUser.organizationId },
+            data: {
+                descripcionCorta: data.descripcionCorta,
+                marca: data.marca || null,
+                modelo: data.modelo || null,
+                serie: data.serie || null,
+                observaciones: data.observaciones || null
+            }
+        });
+
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'UPDATE',
+            module: '/soporte',
+            description: `Editó equipo de cliente #${activo.idQr || activo.id}`,
+            metadata: { activoId: id }
+        });
+
+        return { success: true, activo };
+    } catch (e: any) {
+        console.error("Error en editarActivoSimple:", e);
+        return { success: false, error: e.message || "Error al editar el equipo." };
+    }
+}
+
+export async function eliminarActivoSimple(id: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Usuario no autenticado' };
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email || '' },
+            select: { id: true, role: true, accessibleModules: true, organizationId: true }
+        });
+        if (!dbUser) return { success: false, error: 'Usuario no encontrado' };
+
+        // Authorization check
+        const hasAccess = dbUser.role === 'SUPER_ADMIN' || (dbUser.accessibleModules || []).includes('eliminar_equipos');
+        if (!hasAccess) return { success: false, error: 'No tienes privilegios para eliminar equipos.' };
+
+        // Transaction to safely update references and delete
+        await prisma.$transaction(async (tx) => {
+            // 1. Set references to null in DetalleFactura
+            await tx.detalleFactura.updateMany({
+                where: { activoId: id },
+                data: { activoId: null }
+            });
+
+            // 2. Set references to null in OrdenTrabajoRepuesto
+            await tx.ordenTrabajoRepuesto.updateMany({
+                where: { activoFijoId: id },
+                data: { activoFijoId: null }
+            });
+
+            // 3. Set references to null in OrdenTrabajo
+            await tx.ordenTrabajo.updateMany({
+                where: { activoId: id },
+                data: { activoId: null }
+            });
+
+            // 4. Delete associated RentaEquipo records
+            await tx.rentaEquipo.deleteMany({
+                where: { activoFijoId: id, organizationId: dbUser.organizationId }
+            });
+
+            // 5. Delete the ActivoFijo record
+            await tx.activoFijo.deleteMany({
+                where: { id, organizationId: dbUser.organizationId }
+            });
+        });
+
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'DELETE',
+            module: '/soporte',
+            description: `Eliminó equipo de cliente #${id}`,
+            metadata: { activoId: id }
+        });
+
+        return { success: true };
+    } catch (e: any) {
+        console.error("Error en eliminarActivoSimple:", e);
+        return { success: false, error: e.message || "Error al eliminar el equipo." };
+    }
+}

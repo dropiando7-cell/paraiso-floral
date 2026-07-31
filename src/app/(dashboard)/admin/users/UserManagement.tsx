@@ -110,6 +110,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: 'eliminar_ordenes', label: 'Soporte - Eliminar Órdenes de Trabajo' },
         { id: 'editar_ordenes', label: 'Soporte - Editar Órdenes' },
         { id: 'editar_ordenes_ficha', label: 'Ficha Técnica - Editar Órdenes desde Ficha' },
+        { id: 'editar_equipos', label: 'Soporte - Editar Equipos/Activos' },
+        { id: 'eliminar_equipos', label: 'Soporte - Eliminar Equipos/Activos' },
         { id: '/cotizaciones', label: 'Cotizaciones' },
         { id: '/facturas', label: 'Facturación' },
         { id: 'facturas_propias', label: 'Facturación - Ver solo cotizaciones/facturas propias' },

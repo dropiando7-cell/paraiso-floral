@@ -7,9 +7,9 @@ import {
     CheckCircle2, QrCode, Phone, Clock, AlertTriangle, MonitorSmartphone,
     Trash2, AlertCircle, Search, Archive, Laptop, UserPlus, ChevronDown, 
     ChevronRight, Filter, FolderPlus, BookOpen, FileText, LayoutGrid, 
-    FolderArchive, Printer, Building2, ClipboardList, Trello
+    FolderArchive, Printer, Building2, ClipboardList, Trello, Pencil, Loader2
 } from 'lucide-react';
-import { eliminarOrdenTrabajo, crearEquipoClienteAction, crearClienteAction } from './actions';
+import { eliminarOrdenTrabajo, crearEquipoClienteAction, crearClienteAction, editarActivoSimple, eliminarActivoSimple } from './actions';
 import { toast } from 'react-hot-toast';
 
 type Orden = any; // Tipado parcial
@@ -119,6 +119,16 @@ export default function SoporteClient({
 
     const role = userRole;
     const canDeleteOrder = role === 'SUPER_ADMIN' || accessibleModules.includes('eliminar_ordenes');
+    const canEditEquipo = role === 'SUPER_ADMIN' || accessibleModules.includes('editar_equipos');
+    const canDeleteEquipo = role === 'SUPER_ADMIN' || accessibleModules.includes('eliminar_equipos');
+
+    const [editingActivo, setEditingActivo] = useState<any | null>(null);
+    const [editNombre, setEditNombre] = useState('');
+    const [editMarca, setEditMarca] = useState('');
+    const [editModelo, setEditModelo] = useState('');
+    const [editSerie, setEditSerie] = useState('');
+    const [editObservaciones, setEditObservaciones] = useState('');
+    const [isSavingActivo, setIsSavingActivo] = useState(false);
 
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
@@ -282,6 +292,63 @@ export default function SoporteClient({
             equipos: eqDeCliente
         };
     }).filter(cli => cli.equipos.length > 0);
+
+    const handleEditActivo = (activo: any) => {
+        setEditingActivo(activo);
+        setEditNombre(activo.descripcionCorta || '');
+        setEditMarca(activo.marca || '');
+        setEditModelo(activo.modelo || '');
+        setEditSerie(activo.serie || '');
+        setEditObservaciones(activo.observaciones || '');
+    };
+
+    const handleSaveActivo = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingActivo) return;
+        setIsSavingActivo(true);
+        try {
+            const res = await editarActivoSimple(editingActivo.id, {
+                descripcionCorta: editNombre,
+                marca: editMarca,
+                modelo: editModelo,
+                serie: editSerie,
+                observaciones: editObservaciones
+            });
+            if (res.success) {
+                toast.success('Equipo editado exitosamente.');
+                setEquiposClientes(prev => prev.map(eq => eq.id === editingActivo.id ? {
+                    ...eq,
+                    descripcionCorta: editNombre,
+                    marca: editMarca,
+                    modelo: editModelo,
+                    serie: editSerie,
+                    observaciones: editObservaciones
+                } : eq));
+                setEditingActivo(null);
+            } else {
+                toast.error(res.error || 'Error al editar equipo.');
+            }
+        } catch (err) {
+            toast.error('Error de conexión.');
+        } finally {
+            setIsSavingActivo(false);
+        }
+    };
+
+    const handleDeleteActivo = async (id: string) => {
+        if (!confirm('¿Estás seguro de que deseas eliminar este equipo? Se desvinculará de las facturas y órdenes de trabajo asociadas.')) return;
+        try {
+            const res = await eliminarActivoSimple(id);
+            if (res.success) {
+                toast.success('Equipo eliminado exitosamente.');
+                setEquiposClientes(prev => prev.filter(eq => eq.id !== id));
+            } else {
+                toast.error(res.error || 'Error al eliminar equipo.');
+            }
+        } catch (err) {
+            toast.error('Error de conexión.');
+        }
+    };
 
     return (
         <div className="px-0 py-4 md:p-8 max-w-[1600px] mx-auto relative min-h-screen">
@@ -793,11 +860,39 @@ export default function SoporteClient({
                                                                         <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                                                             QR: {eq.idQr}
                                                                         </span>
-                                                                        {eq.ordenesTrabajo && eq.ordenesTrabajo.some((o: any) => o.estado !== 'ENTREGADO' && o.estado !== 'REGISTRO') && (
-                                                                            <span className="text-[8px] bg-amber-50 text-amber-700 font-bold border border-amber-200 rounded px-1.5 py-0.5">
-                                                                                En Taller
-                                                                            </span>
-                                                                        )}
+                                                                        <div className="flex items-center gap-1.5">
+                                                                            {eq.ordenesTrabajo && eq.ordenesTrabajo.some((o: any) => o.estado !== 'ENTREGADO' && o.estado !== 'REGISTRO') && (
+                                                                                <span className="text-[8px] bg-amber-50 text-amber-700 font-bold border border-amber-200 rounded px-1.5 py-0.5 mr-1">
+                                                                                    En Taller
+                                                                                </span>
+                                                                            )}
+                                                                            {canEditEquipo && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleEditActivo(eq);
+                                                                                    }}
+                                                                                    className="p-1 hover:bg-slate-100 text-slate-400 hover:text-blue-600 rounded transition cursor-pointer"
+                                                                                    title="Editar equipo"
+                                                                                >
+                                                                                    <Pencil className="w-3 h-3" />
+                                                                                </button>
+                                                                            )}
+                                                                            {canDeleteEquipo && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        handleDeleteActivo(eq.id);
+                                                                                    }}
+                                                                                    className="p-1 hover:bg-slate-100 text-slate-400 hover:text-red-650 rounded transition cursor-pointer"
+                                                                                    title="Eliminar equipo"
+                                                                                >
+                                                                                    <Trash2 className="w-3 h-3" />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
                                                                     <h4 className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
                                                                         <MonitorSmartphone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
@@ -1161,6 +1256,112 @@ export default function SoporteClient({
                                     className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs transition active:scale-95 shadow-sm shadow-indigo-150 cursor-pointer"
                                 >
                                     {loading ? 'Guardando...' : 'Guardar Cliente'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+            {/* MODAL: EDITAR ESPECIFICACIONES DE EQUIPO */}
+            {editingActivo && (
+                <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden flex flex-col animate-in zoom-in-95 duration-200">
+                        
+                        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                            <h3 className="text-sm font-black text-slate-800 tracking-tight flex items-center gap-2">
+                                <Pencil className="w-4 h-4 text-blue-600" />
+                                Editar Especificaciones de Equipo
+                            </h3>
+                            <button 
+                                onClick={() => setEditingActivo(null)}
+                                className="text-slate-400 hover:text-slate-650 text-xs font-bold bg-slate-100 hover:bg-slate-200 h-6 w-6 rounded-full flex items-center justify-center cursor-pointer transition"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <form onSubmit={handleSaveActivo} className="p-6 space-y-4">
+                            
+                            {/* Equipo/Nombre */}
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nombre del Equipo *</label>
+                                <input
+                                    required
+                                    type="text"
+                                    placeholder="Ej. Aire Acondicionado Philips"
+                                    value={editNombre}
+                                    onChange={(e) => setEditNombre(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4.5 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-blue-650"
+                                />
+                            </div>
+
+                            {/* Marca y Modelo */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Marca</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej. Philips"
+                                        value={editMarca}
+                                        onChange={(e) => setEditMarca(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4.5 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-blue-650"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Modelo</label>
+                                    <input
+                                        type="text"
+                                        placeholder="Ej. PX-1000"
+                                        value={editModelo}
+                                        onChange={(e) => setEditModelo(e.target.value)}
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4.5 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-blue-650"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Serie */}
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Número de Serie</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ej. SN0003"
+                                    value={editSerie}
+                                    onChange={(e) => setEditSerie(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4.5 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-blue-650 font-mono"
+                                />
+                            </div>
+
+                            {/* Observaciones */}
+                            <div>
+                                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Observaciones / Notas</label>
+                                <textarea
+                                    rows={3}
+                                    placeholder="Detalles adicionales sobre el estado o accesorios..."
+                                    value={editObservaciones}
+                                    onChange={(e) => setEditObservaciones(e.target.value)}
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4.5 py-2.5 text-xs font-semibold text-slate-700 focus:outline-none focus:bg-white focus:border-blue-650 resize-none"
+                                />
+                            </div>
+
+                            <div className="pt-4 flex items-center justify-end gap-3 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditingActivo(null)}
+                                    className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-750 font-bold rounded-xl text-xs transition active:scale-95 cursor-pointer"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={isSavingActivo}
+                                    className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-black rounded-xl text-xs transition active:scale-95 shadow-sm flex items-center gap-2 cursor-pointer"
+                                >
+                                    {isSavingActivo ? (
+                                        <>
+                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                            Guardando...
+                                        </>
+                                    ) : 'Guardar Cambios'}
                                 </button>
                             </div>
                         </form>
