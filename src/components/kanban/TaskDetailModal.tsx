@@ -138,6 +138,22 @@ interface Props {
     spaceId: string;
 }
 
+const formatTaskDescription = (desc: string) => {
+  if (!desc) return '';
+  if (!desc.includes('<')) return desc;
+  return desc
+    .replace(/<li>\s*<p>/gi, '\n- ')
+    .replace(/<li>/gi, '\n- ')
+    .replace(/<\/li>/gi, '')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<strong>/gi, '**')
+    .replace(/<\/strong>/gi, '**')
+    .replace(/<[^>]*>/g, '')
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .trim();
+};
+
 export default function TaskDetailModal({
     isOpen,
     onClose,
@@ -1440,7 +1456,7 @@ export default function TaskDetailModal({
                                     onClick={() => !isLocked && setIsEditingDesc(true)}
                                     className={`w-full min-h-[80px] bg-slate-50/50 border border-slate-100 hover:border-slate-200 rounded-xl p-3 text-sm text-slate-700 transition whitespace-pre-wrap ${isLocked ? 'opacity-60 cursor-not-allowed hover:border-slate-100' : 'cursor-pointer'}`}
                                 >
-                                    {description || <span className="text-slate-400 italic">No hay descripción detallada. Haz clic aquí para añadir una.</span>}
+                                    {formatTaskDescription(description) || <span className="text-slate-400 italic">No hay descripción detallada. Haz clic aquí para añadir una.</span>}
                                 </div>
                             )}
                         </div>

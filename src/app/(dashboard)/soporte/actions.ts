@@ -15,6 +15,21 @@ import {
 import { createClient } from '@/utils/supabase/server';
 import { triggerNotification } from '@/lib/notifications';
 import { logActivity } from '@/lib/activity-logger';
+const cleanHtmlToMarkdown = (html: string | null | undefined): string => {
+    if (!html) return '';
+    if (!html.includes('<')) return html;
+    return html
+        .replace(/<li>\s*<p>/gi, '\n- ')
+        .replace(/<li>/gi, '\n- ')
+        .replace(/<\/li>/gi, '')
+        .replace(/<\/p>/gi, '\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<strong>/gi, '**')
+        .replace(/<\/strong>/gi, '**')
+        .replace(/<[^>]*>/g, '')
+        .replace(/\n\s*\n\s*\n/g, '\n\n')
+        .trim();
+};
 
 async function getOrgId() {
     const supabase = await createClient();
@@ -271,7 +286,7 @@ export async function createOrdenTrabajo(data: {
                     orden.marcaModelo ? `**Marca/Modelo:** ${orden.marcaModelo}` : null,
                     orden.serie ? `**Serie:** ${orden.serie}` : null,
                     `**Cliente:** ${clienteRecord.nombre}`,
-                    data.descripcionFalla ? `\n**Falla Reportada:**\n${data.descripcionFalla}` : null
+                    data.descripcionFalla ? `\n**Falla Reportada:**\n${cleanHtmlToMarkdown(data.descripcionFalla)}` : null
                 ].filter(Boolean).join('\n');
 
                 // Determinar responsable primario para compatibilidad
@@ -972,18 +987,7 @@ export async function updateDatosOrden(
         });
 
         if (relatedTask) {
-            let cleanFalla = updated.descripcionFalla || '';
-            if (cleanFalla.includes('<')) {
-                cleanFalla = cleanFalla
-                    .replace(/<li>\s*<p>/g, '\n- ')
-                    .replace(/<li>/g, '\n- ')
-                    .replace(/<\/li>/g, '')
-                    .replace(/<\/p>/g, '\n')
-                    .replace(/<br\s*\/?>/g, '\n')
-                    .replace(/<[^>]*>/g, '')
-                    .replace(/\n\s*\n\s*\n/g, '\n\n')
-                    .trim();
-            }
+            const cleanFalla = cleanHtmlToMarkdown(updated.descripcionFalla || '');
 
             const updatedDescLines = [
                 `**Equipo:** ${updated.equipoDano}`,
