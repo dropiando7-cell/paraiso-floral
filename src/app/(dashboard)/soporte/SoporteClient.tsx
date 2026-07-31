@@ -539,7 +539,7 @@ export default function SoporteClient({
                                 <Trello className="w-6 h-6" />
                             </div>
                             <span className="text-[10px] bg-indigo-50 text-indigo-700 font-bold uppercase px-2.5 py-1 rounded-full border border-indigo-200">
-                                Kanban
+                                Tareas
                             </span>
                         </div>
                         <div>
