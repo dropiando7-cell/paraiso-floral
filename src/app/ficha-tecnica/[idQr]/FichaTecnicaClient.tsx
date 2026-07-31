@@ -677,6 +677,7 @@ export default function FichaTecnicaClient({
             <ReportConfigModal
                 isOpen={isReportModalOpen}
                 onClose={() => setIsReportModalOpen(false)}
+                activoId={activo.id}
                 activoIdQr={activo.idQr}
                 allowOnlyCurrent={false}
             />

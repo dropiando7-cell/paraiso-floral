@@ -118,10 +118,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     const url = new URL(req.url);
     const type = url.searchParams.get('type') || 'factura';
+    const isUuid = (str: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 
     if (type === 'historial') {
       let targetActivoId = id;
-      const checkOrden = await prisma.ordenTrabajo.findUnique({
+      const checkOrden = isUuid(id) ? await prisma.ordenTrabajo.findUnique({
         where: { id },
         include: {
           cliente: true,
@@ -162,7 +163,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             }
           }
         }
-      });
+      }) : null;
 
       if (checkOrden && checkOrden.activoId) {
         targetActivoId = checkOrden.activoId;
@@ -195,54 +196,106 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         ordenesWhereClause.id = currentOrderId;
       }
 
-      let activo = await prisma.activoFijo.findUnique({
-        where: { id: targetActivoId },
-        include: {
-          cliente: true,
-          createdBy: {
-            select: { nombre: true, apellido: true }
-          },
-          ordenesTrabajo: {
-            where: ordenesWhereClause,
-            include: {
-              tecnicosAsignados: {
-                select: { id: true, nombre: true }
-              },
-              repuestos: true,
-              tiempos: {
-                where: {
-                  anuladaAt: null
+      let activo = null;
+      if (isUuid(targetActivoId)) {
+        activo = await prisma.activoFijo.findUnique({
+          where: { id: targetActivoId },
+          include: {
+            cliente: true,
+            createdBy: {
+              select: { nombre: true, apellido: true }
+            },
+            ordenesTrabajo: {
+              where: ordenesWhereClause,
+              include: {
+                tecnicosAsignados: {
+                  select: { id: true, nombre: true }
                 },
-                include: {
-                  tecnico: {
-                    select: {
-                      nombre: true,
-                      apellido: true
+                repuestos: true,
+                tiempos: {
+                  where: {
+                    anuladaAt: null
+                  },
+                  include: {
+                    tecnico: {
+                      select: {
+                        nombre: true,
+                        apellido: true
+                      }
+                    }
+                  },
+                  orderBy: {
+                    inicio: 'asc'
+                  }
+                },
+                kanbanTasks: {
+                  include: {
+                    attachments: true,
+                    comments: {
+                      include: {
+                        usuario: {
+                          select: { nombre: true }
+                        }
+                      },
+                      orderBy: { createdAt: 'desc' }
                     }
                   }
-                },
-                orderBy: {
-                  inicio: 'asc'
                 }
               },
-              kanbanTasks: {
-                include: {
-                  attachments: true,
-                  comments: {
-                    include: {
-                      usuario: {
-                        select: { nombre: true }
+              orderBy: { fechaRecibido: 'desc' }
+            }
+          }
+        });
+      } else {
+        activo = await prisma.activoFijo.findFirst({
+          where: { idQr: targetActivoId },
+          include: {
+            cliente: true,
+            createdBy: {
+              select: { nombre: true, apellido: true }
+            },
+            ordenesTrabajo: {
+              where: ordenesWhereClause,
+              include: {
+                tecnicosAsignados: {
+                  select: { id: true, nombre: true }
+                },
+                repuestos: true,
+                tiempos: {
+                  where: {
+                    anuladaAt: null
+                  },
+                  include: {
+                    tecnico: {
+                      select: {
+                        nombre: true,
+                        apellido: true
                       }
-                    },
-                    orderBy: { createdAt: 'desc' }
+                    }
+                  },
+                  orderBy: {
+                    inicio: 'asc'
+                  }
+                },
+                kanbanTasks: {
+                  include: {
+                    attachments: true,
+                    comments: {
+                      include: {
+                        usuario: {
+                          select: { nombre: true }
+                        }
+                      },
+                      orderBy: { createdAt: 'desc' }
+                    }
                   }
                 }
-              }
-            },
-            orderBy: { fechaRecibido: 'desc' }
+              },
+              orderBy: { fechaRecibido: 'desc' }
+            }
           }
-        }
-      });
+        });
+      }
 
       if (!activo && checkOrden) {
         let includeCheckOrden = true;

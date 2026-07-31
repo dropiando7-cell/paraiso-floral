@@ -2032,6 +2032,7 @@ export default function SoporteDetailClient({
       <ReportConfigModal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
+        activoId={orden.activoId || undefined}
         activoIdQr={orden.activo?.idQr || 'N/A'}
         currentOrderId={reportModalConfig.currentOrderId}
         currentOrderCode={reportModalConfig.currentOrderCode}

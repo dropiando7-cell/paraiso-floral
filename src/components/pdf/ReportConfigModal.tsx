@@ -6,6 +6,7 @@ import { X, FileText, Calendar, Hash, ShieldAlert, Sparkles, Check, CheckCircle2
 interface ReportConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
+  activoId?: string;
   activoIdQr?: string;
   currentOrderId?: string;
   currentOrderCode?: string;
@@ -15,6 +16,7 @@ interface ReportConfigModalProps {
 export default function ReportConfigModal({
   isOpen,
   onClose,
+  activoId,
   activoIdQr = 'N/A',
   currentOrderId,
   currentOrderCode,
@@ -46,7 +48,7 @@ export default function ReportConfigModal({
     }
 
     // Determine target ID
-    const targetId = (reportType === 'current' && currentOrderId) ? currentOrderId : currentOrderId || '';
+    const targetId = (reportType === 'current' && currentOrderId) ? currentOrderId : currentOrderId || activoId || '';
     
     // We open the PDF URL in a new window/tab
     const pdfUrl = `/api/pdf/${targetId || activoIdQr}?${params.toString()}`;
