@@ -36,13 +36,16 @@ import {
     Wrench,
     RotateCcw,
     PenTool,
-    Sparkles
+    Sparkles,
+    Share2
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
 import { useRouter } from 'next/navigation';
 import SignatureCanvas from 'react-signature-canvas';
 import { getOrdenDetalleSimplificado, guardarFirmaOrden } from '@/app/(dashboard)/soporte/actions';
+import CompartirInformeModal from '@/components/soporte/CompartirInformeModal';
+import CronometroTrabajo from '@/components/soporte/CronometroTrabajo';
 import { 
     getTaskCommentsAndAttachments, 
     createKanbanComment, 
@@ -190,7 +193,7 @@ export default function TaskDetailModal({
     const [assigneeSearch, setAssigneeSearch] = useState('');
 
     // Estados para colaboración
-    const [activeTab, setActiveTab] = useState<'comentarios' | 'actividad' | 'materiales' | 'firmas'>('comentarios');
+    const [activeTab, setActiveTab] = useState<'comentarios' | 'actividad' | 'materiales' | 'firmas' | 'tiempos'>('comentarios');
     const [ordenDetalle, setOrdenDetalle] = useState<any | null>(null);
     const [loadingOrdenDetalle, setLoadingOrdenDetalle] = useState(false);
 
@@ -208,6 +211,7 @@ export default function TaskDetailModal({
     const [techHasDrawn, setTechHasDrawn] = useState(false);
     const [isSavingTechFirma, setIsSavingTechFirma] = useState(false);
     const [techFirmaOverride, setTechFirmaOverride] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
     const loadOrdenDetalle = async () => {
         if (!task.ordenTrabajoId) return;
@@ -1339,6 +1343,14 @@ export default function TaskDetailModal({
                                             <FileText className="h-3.5 w-3.5 text-emerald-500" />
                                             Generar Reporte
                                         </a>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsShareModalOpen(true)}
+                                            className="flex items-center gap-1.5 text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1 rounded-md transition shadow-sm cursor-pointer"
+                                        >
+                                            <Share2 className="h-3.5 w-3.5 text-indigo-500" />
+                                            Compartir
+                                        </button>
                                     </>
                                 )}
                                 
@@ -1431,11 +1443,11 @@ export default function TaskDetailModal({
 
                         {/* Actividad / Colaboración (Tabs) */}
                         <div className="pt-4 border-t border-slate-100 space-y-4">
-                            <div className="flex gap-4 border-b border-slate-100 pb-2">
+                            <div className="flex gap-2 sm:gap-4 border-b border-slate-100 pb-2 overflow-x-auto whitespace-nowrap scrollbar-none">
                                 <button
                                     type="button"
                                     onClick={() => setActiveTab('comentarios')}
-                                    className={`text-xs font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                    className={`text-[9px] sm:text-xs shrink-0 font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
                                         activeTab === 'comentarios' 
                                             ? 'border-brand-600 text-brand-600' 
                                             : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -1446,7 +1458,7 @@ export default function TaskDetailModal({
                                 <button
                                     type="button"
                                     onClick={() => setActiveTab('actividad')}
-                                    className={`text-xs font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                    className={`text-[9px] sm:text-xs shrink-0 font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
                                         activeTab === 'actividad' 
                                             ? 'border-brand-600 text-brand-600' 
                                             : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -1457,7 +1469,7 @@ export default function TaskDetailModal({
                                 <button
                                     type="button"
                                     onClick={() => setActiveTab('materiales')}
-                                    className={`text-xs font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                    className={`text-[9px] sm:text-xs shrink-0 font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
                                         activeTab === 'materiales' 
                                             ? 'border-brand-600 text-brand-600' 
                                             : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -1466,17 +1478,30 @@ export default function TaskDetailModal({
                                     Materiales ({materials.length})
                                 </button>
                                 {task.ordenTrabajoId && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setActiveTab('firmas')}
-                                        className={`text-xs font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
-                                            activeTab === 'firmas' 
-                                                ? 'border-brand-600 text-brand-600' 
-                                                : 'border-transparent text-slate-400 hover:text-slate-600'
-                                        }`}
-                                    >
-                                        Firmas
-                                    </button>
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveTab('firmas')}
+                                            className={`text-[9px] sm:text-xs shrink-0 font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                                activeTab === 'firmas' 
+                                                    ? 'border-brand-600 text-brand-600' 
+                                                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                                            }`}
+                                        >
+                                            Firmas
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setActiveTab('tiempos')}
+                                            className={`text-[9px] sm:text-xs shrink-0 font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                                activeTab === 'tiempos' 
+                                                    ? 'border-brand-600 text-brand-600' 
+                                                    : 'border-transparent text-slate-400 hover:text-slate-600'
+                                            }`}
+                                        >
+                                            Tiempo Laborado
+                                        </button>
+                                    </>
                                 )}
                             </div>
 
@@ -1683,6 +1708,24 @@ export default function TaskDetailModal({
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                            ) : activeTab === 'tiempos' && task.ordenTrabajoId ? (
+                                <div className="space-y-6 pt-2">
+                                    {loadingOrdenDetalle ? (
+                                        <div className="flex items-center justify-center py-10">
+                                            <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+                                        </div>
+                                    ) : !ordenDetalle ? (
+                                        <div className="text-center text-xs text-slate-400 py-6">
+                                            No se pudo cargar el detalle de la orden de trabajo para el cronómetro.
+                                        </div>
+                                    ) : (
+                                        <CronometroTrabajo
+                                            ordenId={task.ordenTrabajoId}
+                                            tiempos={ordenDetalle.tiempos || []}
+                                            onRefresh={loadOrdenDetalle}
+                                        />
+                                    )}
                                 </div>
                             ) : activeTab === 'firmas' && task.ordenTrabajoId ? (
                                 <div className="space-y-6 pt-2">
@@ -3022,6 +3065,19 @@ export default function TaskDetailModal({
                         </div>
                     </div>
                 </div>
+            )}
+            {task.ordenTrabajoId && (
+                <CompartirInformeModal
+                    isOpen={isShareModalOpen}
+                    onClose={() => setIsShareModalOpen(false)}
+                    ordenId={task.ordenTrabajoId}
+                    codigoSeguridad={ordenDetalle?.codigoSeguridad || task.ordenTrabajoId}
+                    clienteNombre={ordenDetalle?.cliente?.nombre || 'Cliente'}
+                    clienteEmail={ordenDetalle?.cliente?.email}
+                    clienteTelefono={ordenDetalle?.cliente?.telefono}
+                    equipoDano={ordenDetalle?.equipoDano || 'Equipo'}
+                    marcaModelo={ordenDetalle?.marcaModelo}
+                />
             )}
         </div>
     );

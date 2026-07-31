@@ -132,6 +132,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             select: { id: true, nombre: true }
           },
           repuestos: true,
+          tiempos: {
+            where: {
+              anuladaAt: null
+            },
+            include: {
+              tecnico: {
+                select: {
+                  nombre: true,
+                  apellido: true
+                }
+              }
+            },
+            orderBy: {
+              inicio: 'asc'
+            }
+          },
           kanbanTasks: {
             include: {
               attachments: true,
@@ -165,6 +181,22 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                 select: { id: true, nombre: true }
               },
               repuestos: true,
+              tiempos: {
+                where: {
+                  anuladaAt: null
+                },
+                include: {
+                  tecnico: {
+                    select: {
+                      nombre: true,
+                      apellido: true
+                    }
+                  }
+                },
+                orderBy: {
+                  inicio: 'asc'
+                }
+              },
               kanbanTasks: {
                 include: {
                   attachments: true,

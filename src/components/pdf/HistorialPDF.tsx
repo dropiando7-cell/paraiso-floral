@@ -32,26 +32,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1.5,
     borderBottomColor: '#1e40af',
-    paddingBottom: 10,
-    marginBottom: 15,
+    paddingBottom: 8,
+    marginBottom: 10,
   },
   logo: {
-    height: 35,
-    width: 90,
+    height: 30,
+    width: 85,
     objectFit: 'contain',
   },
   titleContainer: {
     textAlign: 'right',
   },
   title: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 700,
     color: '#1e40af',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   subTitle: {
-    fontSize: 8,
+    fontSize: 7.5,
     color: '#6b7280',
     marginTop: 2,
     fontWeight: 500,
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
   infoSection: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 15,
+    marginBottom: 10,
     gap: 10,
   },
   infoBlock: {
@@ -67,14 +67,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e7eb',
     borderRadius: 8,
-    padding: 8,
+    padding: 6,
     backgroundColor: '#f9fafb',
   },
   infoTitle: {
     fontWeight: 700,
-    fontSize: 8.5,
+    fontSize: 8,
     color: '#1e40af',
-    marginBottom: 5,
+    marginBottom: 4,
     borderBottomWidth: 0.75,
     borderBottomColor: '#e5e7eb',
     paddingBottom: 2,
@@ -82,31 +82,31 @@ const styles = StyleSheet.create({
   },
   infoRow: {
     flexDirection: 'row',
-    marginBottom: 3,
-    lineHeight: 1.2,
+    marginBottom: 2.5,
+    lineHeight: 1.15,
   },
   infoLabel: {
     width: 60,
     fontWeight: 700,
     color: '#4b5563',
-    fontSize: 7.5,
+    fontSize: 7,
     textTransform: 'uppercase',
   },
   infoValue: {
     flex: 1,
     color: '#1f2937',
-    fontSize: 8,
+    fontSize: 7.5,
   },
   sectionTitle: {
-    fontSize: 10,
+    fontSize: 9.5,
     fontWeight: 700,
     color: '#1e40af',
     textTransform: 'uppercase',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
-    paddingBottom: 3,
-    marginBottom: 10,
-    marginTop: 5,
+    paddingBottom: 2,
+    marginBottom: 6,
+    marginTop: 3,
   },
   odtCard: {
     borderWidth: 1,
@@ -279,6 +279,18 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     marginTop: 2,
+  },
+  tiemposContainer: {
+    marginTop: 6,
+    borderTopWidth: 0.5,
+    borderTopColor: '#f3f4f6',
+    paddingTop: 4,
+  },
+  tiempoRow: {
+    fontSize: 7.5,
+    color: '#4b5563',
+    lineHeight: 1.3,
+    marginBottom: 2,
   }
 });
 
@@ -356,33 +368,41 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
           {/* Equipment Details */}
           <View style={styles.infoBlock}>
             <Text style={styles.infoTitle}>Especificaciones del Equipo</Text>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Equipo:</Text>
-              <Text style={styles.infoValue}>{activo.descripcionCorta}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Marca/Mod:</Text>
-              <Text style={styles.infoValue}>{[activo.marca, activo.modelo].filter(Boolean).join(" ") || 'N/A'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>N° Serie:</Text>
-              <Text style={[styles.infoValue, { fontFamily: 'Courier' }]}>{activo.serie || 'N/A'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Código QR:</Text>
-              <Text style={[styles.infoValue, { fontWeight: 700 }]}>{activo.idQr}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>F. Registro:</Text>
-              <Text style={styles.infoValue}>
-                {new Date(activo.fechaAdq || activo.createdAt).toLocaleDateString('es-HN')}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Registrado Por:</Text>
-              <Text style={styles.infoValue}>
-                {activo.createdBy ? [activo.createdBy.nombre, activo.createdBy.apellido].filter(Boolean).join(" ").toUpperCase() : 'SISTEMA'}
-              </Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {/* Columna izquierda */}
+              <View style={{ flex: 1.15 }}>
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { width: 52 }]}>Equipo:</Text>
+                  <Text style={styles.infoValue}>{activo.descripcionCorta}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { width: 52 }]}>Marca/Mod:</Text>
+                  <Text style={styles.infoValue}>{[activo.marca, activo.modelo].filter(Boolean).join(" ") || 'N/A'}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { width: 52 }]}>N° Serie:</Text>
+                  <Text style={[styles.infoValue, { fontFamily: 'Courier' }]}>{activo.serie || 'N/A'}</Text>
+                </View>
+              </View>
+              {/* Columna derecha */}
+              <View style={{ flex: 0.85 }}>
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { width: 52 }]}>Código QR:</Text>
+                  <Text style={[styles.infoValue, { fontWeight: 700 }]}>{activo.idQr}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { width: 52 }]}>F. Registro:</Text>
+                  <Text style={styles.infoValue}>
+                    {new Date(activo.fechaAdq || activo.createdAt).toLocaleDateString('es-HN')}
+                  </Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={[styles.infoLabel, { width: 52 }]}>Registrado:</Text>
+                  <Text style={styles.infoValue}>
+                    {activo.createdBy ? [activo.createdBy.nombre || '', activo.createdBy.apellido || ''].filter(Boolean).join(" ").toUpperCase() : 'SISTEMA'}
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
         </View>
@@ -408,7 +428,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
             const comments = task?.comments || [];
 
             return (
-              <View key={orden.id} style={styles.odtCard} wrap={false}>
+              <View key={orden.id} style={styles.odtCard}>
                 {/* ODT Header */}
                 <View style={styles.odtHeader}>
                   <Text style={styles.odtCode}>Orden #{orden.codigoSeguridad}</Text>
@@ -447,7 +467,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
 
                   {/* Kanban Slack-like execution comments */}
                   {comments.length > 0 && (
-                    <View style={styles.commentsContainer}>
+                    <View style={styles.commentsContainer} wrap={false}>
                       <Text style={styles.textLabel}>Comentarios de Trabajo en Campo:</Text>
                       {comments.slice(0, 3).map((com: any) => (
                         <Text key={com.id} style={styles.commentRow}>
@@ -460,7 +480,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
 
                   {/* Evidencias fotográficas (Estado Inicial) */}
                   {orden.fotosEstadoInicial && orden.fotosEstadoInicial.length > 0 && (
-                    <View style={{ marginTop: 4, marginBottom: 4 }}>
+                    <View style={{ marginTop: 4, marginBottom: 4 }} wrap={false}>
                       <Text style={styles.textLabel}>Fotos de Evidencia de Recepción:</Text>
                       <View style={styles.imagesGrid}>
                         {orden.fotosEstadoInicial.slice(0, 6).map((imgUrl: string, idx: number) => (
@@ -472,7 +492,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
 
                   {/* Evidencias fotográficas */}
                   {imageAttachments.length > 0 && (
-                    <View style={{ marginTop: 4 }}>
+                    <View style={{ marginTop: 4 }} wrap={false}>
                       <Text style={styles.textLabel}>Fotos de Evidencia en Campo:</Text>
                       <View style={styles.imagesGrid}>
                         {imageAttachments.slice(0, 6).map((img: any) => (
@@ -482,9 +502,34 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                     </View>
                   )}
 
+                  {/* Tiempo Laborado */}
+                  {orden.tiempos && orden.tiempos.length > 0 && (
+                    <View style={styles.tiemposContainer} wrap={false}>
+                      <Text style={styles.textLabel}>Tiempo Laborado:</Text>
+                      {orden.tiempos.map((tmp: any) => {
+                        const duracionHrs = Math.floor((tmp.duracion || 0) / 60);
+                        const duracionMins = (tmp.duracion || 0) % 60;
+                        const durationStr = duracionHrs > 0 
+                          ? `${duracionHrs} h y ${duracionMins} min`
+                          : `${duracionMins} min`;
+                        const dateStr = tmp.inicio 
+                          ? new Date(tmp.inicio).toLocaleString('es-HN', { 
+                              day: '2-digit', month: '2-digit', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit', hour12: true 
+                            })
+                          : '';
+                        return (
+                          <Text key={tmp.id} style={styles.tiempoRow}>
+                            {dateStr} - {durationStr} por {tmp.tecnico?.nombre || ''} {tmp.tecnico?.apellido || ''}
+                          </Text>
+                        );
+                      })}
+                    </View>
+                  )}
+
                   {/* Firmas de Aceptación */}
                   {(orden.firmaClienteUrl || orden.firmaTecnicoUrl) && (
-                    <View style={styles.signaturesContainer}>
+                    <View style={styles.signaturesContainer} wrap={false}>
                       {orden.firmaClienteUrl && (
                         <View style={styles.signatureCard}>
                           <Text style={styles.signatureTitle}>4. Firma Cliente</Text>

@@ -139,6 +139,9 @@ model User {
   digitalCard           DigitalCard?
   taskMaterialesCreados KanbanTaskMaterial[]   @relation("MaterialesCreados")
   taskMaterialesAnulados KanbanTaskMaterial[]  @relation("MaterialesAnulados")
+  tiemposTrabajados     OrdenTrabajoTiempo[]   @relation("TecnicoTiempos")
+  tiemposCreados        OrdenTrabajoTiempo[]   @relation("TiemposCreados")
+  tiemposAnulados       OrdenTrabajoTiempo[]   @relation("TiemposAnulados")
   
   // Notification fields
   oneSignalSubscriptionId String?              @unique
@@ -838,6 +841,7 @@ model OrdenTrabajo {
   repuestos         OrdenTrabajoRepuesto[]
   kanbanTasks       KanbanTask[]
   facturas          Factura[]
+  tiempos           OrdenTrabajoTiempo[]
 
   @@index([organizationId])
   @@index([clienteId])
@@ -1356,6 +1360,30 @@ model KanbanTaskMaterial {
   @@index([taskId])
   @@index([activoFijoId])
   @@map("kanban_task_materiales")
+}
+
+model OrdenTrabajoTiempo {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  ordenId        String       @db.Uuid
+  tecnicoId      String       @db.Uuid
+  inicio         DateTime     @default(now())
+  fin            DateTime?
+  duracion       Int?         // Duración en minutos
+  createdAt      DateTime     @default(now())
+
+  // Trazabilidad estándar
+  creadoPorId    String?      @db.Uuid
+  anuladaPorId   String?      @db.Uuid
+  anuladaAt      DateTime?
+
+  orden          OrdenTrabajo @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  tecnico        User         @relation("TecnicoTiempos", fields: [tecnicoId], references: [id], onDelete: Cascade)
+  creadoPor      User?        @relation("TiemposCreados", fields: [creadoPorId], references: [id])
+  anuladaPor     User?        @relation("TiemposAnulados", fields: [anuladaPorId], references: [id])
+
+  @@index([ordenId])
+  @@index([tecnicoId])
+  @@map("ordenes_trabajo_tiempos")
 }
 
 model Notification {

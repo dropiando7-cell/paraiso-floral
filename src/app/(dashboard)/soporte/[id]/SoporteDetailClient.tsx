@@ -7,12 +7,15 @@ import ApprovalCard from '../components/ApprovalCard';
 import AprobacionClienteCard from '../components/AprobacionClienteCard';
 import QRGenerator from '../components/QRGenerator';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
-import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle, Loader2, Sparkles, Plus, Smartphone, Send, Archive, Building2, Phone, Calendar, Shield, Tag, Package, Hash, FileText, RotateCcw, PenTool } from 'lucide-react';
+import { Wrench, ArrowRight, CheckCircle2, ArrowLeft, Pencil, X, UploadCloud, Camera, Image as ImageIcon, Trash2, Layout, AlertCircle, Loader2, Sparkles, Plus, Smartphone, Send, Archive, Building2, Phone, Calendar, Shield, Tag, Package, Hash, FileText, RotateCcw, PenTool, Share2, Clock } from 'lucide-react';
 import { updateEstadoOrden, finalizarReparacion, asignarTecnicos, updateDatosOrden, eliminarOrdenTrabajo, notificarClienteListo, convertirCotizacionAServicioFactura, enviarNotificacionRecepcionTwilio, guardarFirmaOrden } from '../actions';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
 import SignatureCanvas from 'react-signature-canvas';
+import CompartirInformeModal from '@/components/soporte/CompartirInformeModal';
+import CronometroTrabajo from '@/components/soporte/CronometroTrabajo';
+import { getOrdenDetalleSimplificado } from '../actions';
 
 type Orden = any;
 
@@ -111,6 +114,19 @@ export default function SoporteDetailClient({
   const [isPreviewRecepcionTwilioOpen, setIsPreviewRecepcionTwilioOpen] = React.useState(false);
   const [isSendingRecepcionTwilio, setIsSendingRecepcionTwilio] = React.useState(false);
   const [recepcionTwilioSent, setRecepcionTwilioSent] = React.useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [tiemposList, setTiemposList] = useState(orden.tiempos || []);
+
+  const refreshTiempos = async () => {
+    try {
+      const res = await getOrdenDetalleSimplificado(orden.id);
+      if (res.success && res.orden) {
+        setTiemposList(res.orden.tiempos || []);
+      }
+    } catch (err) {
+      console.error("Error refreshing ODT times:", err);
+    }
+  };
 
   // Client signature states
   const sigClientCanvasRef = useRef<SignatureCanvas>(null);
@@ -712,6 +728,13 @@ export default function SoporteDetailClient({
               <FileText className="w-3.5 h-3.5 text-emerald-500" /> Historial de Mantenimientos
             </a>
           )}
+          <button
+            type="button"
+            onClick={() => setIsShareModalOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs md:text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 cursor-pointer"
+          >
+            <Share2 className="w-3.5 h-3.5 text-indigo-500" /> Compartir Informe
+          </button>
           {canDeleteOrder && (
             <button
               type="button"
@@ -816,7 +839,18 @@ export default function SoporteDetailClient({
           )}
 
           {isTecnico && ['EN_EVALUACION', 'REPARACION'].includes(orden.estado) && (
-            <div>
+            <div className="space-y-6">
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.03)] p-6">
+                <h3 className="text-sm font-extrabold text-slate-800 uppercase tracking-wider mb-4 flex items-center gap-1.5">
+                  <Clock className="w-4 h-4 text-indigo-600" />
+                  Registro de Tiempo de Trabajo
+                </h3>
+                <CronometroTrabajo 
+                  ordenId={orden.id}
+                  tiempos={tiemposList}
+                  onRefresh={refreshTiempos}
+                />
+              </div>
               <TechnicalWorkbench orderData={orden} />
             </div>
           )}
@@ -1132,14 +1166,23 @@ export default function SoporteDetailClient({
             <p className="text-xs text-slate-500 mt-1">Registra la conformidad del cliente y del técnico biomédico asignado.</p>
           </div>
           
-          <a
-            href={`/api/pdf/${orden.id}?type=historial`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 cursor-pointer self-start sm:self-auto"
-          >
-            <FileText className="w-4 h-4 text-emerald-500" /> Generar Informe Técnico
-          </a>
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            <a
+              href={`/api/pdf/${orden.id}?type=historial`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 cursor-pointer"
+            >
+              <FileText className="w-4 h-4 text-emerald-500" /> Generar Informe Técnico
+            </a>
+            <button
+              type="button"
+              onClick={() => setIsShareModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 cursor-pointer"
+            >
+              <Share2 className="w-4 h-4 text-indigo-500" /> Compartir
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
@@ -1816,7 +1859,7 @@ export default function SoporteDetailClient({
               </h3>
               <button 
                 onClick={() => setIsPreviewRecepcionTwilioOpen(false)} 
-                className="text-slate-400 hover:text-slate-650 p-1.5 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-slate-600 p-1.5 transition-colors cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1943,6 +1986,17 @@ export default function SoporteDetailClient({
           </div>
         </div>
       )}
+      <CompartirInformeModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        ordenId={orden.id}
+        codigoSeguridad={orden.codigoSeguridad || orden.id}
+        clienteNombre={orden.cliente?.nombre || 'Cliente'}
+        clienteEmail={orden.cliente?.email}
+        clienteTelefono={orden.cliente?.telefono}
+        equipoDano={orden.equipoDano}
+        marcaModelo={orden.marcaModelo}
+      />
     </div>
   );
 }

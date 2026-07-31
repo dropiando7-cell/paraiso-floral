@@ -3,6 +3,8 @@
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
 import { randomBytes } from 'crypto';
+import { Resend } from 'resend';
+import { headers } from 'next/headers';
 import { 
     sendSoporteRecepcion, 
     sendSoporteEquipoListo,
@@ -1849,13 +1851,18 @@ export async function getOrdenDetalleSimplificado(id: string) {
                 firmaTecnicoNombre: true,
                 firmaTecnicoFecha: true,
                 clienteId: true,
+                equipoDano: true,
+                marcaModelo: true,
+                codigoSeguridad: true,
                 cliente: {
                     select: {
                         id: true,
                         nombre: true,
                         firmaDigitalUrl: true,
                         firmaDigitalNombre: true,
-                        nombreContacto: true
+                        nombreContacto: true,
+                        email: true,
+                        telefono: true
                     }
                 },
                 tecnicosAsignados: {
@@ -1865,11 +1872,429 @@ export async function getOrdenDetalleSimplificado(id: string) {
                         apellido: true,
                         email: true
                     }
+                },
+                tiempos: {
+                    where: {
+                        anuladaAt: null
+                    },
+                    include: {
+                        tecnico: {
+                            select: {
+                                id: true,
+                                nombre: true,
+                                apellido: true
+                            }
+                        }
+                    },
+                    orderBy: {
+                        inicio: 'desc'
+                    }
                 }
             }
         });
         return { success: true, orden };
     } catch (e: any) {
         return { success: false, error: e.message || "Error al obtener la orden" };
+    }
+}
+
+export async function enviarReportePorWhatsApp(
+    ordenId: string,
+    telefonoDestino: string,
+    mensajePersonalizado: string
+) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Usuario no autenticado' };
+
+        const orden = await prisma.ordenTrabajo.findUnique({
+            where: { id: ordenId },
+            include: { cliente: true }
+        });
+        if (!orden) return { success: false, error: 'Orden no encontrada' };
+
+        // Limpiar el teléfono
+        let cleanPhone = telefonoDestino.replace(/[\s\-\(\)]/g, '');
+        if (!cleanPhone.startsWith('+')) {
+            cleanPhone = `+504${cleanPhone}`;
+        }
+
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+        const twilioWhatsappFrom = process.env.TWILIO_WHATSAPP_FROM || "whatsapp:+14155238886";
+
+        if (!accountSid || !authToken) {
+            return { success: false, error: 'Faltan variables de entorno de Twilio' };
+        }
+
+        const url = `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`;
+        const params = new URLSearchParams();
+        params.append('To', `whatsapp:${cleanPhone}`);
+        params.append('From', twilioWhatsappFrom);
+        params.append('Body', mensajePersonalizado);
+
+        const token = Buffer.from(`${accountSid}:${authToken}`).toString('base64');
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${token}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params.toString(),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+            console.error('Twilio WhatsApp error:', data);
+            return { success: false, error: data.message || 'Error al enviar mensaje por WhatsApp' };
+        }
+
+        // Registrar la actividad del envío
+        try {
+            const dbUser = await prisma.user.findUnique({
+                where: { email: user.email || '' },
+                select: { id: true, organizationId: true }
+            });
+            const orgId = dbUser?.organizationId || orden.organizationId;
+            const userId = dbUser?.id || null;
+
+            await logActivity({
+                userId,
+                organizationId: orgId,
+                action: 'SHARE',
+                module: '/soporte',
+                description: `Envió informe técnico por WhatsApp a ${telefonoDestino}`,
+                metadata: { ordenId }
+            });
+        } catch (logErr) {
+            console.error('Activity log error:', logErr);
+        }
+
+        return { success: true, messageId: data.sid };
+    } catch (error: any) {
+        console.error('Error en enviarReportePorWhatsApp:', error);
+        return { success: false, error: error.message || 'Error interno al enviar por WhatsApp' };
+    }
+}
+
+export async function enviarReportePorEmail(
+    ordenId: string,
+    emailDestino: string,
+    asunto: string,
+    mensajePersonalizado: string
+) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Usuario no autenticado' };
+
+        const orden = await prisma.ordenTrabajo.findUnique({
+            where: { id: ordenId },
+            include: { cliente: true }
+        });
+        if (!orden) return { success: false, error: 'Orden no encontrada' };
+
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        if (!process.env.RESEND_API_KEY) {
+            console.warn('RESEND_API_KEY no configurado');
+            return { success: false, error: 'El servicio de correo electrónico (Resend) no está configurado.' };
+        }
+
+        // Fetch PDF from route handler as buffer
+        const headersList = await headers();
+        const host = headersList.get('host') || 'sistema.bioelectronicahn.com';
+        const protocol = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
+        const baseUrl = `${protocol}://${host}`;
+        
+        const pdfUrl = `${baseUrl}/api/pdf/${ordenId}?type=historial`;
+        console.log('Fetching PDF internally from:', pdfUrl);
+        
+        const pdfRes = await fetch(pdfUrl);
+        if (!pdfRes.ok) {
+            return { success: false, error: 'No se pudo generar el archivo PDF del informe' };
+        }
+
+        const arrayBuffer = await pdfRes.arrayBuffer();
+        const pdfBuffer = Buffer.from(arrayBuffer);
+
+        const cleanMsg = mensajePersonalizado ? mensajePersonalizado.replace(/\n/g, '<br/>') : '';
+        const emailHtml = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <title>Informe Técnico - ${orden.codigoSeguridad || orden.id}</title>
+              <style>
+                body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 0; }
+                .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+                .header { background-color: #0f172a; color: #ffffff; padding: 32px 24px; text-align: center; }
+                .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; }
+                .header p { margin: 4px 0 0 0; font-size: 14px; color: #94a3b8; }
+                .content { padding: 32px 24px; }
+                .greeting { font-size: 16px; font-weight: bold; margin-bottom: 16px; color: #0f172a; }
+                .message { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px; }
+                .summary-box { background-color: #f1f5f9; border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
+                .summary-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; margin-bottom: 12px; }
+                .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
+                .summary-row:last-child { margin-bottom: 0; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-weight: bold; color: #0f172a; }
+                .footer { background-color: #f8fafc; padding: 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
+                .footer a { color: #2563eb; text-decoration: none; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <div class="header">
+                  <h1>BIOELECTRÓNICA HONDURAS</h1>
+                  <p>Soporte Técnico y Venta de Equipo Médico</p>
+                </div>
+                <div class="content">
+                  <div class="greeting">Estimado(a) ${orden.cliente?.nombre || 'Cliente'},</div>
+                  <div class="message">
+                    ${cleanMsg}
+                  </div>
+                  <div class="summary-box">
+                    <div class="summary-title">Resumen del Servicio</div>
+                    <div class="summary-row">
+                      <span>Orden de Trabajo:</span>
+                      <strong>#${orden.codigoSeguridad || orden.id}</strong>
+                    </div>
+                    <div class="summary-row">
+                      <span>Equipo:</span>
+                      <span>${orden.equipoDano} - ${orden.marcaModelo || ''}</span>
+                    </div>
+                    <div class="summary-row">
+                      <span>Estado:</span>
+                      <strong>${orden.estado}</strong>
+                    </div>
+                  </div>
+                  <div class="message" style="font-size: 13px; color: #64748b;">
+                    En el archivo adjunto encontrará el informe técnico detallado correspondiente.
+                  </div>
+                </div>
+                <div class="footer">
+                  <p><strong>Bioelectrónica Honduras S. de R.L. de C.V.</strong></p>
+                  <p>Bo. Guamilito, 7 Calle, 9 Avenida NO, San Pedro Sula, Cortés</p>
+                  <p>Tel: +504 3178-2368 | +504 8924-6108</p>
+                </div>
+              </div>
+            </body>
+          </html>
+        `;
+
+        const filename = `Informe_Tecnico_${orden.codigoSeguridad || orden.id}.pdf`;
+        const sendResult = await resend.emails.send({
+            from: 'Bioelectrónica Honduras <notificaciones@mail.bioelectronicahn.com>',
+            to: emailDestino,
+            replyTo: 'administracion@bioelectronicahn.com',
+            subject: asunto || `Informe Técnico #${orden.codigoSeguridad || orden.id} - Bioelectrónica Honduras`,
+            html: emailHtml,
+            attachments: [
+                {
+                    filename: filename,
+                    content: pdfBuffer,
+                },
+            ],
+        });
+
+        if (sendResult.error) {
+            console.error('Resend Error:', sendResult.error);
+            return { success: false, error: `Error de Resend: ${sendResult.error.message}` };
+        }
+
+        // Registrar la actividad del envío
+        try {
+            const dbUser = await prisma.user.findUnique({
+                where: { email: user.email || '' },
+                select: { id: true, organizationId: true }
+            });
+            const orgId = dbUser?.organizationId || orden.organizationId;
+            const userId = dbUser?.id || null;
+
+            await logActivity({
+                userId,
+                organizationId: orgId,
+                action: 'SHARE',
+                module: '/soporte',
+                description: `Envió informe técnico por correo electrónico a ${emailDestino}`,
+                metadata: { ordenId }
+            });
+        } catch (logErr) {
+            console.error('Activity log error:', logErr);
+        }
+
+        return { success: true, data: sendResult.data };
+    } catch (error: any) {
+        console.error('Error en enviarReportePorEmail:', error);
+        return { success: false, error: error.message || 'Error interno al enviar el correo' };
+    }
+}
+
+export async function iniciarCronometro(ordenId: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Usuario no autenticado' };
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email || '' },
+            select: { id: true, organizationId: true }
+        });
+        if (!dbUser) return { success: false, error: 'Usuario no encontrado en base de datos' };
+
+        const orden = await prisma.ordenTrabajo.findUnique({
+            where: { id: ordenId }
+        });
+        if (!orden) return { success: false, error: 'Orden no encontrada' };
+
+        // Check if there is already an active timer for this technician on this order
+        const activeTimer = await prisma.ordenTrabajoTiempo.findFirst({
+            where: {
+                ordenId,
+                tecnicoId: dbUser.id,
+                fin: null,
+                anuladaAt: null
+            }
+        });
+        if (activeTimer) {
+            return { success: true, tiempo: activeTimer };
+        }
+
+        const tiempo = await prisma.ordenTrabajoTiempo.create({
+            data: {
+                ordenId,
+                tecnicoId: dbUser.id,
+                creadoPorId: dbUser.id,
+                inicio: new Date()
+            }
+        });
+
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'UPDATE',
+            module: '/soporte',
+            description: `Inició cronómetro para orden #${orden.codigoSeguridad || orden.id}`,
+            metadata: { ordenId, tiempoId: tiempo.id }
+        });
+
+        return { success: true, tiempo };
+    } catch (e: any) {
+        console.error("Error en iniciarCronometro:", e);
+        return { success: false, error: e.message || "Error al iniciar el cronómetro." };
+    }
+}
+
+export async function detenerCronometro(tiempoId: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Usuario no autenticado' };
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email || '' },
+            select: { id: true, organizationId: true }
+        });
+        if (!dbUser) return { success: false, error: 'Usuario no encontrado en base de datos' };
+
+        const activeTimer = await prisma.ordenTrabajoTiempo.findUnique({
+            where: { id: tiempoId }
+        });
+        if (!activeTimer) return { success: false, error: 'Registro de tiempo no encontrado' };
+
+        const fin = new Date();
+        const diffMs = fin.getTime() - new Date(activeTimer.inicio).getTime();
+
+        // Discard / delete the record if elapsed time is less than 60 seconds (60000ms)
+        if (diffMs < 60000) {
+            await prisma.ordenTrabajoTiempo.delete({
+                where: { id: tiempoId }
+            });
+            return { success: true, discarded: true };
+        }
+
+        const duracionMinutos = Math.round(diffMs / 1000 / 60);
+
+        const tiempo = await prisma.ordenTrabajoTiempo.update({
+            where: { id: tiempoId },
+            data: {
+                fin,
+                duracion: Math.max(1, duracionMinutos)
+            }
+        });
+
+        const orden = await prisma.ordenTrabajo.findUnique({
+            where: { id: activeTimer.ordenId }
+        });
+
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'UPDATE',
+            module: '/soporte',
+            description: `Detuvo cronómetro para orden #${orden?.codigoSeguridad || activeTimer.ordenId} (${tiempo.duracion} min)`,
+            metadata: { ordenId: activeTimer.ordenId, tiempoId }
+        });
+
+        return { success: true, tiempo };
+    } catch (e: any) {
+        console.error("Error en detenerCronometro:", e);
+        return { success: false, error: e.message || "Error al detener el cronómetro." };
+    }
+}
+
+export async function eliminarRegistroTiempo(tiempoId: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Usuario no autenticado' };
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email || '' },
+            select: { id: true, organizationId: true }
+        });
+        if (!dbUser) return { success: false, error: 'Usuario no encontrado' };
+
+        const activeTimer = await prisma.ordenTrabajoTiempo.findUnique({
+            where: { id: tiempoId }
+        });
+        if (!activeTimer) return { success: false, error: 'Registro de tiempo no encontrado' };
+
+        // Logical delete (anulación)
+        const tiempo = await prisma.ordenTrabajoTiempo.update({
+            where: { id: tiempoId },
+            data: {
+                anuladaPorId: dbUser.id,
+                anuladaAt: new Date()
+            }
+        });
+
+        await logActivity({
+            userId: dbUser.id,
+            organizationId: dbUser.organizationId,
+            action: 'DELETE',
+            module: '/soporte',
+            description: `Anuló registro de tiempo de la orden #${tiempoId}`,
+            metadata: { ordenId: activeTimer.ordenId, tiempoId }
+        });
+
+        return { success: true };
+    } catch (e: any) {
+        console.error("Error en eliminarRegistroTiempo:", e);
+        return { success: false, error: e.message || "Error al eliminar el registro de tiempo." };
+    }
+}
+
+export async function getUsuarioActual() {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+        return prisma.user.findUnique({
+            where: { email: user.email },
+            select: { id: true, nombre: true, apellido: true }
+        });
+    } catch {
+        return null;
     }
 }
