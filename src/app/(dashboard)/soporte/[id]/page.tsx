@@ -22,6 +22,7 @@ export default async function SoporteDetailPage({ params }: { params: Promise<{ 
       usuarioAprobacion: true,
       repuestos: { include: { producto: true, activoFijo: true } },
       kanbanTasks: true,
+      activo: true,
       tiempos: {
         where: {
           anuladaAt: null

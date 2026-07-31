@@ -39,6 +39,7 @@ type Activo = {
     mantenimientosIncluidos?: number | null;
     frecuenciaMantenimientoMeses?: number | null;
     esEquipoCliente: boolean;
+    cobertura?: string | null;
     clienteId?: string | null;
     cliente?: {
         id: string;
@@ -362,8 +363,17 @@ export default function FichaTecnicaClient({
                     {activo.esEquipoCliente && activo.cliente && (
                         <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
                             <div>
-                                <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold uppercase px-2 py-0.5 rounded">Propietario Externo</span>
-                                <h3 className="text-sm font-black text-slate-800 mt-1 tracking-tight">{activo.cliente.nombre}</h3>
+                                <div className="flex gap-1.5 flex-wrap">
+                                    <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold uppercase px-2 py-0.5 rounded">Propietario Externo</span>
+                                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
+                                        activo.cobertura === 'interna' 
+                                            ? 'bg-amber-100 text-amber-800 border-amber-200' 
+                                            : 'bg-blue-100 text-blue-800 border-blue-200'
+                                    }`}>
+                                        {activo.cobertura === 'interna' ? '🏢 Interno (En Tienda)' : '🌍 Externo (Cliente)'}
+                                    </span>
+                                </div>
+                                <h3 className="text-sm font-black text-slate-800 mt-1.5 tracking-tight">{activo.cliente.nombre}</h3>
                                 {activo.cliente.telefono && <p className="text-xs text-slate-500 font-semibold mt-1">Teléfono: {activo.cliente.telefono}</p>}
                                 {activo.cliente.direccion && <p className="text-[11px] text-slate-450 leading-relaxed font-semibold mt-0.5">Ubicación: {activo.cliente.direccion}</p>}
                             </div>
@@ -377,7 +387,7 @@ export default function FichaTecnicaClient({
                                     Descargar PDF
                                 </button>
                                 <button
-                                    onClick={() => router.push(`/soporte/nuevo?activoId=${activo.id}&clienteId=${activo.cliente?.id}&clienteNombre=${encodeURIComponent(activo.cliente?.nombre || '')}&equipoDano=${encodeURIComponent(activo.descripcionCorta)}&marca=${encodeURIComponent(activo.marca || '')}&modelo=${encodeURIComponent(activo.modelo || '')}&serie=${encodeURIComponent(activo.serie || '')}`)}
+                                    onClick={() => router.push(`/soporte/nuevo?activoId=${activo.id}&clienteId=${activo.cliente?.id}&clienteNombre=${encodeURIComponent(activo.cliente?.nombre || '')}&equipoDano=${encodeURIComponent(activo.descripcionCorta)}&marca=${encodeURIComponent(activo.marca || '')}&modelo=${encodeURIComponent(activo.modelo || '')}&serie=${encodeURIComponent(activo.serie || '')}&cobertura=${activo.cobertura || 'externa'}`)}
                                     className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer shadow-blue-150"
                                 >
                                     <Plus className="w-3.5 h-3.5" />

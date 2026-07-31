@@ -325,6 +325,31 @@ const parseHtmlToReactPdf = (html: string | null | undefined, style: any) => {
   return <Text style={style}>{formatted}</Text>;
 };
 
+const formatHN = (dateInput: Date | string | null | undefined, includeTime: boolean = false) => {
+  if (!dateInput) return '';
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput;
+  if (isNaN(date.getTime())) return '';
+
+  // Honduras is UTC-6, so we shift by -6 hours
+  const shiftedDate = new Date(date.getTime() - 6 * 60 * 60 * 1000);
+  
+  const day = String(shiftedDate.getUTCDate()).padStart(2, '0');
+  const month = String(shiftedDate.getUTCMonth() + 1).padStart(2, '0');
+  const year = shiftedDate.getUTCFullYear();
+
+  if (includeTime) {
+    let hours = shiftedDate.getUTCHours();
+    const minutes = String(shiftedDate.getUTCMinutes()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'p. m.' : 'a. m.';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // 0 becomes 12
+    const strHours = String(hours).padStart(2, '0');
+    return `${day}/${month}/${year} ${strHours}:${minutes} ${ampm}`;
+  }
+
+  return `${day}/${month}/${year}`;
+};
+
 export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPDFProps) {
   const cliente = activo.cliente || {};
   const ordenes = activo.ordenesTrabajo || [];
@@ -389,7 +414,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                 <View style={{ flex: 0.85, flexDirection: 'row' }}>
                   <Text style={styles.infoLabel}>F. Registro:</Text>
                   <Text style={styles.infoValue}>
-                    {new Date(activo.fechaAdq || activo.createdAt).toLocaleDateString('es-HN')}
+                    {formatHN(activo.fechaAdq || activo.createdAt)}
                   </Text>
                 </View>
               </View>
@@ -435,7 +460,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                 {/* ODT Header */}
                 <View style={styles.odtHeader}>
                   <Text style={styles.odtCode}>Orden #{orden.codigoSeguridad}</Text>
-                  <Text style={styles.odtDate}>Fecha: {new Date(orden.fechaRecibido).toLocaleDateString()}</Text>
+                  <Text style={styles.odtDate}>Fecha: {formatHN(orden.fechaRecibido)}</Text>
                   <Text style={styles.odtStatus}>{orden.leyendaEstado || orden.estado}</Text>
                 </View>
 
@@ -515,12 +540,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                         const durationStr = duracionHrs > 0 
                           ? `${duracionHrs} h y ${duracionMins} min`
                           : `${duracionMins} min`;
-                        const dateStr = tmp.inicio 
-                          ? new Date(tmp.inicio).toLocaleString('es-HN', { 
-                              day: '2-digit', month: '2-digit', year: 'numeric',
-                              hour: '2-digit', minute: '2-digit', hour12: true 
-                            })
-                          : '';
+                        const dateStr = formatHN(tmp.inicio, true);
                         return (
                           <Text key={tmp.id} style={styles.tiempoRow}>
                             {dateStr} - {durationStr} por {tmp.tecnico?.nombre || ''} {tmp.tecnico?.apellido || ''}
@@ -538,7 +558,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                           <Text style={styles.signatureTitle}>4. Firma Cliente</Text>
                           <Image style={styles.signatureImage} src={orden.firmaClienteUrl} />
                           <Text style={styles.signatureFooter}>
-                            {orden.firmaClienteFecha ? new Date(orden.firmaClienteFecha).toLocaleString('es-HN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''} Por {orden.firmaClienteNombre || 'Cliente'}
+                            {orden.firmaClienteFecha ? formatHN(orden.firmaClienteFecha, true) : ''} Por {orden.firmaClienteNombre || 'Cliente'}
                           </Text>
                         </View>
                       )}
@@ -547,7 +567,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                           <Text style={styles.signatureTitle}>5. Firma Técnico / Biomédico</Text>
                           <Image style={styles.signatureImage} src={orden.firmaTecnicoUrl} />
                           <Text style={styles.signatureFooter}>
-                            {orden.firmaTecnicoFecha ? new Date(orden.firmaTecnicoFecha).toLocaleString('es-HN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''} Por {orden.firmaTecnicoNombre || 'Técnico'}
+                            {orden.firmaTecnicoFecha ? formatHN(orden.firmaTecnicoFecha, true) : ''} Por {orden.firmaTecnicoNombre || 'Técnico'}
                           </Text>
                         </View>
                       )}

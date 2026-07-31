@@ -257,11 +257,11 @@ const addMonths = (date: Date, months: number) => {
 
 // Helper to format date cleanly
 const formatDate = (date: Date) => {
-  return date.toLocaleDateString('es-HN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
+  const shiftedDate = new Date(date.getTime() - 6 * 60 * 60 * 1000);
+  const day = String(shiftedDate.getUTCDate()).padStart(2, '0');
+  const month = String(shiftedDate.getUTCMonth() + 1).padStart(2, '0');
+  const year = shiftedDate.getUTCFullYear();
+  return `${day}/${month}/${year}`;
 };
 
 // Helper to format warranty duration nicely

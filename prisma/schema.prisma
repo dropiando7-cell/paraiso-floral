@@ -454,6 +454,7 @@ model ActivoFijo {
   kanbanMaterials       KanbanTaskMaterial[]
   equipoCliente         EquipoCliente?
   esEquipoCliente       Boolean              @default(false)
+  cobertura             String?              @default("externa")
   clienteId             String?              @db.Uuid
   cliente               Cliente?             @relation("ActivoCliente", fields: [clienteId], references: [id])
   ordenesTrabajo        OrdenTrabajo[]

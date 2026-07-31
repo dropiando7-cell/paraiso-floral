@@ -1140,15 +1140,32 @@ export default function SoporteDetailClient({
         {/* Column 2: QRGenerator & Printing (right) */}
         <div className="col-span-12 lg:col-span-4">
           {(isRecepcion || isTecnico || isGerente) && (
-            <QRGenerator 
-              orderId={orden.codigoSeguridad} 
-              serie={orden.serie || "N/A"} 
-              cliente={orden.cliente?.nombre || ""} 
-              equipo={orden.equipoDano}
-              marcaModelo={orden.marcaModelo || ""}
-              fecha={new Date(orden.fechaRecibido || new Date()).toLocaleDateString("es-HN")}
-              kanbanCodigo={orden.kanbanTasks?.[0]?.codigo}
-            />
+            <div className="flex flex-col gap-4">
+              <QRGenerator 
+                orderId={orden.codigoSeguridad} 
+                serie={orden.serie || "N/A"} 
+                cliente={orden.cliente?.nombre || ""} 
+                equipo={orden.equipoDano}
+                marcaModelo={orden.marcaModelo || ""}
+                fecha={new Date(orden.fechaRecibido || new Date()).toLocaleDateString("es-HN")}
+                kanbanCodigo={orden.kanbanTasks?.[0]?.codigo}
+              />
+              
+              {orden.activo && (
+                <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4 flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-900 uppercase tracking-wide">
+                    <CheckCircle2 className="w-4 h-4 text-blue-600" />
+                    Equipo Identificado
+                  </div>
+                  <p className="text-xs text-blue-700 leading-normal">
+                    Este equipo ya cuenta con su etiqueta QR física de inventario: <strong className="font-mono">{orden.activo.idQr}</strong>.
+                  </p>
+                  <p className="text-[11px] text-blue-650 italic">
+                    💡 No es necesario imprimir ni pegar la etiqueta temporal de reparación.
+                  </p>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

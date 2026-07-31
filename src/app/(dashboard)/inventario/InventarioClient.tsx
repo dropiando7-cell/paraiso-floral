@@ -422,6 +422,7 @@ type Activo = {
     stock?: number;
     esEquipoCliente?: boolean;
     clienteId?: string | null;
+    cobertura?: string | null;
 };
 
 const CATEGORIAS_DEPRECIACION = [
@@ -904,6 +905,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     // Clientes list state & registration modal states
     const [clientesList, setClientesList] = useState<any[]>(clientes || []);
     const [selectedClienteId, setSelectedClienteId] = useState<string>(editActivo?.clienteId || '');
+    const [cobertura, setCobertura] = useState<string>(editActivo?.cobertura || 'externa');
     const [isClienteModalOpen, setIsClienteModalOpen] = useState(false);
     const [newClienteData, setNewClienteData] = useState({
         nombre: '',
@@ -1409,6 +1411,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setFechaFabricacion(editActivo.fechaFabricacion ? getLocalDateString(editActivo.fechaFabricacion) : '');
             setSerie(editActivo.serie || '');
             setEstatusContable(editActivo.estatusContable || 'VIGENTE');
+            setCobertura(editActivo.cobertura || 'externa');
             // For now, not fetching full historic record on edit, just handling its absence.
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
@@ -1419,6 +1422,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setFechaAdq(getLocalDateString(new Date())); setCostoAdq(''); setOrigenActivo(defaultOrigin); setCondicionActivo(defaultCondition); setCategoriaId(''); setEsConsumible(false); setGarantia(''); setMantenimientosIncluidos(''); setFrecuenciaMantenimientoMeses(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion(''); setSerie('');
             setTipoRegistro('seleccion');
             setEstatusContable('VIGENTE');
+            setCobertura('externa');
             setWebProductReference(null);
         }
     }, [editActivo, open, lockedArea, defaultOrigin, defaultCondition]);
@@ -1682,6 +1686,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             }
             fd.set('esEquipoCliente', 'true');
             fd.set('clienteId', selectedClienteId);
+            fd.set('cobertura', cobertura);
         }
         fd.set('imagenUrl', isServiceMode ? (imagenUrl || '/services/reparacion.jpg') : imagenUrl);
         fd.set('imagenPlacaUrl', isServiceMode ? '' : imagenPlacaUrl);
@@ -2012,9 +2017,9 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                         <Laptop className="w-7 h-7" />
                                     </div>
                                     <div>
-                                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#0500A3]">Equipo de Cliente (Externo)</h3>
+                                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#0500A3]">Equipo de Cliente (Interno/Externo)</h3>
                                         <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
-                                            Registrar un equipo propiedad de un cliente externo para dar seguimiento a revisiones, garantías y mantenimientos.
+                                            Registrar un equipo propiedad de un cliente (interno o externo) para dar seguimiento a revisiones, garantías y mantenimientos.
                                         </p>
                                     </div>
                                 </button>
@@ -2049,6 +2054,34 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                 <Plus className="w-4 h-4" />
                                                 <span>Nuevo</span>
                                             </button>
+                                        </div>
+
+                                        <div className="mt-3 border-t border-blue-200 pt-3">
+                                            <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wider mb-2">Cobertura del Equipo *</label>
+                                            <div className="flex flex-col sm:flex-row gap-3">
+                                                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer bg-white px-3 py-2 rounded-xl border border-slate-200 flex-1 hover:bg-slate-50 transition-colors">
+                                                    <input 
+                                                        type="radio" 
+                                                        name="cobertura" 
+                                                        value="externa" 
+                                                        checked={cobertura === 'externa'} 
+                                                        onChange={() => setCobertura('externa')} 
+                                                        className="text-indigo-600 focus:ring-indigo-500"
+                                                    />
+                                                    <span>🌍 Externo (En su ubicación)</span>
+                                                </label>
+                                                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer bg-white px-3 py-2 rounded-xl border border-slate-200 flex-1 hover:bg-slate-50 transition-colors">
+                                                    <input 
+                                                        type="radio" 
+                                                        name="cobertura" 
+                                                        value="interna" 
+                                                        checked={cobertura === 'interna'} 
+                                                        onChange={() => setCobertura('interna')} 
+                                                        className="text-indigo-600 focus:ring-indigo-500"
+                                                    />
+                                                    <span>🏢 Interno (Traído a tienda/taller)</span>
+                                                </label>
+                                            </div>
                                         </div>
                                     </div>
                                 )}
@@ -4957,6 +4990,18 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                         <div>
                                             <div className="text-xs text-slate-400 mb-1">Frecuencia Mantenimiento</div>
                                             <div className="font-medium text-slate-800">{viewActivo.frecuenciaMantenimientoMeses} {viewActivo.frecuenciaMantenimientoMeses === 1 ? 'mes' : 'meses'}</div>
+                                        </div>
+                                    )}
+                                    {viewActivo.esEquipoCliente && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">Cobertura del Equipo</div>
+                                            <div className={`font-semibold text-xs px-2 py-0.5 rounded border w-fit ${
+                                                viewActivo.cobertura === 'interna' 
+                                                    ? 'text-amber-750 bg-amber-50 border-amber-200' 
+                                                    : 'text-blue-700 bg-blue-50 border-blue-200'
+                                            }`}>
+                                                {viewActivo.cobertura === 'interna' ? '🏢 Interno (En Tienda)' : '🌍 Externo (Cliente)'}
+                                            </div>
                                         </div>
                                     )}
                                     {viewActivo.origenActivo && (

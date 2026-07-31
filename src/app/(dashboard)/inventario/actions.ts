@@ -787,6 +787,7 @@ export async function createActivo(formData: FormData): Promise<{ success?: bool
         stock: cantidadRegistros,
         esParaRenta,
         esEquipoCliente: formData.get('esEquipoCliente') === 'true',
+        cobertura: (formData.get('cobertura') as string) || 'externa',
         clienteId: (formData.get('clienteId') as string) || null
     };
 
@@ -993,6 +994,7 @@ export async function updateActivo(id: string, formData: FormData): Promise<{ su
                 // ── Retail fields ──
                 codigoBarras: (formData.get('codigoBarras') as string) || null,
                 esEquipoCliente: formData.get('esEquipoCliente') === 'true',
+                cobertura: (formData.get('cobertura') as string) || 'externa',
                 clienteId: (formData.get('clienteId') as string) || null
             },
         });

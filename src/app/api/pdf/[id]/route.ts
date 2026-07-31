@@ -483,9 +483,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       totals,
       today: (() => {
         const d = doc.fechaEmision ? new Date(doc.fechaEmision) : new Date();
-        const fecha = d.toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' });
-        const hora = d.toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
-        return `${fecha} ${hora}`;
+        const shiftedDate = new Date(d.getTime() - 6 * 60 * 60 * 1000);
+        const day = String(shiftedDate.getUTCDate()).padStart(2, '0');
+        const month = String(shiftedDate.getUTCMonth() + 1).padStart(2, '0');
+        const year = shiftedDate.getUTCFullYear();
+        
+        let hours = shiftedDate.getUTCHours();
+        const minutes = String(shiftedDate.getUTCMinutes()).padStart(2, '0');
+        const seconds = String(shiftedDate.getUTCSeconds()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'p. m.' : 'a. m.';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const strHours = String(hours).padStart(2, '0');
+        
+        return `${day}/${month}/${year} ${strHours}:${minutes}:${seconds} ${ampm}`;
       })(),
       fmt,
       fechaEmision: doc.fechaEmision || null,
