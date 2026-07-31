@@ -130,6 +130,16 @@ export default function SoporteClient({
     const [editObservaciones, setEditObservaciones] = useState('');
     const [isSavingActivo, setIsSavingActivo] = useState(false);
 
+    const [activeOrderModal, setActiveOrderModal] = useState<{
+        isOpen: boolean;
+        equipment: any | null;
+        order: any | null;
+    }>({
+        isOpen: false,
+        equipment: null,
+        order: null
+    });
+
     const [confirmModal, setConfirmModal] = useState<{
         isOpen: boolean;
         title: string;
@@ -914,7 +924,14 @@ export default function SoporteClient({
                                                                         Ficha / Historial
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => router.push(`/soporte/nuevo?activoId=${eq.id}&clienteId=${cli.id}&clienteNombre=${encodeURIComponent(cli.nombre)}&equipoDano=${encodeURIComponent(eq.descripcionCorta)}&marca=${encodeURIComponent(eq.marca || '')}&modelo=${encodeURIComponent(eq.modelo || '')}&serie=${encodeURIComponent(eq.serie || '')}`)}
+                                                                        onClick={() => {
+                                                                            const activeOrder = eq.ordenesTrabajo?.find((o: any) => o.estado !== 'ENTREGADO' && o.estado !== 'REGISTRO');
+                                                                            if (activeOrder) {
+                                                                                setActiveOrderModal({ isOpen: true, equipment: eq, order: activeOrder });
+                                                                            } else {
+                                                                                router.push(`/soporte/nuevo?activoId=${eq.id}&clienteId=${cli.id}&clienteNombre=${encodeURIComponent(cli.nombre)}&equipoDano=${encodeURIComponent(eq.descripcionCorta)}&marca=${encodeURIComponent(eq.marca || '')}&modelo=${encodeURIComponent(eq.modelo || '')}&serie=${encodeURIComponent(eq.serie || '')}`);
+                                                                            }
+                                                                        }}
                                                                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-[10px] transition text-center cursor-pointer"
                                                                     >
                                                                         Crear ODT
@@ -1365,6 +1382,44 @@ export default function SoporteClient({
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL: ADVERTENCIA ORDEN ACTIVA */}
+            {activeOrderModal.isOpen && (
+                <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl border border-slate-200 shadow-2xl w-full max-w-md overflow-hidden flex flex-col p-6 animate-in zoom-in-95 duration-200">
+                        <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-4">
+                            <AlertTriangle className="w-6 h-6 animate-pulse" />
+                        </div>
+                        <h3 className="text-base font-black text-slate-800 tracking-tight mb-2">
+                            Equipo con Orden Activa
+                        </h3>
+                        <p className="text-xs text-slate-500 font-semibold leading-relaxed mb-6">
+                            Este equipo (<span className="font-bold text-slate-700">{activeOrderModal.equipment?.descripcionCorta}</span> - QR: <span className="font-bold text-slate-700">{activeOrderModal.equipment?.idQr}</span>) ya cuenta con una orden de trabajo activa (<span className="font-bold text-slate-700">#{activeOrderModal.order?.codigoSeguridad || activeOrderModal.order?.id}</span> en estado <span className="font-bold text-amber-600">{activeOrderModal.order?.estado}</span>).
+                            <br /><br />
+                            Por políticas de control de calidad y trazabilidad, se restringe a **una orden activa a la vez** por equipo. Debes completar o cerrar la orden existente antes de crear una nueva.
+                        </p>
+                        <div className="flex gap-3 justify-end border-t border-slate-100 pt-4">
+                            <button
+                                type="button"
+                                onClick={() => setActiveOrderModal({ isOpen: false, equipment: null, order: null })}
+                                className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-750 font-bold rounded-xl text-xs transition cursor-pointer"
+                            >
+                                Cerrar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    router.push(`/soporte/${activeOrderModal.order?.id}`);
+                                    setActiveOrderModal({ isOpen: false, equipment: null, order: null });
+                                }}
+                                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-black rounded-xl text-xs transition cursor-pointer"
+                            >
+                                Ver Orden Activa
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

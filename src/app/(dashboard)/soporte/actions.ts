@@ -83,8 +83,24 @@ export async function createOrdenTrabajo(data: {
     activoId?: string;
     tipoOrden?: string;
     requiereAprobacion?: boolean;
+    leyendaEstado?: string;
 }) {
     const orgId = await getOrgId();
+
+    if (data.activoId) {
+        const activeOrder = await prisma.ordenTrabajo.findFirst({
+            where: {
+                activoId: data.activoId,
+                organizationId: orgId,
+                estado: {
+                    notIn: ['ENTREGADO', 'REGISTRO']
+                }
+            }
+        });
+        if (activeOrder) {
+            throw new Error(`Este equipo ya cuenta con una orden de trabajo activa (#${activeOrder.codigoSeguridad || activeOrder.id}).`);
+        }
+    }
 
     const cleanNombre = data.cliente.trim();
     // Find or create cliente
@@ -152,6 +168,7 @@ export async function createOrdenTrabajo(data: {
             metodoPagoRevision,
             cajaSessionId,
             estado: estadoInicial,
+            leyendaEstado: data.leyendaEstado || null,
             usuarioRecepcionId: data.usuarioRecepcionId || null,
             tecnicoReparacionId: firstTecnicoId,
             fechaRecibido: data.fechaRecibido ? new Date(data.fechaRecibido) : new Date(),

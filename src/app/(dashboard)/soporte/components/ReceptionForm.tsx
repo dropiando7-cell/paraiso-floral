@@ -60,7 +60,8 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
     cantidadMantenimientos: "",
     activoId: prefilledData?.activoId || "",
     tipoOrden: prefilledData?.tipoOrden || "TALLER",
-    requiereAprobacion: prefilledData?.requiereAprobacion !== false
+    requiereAprobacion: prefilledData?.requiereAprobacion !== false,
+    leyendaEstado: ""
   });
   const [photos, setPhotos] = useState<{name: string; file: File; url: string; size: string}[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -236,7 +237,8 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
             cantidadMantenimientos: "",
             activoId: "",
             tipoOrden: "TALLER",
-            requiereAprobacion: true
+            requiereAprobacion: true,
+            leyendaEstado: ""
           });
           setPhotos([]);
       }, 3000);
@@ -348,6 +350,23 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
               }`}>{l}</button>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 mb-1.5">Leyenda de Estado en Reporte</label>
+          <select
+            value={form.leyendaEstado || ""}
+            onChange={e => handleChange("leyendaEstado", e.target.value)}
+            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-colors bg-white font-medium"
+          >
+            <option value="">Por defecto (Según Cobertura)</option>
+            <option value="RECIBIDO">RECIBIDO (En Taller)</option>
+            <option value="REGISTRADO EXTERNO">REGISTRADO EXTERNO (En Sitio / Fuera de Taller)</option>
+            <option value="MANTENIMIENTO POR CONTRATO">MANTENIMIENTO POR CONTRATO</option>
+            <option value="SERVICIO EN CAMPO">SERVICIO EN CAMPO</option>
+          </select>
         </div>
       </div>
 

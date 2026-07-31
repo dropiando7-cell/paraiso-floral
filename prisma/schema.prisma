@@ -831,6 +831,7 @@ model OrdenTrabajo {
   activo             ActivoFijo?            @relation(fields: [activoId], references: [id])
   tipoOrden          String                 @default("TALLER")
   requiereAprobacion Boolean                @default(true)
+  leyendaEstado      String?
 
   cliente           Cliente                @relation(fields: [clienteId], references: [id])
   organization      Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)

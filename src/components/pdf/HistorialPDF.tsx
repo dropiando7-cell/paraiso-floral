@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     lineHeight: 1.15,
   },
   infoLabel: {
-    width: 60,
+    width: 52,
     fontWeight: 700,
     color: '#4b5563',
     fontSize: 7,
@@ -368,36 +368,39 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
           {/* Equipment Details */}
           <View style={styles.infoBlock}>
             <Text style={styles.infoTitle}>Especificaciones del Equipo</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {/* Columna izquierda */}
-              <View style={{ flex: 1.15 }}>
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { width: 52 }]}>Equipo:</Text>
+            <View style={{ flexDirection: 'column', gap: 3.5 }}>
+              {/* Fila 1 */}
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                <View style={{ flex: 1.15, flexDirection: 'row' }}>
+                  <Text style={styles.infoLabel}>Equipo:</Text>
                   <Text style={styles.infoValue}>{activo.descripcionCorta}</Text>
                 </View>
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { width: 52 }]}>Marca/Mod:</Text>
-                  <Text style={styles.infoValue}>{[activo.marca, activo.modelo].filter(Boolean).join(" ") || 'N/A'}</Text>
-                </View>
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { width: 52 }]}>N° Serie:</Text>
-                  <Text style={[styles.infoValue, { fontFamily: 'Courier' }]}>{activo.serie || 'N/A'}</Text>
-                </View>
-              </View>
-              {/* Columna derecha */}
-              <View style={{ flex: 0.85 }}>
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { width: 52 }]}>Código QR:</Text>
+                <View style={{ flex: 0.85, flexDirection: 'row' }}>
+                  <Text style={[styles.infoLabel, { width: 18 }]}>QR:</Text>
                   <Text style={[styles.infoValue, { fontWeight: 700 }]}>{activo.idQr}</Text>
                 </View>
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { width: 52 }]}>F. Registro:</Text>
+              </View>
+              {/* Fila 2 */}
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                <View style={{ flex: 1.15, flexDirection: 'row' }}>
+                  <Text style={styles.infoLabel}>Marca/Mod:</Text>
+                  <Text style={styles.infoValue}>{[activo.marca, activo.modelo].filter(Boolean).join(" ") || 'N/A'}</Text>
+                </View>
+                <View style={{ flex: 0.85, flexDirection: 'row' }}>
+                  <Text style={styles.infoLabel}>F. Registro:</Text>
                   <Text style={styles.infoValue}>
                     {new Date(activo.fechaAdq || activo.createdAt).toLocaleDateString('es-HN')}
                   </Text>
                 </View>
-                <View style={styles.infoRow}>
-                  <Text style={[styles.infoLabel, { width: 52 }]}>Registrado:</Text>
+              </View>
+              {/* Fila 3 */}
+              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                <View style={{ flex: 1.15, flexDirection: 'row' }}>
+                  <Text style={styles.infoLabel}>N° Serie:</Text>
+                  <Text style={[styles.infoValue, { fontFamily: 'Courier' }]}>{activo.serie || 'N/A'}</Text>
+                </View>
+                <View style={{ flex: 0.85, flexDirection: 'row' }}>
+                  <Text style={styles.infoLabel}>Registrado:</Text>
                   <Text style={styles.infoValue}>
                     {activo.createdBy ? [activo.createdBy.nombre || '', activo.createdBy.apellido || ''].filter(Boolean).join(" ").toUpperCase() : 'SISTEMA'}
                   </Text>
@@ -433,13 +436,13 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                 <View style={styles.odtHeader}>
                   <Text style={styles.odtCode}>Orden #{orden.codigoSeguridad}</Text>
                   <Text style={styles.odtDate}>Fecha: {new Date(orden.fechaRecibido).toLocaleDateString()}</Text>
-                  <Text style={styles.odtStatus}>{orden.estado}</Text>
+                  <Text style={styles.odtStatus}>{orden.leyendaEstado || orden.estado}</Text>
                 </View>
 
                 {/* ODT Body */}
                 <View style={styles.odtBody}>
                   {/* Falla */}
-                  <Text style={styles.textLabel}>Falla Reportada:</Text>
+                  <Text style={styles.textLabel}>Descripción del Trabajo / Falla Reportada:</Text>
                   {parseHtmlToReactPdf(orden.descripcionFalla, styles.textValue)}
 
                   {/* Diagnóstico */}
