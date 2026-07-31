@@ -1,7 +1,20 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, FileText, Calendar, Hash, ShieldAlert, Sparkles, Check, CheckCircle2 } from 'lucide-react';
+import { getOrdenesDeActivo } from '@/app/(dashboard)/soporte/actions';
+
+const formatDateString = (dateInput: Date | string) => {
+  if (!dateInput) return '';
+  const d = new Date(dateInput);
+  // Shift -6 hours for Honduras time (LATAM format)
+  const localTime = d.getTime() - (6 * 60 * 60 * 1000);
+  const date = new Date(localTime);
+  const day = String(date.getUTCDate()).padStart(2, '0');
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+  const year = date.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+};
 
 interface ReportConfigModalProps {
   isOpen: boolean;
@@ -29,6 +42,34 @@ export default function ReportConfigModal({
   const [hasta, setHasta] = useState('');
   const [ordenCodigo, setOrdenCodigo] = useState(currentOrderCode || '');
   const [mostrarFirmas, setMostrarFirmas] = useState(true);
+  const [ordenes, setOrdenes] = useState<any[]>([]);
+  const [selectedOrdenId, setSelectedOrdenId] = useState('');
+  const [loadingOrdenes, setLoadingOrdenes] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && (activoId || activoIdQr)) {
+      const loadOrdenes = async () => {
+        setLoadingOrdenes(true);
+        try {
+          const res = await getOrdenesDeActivo(activoId || activoIdQr);
+          if (res.success && res.ordenes) {
+            setOrdenes(res.ordenes);
+            // Pre-select current order if it matches
+            if (currentOrderId && res.ordenes.some((o: any) => o.id === currentOrderId)) {
+              setSelectedOrdenId(currentOrderId);
+            } else if (res.ordenes.length > 0) {
+              setSelectedOrdenId(res.ordenes[0].id);
+            }
+          }
+        } catch (err) {
+          console.error("Error fetching orders in ReportConfigModal:", err);
+        } finally {
+          setLoadingOrdenes(false);
+        }
+      };
+      loadOrdenes();
+    }
+  }, [isOpen, activoId, activoIdQr, currentOrderId]);
 
   if (!isOpen) return null;
 
@@ -41,7 +82,10 @@ export default function ReportConfigModal({
       if (desde) params.set('desde', desde);
       if (hasta) params.set('hasta', hasta);
     } else if (reportType === 'order') {
-      if (ordenCodigo) params.set('ordenCodigo', ordenCodigo.trim());
+      if (selectedOrdenId) {
+        params.set('onlyCurrent', 'true');
+        params.set('currentOrderId', selectedOrdenId);
+      }
     } else if (reportType === 'current' && currentOrderId) {
       params.set('onlyCurrent', 'true');
       params.set('currentOrderId', currentOrderId);
@@ -197,23 +241,37 @@ export default function ReportConfigModal({
                   {reportType === 'order' && <Check className="w-2.5 h-2.5 text-white stroke-[3]" />}
                 </div>
                 <div className="flex-1">
-                  <div className="font-bold">Filtrar por Número de Orden</div>
+                  <div className="font-bold">Seleccionar Orden Específica</div>
                   <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                    Buscar e incluir únicamente una orden específica por código.
+                    Elige una orden de la lista cronológica para imprimir únicamente esa.
                   </div>
                 </div>
               </button>
 
               {reportType === 'order' && (
                 <div className="px-1 py-1.5 bg-slate-50 rounded-xl border border-slate-150/60 animate-in slide-in-from-top-1.5 duration-200">
-                  <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1">Código de la Orden:</label>
-                  <input 
-                    type="text"
-                    placeholder="Ej: A47BFC96"
-                    value={ordenCodigo}
-                    onChange={e => setOrdenCodigo(e.target.value)}
-                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-mono font-bold text-slate-750 placeholder:font-sans placeholder:font-normal uppercase tracking-wider focus:outline-none focus:border-[#0500A3]"
-                  />
+                  <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1.5">Orden de Trabajo:</label>
+                  {loadingOrdenes ? (
+                    <div className="flex items-center justify-center p-3 text-xs text-slate-400 font-medium">
+                      Cargando órdenes...
+                    </div>
+                  ) : ordenes.length === 0 ? (
+                    <div className="flex items-center justify-center p-3 text-xs text-red-500 font-bold">
+                      No se encontraron órdenes para este equipo.
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedOrdenId}
+                      onChange={e => setSelectedOrdenId(e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold text-slate-750 focus:outline-none focus:border-[#0500A3] cursor-pointer"
+                    >
+                      {ordenes.map(o => (
+                        <option key={o.id} value={o.id}>
+                          {`Orden #${o.codigoSeguridad || 'Sin Código'} — ${formatDateString(o.fechaRecibido)}${o.id === currentOrderId ? ' (Actual)' : ''}${o.equipoDano ? ` [${o.equipoDano.slice(0, 20)}${o.equipoDano.length > 20 ? '...' : ''}]` : ''}`}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               )}
 

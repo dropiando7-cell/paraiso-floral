@@ -2457,3 +2457,40 @@ export async function getUltimaConfiguracionGarantia(activoId: string) {
         return null;
     }
 }
+
+export async function getOrdenesDeActivo(activoIdOrQr: string) {
+    try {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(activoIdOrQr);
+        
+        let targetActivoId = activoIdOrQr;
+        if (!isUuid) {
+            const activo = await prisma.activoFijo.findFirst({
+                where: { idQr: activoIdOrQr },
+                select: { id: true }
+            });
+            if (activo) {
+                targetActivoId = activo.id;
+            } else {
+                return { success: true, ordenes: [] };
+            }
+        }
+
+        const ordenes = await prisma.ordenTrabajo.findMany({
+            where: {
+                activoId: targetActivoId
+            },
+            select: {
+                id: true,
+                codigoSeguridad: true,
+                fechaRecibido: true,
+                equipoDano: true
+            },
+            orderBy: {
+                fechaRecibido: 'desc'
+            }
+        });
+        return { success: true, ordenes };
+    } catch (e: any) {
+        return { success: false, error: e.message || "Error al obtener las órdenes" };
+    }
+}
