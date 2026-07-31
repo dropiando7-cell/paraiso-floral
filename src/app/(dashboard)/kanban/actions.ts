@@ -392,6 +392,11 @@ export async function createKanbanTask(data: {
 }
 
 // 5. Mover tarea de estado (Tablero)
+function isDoneColumn(columnName: string) {
+    const lower = (columnName || '').toLowerCase();
+    return lower === 'listo' || lower === 'completado' || lower === 'done' || lower === 'terminado' || lower === 'finalizado';
+}
+
 export async function updateTaskStatus(taskId: string, targetStatus: string) {
     try {
         const { user } = await getCurrentUserAndOrg();
@@ -412,6 +417,29 @@ export async function updateTaskStatus(taskId: string, targetStatus: string) {
                 modificadoPorId: user.id
             }
         });
+
+        // Sync back to OrdenTrabajo if it is associated with a support order
+        if (task.ordenTrabajoId) {
+            try {
+                const isCompleted = isDoneColumn(targetStatus);
+                if (isCompleted) {
+                    await prisma.ordenTrabajo.update({
+                        where: { id: task.ordenTrabajoId },
+                        data: { estado: 'ENTREGADO' }
+                    });
+                } else {
+                    const wasCompleted = isDoneColumn(oldStatus);
+                    if (wasCompleted) {
+                        await prisma.ordenTrabajo.update({
+                            where: { id: task.ordenTrabajoId },
+                            data: { estado: 'REPARACION' }
+                        });
+                    }
+                }
+            } catch (syncErr) {
+                console.error("[Support Status Sync Error in updateTaskStatus]:", syncErr);
+            }
+        }
 
         // Registrar auditoría
         await prisma.kanbanActivity.create({
@@ -513,6 +541,28 @@ export async function updateTaskFields(taskId: string, data: {
         if (data.status !== undefined && data.status !== oldTask.status) {
             updates.status = data.status;
             logs.push(`Mover de "${oldTask.status}" a "${data.status}"`);
+
+            if (oldTask.ordenTrabajoId) {
+                try {
+                    const isCompleted = isDoneColumn(data.status);
+                    if (isCompleted) {
+                        await prisma.ordenTrabajo.update({
+                            where: { id: oldTask.ordenTrabajoId },
+                            data: { estado: 'ENTREGADO' }
+                        });
+                    } else {
+                        const wasCompleted = isDoneColumn(oldTask.status);
+                        if (wasCompleted) {
+                            await prisma.ordenTrabajo.update({
+                                where: { id: oldTask.ordenTrabajoId },
+                                data: { estado: 'REPARACION' }
+                            });
+                        }
+                    }
+                } catch (syncErr) {
+                    console.error("[Support Status Sync Error in updateTaskFields]:", syncErr);
+                }
+            }
         }
         if (data.type !== undefined && data.type !== oldTask.type) {
             updates.type = data.type;
