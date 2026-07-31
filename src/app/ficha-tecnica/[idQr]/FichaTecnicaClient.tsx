@@ -10,6 +10,7 @@ import {
     Printer, Clock, MessageSquare, Paperclip, Wrench, Download, Image, Play, Music, Pencil
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import ReportConfigModal from '@/components/pdf/ReportConfigModal';
 
 type Activo = {
     id: string;
@@ -131,6 +132,7 @@ export default function FichaTecnicaClient({
 }) {
     const router = useRouter();
     const [downloadingReport, setDownloadingReport] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
     const canEdit = isSuperAdmin || userPermissions.includes('editar_ordenes_ficha') || userPermissions.includes('editar_ordenes');
 
@@ -208,18 +210,7 @@ export default function FichaTecnicaClient({
     }
 
     const handleDownloadReport = async () => {
-        setDownloadingReport(true);
-        try {
-            // Invocar la descarga del PDF del historial
-            const reportUrl = `/api/pdf/${activo.id}?type=historial`;
-            window.open(reportUrl, '_blank');
-            toast.success("Generando reporte de historial...");
-        } catch (err) {
-            console.error(err);
-            toast.error("Error al descargar el informe histórico.");
-        } finally {
-            setDownloadingReport(false);
-        }
+        setIsReportModalOpen(true);
     };
 
     return (
@@ -682,6 +673,13 @@ export default function FichaTecnicaClient({
             <p className="mt-6 text-xs text-slate-400 text-center font-medium">
                 Inventario Comercial & Taller · Bioelectrónica Honduras
             </p>
+
+            <ReportConfigModal
+                isOpen={isReportModalOpen}
+                onClose={() => setIsReportModalOpen(false)}
+                activoIdQr={activo.idQr}
+                allowOnlyCurrent={false}
+            />
         </div>
     );
 }

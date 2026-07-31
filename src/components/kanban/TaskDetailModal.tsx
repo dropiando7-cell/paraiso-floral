@@ -45,6 +45,7 @@ import { useRouter } from 'next/navigation';
 import SignatureCanvas from 'react-signature-canvas';
 import { getOrdenDetalleSimplificado, guardarFirmaOrden } from '@/app/(dashboard)/soporte/actions';
 import CompartirInformeModal from '@/components/soporte/CompartirInformeModal';
+import ReportConfigModal from '@/components/pdf/ReportConfigModal';
 import CronometroTrabajo from '@/components/soporte/CronometroTrabajo';
 import { 
     getTaskCommentsAndAttachments, 
@@ -213,6 +214,7 @@ export default function TaskDetailModal({
     const [isSavingTechFirma, setIsSavingTechFirma] = useState(false);
     const [techFirmaOverride, setTechFirmaOverride] = useState(false);
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
 
     const loadOrdenDetalle = async () => {
         if (!task.ordenTrabajoId) return;
@@ -1337,15 +1339,14 @@ export default function TaskDetailModal({
                                             <Wrench className="h-3.5 w-3.5 text-indigo-500" />
                                             Ver Orden Relacionada
                                         </button>
-                                        <a
-                                            href={`/api/pdf/${task.ordenTrabajoId}?type=historial`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsReportModalOpen(true)}
                                             className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-md transition shadow-sm cursor-pointer"
                                         >
                                             <FileText className="h-3.5 w-3.5 text-emerald-500" />
                                             Generar Reporte
-                                        </a>
+                                        </button>
                                         <button
                                             type="button"
                                             onClick={() => setIsShareModalOpen(true)}
@@ -3080,6 +3081,16 @@ export default function TaskDetailModal({
                     clienteTelefono={ordenDetalle?.cliente?.telefono}
                     equipoDano={ordenDetalle?.equipoDano || 'Equipo'}
                     marcaModelo={ordenDetalle?.marcaModelo}
+                />
+            )}
+            {task.ordenTrabajoId && (
+                <ReportConfigModal
+                    isOpen={isReportModalOpen}
+                    onClose={() => setIsReportModalOpen(false)}
+                    activoIdQr={(ordenDetalle as any)?.activo?.idQr || 'N/A'}
+                    currentOrderId={task.ordenTrabajoId}
+                    currentOrderCode={ordenDetalle?.codigoSeguridad || ''}
+                    allowOnlyCurrent={true}
                 />
             )}
             {/* Modal de confirmación para cambiar estado de orden */}

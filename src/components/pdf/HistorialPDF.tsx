@@ -298,6 +298,7 @@ type HistorialPDFProps = {
   activo: any;
   logoUrl?: string;
   qrCodeUrl: string;
+  hideSignatures?: boolean;
 };
 
 const parseHtmlToReactPdf = (html: string | null | undefined, style: any) => {
@@ -350,7 +351,7 @@ const formatHN = (dateInput: Date | string | null | undefined, includeTime: bool
   return `${day}/${month}/${year}`;
 };
 
-export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPDFProps) {
+export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignatures = false }: HistorialPDFProps) {
   const cliente = activo.cliente || {};
   const ordenes = activo.ordenesTrabajo || [];
 
@@ -551,7 +552,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl }: HistorialPD
                   )}
 
                   {/* Firmas de Aceptación */}
-                  {(orden.firmaClienteUrl || orden.firmaTecnicoUrl) && (
+                  {!hideSignatures && (orden.firmaClienteUrl || orden.firmaTecnicoUrl) && (
                     <View style={styles.signaturesContainer} wrap={false}>
                       {orden.firmaClienteUrl && (
                         <View style={styles.signatureCard}>

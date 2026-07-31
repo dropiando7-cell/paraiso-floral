@@ -14,6 +14,7 @@ import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
 import SignatureCanvas from 'react-signature-canvas';
 import CompartirInformeModal from '@/components/soporte/CompartirInformeModal';
+import ReportConfigModal from '@/components/pdf/ReportConfigModal';
 import CronometroTrabajo from '@/components/soporte/CronometroTrabajo';
 import { getOrdenDetalleSimplificado } from '../actions';
 
@@ -115,6 +116,8 @@ export default function SoporteDetailClient({
   const [isSendingRecepcionTwilio, setIsSendingRecepcionTwilio] = React.useState(false);
   const [recepcionTwilioSent, setRecepcionTwilioSent] = React.useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportModalConfig, setReportModalConfig] = useState<{ currentOrderId?: string; currentOrderCode?: string; allowOnlyCurrent?: boolean }>({});
   const [tiemposList, setTiemposList] = useState(orden.tiempos || []);
 
   const refreshTiempos = async () => {
@@ -719,14 +722,20 @@ export default function SoporteDetailClient({
             </a>
           )}
           {orden.activoId && (
-            <a
-              href={`/api/pdf/${orden.activoId}?type=historial`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => {
+                setReportModalConfig({
+                  currentOrderId: orden.id,
+                  currentOrderCode: orden.codigoSeguridad,
+                  allowOnlyCurrent: true
+                });
+                setIsReportModalOpen(true);
+              }}
               className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs md:text-sm font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 cursor-pointer"
             >
               <FileText className="w-3.5 h-3.5 text-emerald-500" /> Historial de Mantenimientos
-            </a>
+            </button>
           )}
           <button
             type="button"
@@ -1184,14 +1193,20 @@ export default function SoporteDetailClient({
           </div>
           
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            <a
-              href={`/api/pdf/${orden.id}?type=historial`}
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
+              onClick={() => {
+                setReportModalConfig({
+                  currentOrderId: orden.id,
+                  currentOrderCode: orden.codigoSeguridad,
+                  allowOnlyCurrent: true
+                });
+                setIsReportModalOpen(true);
+              }}
               className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 text-xs font-bold rounded-xl transition-all shadow-sm shrink-0 active:scale-95 cursor-pointer"
             >
               <FileText className="w-4 h-4 text-emerald-500" /> Generar Informe Técnico
-            </a>
+            </button>
             <button
               type="button"
               onClick={() => setIsShareModalOpen(true)}
@@ -2013,6 +2028,14 @@ export default function SoporteDetailClient({
         clienteTelefono={orden.cliente?.telefono}
         equipoDano={orden.equipoDano}
         marcaModelo={orden.marcaModelo}
+      />
+      <ReportConfigModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        activoIdQr={orden.activo?.idQr || 'N/A'}
+        currentOrderId={reportModalConfig.currentOrderId}
+        currentOrderCode={reportModalConfig.currentOrderCode}
+        allowOnlyCurrent={reportModalConfig.allowOnlyCurrent}
       />
     </div>
   );

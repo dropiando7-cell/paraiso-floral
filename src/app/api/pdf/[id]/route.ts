@@ -168,6 +168,33 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         targetActivoId = checkOrden.activoId;
       }
 
+      // Parse configuration filters
+      const desde = url.searchParams.get('desde');
+      const hasta = url.searchParams.get('hasta');
+      const ordenCodigo = url.searchParams.get('ordenCodigo');
+      const onlyCurrent = url.searchParams.get('onlyCurrent') === 'true';
+      const currentOrderId = url.searchParams.get('currentOrderId') || (checkOrden ? checkOrden.id : undefined);
+
+      const ordenesWhereClause: any = {};
+      if (desde || hasta) {
+        ordenesWhereClause.fechaRecibido = {};
+        if (desde) {
+          ordenesWhereClause.fechaRecibido.gte = new Date(`${desde}T00:00:00.000Z`);
+        }
+        if (hasta) {
+          ordenesWhereClause.fechaRecibido.lte = new Date(`${hasta}T23:59:59.999Z`);
+        }
+      }
+      if (ordenCodigo) {
+        ordenesWhereClause.codigoSeguridad = {
+          equals: ordenCodigo.replace('#', '').trim(),
+          mode: 'insensitive'
+        };
+      }
+      if (onlyCurrent && currentOrderId) {
+        ordenesWhereClause.id = currentOrderId;
+      }
+
       let activo = await prisma.activoFijo.findUnique({
         where: { id: targetActivoId },
         include: {
@@ -176,6 +203,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             select: { nombre: true, apellido: true }
           },
           ordenesTrabajo: {
+            where: ordenesWhereClause,
             include: {
               tecnicosAsignados: {
                 select: { id: true, nombre: true }
@@ -217,6 +245,20 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       });
 
       if (!activo && checkOrden) {
+        let includeCheckOrden = true;
+        if (ordenCodigo && checkOrden.codigoSeguridad?.toLowerCase() !== ordenCodigo.replace('#', '').trim().toLowerCase()) {
+          includeCheckOrden = false;
+        }
+        if (onlyCurrent && currentOrderId && checkOrden.id !== currentOrderId) {
+          includeCheckOrden = false;
+        }
+        if (desde && new Date(checkOrden.fechaRecibido) < new Date(`${desde}T00:00:00.000Z`)) {
+          includeCheckOrden = false;
+        }
+        if (hasta && new Date(checkOrden.fechaRecibido) > new Date(`${hasta}T23:59:59.999Z`)) {
+          includeCheckOrden = false;
+        }
+
         activo = {
           id: checkOrden.id,
           idQr: checkOrden.codigoSeguridad || 'N/A',
@@ -228,7 +270,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           createdAt: checkOrden.fechaRecibido,
           createdBy: checkOrden.tecnicoReparacion || null,
           cliente: checkOrden.cliente,
-          ordenesTrabajo: [checkOrden]
+          ordenesTrabajo: includeCheckOrden ? [checkOrden] : []
         } as any;
       }
 
@@ -251,11 +293,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sistema.bioelectronica.hn';
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${appUrl}/ficha-tecnica/${activo.idQr}`)}`;
 
+      const hideSignatures = url.searchParams.get('mostrarFirmas') === 'false';
+
       const stream = await renderToStream(
         React.createElement(HistorialPDF, {
           activo,
           logoUrl: logoBase64 || undefined,
-          qrCodeUrl
+          qrCodeUrl,
+          hideSignatures
         }) as any
       );
 

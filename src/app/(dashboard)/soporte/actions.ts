@@ -1876,6 +1876,11 @@ export async function getOrdenDetalleSimplificado(id: string) {
                 equipoDano: true,
                 marcaModelo: true,
                 codigoSeguridad: true,
+                activo: {
+                    select: {
+                        idQr: true
+                    }
+                },
                 cliente: {
                     select: {
                         id: true,
