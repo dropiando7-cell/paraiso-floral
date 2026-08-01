@@ -67,18 +67,23 @@ export default async function InventarioPage() {
         orderBy: { nombre: 'asc' },
     });
 
+    const serializedData = JSON.parse(JSON.stringify(initialData));
+    const serializedStats = JSON.parse(JSON.stringify(initialStats));
+    const serializedAreas = JSON.parse(JSON.stringify(dbAreas));
+    const serializedClientes = JSON.parse(JSON.stringify(clientes));
+
     return (
         <InventarioClient 
-            initialData={initialData} 
-            initialStats={initialStats} 
-            dbAreas={dbAreas} 
+            initialData={serializedData} 
+            initialStats={serializedStats} 
+            dbAreas={serializedAreas} 
             userRole={dbUser.role} 
             initialOrigins={customOrigins}
             initialDefaultOrigin={defaultOrigin}
             initialConditions={customConditions}
             initialDefaultCondition={defaultCondition}
             disableAiVision={disableAiVision}
-            clientes={clientes}
+            clientes={serializedClientes}
         />
     );
 }
