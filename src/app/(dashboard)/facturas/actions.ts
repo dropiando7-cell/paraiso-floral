@@ -885,7 +885,7 @@ export async function anularDocumento(id: string) {
                         } catch(e) {}
                     }
                 }
-            } else if (doc.inventarioDescontado) {
+            } else if (doc.inventarioDescontado || (doc.estado === 'EMITIDA' && (doc.tipoDocumento === 'FACTURA' || doc.tipoDocumento === 'PROFORMA'))) {
                 for (const item of doc.detalles) {
                     if (item.productoId) {
                         try {

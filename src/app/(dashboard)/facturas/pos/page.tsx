@@ -56,7 +56,10 @@ export default async function POSPage() {
       organizationId: orgId, 
       estado: 'ACTIVO',
       OR: [
-        { stockActual: { gt: 0 } },
+        { 
+          stockActual: { gt: 0 },
+          activosFijos: { none: {} }
+        },
         { esServicio: true }
       ]
     },
@@ -94,7 +97,7 @@ export default async function POSPage() {
       sku: a.idQr || a.serie || 'SD',
       nombre: a.descripcionCorta,
       precioVenta: Number(a.producto?.precioVenta || a.costoAdq || 0),
-      stockActual: 1, // Unique physical asset
+      stockActual: a.stock, // Use the real stock of the asset (for both unique assets and consumables)
       isvAplicable: a.producto?.isvAplicable ?? 15,
       esServicio: false,
       isActivoFijo: true,
