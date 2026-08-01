@@ -99,8 +99,8 @@ interface Task {
 
 const SIDEBAR_MODULES = [
     "Portal Bioelectrónica",
-    "Proyectos & Tareas",
     "Órdenes de Trabajo",
+    "Soporte Técnico",
     "Inventario IA",
     "Rentas de Equipos",
     "Control de Caja Chica",

@@ -69,7 +69,7 @@ const erpModules: ModuleData[] = [
     },
     {
         id: "soporte",
-        nombre: "Órdenes de Trabajo",
+        nombre: "Soporte Técnico",
         progreso: 90,
         estado: "OPTIMIZACION",
         colorClass: "from-blue-500 to-brand-600",
@@ -223,7 +223,7 @@ const erpModules: ModuleData[] = [
     // --- ETAPA 2: Módulos Adicionales de Valor Agregado ---
     {
         id: "proyectos",
-        nombre: "Proyectos & Tareas",
+        nombre: "Órdenes de Trabajo",
         progreso: 95,
         estado: "OPTIMIZACION",
         colorClass: "from-blue-500 to-brand-600",
