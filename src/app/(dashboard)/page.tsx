@@ -163,11 +163,15 @@ export default async function Home() {
     }
   }
 
+  const serializedDbUser = JSON.parse(JSON.stringify(dbUser));
+  const serializedKanbanTasks = JSON.parse(JSON.stringify(kanbanTasks));
+  const serializedWorkOrders = JSON.parse(JSON.stringify(workOrders));
+
   return (
     <HomeClient
-      dbUser={dbUser}
-      kanbanTasks={kanbanTasks}
-      workOrders={workOrders}
+      dbUser={serializedDbUser}
+      kanbanTasks={serializedKanbanTasks}
+      workOrders={serializedWorkOrders}
       totalPendingTasks={totalPendingTasks}
       totalPendingOrders={totalPendingOrders}
       tasksSummary={{
