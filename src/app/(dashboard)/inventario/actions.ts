@@ -419,7 +419,7 @@ export async function updateActivoQuick(id: string, area: string, cantidadStr: s
 }
 
 // ─── READ: List with pagination, search, filters ─────────────────────────────
-export async function getActivos(page = 1, search = '', area = '', estatus = '', origen = '', condicion = '') {
+export async function getActivos(page = 1, search = '', area = '', estatus = '', origen = '', condicion = '', tipoInventario = 'real') {
     const orgId = await getOrgId();
     const PER_PAGE = 10;
     const skip = (page - 1) * PER_PAGE;
@@ -446,6 +446,20 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
         }),
         ...(condicion && {
             condicionActivo: condicion === 'SIN_DEFINIR' ? null : condicion
+        }),
+        ...(tipoInventario === 'cliente' && {
+            esEquipoCliente: true
+        }),
+        ...(tipoInventario === 'servicio' && {
+            OR: [
+                { area: 'SERVICIOS' },
+                { stock: 9999 }
+            ]
+        }),
+        ...(tipoInventario === 'real' && {
+            esEquipoCliente: false,
+            area: { not: 'SERVICIOS' },
+            stock: { not: 9999 }
         })
     };
 
@@ -473,7 +487,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
 }
 
 // ─── READ: Get all matching assets for export (without pagination) ────────────
-export async function getActivosForExport(search = '', area = '', estatus = '', origen = '', condicion = '') {
+export async function getActivosForExport(search = '', area = '', estatus = '', origen = '', condicion = '', tipoInventario = 'real') {
     try {
         const orgId = await getOrgId();
         const where = {
@@ -496,6 +510,20 @@ export async function getActivosForExport(search = '', area = '', estatus = '', 
             }),
             ...(condicion && {
                 condicionActivo: condicion === 'SIN_DEFINIR' ? null : condicion
+            }),
+            ...(tipoInventario === 'cliente' && {
+                esEquipoCliente: true
+            }),
+            ...(tipoInventario === 'servicio' && {
+                OR: [
+                    { area: 'SERVICIOS' },
+                    { stock: 9999 }
+                ]
+            }),
+            ...(tipoInventario === 'real' && {
+                esEquipoCliente: false,
+                area: { not: 'SERVICIOS' },
+                stock: { not: 9999 }
             })
         };
 
@@ -521,9 +549,19 @@ export async function getActivosForExport(search = '', area = '', estatus = '', 
     }
 }
 
-export async function getActivoStats(area?: string) {
+export async function getActivoStats(area?: string, tipoInventario = 'real') {
     const orgId = await getOrgId();
     const { Prisma } = await import('@prisma/client');
+
+    let filterSql = Prisma.sql`AND "esParaRenta" = false AND "esEquipoCliente" = false AND "area" <> 'SERVICIOS' AND "stock" <> 9999`;
+
+    if (tipoInventario === 'cliente') {
+        filterSql = Prisma.sql`AND "esParaRenta" = false AND "esEquipoCliente" = true`;
+    } else if (tipoInventario === 'servicio') {
+        filterSql = Prisma.sql`AND "esParaRenta" = false AND ("area" = 'SERVICIOS' OR "stock" = 9999)`;
+    }
+
+    const areaSql = area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty;
 
     const statsRaw = await prisma.$queryRaw<
         Array<{
@@ -539,8 +577,8 @@ export async function getActivoStats(area?: string) {
         WITH org_areas AS (
             SELECT COUNT(DISTINCT "area") as areas_count 
             FROM "activos_fijos" 
-            WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false AND "area" <> 'SERVICIOS'
-            ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
+            WHERE "organizationId" = ${orgId}::uuid ${filterSql}
+            ${areaSql}
         )
         SELECT 
             COALESCE(SUM("stock"), 0) as total,
@@ -551,8 +589,8 @@ export async function getActivoStats(area?: string) {
             COALESCE(SUM("stock") FILTER (WHERE "estadoDano" IS NOT NULL), 0) as con_dano,
             (SELECT areas_count FROM org_areas)
         FROM "activos_fijos"
-        WHERE "organizationId" = ${orgId}::uuid AND "esParaRenta" = false AND "area" <> 'SERVICIOS'
-        ${area ? Prisma.sql`AND "area" = ${area}` : Prisma.empty}
+        WHERE "organizationId" = ${orgId}::uuid ${filterSql}
+        ${areaSql}
     `;
 
     const row = statsRaw[0];

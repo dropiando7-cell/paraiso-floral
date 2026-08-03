@@ -2161,7 +2161,7 @@ export async function enviarReportePorEmail(
     }
 }
 
-export async function iniciarCronometro(ordenId: string) {
+export async function iniciarCronometro(ordenId?: string | null, taskId?: string | null) {
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -2173,18 +2173,36 @@ export async function iniciarCronometro(ordenId: string) {
         });
         if (!dbUser) return { success: false, error: 'Usuario no encontrado en base de datos' };
 
-        const orden = await prisma.ordenTrabajo.findUnique({
-            where: { id: ordenId }
-        });
-        if (!orden) return { success: false, error: 'Orden no encontrada' };
+        if (!ordenId && !taskId) {
+            return { success: false, error: 'Se requiere ID de orden o de tarea' };
+        }
 
-        // Check if there is already an active timer for this technician on this order
+        let orden = null;
+        if (ordenId) {
+            orden = await prisma.ordenTrabajo.findUnique({
+                where: { id: ordenId }
+            });
+            if (!orden) return { success: false, error: 'Orden no encontrada' };
+        }
+
+        let task = null;
+        if (taskId) {
+            task = await prisma.kanbanTask.findUnique({
+                where: { id: taskId }
+            });
+            if (!task) return { success: false, error: 'Tarea no encontrada' };
+        }
+
+        // Check if there is already an active timer for this technician on this order or task
         const activeTimer = await prisma.ordenTrabajoTiempo.findFirst({
             where: {
-                ordenId,
                 tecnicoId: dbUser.id,
                 fin: null,
-                anuladaAt: null
+                anuladaAt: null,
+                OR: [
+                    ordenId ? { ordenId } : undefined,
+                    taskId ? { taskId } : undefined
+                ].filter(Boolean) as any
             }
         });
         if (activeTimer) {
@@ -2193,21 +2211,78 @@ export async function iniciarCronometro(ordenId: string) {
 
         const tiempo = await prisma.ordenTrabajoTiempo.create({
             data: {
-                ordenId,
+                ordenId: ordenId || null,
+                taskId: taskId || null,
                 tecnicoId: dbUser.id,
                 creadoPorId: dbUser.id,
                 inicio: new Date()
             }
         });
 
+        const logDesc = ordenId
+            ? `Inició cronómetro para orden #${orden?.codigoSeguridad || ordenId}`
+            : `Inició cronómetro para tarea #${task?.codigo || taskId}`;
+
         await logActivity({
             userId: dbUser.id,
             organizationId: dbUser.organizationId,
             action: 'UPDATE',
             module: '/soporte',
-            description: `Inició cronómetro para orden #${orden.codigoSeguridad || orden.id}`,
-            metadata: { ordenId, tiempoId: tiempo.id }
+            description: logDesc,
+            metadata: { ordenId, taskId, tiempoId: tiempo.id }
         });
+
+        // 2a. Si hay una orden, revisar su estado
+        if (orden) {
+            const currentEstado = (orden.estado || '').trim().toUpperCase();
+            if (currentEstado === 'PARA EJECUTAR' || currentEstado === 'PARA_EJECUTAR') {
+                await prisma.ordenTrabajo.update({
+                    where: { id: orden.id },
+                    data: { estado: 'EN EJECUCION' }
+                });
+                await syncKanbanStatus(orden.id, 'EN EJECUCION');
+            }
+        }
+
+        // 2b. Si hay una tarea (ya sea por taskId o por el ordenTrabajoId de la orden), revisar su estado.
+        const targetTaskId = taskId || (orden ? (await prisma.kanbanTask.findFirst({ where: { ordenTrabajoId: orden.id } }))?.id : null);
+        if (targetTaskId) {
+            const relatedTask = await prisma.kanbanTask.findUnique({
+                where: { id: targetTaskId },
+                include: { space: true }
+            });
+            if (relatedTask && relatedTask.space) {
+                const currentTaskStatus = (relatedTask.status || '').trim().toUpperCase();
+                if (currentTaskStatus === 'PARA EJECUTAR' || currentTaskStatus === 'PARA_EJECUTAR') {
+                    const columnas = relatedTask.space.columnas || [];
+                    let targetCol = columnas.find(col => {
+                        const c = col.trim().toUpperCase();
+                        return c === 'EN EJECUCION' || c === 'EN_EJECUCION';
+                    });
+                    if (!targetCol) {
+                        const keywords = ['ejecucion', 'ejecución', 'curso', 'proceso', 'progress', 'doing', 'haciendo'];
+                        targetCol = columnas.find(col => 
+                            keywords.some(kw => col.toLowerCase().includes(kw))
+                        );
+                    }
+                    if (targetCol) {
+                        await prisma.kanbanTask.update({
+                            where: { id: relatedTask.id },
+                            data: { status: targetCol }
+                        });
+                        await prisma.kanbanActivity.create({
+                            data: {
+                                spaceId: relatedTask.spaceId,
+                                taskId: relatedTask.id,
+                                usuarioId: dbUser.id,
+                                accion: 'MOVIMIENTO',
+                                detalles: `Mover de "${relatedTask.status}" a "${targetCol}" por inicio de cronómetro`
+                            }
+                        });
+                    }
+                }
+            }
+        }
 
         return { success: true, tiempo };
     } catch (e: any) {
@@ -2254,17 +2329,27 @@ export async function detenerCronometro(tiempoId: string) {
             }
         });
 
-        const orden = await prisma.ordenTrabajo.findUnique({
+        const orden = activeTimer.ordenId ? await prisma.ordenTrabajo.findUnique({
             where: { id: activeTimer.ordenId }
-        });
+        }) : null;
+
+        const task = activeTimer.taskId ? await prisma.kanbanTask.findUnique({
+            where: { id: activeTimer.taskId }
+        }) : null;
+
+        const logDesc = orden
+            ? `Detuvo cronómetro para orden #${orden.codigoSeguridad || activeTimer.ordenId} (${tiempo.duracion} min)`
+            : (task 
+                ? `Detuvo cronómetro para tarea #${task.codigo || activeTimer.taskId} (${tiempo.duracion} min)`
+                : `Detuvo cronómetro (${tiempo.duracion} min)`);
 
         await logActivity({
             userId: dbUser.id,
             organizationId: dbUser.organizationId,
             action: 'UPDATE',
             module: '/soporte',
-            description: `Detuvo cronómetro para orden #${orden?.codigoSeguridad || activeTimer.ordenId} (${tiempo.duracion} min)`,
-            metadata: { ordenId: activeTimer.ordenId, tiempoId }
+            description: logDesc,
+            metadata: { ordenId: activeTimer.ordenId, taskId: activeTimer.taskId, tiempoId }
         });
 
         return { success: true, tiempo };

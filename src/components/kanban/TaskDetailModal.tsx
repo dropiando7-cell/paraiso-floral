@@ -59,7 +59,8 @@ import {
     getTaskMaterials,
     consumeMaterialForTask,
     cancelMaterialConsumptionForTask,
-    searchMaterialsForTask
+    searchMaterialsForTask,
+    getTaskTiempos
 } from '@/app/(dashboard)/kanban/actions';
 
 
@@ -214,6 +215,8 @@ export default function TaskDetailModal({
     const [activeTab, setActiveTab] = useState<'comentarios' | 'actividad' | 'materiales' | 'firmas' | 'tiempos'>('comentarios');
     const [ordenDetalle, setOrdenDetalle] = useState<any | null>(null);
     const [loadingOrdenDetalle, setLoadingOrdenDetalle] = useState(false);
+    const [localTiempos, setLocalTiempos] = useState<any[]>([]);
+    const [loadingTiempos, setLoadingTiempos] = useState(false);
 
     // Client signature states
     const sigClientCanvasRef = useRef<SignatureCanvas>(null);
@@ -239,6 +242,7 @@ export default function TaskDetailModal({
             const res = await getOrdenDetalleSimplificado(task.ordenTrabajoId);
             if (res.success && res.orden) {
                 setOrdenDetalle(res.orden);
+                setLocalTiempos(res.orden.tiempos || []);
                 setClientSignerName(res.orden.firmaClienteNombre || res.orden.cliente?.nombreContacto || res.orden.cliente?.nombre || '');
                 if (res.orden.firmaTecnicoNombre) {
                     setTechSignerName(res.orden.firmaTecnicoNombre);
@@ -255,9 +259,31 @@ export default function TaskDetailModal({
         }
     };
 
+    const loadTiempos = async () => {
+        if (task.ordenTrabajoId) {
+            await loadOrdenDetalle();
+        } else {
+            setLoadingTiempos(true);
+            try {
+                const res = await getTaskTiempos(task.id);
+                if (res.success && res.tiempos) {
+                    setLocalTiempos(res.tiempos);
+                }
+            } catch (error) {
+                console.error("Error al cargar tiempos de la tarea:", error);
+            } finally {
+                setLoadingTiempos(false);
+            }
+        }
+    };
+
     useEffect(() => {
-        if (isOpen && task.ordenTrabajoId) {
-            loadOrdenDetalle();
+        if (isOpen) {
+            if (task.ordenTrabajoId) {
+                loadOrdenDetalle();
+            } else {
+                loadTiempos();
+            }
         }
     }, [isOpen, task.ordenTrabajoId]);
 
@@ -1497,31 +1523,29 @@ export default function TaskDetailModal({
                                 >
                                     Materiales ({materials.length})
                                 </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab('tiempos')}
+                                    className={`text-[9px] sm:text-xs shrink-0 font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                        activeTab === 'tiempos' 
+                                            ? 'border-brand-600 text-brand-600' 
+                                            : 'border-transparent text-slate-400 hover:text-slate-600'
+                                    }`}
+                                >
+                                    Tiempo Laborado
+                                </button>
                                 {task.ordenTrabajoId && (
-                                    <>
-                                        <button
-                                            type="button"
-                                            onClick={() => setActiveTab('firmas')}
-                                            className={`text-[9px] sm:text-xs shrink-0 font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
-                                                activeTab === 'firmas' 
-                                                    ? 'border-brand-600 text-brand-600' 
-                                                    : 'border-transparent text-slate-400 hover:text-slate-600'
-                                            }`}
-                                        >
-                                            Firmas
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setActiveTab('tiempos')}
-                                            className={`text-[9px] sm:text-xs shrink-0 font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
-                                                activeTab === 'tiempos' 
-                                                    ? 'border-brand-600 text-brand-600' 
-                                                    : 'border-transparent text-slate-400 hover:text-slate-600'
-                                            }`}
-                                        >
-                                            Tiempo Laborado
-                                        </button>
-                                    </>
+                                    <button
+                                        type="button"
+                                        onClick={() => setActiveTab('firmas')}
+                                        className={`text-[9px] sm:text-xs shrink-0 font-bold uppercase tracking-wider pb-1.5 border-b-2 transition ${
+                                            activeTab === 'firmas' 
+                                                ? 'border-brand-600 text-brand-600' 
+                                                : 'border-transparent text-slate-400 hover:text-slate-600'
+                                        }`}
+                                    >
+                                        Firmas
+                                    </button>
                                 )}
                             </div>
 
@@ -1729,21 +1753,18 @@ export default function TaskDetailModal({
                                         )}
                                     </div>
                                 </div>
-                            ) : activeTab === 'tiempos' && task.ordenTrabajoId ? (
+                            ) : activeTab === 'tiempos' ? (
                                 <div className="space-y-6 pt-2">
-                                    {loadingOrdenDetalle ? (
+                                    {loadingTiempos || loadingOrdenDetalle ? (
                                         <div className="flex items-center justify-center py-10">
                                             <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
-                                        </div>
-                                    ) : !ordenDetalle ? (
-                                        <div className="text-center text-xs text-slate-400 py-6">
-                                            No se pudo cargar el detalle de la orden de trabajo para el cronómetro.
                                         </div>
                                     ) : (
                                         <CronometroTrabajo
                                             ordenId={task.ordenTrabajoId}
-                                            tiempos={ordenDetalle.tiempos || []}
-                                            onRefresh={loadOrdenDetalle}
+                                            taskId={task.id}
+                                            tiempos={localTiempos}
+                                            onRefresh={loadTiempos}
                                         />
                                     )}
                                 </div>

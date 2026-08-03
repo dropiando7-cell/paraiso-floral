@@ -3631,6 +3631,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const [filtroEstatus, setFiltroEstatus] = useState('');
     const [filtroOrigen, setFiltroOrigen] = useState('');
     const [filtroCondicion, setFiltroCondicion] = useState('');
+    const [tipoInventario, setTipoInventario] = useState<'real' | 'cliente' | 'servicio'>('real');
     const [exportingExcel, setExportingExcel] = useState(false);
     const [originsList, setOriginsList] = useState<string[]>(initialOrigins);
     const [defaultOrigin, setDefaultOrigin] = useState<string>(initialDefaultOrigin);
@@ -3775,7 +3776,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
             const resolvedAreaFilter = filtroArea || (lockedArea || undefined);
             
             // 1. Fetch matching assets for export (without pagination)
-            const data = await getActivosForExport(search, resolvedAreaFilter, filtroEstatus, filtroOrigen, filtroCondicion);
+            const data = await getActivosForExport(search, resolvedAreaFilter, filtroEstatus, filtroOrigen, filtroCondicion, tipoInventario);
             
             if (data.length === 0) {
                 alert('No hay datos que exportar con los filtros actuales.');
@@ -4039,7 +4040,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
         }
     }
 
-    async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea, o = filtroOrigen, c = filtroCondicion, refreshStats = true) {
+    async function refresh(p = page, s = search, a = filtroArea, e = filtroEstatus, currentLockedArea = lockedArea, o = filtroOrigen, c = filtroCondicion, refreshStats = true, tipoInv = tipoInventario) {
         setIsRefetching(true);
         setLoading(false); // Make sure blocking loader is off
         try {
@@ -4048,17 +4049,17 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 const [data, st] = await Promise.all([
                     isRentaMode 
                         ? getEquiposParaRenta(p, s, resolvedAreaFilter, e)
-                        : getActivos(p, s, resolvedAreaFilter, e, o, c),
+                        : getActivos(p, s, resolvedAreaFilter, e, o, c, tipoInv),
                     isRentaMode 
                         ? getRentaStats(resolvedAreaFilter)
-                        : getActivoStats(currentLockedArea || undefined)
+                        : getActivoStats(currentLockedArea || undefined, tipoInv)
                 ]);
                 setActivos(data.activos as Activo[]);
                 setTotal(data.total); setTotalPages(data.totalPages); setStats(st);
             } else {
                 const data = await (isRentaMode 
                     ? getEquiposParaRenta(p, s, resolvedAreaFilter, e)
-                    : getActivos(p, s, resolvedAreaFilter, e, o, c));
+                    : getActivos(p, s, resolvedAreaFilter, e, o, c, tipoInv));
                 setActivos(data.activos as Activo[]);
                 setTotal(data.total); setTotalPages(data.totalPages);
             }
@@ -4075,15 +4076,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
              hasMounted.current = true;
              return; // Skip initial render since it's SSR hydrated
         }
-        const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion, false); }, 300);
+        const t = setTimeout(() => { setPage(1); refresh(1, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion, true, tipoInventario); }, 300);
         return () => clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [search, filtroArea, filtroEstatus, filtroOrigen, filtroCondicion]);
+    }, [search, filtroArea, filtroEstatus, filtroOrigen, filtroCondicion, tipoInventario]);
 
     function handlePageChange(p: number) {
         setPage(p);
         // We explicitly pass `lockedArea` here to maintain the area context when paginating
-        refresh(p, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion, false);
+        refresh(p, search, filtroArea, filtroEstatus, lockedArea, filtroOrigen, filtroCondicion, false, tipoInventario);
     }
     const PER_PAGE = 10;
 
@@ -4532,6 +4533,45 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
             )}
 
             <div className="hide-on-print"><StatsCards stats={stats} /></div>
+
+            {/* Segmented Control / Tabs for Inventory Types */}
+            {!isRentaMode && (
+                <div className="flex p-1 bg-slate-200/60 backdrop-blur-sm rounded-2xl mb-6 max-w-2xl border border-slate-200/80 shadow-sm hide-on-print mt-4">
+                    <button
+                        onClick={() => setTipoInventario('real')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
+                            tipoInventario === 'real'
+                                ? 'bg-white text-[#0500A3] shadow-md shadow-slate-300'
+                                : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                    >
+                        <Package className={`w-4 h-4 ${tipoInventario === 'real' ? 'text-[#0500A3]' : 'text-slate-400'}`} />
+                        <span>Inventario General</span>
+                    </button>
+                    <button
+                        onClick={() => setTipoInventario('cliente')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
+                            tipoInventario === 'cliente'
+                                ? 'bg-white text-[#0500A3] shadow-md shadow-slate-300'
+                                : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                    >
+                        <Wrench className={`w-4 h-4 ${tipoInventario === 'cliente' ? 'text-[#0500A3]' : 'text-slate-400'}`} />
+                        <span>Inventario de Equipos Interno/Externo</span>
+                    </button>
+                    <button
+                        onClick={() => setTipoInventario('servicio')}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
+                            tipoInventario === 'servicio'
+                                ? 'bg-white text-[#0500A3] shadow-md shadow-slate-300'
+                                : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                    >
+                        <RotateCw className={`w-4 h-4 ${tipoInventario === 'servicio' ? 'text-[#0500A3]' : 'text-slate-400'}`} />
+                        <span>Servicios</span>
+                    </button>
+                </div>
+            )}
 
             {/* Search + filter toggle */}
             <div className="flex gap-2 mb-3 hide-on-print">

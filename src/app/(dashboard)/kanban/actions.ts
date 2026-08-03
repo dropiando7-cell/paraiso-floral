@@ -1975,6 +1975,32 @@ export async function cancelMaterialConsumptionForTask(materialId: string) {
     }
 }
 
+export async function getTaskTiempos(taskId: string) {
+    try {
+        const tiempos = await prisma.ordenTrabajoTiempo.findMany({
+            where: {
+                taskId,
+                anuladaAt: null
+            },
+            include: {
+                tecnico: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        apellido: true
+                    }
+                }
+            },
+            orderBy: {
+                inicio: 'desc'
+            }
+        });
+        return { success: true, tiempos };
+    } catch (e: any) {
+        return { success: false, error: e.message || "Error al obtener los tiempos de la tarea" };
+    }
+}
+
 
 
 

@@ -1151,6 +1151,7 @@ model KanbanTask {
   comments        KanbanComment[]
   attachments     KanbanAttachment[]
   materials       KanbanTaskMaterial[]
+  tiempos         OrdenTrabajoTiempo[] @relation("TaskTiempos")
 
   @@unique([spaceId, codigo])
   @@index([spaceId])
@@ -1366,7 +1367,8 @@ model KanbanTaskMaterial {
 
 model OrdenTrabajoTiempo {
   id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  ordenId        String       @db.Uuid
+  ordenId        String?      @db.Uuid
+  taskId         String?      @db.Uuid
   tecnicoId      String       @db.Uuid
   inicio         DateTime     @default(now())
   fin            DateTime?
@@ -1378,12 +1380,14 @@ model OrdenTrabajoTiempo {
   anuladaPorId   String?      @db.Uuid
   anuladaAt      DateTime?
 
-  orden          OrdenTrabajo @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  orden          OrdenTrabajo? @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  task           KanbanTask?  @relation("TaskTiempos", fields: [taskId], references: [id], onDelete: Cascade)
   tecnico        User         @relation("TecnicoTiempos", fields: [tecnicoId], references: [id], onDelete: Cascade)
   creadoPor      User?        @relation("TiemposCreados", fields: [creadoPorId], references: [id])
   anuladaPor     User?        @relation("TiemposAnulados", fields: [anuladaPorId], references: [id])
 
   @@index([ordenId])
+  @@index([taskId])
   @@index([tecnicoId])
   @@map("ordenes_trabajo_tiempos")
 }

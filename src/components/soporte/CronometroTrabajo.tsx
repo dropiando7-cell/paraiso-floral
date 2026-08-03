@@ -6,13 +6,15 @@ import { toast } from 'react-hot-toast';
 import { iniciarCronometro, detenerCronometro, eliminarRegistroTiempo, getUsuarioActual } from '@/app/(dashboard)/soporte/actions';
 
 interface CronometroTrabajoProps {
-    ordenId: string;
+    ordenId?: string | null;
+    taskId?: string | null;
     tiempos: any[];
     onRefresh: () => void | Promise<void>;
 }
 
 export default function CronometroTrabajo({
     ordenId,
+    taskId,
     tiempos,
     onRefresh
 }: CronometroTrabajoProps) {
@@ -95,7 +97,7 @@ export default function CronometroTrabajo({
     const handleStart = async () => {
         setProcessing(true);
         try {
-            const res = await iniciarCronometro(ordenId);
+            const res = await iniciarCronometro(ordenId || null, taskId || null);
             if (res.success) {
                 toast.success('Cronómetro de trabajo iniciado.');
                 await onRefresh();
@@ -310,7 +312,7 @@ export default function CronometroTrabajo({
                                 </p>
                             ) : (
                                 <p className="text-xs text-slate-500 leading-relaxed font-semibold">
-                                    ¿Estás seguro de que deseas detener el cronómetro? Se guardará el tiempo transcurrido ({formatHHMMSS(elapsedSeconds)}) como tiempo laborado oficial en esta orden.
+                                    ¿Estás seguro de que deseas detener el cronómetro? Se guardará el tiempo transcurrido ({formatHHMMSS(elapsedSeconds)}) como tiempo laborado oficial {ordenId ? 'en esta orden' : 'en esta tarea'}.
                                 </p>
                             )}
                         </div>
