@@ -3,38 +3,15 @@ import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log("=== BUSCANDO TAREA KANBAN ODT-35 ===");
-    const kTasks = await prisma.kanbanTask.findMany({
-        where: {
-            OR: [
-                { codigo: { contains: 'ODT-35', mode: 'insensitive' } },
-                { title: { contains: '16EA95D6', mode: 'insensitive' } }
-            ]
-        },
+    const id = 'ee8f3681-e869-4030-a54f-e83cf6c78363';
+    const invoice = await prisma.factura.findUnique({
+        where: { id },
         include: {
-            ordenTrabajo: {
-                include: {
-                    cliente: true
-                }
-            }
+            cliente: true,
+            detalles: true
         }
     });
-    console.log("KanbanTasks found:", JSON.stringify(kTasks, null, 2));
-
-    console.log("\n=== BUSCANDO ORDEN TRABAJO DIRECTA ===");
-    const ots = await prisma.ordenTrabajo.findMany({
-        where: {
-            OR: [
-                { codigoSeguridad: { contains: '16EA95D6', mode: 'insensitive' } },
-                { equipoDano: { contains: '16EA95D6', mode: 'insensitive' } },
-                { marcaModelo: { contains: '16EA95D6', mode: 'insensitive' } }
-            ]
-        },
-        include: {
-            cliente: true
-        }
-    });
-    console.log("OrdenesTrabajo direct found:", JSON.stringify(ots, null, 2));
+    console.log("Invoice in DB:", invoice);
 }
 
 main().finally(() => prisma.$disconnect());

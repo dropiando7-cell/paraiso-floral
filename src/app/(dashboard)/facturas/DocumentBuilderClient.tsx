@@ -404,7 +404,7 @@ function LineItemRow({
   const isDescNum = typeof settings?.itemDescFontSize === 'number';
   const descSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[10px]' : 'text-xs';
   const inputDescSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[10px]' : 'text-xs';
-  const descStyle = isDescNum ? { fontSize: `${settings.itemDescFontSize}px` } as React.CSSProperties : undefined;
+  const descStyle = isDescNum ? { fontSize: `${settings.itemDescFontSize}px`, lineHeight: '1.45' } as React.CSSProperties : { lineHeight: '1.45' };
 
   const isServiceIcon = item.imageUrl?.includes('/services/') && item.imageUrl?.endsWith('.svg');
   const renderImage = () => {
@@ -1091,10 +1091,10 @@ function LineItemRow({
               )}
               <div className="flex-1 min-w-0">
               {viewMode ? (
-                <div className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words`} style={descStyle}>
+                <div className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words leading-relaxed`} style={descStyle}>
                   {item.shortDesc}
                   {(item.marcaModelo || item.serie) && (
-                    <div className="text-[10px] text-slate-500 font-normal mt-0.5 leading-normal">
+                    <div className="text-[9px] text-slate-500 font-normal mt-0.5 leading-normal break-all">
                       {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
                       {item.marcaModelo && item.serie ? ' | ' : ''}
                       {item.serie ? `Serie: ${item.serie}` : ''}
@@ -1119,18 +1119,18 @@ function LineItemRow({
                   style={descStyle}
                 />
                 {(item.marcaModelo || item.serie) && (
-                  <div className="text-[10px] text-slate-455 font-normal mt-0.5 px-1 print:hidden leading-normal">
+                  <div className="text-[9px] text-slate-455 font-normal mt-0.5 px-1 print:hidden leading-normal break-all">
                     {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
                     {item.marcaModelo && item.serie ? ' | ' : ''}
                     {item.serie ? `Serie: ${item.serie}` : ''}
                   </div>
                 )}
                 <div className="hidden print:block">
-                  <span className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words`} style={descStyle}>
+                  <span className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words leading-relaxed`} style={descStyle}>
                     {item.shortDesc}
                   </span>
                   {(item.marcaModelo || item.serie) && (
-                    <div className="text-[10px] text-slate-500 font-normal mt-0.5 leading-normal">
+                    <div className="text-[9px] text-slate-500 font-normal mt-0.5 leading-normal break-all">
                       {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
                       {item.marcaModelo && item.serie ? ' | ' : ''}
                       {item.serie ? `Serie: ${item.serie}` : ''}
