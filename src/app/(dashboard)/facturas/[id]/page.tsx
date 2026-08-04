@@ -65,6 +65,7 @@ export default async function EditDocumentPage({
                 where: { id: queryOrdenTrabajoId },
                 include: {
                     cliente: true,
+                    activo: true,
                     repuestos: {
                         include: {
                             producto: true,
@@ -79,6 +80,8 @@ export default async function EditDocumentPage({
                                          ordenTrabajo.metodoPagoRevision && 
                                          ordenTrabajo.metodoPagoRevision !== 'Ninguno';
                 
+                const mainItemPrice = ordenTrabajo.costoReparacion !== null ? Number(ordenTrabajo.costoReparacion) : (Number(ordenTrabajo.costoRevision) || 0);
+                
                 doc = {
                     tipoDocumento: 'FACTURA',
                     estado: 'BORRADOR',
@@ -88,6 +91,28 @@ export default async function EditDocumentPage({
                     subTotal: 0,
                     total: 0,
                     detalles: [
+                        {
+                            porcentajeIsv: 15,
+                            descripcion: `Servicio de Mantenimiento - ${ordenTrabajo.equipoDano}` +
+                                ((ordenTrabajo.marcaModelo || ordenTrabajo.serie)
+                                    ? `\n${[
+                                        ordenTrabajo.marcaModelo ? `Marca/Modelo: ${ordenTrabajo.marcaModelo}` : null,
+                                        ordenTrabajo.serie ? `Serie: ${ordenTrabajo.serie}` : null
+                                    ].filter(Boolean).join('\n')}`
+                                    : ''),
+                            cantidad: 1,
+                            precioUnitario: mainItemPrice,
+                            totalDescuento: 0,
+                            totalLinea: mainItemPrice,
+                            activoId: ordenTrabajo.activoId || undefined,
+                            activo: {
+                                id: ordenTrabajo.activo?.id || undefined,
+                                idQr: ordenTrabajo.activo?.idQr || '',
+                                descripcionCorta: ordenTrabajo.activo?.descripcionCorta || ordenTrabajo.equipoDano,
+                                serie: ordenTrabajo.activo?.serie || ordenTrabajo.serie || null,
+                                imagenUrl: ordenTrabajo.fotosTecnico?.[0] || ordenTrabajo.fotosEstadoInicial?.[0] || ordenTrabajo.activo?.imagenUrl || undefined
+                            }
+                        },
                         ...ordenTrabajo.repuestos.map(r => ({
                             porcentajeIsv: 15,
                             descripcion: r.producto?.nombre || r.activoFijo?.descripcionCorta || 'Repuesto',

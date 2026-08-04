@@ -56,9 +56,11 @@ export async function searchClientes(query: string = "") {
 }
 
 // --- PRODUCTOS Y ACTIVOS FIJOS (Catálogo Médico General) ---
-export async function searchProductos(query: string = "") {
+export async function searchProductos(query: string = "", limitOverride?: number) {
     try {
         const organizationId = await getOrganizationId();
+        const queryTrim = query.trim();
+        const limit = limitOverride || (queryTrim ? 50 : 30);
         
         const [productos, activos] = await Promise.all([
             prisma.producto.findMany({
@@ -66,29 +68,65 @@ export async function searchProductos(query: string = "") {
                     organizationId,
                     estado: 'ACTIVO',
                     activosFijos: { none: {} },
-                    OR: [
-                        { nombre: { contains: query, mode: 'insensitive' } },
-                        { sku: { contains: query, mode: 'insensitive' } }
-                    ]
+                    ...(queryTrim ? {
+                        OR: [
+                            { nombre: { contains: queryTrim, mode: 'insensitive' } },
+                            { sku: { contains: queryTrim, mode: 'insensitive' } }
+                        ]
+                    } : {})
                 },
-                take: 1000
+                take: limit
             }),
             prisma.activoFijo.findMany({
                 where: {
                     organizationId,
                     estatusContable: 'VIGENTE',
-                    OR: [
-                        { descripcionCorta: { contains: query, mode: 'insensitive' } },
-                        { idQr: { contains: query, mode: 'insensitive' } },
-                        { marca: { contains: query, mode: 'insensitive' } },
-                        { serie: { contains: query, mode: 'insensitive' } }
-                    ]
+                    ...(queryTrim ? {
+                        OR: [
+                            { descripcionCorta: { contains: queryTrim, mode: 'insensitive' } },
+                            { idQr: { contains: queryTrim, mode: 'insensitive' } },
+                            { marca: { contains: queryTrim, mode: 'insensitive' } },
+                            { serie: { contains: queryTrim, mode: 'insensitive' } }
+                        ]
+                    } : {})
                 },
                 include: { producto: true },
-                take: 1000
+                take: limit
             })
         ]);
         
+        // 3. Buscar en Ordenes de Trabajo / Tareas Kanban
+        const otLimit = queryTrim ? 15 : 5;
+        const [matchingOTs, matchingTasks] = await Promise.all([
+            prisma.ordenTrabajo.findMany({
+                where: {
+                    organizationId,
+                    ...(queryTrim ? {
+                        OR: [
+                            { codigoSeguridad: { contains: queryTrim, mode: 'insensitive' } },
+                            { equipoDano: { contains: queryTrim, mode: 'insensitive' } },
+                            { marcaModelo: { contains: queryTrim, mode: 'insensitive' } },
+                            { serie: { contains: queryTrim, mode: 'insensitive' } }
+                        ]
+                    } : {})
+                },
+                include: { kanbanTasks: true },
+                take: otLimit,
+                orderBy: { fechaRecibido: 'desc' }
+            }),
+            queryTrim ? prisma.kanbanTask.findMany({
+                where: {
+                    organizationId,
+                    OR: [
+                        { codigo: { contains: queryTrim, mode: 'insensitive' } },
+                        { title: { contains: queryTrim, mode: 'insensitive' } }
+                    ]
+                },
+                include: { ordenTrabajo: true },
+                take: otLimit
+            }) : []
+        ]);
+
         const formatDecimal = (val: any) => val ? val.toString() : '0';
 
         const unifiedProductos = productos.map(p => ({
@@ -100,7 +138,7 @@ export async function searchProductos(query: string = "") {
             costoBase: formatDecimal(p.costoBase),
             marca: p.marca,
             stockActual: p.stockActual,
-            type: 'producto',
+            type: 'producto' as const,
             imageUrl: p.imagenWeb || (p.imagenes && p.imagenes[0]) || undefined
         }));
 
@@ -113,13 +151,58 @@ export async function searchProductos(query: string = "") {
             costoBase: formatDecimal(a.costoAdq || 0),
             marca: a.marca || a.area || 'Activo Fijo',
             stockActual: a.stock || 1,
-            type: 'activo',
+            type: 'activo' as const,
             fechaVencimiento: a.fechaVencimiento ? a.fechaVencimiento.toISOString() : undefined,
             imageUrl: a.imagenUrl || undefined,
             serie: a.serie || undefined
         }));
 
-        return [...unifiedProductos, ...unifiedActivos];
+        const otItems = [];
+        const seenOtIds = new Set();
+        
+        for (const ot of matchingOTs) {
+            if (seenOtIds.has(ot.id)) continue;
+            seenOtIds.add(ot.id);
+            const taskCode = ot.kanbanTasks?.[0]?.codigo || ot.codigoSeguridad;
+            otItems.push({
+                id: ot.id,
+                sku: taskCode,
+                nombre: `Servicio de Mantenimiento - ${ot.equipoDano}`,
+                descripcion: `Marca/Modelo: ${ot.marcaModelo || 'N/A'}\nSerie: ${ot.serie || 'N/A'}`,
+                precioVenta: formatDecimal(ot.costoReparacion || ot.costoRevision || 0),
+                costoBase: '0',
+                marca: 'Orden de Trabajo',
+                stockActual: 1,
+                type: 'activo' as const,
+                imageUrl: ot.fotosTecnico?.[0] || ot.fotosEstadoInicial?.[0] || undefined,
+                serie: ot.serie || undefined,
+                marcaModelo: ot.marcaModelo || undefined,
+                isOrdenTrabajo: true
+            });
+        }
+
+        for (const task of matchingTasks) {
+            const ot = task.ordenTrabajo;
+            if (!ot || seenOtIds.has(ot.id)) continue;
+            seenOtIds.add(ot.id);
+            otItems.push({
+                id: ot.id,
+                sku: task.codigo,
+                nombre: `Servicio de Mantenimiento - ${ot.equipoDano}`,
+                descripcion: `Marca/Modelo: ${ot.marcaModelo || 'N/A'}\nSerie: ${ot.serie || 'N/A'}`,
+                precioVenta: formatDecimal(ot.costoReparacion || ot.costoRevision || 0),
+                costoBase: '0',
+                marca: 'Orden de Trabajo',
+                stockActual: 1,
+                type: 'activo' as const,
+                imageUrl: ot.fotosTecnico?.[0] || ot.fotosEstadoInicial?.[0] || undefined,
+                serie: ot.serie || undefined,
+                marcaModelo: ot.marcaModelo || undefined,
+                isOrdenTrabajo: true
+            });
+        }
+
+        return [...unifiedProductos, ...unifiedActivos, ...otItems];
     } catch (e) {
         console.error("Error en searchProductos:", e);
         return [];
@@ -376,7 +459,14 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                                 ? Number(item.discount) || 0
                                 : basePrice * ((Number(item.discount) || 0) / 100);
                             const lineTotal = basePrice - discountAmt;
-                            let finalDesc = item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : '');
+                            let finalDesc = item.shortDesc;
+                            if (item.marcaModelo || item.serie) {
+                                if (item.marcaModelo) finalDesc += `\nMarca/Modelo: ${item.marcaModelo}`;
+                                if (item.serie) finalDesc += `\nSerie: ${item.serie}`;
+                            }
+                            if (item.longDesc) {
+                                finalDesc += `\n${item.longDesc}`;
+                            }
                             if (item.isSection) {
                                 finalDesc = `__SECTION__${finalDesc}`;
                                 if (item.sectionStyle) finalDesc += `__STYLE__${JSON.stringify(item.sectionStyle)}`;
@@ -562,7 +652,14 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                                 ? Number(item.discount) || 0
                                 : basePrice * ((Number(item.discount) || 0) / 100);
                             const lineTotal = basePrice - discountAmt;
-                            let finalDesc = item.shortDesc + (item.longDesc ? `\n${item.longDesc}` : '');
+                            let finalDesc = item.shortDesc;
+                            if (item.marcaModelo || item.serie) {
+                                if (item.marcaModelo) finalDesc += `\nMarca/Modelo: ${item.marcaModelo}`;
+                                if (item.serie) finalDesc += `\nSerie: ${item.serie}`;
+                            }
+                            if (item.longDesc) {
+                                finalDesc += `\n${item.longDesc}`;
+                            }
                             if (item.isSection) {
                                 finalDesc = `__SECTION__${finalDesc}`;
                                 if (item.sectionStyle) finalDesc += `__STYLE__${JSON.stringify(item.sectionStyle)}`;
@@ -727,6 +824,41 @@ export async function buscarItemPorCodigo(codigo: string) {
                 fechaVencimiento: activo.fechaVencimiento ? activo.fechaVencimiento.toISOString() : undefined,
                 imageUrl: activo.imagenUrl || undefined,
                 serie: activo.serie || null
+            };
+        }
+
+        // 3. Buscar en Ordenes de Trabajo / Tareas Kanban
+        const otMatch = await prisma.ordenTrabajo.findFirst({
+            where: {
+                organizationId,
+                OR: [
+                    { codigoSeguridad: { equals: codigoTrim, mode: 'insensitive' } },
+                    {
+                        kanbanTasks: {
+                            some: {
+                                codigo: { equals: codigoTrim, mode: 'insensitive' }
+                            }
+                        }
+                    }
+                ]
+            },
+            include: {
+                kanbanTasks: true
+            }
+        });
+
+        if (otMatch) {
+            const taskCode = otMatch.kanbanTasks?.[0]?.codigo || otMatch.codigoSeguridad;
+            return {
+                id: otMatch.id,
+                type: 'activo',
+                name: `Servicio de Mantenimiento - ${otMatch.equipoDano}`,
+                description: `Marca/Modelo: ${otMatch.marcaModelo || 'N/A'}\nSerie: ${otMatch.serie || 'N/A'}`,
+                price: otMatch.costoReparacion ? Number(otMatch.costoReparacion) : (Number(otMatch.costoRevision) || 0),
+                imageUrl: otMatch.fotosTecnico?.[0] || otMatch.fotosEstadoInicial?.[0] || undefined,
+                serie: otMatch.serie || null,
+                marcaModelo: otMatch.marcaModelo || null,
+                sku: taskCode
             };
         }
 
@@ -1328,3 +1460,125 @@ export async function crearServicioRapido(prefix: string) {
         return { success: false, error: e.message || "Error al crear el servicio" };
     }
 }
+
+// --- BUSCAR ÓRDENES DE TRABAJO PARA FACTURACIÓN/COTIZACIÓN ---
+export async function searchOrdenesTrabajoParaFacturar(query: string = "") {
+    try {
+        const organizationId = await getOrganizationId();
+        
+        const matches = await prisma.ordenTrabajo.findMany({
+            where: {
+                organizationId,
+                OR: [
+                    { codigoSeguridad: { contains: query, mode: 'insensitive' } },
+                    { equipoDano: { contains: query, mode: 'insensitive' } },
+                    { marcaModelo: { contains: query, mode: 'insensitive' } },
+                    { serie: { contains: query, mode: 'insensitive' } },
+                    { cliente: { nombre: { contains: query, mode: 'insensitive' } } },
+                    {
+                        kanbanTasks: {
+                            some: {
+                                OR: [
+                                    { codigo: { contains: query, mode: 'insensitive' } },
+                                    { title: { contains: query, mode: 'insensitive' } }
+                                ]
+                            }
+                        }
+                    }
+                ]
+            },
+            include: {
+                cliente: true,
+                activo: true,
+                kanbanTasks: {
+                    select: {
+                        codigo: true
+                    }
+                },
+                repuestos: {
+                    include: {
+                        producto: true,
+                        activoFijo: true
+                    }
+                }
+            },
+            take: 30,
+            orderBy: { fechaRecibido: 'desc' }
+        });
+        
+        return matches.map(ot => ({
+            id: ot.id,
+            codigoSeguridad: ot.codigoSeguridad,
+            equipoDano: ot.equipoDano,
+            marcaModelo: ot.marcaModelo || '',
+            serie: ot.serie || '',
+            tipoTrabajo: ot.tipoTrabajo,
+            estado: ot.estado,
+            costoReparacion: ot.costoReparacion ? Number(ot.costoReparacion) : 0,
+            costoRevision: ot.costoRevision ? Number(ot.costoRevision) : 0,
+            fotosEstadoInicial: ot.fotosEstadoInicial || [],
+            fotosTecnico: ot.fotosTecnico || [],
+            diagnosticoTecnico: ot.diagnosticoTecnico || '',
+            detalleManoObra: ot.detalleManoObra || [],
+            metodoPagoRevision: ot.metodoPagoRevision || null,
+            activoId: ot.activoId || null,
+            cliente: ot.cliente ? {
+                id: ot.cliente.id,
+                name: ot.cliente.nombre,
+                rtn: ot.cliente.rtn || '',
+                phone: ot.cliente.telefono || '',
+                address: ot.cliente.direccion || '',
+                email: ot.cliente.email || '',
+                category: 'Estándar',
+                city: ot.cliente.direccion || 'Honduras',
+                nombreContacto: ot.cliente.nombreContacto || '',
+                telefonoContacto: ot.cliente.telefonoContacto || ''
+            } : null,
+            repuestos: ot.repuestos.map(r => ({
+                id: r.id,
+                productoId: r.productoId,
+                activoId: r.activoFijoId,
+                cantidad: r.cantidad,
+                precioSugerido: r.precioSugerido ? Number(r.precioSugerido) : 0,
+                precioAprobado: r.precioAprobado ? Number(r.precioAprobado) : null,
+                nombre: r.producto?.nombre || r.activoFijo?.descripcionCorta || 'Repuesto',
+                sku: r.producto?.sku || r.activoFijo?.idQr || '',
+                serie: r.activoFijo?.serie || null,
+                imageUrl: r.producto?.imagenWeb || r.activoFijo?.imagenUrl || null
+            })),
+            kanbanCodigo: ot.kanbanTasks?.[0]?.codigo || null
+        }));
+    } catch (e) {
+        console.error("Error en searchOrdenesTrabajoParaFacturar:", e);
+        return [];
+    }
+}
+
+// --- OBTENER FOTOS DE UNA ORDEN DE TRABAJO ---
+export async function getOrdenTrabajoImages(id: string) {
+    try {
+        const organizationId = await getOrganizationId();
+        const ot = await prisma.ordenTrabajo.findFirst({
+            where: { id, organizationId },
+            select: {
+                fotosEstadoInicial: true,
+                fotosTecnico: true,
+                activo: {
+                    select: {
+                        imagenUrl: true
+                    }
+                }
+            }
+        });
+        if (!ot) return [];
+        return [
+            ...(ot.fotosTecnico || []),
+            ...(ot.fotosEstadoInicial || []),
+            ot.activo?.imagenUrl
+        ].filter((img): img is string => typeof img === 'string' && img.length > 0);
+    } catch (e) {
+        console.error("Error en getOrdenTrabajoImages:", e);
+        return [];
+    }
+}
+

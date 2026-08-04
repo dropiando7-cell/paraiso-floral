@@ -9,7 +9,7 @@ import {
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
   Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, Pencil,
-  Smartphone, Loader2, UploadCloud, PenTool, RefreshCw
+  Smartphone, Loader2, UploadCloud, PenTool, RefreshCw, Wrench
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
@@ -36,6 +36,7 @@ interface LineItem {
   activoId?: string;
   imageUrl?: string;
   serie?: string | null;
+  marcaModelo?: string | null;
   isSection?: boolean;
   sectionStyle?: {
     bg?: string;
@@ -71,9 +72,11 @@ interface Product {
   imageUrl?: string;
   fechaVencimiento?: string | Date | null;
   serie?: string | null;
+  marcaModelo?: string | null;
+  isOrdenTrabajo?: boolean;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages } from './actions';
 import { createContacto, updateContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
@@ -368,6 +371,9 @@ function LineItemRow({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDraggable, setIsDraggable] = useState(false);
   const [isSyncingCatalog, setIsSyncingCatalog] = useState(false);
+  const [searchResults, setSearchResults] = useState<Product[]>([]);
+  const [isLoadingResults, setIsLoadingResults] = useState(false);
+
 
   const handleSyncCatalogClick = () => {
     setIsSyncingCatalog(true);
@@ -402,35 +408,80 @@ function LineItemRow({
 
   const isServiceIcon = item.imageUrl?.includes('/services/') && item.imageUrl?.endsWith('.svg');
   const renderImage = () => {
-    if (!item.imageUrl) return <Package size={14} className="text-slate-300" />;
-    if (isServiceIcon) {
+    const fallbackIcon = <Package size={14} className="text-slate-300" />;
+
+    const imageElement = (() => {
+      if (!item.imageUrl) return fallbackIcon;
+      if (isServiceIcon) {
+        return (
+          <div 
+            className="w-full h-full print:!-webkit-print-color-adjust:exact"
+            style={{
+              backgroundColor: settings?.serviceIconColor || '#0500A3',
+              WebkitMaskImage: `url(${item.imageUrl})`,
+              WebkitMaskSize: 'contain',
+              WebkitMaskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center',
+              maskImage: `url(${item.imageUrl})`,
+              maskSize: 'contain',
+              maskRepeat: 'no-repeat',
+              maskPosition: 'center',
+            }}
+          />
+        );
+      }
       return (
-        <div 
-          className="w-full h-full print:!-webkit-print-color-adjust:exact"
-          style={{
-            backgroundColor: settings?.serviceIconColor || '#0500A3',
-            WebkitMaskImage: `url(${item.imageUrl})`,
-            WebkitMaskSize: 'contain',
-            WebkitMaskRepeat: 'no-repeat',
-            WebkitMaskPosition: 'center',
-            maskImage: `url(${item.imageUrl})`,
-            maskSize: 'contain',
-            maskRepeat: 'no-repeat',
-            maskPosition: 'center',
+        <img 
+          src={item.imageUrl} 
+          alt="" 
+          onClick={(e) => {
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('show-lightbox-image', { detail: item.imageUrl }));
           }}
+          className={`w-full h-full ${imgObjectClass} cursor-zoom-in hover:opacity-80 transition-opacity`} 
         />
       );
+    })();
+
+    if (viewMode) {
+      return imageElement;
     }
+
     return (
-      <img 
-        src={item.imageUrl} 
-        alt="" 
-        onClick={(e) => {
-          e.stopPropagation();
-          window.dispatchEvent(new CustomEvent('show-lightbox-image', { detail: item.imageUrl }));
-        }}
-        className={`w-full h-full ${imgObjectClass} cursor-zoom-in hover:opacity-80 transition-opacity`} 
-      />
+      <div className="relative w-full h-full group flex flex-col items-center justify-center min-h-[34px]">
+        <div className="w-full h-full flex items-center justify-center">
+          {imageElement}
+        </div>
+
+        <button 
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('open-line-item-image-picker', { 
+              detail: { itemId: item.id, currentUrl: item.imageUrl } 
+            }));
+          }}
+          className="absolute inset-0 bg-slate-900/40 backdrop-blur-[1px] opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center justify-center text-white cursor-pointer rounded-lg z-20 border-none outline-none"
+          title="Cambiar imagen"
+        >
+          <UploadCloud size={14} className="animate-bounce" />
+        </button>
+        
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('open-line-item-image-picker', { 
+              detail: { itemId: item.id, currentUrl: item.imageUrl } 
+            }));
+          }}
+          className="absolute -bottom-2 bg-indigo-50 border border-indigo-200 text-indigo-755 text-[8px] font-extrabold px-1.5 py-0.5 rounded hover:bg-indigo-100 transition-all cursor-pointer opacity-0 group-hover:opacity-100 z-35 shadow-sm print:hidden"
+        >
+          CAMBIAR
+        </button>
+      </div>
     );
   };
 
@@ -446,12 +497,52 @@ function LineItemRow({
 
   const query = focusedField === 'code' ? (item.code || '') : (item.shortDesc || '');
   const nQuery = normalizeText(query);
-  const matchedProducts = query.trim().length >= 2 ? allProducts.filter(p => 
-    normalizeText(p.name).includes(nQuery) || 
-    normalizeText(p.code).includes(nQuery) ||
-    (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery)) ||
-    (p.serie && normalizeText(p.serie).includes(nQuery))
-  ) : [];
+
+  useEffect(() => {
+    if (!showAutocomplete || query.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    const delayDebounce = setTimeout(async () => {
+      setIsLoadingResults(true);
+      try {
+        const res = await searchProductos(query);
+        const mapped = res.map((p: any) => ({
+          id: p.id,
+          code: p.sku || '',
+          name: p.nombre,
+          description: p.descripcion || '',
+          price: Number(p.precioVenta) || 0,
+          category: p.marca || 'General',
+          stock: p.stockActual || 0,
+          brand: p.marca || '',
+          type: p.type || 'producto',
+          imageUrl: p.imageUrl || p.imagenUrl || null,
+          fechaVencimiento: p.fechaVencimiento || null,
+          serie: p.serie || null,
+          marcaModelo: p.marcaModelo || null,
+          isOrdenTrabajo: p.isOrdenTrabajo || false
+        }));
+        setSearchResults(mapped);
+      } catch (err) {
+        console.error("Error searching products dynamic:", err);
+      } finally {
+        setIsLoadingResults(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(delayDebounce);
+  }, [query, showAutocomplete]);
+
+  const matchedProducts = query.trim().length >= 2 
+    ? (searchResults.length > 0 ? searchResults : (isLoadingResults ? [] : allProducts.filter(p => 
+        normalizeText(p.name).includes(nQuery) || 
+        normalizeText(p.code).includes(nQuery) ||
+        (p.type === 'activo' && p.description && normalizeText(p.description).includes(nQuery)) ||
+        (p.serie && normalizeText(p.serie).includes(nQuery))
+      )))
+    : [];
 
   const filteredProducts = matchedProducts.sort((a, b) => {
     const aName = normalizeText(a.name);
@@ -496,6 +587,14 @@ function LineItemRow({
   }, [item.longDesc, item.showLongDesc]);
 
   const handleSelectProduct = async (product: Product) => {
+    if ((product as any).isOrdenTrabajo) {
+      setShowAutocomplete(false);
+      window.dispatchEvent(new CustomEvent('extract-work-order-event', {
+        detail: { code: product.code, id: product.id }
+      }));
+      return;
+    }
+
     onChange(item.id, 'code', product.code);
     onChange(item.id, 'shortDesc', product.name);
     
@@ -548,6 +647,11 @@ function LineItemRow({
        onChange(item.id, 'productoId', undefined);
        onChange(item.id, 'serie', product.serie || null);
     }
+    if ((product as any).marcaModelo) {
+       onChange(item.id, 'marcaModelo', (product as any).marcaModelo);
+    } else {
+       onChange(item.id, 'marcaModelo', null);
+    }
     
     setShowAutocomplete(false);
   };
@@ -573,6 +677,16 @@ function LineItemRow({
             const res = await buscarItemPorCodigo(val);
             if (res) {
               onChange(item.id, 'shortDesc', res.name);
+              if ((res as any).marcaModelo) {
+                onChange(item.id, 'marcaModelo', (res as any).marcaModelo);
+              } else {
+                onChange(item.id, 'marcaModelo', null);
+              }
+              if (res.serie) {
+                onChange(item.id, 'serie', res.serie);
+              } else {
+                onChange(item.id, 'serie', null);
+              }
               
               let targetDescription = res.description || '';
               if (res.type === 'activo' && res.serie) {
@@ -625,18 +739,22 @@ function LineItemRow({
         <div className="px-3 py-2 border-b border-slate-100 bg-slate-50 flex justify-between items-center sticky top-0 z-[65]">
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coincidencias en catálogo</span>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSyncCatalogClick();
-              }}
-              disabled={isSyncingCatalog}
-              className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-700 transition active:scale-95 flex items-center justify-center cursor-pointer"
-              title="Sincronizar catálogo desde la base de datos sin recargar la página"
-            >
-              <RefreshCw className={`w-3 h-3 ${isSyncingCatalog ? 'animate-spin text-blue-600' : ''}`} />
-            </button>
+            {isLoadingResults ? (
+              <span className="text-[10px] text-blue-500 font-semibold animate-pulse ml-1.5">Buscando en base de datos...</span>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSyncCatalogClick();
+                }}
+                disabled={isSyncingCatalog}
+                className="p-1 hover:bg-slate-200 rounded text-slate-500 hover:text-slate-700 transition active:scale-95 flex items-center justify-center cursor-pointer"
+                title="Sincronizar catálogo desde la base de datos sin recargar la página"
+              >
+                <RefreshCw className={`w-3 h-3 ${isSyncingCatalog ? 'animate-spin text-blue-600' : ''}`} />
+              </button>
+            )}
           </div>
           <span className="text-[10px] font-medium text-slate-400">{filteredProducts.length} {filteredProducts.length === 1 ? 'resultado' : 'resultados'}</span>
         </div>
@@ -653,6 +771,8 @@ function LineItemRow({
               <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center shrink-0 relative">
                 {p.imageUrl ? (
                   <img src={p.imageUrl} alt="" className="w-full h-full object-cover" />
+                ) : p.isOrdenTrabajo ? (
+                  <Wrench size={16} className="text-indigo-600 group-hover:text-blue-500 transition-colors" />
                 ) : p.type === 'activo' ? (
                   <Stethoscope size={16} className="text-indigo-400 group-hover:text-blue-500 transition-colors" />
                 ) : (
@@ -674,7 +794,11 @@ function LineItemRow({
                     {p.code}
                   </span>
                   
-                  {p.type === 'activo' ? (
+                  {p.isOrdenTrabajo ? (
+                    <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100/50 px-1.5 py-0.5 rounded">
+                      Orden de Trabajo
+                    </span>
+                  ) : p.type === 'activo' ? (
                     <span className="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
                       Activo Fijo
                     </span>
@@ -925,6 +1049,11 @@ function LineItemRow({
                                 onChange(item.id, 'productoId', undefined);
                                 onChange(item.id, 'serie', (res as any).serie || null);
                               }
+                              if ((res as any).marcaModelo) {
+                                onChange(item.id, 'marcaModelo', (res as any).marcaModelo);
+                              } else {
+                                onChange(item.id, 'marcaModelo', null);
+                              }
                               if (res.imageUrl) onChange(item.id, 'imageUrl', res.imageUrl);
                             }
                           } catch(err) { console.error('Error in onBlur search:', err); }
@@ -962,7 +1091,16 @@ function LineItemRow({
               )}
               <div className="flex-1 min-w-0">
               {viewMode ? (
-                <div className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words`} style={descStyle}>{item.shortDesc}</div>
+                <div className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words`} style={descStyle}>
+                  {item.shortDesc}
+                  {(item.marcaModelo || item.serie) && (
+                    <div className="text-[10px] text-slate-500 font-normal mt-0.5 leading-normal">
+                      {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
+                      {item.marcaModelo && item.serie ? ' | ' : ''}
+                      {item.serie ? `Serie: ${item.serie}` : ''}
+                    </div>
+                  )}
+                </div>
               ) : (
                 <>
                 <input
@@ -980,9 +1118,25 @@ function LineItemRow({
                   className={`w-full h-[34px] ${inputDescSizeClass} border border-slate-200 rounded-lg px-2 bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-all placeholder:text-slate-300 print:hidden block disabled:bg-slate-50 disabled:border-transparent disabled:text-slate-800`}
                   style={descStyle}
                 />
-                <span className={`hidden print:block ${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words`} style={descStyle}>
-                  {item.shortDesc}
-                </span>
+                {(item.marcaModelo || item.serie) && (
+                  <div className="text-[10px] text-slate-455 font-normal mt-0.5 px-1 print:hidden leading-normal">
+                    {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
+                    {item.marcaModelo && item.serie ? ' | ' : ''}
+                    {item.serie ? `Serie: ${item.serie}` : ''}
+                  </div>
+                )}
+                <div className="hidden print:block">
+                  <span className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words`} style={descStyle}>
+                    {item.shortDesc}
+                  </span>
+                  {(item.marcaModelo || item.serie) && (
+                    <div className="text-[10px] text-slate-500 font-normal mt-0.5 leading-normal">
+                      {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
+                      {item.marcaModelo && item.serie ? ' | ' : ''}
+                      {item.serie ? `Serie: ${item.serie}` : ''}
+                    </div>
+                  )}
+                </div>
                 </>
               )}
 
@@ -1254,6 +1408,8 @@ export default function DocumentBuilderClient({
   isNotaCredito?: boolean;
   userRole?: string;
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [docType, setDocType] = useState<DocType>('cotizacion');
 
   const docDate = (initialData?.fechaEmision && (editMode || viewMode))
@@ -1307,6 +1463,203 @@ export default function DocumentBuilderClient({
   const [isUploadingFoto, setIsUploadingFoto] = useState(false);
   const [showOrdenEntregaPanel, setShowOrdenEntregaPanel] = useState(true);
   const [activeCanvasMode, setActiveCanvasMode] = useState<'document' | 'orden_entrega'>('document');
+  
+  const [ordenTrabajoId, setOrdenTrabajoId] = useState<string | undefined>(initialData?.ordenTrabajoId || searchParams.get('ordenTrabajoId') || undefined);
+  const [showWorkOrderModal, setShowWorkOrderModal] = useState(false);
+  const [workOrderSearch, setWorkOrderSearch] = useState('');
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [loadingWorkOrders, setLoadingWorkOrders] = useState(false);
+
+  const [imagePickerItem, setImagePickerItem] = useState<{ itemId: string; currentUrl?: string } | null>(null);
+  const [otImages, setOtImages] = useState<string[]>([]);
+  const [loadingOtImages, setLoadingOtImages] = useState(false);
+  const [isUploadingLineImage, setIsUploadingLineImage] = useState(false);
+
+  useEffect(() => {
+    const handleOpenPicker = (e: Event) => {
+      const customEvent = e as CustomEvent<{ itemId: string; currentUrl?: string }>;
+      setImagePickerItem(customEvent.detail);
+    };
+    window.addEventListener('open-line-item-image-picker', handleOpenPicker);
+    return () => window.removeEventListener('open-line-item-image-picker', handleOpenPicker);
+  }, []);
+
+  useEffect(() => {
+    if (!imagePickerItem || !ordenTrabajoId) {
+      setOtImages([]);
+      return;
+    }
+    
+    const loadOtImages = async () => {
+      setLoadingOtImages(true);
+      try {
+        const urls = await getOrdenTrabajoImages(ordenTrabajoId);
+        setOtImages(urls);
+      } catch (err) {
+        console.error("Error loading OT images:", err);
+      } finally {
+        setLoadingOtImages(false);
+      }
+    };
+    
+    loadOtImages();
+  }, [imagePickerItem, ordenTrabajoId]);
+
+  const handleSelectPickerImage = (url: string) => {
+    if (!imagePickerItem) return;
+    setLineItems(prev => prev.map(item => item.id === imagePickerItem.itemId ? { ...item, imageUrl: url } : item));
+    setImagePickerItem(null);
+    toast.success('Imagen del ítem seleccionada.');
+  };
+
+  const handleUploadPickerImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !imagePickerItem) return;
+    setIsUploadingLineImage(true);
+    const toastId = toast.loading('Subiendo imagen...');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('fileName', `line_item_${Date.now()}_${file.name}`);
+      
+      const uploadRes = await fetch('/api/upload/inventario', {
+        method: 'POST',
+        body: formData
+      });
+      if (!uploadRes.ok) throw new Error('Error al subir la imagen');
+      const data = await uploadRes.json();
+      
+      if (data.publicUrl) {
+        setLineItems(prev => prev.map(item => item.id === imagePickerItem.itemId ? { ...item, imageUrl: data.publicUrl } : item));
+        setImagePickerItem(null);
+        toast.success('Imagen del ítem subida y actualizada.', { id: toastId });
+      } else {
+        throw new Error('No se recibió la URL pública');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'Error al subir la imagen', { id: toastId });
+    } finally {
+      setIsUploadingLineImage(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!showWorkOrderModal) return;
+
+    const fetchOTs = async () => {
+      setLoadingWorkOrders(true);
+      try {
+        const res = await searchOrdenesTrabajoParaFacturar(workOrderSearch);
+        setWorkOrders(res);
+      } catch (err) {
+        console.error("Error cargando ordenes de trabajo para facturar:", err);
+      } finally {
+        setLoadingWorkOrders(false);
+      }
+    };
+
+    const delayDebounce = setTimeout(fetchOTs, 300);
+    return () => clearTimeout(delayDebounce);
+  }, [showWorkOrderModal, workOrderSearch]);
+
+  const handleSelectWorkOrder = (ot: any) => {
+    if (!ot) return;
+    
+    // 1. Set the client
+    if (ot.cliente) {
+      setSelectedClient(ot.cliente);
+    }
+    
+    // 2. Set the linked work order ID
+    setOrdenTrabajoId(ot.id);
+    
+    // 3. Construct lines
+    const mainItemPrice = ot.costoReparacion !== null ? Number(ot.costoReparacion) : (Number(ot.costoRevision) || 0);
+    
+    const serviceLine: LineItem = {
+      id: uid(),
+      code: ot.codigoSeguridad,
+      shortDesc: `Servicio de Mantenimiento - ${ot.equipoDano}`,
+      longDesc: '',
+      marcaModelo: ot.marcaModelo || null,
+      serie: ot.serie || null,
+      richDesc: [
+        `<p><strong>Servicio de Mantenimiento</strong></p>`,
+        `<p><strong>Equipo:</strong> ${ot.equipoDano}</p>`,
+        ot.marcaModelo ? `<p><strong>Marca/Modelo:</strong> ${ot.marcaModelo}</p>` : null,
+        ot.serie ? `<p><strong>Serie:</strong> ${ot.serie}</p>` : null,
+      ].filter(Boolean).join(''),
+      showLongDesc: false,
+      qty: 1,
+      unitPrice: mainItemPrice,
+      tax: 'isv15',
+      discount: 0,
+      discountType: 'percentage',
+      imageUrl: ot.fotosTecnico?.[0] || ot.fotosEstadoInicial?.[0] || ot.activo?.imagenUrl || undefined,
+      activoId: ot.activoId || undefined,
+    };
+
+    // Spare parts lines
+    const repuestosLines: LineItem[] = (ot.repuestos || []).map((r: any) => ({
+      id: uid(),
+      code: r.sku || '',
+      shortDesc: r.nombre,
+      longDesc: r.serie ? `Serie: ${r.serie}` : '',
+      richDesc: r.serie ? `<p>Serie: ${r.serie}</p>` : '',
+      showLongDesc: !!r.serie,
+      qty: r.cantidad,
+      unitPrice: r.precioAprobado !== null ? r.precioAprobado : r.precioSugerido,
+      tax: 'isv15',
+      discount: 0,
+      discountType: 'percentage',
+      productoId: r.productoId || undefined,
+      activoId: r.activoId || undefined,
+      imageUrl: r.imageUrl || undefined,
+      serie: r.serie || null
+    }));
+
+    // Labor lines
+    const manoObraArr = Array.isArray(ot.detalleManoObra) ? ot.detalleManoObra : [];
+    const manoObraLines: LineItem[] = manoObraArr.map((m: any) => ({
+      id: uid(),
+      code: '',
+      shortDesc: m.descripcion || 'Mano de Obra',
+      longDesc: '',
+      richDesc: '',
+      showLongDesc: false,
+      qty: m.horas || 1,
+      unitPrice: Number(m.tarifa || 0),
+      tax: 'isv15',
+      discount: 0,
+      discountType: 'percentage'
+    }));
+
+    // Revision cost credit if paid
+    const esRevisionPagada = Number(ot.costoRevision) > 0 && 
+                             ot.metodoPagoRevision && 
+                             ot.metodoPagoRevision !== 'Ninguno';
+    const revisionCreditLines: LineItem[] = esRevisionPagada ? [{
+      id: uid(),
+      code: '',
+      shortDesc: 'Abono/Crédito por Costo de Revisión Ya Pagado',
+      longDesc: '',
+      richDesc: '',
+      showLongDesc: false,
+      qty: 1,
+      unitPrice: -Number(ot.costoRevision),
+      tax: 'exento',
+      discount: 0,
+      discountType: 'percentage'
+    }] : [];
+
+    // Combine all new lines
+    const allNewLines = [serviceLine, ...repuestosLines, ...manoObraLines, ...revisionCreditLines];
+    setLineItems(allNewLines);
+    
+    // Close modal
+    setShowWorkOrderModal(false);
+    toast.success(`Orden de Trabajo ${ot.codigoSeguridad} extraída con éxito.`);
+  };
   
   // States for registering new product directly
   const [registeringLineId, setRegisteringLineId] = useState<string | null>(null);
@@ -1688,6 +2041,29 @@ export default function DocumentBuilderClient({
     };
   }, []);
 
+  // Listener for extracting work order from row dropdown/autocompletion selection
+  useEffect(() => {
+    const handleExtract = async (e: any) => {
+      const { code, id } = e.detail;
+      const toastId = toast.loading('Cargando datos completos de la orden de trabajo...');
+      try {
+        const ots = await searchOrdenesTrabajoParaFacturar(code);
+        const fullOt = ots.find(o => o.id === id);
+        if (fullOt) {
+          handleSelectWorkOrder(fullOt);
+          toast.success('Orden de trabajo extraída con éxito', { id: toastId });
+        } else {
+          toast.error('No se pudo encontrar la orden seleccionada', { id: toastId });
+        }
+      } catch (err) {
+        console.error('Error fetching work order from event:', err);
+        toast.error('Error al cargar la orden de trabajo', { id: toastId });
+      }
+    };
+    window.addEventListener('extract-work-order-event', handleExtract);
+    return () => window.removeEventListener('extract-work-order-event', handleExtract);
+  }, []);
+
   // Fetch areas for the ActivoModal
   useEffect(() => {
     getAreas()
@@ -1813,9 +2189,7 @@ export default function DocumentBuilderClient({
   }, [settings, effectiveViewMode, isLoaded]);
 
 
-  const router = useRouter();
   const isPrintIframe = typeof window !== 'undefined' && window.location.pathname.startsWith('/print');
-  const searchParams = useSearchParams();
   const [isSaving, setIsSaving] = useState(false);
   const [isConverting, setIsConverting] = useState(false);
   const [showAdminWarningModal, setShowAdminWarningModal] = useState(false);
@@ -1916,7 +2290,7 @@ export default function DocumentBuilderClient({
         total: totals.total,
         templateSettings: settings,
         documentoOrigenId: isNotaCredito ? initialData?.id : undefined,
-        ordenTrabajoId: initialData?.ordenTrabajoId || searchParams.get('ordenTrabajoId') || undefined
+        ordenTrabajoId: ordenTrabajoId || undefined
       };
       await actualizarDocumentoBuilder(docId, savePayload, validItems);
     } catch (err) {
@@ -2201,10 +2575,29 @@ export default function DocumentBuilderClient({
 
           let longDesc = '';
           let shortDesc = rawDesc;
+          let marcaModelo: string | null = null;
+          let parsedSerie: string | null = d.activo?.serie || d.serie || null;
+          
           if (rawDesc.includes('\n')) {
               const parts = rawDesc.split('\n');
               shortDesc = parts[0];
-              longDesc = parts.slice(1).join('\n');
+              const remaining = parts.slice(1);
+              
+              const brandLine = remaining.find((l: string) => l.startsWith('Marca/Modelo:'));
+              const serieLine = remaining.find((l: string) => l.startsWith('Serie:'));
+              
+              if (brandLine || serieLine) {
+                  if (brandLine) {
+                      marcaModelo = brandLine.substring(13).trim();
+                  }
+                  if (serieLine) {
+                      parsedSerie = serieLine.substring(6).trim();
+                  }
+                  const otherLines = remaining.filter((l: string) => !l.startsWith('Marca/Modelo:') && !l.startsWith('Serie:'));
+                  longDesc = otherLines.join('\n');
+              } else {
+                  longDesc = remaining.join('\n');
+              }
           }
           
           let discountType: 'percentage' | 'amount' = 'amount';
@@ -2230,7 +2623,8 @@ export default function DocumentBuilderClient({
             productoId: d.productoId || undefined,
             activoId: d.activoId || undefined,
             imageUrl: d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || d.activo?.imagenUrl || resolveServiceImageUrl(shortDesc) || undefined,
-            serie: d.activo?.serie || null
+            serie: parsedSerie,
+            marcaModelo
           };
         });
         setLineItems(loadedItems);
@@ -2650,7 +3044,7 @@ export default function DocumentBuilderClient({
         total: totals.total,
         templateSettings: settings,
         documentoOrigenId: isNotaCredito ? initialData?.id : undefined,
-        ordenTrabajoId: initialData?.ordenTrabajoId || searchParams.get('ordenTrabajoId') || undefined
+        ordenTrabajoId: ordenTrabajoId || undefined
       };
       
       let res;
@@ -2816,6 +3210,14 @@ export default function DocumentBuilderClient({
                     className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold hover:shadow-indigo-100 hover:shadow-lg transition-all shadow-sm whitespace-nowrap shrink-0"
                   >
                     <Pencil size={15} /> Editar
+                  </button>
+                )}
+                {!viewMode && (
+                  <button
+                    onClick={() => setShowWorkOrderModal(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    <Wrench size={15} className="stroke-[2.5]" /> Extraer Orden
                   </button>
                 )}
                 <button
@@ -3862,6 +4264,240 @@ export default function DocumentBuilderClient({
       </div>
 
       {/* ─── MODALS ────────────────────────────────────────────────── */}
+      {imagePickerItem && (
+        <div className="fixed inset-0 z-[65] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 print:hidden animate-in fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[80vh] animate-in slide-in-from-bottom-4 animate-duration-200">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <UploadCloud size={18} className="text-indigo-600" /> Seleccionar Imagen del Ítem
+              </h3>
+              <button 
+                onClick={() => setImagePickerItem(null)} 
+                className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto space-y-6">
+              {/* Option 1: Upload Custom Photo */}
+              <div>
+                <h4 className="text-xs font-black text-slate-450 uppercase tracking-widest mb-3">Subir nueva imagen</h4>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleUploadPickerImage}
+                  id="picker-upload-file"
+                  className="hidden"
+                  disabled={isUploadingLineImage}
+                />
+                <label
+                  htmlFor="picker-upload-file"
+                  className={`border-2 border-dashed border-slate-200 hover:border-indigo-400 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer transition-all bg-slate-50 hover:bg-indigo-50/20 group relative overflow-hidden ${isUploadingLineImage ? 'pointer-events-none' : ''}`}
+                >
+                  {isUploadingLineImage ? (
+                    <div className="flex flex-col items-center py-2">
+                      <Loader2 className="w-8 h-8 text-indigo-600 animate-spin mb-2" />
+                      <span className="text-xs font-semibold text-slate-500">Subiendo imagen a la nube...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <UploadCloud className="w-8 h-8 text-slate-400 group-hover:text-indigo-550 transition-colors mb-2" />
+                      <span className="text-xs font-bold text-slate-700">Haz clic para buscar o arrastra una imagen</span>
+                      <span className="text-[10px] text-slate-400 mt-1 font-medium">Formatos soportados: PNG, JPG, JPEG, WEBP</span>
+                    </>
+                  )}
+                </label>
+              </div>
+
+              {/* Option 2: Choose from OT Photos (if available) */}
+              {ordenTrabajoId && (
+                <div className="border-t border-slate-100 pt-6">
+                  <h4 className="text-xs font-black text-slate-450 uppercase tracking-widest mb-3">Imágenes de la Orden de Trabajo</h4>
+                  {loadingOtImages ? (
+                    <div className="flex items-center justify-center py-6 gap-2">
+                      <Loader2 className="w-5 h-5 text-indigo-650 animate-spin" />
+                      <span className="text-xs font-medium text-slate-500">Cargando fotos de la orden...</span>
+                    </div>
+                  ) : otImages.length === 0 ? (
+                    <p className="text-xs text-slate-400 italic bg-slate-50 rounded-xl p-3 text-center border border-slate-100">
+                      No se encontraron fotos asociadas a esta Orden de Trabajo.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3">
+                      {otImages.map((url, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => handleSelectPickerImage(url)}
+                          className="relative aspect-square bg-slate-100 rounded-xl overflow-hidden border border-slate-200 hover:border-indigo-500 shadow-sm hover:shadow transition-all group cursor-pointer active:scale-95 flex items-center justify-center"
+                        >
+                          <img src={url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200" />
+                          <div className="absolute inset-0 bg-indigo-950/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-[10px] font-extrabold text-white bg-indigo-600 px-2 py-0.5 rounded-full shadow-sm">
+                              Seleccionar
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Option 3: Remove Current Image (if any) */}
+              {imagePickerItem.currentUrl && (
+                <div className="border-t border-slate-100 pt-5 flex justify-between items-center">
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-700">Quitar imagen actual</h4>
+                    <p className="text-[10px] text-slate-450 mt-0.5">El ítem ya no mostrará miniatura en el documento.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPickerImage('')}
+                    className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                  >
+                    Quitar Imagen
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setImagePickerItem(null)}
+                className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showWorkOrderModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 print:hidden animate-in fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-4">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <Wrench size={18} className="text-indigo-650" /> Extraer Orden de Trabajo
+              </h3>
+              <button 
+                onClick={() => setShowWorkOrderModal(false)} 
+                className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="p-4 border-b border-slate-100 bg-white">
+              <div className="relative">
+                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  autoFocus
+                  value={workOrderSearch}
+                  onChange={e => setWorkOrderSearch(e.target.value)}
+                  placeholder="Buscar por código de orden, cliente, equipo, modelo, marca o serie..."
+                  className="w-full pl-11 pr-4 py-3 text-sm border-2 border-slate-200 rounded-xl bg-slate-50 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all outline-none"
+                />
+              </div>
+            </div>
+            
+            <div className="overflow-y-auto p-4 bg-slate-50/50 flex-1 min-h-[300px]">
+              {loadingWorkOrders ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Loader2 className="w-8 h-8 text-indigo-650 animate-spin mb-2" />
+                  <p className="text-xs text-slate-550 font-medium">Buscando órdenes de trabajo...</p>
+                </div>
+              ) : workOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center text-slate-400">
+                  <ClipboardList size={40} className="stroke-[1.5] mb-2 text-slate-300" />
+                  <p className="text-sm font-semibold">No se encontraron órdenes de trabajo.</p>
+                  <p className="text-xs text-slate-450 mt-1 max-w-sm">Intenta buscar por otro término, o verifica que la orden esté registrada en el sistema.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {workOrders.map((ot) => {
+                    const firstPhoto = ot.fotosEstadoInicial?.[0] || ot.repuestos?.[0]?.imageUrl || null;
+                    const mainCost = ot.costoReparacion > 0 ? ot.costoReparacion : ot.costoRevision;
+                    
+                    return (
+                      <button
+                        key={ot.id}
+                        type="button"
+                        onClick={() => handleSelectWorkOrder(ot)}
+                        className="w-full flex items-center gap-4 p-3.5 bg-white border border-slate-150 hover:border-indigo-300 rounded-2xl transition-all shadow-sm hover:shadow-md text-left cursor-pointer group active:scale-[0.99] select-none"
+                      >
+                        {/* Equipment Image or Icon */}
+                        <div className="w-14 h-14 bg-slate-100 rounded-xl overflow-hidden shrink-0 flex items-center justify-center border border-slate-200 shadow-inner group-hover:border-indigo-100">
+                          {firstPhoto ? (
+                            <img src={firstPhoto} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <ClipboardList className="w-6 h-6 text-slate-400 group-hover:text-indigo-550 transition-colors" />
+                          )}
+                        </div>
+                        
+                        {/* Middle Info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-black bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                              #{ot.codigoSeguridad}
+                            </span>
+                            <span className="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md uppercase">
+                              {ot.estado}
+                            </span>
+                            {ot.tipoTrabajo && (
+                              <span className="text-[9px] font-semibold text-slate-400 capitalize">
+                                • {ot.tipoTrabajo.toLowerCase()}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-700 transition-colors">
+                            {ot.equipoDano}
+                          </h4>
+                          <p className="text-xs text-slate-500 truncate mt-0.5 font-medium">
+                            Cliente: <span className="text-slate-800 font-bold">{ot.cliente?.name || 'Desconocido'}</span>
+                          </p>
+                          {(ot.marcaModelo || ot.serie) && (
+                            <p className="text-[10px] text-slate-400 mt-1 truncate">
+                              {ot.marcaModelo ? `Modelo: ${ot.marcaModelo}` : ''}
+                              {ot.marcaModelo && ot.serie ? ' | ' : ''}
+                              {ot.serie ? `Serie: ${ot.serie}` : ''}
+                            </p>
+                          )}
+                        </div>
+                        
+                        {/* Cost Side */}
+                        <div className="text-right shrink-0">
+                          <p className="text-[9px] font-extrabold text-slate-400 uppercase tracking-widest">Costo Estimado</p>
+                          <p className="text-sm font-black text-slate-800 mt-0.5 group-hover:text-indigo-700 transition-colors font-mono">
+                            L. {mainCost.toLocaleString('es-HN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </p>
+                          <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-indigo-600 group-hover:translate-x-1 transition-transform mt-1">
+                            Extraer <ArrowRight size={10} className="stroke-[2.5]" />
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowWorkOrderModal(false)}
+                className="px-5 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showClientModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm px-4 print:hidden animate-in fade-in">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[85vh] animate-in slide-in-from-bottom-4">
@@ -4239,7 +4875,7 @@ export default function DocumentBuilderClient({
                   <button
                     onClick={() => {
                       setShowSuccessModal(null);
-                      const otId = searchParams.get('ordenTrabajoId');
+                      const otId = ordenTrabajoId;
                       if (otId) {
                         router.push(`/soporte/${otId}`);
                       } else {
@@ -4248,7 +4884,7 @@ export default function DocumentBuilderClient({
                     }}
                     className="flex-1 py-3 px-4 bg-white border-2 border-slate-200 text-slate-600 rounded-2xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all cursor-pointer"
                   >
-                    {searchParams.get('ordenTrabajoId') ? 'Volver a la Orden' : 'Hacer Nuevo'}
+                    {ordenTrabajoId ? 'Volver a la Orden' : 'Hacer Nuevo'}
                   </button>
                   <button
                     onClick={() => {
