@@ -1405,7 +1405,8 @@ export default function DocumentBuilderClient({
   editMode = false, 
   viewMode = false,
   isNotaCredito = false,
-  userRole = 'USER'
+  userRole = 'USER',
+  userAccessibleModules = []
 }: { 
   organization?: any;
   initialData?: any;
@@ -1413,6 +1414,7 @@ export default function DocumentBuilderClient({
   viewMode?: boolean;
   isNotaCredito?: boolean;
   userRole?: string;
+  userAccessibleModules?: string[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -2251,9 +2253,11 @@ export default function DocumentBuilderClient({
   const [convertPaymentMethod, setConvertPaymentMethod] = useState('Efectivo');
   const [convertEstado, setConvertEstado] = useState<'EMITIDA' | 'BORRADOR'>('EMITIDA');
 
+  const canEditEmitidas = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userAccessibleModules.includes('editar_facturas_emitidas');
+
   const handleEditClick = () => {
     if (docType === 'factura' && initialData?.estado === 'EMITIDA') {
-      if (userRole !== 'SUPER_ADMIN' && userRole !== 'ORG_ADMIN') {
+      if (!canEditEmitidas) {
         setShowAdminWarningModal(true);
         return;
       }
@@ -5053,7 +5057,7 @@ export default function DocumentBuilderClient({
             
             <h3 className="text-2xl font-black text-slate-900 text-center mb-2 tracking-tight">Acceso Restringido</h3>
             <p className="text-sm text-slate-500 text-center mb-6 font-medium px-2 leading-relaxed">
-              Esta factura ya fue emitida. Solo un rol de administrador tiene privilegios para manipular esta información sensible. Se recomienda anular esta y crear una nueva.
+              Esta factura ya fue emitida. Requiere un rol de administrador o un privilegio asignado para modificar información sensible de documentos emitidos.
             </p>
             
             <div className="w-full">

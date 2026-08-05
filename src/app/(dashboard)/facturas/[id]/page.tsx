@@ -166,9 +166,10 @@ export default async function EditDocumentPage({
         redirect('/unauthorized');
     }
 
-    // Restricción: Si el documento es una Factura ya Emitida y no es admin, redirigir a ver
+    // Restricción: Si el documento es una Factura ya Emitida y no es admin ni tiene permiso, redirigir a ver
     if (doc && doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA' && !isClone && !isNotaCredito) {
-        if (userRole !== 'SUPER_ADMIN' && userRole !== 'ORG_ADMIN') {
+        const canEditEmitidas = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || allowedModules.includes('editar_facturas_emitidas');
+        if (!canEditEmitidas) {
             redirect(`/facturas/ver/${id}`);
         }
     }
@@ -177,7 +178,7 @@ export default async function EditDocumentPage({
         <div className="bg-slate-50 min-h-screen flex flex-col">
             <FacturacionHeader activeTab={isClone || isNotaCredito ? "creador" : "editar"} isSubPage={true} />
             <div className="p-6 max-w-[1400px] mx-auto w-full">
-               <DocumentBuilderClient organization={org} initialData={doc} editMode={!isClone && !isNotaCredito} isNotaCredito={isNotaCredito} userRole={userRole} />
+               <DocumentBuilderClient organization={org} initialData={doc} editMode={!isClone && !isNotaCredito} isNotaCredito={isNotaCredito} userRole={userRole} userAccessibleModules={allowedModules} />
             </div>
         </div>
     );

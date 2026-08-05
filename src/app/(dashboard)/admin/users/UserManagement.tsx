@@ -115,6 +115,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/cotizaciones', label: 'Cotizaciones' },
         { id: '/facturas', label: 'Facturación' },
         { id: 'facturas_propias', label: 'Facturación - Ver solo cotizaciones/facturas propias' },
+        { id: 'editar_facturas_emitidas', label: 'Facturación - Editar facturas emitidas y documentos protegidos' },
         { id: '/caja-chica', label: 'Caja Chica' },
         { id: '/admin/gestion-web', label: 'Gestión Web / Tienda' },
         { id: '/admin/tarjetas-digitales', label: 'Tarjetas Digitales' },

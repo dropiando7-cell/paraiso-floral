@@ -385,8 +385,10 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
 
         // Restricción para facturas emitidas
         if (docExistente.tipoDocumento === 'FACTURA' && docExistente.estado === 'EMITIDA') {
-            if (userRole !== 'SUPER_ADMIN' && userRole !== 'ORG_ADMIN') {
-                throw new Error('Esta factura ya fue emitida. Solo un rol de administrador tiene privilegios para manipular esta información sensible.');
+            const allowedModules = user.accessibleModules || [];
+            const canEditEmitidas = userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || allowedModules.includes('editar_facturas_emitidas');
+            if (!canEditEmitidas) {
+                throw new Error('Esta factura ya fue emitida. Solo un rol de administrador o usuario con privilegios autorizados puede manipular esta información sensible.');
             }
         }
 
