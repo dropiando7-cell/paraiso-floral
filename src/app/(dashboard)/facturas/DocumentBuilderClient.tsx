@@ -402,8 +402,8 @@ function LineItemRow({
   const imgObjectClass = settings?.productImageStyle === 'original' ? 'object-contain' : 'object-cover';
 
   const isDescNum = typeof settings?.itemDescFontSize === 'number';
-  const descSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[10px]' : 'text-xs';
-  const inputDescSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[10px]' : 'text-xs';
+  const descSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[9px]' : 'text-[11px]';
+  const inputDescSizeClass = isDescNum ? '' : settings?.itemDescFontSize === 'large' ? 'text-sm' : settings?.itemDescFontSize === 'small' ? 'text-[9px]' : 'text-[11px]';
   const descStyle = isDescNum ? { fontSize: `${settings.itemDescFontSize}px`, lineHeight: '1.45' } as React.CSSProperties : { lineHeight: '1.45' };
 
   const isServiceIcon = item.imageUrl?.includes('/services/') && item.imageUrl?.endsWith('.svg');
@@ -430,9 +430,13 @@ function LineItemRow({
           />
         );
       }
+      const displayUrl = (item.imageUrl.startsWith('http') && !isServiceIcon)
+        ? `/_next/image?url=${encodeURIComponent(item.imageUrl)}&w=256&q=75`
+        : item.imageUrl;
+
       return (
         <img 
-          src={item.imageUrl} 
+          src={displayUrl} 
           alt="" 
           onClick={(e) => {
             e.stopPropagation();
@@ -933,6 +937,8 @@ function LineItemRow({
         print:p-0 print:bg-transparent print:my-0
       `}
       style={{
+        borderLeftWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',
+        borderRightWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',
         borderBottomWidth: settings?.showTableBorders ? (settings.tableBorderThickness || '1px') : '0px',
         borderColor: settings?.tableBorderColor || '#e2e8f0',
         borderStyle: settings?.descriptionBorderDashed !== false ? 'dashed' : 'solid'
@@ -1091,7 +1097,7 @@ function LineItemRow({
               )}
               <div className="flex-1 min-w-0">
               {viewMode ? (
-                <div className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words leading-relaxed`} style={descStyle}>
+                <div className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words leading-snug`} style={descStyle}>
                   {item.shortDesc}
                   {(item.marcaModelo || item.serie) && (
                     <div className="text-[9px] text-slate-500 font-normal mt-0.5 leading-normal break-all">
@@ -1126,7 +1132,7 @@ function LineItemRow({
                   </div>
                 )}
                 <div className="hidden print:block">
-                  <span className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words leading-relaxed`} style={descStyle}>
+                  <span className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words leading-snug`} style={descStyle}>
                     {item.shortDesc}
                   </span>
                   {(item.marcaModelo || item.serie) && (
@@ -1965,7 +1971,35 @@ export default function DocumentBuilderClient({
         }
         if (parsed.docNumber) setDocNumber(parsed.docNumber);
         if (parsed.selectedClient) setSelectedClient(parsed.selectedClient);
-        if (parsed.lineItems && parsed.lineItems.length > 0) setLineItems(parsed.lineItems);
+        if (parsed.lineItems && parsed.lineItems.length > 0) {
+          const mergedLineItems = parsed.lineItems.map((item: any) => {
+            const dbDetail = initialData?.detalles?.find((d: any) => {
+              return d.id === item.id || d.descripcion.replace(/__METADATA__.*$/, '').startsWith(item.shortDesc);
+            });
+            if (dbDetail) {
+              let dbMeta: any = {};
+              const rawDesc = dbDetail.descripcion || '';
+              const metaIdx = rawDesc.indexOf('__METADATA__');
+              if (metaIdx !== -1) {
+                try {
+                  dbMeta = JSON.parse(rawDesc.substring(metaIdx + 12));
+                } catch(e){}
+              }
+              const recoveredImg = dbMeta.imageUrl || dbDetail.producto?.imagenWeb || dbDetail.activo?.imagenUrl || undefined;
+              const recoveredSerie = dbMeta.serie || dbDetail.activo?.serie || undefined;
+              const recoveredBrand = dbMeta.marcaModelo || undefined;
+              
+              return {
+                ...item,
+                imageUrl: item.imageUrl || recoveredImg,
+                serie: item.serie || recoveredSerie,
+                marcaModelo: item.marcaModelo || recoveredBrand
+              };
+            }
+            return item;
+          });
+          setLineItems(mergedLineItems);
+        }
         if (parsed.notes) setNotes(parsed.notes);
         if (parsed.paymentTerms) setPaymentTerms(parsed.paymentTerms);
         if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
@@ -2342,8 +2376,46 @@ export default function DocumentBuilderClient({
     }
 
     setIsDownloadingPDF(true);
-    const labelMessage = 'Generando PDF Vectorial (Máxima Calidad)...';
-    const toastId = toast.loading(labelMessage);
+    
+    const customToast = (message: string, isFallback: boolean = false) => {
+      return toast.custom((t) => (
+        <div className={`${t.visible ? 'animate-enter' : 'animate-leave'} max-w-sm w-full bg-white shadow-2xl rounded-lg pointer-events-none flex flex-col p-4 border border-slate-100`}>
+          <style>{`
+            @keyframes toastShimmer {
+              0% { transform: translateX(-100%); }
+              100% { transform: translateX(200%); }
+            }
+          `}</style>
+          <div className="flex items-center space-x-3">
+            <div className="w-5 h-5 flex items-center justify-center">
+              <svg className="animate-spin h-5 w-5 text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-slate-900">{message}</p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {isFallback 
+                  ? 'Compilando captura del documento localmente.' 
+                  : 'Procesando imágenes y formateando el documento vectorial.'}
+              </p>
+            </div>
+          </div>
+          <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden mt-3 relative">
+            <div 
+              className="absolute top-0 bottom-0 left-0 right-0 bg-brand-500 rounded-full" 
+              style={{
+                width: '40%',
+                animation: 'toastShimmer 1.5s infinite linear',
+              }}
+            />
+          </div>
+        </div>
+      ), { duration: Infinity });
+    };
+
+    let toastId = customToast('Generando PDF Vectorial (Máxima Calidad)...');
 
     try {
       // Petición al API de generación PDF Serverless con query param type
@@ -2373,22 +2445,26 @@ export default function DocumentBuilderClient({
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
 
-      toast.success('PDF generado y descargado exitosamente', { id: toastId });
+      toast.dismiss(toastId);
+      toast.success('PDF generado y descargado exitosamente');
       setIsDownloadingPDF(false);
       return;
     } catch (apiError) {
       if (pdfType !== 'factura') {
-        toast.error('Error al generar este PDF especial en el servidor.', { id: toastId });
+        toast.dismiss(toastId);
+        toast.error('Error al generar este PDF especial en el servidor.');
         setIsDownloadingPDF(false);
         return;
       }
       console.warn('API Vector Serverless failed/timeout. Falling back to html2canvas local render.', apiError);
-      toast.loading('Generación de respaldo activada...', { id: toastId });
+      toast.dismiss(toastId);
+      toastId = customToast('Generando PDF de Respaldo...', true);
       
       // FALLBACK LOCAL IMAGE-BASED PDF
       const container = templateContainerRef.current;
       if (!container) {
-        toast.error('Error crítico al generar respaldo', { id: toastId });
+        toast.dismiss(toastId);
+        toast.error('Error crítico al generar respaldo');
         setIsDownloadingPDF(false);
         return;
       }
@@ -2518,10 +2594,12 @@ export default function DocumentBuilderClient({
                           'Factura';
         const fileName = `${typeLabel}-${docNumber || 'documento'}(respaldo).pdf`;
         pdf.save(fileName);
-        toast.success('PDF de Respaldo generado correctamente', { id: toastId });
+        toast.dismiss(toastId);
+        toast.success('PDF de Respaldo generado correctamente');
       } catch (fallbackError) {
         console.error('Fallback error:', fallbackError);
-        toast.error('Mecanismos de PDF agotados. Imprime manualmente.', { id: toastId });
+        toast.dismiss(toastId);
+        toast.error('Mecanismos de PDF agotados. Imprime manualmente.');
       } finally {
         setIsForcePrinting(false);
         setIsDownloadingPDF(false);
@@ -2580,7 +2658,17 @@ export default function DocumentBuilderClient({
           
           let isSection = false;
           let sectionStyle;
+          let metadata: any = {};
           let rawDesc = d.descripcion || '';
+          
+          const metaIdx = rawDesc.indexOf('__METADATA__');
+          if (metaIdx !== -1) {
+              try {
+                  metadata = JSON.parse(rawDesc.substring(metaIdx + 12));
+              } catch(e){}
+              rawDesc = rawDesc.substring(0, metaIdx);
+          }
+          
           if (rawDesc.startsWith('__SECTION__')) {
               isSection = true;
               rawDesc = rawDesc.substring(11);
@@ -2642,9 +2730,9 @@ export default function DocumentBuilderClient({
             discountType,
             productoId: d.productoId || undefined,
             activoId: d.activoId || undefined,
-            imageUrl: d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || d.activo?.imagenUrl || resolveServiceImageUrl(shortDesc) || undefined,
-            serie: parsedSerie,
-            marcaModelo
+            imageUrl: metadata.imageUrl || d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || d.activo?.imagenUrl || resolveServiceImageUrl(shortDesc) || undefined,
+            serie: metadata.serie || parsedSerie,
+            marcaModelo: metadata.marcaModelo || marcaModelo
           };
         });
         setLineItems(loadedItems);

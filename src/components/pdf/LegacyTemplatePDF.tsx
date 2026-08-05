@@ -21,7 +21,8 @@ const styles = StyleSheet.create({
     flexDirection: 'column',
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 36,
-    paddingVertical: 18,
+    paddingTop: 24,
+    paddingBottom: 70, // Reserve space for the fixed pageFooter to prevent overlap
     fontFamily: 'Inter',
   },
   companyInfo: {
@@ -120,6 +121,7 @@ const styles = StyleSheet.create({
   descText: {
     fontWeight: 700,
     marginBottom: 2,
+    lineHeight: 1.25,
   },
   longDescText: {
     fontSize: 8,
@@ -514,8 +516,6 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
         <View style={[
           styles.table, 
           { 
-            borderWidth: showTableOuterBorders ? tableBorderThickness : 0, 
-            borderColor: tableBorderColor,
             borderRadius: tableRoundedBorders ? 8 : 0,
             overflow: 'hidden'
           }
@@ -525,8 +525,14 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             flexDirection: 'row',
             backgroundColor: tableHeaderBg,
             alignItems: 'stretch',
+            borderTopWidth: showTableOuterBorders ? tableBorderThickness : 0,
+            borderTopColor: tableBorderColor,
             borderBottomWidth: showTableBorders ? tableBorderThickness : 0,
             borderBottomColor: tableBorderColor,
+            borderLeftWidth: showTableOuterBorders ? tableBorderThickness : 0,
+            borderLeftColor: tableBorderColor,
+            borderRightWidth: showTableOuterBorders ? tableBorderThickness : 0,
+            borderRightColor: tableBorderColor,
           }}>
             <Text style={[styles.tableColHeader, styles.colCode, { paddingVertical: 4, fontSize: headerFontSizePdf }, showTableVerticalBorders ? { borderRightWidth: tableBorderThickness, borderRightColor: tableBorderColor } : {}]}>
               {headerTextCol1}
@@ -544,8 +550,8 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             const hasImage = settings?.showProductImages && item.imageUrl && images[item.id];
             
             if (item.isSection) {
-              const bg = item.sectionStyle?.bg || settings?.sectionBgColor || '#f8fafc';
-              const color = item.sectionStyle?.color || settings?.sectionTextColor || '#0f172a';
+              const bg = item.sectionStyle?.bg || settings?.sectionBgColor || '#f1f5f9';
+              const color = item.sectionStyle?.color || settings?.sectionTextColor || '#1e293b';
               const align = item.sectionStyle?.align || 'left';
               const isBold = item.sectionStyle?.bold !== false;
 
@@ -557,8 +563,14 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                   paddingVertical: 6,
                   paddingHorizontal: 8,
                   backgroundColor: bg,
-                  borderBottomWidth: (showTableBorders && i < lineItems.length - 1) ? tableBorderThickness : 0,
+                  borderLeftWidth: showTableOuterBorders ? tableBorderThickness : 0,
+                  borderLeftColor: tableBorderColor,
+                  borderRightWidth: showTableOuterBorders ? tableBorderThickness : 0,
+                  borderRightColor: tableBorderColor,
+                  borderBottomWidth: showTableBorders ? tableBorderThickness : 0,
                   borderBottomColor: tableBorderColor,
+                  borderTopWidth: 0,
+                  borderTopColor: tableBorderColor,
                   justifyContent: align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start'
                 }} wrap={false}>
                   <Text style={{ 
@@ -573,13 +585,21 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             }
 
             return (
-              <View key={i} wrap={false} style={{ flexDirection: 'column' }}>
+              <View key={i} wrap={false} style={{
+                flexDirection: 'column',
+                borderLeftWidth: showTableOuterBorders ? tableBorderThickness : 0,
+                borderLeftColor: tableBorderColor,
+                borderRightWidth: showTableOuterBorders ? tableBorderThickness : 0,
+                borderRightColor: tableBorderColor,
+                borderBottomWidth: showTableBorders ? tableBorderThickness : 0,
+                borderBottomColor: tableBorderColor,
+                borderTopWidth: 0,
+                borderTopColor: tableBorderColor,
+              }}>
                 <View style={{
                   flexDirection: 'row',
                   alignItems: 'stretch',
                   minHeight: 24,
-                  borderBottomWidth: (!item.showLongDesc && showTableBorders && i < lineItems.length - 1) ? tableBorderThickness : 0,
-                  borderBottomColor: tableBorderColor,
                 }}>
                   {/* First Column (Code / Image) */}
                   <View style={[
@@ -627,6 +647,13 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                     )}
                     <View style={{ flex: 1, justifyContent: 'center' }}>
                       <Text style={[styles.tableColLeft, styles.descText, { fontSize: descFontSizePdf }]}>{item.shortDesc || '-'}</Text>
+                      {(item.marcaModelo || item.serie) && (
+                        <Text style={[styles.tableColLeft, { fontSize: 7, color: '#4b5563', marginTop: 1, fontFamily: 'Helvetica' }]}>
+                          {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
+                          {item.marcaModelo && item.serie ? ' | ' : ''}
+                          {item.serie ? `Serie: ${item.serie}` : ''}
+                        </Text>
+                      )}
                     </View>
                   </View>
 
@@ -698,8 +725,6 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
                     borderTopWidth: tableBorderThickness,
                     borderTopColor: tableBorderColor,
                     borderStyle: settings?.descriptionBorderDashed !== false ? 'dashed' : 'solid',
-                    borderBottomWidth: (showTableBorders && i < lineItems.length - 1) ? tableBorderThickness : 0,
-                    borderBottomColor: tableBorderColor,
                   }}>
                     <Text style={styles.longDescText}>{item.longDesc}</Text>
                   </View>

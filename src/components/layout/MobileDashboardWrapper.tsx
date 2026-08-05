@@ -51,7 +51,7 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
     if (isFullscreen) {
         return (
             <LayoutContext.Provider value={{ isFullscreen, setIsFullscreen }}>
-                <div className="flex h-screen overflow-hidden print:min-h-0 print:block bg-[#F0F4FF] w-full">
+                <div className="flex h-screen overflow-hidden print:h-auto print:min-h-0 print:overflow-visible print:block bg-[#F0F4FF] w-full">
                     <main className="flex-1 w-full relative">
                         {children}
                     </main>
@@ -62,7 +62,7 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
 
     return (
         <LayoutContext.Provider value={{ isFullscreen, setIsFullscreen }}>
-            <div className="flex h-screen overflow-hidden print:min-h-0 print:block bg-[#f8fafc]">
+            <div className="flex h-screen overflow-hidden print:h-auto print:min-h-0 print:overflow-visible print:block bg-[#f8fafc]">
                 {/* Mobile overlay */}
                 {mobileSidebarOpen && (
                     <div
@@ -86,7 +86,7 @@ export function MobileDashboardWrapper({ children, dbUser }: MobileDashboardWrap
                 </div>
 
                 {/* Main content */}
-                <div className="flex-1 flex flex-col min-w-0 w-full transition-all duration-300 print-expand print:block">
+                <div className="flex-1 flex flex-col min-w-0 w-full transition-all duration-300 print-expand print:h-auto print:overflow-visible print:block">
                     <div className="hide-on-print">
                         <Header dbUser={dbUser} onMenuClick={handleMenuClick} />
                     </div>

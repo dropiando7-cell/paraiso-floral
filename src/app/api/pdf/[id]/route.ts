@@ -399,28 +399,45 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
     // 2. Prepare Data Model for the PDF Component
     const lineItems = await Promise.all(doc.detalles.map(async (d: any) => {
-      let shortDesc = d.descripcion || '';
+      let isSection = false;
+      let sectionStyle;
+      let metadata: any = {};
+      let rawDesc = d.descripcion || '';
+      
+      const metaIdx = rawDesc.indexOf('__METADATA__');
+      if (metaIdx !== -1) {
+        try {
+          metadata = JSON.parse(rawDesc.substring(metaIdx + 12));
+        } catch (e) {
+          console.error('Error parsing metadata in route:', e);
+        }
+        rawDesc = rawDesc.substring(0, metaIdx);
+      }
+
+      if (rawDesc.startsWith('__SECTION__')) {
+        isSection = true;
+        rawDesc = rawDesc.substring(11);
+        const styleIdx = rawDesc.indexOf('__STYLE__');
+        if (styleIdx !== -1) {
+          try {
+            sectionStyle = JSON.parse(rawDesc.substring(styleIdx + 9));
+          } catch (e) {
+            console.error('Error parsing section style in route:', e);
+          }
+          rawDesc = rawDesc.substring(0, styleIdx);
+        }
+      }
+
+      let shortDesc = rawDesc;
       let longDesc = '';
-      if (d.descripcion && d.descripcion.includes('\n')) {
-        const parts = d.descripcion.split('\n');
+      if (rawDesc.includes('\n')) {
+        const parts = rawDesc.split('\n');
         shortDesc = parts[0];
         longDesc = parts.slice(1).join('\n');
       }
       
       shortDesc = cleanEmojis(shortDesc);
       longDesc = cleanEmojis(longDesc);
-      
-      let isSection = false;
-      let sectionStyle;
-      if (shortDesc.startsWith('__SECTION__')) {
-        isSection = true;
-        shortDesc = shortDesc.substring(11);
-        const styleIdx = shortDesc.indexOf('__STYLE__');
-        if (styleIdx !== -1) {
-            try { sectionStyle = JSON.parse(shortDesc.substring(styleIdx + 9)); } catch(e){}
-            shortDesc = shortDesc.substring(0, styleIdx);
-        }
-      }
 
       const parsedBrand = extractBrandAndModelFromDesc(d.descripcion || '').marca;
       const parsedModel = extractBrandAndModelFromDesc(d.descripcion || '').modelo;
@@ -474,13 +491,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         discountType: 'amount',
         isSection: isSection,
         sectionStyle: sectionStyle,
-        imageUrl: d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || resolvedActivo?.imagenUrl || resolveServiceImageUrl(shortDesc) || null,
+        imageUrl: metadata.imageUrl || d.producto?.imagenWeb || (d.producto?.imagenes && d.producto?.imagenes[0]) || resolvedActivo?.imagenUrl || resolveServiceImageUrl(shortDesc) || null,
         garantia: resolvedActivo?.garantia || extractWarrantyFromDesc(d.descripcion || '') || null,
         mantenimientosIncluidos: resolvedActivo?.mantenimientosIncluidos || null,
         frecuenciaMantenimientoMeses: resolvedActivo?.frecuenciaMantenimientoMeses || null,
-        serie: resolvedActivo?.serie || null,
+        serie: metadata.serie || resolvedActivo?.serie || null,
         marca: resolvedActivo?.marca || resolvedActivo?.producto?.marca || d.producto?.marca || parsedBrand || null,
-        modelo: resolvedActivo?.modelo || resolvedActivo?.producto?.modelo || d.producto?.modelo || parsedModel || null
+        modelo: resolvedActivo?.modelo || resolvedActivo?.producto?.modelo || d.producto?.modelo || parsedModel || null,
+        marcaModelo: metadata.marcaModelo || (resolvedActivo?.marca && resolvedActivo?.modelo ? `${resolvedActivo.marca} ${resolvedActivo.modelo}` : resolvedActivo?.marca || resolvedActivo?.modelo || (parsedBrand && parsedModel ? `${parsedBrand} ${parsedModel}` : parsedBrand || parsedModel || null))
       };
     }));
     
@@ -606,38 +624,109 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const images: Record<string, string> = {};
     
     // Helper to fetch and convert to base64
-    const fetchImageAsBase64 = async (url: string) => {
+    const fetchImageAsBase64 = async (url: string, resizeOptions?: { width?: number, height?: number, quality?: number } | null) => {
       try {
         if (!url || url.startsWith('data:')) return url;
         
-        let fetchUrl = url;
+        // If it's a local file path, read it directly from the public folder
         if (url.startsWith('/')) {
-          const baseUrl = process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}` 
-            : process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-          fetchUrl = `${baseUrl}${url}`;
+          const localPath = path.join(process.cwd(), 'public', url);
+          if (fs.existsSync(localPath)) {
+            let buffer = fs.readFileSync(localPath);
+            let contentType = 'image/jpeg';
+            if (url.toLowerCase().endsWith('.png')) contentType = 'image/png';
+            if (url.toLowerCase().endsWith('.svg')) contentType = 'image/svg+xml';
+            if (url.toLowerCase().endsWith('.gif')) contentType = 'image/gif';
+            
+            if (resizeOptions && !url.toLowerCase().endsWith('.svg')) {
+              try {
+                const sharp = (await import('sharp')).default;
+                let sharpInstance = sharp(buffer);
+                if (resizeOptions.width || resizeOptions.height) {
+                  sharpInstance = sharpInstance.resize({
+                    width: resizeOptions.width,
+                    height: resizeOptions.height,
+                    fit: 'inside',
+                    withoutEnlargement: true
+                  });
+                }
+                buffer = await sharpInstance.jpeg({ quality: resizeOptions.quality || 70 }).toBuffer();
+                contentType = 'image/jpeg';
+              } catch (e) {
+                console.warn(`Failed to compress local ${url}:`, e);
+              }
+            } else if (url.toLowerCase().endsWith('.webp') || url.toLowerCase().endsWith('.svg')) {
+              try {
+                const sharp = (await import('sharp')).default;
+                buffer = await sharp(buffer).png().toBuffer();
+                contentType = 'image/png';
+              } catch (e) {
+                console.warn(`Failed to convert local ${url} to png:`, e);
+                if (url.toLowerCase().endsWith('.webp')) contentType = 'image/webp';
+              }
+            }
+            return `data:${contentType};base64,${buffer.toString('base64')}`;
+          }
         }
 
+        let fetchUrl = url;
         const res = await fetch(fetchUrl);
         if (!res.ok) return null;
         const arrayBuffer = await res.arrayBuffer();
         let buffer: any = Buffer.from(arrayBuffer);
         let contentType = res.headers.get('content-type') || 'image/jpeg';
         
-        // react-pdf/renderer does not support WebP, convert to PNG using sharp
-        if (contentType.includes('webp') || url.toLowerCase().endsWith('.webp')) {
+        if (!contentType.includes('svg')) {
+          try {
+            const sharp = (await import('sharp')).default;
+            let sharpInstance = sharp(buffer);
+            if (resizeOptions && (resizeOptions.width || resizeOptions.height)) {
+              sharpInstance = sharpInstance.resize({
+                width: resizeOptions.width,
+                height: resizeOptions.height,
+                fit: 'inside',
+                withoutEnlargement: true
+              });
+              buffer = await sharpInstance.jpeg({ quality: resizeOptions.quality || 70 }).toBuffer();
+              contentType = 'image/jpeg';
+            } else if (resizeOptions !== null) {
+              // Default thumbnail compression for remote images (unless explicitly requested null)
+              sharpInstance = sharpInstance.resize({
+                width: 200,
+                height: 200,
+                fit: 'inside',
+                withoutEnlargement: true
+              });
+              buffer = await sharpInstance.jpeg({ quality: 70 }).toBuffer();
+              contentType = 'image/jpeg';
+            } else {
+              // Handle webp to png fallback if no resize but webp
+              if (contentType.includes('webp') || url.toLowerCase().endsWith('.webp')) {
+                buffer = await sharpInstance.png().toBuffer();
+                contentType = 'image/png';
+              }
+            }
+          } catch (e) {
+            console.warn('Failed to resize remote image with sharp:', e);
+            if (contentType.includes('webp') || url.toLowerCase().endsWith('.webp')) {
+              try {
+                const sharp = (await import('sharp')).default;
+                buffer = await sharp(buffer).png().toBuffer();
+                contentType = 'image/png';
+              } catch (e2) {}
+            }
+          }
+        } else {
           try {
             const sharp = (await import('sharp')).default;
             buffer = await sharp(buffer).png().toBuffer();
             contentType = 'image/png';
-          } catch (e) {
-            console.warn('Failed to convert webp to png with sharp:', e);
-          }
+          } catch (e) {}
         }
 
         return `data:${contentType};base64,${buffer.toString('base64')}`;
       } catch (err) {
-        console.warn('Failed to fetch image:', url);
+        console.warn('Failed to fetch image:', url, err);
         return null;
       }
     };
@@ -667,7 +756,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     // Fetch Product Images
     for (const item of lineItems as any[]) {
       if (item.imageUrl) {
-        const itemImageBase64 = await fetchImageAsBase64(item.imageUrl);
+        const itemImageBase64 = await fetchImageAsBase64(item.imageUrl, { width: 180, height: 180, quality: 60 });
         if (itemImageBase64) images[item.id] = itemImageBase64;
       }
     }
@@ -688,7 +777,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     if (doc.ordenEntrega && type === 'entrega' && Array.isArray(doc.ordenEntrega.evidenciaFotos)) {
       for (let i = 0; i < doc.ordenEntrega.evidenciaFotos.length; i++) {
         const fotoUrl = doc.ordenEntrega.evidenciaFotos[i];
-        const base64 = await fetchImageAsBase64(fotoUrl);
+        const base64 = await fetchImageAsBase64(fotoUrl, { width: 400, height: 400, quality: 60 });
         if (base64) {
           images[`evidencia_${i}`] = base64;
         }

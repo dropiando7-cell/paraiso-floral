@@ -67,7 +67,7 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
     }
 
     return (
-        <div className="bg-slate-50 min-h-screen print:overflow-visible">
+        <div className="bg-slate-50 min-h-screen print:h-auto print:min-h-0 print:overflow-visible">
             <FacturacionHeader activeTab="ver" isSubPage={true} />
             <DocumentBuilderClient organization={org} initialData={doc} viewMode={true} userRole={userRole} />
         </div>

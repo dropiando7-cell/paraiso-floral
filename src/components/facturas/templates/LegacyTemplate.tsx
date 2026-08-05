@@ -209,25 +209,20 @@ export default function LegacyTemplate(props: TemplateProps) {
 
  {/* Items Table */}
  <div className="mb-8 relative z-50">
- {/* Border Layer */}
- <div 
- className={`absolute inset-0 pointer-events-none z-20 ${settings?.tableRoundedBorders ? 'rounded-xl' : ''}`}
- style={{
- borderWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',
- borderColor: settings?.tableBorderColor || '#1e293b',
- borderStyle: 'solid'
- }}
- />
  {/* Content Layer */}
  <div 
- className={`flex flex-col relative z-10 bg-transparent ${settings?.tableRoundedBorders ? 'rounded-xl' : ''}`}
+ className={`flex flex-col relative z-10 bg-transparent ${settings?.tableRoundedBorders ? 'rounded-xl overflow-hidden' : ''}`}
  >
  <div 
  className={`flex items-stretch gap-2 px-4 print:px-4 ${settings?.tableRoundedBorders ? 'rounded-t-xl' : ''}`}
  style={{ 
  backgroundColor: settings?.tableHeaderBg || '#f3f4f6', // gray-100 default for legacy
+ borderTopWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',
+ borderLeftWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',
+ borderRightWidth: (settings?.showTableOuterBorders !== false) ? (settings.tableBorderThickness || '1px') : '0px',
  borderBottomWidth: settings?.showTableBorders ? (settings.tableBorderThickness || '1px') : '0px',
- borderColor: settings?.tableBorderColor || '#1e293b'
+ borderColor: settings?.tableBorderColor || '#1e293b',
+ borderStyle: 'solid'
  }}
  >
  <div className="w-4 shrink-0 print:hidden" data-pdf-hide />

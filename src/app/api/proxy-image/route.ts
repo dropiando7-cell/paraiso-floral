@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import sharp from 'sharp';
 
 export async function GET(req: Request) {
   const url = new URL(req.url).searchParams.get('url');
@@ -13,18 +14,29 @@ export async function GET(req: Request) {
       return new Response('Failed to fetch image', { status: fetchResponse.status });
     }
 
-    const buffer = await fetchResponse.arrayBuffer();
+    const originalBuffer = await fetchResponse.arrayBuffer();
     
-    return new NextResponse(buffer, {
+    // Resize image to max 200px width/height and compress to jpeg with quality 70
+    const compressedBuffer = await sharp(Buffer.from(originalBuffer))
+      .resize({
+        width: 200,
+        height: 200,
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .jpeg({ quality: 70 })
+      .toBuffer();
+    
+    return new NextResponse(compressedBuffer, {
       status: 200,
       headers: {
-        'Content-Type': fetchResponse.headers.get('Content-Type') || 'image/png',
+        'Content-Type': 'image/jpeg',
         'Access-Control-Allow-Origin': '*',
         'Cache-Control': 'public, max-age=31536000, immutable'
       }
     });
   } catch (error: any) {
     console.error('Proxy Image Error:', error.message);
-    return new Response('Internal Server Error fetching image', { status: 500 });
+    return new Response('Internal Server Error fetching/compressing image', { status: 500 });
   }
 }

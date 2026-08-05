@@ -470,6 +470,14 @@ export async function actualizarDocumentoBuilder(id: string, data: any, lineItem
                             if (item.isSection) {
                                 finalDesc = `__SECTION__${finalDesc}`;
                                 if (item.sectionStyle) finalDesc += `__STYLE__${JSON.stringify(item.sectionStyle)}`;
+                            } else {
+                                const metadata: any = {};
+                                if (item.imageUrl) metadata.imageUrl = item.imageUrl;
+                                if (item.marcaModelo) metadata.marcaModelo = item.marcaModelo;
+                                if (item.serie) metadata.serie = item.serie;
+                                if (Object.keys(metadata).length > 0) {
+                                    finalDesc += `__METADATA__${JSON.stringify(metadata)}`;
+                                }
                             }
                             return {
                                 descripcion: finalDesc,
@@ -663,6 +671,14 @@ export async function guardarDocumentoBuilder(data: any, lineItems: any[]) {
                             if (item.isSection) {
                                 finalDesc = `__SECTION__${finalDesc}`;
                                 if (item.sectionStyle) finalDesc += `__STYLE__${JSON.stringify(item.sectionStyle)}`;
+                            } else {
+                                const metadata: any = {};
+                                if (item.imageUrl) metadata.imageUrl = item.imageUrl;
+                                if (item.marcaModelo) metadata.marcaModelo = item.marcaModelo;
+                                if (item.serie) metadata.serie = item.serie;
+                                if (Object.keys(metadata).length > 0) {
+                                    finalDesc += `__METADATA__${JSON.stringify(metadata)}`;
+                                }
                             }
                             return {
                                 descripcion: finalDesc,
@@ -937,7 +953,112 @@ export async function getDocumentoById(id: string) {
         });
         if (!doc) return null;
 
-        // Serialize details for the UI. Wait, let's just return what is needed. Note that BigInt or Decimals might be an issue, so we convert them.
+        // Recover missing image URLs and metadata for existing lines
+        const detailsWithRecoveredData = await Promise.all(doc.detalles.map(async (d: any) => {
+            const rawDesc = d.descripcion || '';
+            let metadata: any = {};
+            let descToParse = rawDesc;
+            
+            const metaIdx = rawDesc.indexOf('__METADATA__');
+            if (metaIdx !== -1) {
+                try {
+                    metadata = JSON.parse(rawDesc.substring(metaIdx + 12));
+                } catch(e){}
+                descToParse = rawDesc.substring(0, metaIdx);
+            }
+            
+            if (metadata.imageUrl) {
+                return d; // Already has recovered/saved image URL
+            }
+            
+            // Parse brand/model and serial from the text description
+            let brandModel: string | null = null;
+            let parsedSerie: string | null = null;
+            let shortDesc = descToParse;
+            
+            if (descToParse.includes('\n')) {
+                const parts = descToParse.split('\n');
+                shortDesc = parts[0];
+                const remaining = parts.slice(1);
+                const brandLine = remaining.find((l: string) => l.startsWith('Marca/Modelo:'));
+                const serieLine = remaining.find((l: string) => l.startsWith('Serie:'));
+                if (brandLine) brandModel = brandLine.substring(13).trim();
+                if (serieLine) parsedSerie = serieLine.substring(6).trim();
+            }
+            
+            let recoveredImageUrl: string | null = null;
+            let recoveredSerie: string | null = null;
+            let recoveredBrandModel: string | null = null;
+            
+            if (parsedSerie) {
+                // Try matching by serial in work orders
+                const ot = await prisma.ordenTrabajo.findFirst({
+                    where: { 
+                        organizationId,
+                        serie: parsedSerie 
+                    },
+                    include: { activo: true }
+                });
+                if (ot) {
+                    recoveredImageUrl = ot.fotosTecnico?.[0] || ot.fotosEstadoInicial?.[0] || ot.activo?.imagenUrl || null;
+                    recoveredSerie = ot.serie || null;
+                    recoveredBrandModel = ot.marcaModelo || null;
+                }
+                
+                // Try matching by serial in assets
+                if (!recoveredImageUrl) {
+                    const activo = await prisma.activoFijo.findFirst({
+                        where: {
+                            organizationId,
+                            serie: parsedSerie
+                        }
+                    });
+                    if (activo) {
+                        recoveredImageUrl = activo.imagenUrl || null;
+                        recoveredSerie = activo.serie || null;
+                        recoveredBrandModel = (activo.marca && activo.modelo) ? `${activo.marca} ${activo.modelo}` : activo.marca || activo.modelo || null;
+                    }
+                }
+            }
+            
+            if (!recoveredImageUrl) {
+                // Try matching by equipoDano
+                let cleanEquipoDano = shortDesc;
+                if (shortDesc.startsWith('Servicio de Mantenimiento - ')) {
+                    cleanEquipoDano = shortDesc.substring(28).trim();
+                }
+                
+                if (cleanEquipoDano && cleanEquipoDano !== 'Servicio de Mantenimiento -') {
+                    const ot = await prisma.ordenTrabajo.findFirst({
+                        where: {
+                            organizationId,
+                            equipoDano: cleanEquipoDano
+                        },
+                        include: { activo: true }
+                    });
+                    if (ot) {
+                        recoveredImageUrl = ot.fotosTecnico?.[0] || ot.fotosEstadoInicial?.[0] || ot.activo?.imagenUrl || null;
+                        recoveredSerie = ot.serie || null;
+                        recoveredBrandModel = ot.marcaModelo || null;
+                    }
+                }
+            }
+            
+            if (recoveredImageUrl || recoveredSerie || recoveredBrandModel) {
+                const updatedMetadata = { ...metadata };
+                if (recoveredImageUrl) updatedMetadata.imageUrl = recoveredImageUrl;
+                if (recoveredSerie) updatedMetadata.serie = recoveredSerie;
+                if (recoveredBrandModel) updatedMetadata.marcaModelo = recoveredBrandModel;
+                
+                const cleanDesc = rawDesc.replace(/__METADATA__.*$/, '');
+                d.descripcion = `${cleanDesc}__METADATA__${JSON.stringify(updatedMetadata)}`;
+            }
+            
+            return d;
+        }));
+        
+        doc.detalles = detailsWithRecoveredData;
+
         const safeDoc = JSON.parse(JSON.stringify(doc));
         return safeDoc;
     } catch (e) {
