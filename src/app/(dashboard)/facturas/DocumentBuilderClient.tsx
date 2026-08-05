@@ -590,7 +590,7 @@ function LineItemRow({
     if ((product as any).isOrdenTrabajo) {
       setShowAutocomplete(false);
       window.dispatchEvent(new CustomEvent('extract-work-order-event', {
-        detail: { code: product.code, id: product.id }
+        detail: { code: product.code, id: product.id, lineId: item.id }
       }));
       return;
     }
@@ -1562,7 +1562,7 @@ export default function DocumentBuilderClient({
     return () => clearTimeout(delayDebounce);
   }, [showWorkOrderModal, workOrderSearch]);
 
-  const handleSelectWorkOrder = (ot: any) => {
+  const handleSelectWorkOrder = (ot: any, lineId?: string) => {
     if (!ot) return;
     
     // 1. Set the client
@@ -1654,7 +1654,27 @@ export default function DocumentBuilderClient({
 
     // Combine all new lines
     const allNewLines = [serviceLine, ...repuestosLines, ...manoObraLines, ...revisionCreditLines];
-    setLineItems(allNewLines);
+    
+    setLineItems(prev => {
+      const indexToReplace = lineId ? prev.findIndex(item => item.id === lineId) : -1;
+      
+      if (indexToReplace !== -1) {
+        const updated = [...prev];
+        updated.splice(indexToReplace, 1, ...allNewLines);
+        return updated;
+      }
+      
+      const isOnlyOneEmptyLine = prev.length === 1 && 
+        !prev[0].code && 
+        !prev[0].shortDesc && 
+        (Number(prev[0].unitPrice) === 0 || prev[0].unitPrice === '');
+        
+      if (isOnlyOneEmptyLine) {
+        return allNewLines;
+      } else {
+        return [...prev, ...allNewLines];
+      }
+    });
     
     // Close modal
     setShowWorkOrderModal(false);
@@ -2044,13 +2064,13 @@ export default function DocumentBuilderClient({
   // Listener for extracting work order from row dropdown/autocompletion selection
   useEffect(() => {
     const handleExtract = async (e: any) => {
-      const { code, id } = e.detail;
+      const { code, id, lineId } = e.detail;
       const toastId = toast.loading('Cargando datos completos de la orden de trabajo...');
       try {
         const ots = await searchOrdenesTrabajoParaFacturar(code);
         const fullOt = ots.find(o => o.id === id);
         if (fullOt) {
-          handleSelectWorkOrder(fullOt);
+          handleSelectWorkOrder(fullOt, lineId);
           toast.success('Orden de trabajo extraída con éxito', { id: toastId });
         } else {
           toast.error('No se pudo encontrar la orden seleccionada', { id: toastId });
