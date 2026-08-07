@@ -30,12 +30,27 @@ interface VerificationClientViewLightProps {
     activo?: any;
     singleOrden?: any;
     ordenesList?: any[];
-    pdfDownloadUrl: string;
+    pdfDownloadUrl?: string;
   };
 }
 
 export default function VerificationClientViewLight({ data }: VerificationClientViewLightProps) {
   const { activo, singleOrden, ordenesList, pdfDownloadUrl } = data;
+
+  // Helper to safely render text or HTML content without leaking HTML tags
+  const renderFormattedContent = (content: string) => {
+    if (!content) return null;
+    const hasHtml = /<[a-z][\s\S]*>/i.test(content);
+    if (hasHtml) {
+      return (
+        <div 
+          className="prose prose-xs max-w-none text-xs text-inherit [&_p]:my-0.5 [&_strong]:font-bold [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4"
+          dangerouslySetInnerHTML={{ __html: content }} 
+        />
+      );
+    }
+    return <div className="whitespace-pre-line">{content}</div>;
+  };
 
   // Determine main asset info
   const ordenes: any[] = (ordenesList && ordenesList.length > 0) 
@@ -325,7 +340,7 @@ export default function VerificationClientViewLight({ data }: VerificationClient
                           Falla Reportada / Trabajo Solicitado
                         </h4>
                         <div className="bg-amber-50/70 p-3.5 rounded-xl border border-amber-200/70 text-xs text-amber-950 font-medium leading-relaxed">
-                          {ord.descripcionFalla || ord.equipoDano}
+                          {renderFormattedContent(ord.descripcionFalla || ord.equipoDano)}
                         </div>
                       </div>
                     )}
@@ -337,8 +352,8 @@ export default function VerificationClientViewLight({ data }: VerificationClient
                           <Wrench className="w-3.5 h-3.5 text-blue-600" />
                           Diagnóstico Técnico & Intervención Realizada
                         </h4>
-                        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-800 whitespace-pre-line leading-relaxed font-sans">
-                          {ord.diagnosticoTecnico}
+                        <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-xs text-slate-800 leading-relaxed font-sans">
+                          {renderFormattedContent(ord.diagnosticoTecnico)}
                         </div>
                       </div>
                     )}
