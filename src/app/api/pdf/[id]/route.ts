@@ -343,8 +343,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         console.error('Error loading logo for PDF:', err);
       }
 
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://sistema.bioelectronica.hn';
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${appUrl}/ficha-tecnica/${activo.idQr}`)}`;
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bioelectronicahn.com';
+      const targetIdentifier = activo.idQr || activo.id || id;
+      const targetUrl = `${appUrl.startsWith('http') ? appUrl : `https://${appUrl}`}/trazabilidad/${targetIdentifier}`;
+      const qrCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${encodeURIComponent(targetUrl)}&scale=6&eclevel=M&includetext=false`;
 
       const hideSignatures = url.searchParams.get('mostrarFirmas') === 'false';
 

@@ -24,6 +24,8 @@ export async function middleware(request: NextRequest) {
         (url.pathname === '/' && !((isSystemDomain || isLocalhost) && user)) ||
         url.pathname.startsWith('/landing') ||
         url.pathname.startsWith('/productos') ||
+        url.pathname.startsWith('/v/') ||
+        url.pathname.startsWith('/trazabilidad') ||
         url.pathname === '/servicios' ||
         url.pathname === '/contacto' ||
         url.pathname === '/nosotros' ||
@@ -68,7 +70,9 @@ export async function middleware(request: NextRequest) {
     if (isPublicPath) {
         // Rewrite public paths to /landing internally (Next.js structure)
         const isBio = url.pathname === '/bio' || url.pathname.startsWith('/bio/');
-        const rewritePath = isBio 
+        const isV = url.pathname.startsWith('/v/');
+        const isTrazabilidad = url.pathname.startsWith('/trazabilidad');
+        const rewritePath = (isBio || isV || isTrazabilidad) 
             ? url.pathname 
             : (url.pathname === '/' ? '/landing' : (url.pathname.startsWith('/landing') ? url.pathname : `/landing${url.pathname}`));
         if (url.pathname !== rewritePath) {
@@ -91,6 +95,8 @@ export async function middleware(request: NextRequest) {
         url.pathname.startsWith('/api/pdf') ||
         url.pathname.startsWith('/print') ||
         url.pathname.startsWith('/c/') ||
+        url.pathname.startsWith('/v/') ||
+        url.pathname.startsWith('/trazabilidad') ||
         url.pathname.startsWith('/aprobar-presupuesto') ||
         url.pathname.startsWith('/api/soporte/firmar-presupuesto') ||
         url.pathname.startsWith('/api/facturas/firmar-entrega') ||

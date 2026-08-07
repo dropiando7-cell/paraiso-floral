@@ -37,7 +37,8 @@ import {
     RotateCcw,
     PenTool,
     Sparkles,
-    Share2
+    Share2,
+    ExternalLink
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
@@ -1365,12 +1366,23 @@ export default function TaskDetailModal({
                     <div className="space-y-6">
                         
                         {/* Cabecera: Código de la tarea y Botón de Cerrar */}
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-xs font-bold font-mono text-brand-600 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-200">
                                     {task.codigo}
                                 </span>
                                 
+                                <a
+                                    href={`/trazabilidad/${task.ordenTrabajoId || task.id}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-md transition shadow-sm cursor-pointer"
+                                    title="Abrir vista pública de trazabilidad del cliente"
+                                >
+                                    <ExternalLink className="h-3.5 w-3.5 text-blue-600" />
+                                    <span>Ver Trazabilidad</span>
+                                </a>
+
                                 {task.ordenTrabajoId && (
                                     <>
                                         <button

@@ -235,8 +235,8 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   footerQr: {
-    width: 32,
-    height: 32,
+    width: 38,
+    height: 38,
   },
   footerQrText: {
     fontSize: 6.5,
