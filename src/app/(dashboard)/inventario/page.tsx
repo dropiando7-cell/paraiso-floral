@@ -29,43 +29,45 @@ export default async function InventarioPage() {
 
     const orgId = dbUser.organizationId;
 
-    // Fetch initial data on the server for instant UI rendering!
-    const initialData = await getActivos(1, '', '', '');
-    const initialStats = await getActivoStats();
-    const dbAreas = await prisma.area.findMany({
-        where: { organizationId: orgId },
-        orderBy: { name: 'asc' },
-    });
+    // Fetch all initial data in parallel using Promise.all for fast load times!
+    const [initialData, initialStats, dbAreas, settings, clientes] = await Promise.all([
+        getActivos(1, '', '', ''),
+        getActivoStats(),
+        prisma.area.findMany({
+            where: { organizationId: orgId },
+            orderBy: { name: 'asc' },
+        }),
+        prisma.systemSetting.findMany({
+            where: {
+                key: {
+                    in: [
+                        'inventory_origins',
+                        'default_inventory_origin',
+                        'inventory_conditions',
+                        'default_inventory_condition',
+                        'disable_ai_vision'
+                    ]
+                }
+            }
+        }),
+        prisma.cliente.findMany({
+            where: { organizationId: orgId },
+            orderBy: { nombre: 'asc' },
+        })
+    ]);
 
-    // Fetch system settings for origins
-    const originsSetting = await prisma.systemSetting.findUnique({
-        where: { key: 'inventory_origins' }
-    });
-    const defaultSetting = await prisma.systemSetting.findUnique({
-        where: { key: 'default_inventory_origin' }
-    });
-    const customOrigins = originsSetting ? JSON.parse(originsSetting.value) : ["Americano", "Chino", "Otro"];
-    const defaultOrigin = defaultSetting ? defaultSetting.value : "";
+    const settingsMap = new Map(settings.map(s => [s.key, s.value]));
 
-    // Fetch system settings for conditions
-    const conditionsSetting = await prisma.systemSetting.findUnique({
-        where: { key: 'inventory_conditions' }
-    });
-    const defaultCondSetting = await prisma.systemSetting.findUnique({
-        where: { key: 'default_inventory_condition' }
-    });
-    const customConditions = conditionsSetting ? JSON.parse(conditionsSetting.value) : ["Nuevo", "Usado", "Remanufacturado"];
-    const defaultCondition = defaultCondSetting ? defaultCondSetting.value : "";
+    const originsSetting = settingsMap.get('inventory_origins');
+    const defaultSetting = settingsMap.get('default_inventory_origin');
+    const conditionsSetting = settingsMap.get('inventory_conditions');
+    const defaultCondSetting = settingsMap.get('default_inventory_condition');
+    const disableAiVision = settingsMap.get('disable_ai_vision') === 'true';
 
-    const disableAiSetting = await prisma.systemSetting.findUnique({
-        where: { key: 'disable_ai_vision' }
-    });
-    const disableAiVision = disableAiSetting ? disableAiSetting.value === 'true' : false;
-
-    const clientes = await prisma.cliente.findMany({
-        where: { organizationId: orgId },
-        orderBy: { nombre: 'asc' },
-    });
+    const customOrigins = originsSetting ? JSON.parse(originsSetting) : ["Americano", "Chino", "Otro"];
+    const defaultOrigin = defaultSetting || "";
+    const customConditions = conditionsSetting ? JSON.parse(conditionsSetting) : ["Nuevo", "Usado", "Remanufacturado"];
+    const defaultCondition = defaultCondSetting || "";
 
     const serializedData = JSON.parse(JSON.stringify(initialData));
     const serializedStats = JSON.parse(JSON.stringify(initialStats));

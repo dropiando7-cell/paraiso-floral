@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition, useCallback } from 'react'
+import { useState, useEffect, useTransition, useCallback, useMemo } from 'react'
 import {
   Tag,
   Search,
@@ -192,10 +192,16 @@ function ModalEditarPrecios({ producto, onClose, onGuardado, onShowImage }: Moda
     }
 
     startTransition(async () => {
+      const subActivoIds = producto.tipo === 'GRUPO_ACTIVO_FIJO' && producto.subActivos
+        ? producto.subActivos.map(s => s.id).filter((id): id is string => Boolean(id))
+        : undefined;
+
       const result = await updatePrecioGrupable({
         id: producto.id,
         tipo: producto.tipo,
         descripcion: producto.descripcion,
+        referencia: producto.referencia,
+        subActivoIds,
         costoBase: costoNum,
         precioVenta: precioNum,
       })
@@ -1157,16 +1163,30 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
     }
   }
 
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      startTransition(async () => {
-        const resultado = await getProductosPricing(busqueda || undefined)
-        setProductos(resultado)
-      })
-    }, 300)
+  const productosFiltrados = useMemo(() => {
+    if (!busqueda.trim()) return productos
+    const q = busqueda.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    return productos.filter((p) => {
+      const desc = (p.descripcion || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      const cod = (p.codigo || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      const ref = (p.referencia || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      const cat = (p.categoria || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
 
-    return () => clearTimeout(timeout)
-  }, [busqueda])
+      if (desc.includes(q) || cod.includes(q) || ref.includes(q) || cat.includes(q)) {
+        return true
+      }
+
+      if (p.subActivos && p.subActivos.length > 0) {
+        return p.subActivos.some(sub => 
+          (sub.idQr && sub.idQr.toLowerCase().includes(q)) ||
+          (sub.serie && sub.serie.toLowerCase().includes(q)) ||
+          (sub.ubicacion && sub.ubicacion.toLowerCase().includes(q))
+        )
+      }
+
+      return false
+    })
+  }, [productos, busqueda])
 
   const handlePrecioActualizado = useCallback(
     (id: string, costo: number, precio: number, newType?: 'PRODUCTO', newSku?: string, newStock?: number) => {
@@ -1244,9 +1264,7 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
       <div className="relative mb-8">
         <Search
           size={18}
-          className={`absolute left-4 top-1/2 -translate-y-1/2 transition-colors ${
-            isPending ? 'text-blue-500' : 'text-slate-400'
-          }`}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
         />
         <input
           type="text"
@@ -1269,7 +1287,7 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
           </div>
         </div>
 
-        {productos.length === 0 ? (
+        {productosFiltrados.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 px-6">
             <div className="w-16 h-16 rounded-[20px] bg-slate-50 flex items-center justify-center mb-4">
               <PackageSearch size={28} className="text-slate-300" />
@@ -1296,7 +1314,7 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
                 </tr>
               </thead>
               <tbody>
-                {productos.map((p) => (
+                {productosFiltrados.map((p) => (
                   <FilaProducto key={p.id} producto={p} onEditar={setProductoEditando} onShowImage={setLightboxImage} />
                 ))}
               </tbody>

@@ -78,16 +78,20 @@ export function Header({ dbUser, onMenuClick }: HeaderProps) {
     };
 
     const fetchNotifications = async () => {
-        const res = await getUserNotifications();
-        if (res.success && res.notifications) {
-            setNotifications(res.notifications);
+        if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
+        try {
+            const res = await getUserNotifications();
+            if (res.success && res.notifications) {
+                setNotifications(res.notifications);
+            }
+        } catch {
+            // Ignore background fetch errors
         }
     };
 
     useEffect(() => {
         fetchNotifications();
-        // Poll for new notifications every 30 seconds
-        const interval = setInterval(fetchNotifications, 30000);
+        const interval = setInterval(fetchNotifications, 60000);
         return () => clearInterval(interval);
     }, []);
 

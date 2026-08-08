@@ -27,13 +27,15 @@ export type ProductoPricing = {
   sinPrecio: boolean;
   tipo: 'PRODUCTO' | 'GRUPO_ACTIVO_FIJO';
   imagenUrl?: string | null;
-  subActivos?: { idQr: string; serie: string | null; ubicacion: string; stock: number; imagenUrl?: string | null }[];
+  subActivos?: { id?: string; idQr: string; serie: string | null; ubicacion: string; stock: number; imagenUrl?: string | null }[];
 };
 
 export type ActualizarPrecioInput = {
   id: string;
   tipo: 'PRODUCTO' | 'GRUPO_ACTIVO_FIJO';
   descripcion?: string;
+  referencia?: string | null;
+  subActivoIds?: string[];
   costoBase: number;
   precioVenta: number;
 };
@@ -111,7 +113,9 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
             ...(query ? {
                 OR: searchTerms.flatMap(term => [
                     { descripcionCorta: { contains: term, mode: 'insensitive' } },
-                    { codigoBarras: { contains: term, mode: 'insensitive' } }
+                    { codigoBarras: { contains: term, mode: 'insensitive' } },
+                    { referencia: { contains: term, mode: 'insensitive' } },
+                    { modelo: { contains: term, mode: 'insensitive' } }
                 ])
             } : {})
         },
@@ -120,6 +124,9 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
             idQr: true,
             descripcionCorta: true,
             referencia: true,
+            codigoBarras: true,
+            modelo: true,
+            marca: true,
             costoAdq: true,
             stock: true,
             area: true,
@@ -134,15 +141,25 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
 
     for (const activo of activosSinProducto) {
         const desc = activo.descripcionCorta || 'Sin Descripción';
-        const activeImg = activo.imagenUrl || activo.imagenWeb || null;
-        const subItem = { idQr: activo.idQr, serie: activo.serie, ubicacion: activo.area || 'Sin asignar', stock: activo.stock || 1, imagenUrl: activeImg };
+        const normDesc = desc.trim().toLowerCase();
+        const normRef = (activo.referencia || '').trim().toLowerCase();
+        const normCode = (activo.codigoBarras || '').trim().toLowerCase();
+        const normModel = (activo.modelo || '').trim().toLowerCase();
+        const normBrand = (activo.marca || '').trim().toLowerCase();
 
-        if (!grupos.has(desc)) {
-            grupos.set(desc, {
+        const refKey = normRef || normCode || normModel || (normBrand ? `marca:${normBrand}` : '');
+        const groupKey = `${normDesc}:::${refKey}`;
+
+        const activeImg = activo.imagenUrl || activo.imagenWeb || null;
+        const subItem = { id: activo.id, idQr: activo.idQr, serie: activo.serie, ubicacion: activo.area || 'Sin asignar', stock: activo.stock || 1, imagenUrl: activeImg };
+        const refDisplay = activo.referencia || activo.codigoBarras || activo.modelo || (activo.marca ? `Marca: ${activo.marca}` : null);
+
+        if (!grupos.has(groupKey)) {
+            grupos.set(groupKey, {
                 id: activo.id,
                 codigo: 'AGRUPADO-' + (activo.idQr.split('-').slice(0, 2).join('-')),
                 descripcion: desc,
-                referencia: activo.referencia,
+                referencia: refDisplay,
                 categoria: activo.categoria?.nombre || 'Activo Fijo',
                 costoBase: activo.costoAdq ? Number(activo.costoAdq) : null,
                 precioVenta: null,
@@ -154,11 +171,14 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
                 subActivos: [subItem]
             });
         } else {
-            const actual = grupos.get(desc)!;
+            const actual = grupos.get(groupKey)!;
             actual.stock += (activo.stock || 1);
             actual.subActivos!.push(subItem);
             if (!actual.imagenUrl && activeImg) {
                 actual.imagenUrl = activeImg;
+            }
+            if (!actual.referencia && refDisplay) {
+                actual.referencia = refDisplay;
             }
         }
     }
@@ -225,12 +245,22 @@ export async function updatePrecioGrupable(input: ActualizarPrecioInput) {
 
             const newSku = 'CAT-' + String(Date.now()).slice(-6);
 
+            const whereCondition: any = {
+                organizationId: orgId,
+                productoId: null
+            };
+
+            if (input.subActivoIds && input.subActivoIds.length > 0) {
+                whereCondition.id = { in: input.subActivoIds };
+            } else {
+                whereCondition.descripcionCorta = input.descripcion;
+                if (input.referencia !== undefined && input.referencia !== null) {
+                    whereCondition.referencia = input.referencia;
+                }
+            }
+
             const agg = await prisma.activoFijo.aggregate({
-                where: {
-                    organizationId: orgId,
-                    descripcionCorta: input.descripcion,
-                    productoId: null
-                },
+                where: whereCondition,
                 _sum: { stock: true }
             });
             const stockTotal = agg._sum.stock || 0;
@@ -248,11 +278,7 @@ export async function updatePrecioGrupable(input: ActualizarPrecioInput) {
             });
 
             await prisma.activoFijo.updateMany({
-                where: {
-                    organizationId: orgId,
-                    descripcionCorta: input.descripcion,
-                    productoId: null
-                },
+                where: whereCondition,
                 data: {
                     productoId: nuevoProd.id
                 }

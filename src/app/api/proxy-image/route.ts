@@ -1,42 +1,39 @@
-import { NextResponse } from 'next/server';
-import sharp from 'sharp';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(req: Request) {
-  const url = new URL(req.url).searchParams.get('url');
-  
-  if (!url) {
-    return new Response('Missing URL', { status: 400 });
-  }
+export const dynamic = 'force-dynamic';
 
-  try {
-    const fetchResponse = await fetch(decodeURIComponent(url));
-    if (!fetchResponse.ok) {
-      return new Response('Failed to fetch image', { status: fetchResponse.status });
+export async function GET(req: NextRequest) {
+    const { searchParams } = new URL(req.url);
+    const imageUrl = searchParams.get('url');
+
+    if (!imageUrl) {
+        return new NextResponse('Falta el parámetro url', { status: 400 });
     }
 
-    const originalBuffer = await fetchResponse.arrayBuffer();
-    
-    // Resize image to max 200px width/height and compress to jpeg with quality 70
-    const compressedBuffer = await sharp(Buffer.from(originalBuffer))
-      .resize({
-        width: 200,
-        height: 200,
-        fit: 'inside',
-        withoutEnlargement: true
-      })
-      .jpeg({ quality: 70 })
-      .toBuffer();
-    
-    return new NextResponse(compressedBuffer, {
-      status: 200,
-      headers: {
-        'Content-Type': 'image/jpeg',
-        'Access-Control-Allow-Origin': '*',
-        'Cache-Control': 'public, max-age=31536000, immutable'
-      }
-    });
-  } catch (error: any) {
-    console.error('Proxy Image Error:', error.message);
-    return new Response('Internal Server Error fetching/compressing image', { status: 500 });
-  }
+    try {
+        const response = await fetch(imageUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+
+        if (!response.ok) {
+            return new NextResponse(`Error al obtener imagen: ${response.status}`, { status: response.status });
+        }
+
+        const blob = await response.blob();
+        const contentType = response.headers.get('content-type') || 'image/jpeg';
+        const buffer = await blob.arrayBuffer();
+
+        return new NextResponse(buffer, {
+            headers: {
+                'Content-Type': contentType,
+                'Cache-Control': 'public, max-age=86400, stale-while-revalidate=604800',
+                'Access-Control-Allow-Origin': '*'
+            }
+        });
+    } catch (error: any) {
+        console.error('Error en proxy-image API:', error);
+        return new NextResponse(error.message || 'Error interno al cargar la imagen', { status: 500 });
+    }
 }

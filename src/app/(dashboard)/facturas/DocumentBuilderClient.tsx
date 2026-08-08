@@ -430,9 +430,7 @@ function LineItemRow({
           />
         );
       }
-      const displayUrl = (item.imageUrl.startsWith('http') && !isServiceIcon)
-        ? `/_next/image?url=${encodeURIComponent(item.imageUrl)}&w=256&q=75`
-        : item.imageUrl;
+      const displayUrl = item.imageUrl;
 
       return (
         <img 
@@ -1899,37 +1897,7 @@ export default function DocumentBuilderClient({
   const draftKey = `bea_factura_draft_v2_${initialData?.id || 'new'}`; // Dynamic draft per doc
   const draftLoadedRef = useRef(false);
 
-  // PRE-CONVERT IMAGES TO BASE64 IN VIEW MODE (PUPPETEER PRINT CONTEXT)
-  useEffect(() => {
-    if (effectiveViewMode && typeof window !== 'undefined') {
-      const convertImagesToBase64 = async () => {
-        const images = document.querySelectorAll('img');
-        const convertPromises = Array.from(images).map(async (img) => {
-          if (!img.src || img.src.startsWith('data:') || img.src.includes('lucide')) return;
-          try {
-            const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(img.src)}`;
-            const res = await fetch(proxyUrl);
-            if (res.ok) {
-              const blob = await res.blob();
-              const reader = new FileReader();
-              reader.onloadend = () => {
-                if (typeof reader.result === 'string') {
-                  img.src = reader.result;
-                }
-              };
-              reader.readAsDataURL(blob);
-            }
-          } catch (e) {
-            console.warn('Error pre-converting image in viewMode', e);
-          }
-        });
-        await Promise.allSettled(convertPromises);
-      };
-      
-      // Delay allowing DOM hydration to finish before querying images
-      setTimeout(convertImagesToBase64, 400);
-    }
-  }, [effectiveViewMode]);
+
 
   // Cargar/Inicializar Orden de Entrega si está en viewMode y es una Factura
   useEffect(() => {
