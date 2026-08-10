@@ -129,6 +129,7 @@ export default async function FichaTecnicaPage({ params }: Props) {
                             },
                             cliente: {
                                 select: {
+                                    id: true,
                                     nombre: true,
                                     telefono: true,
                                     direccion: true,

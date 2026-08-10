@@ -61,6 +61,7 @@ type Activo = {
                 email: string;
             } | null;
             cliente?: {
+                id: string;
                 nombre: string;
                 telefono?: string | null;
                 direccion?: string | null;
