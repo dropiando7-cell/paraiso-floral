@@ -10,8 +10,18 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
+    const [tipoAlquiler, setTipoAlquiler] = useState('Mensual');
     const [mesesRenta, setMesesRenta] = useState(1);
-    const [costoRenta, setCostoRenta] = useState(1500);
+
+    // Tarifas base editables
+    const [tarifaSemanal, setTarifaSemanal] = useState(2500);
+    const [tarifaQuincenal, setTarifaQuincenal] = useState(2500);
+    const [tarifaMensual, setTarifaMensual] = useState(3500);
+    const [tarifaAnual, setTarifaAnual] = useState(42000);
+    const [tarifaDeposito, setTarifaDeposito] = useState(1500);
+
+    const [costoRenta, setCostoRenta] = useState(3500);
+    const [deposito, setDeposito] = useState(1500);
     const [isNewClient, setIsNewClient] = useState(false);
     const [horasTrabajoSalida, setHorasTrabajoSalida] = useState('');
     
@@ -95,22 +105,68 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
         setEvidenciaFotos(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleMesesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const meses = parseInt(e.target.value) || 1;
-        setMesesRenta(meses);
-        setCostoRenta(meses * 1500);
-        
-        const d = new Date(fechaInicio + 'T12:00:00Z');
-        d.setMonth(d.getMonth() + meses);
+    // Recalcular costo sugerido y fecha esperada utilizando las tarifas base editables
+    const recalcularValoresRenta = (
+        tipo: string = tipoAlquiler,
+        cantidad: number = mesesRenta,
+        fInicio: string = fechaInicio,
+        tSem: number = tarifaSemanal,
+        tQuin: number = tarifaQuincenal,
+        tMen: number = tarifaMensual,
+        tAnual: number = tarifaAnual,
+        tDep: number = tarifaDeposito
+    ) => {
+        const cant = Math.max(1, cantidad);
+        setTipoAlquiler(tipo);
+        setMesesRenta(cant);
+
+        const d = new Date((fInicio || fechaInicio) + 'T12:00:00Z');
+        let costoBase = tMen;
+
+        if (tipo === 'Semanal') {
+            costoBase = tSem;
+            d.setUTCDate(d.getUTCDate() + (7 * cant));
+        } else if (tipo === 'Quincenal') {
+            costoBase = tQuin;
+            d.setUTCDate(d.getUTCDate() + (14 * cant));
+        } else if (tipo === 'Mensual') {
+            costoBase = tMen;
+            d.setUTCMonth(d.getUTCMonth() + cant);
+        } else if (tipo === 'Anual') {
+            costoBase = tAnual;
+            d.setUTCFullYear(d.getUTCFullYear() + cant);
+        } else { // Otro
+            costoBase = tMen;
+            d.setUTCMonth(d.getUTCMonth() + cant);
+        }
+
         setFechaFin(d.toISOString().split('T')[0]);
+        setCostoRenta(costoBase * cant);
+        setDeposito(tDep);
+    };
+
+    const handleTipoAlquilerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        recalcularValoresRenta(e.target.value, mesesRenta, fechaInicio);
+    };
+
+    const handleMesesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const cant = parseInt(e.target.value) || 1;
+        recalcularValoresRenta(tipoAlquiler, cant, fechaInicio);
+    };
+
+    const handleResetTarifasEstandar = () => {
+        setTarifaSemanal(2500);
+        setTarifaQuincenal(2500);
+        setTarifaMensual(3500);
+        setTarifaAnual(42000);
+        setTarifaDeposito(1500);
+        recalcularValoresRenta(tipoAlquiler, mesesRenta, fechaInicio, 2500, 2500, 3500, 42000, 1500);
     };
 
     const handleFechaInicioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const nuevaFecha = e.target.value;
         setFechaInicio(nuevaFecha);
-        const d = new Date(nuevaFecha + 'T12:00:00Z');
-        d.setMonth(d.getMonth() + mesesRenta);
-        setFechaFin(d.toISOString().split('T')[0]);
+        recalcularValoresRenta(tipoAlquiler, mesesRenta, nuevaFecha);
     };
 
     const handleEquipoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -236,19 +292,186 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                     <span className="text-xs font-bold text-[#0500A3]">Registro Histórico / Directo</span>
                                 </label>
                             </div>
+
+                            {/* Banner Informativo y Tarifas Base Editables */}
+                            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-2 bg-blue-100 text-blue-700 rounded-xl">
+                                            <DollarSign className="w-4 h-4" />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Tarifas Base de Alquiler (Editables)</h4>
+                                            <p className="text-[11px] text-slate-500">Puedes modificar cualquier tarifa base o el precio final si deseas aplicar un descuento especial.</p>
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleResetTarifasEstandar}
+                                        className="text-[11px] font-bold text-blue-700 hover:text-blue-900 bg-white hover:bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200 shadow-2xs transition"
+                                        title="Restablecer tarifas predeterminadas de la empresa (L. 2500, L. 2500, L. 3500, L. 1500)"
+                                    >
+                                        ↺ Restablecer Precios Base Estándar
+                                    </button>
+                                </div>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                                    {/* Card 1: 1 Semana */}
+                                    <div 
+                                        onClick={() => recalcularValoresRenta('Semanal', mesesRenta, fechaInicio, tarifaSemanal, tarifaQuincenal, tarifaMensual, tarifaAnual, tarifaDeposito)}
+                                        className={`p-3 rounded-2xl border-2 transition-all text-center cursor-pointer relative group ${
+                                            tipoAlquiler === 'Semanal' 
+                                                ? 'bg-blue-50/90 border-blue-600 shadow-md ring-4 ring-blue-500/10' 
+                                                : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-slate-50/80 shadow-2xs'
+                                        }`}
+                                    >
+                                        {tipoAlquiler === 'Semanal' && (
+                                            <span className="absolute -top-2.5 right-2 bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs uppercase tracking-wider">
+                                                ✓ Activo
+                                            </span>
+                                        )}
+                                        <label className="text-[10px] font-extrabold text-slate-600 block uppercase tracking-wider mb-1.5 cursor-pointer">
+                                            1 Semana (7 Días)
+                                        </label>
+                                        <div className="relative flex items-center justify-center">
+                                            <span className="text-xs font-bold text-slate-400 absolute left-2 pointer-events-none">L.</span>
+                                            <input
+                                                type="number"
+                                                value={tarifaSemanal}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    recalcularValoresRenta('Semanal', mesesRenta, fechaInicio, tarifaSemanal, tarifaQuincenal, tarifaMensual, tarifaAnual, tarifaDeposito);
+                                                }}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    setTarifaSemanal(val);
+                                                    recalcularValoresRenta('Semanal', mesesRenta, fechaInicio, val, tarifaQuincenal, tarifaMensual, tarifaAnual, tarifaDeposito);
+                                                }}
+                                                className="w-full pl-6 pr-2 py-1.5 text-center font-black text-blue-700 bg-white border border-slate-200 focus:border-blue-600 rounded-xl outline-none text-base shadow-inner"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Card 2: 2 Semanas */}
+                                    <div 
+                                        onClick={() => recalcularValoresRenta('Quincenal', mesesRenta, fechaInicio, tarifaSemanal, tarifaQuincenal, tarifaMensual, tarifaAnual, tarifaDeposito)}
+                                        className={`p-3 rounded-2xl border-2 transition-all text-center cursor-pointer relative group ${
+                                            tipoAlquiler === 'Quincenal' 
+                                                ? 'bg-blue-50/90 border-blue-600 shadow-md ring-4 ring-blue-500/10' 
+                                                : 'bg-white border-slate-200 hover:border-blue-300 hover:bg-slate-50/80 shadow-2xs'
+                                        }`}
+                                    >
+                                        {tipoAlquiler === 'Quincenal' && (
+                                            <span className="absolute -top-2.5 right-2 bg-blue-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs uppercase tracking-wider">
+                                                ✓ Activo
+                                            </span>
+                                        )}
+                                        <label className="text-[10px] font-extrabold text-slate-600 block uppercase tracking-wider mb-1.5 cursor-pointer">
+                                            2 Semanas (14 Días)
+                                        </label>
+                                        <div className="relative flex items-center justify-center">
+                                            <span className="text-xs font-bold text-slate-400 absolute left-2 pointer-events-none">L.</span>
+                                            <input
+                                                type="number"
+                                                value={tarifaQuincenal}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    recalcularValoresRenta('Quincenal', mesesRenta, fechaInicio, tarifaSemanal, tarifaQuincenal, tarifaMensual, tarifaAnual, tarifaDeposito);
+                                                }}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    setTarifaQuincenal(val);
+                                                    recalcularValoresRenta('Quincenal', mesesRenta, fechaInicio, tarifaSemanal, val, tarifaMensual, tarifaAnual, tarifaDeposito);
+                                                }}
+                                                className="w-full pl-6 pr-2 py-1.5 text-center font-black text-blue-700 bg-white border border-slate-200 focus:border-blue-600 rounded-xl outline-none text-base shadow-inner"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Card 3: 30 Días */}
+                                    <div 
+                                        onClick={() => recalcularValoresRenta('Mensual', mesesRenta, fechaInicio, tarifaSemanal, tarifaQuincenal, tarifaMensual, tarifaAnual, tarifaDeposito)}
+                                        className={`p-3 rounded-2xl border-2 transition-all text-center cursor-pointer relative group ${
+                                            tipoAlquiler === 'Mensual' 
+                                                ? 'bg-emerald-50/90 border-emerald-600 shadow-md ring-4 ring-emerald-500/10' 
+                                                : 'bg-white border-slate-200 hover:border-emerald-300 hover:bg-slate-50/80 shadow-2xs'
+                                        }`}
+                                    >
+                                        {tipoAlquiler === 'Mensual' && (
+                                            <span className="absolute -top-2.5 right-2 bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs uppercase tracking-wider">
+                                                ✓ Activo
+                                            </span>
+                                        )}
+                                        <label className="text-[10px] font-extrabold text-emerald-800 block uppercase tracking-wider mb-1.5 cursor-pointer">
+                                            30 Días (Mensual)
+                                        </label>
+                                        <div className="relative flex items-center justify-center">
+                                            <span className="text-xs font-bold text-slate-400 absolute left-2 pointer-events-none">L.</span>
+                                            <input
+                                                type="number"
+                                                value={tarifaMensual}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    recalcularValoresRenta('Mensual', mesesRenta, fechaInicio, tarifaSemanal, tarifaQuincenal, tarifaMensual, tarifaAnual, tarifaDeposito);
+                                                }}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    setTarifaMensual(val);
+                                                    recalcularValoresRenta('Mensual', mesesRenta, fechaInicio, tarifaSemanal, tarifaQuincenal, val, tarifaAnual, tarifaDeposito);
+                                                }}
+                                                className="w-full pl-6 pr-2 py-1.5 text-center font-black text-emerald-700 bg-white border border-slate-200 focus:border-emerald-600 rounded-xl outline-none text-base shadow-inner"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Card 4: Depósito Garantía */}
+                                    <div className="bg-white p-3 rounded-2xl border-2 border-slate-200 text-center shadow-2xs">
+                                        <label className="text-[10px] font-extrabold text-slate-600 block uppercase tracking-wider mb-1.5">
+                                            Depósito Garantía
+                                        </label>
+                                        <div className="relative flex items-center justify-center">
+                                            <span className="text-xs font-bold text-slate-400 absolute left-2 pointer-events-none">L.</span>
+                                            <input
+                                                type="number"
+                                                value={tarifaDeposito}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value) || 0;
+                                                    setTarifaDeposito(val);
+                                                    setDeposito(val);
+                                                }}
+                                                className="w-full pl-6 pr-2 py-1.5 text-center font-black text-slate-800 bg-white border border-slate-200 focus:border-slate-500 rounded-xl outline-none text-base shadow-inner"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <p className="text-[11px] font-medium text-amber-800 bg-amber-50/80 border border-amber-200/80 px-3 py-1.5 rounded-lg flex items-center gap-1.5">
+                                    <span>ℹ️</span> <strong>Regla de cobro:</strong> No existe tarifa de 3 semanas. Si el equipo se devuelve a las 3 semanas, se aplica la tarifa estándar de 30 días (L. 3,500).
+                                </p>
+                            </div>
                             
                             <div className="grid md:grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2">Tipo de Alquiler</label>
-                                    <select name="tipoAlquiler" defaultValue="Mensual" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold">
-                                        <option value="Quincenal">Quincenal</option>
-                                        <option value="Mensual">Mensual</option>
-                                        <option value="Anual">Anual</option>
-                                        <option value="Otro">Otro</option>
+                                    <select 
+                                        name="tipoAlquiler" 
+                                        value={tipoAlquiler} 
+                                        onChange={handleTipoAlquilerChange} 
+                                        className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold"
+                                    >
+                                        <option value="Semanal">1 Semana (7 Días) — L. 2,500</option>
+                                        <option value="Quincenal">2 Semanas / Quincenal (14 Días) — L. 2,500</option>
+                                        <option value="Mensual">30 Días / Mensual — L. 3,500</option>
+                                        <option value="Anual">Anual (12 Meses) — L. 42,000</option>
+                                        <option value="Otro">Otro (Precio Personalizado)</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-2">Meses a Rentar</label>
+                                    <label className="block text-sm font-bold text-slate-700 mb-2">
+                                        {tipoAlquiler === 'Semanal' ? 'Semanas a Rentar' : 
+                                         tipoAlquiler === 'Quincenal' ? 'Quincenas a Rentar (2 sem. c/u)' : 
+                                         tipoAlquiler === 'Anual' ? 'Años a Rentar' : 
+                                         'Meses / Periodos (30 Días) a Rentar'}
+                                    </label>
                                     <input type="number" name="mesesRenta" value={mesesRenta} onChange={handleMesesChange} min="1" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
                                 </div>
                                 <div>
@@ -270,7 +493,8 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                             <div className="grid md:grid-cols-2 gap-5">
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><DollarSign className="w-4 h-4 text-slate-400" /> Costo Total Renta (L.) <span className="text-red-500">*</span></label>
-                                    <input type="number" step="0.01" name="costoRenta" value={costoRenta} onChange={e => setCostoRenta(parseFloat(e.target.value) || 0)} required min="0" placeholder="Ej. 1500" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-bold text-emerald-700" />
+                                    <input type="number" step="0.01" name="costoRenta" value={costoRenta} onChange={e => setCostoRenta(parseFloat(e.target.value) || 0)} required min="0" placeholder="Ej. 3500" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-bold text-emerald-700" />
+                                    <p className="text-[10px] text-slate-400 mt-1">Puedes modificar este precio libremente si aplica un descuento o acuerdo especial.</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">Método de Pago de Renta</label>
@@ -288,7 +512,8 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2"><DollarSign className="w-4 h-4 text-slate-400" /> Depósito en Garantía (L.)</label>
-                                    <input type="number" step="0.01" name="deposito" min="0" defaultValue="1500" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                    <input type="number" step="0.01" name="deposito" value={deposito} onChange={e => setDeposito(parseFloat(e.target.value) || 0)} min="0" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                    <p className="text-[10px] text-slate-400 mt-1">Valor por defecto: L. 1,500 (modificable).</p>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-2">Método de Pago del Depósito</label>

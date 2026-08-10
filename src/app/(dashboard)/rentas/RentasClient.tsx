@@ -574,9 +574,10 @@ export default function RentasClient({ initialRentas }: { initialRentas: any[] }
                                 <div>
                                     <label className="block text-xs font-bold text-slate-600 mb-1">Tipo de Alquiler</label>
                                     <select name="tipoAlquiler" defaultValue={editingRenta.tipoAlquiler} className="w-full border-2 border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-[#0500A3]">
-                                        <option value="Quincenal">Quincenal</option>
-                                        <option value="Mensual">Mensual</option>
-                                        <option value="Anual">Anual</option>
+                                        <option value="Semanal">Semanal (1 semana - L. 2,500)</option>
+                                        <option value="Quincenal">Quincenal (2 semanas - L. 2,500)</option>
+                                        <option value="Mensual">Mensual (30 días - L. 3,500)</option>
+                                        <option value="Anual">Anual (12 meses)</option>
                                         <option value="Otro">Otro</option>
                                     </select>
                                 </div>
