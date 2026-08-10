@@ -237,26 +237,86 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
 
                                     {isNewClient && (
                                         <div className="mt-4 p-4 bg-blue-50 border-2 border-blue-100 rounded-xl space-y-4">
+                                            <div className="flex items-center justify-between border-b border-blue-200/60 pb-2">
+                                                <span className="text-xs font-bold text-[#0500A3] uppercase tracking-wider">Ficha de Nuevo Cliente ERP</span>
+                                                <span className="text-[10px] font-semibold bg-white text-blue-700 px-2 py-0.5 rounded border border-blue-200">Se guardará en el Directorio Central</span>
+                                            </div>
+
                                             <div>
-                                                <label className="block text-xs font-bold text-slate-700 mb-2">Nombre Completo del Nuevo Cliente <span className="text-red-500">*</span></label>
+                                                <label className="block text-xs font-bold text-slate-700 mb-1">Nombre Completo del Nuevo Cliente / Clínica <span className="text-red-500">*</span></label>
                                                 <input 
                                                     type="text" 
                                                     name="nuevoClienteNombre" 
                                                     required={isNewClient} 
-                                                    placeholder="Ej. Dr. Juan Pérez" 
-                                                    className="w-full border-2 border-blue-200 rounded-lg px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
+                                                    placeholder="Ej. Dr. Juan Pérez / Clínica San Miguel" 
+                                                    className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
                                                     autoFocus
                                                 />
                                             </div>
-                                            <div>
-                                                <label className="block text-xs font-bold text-slate-700 mb-2">Identidad / RTN <span className="text-red-500">*</span></label>
-                                                <input 
-                                                    type="text" 
-                                                    name="nuevoClienteRtn" 
-                                                    required={isNewClient} 
-                                                    placeholder="Ej. 0801-1990-12345" 
-                                                    className="w-full border-2 border-blue-200 rounded-lg px-4 py-2.5 outline-none font-semibold focus:border-[#0500A3]" 
-                                                />
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 mb-1">Identidad / RTN <span className="text-red-500">*</span></label>
+                                                    <input 
+                                                        type="text" 
+                                                        name="nuevoClienteRtn" 
+                                                        required={isNewClient} 
+                                                        placeholder="Ej. 0801-1990-12345" 
+                                                        className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico (Email)</label>
+                                                    <input 
+                                                        type="email" 
+                                                        name="nuevoClienteEmail" 
+                                                        placeholder="cliente@ejemplo.com" 
+                                                        className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono Principal</label>
+                                                    <input 
+                                                        type="text" 
+                                                        name="telefono" 
+                                                        defaultValue="+504 " 
+                                                        placeholder="Ej. +504 9999-9999" 
+                                                        className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 mb-1">Dirección de Ubicación / Entrega</label>
+                                                    <input 
+                                                        type="text" 
+                                                        name="direccion" 
+                                                        placeholder="Ej. Col. Juan Lindo..." 
+                                                        className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-blue-200/50">
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 mb-1">Persona de Contacto Secundario (Opcional)</label>
+                                                    <input 
+                                                        type="text" 
+                                                        name="nombreContacto" 
+                                                        placeholder="Ej. Lic. María Torres (Asistente)" 
+                                                        className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono del Contacto Secundario</label>
+                                                    <input 
+                                                        type="text" 
+                                                        name="telefonoContacto" 
+                                                        placeholder="Ej. +504 9988-7766" 
+                                                        className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     )}
@@ -270,17 +330,19 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                 </div>
                             </div>
 
-                            {/* Datos del Cliente Adicionales */}
-                            <div className="grid md:grid-cols-2 gap-5 mt-5">
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono del Cliente (Opcional)</label>
-                                    <input type="text" name="telefono" defaultValue="+504 " placeholder="Ej. +504 9999-9999" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                            {/* Datos del Cliente Adicionales para Clientes Existentes */}
+                            {!isNewClient && (
+                                <div className="grid md:grid-cols-2 gap-5 mt-5">
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono del Cliente (Opcional)</label>
+                                        <input type="text" name="telefono" defaultValue="+504 " placeholder="Ej. +504 9999-9999" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-bold text-slate-700 mb-2">Dirección (Opcional)</label>
+                                        <input type="text" name="direccion" placeholder="Ej. Col. Juan Lindo..." className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-bold text-slate-700 mb-2">Dirección (Opcional)</label>
-                                    <input type="text" name="direccion" placeholder="Ej. Col. Juan Lindo..." className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
-                                </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* 2. Fechas */}

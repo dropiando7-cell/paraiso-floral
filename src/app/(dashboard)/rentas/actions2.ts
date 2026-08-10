@@ -19,6 +19,9 @@ export async function createRenta(data: FormData) {
     let clienteId = data.get('clienteId') as string;
     const nuevoClienteNombre = data.get('nuevoClienteNombre') as string;
     const nuevoClienteRtn = data.get('nuevoClienteRtn') as string;
+    const nuevoClienteEmail = data.get('nuevoClienteEmail') as string;
+    const nombreContacto = data.get('nombreContacto') as string;
+    const telefonoContacto = data.get('telefonoContacto') as string;
     
     const activoFijoId = data.get('activoFijoId') as string;
     const fechaFinEsperada = data.get('fechaFinEsperada') as string;
@@ -61,18 +64,24 @@ export async function createRenta(data: FormData) {
                     organizationId: dbUser.organizationId,
                     nombre: nuevoClienteNombre.trim(),
                     ...(nuevoClienteRtn ? { rtn: nuevoClienteRtn } : {}),
+                    ...(nuevoClienteEmail ? { email: nuevoClienteEmail.trim() } : {}),
                     ...(telefono && telefono.trim() !== '+504' ? { telefono } : {}),
-                    ...(direccion ? { direccion } : {})
+                    ...(direccion ? { direccion } : {}),
+                    ...(nombreContacto ? { nombreContacto } : {}),
+                    ...(telefonoContacto ? { telefonoContacto } : {})
                 }
             });
             clienteId = nuevoCliente.id;
         }
-    } else if (telefono || direccion) {
+    } else if (telefono || direccion || nuevoClienteEmail || nombreContacto) {
         await prisma.cliente.update({
             where: { id: clienteId },
             data: {
                 ...(telefono && telefono.trim() !== '+504' ? { telefono } : {}),
-                ...(direccion ? { direccion } : {})
+                ...(direccion ? { direccion } : {}),
+                ...(nuevoClienteEmail ? { email: nuevoClienteEmail.trim() } : {}),
+                ...(nombreContacto ? { nombreContacto } : {}),
+                ...(telefonoContacto ? { telefonoContacto } : {})
             }
         });
     }
