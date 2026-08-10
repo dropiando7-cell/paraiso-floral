@@ -16,41 +16,15 @@ export function FirmaPerfilCard({ initialFirmaUrl, onSaveFirma }: FirmaPerfilCar
     const [penColor, setPenColor] = useState<string>('#0500A3');
     const [penWidth, setPenWidth] = useState<number>(2.0);
     const [isSaving, setIsSaving] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+
     const sigCanvasRef = useRef<SignatureCanvas | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-    // Guardar firma desde el canvas interactivo
-    const handleSaveCanvasSignature = async () => {
-        if (!sigCanvasRef.current || sigCanvasRef.current.isEmpty()) {
-            toast.error('Por favor dibuja tu firma antes de guardar.');
-            return;
-        }
-
-        setIsSaving(true);
-        try {
-            const dataUrl = sigCanvasRef.current.getTrimmedCanvas().toDataURL('image/png');
-            const res = await onSaveFirma(dataUrl);
-            if (res.success) {
-                setFirmaUrl(dataUrl);
-                setMode('preview');
-                toast.success('¡Firma digital guardada correctamente!');
-            } else {
-                toast.error(res.error || 'Error al guardar la firma.');
-            }
-        } catch (e) {
-            console.error('Error saving signature:', e);
-            toast.error('Error al procesar la firma digital.');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    // Subir archivo de imagen de firma
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
+    // Procesar archivo de imagen (ya sea seleccionado o arrastrado)
+    const processImageFile = async (file: File) => {
         if (!file.type.startsWith('image/')) {
-            toast.error('Selecciona una imagen válida (PNG, JPG, SVG).');
+            toast.error('Selecciona una imagen válida (PNG, JPG, SVG, WebP).');
             return;
         }
 
@@ -78,8 +52,66 @@ export function FirmaPerfilCard({ initialFirmaUrl, onSaveFirma }: FirmaPerfilCar
             };
             reader.readAsDataURL(file);
         } catch (err) {
-            console.error('Error uploading signature file:', err);
-            toast.error('Error al leer la imagen.');
+            console.error('Error processing signature file:', err);
+            toast.error('Error al procesar la imagen.');
+            setIsSaving(false);
+        }
+    };
+
+    // Eventos Drag and Drop
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragging(false);
+
+        const droppedFile = e.dataTransfer.files?.[0];
+        if (droppedFile) {
+            processImageFile(droppedFile);
+        }
+    };
+
+    // Subir archivo mediante input file
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            processImageFile(file);
+        }
+    };
+
+    // Guardar firma desde el canvas interactivo
+    const handleSaveCanvasSignature = async () => {
+        if (!sigCanvasRef.current || sigCanvasRef.current.isEmpty()) {
+            toast.error('Por favor dibuja tu firma antes de guardar.');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const dataUrl = sigCanvasRef.current.getTrimmedCanvas().toDataURL('image/png');
+            const res = await onSaveFirma(dataUrl);
+            if (res.success) {
+                setFirmaUrl(dataUrl);
+                setMode('preview');
+                toast.success('¡Firma digital guardada correctamente!');
+            } else {
+                toast.error(res.error || 'Error al guardar la firma.');
+            }
+        } catch (e) {
+            console.error('Error saving signature:', e);
+            toast.error('Error al procesar la firma digital.');
+        } finally {
             setIsSaving(false);
         }
     };
@@ -318,20 +350,43 @@ export function FirmaPerfilCard({ initialFirmaUrl, onSaveFirma }: FirmaPerfilCar
                         {/* Opción B: Subir Archivo */}
                         {mode === 'upload' && (
                             <div className="flex flex-col items-center space-y-4 max-w-md mx-auto py-2">
-                                <label className="w-full h-44 border-2 border-dashed border-indigo-200 rounded-2xl bg-indigo-50/30 hover:bg-indigo-50/60 transition flex flex-col items-center justify-center p-6 text-center cursor-pointer group">
+                                <div
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className={`w-full h-48 border-2 border-dashed rounded-2xl transition-all flex flex-col items-center justify-center p-6 text-center cursor-pointer group relative ${
+                                        isDragging 
+                                            ? 'border-indigo-600 bg-indigo-100/70 scale-[1.02] shadow-lg ring-4 ring-indigo-200' 
+                                            : 'border-indigo-200 bg-indigo-50/30 hover:bg-indigo-50/70'
+                                    }`}
+                                >
                                     <input
+                                        ref={fileInputRef}
                                         type="file"
                                         accept="image/png, image/jpeg, image/svg+xml, image/webp"
                                         className="hidden"
                                         onChange={handleFileUpload}
                                         disabled={isSaving}
                                     />
-                                    <div className="p-3 bg-white text-indigo-600 rounded-2xl shadow-sm border border-indigo-100 group-hover:scale-110 transition-transform mb-2">
-                                        <ImageIcon className="w-6 h-6" />
+                                    <div className={`p-3 bg-white text-indigo-600 rounded-2xl shadow-sm border border-indigo-100 group-hover:scale-110 transition-transform mb-2 ${isDragging ? 'animate-bounce' : ''}`}>
+                                        <Upload className="w-6 h-6" />
                                     </div>
-                                    <span className="text-xs font-bold text-slate-800 block">Haz clic o arrastra tu imagen de firma</span>
-                                    <span className="text-[11px] text-slate-400 mt-1 block">Formatos recomendados: PNG o SVG con fondo transparente (Máx. 5MB)</span>
-                                </label>
+                                    <span className="text-xs font-extrabold text-slate-800 block">
+                                        {isDragging ? '¡Suelta tu imagen de firma aquí!' : 'Haz clic o arrastra tu imagen de firma'}
+                                    </span>
+                                    <span className="text-[11px] text-slate-400 mt-1 block">
+                                        PNG, JPG, SVG o WebP con fondo transparente (Máx. 5MB)
+                                    </span>
+                                    
+                                    <button
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); fileInputRef.current?.click(); }}
+                                        className="mt-3 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition"
+                                    >
+                                        Examinar Archivo
+                                    </button>
+                                </div>
 
                                 {firmaUrl && (
                                     <button
