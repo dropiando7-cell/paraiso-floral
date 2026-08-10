@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling, CheckCircle2, AlertTriangle, FileSignature, Plus, UploadCloud, Loader2, FileText } from 'lucide-react';
+import { X, LayoutTemplate, Palette, Type, Image as ImageIcon, Check, PanelBottom, Save, Trash2, Scaling, CheckCircle2, AlertTriangle, FileSignature, Plus, UploadCloud, Loader2, FileText, Sparkles, Zap, RotateCcw } from 'lucide-react';
 import { InvoiceSettings, TemplateLayout, LogoPosition, LogoSize, CustomInvoiceTemplate, SignatureItem, DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 import { getInvoiceTemplates, guardarInvoiceTemplate, eliminarInvoiceTemplate } from '@/app/(dashboard)/facturas/actions';
 import toast from 'react-hot-toast';
@@ -136,6 +136,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
   const [activeSigIndex, setActiveSigIndex] = useState<number | null>(null);
   const [activeSealField, setActiveSealField] = useState<'company' | 'status' | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [previousSettingsBackup, setPreviousSettingsBackup] = useState<InvoiceSettings | null>(null);
 
   // Signatures list getter/setters
   const signaturesList = settings.signaturesList || [
@@ -287,7 +288,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 bg-slate-50/50">
         <h2 className="font-bold text-slate-800 flex items-center gap-2">
-          <Palette size={18} className="text-blue-600" /> Customize Invoice
+          <Palette size={18} className="text-blue-600" /> Personalizar Diseño
         </h2>
         <button onClick={onClose} className="p-1.5 hover:bg-slate-200 rounded-full text-slate-400 transition-colors">
           <X size={16} />
@@ -297,7 +298,7 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
       {/* Tabs */}
       <div className="flex px-1 pt-2 border-b border-slate-100 shadow-sm bg-white overflow-x-auto">
         {([
-          { id: 'template', icon: <LayoutTemplate size={15} />, label: 'Template' },
+          { id: 'template', icon: <LayoutTemplate size={15} />, label: 'Plantilla' },
           { id: 'colors',   icon: <Palette size={15} />,        label: 'Colores' },
           { id: 'font',     icon: <Type size={15} />,           label: 'Fuente' },
           { id: 'sizes',    icon: <Scaling size={15} />,        label: 'Tamaños' },
@@ -896,7 +897,49 @@ export default function InvoiceCustomizerSidebar({ settings, onChange, onClose, 
         {/* ── SIZES ── */}
         {activeTab === 'sizes' && (
           <div className="space-y-4 animate-in fade-in">
-            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tamaños de Texto</h3>
+            {/* Auto-Fit 1-Page Card */}
+            <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl shadow-sm space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-blue-600 animate-pulse" />
+                  <span className="text-xs font-bold text-slate-800">Ajuste de Página Única</span>
+                </div>
+                <span className="text-[9px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">1 Clic</span>
+              </div>
+              <p className="text-[10px] text-slate-600 leading-relaxed">
+                ¿El footer o la última línea se saltaron a la página 2? Haz clic para compactar automáticamente el espaciado vertical y acomodar todo en 1 sola página.
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviousSettingsBackup({ ...settings });
+                  onChange('tableRowPadding', 0);
+                  onChange('tableHeaderFontSize', 'small');
+                  onChange('itemDescFontSize', 'small');
+                  onChange('headerFontSize', 'small');
+                  toast.success('¡Diseño compactado! Todo el contenido ajustado a 1 página.');
+                }}
+                className="w-full py-2.5 px-3 bg-blue-600 hover:bg-blue-700 active:scale-[0.98] text-white font-bold text-xs rounded-xl shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Zap size={15} /> Auto-Ajustar Todo a 1 Página
+              </button>
+
+              {previousSettingsBackup && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onLoadTemplate) onLoadTemplate(previousSettingsBackup);
+                    setPreviousSettingsBackup(null);
+                    toast.success('Ajustes restaurados al estado anterior.');
+                  }}
+                  className="w-full py-2 px-3 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl shadow-sm border border-slate-300 transition-all flex items-center justify-center gap-2 cursor-pointer mt-1.5"
+                >
+                  <RotateCcw size={14} className="text-slate-500" /> Deshacer Cambio (Restablecer)
+                </button>
+              )}
+            </div>
+
+            <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest pt-1">Tamaños de Texto</h3>
             <p className="text-xs text-slate-500">Ajusta el tamaño de las fuentes en distintas secciones del documento.</p>
             
             <div className="space-y-4">

@@ -887,6 +887,127 @@ export async function buscarItemPorCodigo(codigo: string) {
     }
 }
 
+// --- BUSCAR Y OBTENER ACTIVO/PRODUCTO COMPLETO PARA EDICIÓN DIRECTA ---
+export async function getActivoForEdit(params: { activoId?: string | null; productoId?: string | null; code?: string | null; serie?: string | null }) {
+    try {
+        const organizationId = await getOrganizationId();
+        const { activoId, productoId, code, serie } = params;
+
+        // 1. Si viene activoId explícito, buscar por ID
+        if (activoId) {
+            const activo = await prisma.activoFijo.findFirst({
+                where: { id: activoId, organizationId },
+                include: { categoria: true, createdBy: { select: { nombre: true, apellido: true, email: true } } }
+            });
+            if (activo) {
+                return {
+                    ...activo,
+                    costoAdq: activo.costoAdq ? Number(activo.costoAdq) : null,
+                    vidaUtilOverride: activo.vidaUtilOverride ? Number(activo.vidaUtilOverride) : null,
+                    valResidual: activo.valResidual ? Number(activo.valResidual) : null,
+                    baseDeprec: activo.baseDeprec ? Number(activo.baseDeprec) : null,
+                };
+            }
+        }
+
+        // 2. Buscar por serie, idQr o codigoBarras si hay serie o código
+        const searchTerms: any[] = [];
+        if (serie && serie.trim()) {
+            searchTerms.push({ serie: { equals: serie.trim(), mode: 'insensitive' } });
+        }
+        if (code && code.trim()) {
+            searchTerms.push({ idQr: { equals: code.trim(), mode: 'insensitive' } });
+            searchTerms.push({ codigoBarras: { equals: code.trim(), mode: 'insensitive' } });
+        }
+        if (productoId) {
+            searchTerms.push({ productoId });
+        }
+
+        if (searchTerms.length > 0) {
+            const activo = await prisma.activoFijo.findFirst({
+                where: {
+                    organizationId,
+                    OR: searchTerms
+                },
+                include: { categoria: true, createdBy: { select: { nombre: true, apellido: true, email: true } } },
+                orderBy: { createdAt: 'desc' }
+            });
+
+            if (activo) {
+                return {
+                    ...activo,
+                    costoAdq: activo.costoAdq ? Number(activo.costoAdq) : null,
+                    vidaUtilOverride: activo.vidaUtilOverride ? Number(activo.vidaUtilOverride) : null,
+                    valResidual: activo.valResidual ? Number(activo.valResidual) : null,
+                    baseDeprec: activo.baseDeprec ? Number(activo.baseDeprec) : null,
+                };
+            }
+        }
+
+        // 3. Buscar si existe en Productos (Stock Genérico) o sintetizar plantilla
+        if (productoId || code) {
+            const prodConditions: any[] = [];
+            if (productoId) prodConditions.push({ id: productoId });
+            if (code && code.trim()) prodConditions.push({ sku: { equals: code.trim(), mode: 'insensitive' } });
+
+            const prod = await prisma.producto.findFirst({
+                where: {
+                    organizationId,
+                    OR: prodConditions
+                }
+            });
+
+            if (prod) {
+                // Verificar si tiene un activoFijo asociado
+                const linkedActivo = await prisma.activoFijo.findFirst({
+                    where: { organizationId, productoId: prod.id },
+                    include: { categoria: true, createdBy: { select: { nombre: true, apellido: true, email: true } } },
+                    orderBy: { createdAt: 'desc' }
+                });
+
+                if (linkedActivo) {
+                    return {
+                        ...linkedActivo,
+                        costoAdq: linkedActivo.costoAdq ? Number(linkedActivo.costoAdq) : null,
+                        vidaUtilOverride: linkedActivo.vidaUtilOverride ? Number(linkedActivo.vidaUtilOverride) : null,
+                        valResidual: linkedActivo.valResidual ? Number(linkedActivo.valResidual) : null,
+                        baseDeprec: linkedActivo.baseDeprec ? Number(linkedActivo.baseDeprec) : null,
+                    };
+                }
+
+                // Si es un producto sin ActivoFijo aún registrado, devolver plantilla pre-llenada para ActivoModal
+                return {
+                    id: '',
+                    idQr: prod.sku || code || '',
+                    descripcionCorta: prod.nombre,
+                    descripcionDetallada: prod.descripcion || '',
+                    marca: prod.marca || '',
+                    modelo: '',
+                    serie: serie || null,
+                    area: 'BODEGA GENERAL',
+                    cuentaAct: 'Mercadería / Inventario',
+                    estatusContable: 'VIGENTE',
+                    integrado: false,
+                    costoAdq: prod.precioVenta ? Number(prod.precioVenta) : 0,
+                    codigoBarras: prod.sku || code || '',
+                    codigoGrupo: '001',
+                    imagenUrl: prod.imagenWeb || (prod.imagenes && prod.imagenes[0]) || null,
+                    stock: prod.stockActual || 1,
+                    esConsumible: false,
+                    garantia: '',
+                    mantenimientosIncluidos: null,
+                    frecuenciaMantenimientoMeses: null,
+                };
+            }
+        }
+
+        return null;
+    } catch (e) {
+        console.error("Error al obtener activo/producto para edición:", e);
+        return null;
+    }
+}
+
 // --- HISTORIAL DE DOCUMENTOS ---
 export async function getHistorialDocumentos(soloPropiosUserId?: string) {
     try {

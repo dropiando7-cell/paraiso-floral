@@ -76,7 +76,7 @@ interface Product {
   isOrdenTrabajo?: boolean;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages } from './actions';
 import { createContacto, updateContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
@@ -1016,7 +1016,7 @@ function LineItemRow({
         ) : (
           <div className="flex-1 grid grid-cols-[minmax(0,19fr)_minmax(0,26fr)_minmax(0,9fr)_minmax(0,18fr)_minmax(0,14fr)_minmax(0,15fr)_minmax(0,19fr)] gap-2 min-w-0 relative">
             {/* Code */}
-            <div className={`min-w-0 relative flex items-center justify-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
+            <div className={`min-w-0 relative flex items-start justify-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {settings?.showItemCode !== false ? (
                 viewMode ? (
                   <div className={`w-full ${descSizeClass} tracking-tight ${settings?.useMonospaceNumbers !== false ? 'font-mono' : ''} text-center text-slate-800 break-words`} style={descStyle}>
@@ -1087,7 +1087,7 @@ function LineItemRow({
             </div>
 
             {/* Description */}
-            <div className={`min-w-0 relative flex gap-2 items-center ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
+            <div className={`min-w-0 relative flex gap-2 items-start ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {settings?.showProductImages && (!settings?.productImagePosition || settings?.productImagePosition === 'afterCode') && settings?.showItemCode !== false && (
                 <div className={`${imgSizeClass} shrink-0 flex items-center justify-center ${imgStyleClass}`}>
 {renderImage()}
@@ -1098,7 +1098,7 @@ function LineItemRow({
                 <div className={`${descSizeClass} font-semibold text-slate-800 whitespace-pre-wrap break-words leading-snug`} style={descStyle}>
                   {item.shortDesc}
                   {(item.marcaModelo || item.serie) && (
-                    <div className="text-[9px] text-slate-500 font-normal mt-0.5 leading-normal break-all">
+                    <div className="text-[8.5px] sm:text-[9px] text-slate-500 font-normal mt-0.5 leading-normal tracking-tight break-words">
                       {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
                       {item.marcaModelo && item.serie ? ' | ' : ''}
                       {item.serie ? `Serie: ${item.serie}` : ''}
@@ -1123,7 +1123,7 @@ function LineItemRow({
                   style={descStyle}
                 />
                 {(item.marcaModelo || item.serie) && (
-                  <div className="text-[9px] text-slate-455 font-normal mt-0.5 px-1 print:hidden leading-normal break-all">
+                  <div className="text-[8.5px] sm:text-[9px] text-slate-500 font-normal mt-0.5 print:hidden leading-normal tracking-tight break-words">
                     {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
                     {item.marcaModelo && item.serie ? ' | ' : ''}
                     {item.serie ? `Serie: ${item.serie}` : ''}
@@ -1134,7 +1134,7 @@ function LineItemRow({
                     {item.shortDesc}
                   </span>
                   {(item.marcaModelo || item.serie) && (
-                    <div className="text-[9px] text-slate-500 font-normal mt-0.5 leading-normal break-all">
+                    <div className="text-[9px] text-slate-500 font-normal mt-0.5 leading-normal tracking-tight break-words">
                       {item.marcaModelo ? `Marca/Modelo: ${item.marcaModelo}` : ''}
                       {item.marcaModelo && item.serie ? ' | ' : ''}
                       {item.serie ? `Serie: ${item.serie}` : ''}
@@ -1152,7 +1152,7 @@ function LineItemRow({
             </div>
 
             {/* Qty — centered horizontally and vertically */}
-            <div className={`min-w-0 flex items-center justify-center relative ${padClass} ${settings?.showTableVerticalBorders ? 'px-1' : ''}`}>
+            <div className={`min-w-0 flex items-start justify-center relative ${padClass} ${settings?.showTableVerticalBorders ? 'px-1' : ''}`}>
               {!viewMode ? (
                 <input
                   type="number"
@@ -1172,7 +1172,7 @@ function LineItemRow({
             </div>
 
             {/* Unit Price — vertically centered, right-aligned */}
-            <div className={`min-w-0 flex items-center justify-end relative ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
+            <div className={`min-w-0 flex items-start justify-end relative ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {!viewMode ? (
                 <div className="relative w-full print:hidden">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">L</span>
@@ -1194,7 +1194,7 @@ function LineItemRow({
             </div>
 
             {/* Discount — vertically centered, right-aligned — (compact) */}
-            <div className={`min-w-0 flex items-center justify-end relative ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
+            <div className={`min-w-0 flex items-start justify-end relative ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {!viewMode ? (
                 <div className="relative w-full print:hidden">
                   <input
@@ -1224,7 +1224,7 @@ function LineItemRow({
             </div>
 
             {/* Tax — vertically centered, centered — */}
-            <div className={`min-w-0 flex items-center justify-center relative ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
+            <div className={`min-w-0 flex items-start justify-center relative ${padClass} ${settings?.showTableVerticalBorders ? 'pr-2' : ''}`}>
               {!viewMode ? (
                 <select
                   value={item.tax}
@@ -1247,7 +1247,7 @@ function LineItemRow({
             </div>
 
             {/* Monto / Subtotal — vertically centered, centered */}
-            <div className={`min-w-0 flex items-center justify-end ${padClass}`}>
+            <div className={`min-w-0 flex items-start justify-end ${padClass}`}>
               {!viewMode ? (
                 <div className="relative w-full print:hidden">
                   <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-slate-400 text-[10px] font-bold">L</span>
@@ -1292,7 +1292,7 @@ function LineItemRow({
         )}
 
         {/* Actions */}
-        <div className={`relative w-[24px] shrink-0 print:hidden flex items-center justify-center ${padClass}`} data-pdf-hide>
+        <div className={`relative w-[24px] shrink-0 print:hidden flex items-start justify-center ${padClass}`} data-pdf-hide>
           {!viewMode && (
             <div className="absolute right-0 top-[-12px] flex flex-row gap-0.5 items-center justify-end opacity-0 group-hover:opacity-100 transition-all bg-white/95 backdrop-blur-sm px-1 py-0.5 rounded-md shadow-sm border border-slate-200 z-[60]">
               {item.isSection ? (
@@ -1310,6 +1310,17 @@ function LineItemRow({
                   className={`p-1 rounded transition-all ${item.showLongDesc ? 'bg-blue-100 text-blue-600' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50'}`}
                 >
                   <Info size={11} />
+                </button>
+              )}
+              {!item.isSection && (
+                <button
+                  onClick={() => {
+                    window.dispatchEvent(new CustomEvent('open-edit-item-modal', { detail: { item } }));
+                  }}
+                  title="Editar ítem / equipo (Garantía, mantenimientos, etc.)"
+                  className="p-1 rounded transition-all text-slate-400 hover:text-amber-600 hover:bg-amber-50"
+                >
+                  <Pencil size={11} />
                 </button>
               )}
               <button
@@ -1687,8 +1698,10 @@ export default function DocumentBuilderClient({
     toast.success(`Orden de Trabajo ${ot.codigoSeguridad} extraída con éxito.`);
   };
   
-  // States for registering new product directly
+  // States for registering / editing product directly
   const [registeringLineId, setRegisteringLineId] = useState<string | null>(null);
+  const [editingActivoModal, setEditingActivoModal] = useState<any>(null);
+  const [editingActivoLineId, setEditingActivoLineId] = useState<string | null>(null);
   const [isActivoModalOpen, setIsActivoModalOpen] = useState(false);
   const [dbAreas, setDbAreas] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -2088,6 +2101,67 @@ export default function DocumentBuilderClient({
     return () => window.removeEventListener('extract-work-order-event', handleExtract);
   }, []);
 
+  // Listener para abrir modal de edición directa de equipo/producto
+  useEffect(() => {
+    const handleOpenEditItem = async (e: any) => {
+      const item: LineItem = e.detail?.item;
+      if (!item) return;
+
+      const toastId = toast.loading('Cargando información del equipo/producto...');
+      try {
+        const activoToEdit = await getActivoForEdit({
+          activoId: item.activoId,
+          productoId: item.productoId,
+          code: item.code,
+          serie: item.serie || undefined
+        });
+
+        toast.dismiss(toastId);
+
+        if (activoToEdit) {
+          setEditingActivoLineId(item.id);
+          setEditingActivoModal(activoToEdit);
+          setIsActivoModalOpen(true);
+        } else {
+          // Si no existe un registro previo en BD, se sintetiza una plantilla con los datos actuales de la fila
+          const marcaModeloParts = item.marcaModelo ? item.marcaModelo.split('/') : [];
+          const synthesized: any = {
+            id: '',
+            idQr: item.code || '',
+            descripcionCorta: item.shortDesc || 'Nuevo Producto/Equipo',
+            descripcionDetallada: item.longDesc || '',
+            marca: marcaModeloParts[0]?.trim() || '',
+            modelo: marcaModeloParts[1]?.trim() || '',
+            serie: item.serie || null,
+            area: 'BODEGA GENERAL',
+            cuentaAct: 'Mercadería / Inventario',
+            estatusContable: 'VIGENTE',
+            integrado: false,
+            costoAdq: item.unitPrice ? Number(item.unitPrice) : 0,
+            codigoBarras: item.code || '',
+            codigoGrupo: '001',
+            imagenUrl: item.imageUrl || null,
+            stock: 1,
+            esConsumible: false,
+            garantia: '',
+            mantenimientosIncluidos: null,
+            frecuenciaMantenimientoMeses: null,
+          };
+          setEditingActivoLineId(item.id);
+          setEditingActivoModal(synthesized);
+          setIsActivoModalOpen(true);
+        }
+      } catch (err) {
+        console.error('Error fetching item details for edit:', err);
+        toast.dismiss(toastId);
+        toast.error('Error al obtener datos del equipo');
+      }
+    };
+
+    window.addEventListener('open-edit-item-modal', handleOpenEditItem);
+    return () => window.removeEventListener('open-edit-item-modal', handleOpenEditItem);
+  }, []);
+
   // Fetch areas for the ActivoModal
   useEffect(() => {
     getAreas()
@@ -2122,8 +2196,48 @@ export default function DocumentBuilderClient({
       // Update the allProducts state with the new list
       setAllProducts(newProductsList);
 
-      // 2. If we have a registering line ID and a new product was found, automatically select it!
-      if (registeringLineId && newlyCreatedProduct) {
+      // 2. If we were editing an item from a line row, update that line item in the document!
+      if (editingActivoLineId) {
+        const targetLineId = editingActivoLineId;
+        const targetActivoId = editingActivoModal?.id;
+        const targetSerie = editingActivoModal?.serie;
+        const targetCode = editingActivoModal?.idQr || editingActivoModal?.codigoBarras;
+
+        try {
+          const updatedActivo = await getActivoForEdit({
+            activoId: targetActivoId || undefined,
+            code: targetCode || undefined,
+            serie: targetSerie || undefined
+          });
+
+          if (updatedActivo) {
+            setLineItems(prev => prev.map(item => {
+              if (item.id === targetLineId) {
+                const marcaModelStr = [updatedActivo.marca, updatedActivo.modelo].filter(Boolean).join(' / ');
+                return {
+                  ...item,
+                  shortDesc: updatedActivo.descripcionCorta || item.shortDesc,
+                  longDesc: updatedActivo.descripcionDetallada || item.longDesc,
+                  serie: updatedActivo.serie !== undefined ? updatedActivo.serie : item.serie,
+                  marcaModelo: marcaModelStr || item.marcaModelo,
+                  unitPrice: updatedActivo.costoAdq ? Number(updatedActivo.costoAdq) : item.unitPrice,
+                  imageUrl: updatedActivo.imagenUrl || item.imageUrl,
+                  activoId: updatedActivo.id || item.activoId
+                };
+              }
+              return item;
+            }));
+            toast.success('Información del equipo/ítem actualizada en el documento.');
+          } else {
+            toast.success("Cambios guardados en inventario.");
+          }
+        } catch(err) {
+          console.error("Error updating line item after edit:", err);
+          toast.success("Cambios guardados exitosamente.");
+        }
+      }
+      // 3. If we have a registering line ID and a new product was found, automatically select it!
+      else if (registeringLineId && newlyCreatedProduct) {
         setLineItems(prev => prev.map(item => {
           if (item.id === registeringLineId) {
             let targetDescription = newlyCreatedProduct.description || '';
@@ -2153,7 +2267,7 @@ export default function DocumentBuilderClient({
           return item;
         }));
         toast.success(`Producto "${newlyCreatedProduct.name}" registrado e insertado.`);
-      } else {
+      } else if (!editingActivoLineId) {
         toast.success("Producto registrado exitosamente en catálogo.");
       }
     } catch (e) {
@@ -2161,6 +2275,9 @@ export default function DocumentBuilderClient({
       toast.error("Error al actualizar catálogo de productos.");
     } finally {
       setRegisteringLineId(null);
+      setEditingActivoLineId(null);
+      setEditingActivoModal(null);
+      setIsActivoModalOpen(false);
     }
   };
 
@@ -2274,15 +2391,17 @@ export default function DocumentBuilderClient({
     }, 150);
   };
 
-  // Helper to save template settings to database
-  const handleSaveTemplateSettings = async (newSettings: any) => {
+  // Helper to save template settings to database safely outside React render phase
+  const handleSaveTemplateSettings = (newSettings: any) => {
     const docId = reservedDocId || initialData?.id;
     if (!docId || docId === 'nuevo') return;
-    try {
-      await updateDocumentTemplateSettings(docId, newSettings);
-    } catch (err) {
-      console.error('Error auto-saving template settings:', err);
-    }
+    setTimeout(async () => {
+      try {
+        await updateDocumentTemplateSettings(docId, newSettings);
+      } catch (err) {
+        console.error('Error auto-saving template settings:', err);
+      }
+    }, 0);
   };
 
   const handleSilentSave = async () => {
@@ -4884,15 +5003,10 @@ export default function DocumentBuilderClient({
         <InvoiceCustomizerSidebar
           settings={settings}
           onChange={(key, val) => {
-            setSettings(p => {
-              const next = { ...p, [key]: val };
-              handleSaveTemplateSettings(next);
-              return next;
-            });
+            setSettings(prev => ({ ...prev, [key]: val }));
           }}
           onLoadTemplate={(tplSettings) => {
             setSettings(tplSettings);
-            handleSaveTemplateSettings(tplSettings);
           }}
           onApplyTerms={handleApplyTerms}
           onClose={() => setShowCustomizer(false)}
@@ -5240,11 +5354,17 @@ export default function DocumentBuilderClient({
         </div>
       )}
 
-      {/* ActivoModal for registering a new product/asset */}
+      {/* ActivoModal for registering or editing a product/asset */}
       {isActivoModalOpen && (
         <ActivoModal
           open={isActivoModalOpen}
-          onClose={() => setIsActivoModalOpen(false)}
+          editActivo={editingActivoModal}
+          onClose={() => {
+            setIsActivoModalOpen(false);
+            setEditingActivoModal(null);
+            setEditingActivoLineId(null);
+            setRegisteringLineId(null);
+          }}
           dbAreas={dbAreas}
           onSuccess={handleRegisterSuccess}
         />
