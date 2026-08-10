@@ -849,6 +849,28 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           }
         }
       }
+
+      // Cargar firma del cliente si existe en la factura
+      if (doc.firmaClienteBase64) {
+        const clientSigBase64 = await fetchImageAsBase64(doc.firmaClienteBase64);
+        if (clientSigBase64) {
+          images['sig_cliente'] = clientSigBase64;
+        }
+      }
+    }
+
+    // Generar Código QR de Trazabilidad Digital / Validación de Entrega
+    if (doc.ordenEntrega?.id) {
+      try {
+        const QRCode = (await import('qrcode')).default;
+        const targetHost = req.headers.get('host') || 'www.bioelectronicahn.com';
+        const protocol = targetHost.includes('localhost') ? 'http' : 'https';
+        const validationUrl = `${protocol}://${targetHost}/v/entrega/${doc.ordenEntrega.id}`;
+        const qrDataUrl = await QRCode.toDataURL(validationUrl, { margin: 1, width: 250, errorCorrectionLevel: 'M' });
+        images['qr_code'] = qrDataUrl;
+      } catch (qrErr) {
+        console.error('Error generando QR de validación:', qrErr);
+      }
     }
 
     if (shouldLoadSeals) {

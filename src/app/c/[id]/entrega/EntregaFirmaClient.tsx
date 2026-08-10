@@ -19,6 +19,8 @@ export default function EntregaFirmaClient({ factura }: EntregaFirmaClientProps)
     const [isSaving, setIsSaving] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
     const [hasDrawn, setHasDrawn] = useState(false);
+    const [penWidth, setPenWidth] = useState<number>(2.8);
+    const [penColor, setPenColor] = useState<string>('#0500A3');
 
     // Resize canvas on mount and window resize to fit mobile screen
     const [canvasSize, setCanvasSize] = useState({ width: 300, height: 200 });
@@ -122,15 +124,67 @@ export default function EntregaFirmaClient({ factura }: EntregaFirmaClientProps)
                         </div>
 
                         <div className="space-y-3">
-                            <div className="flex justify-between items-end mb-2">
-                                <label className="font-bold text-slate-700 text-sm">Dibuja tu firma aquí <span className="text-red-500">*</span></label>
+                            <div className="flex flex-wrap justify-between items-center bg-slate-100/80 p-2 rounded-2xl gap-2 mb-2">
+                                {/* Selector de Grosor */}
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Grosor:</span>
+                                    <div className="flex bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                                        {[
+                                            { label: 'Fino', val: 1.5 },
+                                            { label: 'Normal', val: 2.8 },
+                                            { label: 'Grueso', val: 5.0 }
+                                        ].map((t) => (
+                                            <button
+                                                key={t.label}
+                                                type="button"
+                                                onClick={() => {
+                                                    setPenWidth(t.val);
+                                                    clearSignature();
+                                                }}
+                                                className={`px-2 py-1 rounded-md text-[10px] font-extrabold transition-all cursor-pointer ${
+                                                    penWidth === t.val ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'
+                                                }`}
+                                            >
+                                                {t.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Selector de Color */}
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Color:</span>
+                                    <div className="flex items-center gap-1.5">
+                                        {[
+                                            { color: '#0500A3', title: 'Azul Bioelectrónica' },
+                                            { color: '#0f172a', title: 'Negro' },
+                                            { color: '#1e3a8a', title: 'Azul Oscuro' }
+                                        ].map((c) => (
+                                            <button
+                                                key={c.color}
+                                                type="button"
+                                                onClick={() => {
+                                                    setPenColor(c.color);
+                                                    clearSignature();
+                                                }}
+                                                className={`w-5 h-5 rounded-full border-2 transition-all cursor-pointer ${
+                                                    penColor === c.color ? 'border-slate-800 scale-110 shadow-sm' : 'border-transparent opacity-80 hover:opacity-100'
+                                                }`}
+                                                style={{ backgroundColor: c.color }}
+                                                title={c.title}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Botón Limpiar */}
                                 <button 
                                     onClick={clearSignature}
-                                    className="text-xs text-indigo-600 font-bold flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all"
+                                    className="text-xs text-red-600 hover:text-red-700 font-extrabold flex items-center gap-1 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg active:scale-95 transition-all ml-auto"
                                 >
                                     <RotateCcw className="w-3 h-3" />
                                     Limpiar
-                                  </button>
+                                </button>
                             </div>
                             <div 
                                 ref={containerRef} 
@@ -138,7 +192,9 @@ export default function EntregaFirmaClient({ factura }: EntregaFirmaClientProps)
                             >
                                 <SignatureCanvas 
                                     ref={sigCanvas}
-                                    penColor="#0500A3"
+                                    penColor={penColor}
+                                    minWidth={penWidth * 0.7}
+                                    maxWidth={penWidth * 1.3}
                                     canvasProps={{
                                         width: canvasSize.width, 
                                         height: canvasSize.height, 

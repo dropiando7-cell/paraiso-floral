@@ -60,12 +60,23 @@ export async function POST(req: NextRequest) {
         await prisma.factura.update({
             where: { id: facturaId },
             data: {
+                firmaClienteBase64: publicUrl,
+                firmaClienteAt: new Date(),
                 templateSettings: rawSettings
             }
         });
 
+        const ordenEntrega = await prisma.ordenEntrega.findUnique({
+            where: { facturaId }
+        });
+
         revalidatePath('/facturas');
         revalidatePath(`/facturas/${facturaId}`);
+        revalidatePath(`/facturas/ver/${facturaId}`);
+        revalidatePath(`/c/${facturaId}/entrega`);
+        if (ordenEntrega?.id) {
+            revalidatePath(`/v/entrega/${ordenEntrega.id}`);
+        }
 
         return NextResponse.json({ success: true, publicUrl });
     } catch (error: any) {

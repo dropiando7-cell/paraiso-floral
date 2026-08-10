@@ -468,8 +468,15 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
           </View>
 
           {/* Client Signature */}
-          <View style={[styles.signatureCol, { width: firstQrCode ? '38%' : '45%' }]}>
-            <View style={{ height: (settings?.warrantySignatureHeight || 120) * 0.5 }} />
+          <View style={[styles.signatureCol, { width: '38%' }]}>
+            <View style={{ height: (settings?.warrantySignatureHeight || 120) * 0.5, justifyContent: 'flex-end', alignItems: 'center' }}>
+              {(images['sig_cliente'] || images['sig_cliente_firma']) && (
+                <Image 
+                  src={images['sig_cliente'] || images['sig_cliente_firma']} 
+                  style={{ height: (settings?.warrantySignatureHeight || 120) * 0.5, objectFit: 'contain' }} 
+                />
+              )}
+            </View>
             <View style={styles.signatureLine} />
             <Text style={styles.signatureLabel}>Aceptación del Cliente</Text>
             <Text style={styles.signatureSubLabel}>Firma y Sello del Beneficiario</Text>
@@ -477,10 +484,10 @@ export default function GarantiaLimitadaPDF({ data, images }: GarantiaLimitadaPD
           </View>
 
           {/* QR Code de Trazabilidad */}
-          {firstQrCode && images[`qr_${firstQrCode}`] && (
+          {(images['qr_code'] || (firstQrCode && images[`qr_${firstQrCode}`])) && (
             <View style={{ width: '18%', alignItems: 'center', alignSelf: 'flex-end', marginBottom: 2 }}>
-              <Image src={images[`qr_${firstQrCode}`]} style={{ width: 48, height: 48, marginBottom: 2 }} />
-              <Text style={{ fontSize: 6, fontWeight: 700, color: '#1f2937' }}>{firstQrCode}</Text>
+              <Image src={images['qr_code'] || images[`qr_${firstQrCode}`]} style={{ width: 48, height: 48, marginBottom: 2 }} />
+              <Text style={{ fontSize: 6, fontWeight: 700, color: '#1f2937' }}>{ordenEntrega?.correlativo || firstQrCode || ''}</Text>
               <Text style={{ fontSize: 5, color: '#4b5563', marginTop: 1, textAlign: 'center' }}>Trazabilidad Digital</Text>
             </View>
           )}

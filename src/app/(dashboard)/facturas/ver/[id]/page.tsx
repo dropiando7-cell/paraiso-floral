@@ -8,8 +8,17 @@ import FacturacionHeader from '../../FacturacionHeader';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function ViewDocumentPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ViewDocumentPage({ 
+    params,
+    searchParams 
+}: { 
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ embed?: string }>;
+}) {
     const { id } = await params;
+    const { embed } = await searchParams;
+    const isEmbed = embed === 'true';
+
     let dbUser;
     try {
         dbUser = await getAuthenticatedUser();
@@ -64,6 +73,14 @@ export default async function ViewDocumentPage({ params }: { params: Promise<{ i
 
     if (verSoloPropias && doc.creadoPorId !== dbUser.id) {
         redirect('/unauthorized');
+    }
+
+    if (isEmbed) {
+        return (
+            <div className="bg-slate-100 min-h-screen p-2 sm:p-4 print:p-0 flex justify-center">
+                <DocumentBuilderClient organization={org} initialData={doc} viewMode={true} embedMode={true} userRole={userRole} userAccessibleModules={allowedModules} />
+            </div>
+        );
     }
 
     return (

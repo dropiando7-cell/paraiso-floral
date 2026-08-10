@@ -11,6 +11,8 @@ export interface SignatureItem {
   offsetY?: number;
   offsetX?: number;
   height?: number;
+  penWidth?: number;
+  isClientSig?: boolean;
 }
 
 export interface InvoiceSettings {

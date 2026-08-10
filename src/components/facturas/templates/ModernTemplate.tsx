@@ -231,6 +231,7 @@ export default function ModernTemplate(props: TemplateProps) {
  </div>
 
  {/* Add Line Buttons */}
+ {!viewMode && (
  <div className="mt-4 flex flex-col sm:flex-row gap-3 print:hidden">
  <button
  onClick={() => setShowProductModal(true)}
@@ -251,6 +252,7 @@ export default function ModernTemplate(props: TemplateProps) {
  <Plus size={16} /> Sección
  </button>
  </div>
+ )}
  </div>
 
  {/* Notes */}

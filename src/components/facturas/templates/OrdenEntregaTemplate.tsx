@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { X, CheckSquare, Square, Package, Camera, Info } from 'lucide-react';
+import QRCode from 'react-qr-code';
 import { InvoiceSettings } from '@/types/invoice';
 
 interface OrdenEntregaTemplateProps {
@@ -31,10 +32,19 @@ export default function OrdenEntregaTemplate({
   onToggleItemExcluido,
   ordenTrabajo
 }: OrdenEntregaTemplateProps) {
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   if (!ordenEntrega) return null;
 
   const [fechaVal = '', ...horaParts] = (today || '').split(' ');
   const horaVal = horaParts.join(' ');
+
+  const qrOrigin = isMounted && typeof window !== 'undefined' ? window.location.origin : 'https://www.bioelectronicahn.com';
+  const qrUrl = `${qrOrigin}/v/entrega/${ordenEntrega.id}`;
 
   const signatureHeight = settings.signatureHeight ?? 64;
   const sealSize = settings.sealSize ?? 112;
@@ -267,66 +277,146 @@ export default function OrdenEntregaTemplate({
         </div>
       )}
 
-      {/* Signatures & Seals */}
-      {activeSigs.length > 0 && (
-        <div className="relative mt-12 pt-8 flex justify-around items-end gap-6 print:break-inside-avoid">
-          
-          {/* Seal of Bioelectrónica */}
-          {showSeals && (
-            <div 
-              className="absolute pointer-events-none transform rotate-[-8deg] select-none z-10"
-              style={{ 
-                width: `${sealSize}px`, 
-                height: `${sealSize}px`,
-                right: `${8 - (settings.companySealX || 0)}px`,
-                top: `${0 + (settings.companySealY || 0)}px`
-              }}
-            >
-              <img 
-                src="/firmas-sellos/SELLO DE BIOELECTRONICA.png" 
-                alt="Sello Bioelectrónica" 
-                className="w-full h-full object-contain mix-blend-multiply opacity-75" 
-              />
-            </div>
-          )}
+      {/* SVG filter definitions for signature stroke thickening/thinning */}
+      <svg className="absolute w-0 h-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <defs>
+          <filter id="sig-dilate-small">
+            <feMorphology operator="dilate" radius="0.5" />
+          </filter>
+          <filter id="sig-dilate-medium">
+            <feMorphology operator="dilate" radius="1.0" />
+          </filter>
+          <filter id="sig-dilate-large">
+            <feMorphology operator="dilate" radius="1.8" />
+          </filter>
+          <filter id="sig-erode-ultra">
+            <feMorphology operator="erode" radius="0.95" />
+          </filter>
+          <filter id="sig-erode-medium">
+            <feMorphology operator="erode" radius="0.65" />
+          </filter>
+          <filter id="sig-erode-light">
+            <feMorphology operator="erode" radius="0.35" />
+          </filter>
+        </defs>
+      </svg>
 
-          {/* Signatures columns */}
-          {activeSigs.map((sig: any) => (
-            <div key={sig.id} className="flex flex-col items-center text-center relative w-[40%]">
-              <div className="flex items-end justify-center mb-1 w-full" style={{ height: '64px' }}>
+      {/* Signatures & Client Acceptance */}
+      <div className="relative mt-12 pt-6 flex justify-around items-start gap-8 print:break-inside-avoid">
+        
+        {/* Seal of Bioelectrónica */}
+        {showSeals && (
+          <div 
+            className="absolute pointer-events-none transform rotate-[-8deg] select-none z-10"
+            style={{ 
+              width: `${sealSize}px`, 
+              height: `${sealSize}px`,
+              left: `${(settings.companySealX || 0) + 120}px`,
+              top: `${-15 + (settings.companySealY || 0)}px`
+            }}
+          >
+            <img 
+              src="/firmas-sellos/SELLO DE BIOELECTRONICA.png" 
+              alt="Sello Bioelectrónica" 
+              className="w-full h-full object-contain mix-blend-multiply opacity-75" 
+            />
+          </div>
+        )}
+
+        {/* Enabled Company Signatures */}
+        {activeSigs.filter((s: any) => s.id !== 'cliente_firma' && s.id !== 'cliente').map((sig: any) => {
+          const pw = sig.penWidth;
+          const filterStyle = !pw || (pw > 1.8 && pw <= 3.2) ? 'none' : (pw <= 0.5 ? 'url(#sig-erode-ultra)' : (pw <= 1.0 ? 'url(#sig-erode-medium)' : (pw <= 1.8 ? 'url(#sig-erode-light)' : (pw <= 4.2 ? 'url(#sig-dilate-small)' : (pw <= 5.2 ? 'url(#sig-dilate-medium)' : 'url(#sig-dilate-large)')))));
+          return (
+            <div key={sig.id} className="flex flex-col items-center text-center relative flex-1 max-w-[240px]">
+              <div className="flex items-end justify-center w-full relative z-10" style={{ height: `${signatureHeight}px` }}>
                 {sig.imageUrl && (
                   <img 
                     src={sig.imageUrl} 
                     alt={`Firma ${sig.name}`} 
-                    className="object-contain mix-blend-multiply" 
+                    className="object-contain max-h-full mix-blend-multiply relative z-10" 
                     style={{ 
                       height: `${sig.height || signatureHeight}px`,
-                      top: `${(signatureSpacing || 0) + (sig.offsetY || 0)}px`,
-                      left: `${sig.offsetX || 0}px`,
-                      position: 'relative'
+                      transform: `translate(${sig.offsetX || 0}px, ${(sig.offsetY || 0)}px)`,
+                      filter: filterStyle
                     }}
                   />
                 )}
               </div>
-              <div className="w-full border-t border-slate-400 my-1"></div>
-              <p className="font-bold text-slate-800 text-[10px]">{sig.name}</p>
-              <p className="text-slate-500 text-[9px]">{sig.role}</p>
+              <div className="w-full border-t border-slate-400 my-1 relative z-0"></div>
+              <div className="pt-0.5 space-y-0.5 relative z-0">
+                <p className="font-bold text-slate-800 text-[10px] leading-tight">{sig.name}</p>
+                <p className="text-slate-500 text-[9px] leading-tight">{sig.role}</p>
+              </div>
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
 
-      {/* Blue Footer */}
-      <div className="absolute bottom-0 left-0 right-0 h-[62px] bg-[#0d608e] text-white flex flex-col justify-center items-center px-5 py-1 text-[10px] leading-tight font-medium uppercase print:fixed print:bottom-0 print:left-0 print:right-0">
-        <p className="text-center font-bold tracking-wide">
-          BARRIO GUAMILITO. 7 CALLE. 9 AVENIDA, SAN PEDRO SULA, CORTES, HONDURAS C.A.
-        </p>
-        <p className="text-center mt-0.5">
-          TEL:(504) 552 04 91. CEL. 3178 2368 / 8924-6108
-        </p>
-        <p className="text-center mt-0.5">
-          E-MAIL: gerencia@bioelectronicahn.com / bioelectronicaa_a@yahoo.com
-        </p>
+        {/* Client Acceptance Signature Column */}
+        {(() => {
+          const clientSigItem = activeSigs.find((s: any) => s.id === 'cliente_firma' || s.id === 'cliente' || s.isClientSig);
+          const clientSigUrl = clientSigItem?.imageUrl || ordenEntrega.factura?.firmaClienteBase64 || ordenEntrega.firmaClienteUrl;
+          const pw = clientSigItem?.penWidth;
+          const filterStyle = !pw || (pw > 1.8 && pw <= 3.2) ? 'none' : (pw <= 0.5 ? 'url(#sig-erode-ultra)' : (pw <= 1.0 ? 'url(#sig-erode-medium)' : (pw <= 1.8 ? 'url(#sig-erode-light)' : (pw <= 4.2 ? 'url(#sig-dilate-small)' : (pw <= 5.2 ? 'url(#sig-dilate-medium)' : 'url(#sig-dilate-large)')))));
+
+          return (
+            <div className="flex flex-col items-center text-center relative flex-1 max-w-[240px]">
+              <div className="flex items-end justify-center w-full relative z-10" style={{ height: `${signatureHeight}px` }}>
+                {clientSigUrl && (
+                  <img 
+                    src={clientSigUrl} 
+                    alt="Firma del Cliente" 
+                    className="object-contain max-h-full mix-blend-multiply relative z-10" 
+                    style={{ 
+                      height: `${clientSigItem?.height || signatureHeight}px`,
+                      transform: `translate(${clientSigItem?.offsetX || 0}px, ${(clientSigItem?.offsetY || 0)}px)`,
+                      filter: filterStyle
+                    }}
+                  />
+                )}
+              </div>
+              <div className="w-full border-t border-slate-400 my-1 relative z-0"></div>
+              <div className="pt-0.5 space-y-0.5 relative z-0">
+                <p className="font-bold text-slate-800 text-[10px] leading-tight">Aceptación del Cliente</p>
+                <p className="text-slate-500 text-[9px] leading-tight">Firma y Sello del Beneficiario</p>
+                <p className="text-[7.5px] text-slate-400 leading-tight mt-1 max-w-[190px]">
+                  Al firmar, el cliente acepta los términos y condiciones de esta entrega y garantía.
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+
+      </div>
+
+      {/* Blue Footer with embedded QR Code */}
+      <div className="absolute bottom-0 left-0 right-0 h-[62px] bg-[#0d608e] text-white flex items-center justify-center px-4 py-1 print:fixed print:bottom-0 print:left-0 print:right-0">
+        <div className="w-full text-center text-[9.5px] leading-tight font-medium uppercase px-16">
+          <p className="font-bold tracking-wide">
+            BARRIO GUAMILITO. 7 CALLE. 9 AVENIDA, SAN PEDRO SULA, CORTES, HONDURAS C.A.
+          </p>
+          <p className="mt-0.5">
+            TEL:(504) 552 04 91. CEL. 3178 2368 / 8924-6108
+          </p>
+          <p className="mt-0.5">
+            E-MAIL: gerencia@bioelectronicahn.com / bioelectronicaa_a@yahoo.com
+          </p>
+        </div>
+
+        {/* QR Code de Trazabilidad Digital en el Footer Azul (Posicionado a la Derecha) */}
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 shrink-0">
+          <div className="p-0.5 bg-white rounded-md flex items-center justify-center shrink-0 shadow-sm">
+            <QRCode 
+              value={qrUrl} 
+              size={32} 
+              level="M" 
+            />
+          </div>
+          <div className="text-left text-white leading-none pr-1">
+            <p className="text-[8.5px] font-mono font-black tracking-tight">{ordenEntrega.correlativo}</p>
+            <p className="text-[6.5px] text-blue-100 font-semibold tracking-tighter mt-0.5">Trazabilidad Digital</p>
+          </div>
+        </div>
       </div>
     </div>
   );

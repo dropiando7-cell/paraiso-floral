@@ -58,7 +58,7 @@ export default function InvoiceSignaturesAndSeals({ settings, clienteSignature }
       )}
 
       {showSignatures && activeSigs.length > 0 && (
-        <div className="flex flex-wrap justify-around items-end pt-10 relative gap-y-8">
+        <div className="flex flex-wrap justify-around items-start pt-10 relative gap-y-8">
           {/* Sello de la Empresa Independiente (Posición: Centro) */}
           {showSeals && showCompanySeal && companySealPosition === 'center' && (
             <div 
@@ -118,21 +118,19 @@ export default function InvoiceSignaturesAndSeals({ settings, clienteSignature }
                     />
                   </div>
                 )}
-                <div className="flex items-end justify-center mb-1 select-none w-full" style={{ height: '64px' }}>
+                <div className="flex items-end justify-center mb-1 select-none w-full relative z-10" style={{ height: `${signatureHeight}px` }}>
                   {sig.imageUrl && (
                     <img 
                       src={sig.imageUrl} 
                       alt={`Firma ${sig.name}`} 
-                      className="object-contain relative mix-blend-multiply" 
+                      className="object-contain max-h-full mix-blend-multiply relative z-10" 
                       style={{ 
-                        height: `${sig.height || signatureHeight}px`,
-                        top: `${(signatureSpacing || 0) + (sig.offsetY || 0)}px`,
-                        left: `${sig.offsetX || 0}px`
+                        transform: `translate(${sig.offsetX || 0}px, ${(signatureSpacing || 0) + (sig.offsetY || 0)}px)`
                       }}
                     />
                   )}
                 </div>
-                <div className="w-full border-t border-slate-400 my-1"></div>
+                <div className="w-full border-t border-slate-400 my-1 relative z-0"></div>
                 <p className="font-bold text-slate-800 text-xs">{sig.name}</p>
                 <p className="text-slate-500 text-[10px]">{sig.role}</p>
               </div>

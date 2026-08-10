@@ -32,6 +32,34 @@ interface Props {
 
 const fmt = (n: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 }).format(n);
 
+function parseCleanItemDescription(rawDesc: string) {
+  if (!rawDesc) return { title: '', isSection: false };
+  let str = rawDesc;
+  
+  const metaIdx = str.indexOf('__METADATA__');
+  if (metaIdx !== -1) {
+    str = str.substring(0, metaIdx);
+  }
+
+  let isSection = false;
+  if (str.startsWith('__SECTION__')) {
+    isSection = true;
+    str = str.substring(11);
+    const styleIdx = str.indexOf('__STYLE__');
+    if (styleIdx !== -1) {
+      str = str.substring(0, styleIdx);
+    }
+  }
+
+  const cleanText = str.replace(/<[^>]+>/g, '').trim();
+
+  return {
+    title: cleanText || str,
+    isSection,
+    rawHtml: str
+  };
+}
+
 export default function DocumentListTable({ data, type }: Props) {
   const [search, setSearch] = useState('');
   const [showAnuladas, setShowAnuladas] = useState(false);
@@ -232,11 +260,11 @@ export default function DocumentListTable({ data, type }: Props) {
                    <p className="text-sm mt-1">No se encontraron documentos {search && 'con esa búsqueda'}.</p>
                 </td>
               </tr>
-            ) : paginatedData.map(doc => (
-              <React.Fragment key={doc.id}>
+            ) : (
+              paginatedData.map(doc => (
                 <tr 
-                  onClick={() => setExpandedId(expandedId === doc.id ? null : doc.id)}
-                  className={`hover:bg-blue-50/50 transition-colors group cursor-pointer ${expandedId === doc.id ? 'bg-blue-50/30' : ''}`}
+                  key={doc.id}
+                  className="hover:bg-blue-50/30 transition-colors group"
                 >
                   <td className="p-4 align-middle">
                    <div className="flex items-center gap-3">
@@ -264,32 +292,35 @@ export default function DocumentListTable({ data, type }: Props) {
                   {getStatusBadge(doc.estado)}
                 </td>
                 <td className="p-4 align-middle text-right">
-                  <div className="flex items-center justify-end gap-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
-                    <Link href={`/facturas/ver/${doc.id}?print=true`} title="Imprimir Documento" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                  <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                    <Link href={`/facturas/ver/${doc.id}`} title="Ver Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                      <Eye size={16} />
+                    </Link>
+                    <Link href={`/facturas/ver/${doc.id}?print=true`} title="Imprimir Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Printer size={16} />
                     </Link>
-                    <Link href={`/facturas/ver/${doc.id}?download=true`} title="Descargar PDF" className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors">
+                    <Link href={`/facturas/ver/${doc.id}?download=true`} title="Descargar PDF" className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors">
                       <Download size={16} />
                     </Link>
-                    <Link href={`/facturas/${doc.id}`} title="Editar Documento" className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors">
+                    <Link href={`/facturas/${doc.id}`} title="Editar Documento" className="p-2 text-slate-500 hover:text-amber-600 hover:bg-amber-100 rounded-lg transition-colors">
                       <Pencil size={16} />
                     </Link>
                     <button 
                       onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Aquí tienes tu documento: ${window.location.origin}/facturas/ver/${doc.id}`)}`, '_blank')} 
                       title="Enviar por WhatsApp" 
-                      className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
+                      className="p-2 text-slate-500 hover:text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
                     >
                       <MessageCircle size={16} />
                     </button>
                     <button 
                       onClick={() => handleSendEmail(doc.id)} 
                       title="Enviar por Correo" 
-                      className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                      className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
                     >
                       <Mail size={16} />
                     </button>
                     {doc.tipoDocumento === 'FACTURA' && doc.estado === 'EMITIDA' && (
-                      <Link href={`/facturas/${doc.id}?notaCredito=true`} title="Generar Nota de Crédito" className="p-2 text-slate-400 hover:text-purple-600 hover:bg-purple-100 rounded-lg transition-colors">
+                      <Link href={`/facturas/${doc.id}?notaCredito=true`} title="Generar Nota de Crédito" className="p-2 text-slate-500 hover:text-purple-600 hover:bg-purple-100 rounded-lg transition-colors">
                         <Undo size={16} />
                       </Link>
                     )}
@@ -298,68 +329,19 @@ export default function DocumentListTable({ data, type }: Props) {
                         onClick={() => setDocToAnul(doc)} 
                         disabled={isAnulando === doc.id}
                         title="Anular Documento" 
-                        className={`p-2 rounded-lg transition-colors ${isAnulando === doc.id ? 'text-slate-300' : 'text-slate-400 hover:text-red-600 hover:bg-red-100'}`}
+                        className={`p-2 rounded-lg transition-colors ${isAnulando === doc.id ? 'text-slate-300' : 'text-slate-500 hover:text-red-600 hover:bg-red-100'}`}
                       >
                         <Ban size={16} className={isAnulando === doc.id ? 'animate-pulse' : ''} />
                       </button>
                     )}
-                    <Link href={`/facturas/${doc.id}?clone=true`} title="Duplicar Documento" className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
+                    <Link href={`/facturas/${doc.id}?clone=true`} title="Duplicar Documento" className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors">
                       <Copy size={16} />
                     </Link>
                   </div>
                 </td>
               </tr>
-              {expandedId === doc.id && doc.detalles && (
-                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <td colSpan={6} className="p-0">
-                    <div className="animate-in slide-in-from-top-4 fade-in duration-200">
-                      <div className="px-6 py-4 flex gap-6">
-                         <div className="flex-1 bg-white border border-slate-200 rounded-2xl p-4 shadow-sm overflow-hidden">
-                           <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-2">
-                             <FileText size={14} className="text-slate-300" /> Detalle de Productos
-                           </h4>
-                           <div className="space-y-2">
-                             {doc.detalles.map((det, i) => (
-                               <div key={i} className="flex justify-between items-start text-sm py-2 border-b border-slate-50 last:border-0 hover:bg-slate-50 px-2 rounded-lg transition-colors">
-                                 <div className="flex gap-3 min-w-0 flex-1 pr-4">
-                                   <span className="font-mono text-slate-400 font-bold bg-slate-100 px-1.5 py-0.5 rounded text-xs shrink-0 self-start mt-0.5">{det.cantidad}x</span>
-                                   <div 
-                                      className="font-semibold text-slate-700 text-xs line-clamp-3 leading-relaxed [&_p]:inline [&_p]:m-0" 
-                                      title={det.descripcion.replace(/<[^>]+>/g, '')}
-                                      dangerouslySetInnerHTML={{ __html: det.descripcion }}
-                                   />
-                                 </div>
-                                 <div className="flex gap-4 shrink-0 font-mono text-xs mt-0.5">
-                                   <span className="text-slate-400">{fmt(det.precioUnitario)} c/u</span>
-                                   <span className="font-bold text-slate-800 w-20 text-right">{fmt(det.totalLinea)}</span>
-                                 </div>
-                               </div>
-                             ))}
-                           </div>
-                           <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between items-center px-2">
-                             <span className="text-xs font-bold text-slate-500 uppercase">Total Documento</span>
-                             <span className="font-black text-lg text-blue-600">{fmt(doc.total)}</span>
-                           </div>
-                         </div>
-                         <div className="w-64 shrink-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white shadow-sm flex flex-col justify-between hidden md:flex">
-                            <div>
-                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Acciones Rápidas</p>
-                               <h3 className="font-bold text-lg leading-tight truncate">{doc.correlativo}</h3>
-                               <p className="text-xs text-slate-300 mb-4">{doc.clienteNombre}</p>
-                            </div>
-                            <div className="flex flex-col gap-2">
-                               <Link href={`/facturas/ver/${doc.id}`} className="flex items-center justify-center w-full py-2 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-lg transition-colors text-xs gap-2 shadow-inner">
-                                 <Eye size={14} /> Vista Completa
-                               </Link>
-                            </div>
-                         </div>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </React.Fragment>
-            ))}
+            ))
+            )}
           </tbody>
         </table>
       </div>

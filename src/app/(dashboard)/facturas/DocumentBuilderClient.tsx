@@ -1413,6 +1413,7 @@ export default function DocumentBuilderClient({
   initialData, 
   editMode = false, 
   viewMode = false,
+  embedMode = false,
   isNotaCredito = false,
   userRole = 'USER',
   userAccessibleModules = []
@@ -1421,6 +1422,7 @@ export default function DocumentBuilderClient({
   initialData?: any;
   editMode?: boolean;
   viewMode?: boolean;
+  embedMode?: boolean;
   isNotaCredito?: boolean;
   userRole?: string;
   userAccessibleModules?: string[];
@@ -1478,7 +1480,7 @@ export default function DocumentBuilderClient({
   const [ordenEntrega, setOrdenEntrega] = useState<any>(initialData?.ordenEntrega || null);
   const [loadingOrden, setLoadingOrden] = useState(false);
   const [isUploadingFoto, setIsUploadingFoto] = useState(false);
-  const [showOrdenEntregaPanel, setShowOrdenEntregaPanel] = useState(true);
+  const [showOrdenEntregaPanel, setShowOrdenEntregaPanel] = useState(false);
   const [activeCanvasMode, setActiveCanvasMode] = useState<'document' | 'orden_entrega'>('document');
   
   const [ordenTrabajoId, setOrdenTrabajoId] = useState<string | undefined>(initialData?.ordenTrabajoId || searchParams.get('ordenTrabajoId') || undefined);
@@ -1732,6 +1734,8 @@ export default function DocumentBuilderClient({
   const [showDirectSignatureModal, setShowDirectSignatureModal] = useState(false);
   const [hasDirectSignatureDrawn, setHasDirectSignatureDrawn] = useState(false);
   const [isSavingDirectSignature, setIsSavingDirectSignature] = useState(false);
+  const [signaturePenWidth, setSignaturePenWidth] = useState<number>(2.5);
+  const [signaturePenColor, setSignaturePenColor] = useState<string>('#0500A3');
   const sigCanvasRef = useRef<SignatureCanvas>(null);
 
   useEffect(() => {
@@ -1740,10 +1744,35 @@ export default function DocumentBuilderClient({
     }
   }, [showDirectSignatureModal]);
 
-  const signaturesList = settings.signaturesList || [
+  const rawSignaturesList = settings.signaturesList || [
     { id: 'emilia', name: 'Ing. Emilia Zapata', role: 'Jefa del departamento de Biomédica', imageUrl: '/firmas-sellos/firma emilia zapata.png', enabled: settings.showEmiliaZapata !== false },
     { id: 'manuel', name: 'Ing. Manuel Tejada', role: 'Gerente General', imageUrl: '/firmas-sellos/firma Ing Manuel Tejada.png', enabled: settings.showManuelTejada !== false }
   ];
+
+  const clientSigUrl = initialData?.firmaClienteBase64 || initialData?.firmaClienteUrl || '';
+  const hasClientSigInList = rawSignaturesList.some((s: any) => s.id === 'cliente_firma' || s.id === 'cliente' || s.isClientSig);
+  
+  const signaturesList = hasClientSigInList 
+    ? rawSignaturesList.map((s: any) => {
+        if (s.id === 'cliente_firma' || s.id === 'cliente' || s.isClientSig) {
+          return {
+            ...s,
+            imageUrl: s.imageUrl || clientSigUrl
+          };
+        }
+        return s;
+      })
+    : [
+        ...rawSignaturesList,
+        {
+          id: 'cliente_firma',
+          name: selectedClient?.name || 'Aceptación del Cliente',
+          role: 'Firma y Sello del Beneficiario',
+          imageUrl: clientSigUrl,
+          enabled: true,
+          isClientSig: true
+        }
+      ];
 
   const signaturesLibrary = settings.signaturesLibrary || [
     '/firmas-sellos/firma emilia zapata.png',
@@ -1877,15 +1906,15 @@ export default function DocumentBuilderClient({
   const effectiveViewMode = viewMode || isAnulada || isConvertida || isForcePrinting;
   const currentCanvasMode = docType === 'factura' ? activeCanvasMode : 'document';
 
-  const estaVencida = typeof window !== 'undefined' ? (function() {
+  const estaVencida = (function() {
     if (!initialData?.fechaEmision || 
         (initialData?.tipoDocumento !== 'COTIZACION' && 
          initialData?.tipoDocumento !== 'PRESUPUESTO_REPARACION' && 
          initialData?.tipoDocumento !== 'PRESUPUESTO_MANTENIMIENTO')) return false;
     const fecha = new Date(initialData.fechaEmision);
-    const expiracion = new Date(fecha.setDate(fecha.getDate() + (initialData?.validezDias || 30)));
+    const expiracion = new Date(fecha.getTime() + (initialData?.validezDias || 30) * 86400000);
     return expiracion < new Date();
-  })() : false;
+  })();
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
@@ -3391,8 +3420,9 @@ export default function DocumentBuilderClient({
   const resolvedNombreUsuario = (initialData?.creadoPor ? [initialData.creadoPor.nombre, initialData.creadoPor.apellido].filter(Boolean).join(' ') : null) || initialData?.nombreUsuario || currentUser?.fullName || 'Administrador (BEA)';
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans print:!bg-white overflow-x-hidden print:overflow-visible print:min-h-0 print:block">
+    <div className={`${embedMode ? 'bg-slate-100 p-2 sm:p-4 justify-center flex' : 'min-h-screen bg-slate-50 overflow-x-hidden'} font-sans print:!bg-white print:overflow-visible print:min-h-0 print:block`}>
       {/* Top Bar */}
+      {!embedMode && (
       <div className={`bg-white border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[360px]' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-y-3 gap-x-4 overflow-x-auto sm:overflow-visible">
           
@@ -3449,6 +3479,7 @@ export default function DocumentBuilderClient({
           </div>
         </div>
       </div>
+      )}
 
       <div className={`mx-auto px-4 py-8 flex flex-col md:flex-row print:p-0 print:max-w-none print:m-0 relative print:block transition-all duration-300 ${
         showCustomizer
@@ -3845,7 +3876,13 @@ export default function DocumentBuilderClient({
                           <div className="grid grid-cols-2 gap-2">
                             <button
                               type="button"
-                              onClick={() => setShowDirectSignatureModal(true)}
+                              onClick={() => {
+                                const clientSig = signaturesList.find(s => s.id === 'cliente_firma' || s.id === 'cliente' || s.isClientSig);
+                                if (clientSig?.penWidth) {
+                                  setSignaturePenWidth(clientSig.penWidth);
+                                }
+                                setShowDirectSignatureModal(true);
+                              }}
                               className="flex items-center justify-center gap-1.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 py-2 rounded-xl transition-all active:scale-95 border border-emerald-200/50 w-full"
                               title="Firmar directamente en esta pantalla"
                             >
@@ -3863,20 +3900,32 @@ export default function DocumentBuilderClient({
                         </div>
 
                         <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
-                          {signaturesList.map((sig, idx) => (
-                            <div key={sig.id || idx} className="p-3 bg-white border border-slate-200 rounded-xl space-y-3 relative shadow-sm">
-                              <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-slate-700">Firmante #{idx + 1}</span>
-                                <div className="flex items-center gap-2">
-                                  {signaturesList.length > 1 && (
-                                    <button
-                                      onClick={() => deleteSignature(idx)}
-                                      className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
-                                      title="Eliminar Firmante"
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  )}
+                          {signaturesList.map((sig, idx) => {
+                            const isClientCard = sig.id === 'cliente_firma' || sig.id === 'cliente' || sig.isClientSig;
+
+                            return (
+                              <div key={sig.id || idx} className="p-3 bg-white border border-slate-200 rounded-xl space-y-3 relative shadow-sm">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-bold text-slate-700">
+                                      {isClientCard ? 'Aceptación del Cliente' : `Firmante #${idx + 1}`}
+                                    </span>
+                                    {isClientCard && (
+                                      <span className="px-1.5 py-0.5 bg-blue-50 text-blue-600 border border-blue-200/50 rounded-md text-[8.5px] font-extrabold">
+                                        Obligatorio
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {signaturesList.length > 1 && !isClientCard && (
+                                      <button
+                                        onClick={() => deleteSignature(idx)}
+                                        className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
+                                        title="Eliminar Firmante"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    )}
                                   <button
                                     onClick={() => updateSignature(idx, 'enabled', !sig.enabled)}
                                     className={`w-8 h-4 rounded-full transition-all relative ${
@@ -3970,10 +4019,28 @@ export default function DocumentBuilderClient({
                                       className="w-full accent-indigo-600 cursor-pointer h-1 bg-slate-200 rounded-lg appearance-none"
                                     />
                                   </div>
+                                  <div className="space-y-1 pt-1.5">
+                                    <div className="flex justify-between items-center text-[10px] text-slate-500">
+                                      <span>Grosor del Trazo Digital:</span>
+                                      <span className="font-bold text-indigo-600">{sig.penWidth ?? 2.8}px</span>
+                                    </div>
+                                    <input 
+                                      type="range" 
+                                      min="0.2" max="6.0" step="0.1"
+                                      value={sig.penWidth ?? 2.8}
+                                      onChange={e => {
+                                        const val = Number(e.target.value);
+                                        updateSignature(idx, 'penWidth', val);
+                                        setSignaturePenWidth(val);
+                                      }}
+                                      className="w-full accent-indigo-600 cursor-pointer h-1 bg-slate-200 rounded-lg appearance-none"
+                                    />
+                                  </div>
                                 </div>
                               )}
-                            </div>
-                          ))}
+                             </div>
+                           );
+                         })}
                         </div>
 
                         <button
@@ -5582,15 +5649,70 @@ export default function DocumentBuilderClient({
             </p>
             
             <div className="space-y-3 mb-6">
-              <div className="flex justify-between items-end">
-                <span className="text-xs font-bold text-slate-700">Dibuja la firma aquí *</span>
+              <div className="flex flex-wrap justify-between items-center bg-slate-100/80 p-2 rounded-2xl gap-2">
+                {/* Selector de Grosor */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Grosor:</span>
+                  <div className="flex bg-white p-0.5 rounded-lg border border-slate-200 shadow-2xs">
+                    {[
+                      { label: 'Ultra', val: 0.5 },
+                      { label: 'Fino', val: 1.2 },
+                      { label: 'Normal', val: 2.5 },
+                      { label: 'Grueso', val: 4.8 }
+                    ].map((t) => (
+                      <button
+                        key={t.label}
+                        type="button"
+                        onClick={() => {
+                          setSignaturePenWidth(t.val);
+                          sigCanvasRef.current?.clear();
+                          setHasDirectSignatureDrawn(false);
+                        }}
+                        className={`px-2 py-1 rounded-md text-[10px] font-extrabold transition-all cursor-pointer ${
+                          signaturePenWidth === t.val ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Selector de Color */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tight">Color:</span>
+                  <div className="flex items-center gap-1.5">
+                    {[
+                      { color: '#0500A3', title: 'Azul Bioelectrónica' },
+                      { color: '#0f172a', title: 'Negro' },
+                      { color: '#1e3a8a', title: 'Azul Oscuro' }
+                    ].map((c) => (
+                      <button
+                        key={c.color}
+                        type="button"
+                        onClick={() => {
+                          setSignaturePenColor(c.color);
+                          sigCanvasRef.current?.clear();
+                          setHasDirectSignatureDrawn(false);
+                        }}
+                        className={`w-5 h-5 rounded-full border-2 transition-all cursor-pointer ${
+                          signaturePenColor === c.color ? 'border-slate-800 scale-110 shadow-sm' : 'border-transparent opacity-80 hover:opacity-100'
+                        }`}
+                        style={{ backgroundColor: c.color }}
+                        title={c.title}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Botón Limpiar */}
                 <button
                   type="button"
                   onClick={() => {
                     sigCanvasRef.current?.clear();
                     setHasDirectSignatureDrawn(false);
                   }}
-                  className="text-[10px] text-indigo-600 hover:text-indigo-850 font-extrabold flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-lg transition-all active:scale-95"
+                  className="text-[10px] text-red-600 hover:text-red-700 font-extrabold flex items-center gap-1 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-all active:scale-95 cursor-pointer ml-auto"
                 >
                   Limpiar
                 </button>
@@ -5601,7 +5723,9 @@ export default function DocumentBuilderClient({
               >
                 <SignatureCanvas
                   ref={sigCanvasRef}
-                  penColor="#0500A3"
+                  penColor={signaturePenColor}
+                  minWidth={signaturePenWidth * 0.7}
+                  maxWidth={signaturePenWidth * 1.3}
                   canvasProps={{
                     width: 400,
                     height: 220,
@@ -5645,10 +5769,27 @@ export default function DocumentBuilderClient({
                     });
                     
                     if (res.ok) {
+                      const resData = await res.json();
+                      const finalUrl = resData.firmaClienteUrl || dataUrl;
+
+                      if (initialData) {
+                        initialData.firmaClienteBase64 = dataUrl;
+                        initialData.firmaClienteUrl = finalUrl;
+                      }
+
+                      const updatedSigs = signaturesList.map((s: any) => {
+                        if (s.id === 'cliente_firma' || s.id === 'cliente' || s.isClientSig) {
+                          return { ...s, imageUrl: dataUrl, enabled: true };
+                        }
+                        return s;
+                      });
+
+                      const newSettings = { ...settings, signaturesList: updatedSigs };
+                      setSettings(newSettings);
+                      handleSaveTemplateSettings(newSettings);
+
                       toast.success('¡Firma guardada correctamente!', { id: toastId });
                       setShowDirectSignatureModal(false);
-                      // Recargar la página para que la firma aparezca en el PDF / entrega
-                      window.location.reload();
                     } else {
                       const errData = await res.json();
                       throw new Error(errData.error || 'Ocurrió un error al guardar.');

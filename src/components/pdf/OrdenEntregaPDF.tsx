@@ -617,19 +617,43 @@ export default function OrdenEntregaPDF({ data, images }: OrdenEntregaPDFProps) 
           )}
 
           {/* Client Signature Column */}
-          <View style={[styles.signatureCol, { width: activeSigs.length <= 1 ? '45%' : '30%' }]}>
-            <View style={{ height: finalSigHeight }} />
+          <View style={[styles.signatureCol, { width: '32%' }]}>
+            <View style={{ height: finalSigHeight, justifyContent: 'flex-end', alignItems: 'center', marginBottom: 2 }}>
+              {(images['sig_cliente'] || images['sig_cliente_firma']) && (
+                <Image 
+                  src={images['sig_cliente'] || images['sig_cliente_firma']} 
+                  style={{ height: finalSigHeight, objectFit: 'contain' }} 
+                />
+              )}
+            </View>
             <View style={styles.signatureLine} />
-            <Text style={[styles.signatureLabel, { fontSize: 10 }]}>RECIBE:</Text>
-            <Text style={styles.signatureSubLabel}>Cliente / Solicitante</Text>
+            <Text style={[styles.signatureLabel, { fontSize: 9 }]}>
+              {selectedClient?.name || 'Aceptación del Cliente'}
+            </Text>
+            <Text style={styles.signatureSubLabel}>Firma y Sello del Beneficiario</Text>
           </View>
+
         </View>
 
-        {/* Blue Footer */}
-        <View style={styles.blueFranja} fixed>
-          <Text style={styles.footerText}>BARRIO GUAMILITO. 7 CALLE. 9 AVENIDA, SAN PEDRO SULA, CORTES, HONDURAS C.A.</Text>
-          <Text style={styles.footerText}>TEL:(504) 552 04 91. CEL. 3178 2368 / 8924-6108</Text>
-          <Text style={styles.footerText}>E-MAIL: gerencia@bioelectronicahn.com / bioelectronicaa_a@yahoo.com</Text>
+        {/* Blue Footer with embedded QR Code */}
+        <View style={[styles.blueFranja, { position: 'relative', justifyContent: 'center', alignItems: 'center' }]} fixed>
+          <View style={{ width: '100%', textTransform: 'uppercase', paddingHorizontal: 40 }}>
+            <Text style={[styles.footerText, { fontSize: 7, textAlign: 'center' }]}>BARRIO GUAMILITO. 7 CALLE. 9 AVENIDA, SAN PEDRO SULA, CORTES, HONDURAS C.A.</Text>
+            <Text style={[styles.footerText, { fontSize: 7, textAlign: 'center' }]}>TEL:(504) 552 04 91. CEL. 3178 2368 / 8924-6108</Text>
+            <Text style={[styles.footerText, { fontSize: 7, textAlign: 'center' }]}>E-MAIL: gerencia@bioelectronicahn.com / bioelectronicaa_a@yahoo.com</Text>
+          </View>
+
+          {images['qr_code'] && (
+            <View style={{ position: 'absolute', right: 10, top: 4, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+              <View style={{ padding: 1, backgroundColor: '#ffffff', borderRadius: 2 }}>
+                <Image src={images['qr_code']} style={{ width: 28, height: 28 }} />
+              </View>
+              <View style={{ flexDirection: 'column' }}>
+                <Text style={{ fontSize: 6, fontWeight: 700, color: '#ffffff' }}>{ordenEntrega?.correlativo || docNumber}</Text>
+                <Text style={{ fontSize: 4.5, color: '#e0e7ff' }}>Trazabilidad Digital</Text>
+              </View>
+            </View>
+          )}
         </View>
       </Page>
     </Document>

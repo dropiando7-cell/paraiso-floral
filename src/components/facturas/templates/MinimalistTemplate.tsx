@@ -196,11 +196,13 @@ export default function MinimalistTemplate(props: TemplateProps) {
  ))}
  </div>
  
- <div className="mt-4 flex gap-3 print:hidden">
- <button onClick={() => setShowProductModal(true)} className="px-4 py-2 bg-slate-50 text-slate-600 text-xs font-medium hover:bg-slate-100 rounded flex gap-2 items-center"><Search size={14} /> Catálogo</button>
- <button onClick={() => setLineItems(prev => [...prev, emptyLine()])} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 rounded flex gap-2 items-center"><Plus size={14} /> Fila</button>
- <button onClick={() => setLineItems(prev => [...prev, emptySectionLine()])} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 rounded flex gap-2 items-center"><Plus size={14} /> Sección</button>
- </div>
+  {!viewMode && (
+  <div className="mt-4 flex gap-3 print:hidden">
+  <button onClick={() => setShowProductModal(true)} className="px-4 py-2 bg-slate-50 text-slate-600 text-xs font-medium hover:bg-slate-100 rounded flex gap-2 items-center"><Search size={14} /> Catálogo</button>
+  <button onClick={() => setLineItems(prev => [...prev, emptyLine()])} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 rounded flex gap-2 items-center"><Plus size={14} /> Fila</button>
+  <button onClick={() => setLineItems(prev => [...prev, emptySectionLine()])} className="px-4 py-2 border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 rounded flex gap-2 items-center"><Plus size={14} /> Sección</button>
+  </div>
+  )}
  </div>
 
  {/* Footer Minimal */}

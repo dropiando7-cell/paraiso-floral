@@ -24,30 +24,34 @@ export default function InvoiceFooter({ settings, organization, className = '' }
  const hasContent = tel || correo || web || nota;
  if (!hasContent && !showPage) return null;
 
+ const fullTextLen = (tel?.length || 0) + (correo?.length || 0) + (web?.length || 0);
+ const defaultFontSize = fullTextLen > 70 ? 8.5 : 9.5;
+ const fontSizeVal = settings.footerFontSize || defaultFontSize;
+
  return (
  <div className={`border-t border-slate-300 pt-2 mt-6 print:fixed print:bottom-0 print:left-0 print:w-full print:bg-white print:z-[100] print:pb-2 ${className}`}>
   {/* Main info row */}
   {hasContent && (
-  <div className="w-full flex justify-center overflow-hidden">
+  <div className="w-full flex justify-center px-4">
     <div 
-      className="flex flex-nowrap whitespace-nowrap items-center gap-x-3 text-slate-600 max-w-full"
-      style={{ fontSize: `${settings.footerFontSize || 10}px` }}
+      className="flex flex-nowrap whitespace-nowrap items-center justify-center gap-x-2.5 text-slate-600 max-w-full tracking-tight"
+      style={{ fontSize: `${fontSizeVal}px` }}
     >
       {tel && <span className="shrink-0">Tel.: {tel}</span>}
-      {correo && <span className="shrink truncate">Correo: {correo}</span>}
-      {web && <span className="shrink-0 truncate">Web: {web}</span>}
+      {correo && <span className="shrink-0">Correo: {correo}</span>}
+      {web && <span className="shrink-0">Web: {web}</span>}
     </div>
   </div>
   )}
 
  {/* Nota adicional */}
  {nota && (
- <p className="text-[10px] text-slate-500 text-center mt-0.5 italic leading-tight">{nota}</p>
+ <p className="text-[9px] text-slate-500 text-center mt-0.5 italic leading-tight">{nota}</p>
  )}
 
  {/* Número de página */}
  {showPage && (
- <p className="text-[10px] text-slate-400 text-center mt-0.5">Página: 1/1</p>
+ <p className="text-[9px] text-slate-400 text-center mt-0.5">Página: 1/1</p>
  )}
  </div>
  );
