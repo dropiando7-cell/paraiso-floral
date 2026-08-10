@@ -18,6 +18,7 @@ type Cliente = {
     direccion?: string | null;
     nombreContacto?: string | null;
     telefonoContacto?: string | null;
+    emailsCC?: string | null;
     createdAt: Date;
 };
 
@@ -352,16 +353,28 @@ export default function ContactosClient({ initialData }: { initialData: Cliente[
                                     </div>
                                 </div>
                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Correo Electrónico</label>
-                                <input
-                                    type="email"
-                                    placeholder="contacto@empresa.com"
-                                    className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
-                                    value={currentContacto.email || ''}
-                                    onChange={e => setCurrentContacto({ ...currentContacto, email: e.target.value })}
-                                />
-                            </div>
+                             <div>
+                                 <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Correo Electrónico Principal</label>
+                                 <input
+                                     type="email"
+                                     placeholder="contacto@empresa.com"
+                                     className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                                     value={currentContacto.email || ''}
+                                     onChange={e => setCurrentContacto({ ...currentContacto, email: e.target.value })}
+                                 />
+                             </div>
+                             <div>
+                                 <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">
+                                     Correos para Copia (CC) <span className="text-xs text-slate-400 font-normal">(Separados por coma)</span>
+                                 </label>
+                                 <input
+                                     type="text"
+                                     placeholder="contabilidad@empresa.com, gerencia@empresa.com"
+                                     className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                                     value={currentContacto.emailsCC || ''}
+                                     onChange={e => setCurrentContacto({ ...currentContacto, emailsCC: e.target.value })}
+                                 />
+                             </div>
                             <div>
                                 <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Dirección</label>
                                 <textarea

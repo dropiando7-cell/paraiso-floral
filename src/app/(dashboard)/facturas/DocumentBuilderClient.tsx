@@ -51,6 +51,7 @@ interface Client {
   name: string;
   rtn: string;
   email: string;
+  emailsCC?: string | null;
   phone: string;
   address: string;
   city: string;
@@ -1467,7 +1468,7 @@ export default function DocumentBuilderClient({
   const [sendEmailDocId, setSendEmailDocId] = useState('');
   const [activeLineId, setActiveLineId] = useState<string | null>(null);
   const [showNewClientModal, setShowNewClientModal] = useState(false);
-  const [newClientData, setNewClientData] = useState({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
+  const [newClientData, setNewClientData] = useState({ nombre: '', email: '', emailsCC: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
   const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [editingClientId, setEditingClientId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'clients' | 'products'>('clients');
@@ -2997,6 +2998,7 @@ export default function DocumentBuilderClient({
         await updateContacto(editingClientId, {
           nombre: newClientData.nombre,
           email: newClientData.email || undefined,
+          emailsCC: newClientData.emailsCC || undefined,
           telefono: newClientData.telefono || undefined,
           rtn: newClientData.rtn || undefined,
           direccion: newClientData.direccion || undefined,
@@ -3009,6 +3011,7 @@ export default function DocumentBuilderClient({
           name: newClientData.nombre,
           rtn: newClientData.rtn || '',
           email: newClientData.email || '',
+          emailsCC: newClientData.emailsCC || '',
           phone: newClientData.telefono || '',
           address: newClientData.direccion || '',
           city: '',
@@ -3025,13 +3028,14 @@ export default function DocumentBuilderClient({
         }
         setShowNewClientModal(false);
         setEditingClientId(null);
-        setNewClientData({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
+        setNewClientData({ nombre: '', email: '', emailsCC: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
         toast.success('Cliente actualizado correctamente');
       } else {
         // Create mode
         const created = await createContacto({
           nombre: newClientData.nombre,
           email: newClientData.email || undefined,
+          emailsCC: newClientData.emailsCC || undefined,
           telefono: newClientData.telefono || undefined,
           rtn: newClientData.rtn || undefined,
           direccion: newClientData.direccion || undefined,
@@ -3043,6 +3047,7 @@ export default function DocumentBuilderClient({
           name: created.nombre,
           rtn: created.rtn || '',
           email: created.email || '',
+          emailsCC: created.emailsCC || '',
           phone: created.telefono || '',
           address: created.direccion || '',
           city: '',
@@ -3054,7 +3059,7 @@ export default function DocumentBuilderClient({
         setSelectedClient(newClientObj);
         setShowNewClientModal(false);
         setShowClientModal(false);
-        setNewClientData({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
+        setNewClientData({ nombre: '', email: '', emailsCC: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' });
         toast.success('Cliente registrado correctamente');
       }
     } catch (e: any) {
@@ -4827,6 +4832,7 @@ export default function DocumentBuilderClient({
                           setNewClientData({
                             nombre: selectedClient.name,
                             email: selectedClient.email || '',
+                            emailsCC: selectedClient.emailsCC || '',
                             telefono: selectedClient.phone || '',
                             rtn: selectedClient.rtn || '',
                             direccion: selectedClient.address || '',
@@ -4882,6 +4888,7 @@ export default function DocumentBuilderClient({
                             setNewClientData({
                               nombre: client.name,
                               email: client.email || '',
+                              emailsCC: client.emailsCC || '',
                               telefono: client.phone || '',
                               rtn: client.rtn || '',
                               direccion: client.address || '',
@@ -5028,13 +5035,25 @@ export default function DocumentBuilderClient({
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Correo Electrónico</label>
+                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Correo Electrónico Principal</label>
                         <input
                             type="email"
                             placeholder="contacto@empresa.com"
                             className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
                             value={newClientData.email}
                             onChange={e => setNewClientData({ ...newClientData, email: e.target.value })}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">
+                            Correos para Copia (CC) <span className="text-xs text-slate-400 font-normal">(Separados por coma)</span>
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="contabilidad@empresa.com, gerencia@empresa.com"
+                            className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                            value={newClientData.emailsCC || ''}
+                            onChange={e => setNewClientData({ ...newClientData, emailsCC: e.target.value })}
                         />
                     </div>
                     <div>
@@ -5049,7 +5068,7 @@ export default function DocumentBuilderClient({
                 </div>
                 <div className="px-6 py-5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
                     <button
-                        onClick={() => { setShowNewClientModal(false); setEditingClientId(null); setNewClientData({ nombre: '', email: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' }); }}
+                        onClick={() => { setShowNewClientModal(false); setEditingClientId(null); setNewClientData({ nombre: '', email: '', emailsCC: '', telefono: '', rtn: '', direccion: '', nombreContacto: '', telefonoContacto: '' }); }}
                         className="px-5 py-2.5 rounded-xl font-semibold text-slate-550 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
                     >
                         Cancelar

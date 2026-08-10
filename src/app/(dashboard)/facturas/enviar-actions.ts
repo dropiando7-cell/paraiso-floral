@@ -76,7 +76,8 @@ export async function enviarDocumentoPorEmail(
   documentoId: string,
   emailDestino: string,
   asunto: string,
-  mensajePersonalizado: string
+  mensajePersonalizado: string,
+  emailCC?: string
 ) {
   try {
     // 1. Authenticate user
@@ -149,34 +150,34 @@ export async function enviarDocumentoPorEmail(
       <html>
         <head>
           <meta charset="utf-8">
-          <title>${docLabel} ${correlativo}</title>
           <style>
-            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b; margin: 0; padding: 0; }
-            .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-            .header { background-color: #0f172a; color: #ffffff; padding: 32px 24px; text-align: center; }
-            .header h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.025em; }
-            .header p { margin: 4px 0 0 0; font-size: 14px; color: #94a3b8; }
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; margin: 0; padding: 20px; color: #334155; }
+            .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; border: 1px solid #e2e8f0; shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #0500A3 0%, #1e1b4b 100%); padding: 32px 24px; text-align: center; color: white; }
+            .header h1 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+            .header p { margin: 6px 0 0 0; opacity: 0.9; font-size: 13px; }
             .content { padding: 32px 24px; }
-            .greeting { font-size: 16px; font-weight: bold; margin-bottom: 16px; color: #0f172a; }
-            .message { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px; }
-            .summary-box { background-color: #f1f5f9; border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
-            .summary-title { font-size: 12px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.05em; margin-bottom: 12px; }
-            .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
-            .summary-row:last-child { margin-bottom: 0; padding-top: 8px; border-top: 1px dashed #cbd5e1; font-weight: bold; color: #0f172a; }
-            .footer { background-color: #f8fafc; padding: 24px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; }
-            .footer a { color: #2563eb; text-decoration: none; }
+            .greeting { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 12px; }
+            .body-text { font-size: 14px; line-height: 1.6; color: #475569; margin-bottom: 24px; }
+            .summary-box { background: #f1f5f9; border-radius: 12px; padding: 18px; margin-bottom: 24px; border: 1px solid #e2e8f0; }
+            .summary-title { font-size: 11px; font-weight: 800; text-transform: uppercase; color: #64748b; letter-spacing: 0.5px; margin-bottom: 10px; }
+            .summary-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; }
+            .summary-row:last-child { margin-bottom: 0; }
+            .footer { background: #f8fafc; padding: 20px; text-align: center; border-t: 1px solid #e2e8f0; font-size: 11px; color: #94a3b8; }
+            .footer p { margin: 4px 0; }
+            .footer a { color: #0500A3; text-decoration: none; font-weight: 600; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1>BIOELECTRÓNICA HONDURAS</h1>
-              <p>Soporte Técnico y Venta de Equipo Médico</p>
+              <h1>Bioelectrónica Honduras</h1>
+              <p>Tecnología y Servicio Médico Especializado</p>
             </div>
             <div class="content">
-              <div class="greeting">Estimado(a) ${doc.cliente.nombre},</div>
-              <div class="message">
-                ${cleanMsg}
+              <div class="greeting">Estimado(a) ${doc.cliente?.nombre || 'Cliente'},</div>
+              <div class="body-text">
+                ${cleanMsg || `Adjunto a este correo encontrará su <strong>${docLabel} #${correlativo}</strong>.`}
               </div>
               <div class="summary-box">
                 <div class="summary-title">Resumen del Documento</div>
@@ -192,9 +193,6 @@ export async function enviarDocumentoPorEmail(
                   <span>Monto Total:</span>
                   <strong>${totalFormateado}</strong>
                 </div>
-              </div>
-              <div class="message" style="font-size: 13px; color: #64748b;">
-                Por favor, conserve este correo para sus registros. Si tiene alguna consulta sobre esta cotización o factura, responda directamente a este correo.
               </div>
             </div>
             <div class="footer">
@@ -215,10 +213,17 @@ export async function enviarDocumentoPorEmail(
       ? emailSettings.bccList.split(',').map((e: string) => e.trim()).filter((e: string) => e.length > 0)
       : [];
 
-    console.log(`Sending email to ${emailDestino} for ${docLabel} ${correlativo}...`);
+    // Parse CC list (from passed parameter or client default emailsCC)
+    const rawCC = emailCC !== undefined ? emailCC : ((doc.cliente as any)?.emailsCC || '');
+    const ccList = rawCC
+      ? rawCC.split(',').map((e: string) => e.trim()).filter((e: string) => e.length > 0)
+      : [];
+
+    console.log(`Sending email to ${emailDestino} (CC: ${ccList.join(', ')}) for ${docLabel} ${correlativo}...`);
     const sendResult = await resend.emails.send({
       from: 'Bioelectrónica Honduras <notificaciones@mail.bioelectronicahn.com>',
       to: emailDestino,
+      cc: ccList.length > 0 ? ccList : undefined,
       bcc: bccList.length > 0 ? bccList : undefined,
       replyTo: emailSettings.email || 'administracion@bioelectronicahn.com',
       subject: asunto || `${docLabel} ${correlativo} - Bioelectrónica Honduras`,

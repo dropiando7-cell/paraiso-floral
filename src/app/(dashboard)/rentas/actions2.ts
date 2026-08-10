@@ -20,6 +20,7 @@ export async function createRenta(data: FormData) {
     const nuevoClienteNombre = data.get('nuevoClienteNombre') as string;
     const nuevoClienteRtn = data.get('nuevoClienteRtn') as string;
     const nuevoClienteEmail = data.get('nuevoClienteEmail') as string;
+    const emailsCC = data.get('emailsCC') as string;
     const nombreContacto = data.get('nombreContacto') as string;
     const telefonoContacto = data.get('telefonoContacto') as string;
     
@@ -65,6 +66,7 @@ export async function createRenta(data: FormData) {
                     nombre: nuevoClienteNombre.trim(),
                     ...(nuevoClienteRtn ? { rtn: nuevoClienteRtn } : {}),
                     ...(nuevoClienteEmail ? { email: nuevoClienteEmail.trim() } : {}),
+                    ...(emailsCC ? { emailsCC: emailsCC.trim() } : {}),
                     ...(telefono && telefono.trim() !== '+504' ? { telefono } : {}),
                     ...(direccion ? { direccion } : {}),
                     ...(nombreContacto ? { nombreContacto } : {}),
@@ -73,13 +75,14 @@ export async function createRenta(data: FormData) {
             });
             clienteId = nuevoCliente.id;
         }
-    } else if (telefono || direccion || nuevoClienteEmail || nombreContacto) {
+    } else if (telefono || direccion || nuevoClienteEmail || emailsCC || nombreContacto) {
         await prisma.cliente.update({
             where: { id: clienteId },
             data: {
                 ...(telefono && telefono.trim() !== '+504' ? { telefono } : {}),
                 ...(direccion ? { direccion } : {}),
                 ...(nuevoClienteEmail ? { email: nuevoClienteEmail.trim() } : {}),
+                ...(emailsCC ? { emailsCC: emailsCC.trim() } : {}),
                 ...(nombreContacto ? { nombreContacto } : {}),
                 ...(telefonoContacto ? { telefonoContacto } : {})
             }

@@ -31,6 +31,7 @@ export default function SendEmailModal({ isOpen, onClose, documentoId }: SendEma
   
   // Send Form fields
   const [emailDestino, setEmailDestino] = useState('');
+  const [emailCC, setEmailCC] = useState('');
   const [asunto, setAsunto] = useState('');
   const [mensaje, setMensaje] = useState('');
 
@@ -88,8 +89,9 @@ export default function SendEmailModal({ isOpen, onClose, documentoId }: SendEma
           setCorrelativo(docCorr);
           setTipoDocumentoLabel(label);
           
-          // Pre-fill destination email
+          // Pre-fill destination email and CC emails
           setEmailDestino(doc.cliente?.email || '');
+          setEmailCC(doc.cliente?.emailsCC || '');
           
           // Render templates
           const fechaEmision = doc.fechaEmision
@@ -173,7 +175,7 @@ export default function SendEmailModal({ isOpen, onClose, documentoId }: SendEma
     setSending(true);
     const toastId = toast.loading('Enviando documento por correo...');
     try {
-      const res = await enviarDocumentoPorEmail(documentoId, emailDestino, asunto, mensaje);
+      const res = await enviarDocumentoPorEmail(documentoId, emailDestino, asunto, mensaje, emailCC);
       if (res.success) {
         toast.success(`El documento ha sido enviado con éxito a ${emailDestino}`, { id: toastId });
         onClose();
@@ -281,6 +283,21 @@ export default function SendEmailModal({ isOpen, onClose, documentoId }: SendEma
                         <AlertCircle size={10} /> El cliente asociado no tiene un correo predefinido.
                       </span>
                     )}
+                  </div>
+
+                  {/* CC email */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Copiar a (CC)</label>
+                      <span className="text-[10px] text-slate-400 font-medium">Separados por coma</span>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="contabilidad@cliente.com, gerencia@cliente.com"
+                      value={emailCC}
+                      onChange={e => setEmailCC(e.target.value)}
+                      className="w-full h-[40px] px-3.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium placeholder:font-normal placeholder:text-slate-350"
+                    />
                   </div>
 
                   {/* Subject */}

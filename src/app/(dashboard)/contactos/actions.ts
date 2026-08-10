@@ -56,6 +56,7 @@ export async function createContacto(data: {
     direccion?: string;
     nombreContacto?: string;
     telefonoContacto?: string;
+    emailsCC?: string;
 }) {
     const orgId = await getOrgId();
 
@@ -94,6 +95,7 @@ export async function updateContacto(id: string, data: {
     direccion?: string;
     nombreContacto?: string;
     telefonoContacto?: string;
+    emailsCC?: string;
 }) {
     const updated = await prisma.cliente.update({
         where: { id },

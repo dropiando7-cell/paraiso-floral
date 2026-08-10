@@ -255,26 +255,38 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                             </div>
 
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-700 mb-1">Identidad / RTN <span className="text-red-500">*</span></label>
-                                                    <input 
-                                                        type="text" 
-                                                        name="nuevoClienteRtn" 
-                                                        required={isNewClient} 
-                                                        placeholder="Ej. 0801-1990-12345" 
-                                                        className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
-                                                    />
-                                                </div>
-                                                <div>
-                                                    <label className="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico (Email)</label>
-                                                    <input 
-                                                        type="email" 
-                                                        name="nuevoClienteEmail" 
-                                                        placeholder="cliente@ejemplo.com" 
-                                                        className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
-                                                    />
-                                                </div>
-                                            </div>
+                                                 <div>
+                                                     <label className="block text-xs font-bold text-slate-700 mb-1">Identidad / RTN <span className="text-red-500">*</span></label>
+                                                     <input 
+                                                         type="text" 
+                                                         name="nuevoClienteRtn" 
+                                                         required={isNewClient} 
+                                                         placeholder="Ej. 0801-1990-12345" 
+                                                         className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
+                                                     />
+                                                 </div>
+                                                 <div>
+                                                     <label className="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico (Email Principal)</label>
+                                                     <input 
+                                                         type="email" 
+                                                         name="nuevoClienteEmail" 
+                                                         placeholder="cliente@ejemplo.com" 
+                                                         className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
+                                                     />
+                                                 </div>
+                                             </div>
+
+                                             <div>
+                                                 <label className="block text-xs font-bold text-slate-700 mb-1">
+                                                     Correos en Copia (CC) <span className="text-[10px] text-slate-400 font-normal">(Separados por coma para enviar copia automática de documentos)</span>
+                                                 </label>
+                                                 <input 
+                                                     type="text" 
+                                                     name="emailsCC" 
+                                                     placeholder="contabilidad@clinica.com, gerencia@clinica.com" 
+                                                     className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
+                                                 />
+                                             </div>
 
                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 <div>
