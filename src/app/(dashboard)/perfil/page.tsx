@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { MfaSettings } from '@/components/perfil/MfaSettings';
 import { PasswordChange } from '@/components/perfil/PasswordChange';
+import { FirmaPerfilCard } from '@/components/perfil/FirmaPerfilCard';
 import { createClient } from '@/utils/supabase/client';
 import { ExternalLink, ShieldAlert, Check, X, Bell } from 'lucide-react';
-import { updateProfile, updateAvatarInDb } from './actions';
+import { updateProfile, updateAvatarInDb, updateSignatureInDb } from './actions';
 import { getUserProfileData } from './data';
 import { registerOneSignalSubscription } from '@/app/(dashboard)/admin/notificaciones/actions';
 import toast from 'react-hot-toast';
@@ -23,6 +24,7 @@ const roleTextMapping: Record<string, string> = {
 export default function ProfilePage() {
     const [isUploading, setIsUploading] = useState(false);
     const [profilePic, setProfilePic] = useState("https://i.ibb.co/99640p19/foto-isaac.png");
+    const [firmaUrl, setFirmaUrl] = useState<string | null>(null);
 
     // Auth and User State
     const [loadingAuth, setLoadingAuth] = useState(true);
@@ -69,6 +71,7 @@ export default function ProfilePage() {
                         const phone = dbData.phoneNumber || '';
                         setUserPhone(phone);
                         setEditPhone(phone);
+                        setFirmaUrl(dbData.firmaDigitalUrl || null);
                     }
                 }
             }
@@ -328,6 +331,18 @@ export default function ProfilePage() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Firma Digital Oficial del Usuario */}
+                            <FirmaPerfilCard
+                                initialFirmaUrl={firmaUrl}
+                                onSaveFirma={async (newFirma) => {
+                                    const res = await updateSignatureInDb(newFirma);
+                                    if (res.success) {
+                                        setFirmaUrl(newFirma || null);
+                                    }
+                                    return res;
+                                }}
+                            />
 
                             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
                                 <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(); }} className="flex flex-col flex-1">

@@ -71,3 +71,27 @@ export async function updateAvatarInDb(url: string) {
         return { success: false, error: 'Error interno del servidor al actualizar foto en DB.' };
     }
 }
+
+export async function updateSignatureInDb(signatureUrl: string) {
+    try {
+        const supabase = await createClient();
+        const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+        if (authError || !user || !user.email) {
+            return { success: false, error: 'No autorizado' };
+        }
+
+        await prisma.user.update({
+            where: { email: user.email },
+            data: {
+                firmaDigitalUrl: signatureUrl || null
+            }
+        });
+
+        revalidatePath('/perfil');
+        return { success: true };
+    } catch (error) {
+        console.error('Error in updateSignatureInDb:', error);
+        return { success: false, error: 'Error interno del servidor al actualizar firma digital.' };
+    }
+}

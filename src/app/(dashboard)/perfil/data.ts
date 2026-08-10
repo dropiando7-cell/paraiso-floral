@@ -11,7 +11,9 @@ export async function getUserProfileData(email: string) {
                 id: true,
                 phoneNumber: true,
                 role: true,
-                customRoleName: true
+                customRoleName: true,
+                firmaDigitalUrl: true,
+                avatarUrl: true
             }
         });
         return user;

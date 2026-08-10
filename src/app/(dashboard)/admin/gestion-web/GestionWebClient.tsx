@@ -841,11 +841,12 @@ export default function GestionWebClient({
         }
     }, [scraperLogs]);
 
-    // Close lightbox on Escape key press
+    // Close modal & lightbox on Escape key press
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 setLightboxImageUrl(null);
+                setSelectedItem(null);
             }
         };
         window.addEventListener('keydown', handleKeyDown);
@@ -3750,10 +3751,10 @@ export default function GestionWebClient({
                     const isUploading = uploadingItemId === selectedItem.id;
                     
                     return (
-                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in animate-duration-200" onPaste={(e) => handlePasteImage(selectedItem.id, e)}>
-                            <div className="bg-white border border-slate-100 rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden relative animate-in fade-in zoom-in-95 duration-200 flex flex-col">
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 z-[9999] animate-fade-in animate-duration-200 overflow-y-auto" onPaste={(e) => handlePasteImage(selectedItem.id, e)}>
+                            <div className="bg-white border border-slate-100 rounded-2xl sm:rounded-3xl shadow-2xl max-w-2xl w-full max-h-[88vh] overflow-hidden relative animate-in fade-in zoom-in-95 duration-200 flex flex-col my-auto">
                                 {/* Header / Top Ribbon */}
-                                <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex justify-between items-center shrink-0">
+                                <div className="bg-slate-50 border-b border-slate-100 px-6 py-4 flex justify-between items-center shrink-0 sticky top-0 z-10">
                                     <div className="space-y-1">
                                         <div className="flex items-center gap-2">
                                             <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider ${
@@ -3790,7 +3791,7 @@ export default function GestionWebClient({
                                 </div>
 
                                 {/* Scrollable Body */}
-                                <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
+                                <div className="p-4 sm:p-6 space-y-6 max-h-[calc(88vh-76px)] overflow-y-auto">
                                     {/* Images Preview Section */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         {/* Column 1: Original Inventory Photo */}
