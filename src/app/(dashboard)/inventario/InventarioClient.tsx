@@ -394,6 +394,8 @@ type Activo = {
     costoAdq?: any;
     origenActivo?: string | null;
     condicionActivo?: string | null;
+    esImportadoWeb?: boolean;
+    providerName?: string;
     referencia?: string | null;
     lote?: string | null;
     fechaFabricacion?: Date | string | null;
@@ -518,7 +520,7 @@ function Combobox({
             {/* Trigger */}
             <button type="button" onClick={() => !disabled && setOpen(o => !o)}
                 disabled={disabled}
-                className={`w-full flex items-center justify-between text-base border-2 rounded-xl px-4 py-3.5 text-left transition-all focus:outline-none
+                className={`w-full h-[46px] flex items-center justify-between text-sm font-semibold border rounded-xl px-3.5 py-2.5 text-left transition-all focus:outline-none
                     ${disabled ? 'bg-slate-50 text-slate-400 cursor-not-allowed border-transparent' : aiHighlight ? 'border-purple-400 bg-purple-50' : 'border-slate-200 bg-white'}
                     ${open ? 'ring-2 ring-[#0500A3]/30 border-[#0500A3]/50' : 'hover:border-slate-300'}`}>
                 <span className={`flex-1 min-w-0 truncate ${selected || (allowCustom && value) ? (disabled ? 'text-slate-500' : 'text-slate-900') : 'text-slate-400'}`}>
@@ -3631,7 +3633,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const [filtroEstatus, setFiltroEstatus] = useState('');
     const [filtroOrigen, setFiltroOrigen] = useState('');
     const [filtroCondicion, setFiltroCondicion] = useState('');
-    const [tipoInventario, setTipoInventario] = useState<'real' | 'cliente' | 'servicio'>('real');
+    const [tipoInventario, setTipoInventario] = useState<'real' | 'cliente' | 'servicio' | 'importado'>('real');
     const [exportingExcel, setExportingExcel] = useState(false);
     const [originsList, setOriginsList] = useState<string[]>(initialOrigins);
     const [defaultOrigin, setDefaultOrigin] = useState<string>(initialDefaultOrigin);
@@ -4536,10 +4538,10 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
 
             {/* Segmented Control / Tabs for Inventory Types */}
             {!isRentaMode && (
-                <div className="flex p-1 bg-slate-200/60 backdrop-blur-sm rounded-2xl mb-6 max-w-2xl border border-slate-200/80 shadow-sm hide-on-print mt-4">
+                <div className="flex p-1 bg-slate-200/60 backdrop-blur-sm rounded-2xl mb-6 max-w-4xl border border-slate-200/80 shadow-sm hide-on-print mt-4 overflow-x-auto">
                     <button
                         onClick={() => setTipoInventario('real')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
+                        className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
                             tipoInventario === 'real'
                                 ? 'bg-white text-[#0500A3] shadow-md shadow-slate-300'
                                 : 'text-slate-500 hover:text-slate-800'
@@ -4550,18 +4552,18 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                     </button>
                     <button
                         onClick={() => setTipoInventario('cliente')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
+                        className={`flex-1 min-w-[160px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
                             tipoInventario === 'cliente'
                                 ? 'bg-white text-[#0500A3] shadow-md shadow-slate-300'
                                 : 'text-slate-500 hover:text-slate-800'
                         }`}
                     >
                         <Wrench className={`w-4 h-4 ${tipoInventario === 'cliente' ? 'text-[#0500A3]' : 'text-slate-400'}`} />
-                        <span>Inventario de Equipos Interno/Externo</span>
+                        <span>Equipos Interno/Externo</span>
                     </button>
                     <button
                         onClick={() => setTipoInventario('servicio')}
-                        className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
+                        className={`flex-1 min-w-[100px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
                             tipoInventario === 'servicio'
                                 ? 'bg-white text-[#0500A3] shadow-md shadow-slate-300'
                                 : 'text-slate-500 hover:text-slate-800'
@@ -4570,6 +4572,17 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                         <RotateCw className={`w-4 h-4 ${tipoInventario === 'servicio' ? 'text-[#0500A3]' : 'text-slate-400'}`} />
                         <span>Servicios</span>
                     </button>
+                    <button
+                        onClick={() => setTipoInventario('importado')}
+                        className={`flex-1 min-w-[170px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
+                            tipoInventario === 'importado'
+                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-300'
+                                : 'text-indigo-600 hover:bg-indigo-50 font-extrabold'
+                        }`}
+                    >
+                        <Globe className={`w-4 h-4 ${tipoInventario === 'importado' ? 'text-white' : 'text-indigo-600'}`} />
+                        <span>Catálogo Web / Importados ({stats.totalImportadosWeb || 0})</span>
+                    </button>
                 </div>
             )}
 
@@ -4577,7 +4590,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
             <div className="flex gap-2 mb-3 hide-on-print">
                 <div className="relative flex-1">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <DebouncedInput type="text" placeholder="Buscar por ID, descripción, serie, responsable..."
+                    <DebouncedInput type="text" placeholder="Buscar por ID, SKU, descripción, marca, modelo..."
                         value={search} onChange={setSearch}
                         className="w-full pl-10 pr-4 py-3 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 bg-white" />
                 </div>
@@ -4599,26 +4612,31 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                     <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1.5">Estatus Contable</label>
                         <select value={filtroEstatus} onChange={e => setFiltroEstatus(e.target.value)}
-                            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30">
+                            className="w-full h-[46px] text-sm font-semibold border border-slate-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 text-slate-800 shadow-2xs">
                             <option value="">Todos</option>
                             {ESTATUS.map(e => <option key={e}>{e}</option>)}
                         </select>
                     </div>
                     <div>
-                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Origen del Inventario</label>
+                        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Origen / Proveedor Web</label>
                         <select value={filtroOrigen} onChange={e => setFiltroOrigen(e.target.value)}
-                            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30">
-                            <option value="">Todos</option>
-                            <option value="SIN_DEFINIR">Nacional / Sin Definir</option>
-                            {originsList.map(o => (
-                                <option key={o} value={o}>{o}</option>
-                            ))}
+                            className="w-full h-[46px] text-sm font-semibold border border-slate-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 text-slate-800 shadow-2xs">
+                            <option value="">Todos los Orígenes / Proveedores</option>
+                            <option value="SOMA-">Soma Tech (Equipos Médicos)</option>
+                            <option value="SOMAPARTS-">Soma Medical Parts (Repuestos/Accesorios)</option>
+                            <option value="PUKANG-">Pukang Medical (Muebles y Equipos Hospitalarios)</option>
+                            <option value="JOSON-">Joson Care (Camas y Mobiliario Hospitalario)</option>
+                            <option value="AERTI-">Aerti Oxygen (Equipos de Oxigenoterapia)</option>
+                            <option value="DRE-">DRE Medical (Equipos Médicos e Imagenología)</option>
+                            <option value="AMCAREMED-">AmcareMed (Gases Medicinales y Quirófano)</option>
+                            <option value="RD-">R&D Batteries (Baterías Médicas y Lámparas)</option>
+                            {originsList.map(o => <option key={o} value={o}>{o}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-xs font-semibold text-slate-500 mb-1.5">Condición del Equipo</label>
                         <select value={filtroCondicion} onChange={e => setFiltroCondicion(e.target.value)}
-                            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30">
+                            className="w-full h-[46px] text-sm font-semibold border border-slate-200 rounded-xl px-3.5 py-2.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#0500A3]/30 text-slate-800 shadow-2xs">
                             <option value="">Todas</option>
                             <option value="SIN_DEFINIR">Sin Definir</option>
                             {conditionsList.map(c => (
@@ -4679,8 +4697,14 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                 <td className="px-3 py-3 max-w-[200px]">
                                     <div className="font-semibold text-slate-800 truncate">{a.descripcionCorta}</div>
                                     <div className="flex flex-wrap gap-1 mt-0.5">
-                                        {a.categoria && <span className="text-purple-600 font-bold text-[10px] bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">{a.categoria.nombre}</span>}
-                                        {a.origenActivo && <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">{a.origenActivo}</span>}
+                                        {a.esImportadoWeb && (
+                                            <span className="text-indigo-700 font-extrabold text-[10px] bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-200 flex items-center gap-1 shadow-2xs">
+                                                <Globe className="w-3 h-3 text-indigo-600" />
+                                                <span>{a.providerName || '🌐 Importado Web'}</span>
+                                            </span>
+                                        )}
+                                        {a.categoria && <span className="text-purple-600 font-bold text-[10px] bg-purple-50 px-1.5 py-0.5 rounded border border-purple-100">{typeof a.categoria === 'string' ? a.categoria : a.categoria.nombre}</span>}
+                                        {a.origenActivo && !a.esImportadoWeb && <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100">{a.origenActivo}</span>}
                                         {a.condicionActivo && <span className="text-blue-700 font-bold text-[10px] bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">{a.condicionActivo}</span>}
                                     </div>
                                     {a.modelo && <div className="text-slate-400 text-[10px] truncate">{a.modelo}</div>}

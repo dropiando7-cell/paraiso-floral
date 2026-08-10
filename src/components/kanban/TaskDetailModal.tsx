@@ -194,6 +194,16 @@ export default function TaskDetailModal({
         setLocalTiposActividad(tiposActividad);
     }, [tiposActividad]);
 
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onClose]);
+
     const [priority, setPriority] = useState(task.priority);
     const [asignadoId, setAsignadoId] = useState(task.asignado?.id || '');
     const [dueDate, setDueDate] = useState(task.dueDate ? task.dueDate.split('T')[0] : '');

@@ -111,6 +111,17 @@ export default function CreateTaskModal({
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
+
     // Form states
     const [selectedSpaceId, setSelectedSpaceId] = useState(currentSpaceId);
     const [type, setType] = useState('Task');

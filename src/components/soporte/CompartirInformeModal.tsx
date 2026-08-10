@@ -30,6 +30,17 @@ export default function CompartirInformeModal({
 }: CompartirInformeModalProps) {
     const [activeTab, setActiveTab] = useState<'email' | 'whatsapp'>('email');
 
+    useEffect(() => {
+        if (!isOpen) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                onClose();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen, onClose]);
+
     // Email state
     const [emailDestino, setEmailDestino] = useState(clienteEmail || '');
     const [emailAsunto, setEmailAsunto] = useState('');

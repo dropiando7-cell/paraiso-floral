@@ -67,11 +67,13 @@ export async function searchProductos(query: string = "", limitOverride?: number
                 where: { 
                     organizationId,
                     estado: 'ACTIVO',
-                    activosFijos: { none: {} },
                     ...(queryTrim ? {
                         OR: [
                             { nombre: { contains: queryTrim, mode: 'insensitive' } },
-                            { sku: { contains: queryTrim, mode: 'insensitive' } }
+                            { sku: { contains: queryTrim, mode: 'insensitive' } },
+                            { marca: { contains: queryTrim, mode: 'insensitive' } },
+                            { modelo: { contains: queryTrim, mode: 'insensitive' } },
+                            { categoria: { contains: queryTrim, mode: 'insensitive' } }
                         ]
                     } : {})
                 },

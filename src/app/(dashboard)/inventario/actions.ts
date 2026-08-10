@@ -426,6 +426,71 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
 
     const cleanSearch = search.trim();
 
+    // ─── Pestaña Especial: Catálogo de Productos Importados desde Web ───────────
+    if (tipoInventario === 'importado') {
+        const prodWhere: any = {
+            organizationId: orgId,
+            ...(cleanSearch && {
+                OR: [
+                    { nombre: { contains: cleanSearch, mode: 'insensitive' as const } },
+                    { sku: { contains: cleanSearch, mode: 'insensitive' as const } },
+                    { marca: { contains: cleanSearch, mode: 'insensitive' as const } },
+                    { modelo: { contains: cleanSearch, mode: 'insensitive' as const } },
+                    { categoria: { contains: cleanSearch, mode: 'insensitive' as const } },
+                ]
+            }),
+            ...(origen && origen !== 'TODOS' && origen !== 'SIN_DEFINIR' && {
+                sku: { startsWith: origen }
+            })
+        };
+
+        const productos = await prisma.producto.findMany({
+            where: prodWhere,
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: PER_PAGE,
+        });
+        const total = await prisma.producto.count({ where: prodWhere });
+
+        const plainActivos = productos.map(p => {
+            let providerName = 'Catálogo Web';
+            if (p.sku.startsWith('SOMA-')) providerName = 'Soma Tech';
+            else if (p.sku.startsWith('SOMAPARTS-') || p.sku.startsWith('PARTS-')) providerName = 'Soma Medical Parts';
+            else if (p.sku.startsWith('PUKANG-')) providerName = 'Pukang Medical';
+            else if (p.sku.startsWith('JOSON-')) providerName = 'Joson Care';
+            else if (p.sku.startsWith('AERTI-')) providerName = 'Aerti Oxygen';
+            else if (p.sku.startsWith('DRE-')) providerName = 'DRE Medical';
+            else if (p.sku.startsWith('AMCAREMED-')) providerName = 'AmcareMed';
+            else if (p.sku.startsWith('RD-') || p.sku.startsWith('RDBATTERIES-')) providerName = 'R&D Batteries';
+
+            return {
+                id: p.id,
+                idQr: p.sku,
+                descripcionCorta: p.nombre,
+                descripcionDetallada: p.descripcion,
+                serie: p.sku,
+                modelo: p.modelo || 'N/A',
+                marca: p.marca || 'N/A',
+                area: p.categoria || 'CATÁLOGO WEB',
+                cuentaAct: 'IMPORTADO_WEB',
+                origenActivo: providerName,
+                estatusContable: 'VIGENTE',
+                costoAdq: Number(p.costoBase || 0),
+                precioVenta: Number(p.precioVenta || 0),
+                imagenUrl: p.imagenWeb || null,
+                imagenWeb: p.imagenWeb || null,
+                stock: p.stockActual || 0,
+                integrado: true,
+                esImportadoWeb: true,
+                providerName,
+                createdAt: p.createdAt,
+                updatedAt: p.updatedAt,
+            };
+        });
+
+        return { activos: plainActivos, total, totalPages: Math.ceil(total / PER_PAGE) };
+    }
+
     const where = {
         organizationId: orgId,
         esParaRenta: false,
@@ -553,6 +618,23 @@ export async function getActivoStats(area?: string, tipoInventario = 'real') {
     const orgId = await getOrgId();
     const { Prisma } = await import('@prisma/client');
 
+    const totalImportadosWebCount = await prisma.producto.count({
+        where: { organizationId: orgId }
+    });
+
+    if (tipoInventario === 'importado') {
+        return {
+            total: totalImportadosWebCount,
+            vigente: totalImportadosWebCount,
+            enTransito: 0,
+            depreciado: 0,
+            procesoBaja: 0,
+            conDano: 0,
+            areasRegistradas: 1,
+            totalImportadosWeb: totalImportadosWebCount
+        };
+    }
+
     let filterSql = Prisma.sql`AND "esParaRenta" = false AND "esEquipoCliente" = false AND "area" <> 'SERVICIOS' AND "stock" <> 9999`;
 
     if (tipoInventario === 'cliente') {
@@ -602,7 +684,8 @@ export async function getActivoStats(area?: string, tipoInventario = 'real') {
         depreciado: Number(row?.depreciado || 0),
         procesoBaja: Number(row?.proceso_baja || 0),
         conDano: Number(row?.con_dano || 0),
-        areasRegistradas: Number(row?.areas_count || 0)
+        areasRegistradas: Number(row?.areas_count || 0),
+        totalImportadosWeb: totalImportadosWebCount
     };
 }
 
