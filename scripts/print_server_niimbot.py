@@ -15,7 +15,7 @@ API_PENDIENTES = f"{HOST}/api/impresion/niimbot/pendientes"
 API_COMPLETAR  = f"{HOST}/api/impresion/niimbot/completar"
 
 IMPRESORA     = "NIIMBOT K3"
-TIEMPO_ESPERA = 3
+TIEMPO_ESPERA = 15
 
 # ─── Tamaños de Etiqueta ──────────────────────────────────────────────────────
 # Se define un diccionario con las configuraciones según el tamaño deseado.

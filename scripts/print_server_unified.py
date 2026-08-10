@@ -18,7 +18,7 @@ IMPRESORAS_SOPORTADAS = {
     "Niimbot": "NIIMBOT K3",  # Nombre en Windows para Niimbot
     "TSC TE200": "TSC TE200"  # Nombre en Windows para TSC
 }
-TIEMPO_ESPERA = 3
+TIEMPO_ESPERA = 15
 
 # ─── Tamaños de Etiqueta ──────────────────────────────────────────────────────
 # Se define un diccionario con las configuraciones según el tamaño deseado.

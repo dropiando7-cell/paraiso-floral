@@ -213,6 +213,22 @@ export default function FichaTecnicaClient({
         setIsReportModalOpen(true);
     };
 
+    const handleGenerarODT = () => {
+        const clienteId = activo.cliente?.id || sale?.cliente?.id || '';
+        const clienteNombre = activo.cliente?.nombre || sale?.cliente?.nombre || '';
+        const queryParams = new URLSearchParams({
+            activoId: activo.id,
+            clienteId,
+            clienteNombre,
+            equipoDano: activo.descripcionCorta,
+            marca: activo.marca || '',
+            modelo: activo.modelo || '',
+            serie: activo.serie || '',
+            cobertura: activo.cobertura || 'externa'
+        });
+        router.push(`/soporte/nuevo?${queryParams.toString()}`);
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-start py-6 px-4">
 
@@ -350,41 +366,41 @@ export default function FichaTecnicaClient({
                 {/* Body */}
                 <div className="px-6 py-6 space-y-6 text-left">
 
+                    {/* Barra de Acciones Globales */}
+                    <div className="flex flex-col sm:flex-row gap-3 w-full border-b border-slate-150/60 pb-6">
+                        <button
+                            onClick={handleDownloadReport}
+                            disabled={downloadingReport}
+                            className="flex-1 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer"
+                        >
+                            <Download className="w-4 h-4 text-slate-500" />
+                            Descargar Reporte PDF
+                        </button>
+                        <button
+                            onClick={handleGenerarODT}
+                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-sm active:scale-95 transition-all cursor-pointer shadow-blue-150"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Generar ODT (Soporte)
+                        </button>
+                    </div>
+
                     {/* Banner Cliente Externo (SI APLICA) */}
                     {activo.esEquipoCliente && activo.cliente && (
-                        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-300">
-                            <div>
-                                <div className="flex gap-1.5 flex-wrap">
-                                    <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold uppercase px-2 py-0.5 rounded">Propietario Externo</span>
-                                    <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
-                                        activo.cobertura === 'interna' 
-                                            ? 'bg-amber-100 text-amber-800 border-amber-200' 
-                                            : 'bg-blue-100 text-blue-800 border-blue-200'
-                                    }`}>
-                                        {activo.cobertura === 'interna' ? '🏢 Interno (En Tienda)' : '🌍 Externo (Cliente)'}
-                                    </span>
-                                </div>
-                                <h3 className="text-sm font-black text-slate-800 mt-1.5 tracking-tight">{activo.cliente.nombre}</h3>
-                                {activo.cliente.telefono && <p className="text-xs text-slate-500 font-semibold mt-1">Teléfono: {activo.cliente.telefono}</p>}
-                                {activo.cliente.direccion && <p className="text-[11px] text-slate-450 leading-relaxed font-semibold mt-0.5">Ubicación: {activo.cliente.direccion}</p>}
+                        <div className="bg-gradient-to-br from-indigo-50 to-blue-50 border border-indigo-100 rounded-2xl p-5 animate-in fade-in duration-300">
+                            <div className="flex gap-1.5 flex-wrap">
+                                <span className="text-[10px] bg-indigo-100 text-indigo-800 font-bold uppercase px-2 py-0.5 rounded">Propietario Externo</span>
+                                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded border ${
+                                    activo.cobertura === 'interna' 
+                                        ? 'bg-amber-100 text-amber-800 border-amber-200' 
+                                        : 'bg-blue-100 text-blue-800 border-blue-200'
+                                }`}>
+                                    {activo.cobertura === 'interna' ? '🏢 Interno (En Tienda)' : '🌍 Externo (Cliente)'}
+                                </span>
                             </div>
-                            <div className="flex flex-row sm:flex-col gap-2 shrink-0">
-                                <button
-                                    onClick={handleDownloadReport}
-                                    disabled={downloadingReport}
-                                    className="flex-1 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 text-[10px] font-black px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
-                                >
-                                    <Download className="w-3.5 h-3.5" />
-                                    Descargar PDF
-                                </button>
-                                <button
-                                    onClick={() => router.push(`/soporte/nuevo?activoId=${activo.id}&clienteId=${activo.cliente?.id}&clienteNombre=${encodeURIComponent(activo.cliente?.nombre || '')}&equipoDano=${encodeURIComponent(activo.descripcionCorta)}&marca=${encodeURIComponent(activo.marca || '')}&modelo=${encodeURIComponent(activo.modelo || '')}&serie=${encodeURIComponent(activo.serie || '')}&cobertura=${activo.cobertura || 'externa'}`)}
-                                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black px-3.5 py-2 rounded-lg flex items-center justify-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer shadow-blue-150"
-                                >
-                                    <Plus className="w-3.5 h-3.5" />
-                                    Generar ODT
-                                </button>
-                            </div>
+                            <h3 className="text-sm font-black text-slate-800 mt-1.5 tracking-tight">{activo.cliente.nombre}</h3>
+                            {activo.cliente.telefono && <p className="text-xs text-slate-500 font-semibold mt-1">Teléfono: {activo.cliente.telefono}</p>}
+                            {activo.cliente.direccion && <p className="text-[11px] text-slate-450 leading-relaxed font-semibold mt-0.5">Ubicación: {activo.cliente.direccion}</p>}
                         </div>
                     )}
 
