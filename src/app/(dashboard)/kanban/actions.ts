@@ -143,6 +143,9 @@ export async function getSpaceDetails(spaceId: string) {
                         },
                         asignados: {
                             select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
+                        },
+                        creadoPor: {
+                            select: { id: true, nombre: true, apellido: true, email: true, avatarUrl: true }
                         }
                     },
                     orderBy: { createdAt: 'desc' }
@@ -247,6 +250,11 @@ export async function getSpaceDetails(spaceId: string) {
                     nombre: `${u.nombre || ''} ${u.apellido || ''}`.trim() || u.email,
                     avatarUrl: u.avatarUrl || null
                 })),
+                creadoPor: t.creadoPor ? {
+                    id: t.creadoPor.id,
+                    nombre: `${t.creadoPor.nombre || ''} ${t.creadoPor.apellido || ''}`.trim() || t.creadoPor.email,
+                    avatarUrl: t.creadoPor.avatarUrl || null
+                } : null,
                 ordenTrabajoId: t.ordenTrabajoId || null,
                 createdAt: t.createdAt.toISOString()
             })),

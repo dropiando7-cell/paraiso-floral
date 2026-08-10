@@ -4686,13 +4686,26 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                     </div>
                                 </td>
                                 <td className="px-3 py-3 hide-on-print">
-                                    {a.imagenUrl
-                                        ? <Image src={a.imagenUrl} width={40} height={40} onClick={(e) => {
-                                            e.stopPropagation();
-                                            const imgs = [a.imagenUrl, a.imagenPlacaUrl].filter(Boolean) as string[];
-                                            if (imgs.length > 0) setPreviewImage({ index: 0, images: imgs });
-                                        }} alt="Activo" className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:border-[#0500A3] transition-colors" />
-                                        : <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center"><Eye className="w-4 h-4 text-slate-300" /></div>}
+                                    {a.imagenUrl ? (
+                                        <img 
+                                            src={a.imagenUrl} 
+                                            alt="Miniatura del Producto" 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const imgs = [a.imagenUrl, a.imagenPlacaUrl].filter(Boolean) as string[];
+                                                if (imgs.length > 0) setPreviewImage({ index: 0, images: imgs });
+                                            }} 
+                                            onError={(e) => {
+                                                // Ocultar imagen rota y mostrar placeholder si falla el link externo
+                                                (e.target as HTMLElement).style.display = 'none';
+                                            }}
+                                            className="w-10 h-10 object-cover rounded-lg border border-slate-200 hover:border-[#0500A3] transition-colors cursor-pointer shadow-2xs bg-white" 
+                                        />
+                                    ) : (
+                                        <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200/60">
+                                            <Eye className="w-4 h-4 text-slate-300" />
+                                        </div>
+                                    )}
                                 </td>
                                 <td className="px-3 py-3 max-w-[200px]">
                                     <div className="font-semibold text-slate-800 truncate">{a.descripcionCorta}</div>

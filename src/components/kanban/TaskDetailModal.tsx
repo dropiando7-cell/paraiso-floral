@@ -6,6 +6,7 @@ import {
     Trash2, 
     Calendar, 
     User as UserIcon, 
+    UserCheck,
     AlertTriangle, 
     AlertCircle,
     Tag, 
@@ -38,7 +39,13 @@ import {
     PenTool,
     Sparkles,
     Share2,
-    ExternalLink
+    ExternalLink,
+    Maximize2,
+    Eye,
+    Minimize2,
+    Edit2,
+    History,
+    CheckCircle2
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
@@ -95,6 +102,11 @@ interface Task {
         nombre: string;
         avatarUrl?: string | null;
     }[];
+    creadoPor?: {
+        id: string;
+        nombre: string;
+        avatarUrl?: string | null;
+    } | null;
     createdAt: string;
     ordenTrabajoId?: string | null;
 }
@@ -1381,6 +1393,13 @@ export default function TaskDetailModal({
                                 <span className="text-xs font-bold font-mono text-brand-600 bg-brand-50 px-2.5 py-1 rounded-md border border-brand-200">
                                     {task.codigo}
                                 </span>
+
+                                {task.creadoPor && (
+                                    <span className="flex items-center gap-1.5 text-xs font-bold text-indigo-900 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-200 shadow-2xs" title="Usuario que solicitó / creó esta tarea">
+                                        <UserCheck className="h-3.5 w-3.5 text-indigo-600" />
+                                        <span>Solicitado por: <strong className="text-slate-900 font-extrabold">{task.creadoPor.nombre}</strong></span>
+                                    </span>
+                                )}
                                 
                                 <a
                                     href={`/trazabilidad/${task.ordenTrabajoId || task.id}`}
@@ -2375,6 +2394,31 @@ export default function TaskDetailModal({
                             </select>
                         </div>
 
+                        {/* Solicitado por / Creado por */}
+                        <div className="space-y-1 bg-indigo-50/70 border border-indigo-150 rounded-xl p-3 shadow-2xs">
+                            <label className="text-[11px] font-extrabold text-indigo-900 uppercase tracking-wider block flex items-center gap-1.5">
+                                <UserCheck className="h-3.5 w-3.5 text-indigo-600" />
+                                Solicitado / Creado Por
+                            </label>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className="h-7 w-7 rounded-full bg-indigo-200 border border-indigo-300 flex items-center justify-center text-[10px] font-extrabold text-indigo-800 uppercase overflow-hidden relative shrink-0">
+                                    {task.creadoPor?.avatarUrl ? (
+                                        <img src={task.creadoPor.avatarUrl} alt={task.creadoPor.nombre} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <span>{(task.creadoPor?.nombre || 'Admin')[0]?.toUpperCase()}</span>
+                                    )}
+                                </div>
+                                <div className="flex flex-col min-w-0">
+                                    <span className="text-xs font-extrabold text-slate-900 truncate">
+                                        {task.creadoPor?.nombre || 'Usuario del ERP / Administración'}
+                                    </span>
+                                    <span className="text-[10px] text-slate-500 font-medium">
+                                        {new Date(task.createdAt).toLocaleDateString()} • {new Date(task.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Personas Asignadas (Multi-select) */}
                         <div ref={assigneeDropdownRef} className="space-y-1.5 relative">
                             <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block flex items-center gap-1">
@@ -2603,9 +2647,14 @@ export default function TaskDetailModal({
                             )}
                         </div>
                     )}
-                    <span className="text-[10px] text-slate-400 block text-center mt-3 font-medium">
-                        Creado: {new Date(task.createdAt).toLocaleDateString()}
-                    </span>
+                    <div className="mt-3 text-center space-y-0.5">
+                        <span className="text-[11px] text-slate-600 block font-semibold">
+                            Solicitado por: <strong className="text-slate-900 font-extrabold">{task.creadoPor?.nombre || 'Usuario del ERP / Admin'}</strong>
+                        </span>
+                        <span className="text-[10px] text-slate-400 block font-medium">
+                            Creado el: {new Date(task.createdAt).toLocaleDateString()}
+                        </span>
+                    </div>
 
                 </div>
 
