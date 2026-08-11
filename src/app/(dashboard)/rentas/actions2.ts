@@ -192,7 +192,7 @@ export async function getClientesLista() {
     return prisma.cliente.findMany({
         where: { organizationId: dbUser.organizationId },
         orderBy: { nombre: 'asc' },
-        select: { id: true, nombre: true }
+        select: { id: true, nombre: true, telefono: true, direccion: true }
     });
 }
 

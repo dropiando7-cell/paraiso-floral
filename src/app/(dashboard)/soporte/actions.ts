@@ -52,11 +52,41 @@ export async function getOrdenesActivas() {
             organizationId: orgId,
             estado: { not: 'ENTREGADO' }
         },
-        include: {
-            cliente: true,
-            tecnicosAsignados: true
+        select: {
+            id: true,
+            codigoSeguridad: true,
+            fechaRecibido: true,
+            equipoDano: true,
+            marcaModelo: true,
+            serie: true,
+            accesorios: true,
+            descripcionFalla: true,
+            costoRevision: true,
+            costoReparacion: true,
+            estado: true,
+            fotosEstadoInicial: true,
+            fotosTecnico: true,
+            cliente: {
+                select: {
+                    id: true,
+                    nombre: true,
+                    rtn: true,
+                    telefono: true,
+                    email: true
+                }
+            },
+            tecnicosAsignados: {
+                select: {
+                    id: true,
+                    nombre: true,
+                    apellido: true,
+                    email: true,
+                    avatarUrl: true
+                }
+            }
         },
-        orderBy: { fechaRecibido: 'desc' }
+        orderBy: { fechaRecibido: 'desc' },
+        take: 100
     });
 }
 

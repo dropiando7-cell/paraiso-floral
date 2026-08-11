@@ -23,6 +23,9 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
     const [costoRenta, setCostoRenta] = useState(3500);
     const [deposito, setDeposito] = useState(1500);
     const [isNewClient, setIsNewClient] = useState(false);
+    const [selectedClienteId, setSelectedClienteId] = useState('');
+    const [telefonoCliente, setTelefonoCliente] = useState('+504 ');
+    const [direccionCliente, setDireccionCliente] = useState('');
     const [horasTrabajoSalida, setHorasTrabajoSalida] = useState('');
     
     const [isDirecto, setIsDirecto] = useState(false);
@@ -169,6 +172,26 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
         recalcularValoresRenta(tipoAlquiler, mesesRenta, nuevaFecha);
     };
 
+    const handleClienteChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const val = e.target.value;
+        setSelectedClienteId(val);
+        if (val === 'NEW') {
+            setIsNewClient(true);
+            setTelefonoCliente('+504 ');
+            setDireccionCliente('');
+        } else {
+            setIsNewClient(false);
+            const clienteEncontrado = clientes.find(c => c.id === val);
+            if (clienteEncontrado) {
+                setTelefonoCliente(clienteEncontrado.telefono || '+504 ');
+                setDireccionCliente(clienteEncontrado.direccion || '');
+            } else {
+                setTelefonoCliente('+504 ');
+                setDireccionCliente('');
+            }
+        }
+    };
+
     const handleEquipoChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const equipoId = e.target.value;
         const equipo = equipos.find(eq => eq.id === equipoId);
@@ -227,8 +250,9 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                     <select 
                                         name="clienteId" 
                                         required={!isNewClient}
-                                        onChange={(e) => setIsNewClient(e.target.value === 'NEW')}
-                                        className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold"
+                                        value={isNewClient ? 'NEW' : selectedClienteId}
+                                        onChange={handleClienteChange}
+                                        className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold cursor-pointer"
                                     >
                                         <option value="">Selecciona un cliente...</option>
                                         <option value="NEW" className="font-bold text-[#0500A3]">+ Registrar Nuevo Cliente</option>
@@ -294,7 +318,8 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                                     <input 
                                                         type="text" 
                                                         name="telefono" 
-                                                        defaultValue="+504 " 
+                                                        value={telefonoCliente} 
+                                                        onChange={e => setTelefonoCliente(e.target.value)} 
                                                         placeholder="Ej. +504 9999-9999" 
                                                         className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
                                                     />
@@ -304,6 +329,8 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                                     <input 
                                                         type="text" 
                                                         name="direccion" 
+                                                        value={direccionCliente} 
+                                                        onChange={e => setDireccionCliente(e.target.value)} 
                                                         placeholder="Ej. Col. Juan Lindo..." 
                                                         className="w-full border-2 border-blue-200 rounded-lg px-3.5 py-2 outline-none font-semibold text-sm bg-white focus:border-[#0500A3]" 
                                                     />
@@ -347,11 +374,25 @@ export default function NuevaRentaClient({ clientes, equipos }: { clientes: any[
                                 <div className="grid md:grid-cols-2 gap-5 mt-5">
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-2">Teléfono del Cliente (Opcional)</label>
-                                        <input type="text" name="telefono" defaultValue="+504 " placeholder="Ej. +504 9999-9999" className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                        <input 
+                                            type="text" 
+                                            name="telefono" 
+                                            value={telefonoCliente} 
+                                            onChange={e => setTelefonoCliente(e.target.value)} 
+                                            placeholder="Ej. +504 9999-9999" 
+                                            className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" 
+                                        />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-bold text-slate-700 mb-2">Dirección (Opcional)</label>
-                                        <input type="text" name="direccion" placeholder="Ej. Col. Juan Lindo..." className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" />
+                                        <input 
+                                            type="text" 
+                                            name="direccion" 
+                                            value={direccionCliente} 
+                                            onChange={e => setDireccionCliente(e.target.value)} 
+                                            placeholder="Ej. Col. Juan Lindo..." 
+                                            className="w-full border-2 border-slate-200 rounded-xl px-4 py-3 bg-slate-50 hover:border-slate-300 focus:bg-white transition-colors outline-none font-semibold" 
+                                        />
                                     </div>
                                 </div>
                             )}

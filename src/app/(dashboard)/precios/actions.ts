@@ -97,7 +97,16 @@ export async function getProductosPricing(query?: string): Promise<ProductoPrici
                 ])
             } : {})
         },
-        include: {
+        select: {
+            id: true,
+            sku: true,
+            nombre: true,
+            costoBase: true,
+            precioVenta: true,
+            stockActual: true,
+            estado: true,
+            imagenWeb: true,
+            imagenes: true,
             activosFijos: {
                 where: { estatusContable: 'VIGENTE' },
                 select: { idQr: true, serie: true, area: true, stock: true, imagenUrl: true, imagenWeb: true }

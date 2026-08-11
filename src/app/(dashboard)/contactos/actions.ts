@@ -20,7 +20,7 @@ async function getOrgId() {
 export async function fetchContactos(query: string, page: number = 1) {
     const orgId = await getOrgId();
 
-    const pageSize = 10;
+    const pageSize = 15;
     const skip = (page - 1) * pageSize;
 
     const where = {
@@ -40,6 +40,18 @@ export async function fetchContactos(query: string, page: number = 1) {
     const count = await prisma.cliente.count({ where });
     const data = await prisma.cliente.findMany({
         where,
+        select: {
+            id: true,
+            nombre: true,
+            rtn: true,
+            telefono: true,
+            email: true,
+            direccion: true,
+            nombreContacto: true,
+            telefonoContacto: true,
+            emailsCC: true,
+            createdAt: true
+        },
         skip,
         take: pageSize,
         orderBy: { nombre: 'asc' },

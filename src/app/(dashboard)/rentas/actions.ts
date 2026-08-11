@@ -20,12 +20,43 @@ export async function getRentas() {
 
     const rentas = await prisma.rentaEquipo.findMany({
         where: { organizationId: dbUser.organizationId },
-        include: {
-            cliente: true,
-            activoFijo: true,
+        select: {
+            id: true,
+            organizationId: true,
+            estado: true,
+            tipoAlquiler: true,
+            mesesRenta: true,
+            costoRenta: true,
+            deposito: true,
+            depositoDevuelto: true,
+            fechaInicio: true,
+            fechaFinEsperada: true,
+            fechaDevolucion: true,
+            notas: true,
+            createdAt: true,
+            updatedAt: true,
+            cliente: {
+                select: {
+                    id: true,
+                    nombre: true,
+                    rtn: true,
+                    telefono: true,
+                    email: true
+                }
+            },
+            activoFijo: {
+                select: {
+                    id: true,
+                    idQr: true,
+                    descripcionCorta: true,
+                    serie: true,
+                    modelo: true
+                }
+            },
             pagos: true,
         },
         orderBy: { createdAt: 'desc' },
+        take: 100,
     });
 
     return rentas;

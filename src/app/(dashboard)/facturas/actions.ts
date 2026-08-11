@@ -1022,9 +1022,28 @@ export async function getHistorialDocumentos(soloPropiosUserId?: string) {
 
         const docs = await prisma.factura.findMany({
             where: whereClause,
-            include: { 
-                cliente: { select: { nombre: true, rtn: true } },
-                detalles: true 
+            select: {
+                id: true,
+                correlativo: true,
+                tipoDocumento: true,
+                estado: true,
+                fechaEmision: true,
+                validezDias: true,
+                total: true,
+                cliente: {
+                    select: {
+                        nombre: true,
+                        rtn: true
+                    }
+                },
+                detalles: {
+                    select: {
+                        descripcion: true,
+                        cantidad: true,
+                        precioUnitario: true,
+                        totalLinea: true
+                    }
+                }
             },
             orderBy: { createdAt: 'desc' },
             take: 200 // Limit for reasonable UI perf

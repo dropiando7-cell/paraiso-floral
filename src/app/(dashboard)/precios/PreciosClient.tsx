@@ -15,6 +15,7 @@ import {
   Hash,
   FileText,
   Layers,
+  ChevronLeft,
   ChevronRight,
   TrendingUp,
   AlertTriangle,
@@ -1163,6 +1164,9 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
     }
   }
 
+  const [pagina, setPagina] = useState(1)
+  const PAGE_SIZE = 10
+
   const productosFiltrados = useMemo(() => {
     if (!busqueda.trim()) return productos
     const q = busqueda.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -1187,6 +1191,19 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
       return false
     })
   }, [productos, busqueda])
+
+  useEffect(() => {
+    setPagina(1)
+  }, [busqueda])
+
+  const totalPages = useMemo(() => {
+    return Math.max(1, Math.ceil(productosFiltrados.length / PAGE_SIZE))
+  }, [productosFiltrados.length])
+
+  const productosPaginados = useMemo(() => {
+    const start = (pagina - 1) * PAGE_SIZE
+    return productosFiltrados.slice(start, start + PAGE_SIZE)
+  }, [productosFiltrados, pagina])
 
   const handlePrecioActualizado = useCallback(
     (id: string, costo: number, precio: number, newType?: 'PRODUCTO', newSku?: string, newStock?: number) => {
@@ -1297,29 +1314,61 @@ export default function PreciosClient({ productosIniciales }: { productosInicial
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left">
-              <thead>
-                <tr className="bg-slate-50/50">
-                  <th className="pl-4 pr-2 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Acción</th>
-                  <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Código / UUID</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Foto</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Identificador unificado</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">T. Activos</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Costo Eq.</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">PVP. Mostrador</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Marg. Ganancia</th>
-                  <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Estado</th>
-                  <th className="px-5 py-3 border-b border-slate-100"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {productosFiltrados.map((p) => (
-                  <FilaProducto key={p.id} producto={p} onEditar={setProductoEditando} onShowImage={setLightboxImage} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="bg-slate-50/50">
+                    <th className="pl-4 pr-2 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Acción</th>
+                    <th className="px-5 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Código / UUID</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Foto</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Identificador unificado</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100 text-center">T. Activos</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Costo Eq.</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">PVP. Mostrador</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Marg. Ganancia</th>
+                    <th className="px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">Estado</th>
+                    <th className="px-5 py-3 border-b border-slate-100"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productosPaginados.map((p) => (
+                    <FilaProducto key={p.id} producto={p} onEditar={setProductoEditando} onShowImage={setLightboxImage} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── Control de Paginación ── */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4 px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+              <div className="text-xs font-semibold text-slate-500">
+                Mostrando <span className="text-slate-800 font-bold">{productosFiltrados.length === 0 ? 0 : (pagina - 1) * PAGE_SIZE + 1}</span> a <span className="text-slate-800 font-bold">{Math.min(pagina * PAGE_SIZE, productosFiltrados.length)}</span> de <span className="text-slate-800 font-bold">{productosFiltrados.length}</span> líneas unificadas
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPagina(p => Math.max(1, p - 1))}
+                  disabled={pagina <= 1}
+                  className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                >
+                  <ChevronLeft size={14} />
+                  Anterior
+                </button>
+                <span className="text-xs font-bold text-slate-600 px-2">
+                  Página {pagina} de {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setPagina(p => Math.min(totalPages, p + 1))}
+                  disabled={pagina >= totalPages}
+                  className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xs flex items-center gap-1 cursor-pointer"
+                >
+                  Siguiente
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          </>
         )}
       </div>
 

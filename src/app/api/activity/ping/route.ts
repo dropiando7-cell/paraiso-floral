@@ -13,7 +13,14 @@ export async function POST(req: NextRequest) {
         }
 
         const dbUser = await prisma.user.findUnique({
-            where: { email: user.email }
+            where: { email: user.email },
+            select: {
+                id: true,
+                organizationId: true,
+                currentModule: true,
+                lastActiveAt: true,
+                isIdle: true
+            }
         });
 
         if (!dbUser) {
@@ -24,16 +31,24 @@ export async function POST(req: NextRequest) {
         const { module: newModule, isIdle = false } = body;
 
         const previousModule = dbUser.currentModule;
-        
-        // Update user status
-        await prisma.user.update({
-            where: { id: dbUser.id },
-            data: {
-                lastActiveAt: new Date(),
-                currentModule: newModule || null,
-                isIdle
-            }
-        });
+        const now = new Date();
+        const lastActiveTime = dbUser.lastActiveAt ? new Date(dbUser.lastActiveAt).getTime() : 0;
+        const timeSinceLastActive = now.getTime() - lastActiveTime;
+
+        // Only update database if state changed or at least 60 seconds elapsed
+        const moduleChanged = (newModule || null) !== previousModule;
+        const idleStateChanged = isIdle !== dbUser.isIdle;
+
+        if (moduleChanged || idleStateChanged || timeSinceLastActive > 60_000) {
+            await prisma.user.update({
+                where: { id: dbUser.id },
+                data: {
+                    lastActiveAt: now,
+                    currentModule: newModule || null,
+                    isIdle
+                }
+            });
+        }
 
         // Log navigation if user changed modules
         if (newModule && newModule !== previousModule && !isIdle) {

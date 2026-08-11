@@ -91,7 +91,7 @@ export function Header({ dbUser, onMenuClick }: HeaderProps) {
 
     useEffect(() => {
         fetchNotifications();
-        const interval = setInterval(fetchNotifications, 60000);
+        const interval = setInterval(fetchNotifications, 180000);
         return () => clearInterval(interval);
     }, []);
 

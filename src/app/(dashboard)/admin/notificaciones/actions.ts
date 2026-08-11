@@ -15,7 +15,14 @@ async function checkAuth() {
     }
 
     const dbUser = await prisma.user.findUnique({
-        where: { email: user.email }
+        where: { email: user.email },
+        select: {
+            id: true,
+            email: true,
+            role: true,
+            accessibleModules: true,
+            organizationId: true
+        }
     });
 
     if (!dbUser) {
@@ -29,7 +36,7 @@ async function checkAuth() {
 async function checkAdminAuth() {
     const dbUser = await checkAuth();
     
-    const hasAccess = dbUser.accessibleModules.includes('/admin/notificaciones');
+    const hasAccess = (dbUser.accessibleModules || []).includes('/admin/notificaciones');
     if (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && !hasAccess) {
         throw new Error('Permisos insuficientes para administrar notificaciones');
     }
@@ -48,6 +55,16 @@ export async function getUserNotifications() {
             where: {
                 userId: dbUser.id,
                 anuladaAt: null
+            },
+            select: {
+                id: true,
+                title: true,
+                message: true,
+                type: true,
+                read: true,
+                readAt: true,
+                link: true,
+                createdAt: true
             },
             orderBy: {
                 createdAt: 'desc'

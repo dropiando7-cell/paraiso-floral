@@ -405,6 +405,9 @@ export default function KanbanSpaceClient({ initialData }: Props) {
     const [newType, setNewType] = useState('Task');
     const [newPriority, setNewPriority] = useState('MEDIUM');
 
+    // Límite de tarjetas visibles por columna (paginación/carga progresiva de 10 en 10)
+    const [columnLimits, setColumnLimits] = useState<Record<string, number>>({});
+
     // Helper para identificar si es una columna "LISTO" (completado)
     const isDoneColumn = (columnName: string) => {
         const lower = (columnName || '').toLowerCase();
@@ -1316,6 +1319,8 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     <div className="overflow-x-auto py-4 flex gap-4 items-start">
                         {columnas.map((columna) => {
                             const columnTasks = filteredTasks.filter(t => t.status === columna);
+                            const limit = columnLimits[columna] || 10;
+                            const visibleTasks = columnTasks.slice(0, limit);
 
                             // Helper para icono del tipo de tarea
                             const getTypeIcon = (type: string) => {
@@ -1388,7 +1393,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                 <span className="text-[10px] text-slate-400 italic">Arrastra tareas aquí</span>
                                             </div>
                                         ) : (
-                                            columnTasks.map((task) => (
+                                            visibleTasks.map((task) => (
                                                 <div
                                                     key={task.id}
                                                     draggable
@@ -1429,7 +1434,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                     >
                                                                         <MoreHorizontal className="h-4.5 w-4.5 sm:h-3.5 sm:w-3.5" />
                                                                     </button>
- 
+
                                                                     {/* Menú Popup Contextual */}
                                                                     {activeCardMenuTaskId === task.id && (
                                                                         <CardContextMenu
@@ -1502,7 +1507,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                 })()}
                                                             </div>
                                                         )}
-
+ 
                                                         {/* Detalle Inferior: Responsable + Prioridad */}
                                                         <div className="flex items-center justify-between border-t border-slate-100 pt-2 text-[10px]">
                                                             {/* Asignados (Multi-avatar stack) */}
@@ -1539,7 +1544,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                                                         : 'Sin asignar'}
                                                                 </span>
                                                             </div>
-
+ 
                                                             {/* Prioridad y Check si es LISTO */}
                                                             <div className="flex items-center gap-1.5 shrink-0">
                                                                 {isDoneColumn(columna) ? (
@@ -1560,6 +1565,30 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                                             ))
                                         )}
                                     </div>
+
+                                    {/* Control de Paginación / Carga Progresiva por Columna */}
+                                    {columnTasks.length > 10 && (
+                                        <div className="pt-2 px-1 text-xs">
+                                            {limit < columnTasks.length ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setColumnLimits(prev => ({ ...prev, [columna]: limit + 10 }))}
+                                                    className="w-full py-2 bg-white hover:bg-slate-200/80 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1 shadow-2xs transition-all active:scale-[0.98] cursor-pointer"
+                                                >
+                                                    <span>Ver 10 más</span>
+                                                    <span className="text-[10px] text-slate-500 font-normal">({columnTasks.length - limit} restantes)</span>
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setColumnLimits(prev => ({ ...prev, [columna]: 10 }))}
+                                                    className="w-full py-2 bg-slate-200/70 hover:bg-slate-300/80 border border-slate-300/60 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1 transition-all active:scale-[0.98] cursor-pointer"
+                                                >
+                                                    <span>Colapsar a 10 iniciales</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
 
                                     {/* Botón de Creación Rápida al pie */}
                                     <div className="mt-3 border-t border-slate-200 pt-3">

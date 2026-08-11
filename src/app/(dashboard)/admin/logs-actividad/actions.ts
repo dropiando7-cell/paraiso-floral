@@ -18,8 +18,8 @@ export async function getLiveUsers() {
             throw new Error('Unauthorized');
         }
 
-        // Active threshold is 45 seconds (allows for slightly latent heartbeats)
-        const threshold = new Date(Date.now() - 45 * 1000);
+        // Active threshold is 5 minutes (allows for 3-minute heartbeats)
+        const threshold = new Date(Date.now() - 5 * 60 * 1000);
         const onlineUsers = await prisma.user.findMany({
             where: {
                 organizationId: dbUser.organizationId,
