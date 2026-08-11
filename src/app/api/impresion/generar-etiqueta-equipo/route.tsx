@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     const protocol = host.includes('localhost') ? 'http' : 'https';
     
     // Enlaza el QR a la pantalla de trazabilidad del equipo
-    const qrText = encodeURIComponent(`${protocol}://${host}/trazabilidad/${trackingId}`);
+    const qrText = encodeURIComponent(`https://bioelectronicahn.com/trazabilidad/${trackingId}`);
     const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=M&includetext=false`;
 
     const barcodeHeightAPI = is50x25 ? 6 : 8;

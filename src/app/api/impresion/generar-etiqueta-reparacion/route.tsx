@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
     const host = req.headers.get('host') || 'bioelectronicahn.vercel.app';
     const protocol = host.includes('localhost') ? 'http' : 'https';
     
-    const qrText = encodeURIComponent(`${protocol}://${host}/trazabilidad/${ordenId}`);
+    const qrText = encodeURIComponent(`https://bioelectronicahn.com/trazabilidad/${ordenId}`);
     const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=M&includetext=false`;
 
     const barcodeHeightAPI = is50x25 ? 6 : 8;

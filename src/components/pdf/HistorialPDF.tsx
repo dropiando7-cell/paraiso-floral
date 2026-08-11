@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   imagesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 6,
+    gap: 8,
     marginTop: 6,
   },
   evidencePhoto: {
@@ -196,6 +196,26 @@ const styles = StyleSheet.create({
     borderWidth: 0.5,
     borderColor: '#d1d5db',
     objectFit: 'cover',
+  },
+  imageContainer: {
+    flexDirection: 'column',
+    width: 120,
+    marginBottom: 8,
+  },
+  evidencePhotoLarge: {
+    width: 120,
+    height: 90,
+    borderRadius: 4,
+    borderWidth: 0.5,
+    borderColor: '#d1d5db',
+    objectFit: 'cover',
+  },
+  photoDescription: {
+    fontSize: 6.5,
+    color: '#4b5563',
+    marginTop: 2.5,
+    textAlign: 'left',
+    lineHeight: 1.1,
   },
   commentsContainer: {
     marginTop: 5,
@@ -448,12 +468,31 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
             const task = orden.kanbanTasks?.[0];
             const attachments = task?.attachments || [];
             
-            // Filter out images that are already present in fotosEstadoInicial to prevent duplication
-            const receptionUrls = new Set(orden.fotosEstadoInicial || []);
-            const imageAttachments = attachments.filter((att: any) => {
-              const isImg = att.tipo?.startsWith('image/') || att.url?.match(/\.(jpeg|jpg|gif|png)$/i);
-              return isImg && !receptionUrls.has(att.url);
+            // Build set of hidden attachment URLs
+            const hiddenAttachmentUrls = new Set(
+              attachments
+                .filter((att: any) => att.mostrarEnReporte === false)
+                .map((att: any) => att.url)
+            );
+
+            // Filter out hidden attachments from fotosEstadoInicial
+            const filteredFotosEstadoInicial = (orden.fotosEstadoInicial || []).filter(
+              (url: string) => !hiddenAttachmentUrls.has(url)
+            );
+
+            // True reception photos are those in fotosEstadoInicial that are NOT task attachments
+            const attachmentUrls = new Set(attachments.map((att: any) => att.url));
+            const receptionPhotos = filteredFotosEstadoInicial.filter(
+              (url: string) => !attachmentUrls.has(url)
+            );
+
+            // Field photos are task image attachments that are not hidden
+            const fieldPhotos = attachments.filter((att: any) => {
+              const isImg = att.tipo?.startsWith('image/') || att.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i);
+              const isSelected = att.mostrarEnReporte !== false;
+              return isImg && isSelected;
             });
+
             const comments = task?.comments || [];
 
             return (
@@ -508,11 +547,11 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
                   )}
 
                   {/* Evidencias fotográficas (Estado Inicial) */}
-                  {orden.fotosEstadoInicial && orden.fotosEstadoInicial.length > 0 && (
+                  {receptionPhotos.length > 0 && (
                     <View style={{ marginTop: 4, marginBottom: 4 }} wrap={false}>
                       <Text style={styles.textLabel}>Fotos de Evidencia de Recepción:</Text>
                       <View style={styles.imagesGrid}>
-                        {orden.fotosEstadoInicial.slice(0, 6).map((imgUrl: string, idx: number) => (
+                        {receptionPhotos.slice(0, 6).map((imgUrl: string, idx: number) => (
                           <Image key={idx} style={styles.evidencePhoto} src={imgUrl} />
                         ))}
                       </View>
@@ -520,12 +559,17 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
                   )}
 
                   {/* Evidencias fotográficas */}
-                  {imageAttachments.length > 0 && (
+                  {fieldPhotos.length > 0 && (
                     <View style={{ marginTop: 4 }} wrap={false}>
                       <Text style={styles.textLabel}>Fotos de Evidencia en Campo:</Text>
                       <View style={styles.imagesGrid}>
-                        {imageAttachments.slice(0, 6).map((img: any) => (
-                          <Image key={img.id} style={styles.evidencePhoto} src={img.url} />
+                        {fieldPhotos.map((img: any) => (
+                          <View key={img.id} style={styles.imageContainer}>
+                            <Image style={styles.evidencePhotoLarge} src={img.url} />
+                            {img.descripcion ? (
+                              <Text style={styles.photoDescription}>{img.descripcion}</Text>
+                            ) : null}
+                          </View>
                         ))}
                       </View>
                     </View>

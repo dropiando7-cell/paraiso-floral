@@ -31,11 +31,13 @@ interface VerificationClientViewLightProps {
     singleOrden?: any;
     ordenesList?: any[];
     pdfDownloadUrl?: string;
+    logoUrl?: string | null;
+    orgName?: string;
   };
 }
 
 export default function VerificationClientViewLight({ data }: VerificationClientViewLightProps) {
-  const { activo, singleOrden, ordenesList, pdfDownloadUrl } = data;
+  const { activo, singleOrden, ordenesList, pdfDownloadUrl, logoUrl, orgName } = data;
 
   // Helper to safely render text or HTML content without leaking HTML tags
   const renderFormattedContent = (content: string) => {
@@ -164,14 +166,22 @@ export default function VerificationClientViewLight({ data }: VerificationClient
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200 px-4 py-3 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 p-0.5 shadow-md shadow-blue-500/10">
-              <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center font-black text-blue-700 text-lg tracking-tighter">
-                BE
+            {logoUrl ? (
+              <img 
+                src={logoUrl} 
+                alt={orgName || 'Logo'} 
+                className="h-10 w-auto object-contain rounded-lg max-w-[150px]" 
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 p-0.5 shadow-md shadow-blue-500/10">
+                <div className="w-full h-full bg-white rounded-[10px] flex items-center justify-center font-black text-blue-700 text-lg tracking-tighter">
+                  BE
+                </div>
               </div>
-            </div>
+            )}
             <div>
-              <h1 className="text-sm font-black tracking-tight text-slate-900 flex items-center gap-1.5">
-                Bioelectrónica Honduras
+              <h1 className="text-sm font-black tracking-tight text-slate-900 flex items-center gap-1.5 font-semibold">
+                {orgName || 'Bioelectrónica Honduras'}
               </h1>
               <p className="text-[11px] text-slate-500 font-medium">Hoja de Vida y Trazabilidad del Equipo</p>
             </div>
@@ -512,7 +522,7 @@ export default function VerificationClientViewLight({ data }: VerificationClient
 
       {/* FOOTER INSTITUCIONAL */}
       <footer className="mt-12 text-center text-xs text-slate-500 space-y-1">
-        <p>© {new Date().getFullYear()} Bioelectrónica Honduras. Todos los derechos reservados.</p>
+        <p>© {new Date().getFullYear()} {orgName || 'Bioelectrónica Honduras'}. Todos los derechos reservados.</p>
         <p>Sistema de Verificación Pública y Trazabilidad Biomédica.</p>
       </footer>
 

@@ -994,6 +994,7 @@ export async function getTaskCommentsAndAttachments(taskId: string) {
                 tipo: a.tipo,
                 tamano: a.tamano,
                 descripcion: a.descripcion || null,
+                mostrarEnReporte: a.mostrarEnReporte ?? true,
                 createdAt: a.createdAt.toISOString(),
                 subidoPor: {
                     id: a.subidoPor.id,
@@ -1238,6 +1239,8 @@ export async function createKanbanAttachment(data: {
                 url: attachment.url,
                 tipo: attachment.tipo,
                 tamano: attachment.tamano,
+                descripcion: attachment.descripcion || null,
+                mostrarEnReporte: attachment.mostrarEnReporte ?? true,
                 createdAt: attachment.createdAt.toISOString(),
                 subidoPor: {
                     id: attachment.subidoPor.id,
@@ -1542,6 +1545,52 @@ export async function updateKanbanAttachmentDescription(attachmentId: string, de
     } catch (e: any) {
         console.error("updateKanbanAttachmentDescription Error:", e);
         return { success: false, error: e.message || 'Error al actualizar descripción de adjunto' };
+    }
+}
+
+// 24b. Actualizar visibilidad en reporte de archivo adjunto
+export async function toggleKanbanAttachmentReportVisibility(attachmentId: string, mostrarEnReporte: boolean) {
+    try {
+        const { user, org } = await getCurrentUserAndOrg();
+
+        const attachment = await prisma.kanbanAttachment.findUnique({
+            where: { id: attachmentId },
+            include: { task: true }
+        });
+
+        if (!attachment) throw new Error('Adjunto no encontrado');
+        if (attachment.task.organizationId !== org.id) throw new Error('No autorizado');
+
+        const isOwner = attachment.subidoPorId === user.id;
+        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+
+        if (!isOwner && !isAdmin) {
+            throw new Error('No tienes permiso para editar este adjunto');
+        }
+
+        const updated = await prisma.kanbanAttachment.update({
+            where: { id: attachmentId },
+            data: {
+                mostrarEnReporte: mostrarEnReporte
+            }
+        });
+
+        // Registrar auditoría
+        await prisma.kanbanActivity.create({
+            data: {
+                spaceId: attachment.task.spaceId,
+                taskId: attachment.taskId,
+                usuarioId: user.id,
+                accion: 'ACTUALIZACION',
+                detalles: `${mostrarEnReporte ? 'Incluyó' : 'Excluyó'} el archivo adjunto "${attachment.nombre}" en el reporte de la orden`
+            }
+        });
+
+        revalidatePath(`/kanban/${attachment.task.spaceId}`);
+        return { success: true, attachment: updated };
+    } catch (e: any) {
+        console.error("toggleKanbanAttachmentReportVisibility Error:", e);
+        return { success: false, error: e.message || 'Error al actualizar visibilidad de adjunto en el reporte' };
     }
 }
 

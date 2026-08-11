@@ -230,11 +230,32 @@ export default async function TrazabilidadPage({ params }: { params: Promise<{ i
 
   if (activo || singleOrden || ordenesList.length > 0) {
     const targetId = activo ? activo.id : (singleOrden ? singleOrden.id : cleanId);
+    
+    let logoUrl = null;
+    let orgName = 'Bioelectrónica Honduras';
+    const orgId = activo?.organizationId || singleOrden?.organizationId;
+    if (orgId) {
+      try {
+        const org = await prisma.organization.findUnique({
+          where: { id: orgId },
+          select: { logoUrl: true, name: true }
+        });
+        if (org) {
+          logoUrl = org.logoUrl;
+          orgName = org.name;
+        }
+      } catch (orgErr) {
+        console.error('Error fetching Organization details:', orgErr);
+      }
+    }
+
     const serializableData = JSON.parse(JSON.stringify({
       activo,
       singleOrden,
       ordenesList,
-      pdfDownloadUrl: `/api/pdf/${targetId}`
+      pdfDownloadUrl: `/api/pdf/${targetId}?type=historial`,
+      logoUrl,
+      orgName
     }));
 
     return <VerificationClientViewLight data={serializableData} />;

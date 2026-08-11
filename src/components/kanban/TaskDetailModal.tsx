@@ -63,6 +63,7 @@ import {
     createKanbanAttachment, 
     deleteKanbanAttachment,
     updateKanbanAttachmentDescription,
+    toggleKanbanAttachmentReportVisibility,
     addActivityTypeToSpace,
     getTaskMaterials,
     consumeMaterialForTask,
@@ -328,7 +329,7 @@ export default function TaskDetailModal({
     const [isDragging, setIsDragging] = useState(false);
     const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
     const [editingCommentText, setEditingCommentText] = useState("");
-    const [lightboxItem, setLightboxItem] = useState<{ id: string; url: string; nombre: string; tipo: string; descripcion?: string | null } | null>(null);
+    const [lightboxItem, setLightboxItem] = useState<{ id: string; url: string; nombre: string; tipo: string; descripcion?: string | null; mostrarEnReporte?: boolean } | null>(null);
     const [isEditingLightboxDesc, setIsEditingLightboxDesc] = useState(false);
     const [lightboxDescText, setLightboxDescText] = useState("");
     const [attachmentToDelete, setAttachmentToDelete] = useState<any | null>(null);
@@ -360,6 +361,37 @@ export default function TaskDetailModal({
         } catch (error) {
             console.error("Error al actualizar descripción:", error);
             toast.error('Error al actualizar descripción');
+        }
+    };
+
+    const handleToggleMostrarEnReporte = async (attachmentId: string, currentStatus: boolean) => {
+        const nextStatus = !currentStatus;
+        try {
+            // Optimistic update
+            setAttachments(prev => prev.map(att => att.id === attachmentId ? { ...att, mostrarEnReporte: nextStatus } : att));
+            if (lightboxItem && lightboxItem.id === attachmentId) {
+                setLightboxItem(prev => prev ? { ...prev, mostrarEnReporte: nextStatus } : null);
+            }
+            
+            const res = await toggleKanbanAttachmentReportVisibility(attachmentId, nextStatus);
+            if (res.success) {
+                toast.success(nextStatus ? 'Foto incluida en el reporte' : 'Foto excluida del reporte');
+            } else {
+                // Revert
+                setAttachments(prev => prev.map(att => att.id === attachmentId ? { ...att, mostrarEnReporte: currentStatus } : att));
+                if (lightboxItem && lightboxItem.id === attachmentId) {
+                    setLightboxItem(prev => prev ? { ...prev, mostrarEnReporte: currentStatus } : null);
+                }
+                toast.error(res.error || 'Error al cambiar visibilidad');
+            }
+        } catch (error) {
+            // Revert
+            setAttachments(prev => prev.map(att => att.id === attachmentId ? { ...att, mostrarEnReporte: currentStatus } : att));
+            if (lightboxItem && lightboxItem.id === attachmentId) {
+                setLightboxItem(prev => prev ? { ...prev, mostrarEnReporte: currentStatus } : null);
+            }
+            console.error("Error al toggle visibilidad:", error);
+            toast.error('Error al cambiar visibilidad');
         }
     };
     const [showCameraModal, setShowCameraModal] = useState(false);
@@ -2050,17 +2082,32 @@ export default function TaskDetailModal({
                                                     return (
                                                         <div key={att.id} className="group relative rounded-xl border border-slate-100 bg-slate-50 hover:bg-white p-2 transition flex flex-col gap-1.5 shadow-sm hover:shadow">
                                                             {isImg ? (
-                                                                <button 
-                                                                    type="button"
-                                                                    onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion })}
-                                                                    className="relative block w-full aspect-video rounded-lg overflow-hidden border border-slate-200/50 bg-white cursor-pointer"
-                                                                >
-                                                                    <img src={att.url} alt={att.nombre} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
-                                                                </button>
+                                                                <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-slate-200/50 bg-white">
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion, mostrarEnReporte: att.mostrarEnReporte })}
+                                                                        className="block w-full h-full cursor-pointer animate-in fade-in duration-200"
+                                                                    >
+                                                                        <img src={att.url} alt={att.nombre} className="w-full h-full object-cover group-hover:scale-105 transition duration-300" />
+                                                                    </button>
+                                                                    <label 
+                                                                        onClick={(e) => e.stopPropagation()} 
+                                                                        className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1.5 bg-white/95 backdrop-blur-xs border border-slate-200/60 rounded-md px-1.5 py-0.5 shadow-xs cursor-pointer select-none"
+                                                                        title="Mostrar esta foto en el informe PDF de la orden"
+                                                                    >
+                                                                        <input 
+                                                                            type="checkbox" 
+                                                                            checked={att.mostrarEnReporte !== false}
+                                                                            onChange={() => handleToggleMostrarEnReporte(att.id, att.mostrarEnReporte !== false)}
+                                                                            className="h-3 w-3 rounded-sm border-slate-350 text-indigo-650 focus:ring-indigo-500 cursor-pointer"
+                                                                        />
+                                                                        <span className="text-[8px] font-bold text-slate-700">Informe</span>
+                                                                    </label>
+                                                                </div>
                                                             ) : isVideo ? (
                                                                 <button 
                                                                     type="button"
-                                                                    onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion })}
+                                                                    onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion, mostrarEnReporte: att.mostrarEnReporte })}
                                                                     className="relative block w-full aspect-video rounded-lg overflow-hidden border border-slate-200/50 bg-black cursor-pointer"
                                                                 >
                                                                     <video src={att.url} className="w-full h-full object-cover opacity-85" preload="metadata" />
@@ -2071,7 +2118,7 @@ export default function TaskDetailModal({
                                                             ) : isAudio ? (
                                                                 <button 
                                                                     type="button"
-                                                                    onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion })}
+                                                                    onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion, mostrarEnReporte: att.mostrarEnReporte })}
                                                                     className="aspect-video w-full rounded-lg border border-slate-200/50 bg-indigo-50/50 flex flex-col items-center justify-center p-1.5 gap-1 cursor-pointer hover:bg-indigo-100/50 transition select-none"
                                                                 >
                                                                     <Mic className="h-4.5 w-4.5 text-indigo-600 shrink-0" />
@@ -2080,7 +2127,7 @@ export default function TaskDetailModal({
                                                             ) : (
                                                                 <button 
                                                                     type="button"
-                                                                    onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion })}
+                                                                    onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion, mostrarEnReporte: att.mostrarEnReporte })}
                                                                     className="aspect-video w-full rounded-lg border border-slate-200/50 bg-slate-100 hover:bg-slate-150 transition flex items-center justify-center cursor-pointer"
                                                                 >
                                                                     {getFileIcon(att.tipo)}
@@ -2088,7 +2135,7 @@ export default function TaskDetailModal({
                                                             )}
                                                             <div className="flex flex-col gap-0.5 min-w-0 px-1">
                                                                 <p 
-                                                                    onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion })}
+                                                                    onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion, mostrarEnReporte: att.mostrarEnReporte })}
                                                                     className="text-[10px] font-bold text-slate-700 truncate cursor-pointer hover:text-brand-600 transition-colors" 
                                                                     title="Click para ver en lightbox"
                                                                 >
@@ -2097,7 +2144,7 @@ export default function TaskDetailModal({
                                                                 <p className="text-[8px] text-slate-400">{(att.tamano / 1024).toFixed(1)} KB • {att.subidoPor.nombre}</p>
                                                                 {att.descripcion ? (
                                                                     <p 
-                                                                        onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion })}
+                                                                        onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion, mostrarEnReporte: att.mostrarEnReporte })}
                                                                         className="text-[9px] text-slate-650 bg-white border border-slate-100 rounded px-1.5 py-1 mt-1.5 leading-normal italic text-wrap break-words cursor-pointer hover:bg-slate-100 hover:text-slate-900 transition-colors"
                                                                         title="Click para ver en lightbox"
                                                                     >
@@ -2106,7 +2153,7 @@ export default function TaskDetailModal({
                                                                 ) : (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion })}
+                                                                        onClick={() => setLightboxItem({ id: att.id, url: att.url, nombre: att.nombre, tipo: att.tipo, descripcion: att.descripcion, mostrarEnReporte: att.mostrarEnReporte })}
                                                                         className="text-[8px] text-brand-600 hover:text-brand-700 hover:underline font-bold mt-1.5 text-left w-fit transition-all flex items-center gap-0.5"
                                                                     >
                                                                         + Añadir descripción
@@ -3057,12 +3104,26 @@ export default function TaskDetailModal({
 
                     {/* Barra de Información (Nombre + Descripción) */}
                     <div 
-                        className="max-w-2xl w-full text-center mt-6 space-y-2.5 select-text animate-in slide-in-from-bottom-3 duration-200"
+                        className="max-w-2xl w-full text-center mt-6 space-y-3.5 select-text animate-in slide-in-from-bottom-3 duration-200"
                         onClick={(e) => e.stopPropagation()}
                     >
                         <h4 className="text-white text-base font-bold tracking-tight truncate px-4" title={lightboxItem.nombre}>
                             {lightboxItem.nombre}
                         </h4>
+
+                        {lightboxItem.tipo.startsWith('image/') && (
+                            <div className="flex justify-center items-center">
+                                <label className="flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/10 rounded-xl px-3.5 py-1.5 shadow-sm cursor-pointer select-none transition">
+                                    <input 
+                                        type="checkbox" 
+                                        checked={lightboxItem.mostrarEnReporte !== false}
+                                        onChange={() => handleToggleMostrarEnReporte(lightboxItem.id, lightboxItem.mostrarEnReporte !== false)}
+                                        className="h-4 w-4 rounded-md border-white/20 text-indigo-500 focus:ring-indigo-500 cursor-pointer bg-slate-950"
+                                    />
+                                    <span className="text-xs font-bold text-slate-200">Mostrar esta foto en el informe PDF</span>
+                                </label>
+                            </div>
+                        )}
                         
                         {isEditingLightboxDesc ? (
                             <div className="bg-slate-900/90 border border-white/10 rounded-2xl p-4 shadow-inner max-w-xl mx-auto space-y-3 text-left">

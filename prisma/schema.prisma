@@ -1202,6 +1202,7 @@ model KanbanAttachment {
   tipo        String             // Mime-type
   tamano      Int                // Bytes
   descripcion String?
+  mostrarEnReporte Boolean        @default(true)
   subidoPorId String             @db.Uuid
   createdAt   DateTime           @default(now())
 
