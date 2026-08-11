@@ -920,8 +920,11 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
         telefonoContacto: ''
     });
 
+
     // Pre-step Registration Type
-    const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso' | 'servicio' | 'import_web' | 'equipo_cliente'>(editActivo ? (editActivo.esEquipoCliente ? 'equipo_cliente' : 'reingreso') : 'seleccion');
+    const [tipoRegistro, setTipoRegistro] = useState<'seleccion' | 'nuevo' | 'reingreso' | 'servicio' | 'import_web' | 'equipo_cliente'>(editActivo ? ((editActivo.esEquipoCliente ?? false) ? 'equipo_cliente' : 'reingreso') : 'seleccion');
+    const [esEquipoCliente, setEsEquipoCliente] = useState<boolean>(editActivo ? (editActivo.esEquipoCliente ?? false) : false);
+
     const [isServiceMode, setIsServiceMode] = useState(false);
     const [estatusContable, setEstatusContable] = useState(editActivo?.estatusContable || 'VIGENTE');
 
@@ -932,6 +935,12 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setIsServiceMode(false);
         }
     }, [tipoRegistro]);
+
+    useEffect(() => {
+        if (!isEdit && open) {
+            setEsEquipoCliente(tipoRegistro === 'equipo_cliente');
+        }
+    }, [tipoRegistro, isEdit, open]);
 
     useEffect(() => {
         const reg = searchParams.get('register');
@@ -1412,8 +1421,10 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setFechaVencimiento(editActivo.fechaVencimiento ? getLocalDateString(editActivo.fechaVencimiento) : '');
             setFechaFabricacion(editActivo.fechaFabricacion ? getLocalDateString(editActivo.fechaFabricacion) : '');
             setSerie(editActivo.serie || '');
+
             setEstatusContable(editActivo.estatusContable || 'VIGENTE');
             setCobertura(editActivo.cobertura || 'externa');
+            setEsEquipoCliente(editActivo.esEquipoCliente ?? false);
             // For now, not fetching full historic record on edit, just handling its absence.
         } else {
             setImagenUrl(''); setImagenPlacaUrl(''); setSelectedArea(lockedArea || ''); setSelectedCuenta('');
@@ -1425,6 +1436,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setTipoRegistro('seleccion');
             setEstatusContable('VIGENTE');
             setCobertura('externa');
+            setEsEquipoCliente(false);
             setWebProductReference(null);
         }
     }, [editActivo, open, lockedArea, defaultOrigin, defaultCondition]);
@@ -1681,7 +1693,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             return;
         }
         const fd = new FormData(e.currentTarget);
-        if (tipoRegistro === 'equipo_cliente') {
+        if (esEquipoCliente) {
             if (!selectedClienteId) {
                 alert("Por favor selecciona un cliente propietario.");
                 return;
@@ -1689,6 +1701,10 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             fd.set('esEquipoCliente', 'true');
             fd.set('clienteId', selectedClienteId);
             fd.set('cobertura', cobertura);
+        } else {
+            fd.set('esEquipoCliente', 'false');
+            fd.delete('clienteId');
+            fd.delete('cobertura');
         }
         fd.set('imagenUrl', isServiceMode ? (imagenUrl || '/services/reparacion.jpg') : imagenUrl);
         fd.set('imagenPlacaUrl', isServiceMode ? '' : imagenPlacaUrl);
@@ -2029,8 +2045,50 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                         ) : (
                             <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
 
+                                {/* ── SELECTOR TIPO DE INVENTARIO ── */}
+                                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2">
+                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Tipo de Inventario *</label>
+                                    <div className="flex gap-2 p-1 bg-slate-200/40 rounded-xl">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setEsEquipoCliente(false);
+                                                if (!isEdit) setTipoRegistro('nuevo');
+                                            }}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all duration-200 active:scale-[0.98] ${
+                                                !esEquipoCliente
+                                                    ? 'bg-white text-[#0500A3] shadow-xs'
+                                                    : 'text-slate-500 hover:text-slate-800'
+                                            }`}
+                                        >
+                                            <Package className="w-3.5 h-3.5 animate-in fade-in zoom-in duration-200" />
+                                            <span>Inventario General</span>
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setEsEquipoCliente(true);
+                                                if (!isEdit) setTipoRegistro('equipo_cliente');
+                                            }}
+                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all duration-200 active:scale-[0.98] ${
+                                                esEquipoCliente
+                                                    ? 'bg-white text-[#0500A3] shadow-xs'
+                                                    : 'text-slate-500 hover:text-slate-800'
+                                            }`}
+                                        >
+                                            <Wrench className="w-3.5 h-3.5 animate-in fade-in zoom-in duration-200" />
+                                            <span>Equipos Internos/Externos (Cliente)</span>
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-slate-500 mt-1">
+                                        {!esEquipoCliente 
+                                            ? 'El equipo formará parte del inventario general de activos de la empresa.' 
+                                            : 'El equipo se registrará como propiedad de un cliente para seguimiento de servicios.'}
+                                    </p>
+                                </div>
+
                                 {/* ── PROPIETARIO DEL EQUIPO (CLIENTE) ── */}
-                                {tipoRegistro === 'equipo_cliente' && (
+                                {esEquipoCliente && (
                                     <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-3" style={{ backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }}>
                                         <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wider">Cliente Propietario *</label>
                                         <div className="flex gap-2 items-center">
