@@ -2023,5 +2023,36 @@ export async function getFacturaByActivoId(activoId: string) {
     }
 }
 
+export async function getActivoForEdit(idOrQr: string) {
+    try {
+        const orgId = await getOrgId();
+        const activo = await prisma.activoFijo.findFirst({
+            where: {
+                organizationId: orgId,
+                OR: [
+                    { id: idOrQr },
+                    { idQr: idOrQr }
+                ]
+            },
+            include: {
+                cliente: true,
+            }
+        });
+        if (!activo) return null;
+        const a = activo as any;
+        return {
+            ...activo,
+            valorAdq: Number(a.valorAdq || a.costo || 0),
+            costoReemplazo: Number(a.costoReemplazo || 0),
+            valorResidual: Number(a.valorResidual || 0),
+            origenActivo: a.origenActivo,
+            condicionActivo: a.condicionActivo,
+        };
+    } catch (err) {
+        console.error('Error fetching activo for edit:', err);
+        return null;
+    }
+}
+
 
 

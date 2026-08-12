@@ -19,7 +19,7 @@ import {
     searchActivosGlobal, generateNextServiceCode, getActivosForExport, getInventoryOriginsSetting,
     saveInventoryOriginsSetting, getInventoryConditionsSetting, saveInventoryConditionsSetting,
     bulkImportActivos, encolarLoteImportado, generateNextSkuCode, recibirActivoEnTransito,
-    getFacturaByActivoId
+    getFacturaByActivoId, getActivoForEdit
 } from './actions';
 import { completarReparacionActivo } from './garantias/actions';
 import toast from 'react-hot-toast';
@@ -3764,7 +3764,18 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
         const modal = searchParams?.get('modal');
         const reg = searchParams?.get('register');
         const cob = searchParams?.get('cobertura');
-        if (modal === 'nuevo' || reg === 'equipo_cliente' || cob === 'externa' || searchParams?.get('nuevo') === 'true') {
+        const editId = searchParams?.get('edit') || searchParams?.get('id');
+
+        if (editId) {
+            getActivoForEdit(editId).then((act) => {
+                if (act) {
+                    setEditActivo(act);
+                    setModalOpen(true);
+                } else {
+                    toast.error('No se encontró el equipo en el Inventario para editar.');
+                }
+            });
+        } else if (modal === 'nuevo' || reg === 'equipo_cliente' || cob === 'externa' || searchParams?.get('nuevo') === 'true') {
             setModalOpen(true);
         }
     }, [searchParams]);
