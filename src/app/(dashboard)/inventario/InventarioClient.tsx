@@ -943,9 +943,11 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     }, [tipoRegistro, isEdit, open]);
 
     useEffect(() => {
-        const reg = searchParams.get('register');
-        if (reg === 'equipo_cliente' && open) {
+        const reg = searchParams?.get('register');
+        const cob = searchParams?.get('cobertura');
+        if ((reg === 'equipo_cliente' || cob === 'externa') && open) {
             setTipoRegistro('equipo_cliente');
+            setCobertura('externa');
         }
     }, [searchParams, open]);
 
@@ -3757,6 +3759,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     useEffect(() => { getGruposAutocompletado().then(res => setGruposDisponibles(res)); }, []);
 
     const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const modal = searchParams?.get('modal');
+        const reg = searchParams?.get('register');
+        const cob = searchParams?.get('cobertura');
+        if (modal === 'nuevo' || reg === 'equipo_cliente' || cob === 'externa' || searchParams?.get('nuevo') === 'true') {
+            setModalOpen(true);
+        }
+    }, [searchParams]);
 
     // QR Area Control
     const [lockedArea, setLockedArea] = useState<string | null>(null);
