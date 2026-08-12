@@ -120,6 +120,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/admin/gestion-web', label: 'Gestión Web / Tienda' },
         { id: '/admin/tarjetas-digitales', label: 'Tarjetas Digitales' },
         { id: '/admin/notificaciones', label: 'Módulo de Notificaciones' },
+        { id: '/actualizaciones', label: 'Centro de Novedades / Actualizaciones' },
         { id: 'asistente_voz', label: 'Asistente de Voz IA' },
         { id: '/admin/logs-actividad', label: 'Bitácora de Actividad' },
     ];

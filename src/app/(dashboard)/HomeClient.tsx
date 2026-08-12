@@ -19,7 +19,8 @@ import {
   ChevronRight,
   ShieldCheck,
   User,
-  Zap
+  Zap,
+  Tv
 } from 'lucide-react';
 
 interface HomeClientProps {
@@ -145,11 +146,21 @@ export default function HomeClient({
       glow: 'shadow-sky-500/5 hover:shadow-sky-500/15 border-sky-100 hover:border-sky-300',
       iconBg: 'bg-sky-50 text-sky-600',
     },
+    {
+      name: 'Centro de Novedades',
+      href: '/actualizaciones',
+      description: 'Novedades, anuncios y videotutoriales explicativos del ERP.',
+      icon: Tv,
+      color: 'indigo',
+      glow: 'shadow-indigo-500/5 hover:shadow-indigo-500/15 border-indigo-100 hover:border-indigo-300',
+      iconBg: 'bg-indigo-50 text-indigo-600',
+    },
   ];
 
   // Filter shortcuts based on user role or modules permissions
   const allowedShortcuts = modulesConfig.filter(mod => {
     if (dbUser.role === 'SUPER_ADMIN') return true;
+    if (mod.href === '/actualizaciones') return true;
     const allowed = dbUser.accessibleModules || [];
     if (allowed.includes(mod.href)) return true;
     // Permit access if any subpath is allowed
