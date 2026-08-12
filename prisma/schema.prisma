@@ -65,6 +65,7 @@ model Organization {
   activityLogs          ActivityLog[]
   equiposCliente        EquipoCliente[]
   mantenimientos        Mantenimiento[]
+  actualizaciones       SistemaActualizacion[]
 
   @@map("organizations")
 }
@@ -142,6 +143,10 @@ model User {
   tiemposTrabajados     OrdenTrabajoTiempo[]   @relation("TecnicoTiempos")
   tiemposCreados        OrdenTrabajoTiempo[]   @relation("TiemposCreados")
   tiemposAnulados       OrdenTrabajoTiempo[]   @relation("TiemposAnulados")
+  
+  actualizacionesCreadas   SistemaActualizacion[]           @relation("CreatedActualizaciones")
+  comentariosActualizacion SistemaActualizacionComentario[]
+  vistosActualizacion      SistemaActualizacionVisto[]
   
   // Notification fields
   oneSignalSubscriptionId String?              @unique
@@ -1515,6 +1520,67 @@ model Mantenimiento {
   @@index([equipoClienteId])
   @@index([fechaProgramada])
   @@map("mantenimientos")
+}
+
+model SistemaActualizacion {
+  id             String                           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String                           @db.Uuid
+  titulo         String
+  subtitulo      String?
+  versionTag     String?                          @default("v1.0.0")
+  categoria      String                           @default("🚀 Nueva Función")
+  youtubeUrl     String?
+  videoUrl       String?
+  descripcion    String                           @db.Text
+  publicado      Boolean                          @default(true)
+  destacado      Boolean                          @default(false)
+  visibilidad    String                           @default("ALL")
+  allowedRoles   String[]                         @default([])
+  allowedUserIds String[]                         @default([])
+  createdById    String                           @db.Uuid
+  createdAt      DateTime                         @default(now())
+  updatedAt      DateTime                         @updatedAt
+
+  organization   Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy      User                             @relation("CreatedActualizaciones", fields: [createdById], references: [id], onDelete: Cascade)
+  comentarios    SistemaActualizacionComentario[]
+  vistos         SistemaActualizacionVisto[]
+
+  @@index([organizationId])
+  @@index([createdById])
+  @@map("sistema_actualizaciones")
+}
+
+model SistemaActualizacionComentario {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actualizacionId String               @db.Uuid
+  usuarioId       String               @db.Uuid
+  contenido       String               @db.Text
+  reaccion        String?
+  parentId        String?              @db.Uuid
+  createdAt       DateTime             @default(now())
+
+  actualizacion   SistemaActualizacion @relation(fields: [actualizacionId], references: [id], onDelete: Cascade)
+  usuario         User                 @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@index([actualizacionId])
+  @@index([usuarioId])
+  @@map("sistema_actualizacion_comentarios")
+}
+
+model SistemaActualizacionVisto {
+  id              String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actualizacionId String               @db.Uuid
+  usuarioId       String               @db.Uuid
+  vistoAt         DateTime             @default(now())
+
+  actualizacion   SistemaActualizacion @relation(fields: [actualizacionId], references: [id], onDelete: Cascade)
+  usuario         User                 @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  @@unique([actualizacionId, usuarioId])
+  @@index([actualizacionId])
+  @@index([usuarioId])
+  @@map("sistema_actualizacion_vistos")
 }
 
 
