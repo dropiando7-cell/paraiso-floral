@@ -26,10 +26,11 @@ async function sanitizeImageUrlForPdf(imageUrl: string | null | undefined): Prom
     const arrayBuffer = await res.arrayBuffer();
     const inputBuffer = Buffer.from(arrayBuffer);
     
-    // Sanitize image using sharp: auto-rotate based on EXIF orientation and re-encode to clean sRGB JPEG
+    // Sanitize image using sharp: resize to max 600px for ultra fast PDF rendering, auto-rotate EXIF and compress sRGB JPEG
     const cleanBuffer = await sharp(inputBuffer)
+      .resize({ width: 600, height: 600, fit: 'inside', withoutEnlargement: true })
       .rotate()
-      .jpeg({ quality: 80, force: true })
+      .jpeg({ quality: 75, force: true })
       .toBuffer();
       
     return `data:image/jpeg;base64,${cleanBuffer.toString('base64')}`;
@@ -44,7 +45,7 @@ async function sanitizeImagesInParallel(urls: (string | null | undefined)[]): Pr
   const urlMap = new Map<string, string>();
   const validUrls = Array.from(new Set(urls.filter((u): u is string => typeof u === 'string' && u.length > 0)));
 
-  const chunkSize = 8;
+  const chunkSize = 10;
   for (let i = 0; i < validUrls.length; i += chunkSize) {
     const chunk = validUrls.slice(i, i + chunkSize);
     await Promise.all(
@@ -52,7 +53,7 @@ async function sanitizeImagesInParallel(urls: (string | null | undefined)[]): Pr
         try {
           const sanitized = await Promise.race([
             sanitizeImageUrlForPdf(url),
-            new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+            new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 12000))
           ]);
           if (sanitized) urlMap.set(url, sanitized);
         } catch {

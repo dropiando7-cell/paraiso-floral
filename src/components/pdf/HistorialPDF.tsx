@@ -514,12 +514,22 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
               (url: string) => !attachmentUrls.has(url)
             );
 
-            // Field photos are task image attachments that are not hidden
-            const fieldPhotos = attachments.filter((att: any) => {
+            // Field photos are task image attachments + direct technician photos that are not hidden
+            const attachmentFieldPhotos = attachments.filter((att: any) => {
               const isImg = att.tipo?.startsWith('image/') || att.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i);
               const isSelected = att.mostrarEnReporte !== false;
               return isImg && isSelected;
             });
+
+            const tecnicoPhotos = (orden.fotosTecnico || [])
+              .filter((url: string) => !hiddenAttachmentUrls.has(url))
+              .map((url: string, idx: number) => ({
+                id: `foto-tec-${idx}`,
+                url,
+                descripcion: `Evidencia de trabajo #${idx + 1}`
+              }));
+
+            const fieldPhotos = [...attachmentFieldPhotos, ...tecnicoPhotos];
 
             const comments = task?.comments || [];
 
