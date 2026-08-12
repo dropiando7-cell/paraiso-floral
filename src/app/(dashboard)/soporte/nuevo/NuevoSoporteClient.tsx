@@ -8,7 +8,19 @@ import { createOrdenTrabajo } from '../actions';
 import ReceptionForm from '../components/ReceptionForm';
 import QRGenerator from '../components/QRGenerator';
 
-export default function NuevoSoporteClient({ userId, clientes = [], users = [] }: { userId: string, clientes?: any[], users?: any[] }) {
+export default function NuevoSoporteClient({ 
+    userId, 
+    clientes = [], 
+    users = [],
+    initialActivo = null,
+    initialGarantiaConfig = null
+}: { 
+    userId: string, 
+    clientes?: any[], 
+    users?: any[],
+    initialActivo?: any,
+    initialGarantiaConfig?: any
+}) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const [result, setResult] = useState<any>(null);
@@ -93,7 +105,15 @@ export default function NuevoSoporteClient({ userId, clientes = [], users = [] }
 
     return (
         <div className="p-1 sm:p-4 md:p-6 max-w-6xl mx-auto">
-            <ReceptionForm onSave={handleSave} onBack={() => router.push('/soporte')} clientes={clientes} users={users} prefilledData={prefilledData} />
+            <ReceptionForm 
+                onSave={handleSave} 
+                onBack={() => router.push('/soporte')} 
+                clientes={clientes} 
+                users={users} 
+                prefilledData={prefilledData} 
+                initialActivo={initialActivo}
+                initialGarantiaConfig={initialGarantiaConfig}
+            />
         </div>
     );
 }

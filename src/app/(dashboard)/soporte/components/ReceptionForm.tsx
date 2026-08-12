@@ -30,9 +30,19 @@ type ReceptionFormProps = {
   clientes?: any[];
   users?: any[];
   prefilledData?: PrefilledData;
+  initialActivo?: any;
+  initialGarantiaConfig?: any;
 };
 
-export default function ReceptionForm({ onSave, onBack, clientes = [], users = [], prefilledData }: ReceptionFormProps) {
+export default function ReceptionForm({ 
+  onSave, 
+  onBack, 
+  clientes = [], 
+  users = [], 
+  prefilledData,
+  initialActivo = null,
+  initialGarantiaConfig = null
+}: ReceptionFormProps) {
   const router = useRouter();
   const getLocalDateString = () => {
     const d = new Date();
@@ -47,26 +57,26 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
     : null;
 
   const [form, setForm] = useState({
-    cliente: prefilledData?.clienteNombre || "", 
-    telefono: matchedClient?.telefono || "+504 ", 
+    cliente: prefilledData?.clienteNombre || initialActivo?.cliente?.nombre || "", 
+    telefono: matchedClient?.telefono || initialActivo?.cliente?.telefono || "+504 ", 
     equipo: prefilledData?.tipo === 'AIRE' ? 'AIRE' : (prefilledData?.tipo === 'MEDICO' ? 'MEDICO' : 'OTRO'), 
-    nombreEquipo: prefilledData?.equipoDano || "", 
-    modelo: prefilledData?.modelo || "", 
-    serie: prefilledData?.serie || "",
-    marca: prefilledData?.marca || "", 
+    nombreEquipo: prefilledData?.equipoDano || initialActivo?.descripcionCorta || "", 
+    modelo: prefilledData?.modelo || initialActivo?.modelo || "", 
+    serie: prefilledData?.serie || initialActivo?.serie || "",
+    marca: prefilledData?.marca || initialActivo?.marca || "", 
     descripcionFalla: "", 
     prioridad: "normal",
     costoRevision: "0", 
     metodoPagoRevision: "Ninguno",
     tecnicoIds: [] as string[],
     tipoTrabajo: "NORMAL",
-    cobertura: prefilledData?.cobertura || "interna",
+    cobertura: prefilledData?.cobertura || initialActivo?.cobertura || "interna",
     fechaRecibido: getLocalDateString(),
-    aplicaMantenimientos: false,
-    garantiaMeses: "",
-    frecuenciaMantenimientoMeses: "3",
-    cantidadMantenimientos: "",
-    activoId: prefilledData?.activoId || "",
+    aplicaMantenimientos: initialGarantiaConfig?.aplicaMantenimientos || false,
+    garantiaMeses: initialGarantiaConfig?.garantiaMeses !== null && initialGarantiaConfig?.garantiaMeses !== undefined ? initialGarantiaConfig.garantiaMeses.toString() : "",
+    frecuenciaMantenimientoMeses: initialGarantiaConfig?.frecuenciaMantenimientoMeses !== null && initialGarantiaConfig?.frecuenciaMantenimientoMeses !== undefined ? initialGarantiaConfig.frecuenciaMantenimientoMeses.toString() : "3",
+    cantidadMantenimientos: initialGarantiaConfig?.cantidadMantenimientos !== null && initialGarantiaConfig?.cantidadMantenimientos !== undefined ? initialGarantiaConfig.cantidadMantenimientos.toString() : "",
+    activoId: prefilledData?.activoId || initialActivo?.id || "",
     tipoOrden: prefilledData?.tipoOrden || "TALLER",
     requiereAprobacion: prefilledData?.requiereAprobacion !== false,
     leyendaEstado: ""
@@ -95,7 +105,8 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
   const [searchEquipoResults, setSearchEquipoResults] = useState<any[]>([]);
   const [isSearchingEquipos, setIsSearchingEquipos] = useState(false);
   const [showEquipoDropdown, setShowEquipoDropdown] = useState(false);
-  const [selectedActivo, setSelectedActivo] = useState<any | null>(null);
+  const [selectedActivo, setSelectedActivo] = useState<any | null>(initialActivo || null);
+  const [isLoadingActivo, setIsLoadingActivo] = useState<boolean>(!initialActivo && !!prefilledData?.activoId);
   const equipoDropdownRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -179,8 +190,12 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
   };
 
   useEffect(() => {
-    if (prefilledData?.activoId) {
-      getActivoByIdForReception(prefilledData.activoId).then(activo => {
+    if (prefilledData?.activoId && !initialActivo) {
+      setIsLoadingActivo(true);
+      Promise.all([
+        getActivoByIdForReception(prefilledData.activoId),
+        getUltimaConfiguracionGarantia(prefilledData.activoId)
+      ]).then(([activo, config]) => {
         if (activo) {
           setSelectedActivo(activo);
           setForm(prev => ({
@@ -195,9 +210,6 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
             cobertura: activo.cobertura || prev.cobertura
           }));
         }
-      });
-
-      getUltimaConfiguracionGarantia(prefilledData.activoId).then(config => {
         if (config) {
           setForm(prev => ({
             ...prev,
@@ -207,9 +219,11 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
             cantidadMantenimientos: config.cantidadMantenimientos !== null && config.cantidadMantenimientos !== undefined ? config.cantidadMantenimientos.toString() : ""
           }));
         }
+      }).finally(() => {
+        setIsLoadingActivo(false);
       });
     }
-  }, [prefilledData?.activoId]);
+  }, [prefilledData?.activoId, initialActivo]);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -569,7 +583,26 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
           )}
         </div>
 
-        {selectedActivo ? (
+        {isLoadingActivo ? (
+          <div className="bg-white border border-indigo-200 rounded-2xl p-5 shadow-xs animate-pulse flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-5 h-5 bg-indigo-200 rounded-full"></div>
+              <div className="h-4 bg-slate-200 rounded-md w-64"></div>
+            </div>
+            <div className="flex flex-col md:flex-row gap-5 items-start">
+              <div className="w-full md:w-36 h-36 bg-slate-200 rounded-2xl shrink-0"></div>
+              <div className="flex-1 w-full space-y-3">
+                <div className="h-6 bg-slate-200 rounded-md w-3/4"></div>
+                <div className="h-14 bg-slate-100 rounded-xl w-full"></div>
+                <div className="grid grid-cols-3 gap-3 pt-2">
+                  <div className="h-8 bg-slate-100 rounded-lg"></div>
+                  <div className="h-8 bg-slate-100 rounded-lg"></div>
+                  <div className="h-8 bg-slate-100 rounded-lg"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : selectedActivo ? (
           <div className="bg-white border border-indigo-200 rounded-2xl p-5 shadow-xs transition-all animate-in fade-in duration-200">
             {/* Header Actions */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5 mb-4">
