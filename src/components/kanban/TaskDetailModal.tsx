@@ -315,7 +315,12 @@ export default function TaskDetailModal({
 
     const [comments, setComments] = useState<any[]>([]);
     const [attachments, setAttachments] = useState<any[]>([]);
+    const [localActivities, setLocalActivities] = useState<any[]>(activities);
     const [loadingCollab, setLoadingCollab] = useState(false);
+
+    useEffect(() => {
+        setLocalActivities(activities);
+    }, [activities]);
 
     // Estados para consumo de materiales/inventario
     const [materials, setMaterials] = useState<any[]>([]);
@@ -960,6 +965,9 @@ export default function TaskDetailModal({
             if (res.success && res.comments && res.attachments) {
                 setComments(res.comments);
                 setAttachments(res.attachments);
+                if (res.activities) {
+                    setLocalActivities(res.activities);
+                }
             }
         } catch (error) {
             console.error("Error al cargar colaboración:", error);
@@ -1393,7 +1401,7 @@ export default function TaskDetailModal({
     };
 
     // Filtrar actividades relativas a esta tarea específica
-    const taskActivities = activities.filter(act => act.taskId === task.id);
+    const taskActivities = localActivities.filter(act => act.taskId === task.id);
 
     return (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 md:p-4">

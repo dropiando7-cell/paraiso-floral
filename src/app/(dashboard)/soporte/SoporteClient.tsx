@@ -6,11 +6,13 @@ import {
     Wrench, Plus, MoveRight, Receipt, 
     CheckCircle2, QrCode, Phone, Clock, AlertTriangle, MonitorSmartphone,
     Trash2, AlertCircle, Search, Archive, Laptop, UserPlus, ChevronDown, 
-    ChevronRight, Filter, FolderPlus, BookOpen, FileText, LayoutGrid, 
-    FolderArchive, Printer, Building2, ClipboardList, Trello, Pencil, Loader2
+    ChevronRight, Filter, FolderPlus, BookOpen, FileText, LayoutGrid, List,
+    FolderArchive, Printer, Building2, ClipboardList, Trello, Pencil, Loader2,
+    ShieldAlert, Sparkles, Check, CheckSquare, Square, Eye, FileCheck
 } from 'lucide-react';
 import { eliminarOrdenTrabajo, crearEquipoClienteAction, crearClienteAction, editarActivoSimple, eliminarActivoSimple } from './actions';
 import { toast } from 'react-hot-toast';
+import ReportConfigModal from '@/components/pdf/ReportConfigModal';
 
 type Orden = any; // Tipado parcial
 type Cliente = any;
@@ -82,6 +84,24 @@ export default function SoporteClient({
 
     // Control de acordeón de clientes en el directorio
     const [expandedClienteId, setExpandedClienteId] = useState<string | null>(null);
+
+    // Estado para modo de vista (grid vs list/inline) en Equipos de Clientes
+    const [equiposViewMode, setEquiposViewMode] = useState<'grid' | 'list'>('grid');
+
+    // Estado de selección múltiple de equipos
+    const [selectedEquipoIds, setSelectedEquipoIds] = useState<string[]>([]);
+
+    // Estado para el modal de ReportConfigModal desde equipos de cliente
+    const [reportModalData, setReportModalData] = useState<{
+        isOpen: boolean;
+        clienteId?: string;
+        clienteNombre?: string;
+        activoId?: string;
+        activoIdQr?: string;
+        selectedEquipoIds?: string[];
+    }>({
+        isOpen: false
+    });
 
     const filterBySearch = (list: Orden[]) => {
         if (!searchQuery.trim()) return list;
@@ -345,19 +365,28 @@ export default function SoporteClient({
         }
     };
 
-    const handleDeleteActivo = async (id: string) => {
-        if (!confirm('¿Estás seguro de que deseas eliminar este equipo? Se desvinculará de las facturas y órdenes de trabajo asociadas.')) return;
-        try {
-            const res = await eliminarActivoSimple(id);
-            if (res.success) {
-                toast.success('Equipo eliminado exitosamente.');
-                setEquiposClientes(prev => prev.filter(eq => eq.id !== id));
-            } else {
-                toast.error(res.error || 'Error al eliminar equipo.');
+    const handleDeleteActivo = async (id: string, nombre?: string) => {
+        showConfirm({
+            title: '¿Eliminar equipo permanentemente?',
+            description: `¿Estás absolutamente seguro de que deseas ELIMINAR permanentemente el equipo ${nombre ? `"${nombre}"` : ''}? Esta acción es IRREVERSIBLE y se perderá toda la información del equipo, histórico de mantenimientos, tareas asociadas y fotografías/imágenes guardadas.`,
+            confirmText: 'Sí, Eliminar permanentemente',
+            cancelText: 'Cancelar',
+            type: 'danger',
+            onConfirm: async () => {
+                try {
+                    const res = await eliminarActivoSimple(id);
+                    if (res.success) {
+                        toast.success('Equipo eliminado exitosamente.');
+                        setEquiposClientes(prev => prev.filter(eq => eq.id !== id));
+                        setSelectedEquipoIds(prev => prev.filter(eqId => eqId !== id));
+                    } else {
+                        toast.error(res.error || 'Error al eliminar equipo.');
+                    }
+                } catch (err) {
+                    toast.error('Error de conexión.');
+                }
             }
-        } catch (err) {
-            toast.error('Error de conexión.');
-        }
+        });
     };
 
     return (
@@ -795,8 +824,80 @@ export default function SoporteClient({
 
             {/* VISTA 3: EQUIPOS DE CLIENTES (Directorio) */}
             {activeView === 'equipos' && (
-                <div className="px-4 md:px-0 animate-fade-in">
+                <div className="px-4 md:px-0 animate-fade-in space-y-4">
                     
+                    {/* Barra Superior de Control de Vista y Acciones en Lote */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-extrabold text-slate-700">Vista de Equipos:</span>
+                            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200">
+                                <button
+                                    type="button"
+                                    onClick={() => setEquiposViewMode('grid')}
+                                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition ${
+                                        equiposViewMode === 'grid'
+                                            ? 'bg-white text-blue-600 shadow-xs'
+                                            : 'text-slate-500 hover:text-slate-800'
+                                    }`}
+                                    title="Vista de Cuadrícula / Tarjetas"
+                                >
+                                    <LayoutGrid className="w-3.5 h-3.5" />
+                                    <span>Tarjetas</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setEquiposViewMode('list')}
+                                    className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition ${
+                                        equiposViewMode === 'list'
+                                            ? 'bg-white text-blue-600 shadow-xs'
+                                            : 'text-slate-500 hover:text-slate-800'
+                                    }`}
+                                    title="Vista de Líneas / Filas Compactas"
+                                >
+                                    <List className="w-3.5 h-3.5" />
+                                    <span>Líneas</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Botón Único Principal de Reportes y Selección en Lote */}
+                        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+                            {selectedEquipoIds.length > 0 && (
+                                <div className="flex items-center gap-2 bg-blue-50/80 border border-blue-200 px-3 py-1.5 rounded-xl animate-in fade-in duration-150">
+                                    <span className="text-xs font-black text-blue-700 flex items-center gap-1">
+                                        <CheckSquare className="w-4 h-4 text-blue-600" />
+                                        {selectedEquipoIds.length} {selectedEquipoIds.length === 1 ? 'sel.' : 'sel.'}
+                                    </span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setSelectedEquipoIds([])}
+                                        className="text-[10px] font-bold text-slate-500 hover:text-slate-800 underline px-1"
+                                    >
+                                        Limpiar
+                                    </button>
+                                </div>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const activeCli = expandedClienteId ? clientesConEquipos.find(c => c.id === expandedClienteId) : null;
+                                    setReportModalData({
+                                        isOpen: true,
+                                        clienteId: activeCli?.id,
+                                        clienteNombre: activeCli?.nombre,
+                                        selectedEquipoIds
+                                    });
+                                }}
+                                className="bg-[#0500A3] hover:bg-[#0500A3]/90 text-white font-bold text-xs px-4 py-2 rounded-xl transition flex items-center gap-2 shadow-sm active:scale-95 cursor-pointer"
+                                title="Configurar y generar reporte técnico para el cliente o equipos seleccionados"
+                            >
+                                <Sparkles className="w-4 h-4 text-blue-200" />
+                                <span>Generar Reporte Técnico</span>
+                            </button>
+                        </div>
+                    </div>
+
                     {equiposClientes.length === 0 ? (
                         <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl py-16 text-center">
                             <Laptop className="w-12 h-12 text-slate-300 mx-auto mb-4 animate-bounce" />
@@ -817,34 +918,85 @@ export default function SoporteClient({
                             {/* Bucle agrupado por clientes */}
                             {clientesConEquipos.map(cli => {
                                 const isExpanded = expandedClienteId === cli.id;
+                                const clientEquipoIds = cli.equipos.map((e: any) => e.id);
+                                const allClientSelected = clientEquipoIds.length > 0 && clientEquipoIds.every((id: string) => selectedEquipoIds.includes(id));
+
+                                const toggleSelectAllClient = (e: React.MouseEvent) => {
+                                    e.stopPropagation();
+                                    if (allClientSelected) {
+                                        setSelectedEquipoIds(prev => prev.filter(id => !clientEquipoIds.includes(id)));
+                                    } else {
+                                        setSelectedEquipoIds(prev => Array.from(new Set([...prev, ...clientEquipoIds])));
+                                    }
+                                };
+
                                 return (
-                                    <div key={cli.id} className="bg-white border border-slate-200 rounded-2xl shadow-[0_1px_3px_rgba(0,0,0,0.02)] overflow-hidden transition-all hover:border-slate-300">
+                                    <div key={cli.id} className={`rounded-2xl overflow-hidden transition-all ${
+                                        isExpanded 
+                                            ? 'bg-white border-2 border-emerald-500 shadow-md ring-4 ring-emerald-500/10' 
+                                            : 'bg-white border border-slate-200 shadow-xs hover:border-slate-300'
+                                    }`}>
                                         
                                         {/* Cabecera del Cliente */}
                                         <div 
                                             onClick={() => setExpandedClienteId(isExpanded ? null : cli.id)}
-                                            className="px-5 py-4 flex items-center justify-between cursor-pointer select-none bg-slate-50/50 hover:bg-slate-50"
+                                            className={`px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 cursor-pointer select-none transition-colors ${
+                                                isExpanded ? 'bg-emerald-50/70 hover:bg-emerald-50' : 'bg-slate-50/50 hover:bg-slate-50'
+                                            }`}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <div className="h-9 w-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600">
+                                                <div className={`h-9 w-9 rounded-xl border flex items-center justify-center shrink-0 transition-colors ${
+                                                    isExpanded ? 'bg-emerald-600 border-emerald-700 text-white shadow-xs' : 'bg-blue-50 border-blue-100 text-blue-600'
+                                                }`}>
                                                     <Building2 className="w-5 h-5" />
                                                 </div>
                                                 <div>
-                                                    <h3 className="font-black text-slate-800 text-xs tracking-tight">{cli.nombre}</h3>
-                                                    <p className="text-[10px] text-slate-450 font-semibold">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="font-black text-slate-800 text-xs tracking-tight">{cli.nombre}</h3>
+                                                        {isExpanded && (
+                                                            <span className="text-[9px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-2xs animate-in zoom-in-95 duration-150">
+                                                                <CheckCircle2 className="w-3 h-3 text-white" />
+                                                                Cliente Seleccionado
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-[10px] text-slate-450 font-semibold mt-0.5">
                                                         {cli.equipos.length} {cli.equipos.length === 1 ? 'equipo registrado' : 'equipos registrados'}
                                                     </p>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-4">
+                                            
+                                            <div className="flex items-center gap-3 self-end sm:self-auto">
+                                                {/* Check de Confirmación de Selección */}
+                                                {isExpanded && (
+                                                    <div className="h-7 w-7 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0 animate-in zoom-in-95 duration-150">
+                                                        <Check className="w-4 h-4 stroke-[3]" />
+                                                    </div>
+                                                )}
+
+                                                {/* Checkbox Seleccionar Todos los del Cliente */}
+                                                <button
+                                                    type="button"
+                                                    onClick={toggleSelectAllClient}
+                                                    className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border transition ${
+                                                        allClientSelected 
+                                                            ? 'bg-blue-600 text-white border-blue-600' 
+                                                            : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
+                                                    }`}
+                                                    title="Seleccionar/Deseleccionar todos los equipos de este cliente"
+                                                >
+                                                    {allClientSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5 text-slate-400" />}
+                                                    <span>Todos</span>
+                                                </button>
+
                                                 {cli.telefono && (
-                                                    <span className="hidden sm:flex items-center gap-1 text-[10px] text-slate-500 font-semibold bg-white border border-slate-200 px-2 py-1 rounded-lg">
+                                                    <span className="hidden lg:flex items-center gap-1 text-[10px] text-slate-500 font-semibold bg-white border border-slate-200 px-2 py-1 rounded-lg">
                                                         <Phone className="w-3 h-3 text-slate-400" />
                                                         {cli.telefono}
                                                     </span>
                                                 )}
                                                 {isExpanded ? (
-                                                    <ChevronDown className="w-4 h-4 text-slate-500" />
+                                                    <ChevronDown className="w-4 h-4 text-emerald-700" />
                                                 ) : (
                                                     <ChevronRight className="w-4 h-4 text-slate-500" />
                                                 )}
@@ -858,87 +1010,229 @@ export default function SoporteClient({
                                                     <div className="py-6 text-center text-slate-400 text-xs font-semibold">
                                                         No hay equipos registrados que coincidan.
                                                     </div>
-                                                ) : (
+                                                ) : equiposViewMode === 'grid' ? (
+                                                    /* VISTA DE TARJETAS (GRID) CON MINIATURA Y CHECKBOX */
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                                        {cli.equipos.map((eq: any) => (
-                                                            <div 
-                                                                key={eq.id}
-                                                                className="border border-slate-200 rounded-xl p-4 flex flex-col justify-between hover:border-blue-400 hover:shadow-sm transition-all"
-                                                            >
-                                                                <div>
-                                                                    <div className="flex items-center justify-between mb-2">
-                                                                        <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                                                                            QR: {eq.idQr}
-                                                                        </span>
-                                                                        <div className="flex items-center gap-1.5">
-                                                                            {eq.ordenesTrabajo && eq.ordenesTrabajo.some((o: any) => o.estado !== 'ENTREGADO' && o.estado !== 'REGISTRO') && (
-                                                                                <span className="text-[8px] bg-amber-50 text-amber-700 font-bold border border-amber-200 rounded px-1.5 py-0.5 mr-1">
-                                                                                    En Taller
+                                                        {cli.equipos.map((eq: any) => {
+                                                            const isSelected = selectedEquipoIds.includes(eq.id);
+                                                            const imgUrl = eq.imagenUrl || eq.imagenWeb || (eq.ordenesTrabajo?.[0]?.fotosEstadoInicial?.[0]);
+
+                                                            return (
+                                                                <div 
+                                                                    key={eq.id}
+                                                                    className={`border rounded-2xl p-4 flex flex-col justify-between transition-all relative ${
+                                                                        isSelected 
+                                                                            ? 'border-blue-500 bg-blue-50/20 shadow-xs' 
+                                                                            : 'border-slate-200 hover:border-blue-400 hover:shadow-sm bg-white'
+                                                                    }`}
+                                                                >
+                                                                    <div>
+                                                                        {/* Cabecera de la Tarjeta con Checkbox y QR */}
+                                                                        <div className="flex items-center justify-between mb-2">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <input
+                                                                                    type="checkbox"
+                                                                                    checked={isSelected}
+                                                                                    onChange={() => {
+                                                                                        setSelectedEquipoIds(prev => 
+                                                                                            prev.includes(eq.id) ? prev.filter(i => i !== eq.id) : [...prev, eq.id]
+                                                                                        );
+                                                                                    }}
+                                                                                    className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer"
+                                                                                />
+                                                                                <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
+                                                                                    QR: {eq.idQr}
                                                                                 </span>
-                                                                            )}
-                                                                            {canEditEquipo && (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        handleEditActivo(eq);
-                                                                                    }}
-                                                                                    className="p-1 hover:bg-slate-100 text-slate-400 hover:text-blue-600 rounded transition cursor-pointer"
-                                                                                    title="Editar equipo"
-                                                                                >
-                                                                                    <Pencil className="w-3 h-3" />
-                                                                                </button>
-                                                                            )}
-                                                                            {canDeleteEquipo && (
-                                                                                <button
-                                                                                    type="button"
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        handleDeleteActivo(eq.id);
-                                                                                    }}
-                                                                                    className="p-1 hover:bg-slate-100 text-slate-400 hover:text-red-650 rounded transition cursor-pointer"
-                                                                                    title="Eliminar equipo"
-                                                                                >
-                                                                                    <Trash2 className="w-3 h-3" />
-                                                                                </button>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-1">
+                                                                                {eq.ordenesTrabajo && eq.ordenesTrabajo.some((o: any) => o.estado !== 'ENTREGADO' && o.estado !== 'REGISTRO') && (
+                                                                                    <span className="text-[8px] bg-amber-50 text-amber-700 font-bold border border-amber-200 rounded px-1.5 py-0.5 mr-1">
+                                                                                        En Taller
+                                                                                    </span>
+                                                                                )}
+                                                                                {canEditEquipo && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            handleEditActivo(eq);
+                                                                                        }}
+                                                                                        className="p-1 hover:bg-slate-100 text-slate-400 hover:text-blue-600 rounded transition cursor-pointer"
+                                                                                        title="Editar equipo"
+                                                                                    >
+                                                                                        <Pencil className="w-3 h-3" />
+                                                                                    </button>
+                                                                                )}
+                                                                                {canDeleteEquipo && (
+                                                                                    <button
+                                                                                        type="button"
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            handleDeleteActivo(eq.id, eq.descripcionCorta);
+                                                                                        }}
+                                                                                        className="p-1 hover:bg-slate-100 text-slate-400 hover:text-red-650 rounded transition cursor-pointer"
+                                                                                        title="Eliminar equipo"
+                                                                                    >
+                                                                                        <Trash2 className="w-3 h-3" />
+                                                                                    </button>
+                                                                                )}
+                                                                            </div>
+                                                                        </div>
+
+                                                                        {/* Miniatura de Imagen del Equipo */}
+                                                                        <div className="w-full h-28 mb-3 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center relative group">
+                                                                            {imgUrl ? (
+                                                                                <img 
+                                                                                    src={imgUrl} 
+                                                                                    alt={eq.descripcionCorta} 
+                                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                                                                />
+                                                                            ) : (
+                                                                                <div className="flex flex-col items-center gap-1 text-slate-350">
+                                                                                    <MonitorSmartphone className="w-8 h-8 opacity-60" />
+                                                                                    <span className="text-[9px] font-semibold text-slate-400">Sin fotografía</span>
+                                                                                </div>
                                                                             )}
                                                                         </div>
-                                                                    </div>
-                                                                    <h4 className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
-                                                                        <MonitorSmartphone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                                                                        {eq.descripcionCorta}
-                                                                    </h4>
-                                                                    <div className="space-y-1 mt-2 text-[10px] text-slate-500 font-bold">
-                                                                        {eq.marca && <div>Marca: <span className="text-slate-800">{eq.marca}</span></div>}
-                                                                        {eq.modelo && <div>Modelo: <span className="text-slate-800">{eq.modelo}</span></div>}
-                                                                        {eq.serie && <div>Serie: <span className="text-slate-700 font-mono text-[9px]">{eq.serie}</span></div>}
-                                                                        {eq.observaciones && <div className="line-clamp-2 text-slate-450 mt-1 font-medium italic">"{eq.observaciones}"</div>}
-                                                                    </div>
-                                                                </div>
 
-                                                                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
-                                                                    <button
-                                                                        onClick={() => router.push(`/ficha-tecnica/${eq.idQr}`)}
-                                                                        className="flex-1 bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 rounded-lg text-[10px] border border-slate-200 transition text-center cursor-pointer"
-                                                                    >
-                                                                        Ficha / Historial
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            const activeOrder = eq.ordenesTrabajo?.find((o: any) => o.estado !== 'ENTREGADO' && o.estado !== 'REGISTRO');
-                                                                            if (activeOrder) {
-                                                                                setActiveOrderModal({ isOpen: true, equipment: eq, order: activeOrder });
-                                                                            } else {
-                                                                                router.push(`/soporte/nuevo?activoId=${eq.id}&clienteId=${cli.id}&clienteNombre=${encodeURIComponent(cli.nombre)}&equipoDano=${encodeURIComponent(eq.descripcionCorta)}&marca=${encodeURIComponent(eq.marca || '')}&modelo=${encodeURIComponent(eq.modelo || '')}&serie=${encodeURIComponent(eq.serie || '')}`);
-                                                                            }
-                                                                        }}
-                                                                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-[10px] transition text-center cursor-pointer"
-                                                                    >
-                                                                        Crear ODT
-                                                                    </button>
+                                                                        <h4 className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
+                                                                            <MonitorSmartphone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                                                            {eq.descripcionCorta}
+                                                                        </h4>
+                                                                        <div className="space-y-1 mt-2 text-[10px] text-slate-500 font-bold">
+                                                                            {eq.marca && <div>Marca: <span className="text-slate-800">{eq.marca}</span></div>}
+                                                                            {eq.modelo && <div>Modelo: <span className="text-slate-800">{eq.modelo}</span></div>}
+                                                                            {eq.serie && <div>Serie: <span className="text-slate-700 font-mono text-[9px]">{eq.serie}</span></div>}
+                                                                            {eq.observaciones && <div className="line-clamp-2 text-slate-450 mt-1 font-medium italic">"{eq.observaciones}"</div>}
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
+                                                                        <button
+                                                                            onClick={() => router.push(`/ficha-tecnica/${eq.idQr}`)}
+                                                                            className="flex-1 bg-white hover:bg-slate-50 text-slate-700 font-bold py-2 rounded-lg text-[10px] border border-slate-200 transition text-center cursor-pointer"
+                                                                        >
+                                                                            Ficha / Historial
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                const activeOrder = eq.ordenesTrabajo?.find((o: any) => o.estado !== 'ENTREGADO' && o.estado !== 'REGISTRO');
+                                                                                if (activeOrder) {
+                                                                                    setActiveOrderModal({ isOpen: true, equipment: eq, order: activeOrder });
+                                                                                } else {
+                                                                                    router.push(`/soporte/nuevo?activoId=${eq.id}&clienteId=${cli.id}&clienteNombre=${encodeURIComponent(cli.nombre)}&equipoDano=${encodeURIComponent(eq.descripcionCorta)}&marca=${encodeURIComponent(eq.marca || '')}&modelo=${encodeURIComponent(eq.modelo || '')}&serie=${encodeURIComponent(eq.serie || '')}`);
+                                                                                }
+                                                                            }}
+                                                                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg text-[10px] transition text-center cursor-pointer"
+                                                                        >
+                                                                            Crear ODT
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        ))}
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    /* VISTA EN LÍNEAS / INLINE (TABLA / LISTA COMPACTA) */
+                                                    <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white">
+                                                        {cli.equipos.map((eq: any) => {
+                                                            const isSelected = selectedEquipoIds.includes(eq.id);
+                                                            const imgUrl = eq.imagenUrl || eq.imagenWeb || (eq.ordenesTrabajo?.[0]?.fotosEstadoInicial?.[0]);
+
+                                                            return (
+                                                                <div 
+                                                                    key={eq.id}
+                                                                    className={`p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors ${
+                                                                        isSelected ? 'bg-blue-50/30' : 'hover:bg-slate-50/70'
+                                                                    }`}
+                                                                >
+                                                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={isSelected}
+                                                                            onChange={() => {
+                                                                                setSelectedEquipoIds(prev => 
+                                                                                    prev.includes(eq.id) ? prev.filter(i => i !== eq.id) : [...prev, eq.id]
+                                                                                );
+                                                                            }}
+                                                                            className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
+                                                                        />
+
+                                                                        {/* Miniatura Mini */}
+                                                                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shrink-0 flex items-center justify-center">
+                                                                            {imgUrl ? (
+                                                                                <img src={imgUrl} alt={eq.descripcionCorta} className="w-full h-full object-cover" />
+                                                                            ) : (
+                                                                                <MonitorSmartphone className="w-5 h-5 text-slate-400" />
+                                                                            )}
+                                                                        </div>
+
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <h4 className="font-extrabold text-slate-800 text-xs truncate">
+                                                                                    {eq.descripcionCorta}
+                                                                                </h4>
+                                                                                <span className="text-[9px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 shrink-0">
+                                                                                    {eq.idQr}
+                                                                                </span>
+                                                                                {eq.ordenesTrabajo && eq.ordenesTrabajo.some((o: any) => o.estado !== 'ENTREGADO' && o.estado !== 'REGISTRO') && (
+                                                                                    <span className="text-[8px] bg-amber-50 text-amber-700 font-bold border border-amber-200 rounded px-1.5 py-0.5 shrink-0">
+                                                                                        En Taller
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <p className="text-[10px] text-slate-500 font-medium truncate mt-0.5">
+                                                                                {eq.marca && <span>Marca: <strong className="text-slate-700">{eq.marca}</strong></span>}
+                                                                                {eq.modelo && <span className="ml-2">Modelo: <strong className="text-slate-700">{eq.modelo}</strong></span>}
+                                                                                {eq.serie && <span className="ml-2">Serie: <strong className="font-mono text-slate-600">{eq.serie}</strong></span>}
+                                                                            </p>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                                                                        <button
+                                                                            onClick={() => router.push(`/ficha-tecnica/${eq.idQr}`)}
+                                                                            className="bg-white hover:bg-slate-50 text-slate-700 font-bold px-3 py-1.5 rounded-lg text-[10px] border border-slate-200 transition cursor-pointer"
+                                                                        >
+                                                                            Ficha / Historial
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                const activeOrder = eq.ordenesTrabajo?.find((o: any) => o.estado !== 'ENTREGADO' && o.estado !== 'REGISTRO');
+                                                                                if (activeOrder) {
+                                                                                    setActiveOrderModal({ isOpen: true, equipment: eq, order: activeOrder });
+                                                                                } else {
+                                                                                    router.push(`/soporte/nuevo?activoId=${eq.id}&clienteId=${cli.id}&clienteNombre=${encodeURIComponent(cli.nombre)}&equipoDano=${encodeURIComponent(eq.descripcionCorta)}&marca=${encodeURIComponent(eq.marca || '')}&modelo=${encodeURIComponent(eq.modelo || '')}&serie=${encodeURIComponent(eq.serie || '')}`);
+                                                                                }
+                                                                            }}
+                                                                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-1.5 rounded-lg text-[10px] transition cursor-pointer"
+                                                                        >
+                                                                            Crear ODT
+                                                                        </button>
+                                                                        {canEditEquipo && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleEditActivo(eq)}
+                                                                                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-blue-600 rounded transition cursor-pointer"
+                                                                                title="Editar equipo"
+                                                                            >
+                                                                                <Pencil className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                        )}
+                                                                        {canDeleteEquipo && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleDeleteActivo(eq.id, eq.descripcionCorta)}
+                                                                                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-red-650 rounded transition cursor-pointer"
+                                                                                title="Eliminar equipo"
+                                                                            >
+                                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
                                                 )}
                                             </div>
@@ -1423,6 +1717,18 @@ export default function SoporteClient({
                     </div>
                 </div>
             )}
+
+            {/* MODAL CONFIGURAR REPORTE TÉCNICO */}
+            <ReportConfigModal
+                isOpen={reportModalData.isOpen}
+                onClose={() => setReportModalData({ isOpen: false })}
+                clienteId={reportModalData.clienteId}
+                clienteNombre={reportModalData.clienteNombre}
+                activoId={reportModalData.activoId}
+                activoIdQr={reportModalData.activoIdQr}
+                selectedEquipoIds={reportModalData.selectedEquipoIds}
+                clientesList={clientesConEquipos}
+            />
         </div>
     );
 }

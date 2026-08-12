@@ -328,16 +328,37 @@ export default function VerificationClientViewLight({ data }: VerificationClient
                     )}
                   </div>
 
-                  {ord.tecnicoReparacion && (
-                    <div className="text-left sm:text-right border-t sm:border-t-0 border-slate-100 pt-2 sm:pt-0">
-                      <p className="text-[10px] text-slate-400 font-bold uppercase">Técnico Biomédico</p>
-                      <p className="text-xs font-bold text-slate-800 flex items-center sm:justify-end gap-1 mt-0.5">
-                        <User className="w-3.5 h-3.5 text-blue-600" />
-                        {ord.tecnicoReparacion.nombre} {ord.tecnicoReparacion.apellido}
-                      </p>
+                      {ord.tecnicoReparacion && (
+                        <div className="text-left sm:text-right border-t sm:border-t-0 border-slate-100 pt-2 sm:pt-0">
+                          <p className="text-[10px] text-slate-400 font-bold uppercase">Técnico Biomédico</p>
+                          <p className="text-xs font-bold text-slate-800 flex items-center sm:justify-end gap-1 mt-0.5">
+                            <User className="w-3.5 h-3.5 text-blue-600" />
+                            {ord.tecnicoReparacion.nombre} {ord.tecnicoReparacion.apellido}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+
+                    {/* Mini Ficha del Equipo en Trazabilidad Unificada */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+                      <div className="flex items-center gap-2">
+                        <Wrench className="w-4 h-4 text-blue-600 shrink-0" />
+                        <span className="font-extrabold text-slate-800">
+                          Equipo: {ord.activo?.descripcionCorta || ord.equipoDano || activo?.descripcionCorta || 'Equipo Registrado'}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3 text-[11px] font-semibold text-slate-600">
+                        {(ord.activo?.marca || ord.marcaModelo) && (
+                          <span>Marca/Modelo: <strong className="text-slate-800">{ord.activo ? [ord.activo.marca, ord.activo.modelo].filter(Boolean).join(" ") : ord.marcaModelo}</strong></span>
+                        )}
+                        {(ord.activo?.serie || ord.serie) && (
+                          <span>Serie: <strong className="font-mono text-slate-800">{ord.activo?.serie || ord.serie}</strong></span>
+                        )}
+                        {(ord.activo?.idQr) && (
+                          <span className="bg-blue-100 text-blue-800 font-mono px-2 py-0.5 rounded text-[10px] font-bold">QR: {ord.activo.idQr}</span>
+                        )}
+                      </div>
+                    </div>
 
                 {/* 1. FALLA REPORTADA Y DIAGNOSTICO DE ESTA ORDEN */}
                 {(ord.descripcionFalla || ord.equipoDano || ord.diagnosticoTecnico) && (

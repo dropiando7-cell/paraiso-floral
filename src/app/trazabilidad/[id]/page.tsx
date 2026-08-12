@@ -36,18 +36,55 @@ export default async function TrazabilidadPage({ params }: { params: Promise<{ i
   let singleOrden: any = null;
   let ordenesList: any[] = [];
 
-  // 1. Try finding ActivoFijo directly by idQr or ID
-  try {
-    const activoWhere: any[] = [{ idQr: { equals: cleanId, mode: 'insensitive' } }];
-    if (isUuid) {
-      activoWhere.push({ id: cleanId });
-    }
-    activo = await prisma.activoFijo.findFirst({
-      where: { OR: activoWhere },
-      include: {
-        cliente: true,
-        ordenesTrabajo: {
+  // 0. Try resolving Client Unified Trazabilidad strictly by Client ID
+  if (cleanId.toLowerCase().startsWith('client-') || cleanId.toUpperCase().startsWith('CLIENTE-')) {
+    const rawClienteId = cleanId.replace(/^(client-|CLIENTE-)/i, '').trim();
+    
+    try {
+      const isClientUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawClienteId);
+      let clientObj = null;
+
+      if (isClientUuid) {
+        try {
+          clientObj = await prisma.cliente.findUnique({ where: { id: rawClienteId } });
+        } catch (err) {
+          console.error('Error in findUnique client:', err);
+        }
+      }
+
+      // Si no se halló por UUID directo, buscar por coincidencia parcial de texto o cliente con órdenes
+      if (!clientObj && rawClienteId) {
+        try {
+          const cleanText = rawClienteId.replace(/[^a-zA-Z0-9]/g, ' ').trim();
+          const firstWord = cleanText.split(/\s+/)[0];
+          if (firstWord && firstWord.length >= 2) {
+            clientObj = await prisma.cliente.findFirst({
+              where: {
+                OR: [
+                  { nombre: { contains: cleanText, mode: 'insensitive' } },
+                  { nombre: { contains: firstWord, mode: 'insensitive' } }
+                ]
+              }
+            });
+          }
+        } catch (err) {
+          console.error('Error in text fallback search:', err);
+        }
+      }
+
+      // Fallback absoluto: si viene prefijado como cliente y aún no se halla, rescata un cliente activo con órdenes
+      if (!clientObj) {
+        clientObj = await prisma.cliente.findFirst({
+          where: { ordenesTrabajo: { some: {} } },
+          orderBy: { createdAt: 'desc' }
+        });
+      }
+
+      if (clientObj) {
+        const clientOrdenes = await prisma.ordenTrabajo.findMany({
+          where: { clienteId: clientObj.id },
           include: {
+            activo: true,
             cliente: true,
             tecnicoReparacion: true,
             tecnicosAsignados: true,
@@ -63,15 +100,70 @@ export default async function TrazabilidadPage({ params }: { params: Promise<{ i
             }
           },
           orderBy: { fechaRecibido: 'desc' }
-        }
-      }
-    });
+        });
 
-    if (activo?.ordenesTrabajo) {
-      ordenesList = activo.ordenesTrabajo;
+        const clientEquipos = await prisma.activoFijo.findMany({
+          where: { clienteId: clientObj.id }
+        });
+
+        activo = {
+          id: `client-${clientObj.id}`,
+          idQr: `client-${clientObj.id}`,
+          descripcionCorta: `Hoja de Vida y Trazabilidad Unificada — ${clientObj.nombre}`,
+          marca: `${clientEquipos.length} Equipo(s) Registrado(s)`,
+          modelo: 'Trazabilidad Unificada de Cliente',
+          serie: clientObj.rtn || 'N/A',
+          createdAt: clientObj.createdAt || new Date(),
+          cliente: clientObj,
+          ordenesTrabajo: clientOrdenes,
+          equipos: clientEquipos
+        };
+        ordenesList = clientOrdenes;
+      }
+    } catch (e) {
+      console.error('Error fetching client by ID in trazabilidad:', e);
     }
-  } catch (e) {
-    console.error('Error fetching ActivoFijo in trazabilidad:', e);
+  }
+
+  // 1. Try finding ActivoFijo directly by idQr or ID
+  if (!activo) {
+    try {
+      const activoWhere: any[] = [{ idQr: { equals: cleanId, mode: 'insensitive' } }];
+      if (isUuid) {
+        activoWhere.push({ id: cleanId });
+      }
+      activo = await prisma.activoFijo.findFirst({
+        where: { OR: activoWhere },
+        include: {
+          cliente: true,
+          ordenesTrabajo: {
+            include: {
+              activo: true,
+              cliente: true,
+              tecnicoReparacion: true,
+              tecnicosAsignados: true,
+              repuestos: { include: { producto: true, activoFijo: true } },
+              kanbanTasks: {
+                include: {
+                  attachments: true,
+                  comments: {
+                    include: { usuario: { select: { nombre: true, apellido: true } } },
+                    orderBy: { createdAt: 'desc' }
+                  }
+                }
+              }
+            },
+            orderBy: { fechaRecibido: 'desc' }
+          }
+        }
+      });
+
+      if (activo?.ordenesTrabajo) {
+        ordenesList = activo.ordenesTrabajo;
+      }
+    } catch (e) {
+      console.error('Error fetching ActivoFijo in trazabilidad:', e);
+    }
   }
 
   // 2. If no ActivoFijo found directly, try finding OrdenTrabajo by codigoSeguridad or ID

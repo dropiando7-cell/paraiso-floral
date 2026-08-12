@@ -976,6 +976,16 @@ export async function getTaskCommentsAndAttachments(taskId: string) {
             orderBy: { createdAt: 'desc' }
         });
 
+        const activities = await prisma.kanbanActivity.findMany({
+            where: { taskId },
+            include: {
+                usuario: {
+                    select: { id: true, nombre: true, apellido: true, email: true }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
         return {
             success: true,
             comments: comments.map(c => ({
@@ -1001,6 +1011,14 @@ export async function getTaskCommentsAndAttachments(taskId: string) {
                     id: a.subidoPor.id,
                     nombre: `${a.subidoPor.nombre || ''} ${a.subidoPor.apellido || ''}`.trim() || a.subidoPor.email
                 }
+            })),
+            activities: activities.map(act => ({
+                id: act.id,
+                taskId: act.taskId,
+                usuario: `${act.usuario?.nombre || ''} ${act.usuario?.apellido || ''}`.trim() || act.usuario?.email || 'Usuario',
+                accion: act.accion,
+                detalles: act.detalles,
+                createdAt: act.createdAt.toISOString()
             }))
         };
     } catch (e: any) {
@@ -1115,7 +1133,7 @@ export async function updateKanbanComment(commentId: string, nuevoContenido: str
 
         const comment = await prisma.kanbanComment.findUnique({
             where: { id: commentId },
-            include: { task: true }
+            include: { task: true, usuario: true }
         });
 
         if (!comment) throw new Error('Comentario no encontrado');
@@ -1137,6 +1155,9 @@ export async function updateKanbanComment(commentId: string, nuevoContenido: str
             }
         });
 
+        const originalAuthor = comment.usuario ? `${comment.usuario.nombre || ''} ${comment.usuario.apellido || ''}`.trim() : null;
+        const authorLabel = (originalAuthor && comment.usuarioId !== user.id) ? ` de ${originalAuthor}` : '';
+
         // Registrar auditoría
         await prisma.kanbanActivity.create({
             data: {
@@ -1144,7 +1165,7 @@ export async function updateKanbanComment(commentId: string, nuevoContenido: str
                 taskId: comment.taskId,
                 usuarioId: user.id,
                 accion: 'ACTUALIZACION',
-                detalles: `Editó un comentario (antes: "${oldContenido.substring(0, 100)}")`
+                detalles: `Editó un comentario${authorLabel} (antes: "${oldContenido.substring(0, 100)}")`
             }
         });
 

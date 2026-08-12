@@ -116,6 +116,29 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     backgroundColor: '#ffffff',
   },
+  equipoMiniCard: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 0.75,
+    borderColor: '#cbd5e1',
+    borderRadius: 5,
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    marginBottom: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  equipoMiniTitle: {
+    fontSize: 7.5,
+    fontWeight: 700,
+    color: '#0f172a',
+  },
+  equipoMiniDetail: {
+    fontSize: 7,
+    color: '#475569',
+    fontWeight: 500,
+  },
   odtHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -411,49 +434,54 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
             </View>
           </View>
 
-          {/* Equipment Details */}
-          <View style={styles.infoBlock}>
-            <Text style={styles.infoTitle}>Especificaciones del Equipo</Text>
-            <View style={{ flexDirection: 'column', gap: 3.5 }}>
-              {/* Fila 1 */}
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
-                <View style={{ flex: 1.15, flexDirection: 'row' }}>
-                  <Text style={styles.infoLabel}>Equipo:</Text>
-                  <Text style={styles.infoValue}>{activo.descripcionCorta}</Text>
-                </View>
-                <View style={{ flex: 0.85, flexDirection: 'row' }}>
-                  <Text style={[styles.infoLabel, { width: 18 }]}>QR:</Text>
-                  <Text style={[styles.infoValue, { fontWeight: 700 }]}>{activo.idQr}</Text>
+          {/* Equipment / Report Details */}
+          {(() => {
+            const isClientUnified = activo.idQr?.toLowerCase().startsWith('client-') || activo.idQr?.toUpperCase().startsWith('CLIENTE-');
+            return (
+              <View style={styles.infoBlock}>
+                <Text style={styles.infoTitle}>{isClientUnified ? 'Resumen del Reporte' : 'Especificaciones del Equipo'}</Text>
+                <View style={{ flexDirection: 'column', gap: 3.5 }}>
+                  {/* Fila 1 */}
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                    <View style={{ flex: 1.15, flexDirection: 'row' }}>
+                      <Text style={styles.infoLabel}>Equipo:</Text>
+                      <Text style={styles.infoValue}>{activo.descripcionCorta}</Text>
+                    </View>
+                    <View style={{ flex: 0.85, flexDirection: 'row' }}>
+                      <Text style={[styles.infoLabel, { width: 32 }]}>{isClientUnified ? 'Tipo:' : 'QR:'}</Text>
+                      <Text style={[styles.infoValue, { fontWeight: 700 }]}>{isClientUnified ? 'Unificado' : activo.idQr}</Text>
+                    </View>
+                  </View>
+                  {/* Fila 2 */}
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                    <View style={{ flex: 1.15, flexDirection: 'row' }}>
+                      <Text style={styles.infoLabel}>Marca/Mod:</Text>
+                      <Text style={styles.infoValue}>{[activo.marca, activo.modelo].filter(Boolean).join(" ") || 'N/A'}</Text>
+                    </View>
+                    <View style={{ flex: 0.85, flexDirection: 'row' }}>
+                      <Text style={styles.infoLabel}>F. Registro:</Text>
+                      <Text style={styles.infoValue}>
+                        {formatHN(activo.fechaAdq || activo.createdAt)}
+                      </Text>
+                    </View>
+                  </View>
+                  {/* Fila 3 */}
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
+                    <View style={{ flex: 1.15, flexDirection: 'row' }}>
+                      <Text style={styles.infoLabel}>N° Serie:</Text>
+                      <Text style={[styles.infoValue, { fontFamily: 'Courier' }]}>{activo.serie || 'N/A'}</Text>
+                    </View>
+                    <View style={{ flex: 0.85, flexDirection: 'row' }}>
+                      <Text style={styles.infoLabel}>Registrado:</Text>
+                      <Text style={styles.infoValue}>
+                        {activo.createdBy ? [activo.createdBy.nombre || '', activo.createdBy.apellido || ''].filter(Boolean).join(" ").toUpperCase() : 'SISTEMA'}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
-              {/* Fila 2 */}
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
-                <View style={{ flex: 1.15, flexDirection: 'row' }}>
-                  <Text style={styles.infoLabel}>Marca/Mod:</Text>
-                  <Text style={styles.infoValue}>{[activo.marca, activo.modelo].filter(Boolean).join(" ") || 'N/A'}</Text>
-                </View>
-                <View style={{ flex: 0.85, flexDirection: 'row' }}>
-                  <Text style={styles.infoLabel}>F. Registro:</Text>
-                  <Text style={styles.infoValue}>
-                    {formatHN(activo.fechaAdq || activo.createdAt)}
-                  </Text>
-                </View>
-              </View>
-              {/* Fila 3 */}
-              <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-start' }}>
-                <View style={{ flex: 1.15, flexDirection: 'row' }}>
-                  <Text style={styles.infoLabel}>N° Serie:</Text>
-                  <Text style={[styles.infoValue, { fontFamily: 'Courier' }]}>{activo.serie || 'N/A'}</Text>
-                </View>
-                <View style={{ flex: 0.85, flexDirection: 'row' }}>
-                  <Text style={styles.infoLabel}>Registrado:</Text>
-                  <Text style={styles.infoValue}>
-                    {activo.createdBy ? [activo.createdBy.nombre || '', activo.createdBy.apellido || ''].filter(Boolean).join(" ").toUpperCase() : 'SISTEMA'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
+            );
+          })()}
         </View>
 
         {/* Service Timeline */}
@@ -496,12 +524,28 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
             const comments = task?.comments || [];
 
             return (
-              <View key={orden.id} style={styles.odtCard}>
+              <View key={orden.id} wrap={false} style={styles.odtCard}>
                 {/* ODT Header */}
                 <View style={styles.odtHeader}>
                   <Text style={styles.odtCode}>Orden #{orden.codigoSeguridad}</Text>
                   <Text style={styles.odtDate}>Fecha: {formatHN(orden.fechaRecibido)}</Text>
                   <Text style={styles.odtStatus}>{orden.leyendaEstado || orden.estado}</Text>
+                </View>
+
+                {/* Mini Ficha del Equipo para identificar el equipo en reportes unificados */}
+                <View style={styles.equipoMiniCard}>
+                  <Text style={styles.equipoMiniTitle}>
+                    Equipo: <Text style={{ fontWeight: 700, color: '#1e40af' }}>{orden.activo?.descripcionCorta || orden.equipoDano || activo.descripcionCorta || 'Equipo Registrado'}</Text>
+                  </Text>
+                  <Text style={styles.equipoMiniDetail}>
+                    Marca/Mod: <Text style={{ fontWeight: 700, color: '#0f172a' }}>{orden.activo ? [orden.activo.marca, orden.activo.modelo].filter(Boolean).join(" ") : (orden.marcaModelo || [activo.marca, activo.modelo].filter(Boolean).join(" ") || 'N/A')}</Text>
+                  </Text>
+                  <Text style={styles.equipoMiniDetail}>
+                    Serie: <Text style={{ fontFamily: 'Courier', fontWeight: 700, color: '#0f172a' }}>{orden.activo?.serie || orden.serie || activo.serie || 'N/A'}</Text>
+                  </Text>
+                  <Text style={styles.equipoMiniDetail}>
+                    QR: <Text style={{ fontWeight: 700, color: '#1e40af' }}>{orden.activo?.idQr && !orden.activo.idQr.toLowerCase().startsWith('client-') && !orden.activo.idQr.toUpperCase().startsWith('CLIENTE-') ? orden.activo.idQr : (activo.idQr && !activo.idQr.toLowerCase().startsWith('client-') && !activo.idQr.toUpperCase().startsWith('CLIENTE-') ? activo.idQr : 'N/A')}</Text>
+                  </Text>
                 </View>
 
                 {/* ODT Body */}

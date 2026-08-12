@@ -136,7 +136,8 @@ const resolveServiceImageUrl = (desc: string | null | undefined): string | null 
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = await params;
+    const { id: rawId } = await params;
+    const id = decodeURIComponent(rawId || '');
     if (!id) {
       return new Response('Missing ID', { status: 400 });
     }
@@ -205,6 +206,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       const onlyCurrent = url.searchParams.get('onlyCurrent') === 'true';
       const currentOrderId = url.searchParams.get('currentOrderId') || (checkOrden ? checkOrden.id : undefined);
 
+      const clientUnified = url.searchParams.get('clientUnified') === 'true';
+      const paramClienteId = url.searchParams.get('clienteId') || (id.startsWith('client-') ? id.replace('client-', '') : (checkOrden ? checkOrden.clienteId : null));
+      const equipoIdsStr = url.searchParams.get('equipoIds');
+      const equipoIds = equipoIdsStr ? equipoIdsStr.split(',').filter(Boolean) : [];
+
       const ordenesWhereClause: any = {};
       if (desde || hasta) {
         ordenesWhereClause.fechaRecibido = {};
@@ -226,7 +232,56 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }
 
       let activo = null;
-      if (isUuid(targetActivoId)) {
+
+      if (clientUnified && paramClienteId) {
+        const cleanClienteId = paramClienteId.replace(/^(client-|CLIENTE-)/i, '').trim();
+        const dbCliente = await prisma.cliente.findUnique({ where: { id: cleanClienteId } });
+        
+        let clientWhereClause: any = { clienteId: cleanClienteId };
+        if (equipoIds.length > 0) {
+          clientWhereClause.activoId = { in: equipoIds };
+        }
+        if (ordenesWhereClause.fechaRecibido) {
+          clientWhereClause.fechaRecibido = ordenesWhereClause.fechaRecibido;
+        }
+
+        const clientOrdenes = await prisma.ordenTrabajo.findMany({
+          where: clientWhereClause,
+          include: {
+            activo: true,
+            tecnicosAsignados: { select: { id: true, nombre: true } },
+            repuestos: true,
+            tiempos: {
+              where: { anuladaAt: null },
+              include: { tecnico: { select: { nombre: true, apellido: true } } },
+              orderBy: { inicio: 'asc' }
+            },
+            kanbanTasks: {
+              include: {
+                attachments: true,
+                comments: {
+                  include: { usuario: { select: { nombre: true } } },
+                  orderBy: { createdAt: 'desc' }
+                }
+              }
+            }
+          },
+          orderBy: { fechaRecibido: 'desc' }
+        });
+
+        activo = {
+          id: `client-${cleanClienteId}`,
+          idQr: `client-${cleanClienteId}`,
+          descripcionCorta: `Reporte Unificado de Mantenimientos — ${dbCliente?.nombre || 'Cliente'}`,
+          marca: 'Varios Equipos',
+          modelo: 'Cliente Unificado',
+          serie: 'N/A',
+          fechaAdq: new Date(),
+          createdAt: new Date(),
+          cliente: dbCliente,
+          ordenesTrabajo: clientOrdenes
+        } as any;
+      } else if (isUuid(targetActivoId)) {
         activo = await prisma.activoFijo.findUnique({
           where: { id: targetActivoId },
           include: {
@@ -372,7 +427,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         console.error('Error loading logo for PDF:', err);
       }
 
-      const appUrl = 'https://bioelectronicahn.com';
+      const requestHost = req.headers.get('host') || 'bioelectronicahn.com';
+      const protocol = requestHost.includes('localhost') ? 'http' : 'https';
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || `${protocol}://${requestHost}`;
       const targetIdentifier = activo.idQr || activo.id || id;
       const targetUrl = `${appUrl}/trazabilidad/${targetIdentifier}`;
       const qrCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${encodeURIComponent(targetUrl)}&scale=6&eclevel=M&includetext=false`;
