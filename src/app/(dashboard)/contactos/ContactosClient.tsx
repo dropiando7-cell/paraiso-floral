@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { 
     Users, Plus, Search, Building2, 
     Mail, Phone, FileText, MapPin, 
@@ -33,6 +34,18 @@ export default function ContactosClient({ initialData }: { initialData: Cliente[
     const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
     const [currentContacto, setCurrentContacto] = useState<Partial<Cliente>>({});
     const [submitting, setSubmitting] = useState(false);
+
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        const modal = searchParams?.get('modal');
+        const nuevo = searchParams?.get('nuevo');
+        if (modal === 'nuevo' || nuevo === 'true') {
+            setModalMode('create');
+            const initialNombre = searchParams?.get('nombre') || '';
+            setCurrentContacto({ nombre: initialNombre });
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         const timer = setTimeout(() => {

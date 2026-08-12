@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { UploadCloud, Check, X, Wrench, Snowflake, Tags, Camera, Search, QrCode, Unlink, Edit, ExternalLink, ShieldCheck, ArrowLeft, UserPlus, Building2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
@@ -31,6 +32,7 @@ type ReceptionFormProps = {
 };
 
 export default function ReceptionForm({ onSave, onBack, clientes = [], users = [], prefilledData }: ReceptionFormProps) {
+  const router = useRouter();
   const getLocalDateString = () => {
     const d = new Date();
     const year = d.getFullYear();
@@ -551,7 +553,7 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
                     onMouseDown={(e) => {
                       e.preventDefault();
                       setShowDropdown(false);
-                      handleOpenCreateClientModal(form.cliente);
+                      router.push(`/contactos?modal=nuevo&nombre=${encodeURIComponent(form.cliente || '')}`);
                     }}
                   >
                     <span className="flex items-center gap-1.5 truncate">
@@ -842,7 +844,7 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
                   onMouseDown={(e) => {
                     e.preventDefault();
                     setShowEquipoDropdown(false);
-                    handleOpenCreateEquipoModal(searchEquipoQuery);
+                    router.push('/inventario?modal=nuevo&register=equipo_cliente&cobertura=externa');
                   }}
                 >
                   <span className="flex items-center gap-1.5 truncate">
@@ -1223,263 +1225,6 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
             >
               Revisar Formulario
             </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE REGISTRO RÁPIDO DE CLIENTE EN DIRECTORIO */}
-      {showCreateClientModal && (
-        <div className="fixed inset-0 z-[99999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
-                  <UserPlus className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-900 m-0">Registrar Cliente en Directorio</h3>
-                  <p className="text-xs text-slate-500 font-medium m-0">Quedará guardado permanentemente en el ERP</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCreateClientModal(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-3 mb-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Nombre o Empresa *</label>
-                <input
-                  type="text"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-medium"
-                  placeholder="Ej. Clínica San José / Dr. Roberto Rivas"
-                  value={newClientForm.nombre}
-                  onChange={e => setNewClientForm(p => ({ ...p, nombre: e.target.value }))}
-                  autoFocus
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono / WhatsApp</label>
-                  <input
-                    type="text"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-medium"
-                    placeholder="+504 9999-0000"
-                    value={newClientForm.telefono}
-                    onChange={e => setNewClientForm(p => ({ ...p, telefono: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">RTN (Opcional)</label>
-                  <input
-                    type="text"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-medium"
-                    placeholder="08011990000000"
-                    value={newClientForm.rtn}
-                    onChange={e => setNewClientForm(p => ({ ...p, rtn: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico</label>
-                  <input
-                    type="email"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-medium"
-                    placeholder="cliente@ejemplo.com"
-                    value={newClientForm.email}
-                    onChange={e => setNewClientForm(p => ({ ...p, email: e.target.value }))}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Dirección</label>
-                  <input
-                    type="text"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-medium"
-                    placeholder="Tegucigalpa, Honduras"
-                    value={newClientForm.direccion}
-                    onChange={e => setNewClientForm(p => ({ ...p, direccion: e.target.value }))}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
-              <button
-                type="button"
-                onClick={() => setShowCreateClientModal(false)}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-                disabled={isCreatingClient}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveNewClient}
-                disabled={isCreatingClient || !newClientForm.nombre.trim()}
-                className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white transition-all shadow-md shadow-indigo-600/20 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
-              >
-                {isCreatingClient ? (
-                  <span>Guardando...</span>
-                ) : (
-                  <>
-                    <Check className="w-4 h-4" />
-                    <span>Guardar y Seleccionar</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal para Registrar Nuevo Equipo de forma rápida */}
-      {showCreateEquipoModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
-            <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-                  <Wrench className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold m-0">Registrar Nuevo Equipo</h3>
-                  <p className="text-[11px] text-indigo-100 m-0">Se agregará al Inventario General y se asignará Ficha + QR</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowCreateEquipoModal(false)}
-                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Nombre / Tipo de Equipo *</label>
-                <input
-                  type="text"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-colors font-semibold"
-                  placeholder="Ej. Ultrasonido, Autoclave, Monitor Paramétrico"
-                  value={newEquipoForm.descripcionCorta}
-                  onChange={e => setNewEquipoForm(p => ({ ...p, descripcionCorta: e.target.value }))}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Marca</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none"
-                    placeholder="Ej. Mindray, GE"
-                    value={newEquipoForm.marca}
-                    onChange={e => setNewEquipoForm(p => ({ ...p, marca: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Modelo</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none"
-                    placeholder="Ej. DP-10, Logiq"
-                    value={newEquipoForm.modelo}
-                    onChange={e => setNewEquipoForm(p => ({ ...p, modelo: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">No. de Serie</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none font-mono"
-                    placeholder="Ej. SN982140"
-                    value={newEquipoForm.serie}
-                    onChange={e => setNewEquipoForm(p => ({ ...p, serie: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Área / Departamento</label>
-                  <input
-                    type="text"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none"
-                    placeholder="Ej. Taller / Soporte"
-                    value={newEquipoForm.area}
-                    onChange={e => setNewEquipoForm(p => ({ ...p, area: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Origen del Activo</label>
-                  <select
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none font-medium"
-                    value={newEquipoForm.origenActivo}
-                    onChange={e => setNewEquipoForm(p => ({ ...p, origenActivo: e.target.value }))}
-                  >
-                    <option value="Americano">Americano</option>
-                    <option value="Chino">Chino</option>
-                    <option value="Aleman">Alemán</option>
-                    <option value="Japones">Japonés</option>
-                    <option value="Local">Local</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Condición</label>
-                  <select
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none font-medium"
-                    value={newEquipoForm.condicionActivo}
-                    onChange={e => setNewEquipoForm(p => ({ ...p, condicionActivo: e.target.value }))}
-                  >
-                    <option value="Usado">Usado</option>
-                    <option value="Nuevo">Nuevo</option>
-                    <option value="Reacondicionado">Reacondicionado</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Descripción Corta / Notas</label>
-                <textarea
-                  rows={2}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none font-medium"
-                  placeholder="Detalles adicionales del equipo..."
-                  value={newEquipoForm.descripcionDetallada}
-                  onChange={e => setNewEquipoForm(p => ({ ...p, descripcionDetallada: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setShowCreateEquipoModal(false)}
-                className="px-4 py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-2xs"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveNewEquipo}
-                disabled={isCreatingEquipo}
-                className="px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md shadow-indigo-200 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
-              >
-                {isCreatingEquipo ? 'Registrando...' : 'Registrar y Vincular'}
-              </button>
-            </div>
           </div>
         </div>
       )}
