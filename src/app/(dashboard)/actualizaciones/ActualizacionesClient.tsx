@@ -53,7 +53,7 @@ function getYouTubeEmbedUrl(url: string | null | undefined): string | null {
   
   let videoId = null;
 
-  // Match youtube.com/watch?v=ID
+  // Match youtube.com/watch?v=ID or short urls
   const watchMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/i);
   if (watchMatch && watchMatch[1]) {
     videoId = watchMatch[1];
@@ -63,7 +63,6 @@ function getYouTubeEmbedUrl(url: string | null | undefined): string | null {
     return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0&autoplay=0`;
   }
 
-  // Fallback if full embed url is already passed
   if (url.includes('youtube.com/embed')) return url;
   
   return null;
@@ -262,7 +261,6 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
         setNewCommentText('');
         setSelectedReaction(null);
         
-        // Update local state for comments
         setActualizaciones(prev => prev.map(act => {
           if (act.id === activeActualizacion.id) {
             return {
@@ -308,23 +306,23 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
   const youtubeEmbedUrl = getYouTubeEmbedUrl(activeActualizacion?.youtubeUrl);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 p-4 sm:p-6 lg:p-8 space-y-6">
+    <div className="min-h-screen bg-slate-50/60 text-slate-800 p-4 sm:p-6 lg:p-8 space-y-6">
       
-      {/* Header Banner */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-800/80 backdrop-blur-md p-6 rounded-3xl border border-slate-700/60 shadow-xl">
+      {/* Header Banner (Modo Día) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-[0_2px_10px_rgba(0,0,0,0.03)]">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="bg-indigo-500/20 text-indigo-400 p-2 rounded-2xl border border-indigo-500/30">
+          <div className="flex items-center gap-2.5">
+            <span className="bg-indigo-50 text-indigo-600 p-2.5 rounded-2xl border border-indigo-100">
               <Tv className="w-6 h-6" />
             </span>
-            <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+            <h1 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
               Novedades & Capacitaciones ERP
-              <span className="text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-0.5 rounded-full">
                 V3.0 ACTIVE
               </span>
             </h1>
           </div>
-          <p className="text-sm text-slate-400 max-w-2xl">
+          <p className="text-sm text-slate-500 max-w-2xl pt-0.5">
             Explora las últimas mejoras, correcciones y videotutoriales explicativos del sistema. Comenta y danos tu retroalimentación directamente debajo de cada video.
           </p>
         </div>
@@ -332,7 +330,7 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
         {isUserAdmin && (
           <button
             onClick={handleOpenCreate}
-            className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-bold px-5 py-3 rounded-2xl transition-all shadow-lg hover:shadow-indigo-500/25 active:scale-95 cursor-pointer self-start md:self-auto"
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-3 rounded-2xl transition-all shadow-md shadow-indigo-600/20 active:scale-95 cursor-pointer self-start md:self-auto"
           >
             <Plus className="w-5 h-5" />
             Publicar Novedad / Video
@@ -350,8 +348,8 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
               onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                 selectedCategory === cat
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/30'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white border border-slate-700/60'
+                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                  : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
               }`}
             >
               {cat}
@@ -367,25 +365,25 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
             placeholder="Buscar por versión o tema..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-800 text-slate-200 border border-slate-700 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-500"
+            className="w-full bg-white text-slate-800 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-400 shadow-sm"
           />
         </div>
       </div>
 
       {/* Main Grid: Left Video Player & Right Playlist Feed */}
       {actualizaciones.length === 0 ? (
-        <div className="bg-slate-800/50 border border-slate-700/60 rounded-3xl p-12 text-center space-y-4">
-          <div className="w-16 h-16 bg-slate-700/50 text-slate-400 rounded-2xl flex items-center justify-center mx-auto">
+        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-4 shadow-sm">
+          <div className="w-16 h-16 bg-slate-100 text-slate-400 rounded-2xl flex items-center justify-center mx-auto">
             <Video className="w-8 h-8" />
           </div>
-          <h3 className="text-xl font-bold text-slate-200">No hay publicaciones disponibles</h3>
-          <p className="text-sm text-slate-400 max-w-md mx-auto">
+          <h3 className="text-xl font-bold text-slate-800">No hay publicaciones disponibles</h3>
+          <p className="text-sm text-slate-500 max-w-md mx-auto">
             Aún no se han registrado videos explicativos o no tienes permisos para ver las novedades actuales.
           </p>
           {isUserAdmin && (
             <button
               onClick={handleOpenCreate}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition-all shadow-sm"
             >
               Crear primera publicación
             </button>
@@ -400,7 +398,7 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
             {activeActualizacion && (
               <>
                 {/* Video Player Container */}
-                <div className="bg-black/60 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl relative group">
+                <div className="bg-slate-950 rounded-3xl border border-slate-200 overflow-hidden shadow-xl relative group">
                   {youtubeEmbedUrl ? (
                     <div className="relative w-full aspect-video">
                       <iframe
@@ -420,9 +418,9 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                       />
                     </div>
                   ) : (
-                    <div className="w-full aspect-video bg-gradient-to-br from-slate-900 to-indigo-950 flex flex-col items-center justify-center text-center p-8 space-y-3">
+                    <div className="w-full aspect-video bg-gradient-to-br from-slate-900 to-indigo-950 flex flex-col items-center justify-center text-center p-8 space-y-3 text-white">
                       <Sparkles className="w-12 h-12 text-indigo-400 animate-pulse" />
-                      <h3 className="text-lg font-bold text-white">{activeActualizacion.titulo}</h3>
+                      <h3 className="text-lg font-bold">{activeActualizacion.titulo}</h3>
                       <p className="text-xs text-slate-400 max-w-sm">
                         Esta publicación no contiene enlace de video. Revisa las notas escritas más abajo.
                       </p>
@@ -431,19 +429,19 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                 </div>
 
                 {/* Active Update Header & Description */}
-                <div className="bg-slate-800/80 border border-slate-700/60 rounded-3xl p-6 space-y-6 shadow-xl">
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-6 shadow-sm">
                   
                   {/* Badges & Meta Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="bg-indigo-500/20 text-indigo-300 font-extrabold text-xs px-3 py-1 rounded-lg border border-indigo-500/30">
+                      <span className="bg-indigo-50 text-indigo-700 font-extrabold text-xs px-3 py-1 rounded-lg border border-indigo-100">
                         {activeActualizacion.versionTag || 'v1.0.0'}
                       </span>
-                      <span className="bg-emerald-500/20 text-emerald-300 font-bold text-xs px-3 py-1 rounded-lg border border-emerald-500/30">
+                      <span className="bg-emerald-50 text-emerald-700 font-bold text-xs px-3 py-1 rounded-lg border border-emerald-100">
                         {activeActualizacion.categoria}
                       </span>
                       {activeActualizacion.visibilidad !== 'ALL' && (
-                        <span className="bg-amber-500/20 text-amber-300 font-bold text-xs px-2.5 py-1 rounded-lg border border-amber-500/30 flex items-center gap-1">
+                        <span className="bg-amber-50 text-amber-700 font-bold text-xs px-2.5 py-1 rounded-lg border border-amber-200 flex items-center gap-1">
                           <Lock className="w-3 h-3" />
                           Restringido ({activeActualizacion.visibilidad})
                         </span>
@@ -455,14 +453,14 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleOpenEdit(activeActualizacion)}
-                          className="p-2 bg-slate-700/60 hover:bg-indigo-600 text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer"
+                          className="p-2 bg-slate-100 hover:bg-indigo-50 text-slate-600 hover:text-indigo-600 rounded-xl transition-all border border-slate-200 cursor-pointer"
                           title="Editar actualización"
                         >
                           <Edit3 className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDeleteActualizacion(activeActualizacion.id)}
-                          className="p-2 bg-slate-700/60 hover:bg-rose-600 text-slate-300 hover:text-white rounded-xl transition-all cursor-pointer"
+                          className="p-2 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-xl transition-all border border-slate-200 cursor-pointer"
                           title="Eliminar publicación"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -473,27 +471,27 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
 
                   {/* Title & Date */}
                   <div className="space-y-1">
-                    <h2 className="text-2xl font-black text-white leading-tight">
+                    <h2 className="text-2xl font-black text-slate-900 leading-tight">
                       {activeActualizacion.titulo}
                     </h2>
                     {activeActualizacion.subtitulo && (
-                      <p className="text-base text-slate-300 font-medium">
+                      <p className="text-base text-slate-600 font-medium">
                         {activeActualizacion.subtitulo}
                       </p>
                     )}
                   </div>
 
                   {/* Author & Audience Button Bar */}
-                  <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-700/60">
+                  <div className="flex flex-wrap items-center justify-between gap-4 pt-4 border-t border-slate-100">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-2xl bg-indigo-600/30 border border-indigo-500/40 text-indigo-300 font-bold flex items-center justify-center text-sm">
+                      <div className="w-10 h-10 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm">
                         {activeActualizacion.createdBy?.nombre?.[0] || 'A'}
                       </div>
                       <div>
-                        <div className="text-sm font-bold text-white">
+                        <div className="text-sm font-bold text-slate-900">
                           {[activeActualizacion.createdBy?.nombre, activeActualizacion.createdBy?.apellido].filter(Boolean).join(' ') || 'Administrador ERP'}
                         </div>
-                        <div className="text-xs text-slate-400">
+                        <div className="text-xs text-slate-500">
                           Publicado el {new Date(activeActualizacion.createdAt).toLocaleDateString('es-HN', { day: '2-digit', month: 'short', year: 'numeric' })}
                         </div>
                       </div>
@@ -502,28 +500,28 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                     {/* Visto Tracker Button */}
                     <button
                       onClick={() => setShowVistosModal(true)}
-                      className="flex items-center gap-2 bg-slate-700/60 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-600/60 transition-all cursor-pointer"
+                      className="flex items-center gap-2 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold px-3.5 py-2.5 rounded-xl border border-slate-200 transition-all cursor-pointer shadow-sm"
                     >
-                      <Eye className="w-4 h-4 text-emerald-400" />
+                      <Eye className="w-4 h-4 text-emerald-600" />
                       <span>{activeActualizacion.vistos?.length || 0} Vistos</span>
                     </button>
                   </div>
 
                   {/* Detailed Notes / Description */}
-                  <div className="prose prose-invert max-w-none text-sm text-slate-300 space-y-2 leading-relaxed bg-slate-900/60 p-4 rounded-2xl border border-slate-700/40">
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Notas de la actualización:</h4>
-                    <p className="whitespace-pre-wrap font-sans text-slate-200">
+                  <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80 text-sm text-slate-700 space-y-2 leading-relaxed">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Notas de la actualización:</h4>
+                    <p className="whitespace-pre-wrap font-sans text-slate-800">
                       {activeActualizacion.descripcion}
                     </p>
                   </div>
                 </div>
 
                 {/* Feedback & Comments Section */}
-                <div className="bg-slate-800/80 border border-slate-700/60 rounded-3xl p-6 space-y-6 shadow-xl">
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 space-y-6 shadow-sm">
                   
-                  <div className="flex items-center justify-between border-b border-slate-700/60 pb-4">
-                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5 text-indigo-400" />
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                      <MessageSquare className="w-5 h-5 text-indigo-600" />
                       Retroalimentación & Comentarios ({activeActualizacion.comentarios?.length || 0})
                     </h3>
                   </div>
@@ -531,7 +529,7 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                   {/* Add Comment Form */}
                   <form onSubmit={handleAddComment} className="space-y-3">
                     <div className="flex items-center gap-2 flex-wrap pb-1">
-                      <span className="text-xs font-bold text-slate-400">Reacción rápida:</span>
+                      <span className="text-xs font-bold text-slate-500">Reacción rápida:</span>
                       {[
                         { label: '👍 Entendido', value: '👍' },
                         { label: '💡 Sugerencia', value: '💡' },
@@ -544,8 +542,8 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                           onClick={() => setSelectedReaction(selectedReaction === r.value ? null : r.value)}
                           className={`text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
                             selectedReaction === r.value
-                              ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
-                              : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-700'
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                           }`}
                         >
                           {r.label}
@@ -559,13 +557,13 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                         placeholder="Escribe aquí tu duda, sugerencia o comentario sobre este video..."
                         value={newCommentText}
                         onChange={(e) => setNewCommentText(e.target.value)}
-                        className="w-full bg-slate-900 text-slate-100 border border-slate-700 rounded-2xl p-3.5 text-sm focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-500 resize-none"
+                        className="w-full bg-slate-50 text-slate-800 border border-slate-200 rounded-2xl p-3.5 text-sm focus:outline-none focus:bg-white focus:border-indigo-500 transition-all placeholder:text-slate-400 resize-none shadow-sm"
                       />
                       <div className="flex justify-end pt-2">
                         <button
                           type="submit"
                           disabled={isSubmittingComment}
-                          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-md active:scale-95 disabled:opacity-50 cursor-pointer"
+                          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
                         >
                           <Send className="w-3.5 h-3.5" />
                           {isSubmittingComment ? 'Enviando...' : 'Publicar Comentario'}
@@ -575,24 +573,24 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                   </form>
 
                   {/* Comment Stream */}
-                  <div className="space-y-4 pt-2">
+                  <div className="space-y-3 pt-2">
                     {(!activeActualizacion.comentarios || activeActualizacion.comentarios.length === 0) ? (
-                      <p className="text-xs text-slate-500 text-center py-6 font-medium">
+                      <p className="text-xs text-slate-400 text-center py-6 font-medium">
                         Sé el primero en dejar retroalimentación sobre esta actualización.
                       </p>
                     ) : (
                       activeActualizacion.comentarios.map((com: any) => (
                         <div 
                           key={com.id} 
-                          className="bg-slate-900/80 border border-slate-700/50 rounded-2xl p-4 space-y-2 relative group"
+                          className="bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 space-y-2 relative group"
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-xl bg-slate-700 text-slate-300 font-bold flex items-center justify-center text-xs">
+                              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-100 font-bold flex items-center justify-center text-xs">
                                 {com.usuario?.nombre?.[0] || 'U'}
                               </div>
                               <div>
-                                <span className="text-xs font-bold text-white">
+                                <span className="text-xs font-bold text-slate-900">
                                   {[com.usuario?.nombre, com.usuario?.apellido].filter(Boolean).join(' ') || 'Usuario ERP'}
                                 </span>
                                 <span className="text-[10px] text-slate-400 ml-2">
@@ -605,7 +603,7 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                             {(com.usuarioId === dbUser?.id || isUserAdmin) && (
                               <button
                                 onClick={() => handleDeleteComment(com.id)}
-                                className="text-slate-500 hover:text-rose-400 p-1 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                                className="text-slate-400 hover:text-rose-600 p-1 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
                                 title="Eliminar comentario"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -614,13 +612,13 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                           </div>
 
                           {com.reaccion && (
-                            <span className="inline-block text-xs bg-indigo-500/20 text-indigo-300 font-bold px-2 py-0.5 rounded-md border border-indigo-500/30">
+                            <span className="inline-block text-xs bg-indigo-50 text-indigo-700 font-bold px-2 py-0.5 rounded-md border border-indigo-100">
                               Reacción: {com.reaccion}
                             </span>
                           )}
 
                           {com.contenido && (
-                            <p className="text-xs text-slate-300 font-normal leading-relaxed pl-1">
+                            <p className="text-xs text-slate-700 font-normal leading-relaxed pl-1">
                               {com.contenido}
                             </p>
                           )}
@@ -639,8 +637,8 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
           <div className="lg:col-span-4 space-y-4">
             
             <div className="flex items-center justify-between px-1">
-              <h3 className="text-sm font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-                <Video className="w-4 h-4 text-indigo-400" />
+              <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                <Video className="w-4 h-4 text-indigo-600" />
                 Historial de Videos ({filteredActualizaciones.length})
               </h3>
             </div>
@@ -657,12 +655,12 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                     onClick={() => setActiveActualizacionId(act.id)}
                     className={`p-3 rounded-2xl border transition-all cursor-pointer flex gap-3.5 group ${
                       isActive
-                        ? 'bg-indigo-950/60 border-indigo-500/80 shadow-lg shadow-indigo-950/50'
-                        : 'bg-slate-800/70 border-slate-700/60 hover:bg-slate-800 hover:border-slate-600'
+                        ? 'bg-indigo-50/80 border-indigo-400 shadow-sm'
+                        : 'bg-white border-slate-200 hover:border-slate-300 hover:shadow-sm'
                     }`}
                   >
                     {/* Thumbnail Box */}
-                    <div className="relative w-28 h-20 rounded-xl overflow-hidden bg-slate-900 border border-slate-700 flex-shrink-0 flex items-center justify-center">
+                    <div className="relative w-28 h-20 rounded-xl overflow-hidden bg-slate-900 border border-slate-200 flex-shrink-0 flex items-center justify-center">
                       {thumbUrl ? (
                         <img 
                           src={thumbUrl} 
@@ -675,7 +673,7 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                         </div>
                       )}
                       {/* Play Overlay */}
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
                         <div className="w-7 h-7 rounded-full bg-indigo-600 text-white flex items-center justify-center shadow-md">
                           <Play className="w-3.5 h-3.5 fill-current ml-0.5" />
                         </div>
@@ -686,23 +684,23 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                     <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
                       <div className="space-y-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-extrabold bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded border border-indigo-500/30">
+                          <span className="text-[10px] font-extrabold bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-200">
                             {act.versionTag || 'v1.0'}
                           </span>
                           {!hasWatched && (
-                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" title="Nuevo para ti" />
+                            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" title="Nuevo para ti" />
                           )}
                         </div>
-                        <h4 className={`text-xs font-bold leading-snug line-clamp-2 ${isActive ? 'text-white font-black' : 'text-slate-200'}`}>
+                        <h4 className={`text-xs font-bold leading-snug line-clamp-2 ${isActive ? 'text-indigo-900 font-black' : 'text-slate-800'}`}>
                           {act.titulo}
                         </h4>
                       </div>
 
-                      <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                      <div className="flex items-center justify-between text-[10px] text-slate-500 pt-1">
                         <span>{new Date(act.createdAt).toLocaleDateString('es-HN', { day: '2-digit', month: 'short' })}</span>
                         <div className="flex items-center gap-2">
-                          <span className="flex items-center gap-0.5"><Eye className="w-3 h-3 text-slate-500" /> {act.vistos?.length || 0}</span>
-                          <span className="flex items-center gap-0.5"><MessageSquare className="w-3 h-3 text-slate-500" /> {act.comentarios?.length || 0}</span>
+                          <span className="flex items-center gap-0.5"><Eye className="w-3 h-3 text-slate-400" /> {act.vistos?.length || 0}</span>
+                          <span className="flex items-center gap-0.5"><MessageSquare className="w-3 h-3 text-slate-400" /> {act.comentarios?.length || 0}</span>
                         </div>
                       </div>
                     </div>
@@ -716,19 +714,19 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
         </div>
       )}
 
-      {/* Modal: Publicar / Editar Actualización */}
+      {/* Modal: Publicar / Editar Actualización (Modo Día) */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-slate-800 border border-slate-700 rounded-3xl max-w-2xl w-full p-6 space-y-6 shadow-2xl my-8">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 space-y-6 shadow-2xl my-8 text-slate-900">
             
-            <div className="flex items-center justify-between border-b border-slate-700 pb-4">
-              <h3 className="text-lg font-extrabold text-white flex items-center gap-2">
-                <Video className="w-5 h-5 text-indigo-400" />
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <h3 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                <Video className="w-5 h-5 text-indigo-600" />
                 {editingActualizacion ? 'Editar Publicación' : 'Publicar Nueva Novedad / Video'}
               </h3>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -738,35 +736,35 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
               
               {/* Titulo */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-300">Título del Video / Mejora *</label>
+                <label className="text-xs font-bold text-slate-700">Título del Video / Mejora *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ej. Nuevo Módulo de Búsqueda por Código QR y Filtros Rápidos"
                   value={formData.titulo}
                   onChange={(e) => setFormData({ ...formData, titulo: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-100 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all"
                 />
               </div>
 
               {/* Grid: Version & Categoria */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-300">Etiqueta de Versión (Release)</label>
+                  <label className="text-xs font-bold text-slate-700">Etiqueta de Versión (Release)</label>
                   <input
                     type="text"
                     placeholder="Ej. v2.5.0"
                     value={formData.versionTag}
                     onChange={(e) => setFormData({ ...formData, versionTag: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-100 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-300">Categoría *</label>
+                  <label className="text-xs font-bold text-slate-700">Categoría *</label>
                   <select
                     value={formData.categoria}
                     onChange={(e) => setFormData({ ...formData, categoria: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-100 focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all"
                   >
                     <option value="🚀 Nueva Función">🚀 Nueva Función</option>
                     <option value="🔧 Corrección / Mejora">🔧 Corrección / Mejora</option>
@@ -778,35 +776,35 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
 
               {/* YouTube Link */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-700 flex items-center justify-between">
                   <span>Enlace de Video de YouTube (No Listado / Público)</span>
-                  <span className="text-[10px] text-indigo-400 font-normal">Recomendado</span>
+                  <span className="text-[10px] text-indigo-600 font-bold">Recomendado</span>
                 </label>
                 <input
                   type="url"
                   placeholder="https://www.youtube.com/watch?v=... o https://youtu.be/..."
                   value={formData.youtubeUrl}
                   onChange={(e) => setFormData({ ...formData, youtubeUrl: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-100 focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all"
                 />
               </div>
 
               {/* Descripcion */}
               <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-300">Descripción Explicativa / Notas del Cambios *</label>
+                <label className="text-xs font-bold text-slate-700">Descripción Explicativa / Notas del Cambios *</label>
                 <textarea
                   rows={4}
                   required
                   placeholder="Explica qué problemas resuelve esta actualización y cómo usar los nuevos botones..."
                   value={formData.descripcion}
                   onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-slate-100 focus:outline-none focus:border-indigo-500 resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-slate-800 focus:outline-none focus:bg-white focus:border-indigo-500 transition-all resize-none"
                 />
               </div>
 
               {/* Audience & Permissions */}
-              <div className="space-y-3 pt-2 border-t border-slate-700">
-                <label className="text-xs font-bold text-slate-300">Audiencia / ¿Quiénes pueden ver este video?</label>
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <label className="text-xs font-bold text-slate-700">Audiencia / ¿Quiénes pueden ver este video?</label>
                 
                 <div className="grid grid-cols-3 gap-2">
                   {[
@@ -820,8 +818,8 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                       onClick={() => setFormData({ ...formData, visibilidad: item.id as any })}
                       className={`p-3 rounded-xl border flex flex-col items-center justify-center gap-1.5 text-xs font-bold transition-all cursor-pointer ${
                         formData.visibilidad === item.id
-                          ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
-                          : 'bg-slate-900 text-slate-400 border-slate-700 hover:bg-slate-700'
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
                       <item.icon className="w-4 h-4" />
@@ -832,13 +830,13 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
 
                 {/* Specific Roles */}
                 {formData.visibilidad === 'ROLES' && (
-                  <div className="bg-slate-900 p-3 rounded-xl border border-slate-700 space-y-2">
-                    <span className="text-xs font-bold text-slate-400">Selecciona los roles permitidos:</span>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <span className="text-xs font-bold text-slate-600">Selecciona los roles permitidos:</span>
                     <div className="flex flex-wrap gap-2">
                       {['SUPER_ADMIN', 'ORG_ADMIN', 'TECNICO', 'USER'].map(role => {
                         const checked = formData.allowedRoles.includes(role);
                         return (
-                          <label key={role} className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                          <label key={role} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
                             <input
                               type="checkbox"
                               checked={checked}
@@ -860,13 +858,13 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
 
                 {/* Specific Users Selector */}
                 {formData.visibilidad === 'USERS_SELECT' && (
-                  <div className="bg-slate-900 p-3 rounded-xl border border-slate-700 space-y-2">
-                    <span className="text-xs font-bold text-slate-400">Selecciona los usuarios autorizados:</span>
+                  <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                    <span className="text-xs font-bold text-slate-600">Selecciona los usuarios autorizados:</span>
                     <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
                       {orgUsers.map(usr => {
                         const checked = formData.allowedUserIds.includes(usr.id);
                         return (
-                          <label key={usr.id} className="flex items-center justify-between text-xs text-slate-300 cursor-pointer bg-slate-800 p-2 rounded-lg border border-slate-700/60 hover:bg-slate-700">
+                          <label key={usr.id} className="flex items-center justify-between text-xs text-slate-700 cursor-pointer bg-white p-2 rounded-lg border border-slate-200 hover:bg-slate-100 shadow-sm">
                             <span className="font-medium">{[usr.nombre, usr.apellido].filter(Boolean).join(' ') || usr.email}</span>
                             <input
                               type="checkbox"
@@ -889,18 +887,18 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
               </div>
 
               {/* Footer Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2.5 rounded-xl bg-slate-700 text-slate-300 font-bold hover:bg-slate-600 transition-all"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200 transition-all"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-500 transition-all shadow-md active:scale-95 cursor-pointer"
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition-all shadow-sm active:scale-95 cursor-pointer"
                 >
                   {isSubmitting ? 'Guardando...' : editingActualizacion ? 'Guardar Cambios' : 'Publicar Ahora'}
                 </button>
@@ -912,19 +910,19 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
         </div>
       )}
 
-      {/* Modal: Registro de Vistos / Lectores */}
+      {/* Modal: Registro de Vistos / Lectores (Modo Día) */}
       {showVistosModal && activeActualizacion && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-800 border border-slate-700 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl text-slate-900">
             
-            <div className="flex items-center justify-between border-b border-slate-700 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Eye className="w-5 h-5 text-emerald-400" />
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Eye className="w-5 h-5 text-emerald-600" />
                 Usuarios que vieron esta actualización
               </h3>
               <button
                 onClick={() => setShowVistosModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-700 p-1 rounded-lg"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -937,19 +935,19 @@ export default function ActualizacionesClient({ initialData }: ActualizacionesCl
                 </p>
               ) : (
                 activeActualizacion.vistos.map((v: any) => (
-                  <div key={v.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-700/60 text-xs">
+                  <div key={v.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-indigo-600/30 text-indigo-300 font-bold flex items-center justify-center text-[10px]">
+                      <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-700 font-bold flex items-center justify-center text-[10px] border border-indigo-100">
                         {v.usuario?.nombre?.[0] || 'U'}
                       </div>
                       <div>
-                        <div className="font-bold text-white">
+                        <div className="font-bold text-slate-900">
                           {[v.usuario?.nombre, v.usuario?.apellido].filter(Boolean).join(' ') || 'Usuario ERP'}
                         </div>
-                        <div className="text-[10px] text-slate-400">{v.usuario?.role}</div>
+                        <div className="text-[10px] text-slate-500">{v.usuario?.role}</div>
                       </div>
                     </div>
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-[10px] text-slate-500">
                       {new Date(v.vistoAt).toLocaleString('es-HN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </span>
                   </div>
