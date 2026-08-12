@@ -9,6 +9,35 @@ import { DEFAULT_INVOICE_SETTINGS } from '@/types/invoice';
 import HistorialPDF from '@/components/pdf/HistorialPDF';
 import path from 'path';
 import fs from 'fs';
+import sharp from 'sharp';
+
+// Helper to sanitize and auto-orient images for react-pdf rendering (strips bad EXIF tags like version 16717)
+async function sanitizeImageUrlForPdf(imageUrl: string | null | undefined): Promise<string | null> {
+  if (!imageUrl) return null;
+  if (imageUrl.startsWith('data:image/')) return imageUrl;
+  
+  try {
+    const res = await fetch(imageUrl, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+    });
+    
+    if (!res.ok) return imageUrl;
+    
+    const arrayBuffer = await res.arrayBuffer();
+    const inputBuffer = Buffer.from(arrayBuffer);
+    
+    // Sanitize image using sharp: auto-rotate based on EXIF orientation and re-encode to clean sRGB JPEG
+    const cleanBuffer = await sharp(inputBuffer)
+      .rotate()
+      .jpeg({ quality: 80, force: true })
+      .toBuffer();
+      
+    return `data:image/jpeg;base64,${cleanBuffer.toString('base64')}`;
+  } catch (err) {
+    console.error('Error sanitizing image for PDF:', imageUrl, err);
+    return imageUrl;
+  }
+}
 
 // We need to set max duration since Vercel's default 10s might be too short 
 export const maxDuration = 60;
@@ -349,6 +378,42 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       const qrCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${encodeURIComponent(targetUrl)}&scale=6&eclevel=M&includetext=false`;
 
       const hideSignatures = url.searchParams.get('mostrarFirmas') === 'false';
+
+      // Sanitize all image URLs in `activo` object to ensure react-pdf doesn't fail on complex EXIF metadata (e.g. iPhone photos)
+      if (activo) {
+        if (activo.imagenUrl) {
+          activo.imagenUrl = await sanitizeImageUrlForPdf(activo.imagenUrl);
+        }
+        if (activo.imagenWeb) {
+          activo.imagenWeb = await sanitizeImageUrlForPdf(activo.imagenWeb);
+        }
+        if (activo.ordenesTrabajo && Array.isArray(activo.ordenesTrabajo)) {
+          for (const orden of activo.ordenesTrabajo) {
+            if (orden.firmaClienteUrl) {
+              orden.firmaClienteUrl = await sanitizeImageUrlForPdf(orden.firmaClienteUrl);
+            }
+            if (orden.firmaTecnicoUrl) {
+              orden.firmaTecnicoUrl = await sanitizeImageUrlForPdf(orden.firmaTecnicoUrl);
+            }
+            if (orden.fotosEstadoInicial && Array.isArray(orden.fotosEstadoInicial)) {
+              orden.fotosEstadoInicial = await Promise.all(
+                orden.fotosEstadoInicial.map((u: string) => sanitizeImageUrlForPdf(u))
+              );
+            }
+            if (orden.kanbanTasks && Array.isArray(orden.kanbanTasks)) {
+              for (const task of orden.kanbanTasks) {
+                if (task.attachments && Array.isArray(task.attachments)) {
+                  for (const att of task.attachments) {
+                    if (att.url) {
+                      att.url = await sanitizeImageUrlForPdf(att.url);
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
 
       const stream = await renderToStream(
         React.createElement(HistorialPDF, {
