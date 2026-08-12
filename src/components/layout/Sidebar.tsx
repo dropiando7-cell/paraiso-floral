@@ -59,12 +59,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
     items: [
       { name: 'Portal Bioelectrónica', href: '/', icon: LayoutDashboard },
       { name: 'Órdenes de Trabajo', href: '/kanban', icon: Trello },
-      { name: 'Centro de Novedades', href: '/actualizaciones', icon: Tv, badge: 'NUEVO', badgeColor: 'bg-indigo-500/10 text-indigo-600 font-bold' },
       { name: 'Soporte Técnico', href: '/soporte', icon: Wrench, roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
       { name: 'Marketing IA', href: '#', icon: Megaphone, badge: 'PLANIFICADO', badgeColor: 'bg-amber-500/10 text-amber-700' },
       { name: 'Rentas de Equipos', href: '/rentas', icon: Box },
       { name: 'Control de Caja Chica', href: '/caja-chica', icon: CircleDollarSign },
       { name: 'Gráficas e Informes', href: '/graficas', icon: TrendingUp },
+      { name: 'Centro de Novedades', href: '/actualizaciones', icon: Tv, badge: 'NUEVO', badgeColor: 'bg-indigo-500/10 text-indigo-600 font-bold' },
     ]
   },
   {
