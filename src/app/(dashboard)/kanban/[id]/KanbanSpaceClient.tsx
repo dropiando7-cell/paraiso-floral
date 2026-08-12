@@ -107,6 +107,7 @@ interface Props {
         tasks: Task[];
         activities: Activity[];
         members: Member[];
+        currentUserId?: string;
         currentUserRole?: string;
         currentUserAccessibleModules?: string[];
         currentUserCanManageAccess?: boolean;
@@ -1849,6 +1850,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     onUpdate={handleUpdateTaskFromModal}
                     onDelete={handleDeleteTaskFromModal}
                     activities={activities}
+                    currentUserId={initialData.currentUserId}
                     userRole={initialData.currentUserRole}
                     userAccessibleModules={initialData.currentUserAccessibleModules}
                     tasks={tasks.filter(t => t.id !== selectedTask.id).map(t => ({ id: t.id, codigo: t.codigo, title: t.title }))}

@@ -201,6 +201,7 @@ export async function getSpaceDetails(spaceId: string) {
         });
 
         return {
+            currentUserId: user.id,
             currentUserRole: user.role,
             currentUserAccessibleModules: user.accessibleModules || [],
             currentUserCanManageAccess: isPrivileged || user.puedeAsignarEspacios === true || space.creadoPorId === user.id,
@@ -1078,8 +1079,9 @@ export async function deleteKanbanComment(commentId: string) {
 
         const isAuthor = comment.usuarioId === user.id;
         const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+        const hasPermission = (user.accessibleModules || []).includes('editar_comentarios_ordenes');
 
-        if (!isAuthor && !isAdmin) {
+        if (!isAuthor && !isAdmin && !hasPermission) {
             throw new Error('No tienes permiso para eliminar este comentario');
         }
 
@@ -1121,8 +1123,9 @@ export async function updateKanbanComment(commentId: string, nuevoContenido: str
 
         const isAuthor = comment.usuarioId === user.id;
         const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+        const hasPermission = (user.accessibleModules || []).includes('editar_comentarios_ordenes');
 
-        if (!isAuthor && !isAdmin) {
+        if (!isAuthor && !isAdmin && !hasPermission) {
             throw new Error('No tienes permiso para editar este comentario');
         }
 

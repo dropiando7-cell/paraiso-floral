@@ -149,6 +149,7 @@ interface Props {
     activities: any[];
     userRole?: string;
     userAccessibleModules?: string[];
+    currentUserId?: string;
     tasks: { id: string; codigo: string; title: string }[];
     spaceId: string;
 }
@@ -181,6 +182,7 @@ export default function TaskDetailModal({
     activities,
     userRole,
     userAccessibleModules,
+    currentUserId,
     tasks,
     spaceId
 }: Props) {
@@ -2209,6 +2211,9 @@ export default function TaskDetailModal({
                                                     const initials = comm.usuario.nombre
                                                         ? comm.usuario.nombre.split(' ').map((n: string) => n[0]).join('').substring(0, 2).toUpperCase()
                                                         : '?';
+                                                    const isAuthor = currentUserId ? (comm.usuario?.id === currentUserId || (comm as any).usuarioId === currentUserId) : false;
+                                                    const canEditComment = isAuthor || userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || (userAccessibleModules || []).includes('editar_comentarios_ordenes');
+                                                    const canDeleteComment = isAuthor || userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || (userAccessibleModules || []).includes('editar_comentarios_ordenes');
                                                     return (
                                                         <div key={comm.id} className="flex gap-2.5 items-start group animate-in fade-in duration-200">
                                                             <div className="w-7 h-7 rounded-full bg-gradient-to-br from-brand-500 to-indigo-600 text-white flex items-center justify-center text-[10px] font-bold shrink-0 shadow-sm overflow-hidden relative">
@@ -2258,27 +2263,31 @@ export default function TaskDetailModal({
                                                                     <p className="text-xs text-slate-700 whitespace-pre-wrap leading-relaxed mt-1 pr-14 pb-1.5">{comm.contenido}</p>
                                                                 )}
                                                                 
-                                                                {editingCommentId !== comm.id && !isLocked && (
+                                                                {editingCommentId !== comm.id && !isLocked && (canEditComment || canDeleteComment) && (
                                                                     <div className="absolute bottom-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition flex gap-1.5 md:gap-1 z-10">
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                setEditingCommentId(comm.id);
-                                                                                setEditingCommentText(comm.contenido);
-                                                                            }}
-                                                                            className="p-2 md:p-1 bg-white md:bg-transparent shadow-sm md:shadow-none border border-slate-100 md:border-0 rounded-lg md:rounded text-slate-500 hover:text-brand-600 md:text-slate-400 transition flex items-center justify-center"
-                                                                            title="Editar comentario"
-                                                                        >
-                                                                            <Pencil className="h-4 w-4 md:h-3 md:w-3" />
-                                                                        </button>
-                                                                        <button
-                                                                            type="button"
-                                                                            onClick={() => handleDeleteComment(comm.id)}
-                                                                            className="p-2 md:p-1 bg-white md:bg-transparent shadow-sm md:shadow-none border border-slate-100 md:border-0 rounded-lg md:rounded text-slate-500 hover:text-red-600 md:text-slate-400 transition flex items-center justify-center"
-                                                                            title="Eliminar comentario"
-                                                                        >
-                                                                            <Trash2 className="h-4 w-4 md:h-3 md:w-3" />
-                                                                        </button>
+                                                                        {canEditComment && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    setEditingCommentId(comm.id);
+                                                                                    setEditingCommentText(comm.contenido);
+                                                                                }}
+                                                                                className="p-2 md:p-1 bg-white md:bg-transparent shadow-sm md:shadow-none border border-slate-100 md:border-0 rounded-lg md:rounded text-slate-500 hover:text-brand-600 md:text-slate-400 transition flex items-center justify-center"
+                                                                                title="Editar comentario"
+                                                                            >
+                                                                                <Pencil className="h-4 w-4 md:h-3 md:w-3" />
+                                                                            </button>
+                                                                        )}
+                                                                        {canDeleteComment && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleDeleteComment(comm.id)}
+                                                                                className="p-2 md:p-1 bg-white md:bg-transparent shadow-sm md:shadow-none border border-slate-100 md:border-0 rounded-lg md:rounded text-slate-500 hover:text-red-600 md:text-slate-400 transition flex items-center justify-center"
+                                                                                title="Eliminar comentario"
+                                                                            >
+                                                                                <Trash2 className="h-4 w-4 md:h-3 md:w-3" />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 )}
                                                             </div>
