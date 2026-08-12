@@ -295,128 +295,199 @@ export default function ContactosClient({ initialData }: { initialData: Cliente[
             </div>
 
             {/* Modal de Crear/Editar */}
-            {modalMode && (
-                <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-                        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-                            <h2 className="text-xl font-bold text-slate-800">
-                                {modalMode === 'create' ? 'Nuevo Contacto' : 'Editar Contacto'}
-                            </h2>
-                            <button onClick={() => setModalMode(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                                <X className="w-5 h-5" />
-                            </button>
+            <ContactoModal
+                open={!!modalMode}
+                onClose={() => setModalMode(null)}
+                initialContacto={currentContacto}
+                onSuccess={async () => {
+                    const { params, count, totalPages: tp } = await fetchContactos(search, page);
+                    setContactos(params as any);
+                    setTotalCount(count);
+                    setTotalPages(tp);
+                }}
+            />
+        </div>
+    );
+}
+
+export function ContactoModal({
+    open,
+    onClose,
+    onSuccess,
+    initialContacto
+}: {
+    open: boolean;
+    onClose: () => void;
+    onSuccess: (savedContacto?: any) => void;
+    initialContacto?: Partial<Cliente> | null;
+}) {
+    const [currentContacto, setCurrentContacto] = useState<Partial<Cliente>>(initialContacto || {});
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        if (open) {
+            setCurrentContacto(initialContacto || {});
+        }
+    }, [open, initialContacto]);
+
+    if (!open) return null;
+
+    const isEdit = !!currentContacto.id;
+
+    const handleSave = async () => {
+        if (!currentContacto.nombre) return alert('El nombre es obligatorio');
+        setSubmitting(true);
+        try {
+            if (isEdit && currentContacto.id) {
+                const res = await updateContacto(currentContacto.id, {
+                    nombre: currentContacto.nombre,
+                    email: currentContacto.email || undefined,
+                    telefono: currentContacto.telefono || undefined,
+                    direccion: currentContacto.direccion || undefined,
+                    rtn: currentContacto.rtn || undefined,
+                    nombreContacto: currentContacto.nombreContacto || undefined,
+                    telefonoContacto: currentContacto.telefonoContacto || undefined
+                });
+                onSuccess(res);
+            } else {
+                const res = await createContacto({
+                    nombre: currentContacto.nombre,
+                    email: currentContacto.email || undefined,
+                    telefono: currentContacto.telefono || undefined,
+                    direccion: currentContacto.direccion || undefined,
+                    rtn: currentContacto.rtn || undefined,
+                    nombreContacto: currentContacto.nombreContacto || undefined,
+                    telefonoContacto: currentContacto.telefonoContacto || undefined
+                });
+                onSuccess(res || currentContacto);
+            }
+            onClose();
+        } catch (e) {
+            alert('Error guardando contacto');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 z-[99999] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+                    <h2 className="text-xl font-bold text-slate-800">
+                        {isEdit ? 'Editar Contacto' : 'Nuevo Contacto'}
+                    </h2>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+                <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Nombre / Empresa <span className="text-red-500">*</span></label>
+                        <input
+                            type="text"
+                            placeholder="Ej: Juan Perez, Empresa S.A."
+                            className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                            value={currentContacto.nombre || ''}
+                            onChange={e => setCurrentContacto({ ...currentContacto, nombre: e.target.value })}
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Teléfono Empresa</label>
+                            <input
+                                type="tel"
+                                placeholder="+504 0000..."
+                                className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                                value={currentContacto.telefono || ''}
+                                onChange={e => setCurrentContacto({ ...currentContacto, telefono: e.target.value })}
+                            />
                         </div>
-                        <div className="p-6 space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Nombre / Empresa <span className="text-red-500">*</span></label>
-                                <input
-                                    type="text"
-                                    placeholder="Ej: Juan Perez, Empresa S.A."
-                                    className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
-                                    value={currentContacto.nombre || ''}
-                                    onChange={e => setCurrentContacto({ ...currentContacto, nombre: e.target.value })}
-                                />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Teléfono Empresa</label>
-                                    <input
-                                        type="tel"
-                                        placeholder="+504 0000..."
-                                        className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
-                                        value={currentContacto.telefono || ''}
-                                        onChange={e => setCurrentContacto({ ...currentContacto, telefono: e.target.value })}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">RTN / NIT</label>
-                                    <input
-                                        type="text"
-                                        placeholder="No. Identidad o RTN"
-                                        className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
-                                        value={currentContacto.rtn || ''}
-                                        onChange={e => setCurrentContacto({ ...currentContacto, rtn: e.target.value })}
-                                    />
-                                </div>
-                            </div>
-                            
-                            {/* Contact Person Details Section */}
-                            <div className="border-t border-slate-100 pt-4 mt-2 space-y-4">
-                                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Datos del Contacto Directo (Encargado)</span>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Nombre de Contacto</label>
-                                        <input
-                                            type="text"
-                                            placeholder="Ej: Encargado de Compras"
-                                            className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
-                                            value={currentContacto.nombreContacto || ''}
-                                            onChange={e => setCurrentContacto({ ...currentContacto, nombreContacto: e.target.value })}
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Teléfono Contacto</label>
-                                        <input
-                                            type="tel"
-                                            placeholder="Celular o Directo"
-                                            className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
-                                            value={currentContacto.telefonoContacto || ''}
-                                            onChange={e => setCurrentContacto({ ...currentContacto, telefonoContacto: e.target.value })}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-                             <div>
-                                 <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Correo Electrónico Principal</label>
-                                 <input
-                                     type="email"
-                                     placeholder="contacto@empresa.com"
-                                     className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
-                                     value={currentContacto.email || ''}
-                                     onChange={e => setCurrentContacto({ ...currentContacto, email: e.target.value })}
-                                 />
-                             </div>
-                             <div>
-                                 <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">
-                                     Correos para Copia (CC) <span className="text-xs text-slate-400 font-normal">(Separados por coma)</span>
-                                 </label>
-                                 <input
-                                     type="text"
-                                     placeholder="contabilidad@empresa.com, gerencia@empresa.com"
-                                     className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
-                                     value={currentContacto.emailsCC || ''}
-                                     onChange={e => setCurrentContacto({ ...currentContacto, emailsCC: e.target.value })}
-                                 />
-                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Dirección</label>
-                                <textarea
-                                    placeholder="Dirección física..."
-                                    className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800 min-h-[80px] resize-none"
-                                    value={currentContacto.direccion || ''}
-                                    onChange={e => setCurrentContacto({ ...currentContacto, direccion: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        <div className="px-6 py-5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
-                            <button
-                                onClick={() => setModalMode(null)}
-                                className="px-5 py-2.5 rounded-xl font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                disabled={submitting}
-                                onClick={handleSave}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all disabled:opacity-50"
-                            >
-                                <Save className="w-4 h-4" />
-                                {submitting ? 'Guardando...' : 'Guardar Contacto'}
-                            </button>
+                        <div>
+                            <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">RTN / NIT</label>
+                            <input
+                                type="text"
+                                placeholder="No. Identidad o RTN"
+                                className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                                value={currentContacto.rtn || ''}
+                                onChange={e => setCurrentContacto({ ...currentContacto, rtn: e.target.value })}
+                            />
                         </div>
                     </div>
+                    
+                    <div className="border-t border-slate-100 pt-4 mt-2 space-y-4">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Datos del Contacto Directo (Encargado)</span>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Nombre de Contacto</label>
+                                <input
+                                    type="text"
+                                    placeholder="Ej: Encargado de Compras"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                                    value={currentContacto.nombreContacto || ''}
+                                    onChange={e => setCurrentContacto({ ...currentContacto, nombreContacto: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Teléfono Contacto</label>
+                                <input
+                                    type="tel"
+                                    placeholder="Celular o Directo"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                                    value={currentContacto.telefonoContacto || ''}
+                                    onChange={e => setCurrentContacto({ ...currentContacto, telefonoContacto: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                         <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Correo Electrónico Principal</label>
+                         <input
+                             type="email"
+                             placeholder="contacto@empresa.com"
+                             className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                             value={currentContacto.email || ''}
+                             onChange={e => setCurrentContacto({ ...currentContacto, email: e.target.value })}
+                         />
+                    </div>
+                    <div>
+                         <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">
+                             Correos para Copia (CC) <span className="text-xs text-slate-400 font-normal">(Separados por coma)</span>
+                         </label>
+                         <input
+                             type="text"
+                             placeholder="contabilidad@empresa.com, gerencia@empresa.com"
+                             className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800"
+                             value={currentContacto.emailsCC || ''}
+                             onChange={e => setCurrentContacto({ ...currentContacto, emailsCC: e.target.value })}
+                         />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Dirección</label>
+                        <textarea
+                            placeholder="Dirección física..."
+                            className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800 min-h-[80px] resize-none"
+                            value={currentContacto.direccion || ''}
+                            onChange={e => setCurrentContacto({ ...currentContacto, direccion: e.target.value })}
+                        />
+                    </div>
                 </div>
-            )}
+                <div className="px-6 py-5 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-3">
+                    <button
+                        onClick={onClose}
+                        className="px-5 py-2.5 rounded-xl font-semibold text-slate-500 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        disabled={submitting}
+                        onClick={handleSave}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                        <Save className="w-4 h-4" />
+                        {submitting ? 'Guardando...' : 'Guardar Contacto'}
+                    </button>
+                </div>
+            </div>
         </div>
     );
 }

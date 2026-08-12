@@ -6,8 +6,9 @@ import { UploadCloud, Check, X, Wrench, Snowflake, Tags, Camera, Search, QrCode,
 import toast from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
-import { getUltimaConfiguracionGarantia, buscarEquiposInventarioGeneral, getActivoByIdForReception, registrarNuevoEquipoRapido } from '../actions';
-import { createContacto } from '@/app/(dashboard)/contactos/actions';
+import { buscarEquiposInventarioGeneral, getActivoByIdForReception, getUltimaConfiguracionGarantia } from '../actions';
+import { ContactoModal } from '@/app/(dashboard)/contactos/ContactosClient';
+import { ActivoModal } from '@/app/(dashboard)/inventario/InventarioClient';
 
 type PrefilledData = {
   clienteId?: string;
@@ -84,62 +85,10 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
   // Estado para la creación rápida de clientes en Directorio
   const [localClientesList, setLocalClientesList] = useState<any[]>(clientes);
   const [showCreateClientModal, setShowCreateClientModal] = useState(false);
-  const [isCreatingClient, setIsCreatingClient] = useState(false);
-  const [newClientForm, setNewClientForm] = useState({
-    nombre: '',
-    telefono: '+504 ',
-    email: '',
-    rtn: '',
-    direccion: ''
-  });
 
   useEffect(() => {
     setLocalClientesList(clientes);
   }, [clientes]);
-
-  const handleOpenCreateClientModal = (initialName: string = '') => {
-    setNewClientForm({
-      nombre: initialName.trim(),
-      telefono: form.telefono || '+504 ',
-      email: '',
-      rtn: '',
-      direccion: ''
-    });
-    setShowCreateClientModal(true);
-  };
-
-  const handleSaveNewClient = async () => {
-    if (!newClientForm.nombre || newClientForm.nombre.trim().length === 0) {
-      toast.error('El nombre del cliente es obligatorio');
-      return;
-    }
-    setIsCreatingClient(true);
-    try {
-      const created = await createContacto({
-        nombre: newClientForm.nombre.trim(),
-        telefono: newClientForm.telefono.trim() || undefined,
-        email: newClientForm.email.trim() || undefined,
-        rtn: newClientForm.rtn.trim() || undefined,
-        direccion: newClientForm.direccion.trim() || undefined
-      });
-
-      if (created && created.id) {
-        setLocalClientesList(prev => [...prev, created]);
-        setForm(prev => ({
-          ...prev,
-          cliente: created.nombre,
-          telefono: created.telefono || prev.telefono
-        }));
-        toast.success(`Cliente "${created.nombre}" guardado en el Directorio`);
-        setShowCreateClientModal(false);
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || 'Error al guardar cliente en el directorio');
-    } finally {
-      setIsCreatingClient(false);
-    }
-  };
 
   // Estado para la búsqueda y vinculación de equipos en inventario
   const [searchEquipoQuery, setSearchEquipoQuery] = useState('');
@@ -152,68 +101,6 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
 
   // Estado para la creación rápida de equipos en Inventario ERP
   const [showCreateEquipoModal, setShowCreateEquipoModal] = useState(false);
-  const [isCreatingEquipo, setIsCreatingEquipo] = useState(false);
-  const [newEquipoForm, setNewEquipoForm] = useState({
-    descripcionCorta: '',
-    descripcionDetallada: '',
-    marca: '',
-    modelo: '',
-    serie: '',
-    area: 'Taller / Soporte',
-    cobertura: 'externa',
-    condicionActivo: 'Usado',
-    origenActivo: 'Americano'
-  });
-
-  const handleOpenCreateEquipoModal = (initialName: string = '') => {
-    setNewEquipoForm({
-      descripcionCorta: initialName.trim(),
-      descripcionDetallada: '',
-      marca: form.marca || '',
-      modelo: form.modelo || '',
-      serie: form.serie || '',
-      area: 'Taller / Soporte',
-      cobertura: form.cobertura || 'externa',
-      condicionActivo: 'Usado',
-      origenActivo: 'Americano'
-    });
-    setShowCreateEquipoModal(true);
-  };
-
-  const handleSaveNewEquipo = async () => {
-    if (!newEquipoForm.descripcionCorta || newEquipoForm.descripcionCorta.trim().length === 0) {
-      toast.error('El nombre del equipo es obligatorio');
-      return;
-    }
-    setIsCreatingEquipo(true);
-    try {
-      const res = await registrarNuevoEquipoRapido({
-        descripcionCorta: newEquipoForm.descripcionCorta,
-        descripcionDetallada: newEquipoForm.descripcionDetallada,
-        marca: newEquipoForm.marca,
-        modelo: newEquipoForm.modelo,
-        serie: newEquipoForm.serie,
-        area: newEquipoForm.area,
-        clienteNombre: form.cliente,
-        cobertura: newEquipoForm.cobertura,
-        condicionActivo: newEquipoForm.condicionActivo,
-        origenActivo: newEquipoForm.origenActivo
-      });
-
-      if (res.success && res.activo) {
-        handleSelectEquipo(res.activo);
-        toast.success(`Equipo registrado exitosamente con QR ${res.activo.idQr}`);
-        setShowCreateEquipoModal(false);
-      } else {
-        toast.error(res.error || 'Error al registrar el equipo');
-      }
-    } catch (err: any) {
-      console.error(err);
-      toast.error(err.message || 'Error al registrar equipo');
-    } finally {
-      setIsCreatingEquipo(false);
-    }
-  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -553,7 +440,7 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
                     onMouseDown={(e) => {
                       e.preventDefault();
                       setShowDropdown(false);
-                      router.push(`/contactos?modal=nuevo&nombre=${encodeURIComponent(form.cliente || '')}`);
+                      setShowCreateClientModal(true);
                     }}
                   >
                     <span className="flex items-center gap-1.5 truncate">
@@ -844,7 +731,7 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
                   onMouseDown={(e) => {
                     e.preventDefault();
                     setShowEquipoDropdown(false);
-                    router.push('/inventario?modal=nuevo&register=equipo_cliente&cobertura=externa');
+                    setShowCreateEquipoModal(true);
                   }}
                 >
                   <span className="flex items-center gap-1.5 truncate">
@@ -1228,6 +1115,36 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
           </div>
         </div>
       )}
+
+      {/* MODAL OFICIAL DE CLIENTES (ContactoModal) */}
+      <ContactoModal
+        open={showCreateClientModal}
+        onClose={() => setShowCreateClientModal(false)}
+        initialContacto={{ nombre: form.cliente }}
+        onSuccess={(newContacto) => {
+          if (newContacto?.nombre) {
+            setLocalClientesList(prev => [newContacto, ...prev]);
+            setForm(prev => ({
+              ...prev,
+              cliente: newContacto.nombre,
+              telefono: newContacto.telefono || prev.telefono
+            }));
+            toast.success(`Cliente "${newContacto.nombre}" registrado y seleccionado.`);
+          }
+        }}
+      />
+
+      {/* MODAL OFICIAL DE INVENTARIO (ActivoModal) */}
+      <ActivoModal
+        open={showCreateEquipoModal}
+        onClose={() => setShowCreateEquipoModal(false)}
+        onSuccess={async () => {
+          toast.success('Equipo registrado en inventario.');
+          if (searchEquipoQuery) {
+            handleSearchEquiposChange(searchEquipoQuery);
+          }
+        }}
+      />
     </div>
   );
 }
