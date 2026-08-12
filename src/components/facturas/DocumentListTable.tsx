@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Eye, MoreHorizontal, FileText, CheckCircle2, AlertCircle, Copy, MessageCircle, Download, Pencil, Printer, Ban, AlertTriangle, X, Undo, Mail } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-hot-toast';
-import { anularDocumento } from '@/app/(dashboard)/facturas/actions';
+import { anularDocumento, limpiarBorradoresTemporalesHuecos } from '@/app/(dashboard)/facturas/actions';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
 
 export interface DocumentRecord {
@@ -83,6 +83,33 @@ export default function DocumentListTable({ data, type }: Props) {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
+
+  const [isCleaningDrafts, setIsCleaningDrafts] = useState(false);
+
+  // Auto-clean legacy empty "Borrador Temporal" records on mount
+  useEffect(() => {
+    limpiarBorradoresTemporalesHuecos().catch(err => console.error("Auto-clean error:", err));
+  }, []);
+
+  const handleCleanDrafts = async () => {
+    setIsCleaningDrafts(true);
+    try {
+      const res = await limpiarBorradoresTemporalesHuecos();
+      if (res.success) {
+        if (res.count && res.count > 0) {
+          toast.success(`Se depuraron ${res.count} borradores en cero del historial`);
+        } else {
+          toast.success('No hay borradores en cero por depurar');
+        }
+      } else {
+        toast.error(res.error || 'Error al depurar borradores');
+      }
+    } catch (e: any) {
+      toast.error(e.message || 'Error al depurar borradores');
+    } finally {
+      setIsCleaningDrafts(false);
+    }
+  };
 
   // Reset page when criteria changes
   useEffect(() => {
@@ -191,7 +218,19 @@ export default function DocumentListTable({ data, type }: Props) {
           </h2>
           <p className="text-sm text-slate-500 mt-0.5 font-medium">Mostrando {filteredData.length} resultados encontrados.</p>
         </div>
+
         <div className="relative w-full lg:w-auto flex flex-col sm:flex-row items-center gap-3">
+          <button
+            type="button"
+            onClick={handleCleanDrafts}
+            disabled={isCleaningDrafts}
+            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 text-slate-700 text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50 w-full sm:w-auto"
+            title="Limpiar registros de Borrador Temporal en L 0.00 del historial"
+          >
+            <span>🧹</span>
+            <span>{isCleaningDrafts ? 'Depurando...' : 'Depurar Borradores'}</span>
+          </button>
+
           <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-sm">
             <input 
               type="checkbox" 

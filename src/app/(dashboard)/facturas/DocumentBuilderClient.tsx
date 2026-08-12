@@ -77,7 +77,7 @@ interface Product {
   isOrdenTrabajo?: boolean;
 }
 
-import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages } from './actions';
+import { searchClientes, searchProductos, guardarDocumentoBuilder, buscarItemPorCodigo, getActivoForEdit, actualizarDocumentoBuilder, reservarCorrelativoVacio, getProximoCorrelativoPreview, limpiarBorradoresTemporalesHuecos, toggleMostrarDescripcion, updateDocumentTemplateSettings, getAuthenticatedUser, updateOrganizationDefaultSettings, searchOrdenesTrabajoParaFacturar, getOrdenTrabajoImages } from './actions';
 import { createContacto, updateContacto } from '../contactos/actions';
 import { getOrCreateOrdenEntrega, updateOrdenEntrega } from './orden-entrega-actions';
 import toast from 'react-hot-toast';
@@ -3311,19 +3311,19 @@ export default function DocumentBuilderClient({
   const handleReservarCorrelativo = async () => {
     setIsReserving(true);
     try {
-      const res = await reservarCorrelativoVacio(docType.toUpperCase());
-      if (res.success && res.docId) {
-        setReservedDocId(res.docId);
-        setDocNumber(res.correlativo || '');
+      const res = await getProximoCorrelativoPreview(docType.toUpperCase());
+      if (res.success && res.correlativo) {
+        setReservedDocId(null);
+        setDocNumber(res.correlativo);
         setIsLocked(false);
-        // Force an immediate local storage save
+        // Force an immediate local storage save without DB row reservation
         const draft = {
-          reservedDocId: res.docId, docType, docNumber: res.correlativo, selectedClient, lineItems, notes, paymentTerms, validityDays
+          reservedDocId: null, docType, docNumber: res.correlativo, selectedClient, lineItems, notes, paymentTerms, validityDays
         };
         window.localStorage.setItem(draftKey, JSON.stringify(draft));
         setLastSaved(new Date());
       } else {
-        toast.error(res.error || 'Error reservando correlativo');
+        toast.error(res.error || 'Error al obtener correlativo');
       }
     } catch (e: any) {
       toast.error(e.message || 'Error al conectar con el servidor.');

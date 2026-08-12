@@ -1490,52 +1490,55 @@ export async function convertirDocumento(
 }
 
 
-// --- RESERVAR CORRELATIVO VACIO ---
+// --- OBTENER VISTA PREVIA DEL PRÓXIMO CORRELATIVO (SIN CREAR BORRADOR EN DB) ---
+export async function getProximoCorrelativoPreview(tipoDocumento: string) {
+    try {
+        const organizationId = await getOrganizationId();
+        const tipoNormalized = (tipoDocumento || 'FACTURA').toUpperCase();
+
+        const ultimaFactura = await prisma.factura.findFirst({
+            where: { organizationId },
+            orderBy: { numeroInterno: 'desc' }
+        });
+
+        const nextNumber = ultimaFactura ? ultimaFactura.numeroInterno + 1 : 1;
+        const correlativoPreview = formatCorrelativo(nextNumber, tipoNormalized);
+
+        return { success: true, correlativo: correlativoPreview, nextNumber };
+    } catch (error: any) {
+        console.error("Error al obtener vista previa de correlativo:", error);
+        return { success: false, correlativo: 'FAC-SO00000001', error: error.message };
+    }
+}
+
+// Deprecada por motivos de cumplimiento fiscal SAR (retorna vista previa sin modificar DB)
 export async function reservarCorrelativoVacio(tipoDocumento: string) {
+    return await getProximoCorrelativoPreview(tipoDocumento);
+}
+
+// --- LIMPIEZA DE BORRADORES TEMPORALES EN CERO (CUMPLIMIENTO SAR) ---
+export async function limpiarBorradoresTemporalesHuecos() {
     try {
         const authUser = await getAuthenticatedUser();
-        const { organizationId, id: creadoPorId, fullName: nombreUsuario } = authUser;
+        const { organizationId } = authUser;
 
-        let dummyClient = await prisma.cliente.findFirst({
-            where: { organizationId, nombre: 'Borrador Temporal' }
-        });
-        if (!dummyClient) {
-            dummyClient = await prisma.cliente.create({
-                data: {
-                    organizationId,
-                    nombre: 'Borrador Temporal',
-                    notas: 'Cliente genérico para reservar secuencias de facturas en progreso.'
+        // Eliminar facturas en borrador que tengan total 0 y pertenezcan a "Borrador Temporal"
+        const result = await prisma.factura.deleteMany({
+            where: {
+                organizationId,
+                estado: 'BORRADOR',
+                total: 0,
+                cliente: {
+                    nombre: { contains: 'Borrador Temporal', mode: 'insensitive' }
                 }
-            });
-        }
-
-        const result = await prisma.$transaction(async (tx) => {
-            const nuevoDoc = await tx.factura.create({
-                data: {
-                    organizationId,
-                    clienteId: dummyClient.id,
-                    correlativo: 'TEMP', 
-                    tipoDocumento: tipoDocumento,
-                    estado: 'BORRADOR',
-                    creadoPorId,
-                    nombreUsuario
-                }
-            });
-
-            const correlativoFinal = formatCorrelativo(nuevoDoc.numeroInterno, tipoDocumento);
-            const docFinal = await tx.factura.update({
-                where: { id: nuevoDoc.id },
-                data: { correlativo: correlativoFinal }
-            });
-
-            return docFinal;
+            }
         });
 
-        // revalidatePath('/facturas'); // We might not want to revalidate if they didn't finish it
-        return { success: true, docId: result.id, correlativo: result.correlativo };
+        revalidatePath('/facturas');
+        return { success: true, count: result.count };
     } catch (error: any) {
-        console.error("Error al reservar correlativo:", error);
-        return { success: false, error: 'Incapaz de reservar correlativo: ' + error.message };
+        console.error("Error al limpiar borradores temporales:", error);
+        return { success: false, error: error.message };
     }
 }
 
