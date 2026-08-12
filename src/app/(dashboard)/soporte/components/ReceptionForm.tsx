@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { UploadCloud, Check, X, Wrench, Snowflake, Tags, Camera } from 'lucide-react';
+import { UploadCloud, Check, X, Wrench, Snowflake, Tags, Camera, Search, QrCode, Unlink, Edit, ExternalLink, ShieldCheck, ArrowLeft, UserPlus, Building2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
-import { getUltimaConfiguracionGarantia } from '../actions';
+import { getUltimaConfiguracionGarantia, buscarEquiposInventarioGeneral, getActivoByIdForReception } from '../actions';
+import { createContacto } from '@/app/(dashboard)/contactos/actions';
 
 type PrefilledData = {
   clienteId?: string;
@@ -22,12 +24,13 @@ type PrefilledData = {
 
 type ReceptionFormProps = {
   onSave: (data: any) => Promise<void>;
+  onBack?: () => void;
   clientes?: any[];
   users?: any[];
   prefilledData?: PrefilledData;
 };
 
-export default function ReceptionForm({ onSave, clientes = [], users = [], prefilledData }: ReceptionFormProps) {
+export default function ReceptionForm({ onSave, onBack, clientes = [], users = [], prefilledData }: ReceptionFormProps) {
   const getLocalDateString = () => {
     const d = new Date();
     const year = d.getFullYear();
@@ -76,18 +79,170 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
   const [showValidationModal, setShowValidationModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Estado para la creación rápida de clientes en Directorio
+  const [localClientesList, setLocalClientesList] = useState<any[]>(clientes);
+  const [showCreateClientModal, setShowCreateClientModal] = useState(false);
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
+  const [newClientForm, setNewClientForm] = useState({
+    nombre: '',
+    telefono: '+504 ',
+    email: '',
+    rtn: '',
+    direccion: ''
+  });
+
+  useEffect(() => {
+    setLocalClientesList(clientes);
+  }, [clientes]);
+
+  const handleOpenCreateClientModal = (initialName: string = '') => {
+    setNewClientForm({
+      nombre: initialName.trim(),
+      telefono: form.telefono || '+504 ',
+      email: '',
+      rtn: '',
+      direccion: ''
+    });
+    setShowCreateClientModal(true);
+  };
+
+  const handleSaveNewClient = async () => {
+    if (!newClientForm.nombre || newClientForm.nombre.trim().length === 0) {
+      toast.error('El nombre del cliente es obligatorio');
+      return;
+    }
+    setIsCreatingClient(true);
+    try {
+      const created = await createContacto({
+        nombre: newClientForm.nombre.trim(),
+        telefono: newClientForm.telefono.trim() || undefined,
+        email: newClientForm.email.trim() || undefined,
+        rtn: newClientForm.rtn.trim() || undefined,
+        direccion: newClientForm.direccion.trim() || undefined
+      });
+
+      if (created && created.id) {
+        setLocalClientesList(prev => [...prev, created]);
+        setForm(prev => ({
+          ...prev,
+          cliente: created.nombre,
+          telefono: created.telefono || prev.telefono
+        }));
+        toast.success(`Cliente "${created.nombre}" guardado en el Directorio`);
+        setShowCreateClientModal(false);
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Error al guardar cliente en el directorio');
+    } finally {
+      setIsCreatingClient(false);
+    }
+  };
+
+  // Estado para la búsqueda y vinculación de equipos en inventario
+  const [searchEquipoQuery, setSearchEquipoQuery] = useState('');
+  const [searchEquipoResults, setSearchEquipoResults] = useState<any[]>([]);
+  const [isSearchingEquipos, setIsSearchingEquipos] = useState(false);
+  const [showEquipoDropdown, setShowEquipoDropdown] = useState(false);
+  const [selectedActivo, setSelectedActivo] = useState<any | null>(null);
+  const equipoDropdownRef = useRef<HTMLDivElement>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowDropdown(false);
+      }
+      if (equipoDropdownRef.current && !equipoDropdownRef.current.contains(event.target as Node)) {
+        setShowEquipoDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleSearchEquiposChange = (q: string) => {
+    setSearchEquipoQuery(q);
+    if (!q || q.trim().length === 0) {
+      setSearchEquipoResults([]);
+      setShowEquipoDropdown(false);
+      return;
+    }
+    setShowEquipoDropdown(true);
+    setIsSearchingEquipos(true);
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const results = await buscarEquiposInventarioGeneral(q);
+        setSearchEquipoResults(results);
+      } catch (err) {
+        console.error("Error buscando equipos:", err);
+      } finally {
+        setIsSearchingEquipos(false);
+      }
+    }, 250);
+  };
+
+  const handleSelectEquipo = (eq: any) => {
+    setSelectedActivo(eq);
+    setShowEquipoDropdown(false);
+    setSearchEquipoQuery('');
+    setForm(prev => ({
+      ...prev,
+      activoId: eq.id,
+      nombreEquipo: eq.descripcionCorta || prev.nombreEquipo,
+      marca: eq.marca || prev.marca,
+      modelo: eq.modelo || prev.modelo,
+      serie: eq.serie || prev.serie,
+      cliente: eq.cliente?.nombre || prev.cliente,
+      telefono: eq.cliente?.telefono || prev.telefono,
+      cobertura: eq.cobertura || prev.cobertura,
+      aplicaMantenimientos: eq.aplicaMantenimientos || prev.aplicaMantenimientos,
+      frecuenciaMantenimientoMeses: eq.frecuenciaMantenimientoMeses ? eq.frecuenciaMantenimientoMeses.toString() : prev.frecuenciaMantenimientoMeses
+    }));
+
+    if (eq.id) {
+      getUltimaConfiguracionGarantia(eq.id).then(config => {
+        if (config) {
+          setForm(prev => ({
+            ...prev,
+            aplicaMantenimientos: config.aplicaMantenimientos || false,
+            garantiaMeses: config.garantiaMeses !== null && config.garantiaMeses !== undefined ? config.garantiaMeses.toString() : prev.garantiaMeses,
+            frecuenciaMantenimientoMeses: config.frecuenciaMantenimientoMeses !== null && config.frecuenciaMantenimientoMeses !== undefined ? config.frecuenciaMantenimientoMeses.toString() : prev.frecuenciaMantenimientoMeses,
+            cantidadMantenimientos: config.cantidadMantenimientos !== null && config.cantidadMantenimientos !== undefined ? config.cantidadMantenimientos.toString() : prev.cantidadMantenimientos
+          }));
+        }
+      });
+    }
+  };
+
+  const handleDesvincularActivo = () => {
+    setSelectedActivo(null);
+    setForm(prev => ({
+      ...prev,
+      activoId: ''
+    }));
+  };
+
   useEffect(() => {
     if (prefilledData?.activoId) {
+      getActivoByIdForReception(prefilledData.activoId).then(activo => {
+        if (activo) {
+          setSelectedActivo(activo);
+          setForm(prev => ({
+            ...prev,
+            activoId: activo.id,
+            nombreEquipo: activo.descripcionCorta || prev.nombreEquipo,
+            marca: activo.marca || prev.marca,
+            modelo: activo.modelo || prev.modelo,
+            serie: activo.serie || prev.serie,
+            cliente: activo.cliente?.nombre || prev.cliente,
+            telefono: activo.cliente?.telefono || prev.telefono,
+            cobertura: activo.cobertura || prev.cobertura
+          }));
+        }
+      });
+
       getUltimaConfiguracionGarantia(prefilledData.activoId).then(config => {
         if (config) {
           setForm(prev => ({
@@ -140,13 +295,13 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
   }, []);
 
   const filteredClientes = form.cliente 
-    ? clientes.filter(c => c.nombre.toLowerCase().includes(form.cliente.toLowerCase()))
-    : clientes;
+    ? localClientesList.filter(c => c.nombre.toLowerCase().includes(form.cliente.toLowerCase()))
+    : localClientesList;
 
   const handleChange = (k: string, v: string) => {
     if (k === 'cliente') {
       // Check if matched to autofill phone
-      const matched = clientes.find(c => c.nombre.toLowerCase() === v.toLowerCase());
+      const matched = localClientesList.find(c => c.nombre.toLowerCase() === v.toLowerCase());
       if (matched && matched.telefono) {
         // autofill phone if current is empty or if it matches an existing one
         setForm(p => ({ ...p, cliente: v, telefono: matched.telefono }));
@@ -269,27 +424,41 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
   };
 
   return (
-    <div className="bg-white rounded-2xl p-4 md:p-6 shadow-[0_1px_3px_rgba(0,0,0,0.06)] h-full flex flex-col border border-slate-200">
-      <div className="flex items-center gap-3 mb-5">
-        <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center">
-          <Wrench className="w-5 h-5 text-indigo-600" />
+    <div className="bg-white rounded-xl sm:rounded-3xl p-2.5 sm:p-5 md:p-6 shadow-xs h-full flex flex-col border border-slate-200/90">
+      <div className="flex items-center justify-between gap-2 mb-4 pb-3 border-b border-slate-100">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-indigo-50 rounded-xl flex items-center justify-center shrink-0">
+            <Wrench className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-600" />
+          </div>
+          <div>
+            <h4 className="m-0 text-sm sm:text-base font-extrabold text-slate-900 tracking-tight">Recepción de Equipo</h4>
+            <p className="m-0 text-[11px] sm:text-xs text-slate-500 font-medium">Crea una nueva orden de servicio</p>
+          </div>
         </div>
-        <div>
-          <h4 className="m-0 text-[15px] font-bold text-slate-900 tracking-tight">Recepción de Equipo</h4>
-          <p className="m-0 text-xs text-slate-500 font-medium">Crea una nueva orden de servicio</p>
-        </div>
+
+        {onBack && (
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all shrink-0 cursor-pointer shadow-2xs"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Volver al Taller</span>
+            <span className="sm:hidden">Volver</span>
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
         <div className="relative" ref={dropdownRef}>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Cliente / Empresa *</label>
           <input 
-             className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:ring-2 outline-none transition-colors ${
+             className={`w-full px-3.5 py-3 rounded-xl border text-sm min-h-[48px] focus:ring-2 outline-none transition-colors ${
                prefilledData?.clienteNombre
                  ? 'border-slate-200 bg-slate-50 cursor-not-allowed text-slate-500 font-semibold'
                  : (showErrors && !form.cliente) 
-                   ? 'border-red-500 bg-white focus:border-red-500 focus:ring-red-100' 
-                   : 'border-slate-200 bg-white focus:ring-indigo-100 focus:border-indigo-600'
+                   ? 'border-red-500 bg-white focus:border-red-500 focus:ring-red-100 font-medium' 
+                   : 'border-slate-200 bg-white focus:ring-indigo-100 focus:border-indigo-600 font-medium'
              }`}
              value={form.cliente} 
              onChange={e => {
@@ -309,28 +478,58 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
         {showErrors && !form.cliente && (
           <p className="text-red-500 text-[10px] font-bold mt-1">Este campo es requerido.</p>
         )}
-          {showDropdown && filteredClientes.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-xl max-h-60 overflow-y-auto py-1">
+          {showDropdown && (
+              <div className="absolute z-30 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto py-1">
+                  {/* Botón destacado superior para registrar nuevo cliente */}
+                  <div
+                    className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 cursor-pointer text-xs font-bold text-indigo-700 flex items-center justify-between border-b border-indigo-100 transition-colors"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setShowDropdown(false);
+                      handleOpenCreateClientModal(form.cliente);
+                    }}
+                  >
+                    <span className="flex items-center gap-1.5 truncate">
+                      <UserPlus className="w-4 h-4 text-indigo-600 shrink-0" />
+                      <span>Registrar Nuevo Cliente</span>
+                    </span>
+                    <span className="text-[10px] bg-indigo-600 text-white font-extrabold px-2 py-0.5 rounded-md shrink-0">
+                      + NUEVO
+                    </span>
+                  </div>
+
                   {filteredClientes.map((c: any) => (
                       <div 
                           key={c.id} 
-                          className="px-4 py-2.5 hover:bg-slate-50 cursor-pointer text-sm text-slate-700 font-medium transition-colors border-b border-slate-100 last:border-0"
+                          className="px-4 py-2.5 hover:bg-indigo-50/60 cursor-pointer text-sm text-slate-700 font-medium transition-colors border-b border-slate-100 last:border-0 flex items-center justify-between"
                           onMouseDown={(e) => {
                               e.preventDefault();
                               handleChange("cliente", c.nombre);
+                              if (c.telefono) {
+                                setForm(p => ({ ...p, cliente: c.nombre, telefono: c.telefono }));
+                              }
                               setShowDropdown(false);
                           }}
                       >
-                          {c.nombre}
+                          <span className="font-semibold text-slate-800 text-xs sm:text-sm">{c.nombre}</span>
+                          {c.telefono && (
+                            <span className="text-[11px] text-slate-400 font-medium">{c.telefono}</span>
+                          )}
                       </div>
                   ))}
+
+                  {filteredClientes.length === 0 && (
+                      <div className="p-3 text-center text-xs text-slate-400 font-medium">
+                        Sin coincidencias en el directorio. Usa el botón de arriba para registrarlo.
+                      </div>
+                  )}
               </div>
           )}
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Teléfono / WhatsApp</label>
           <input 
-             className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white"
+             className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm min-h-[48px] focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
              value={form.telefono} onChange={e => handleChange("telefono", e.target.value)} placeholder="+504 9999-0000"
           />
         </div>
@@ -338,7 +537,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Fecha de Recepción *</label>
           <input 
              type="date"
-             className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
+             className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm min-h-[48px] focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors bg-white font-medium"
              value={form.fechaRecibido} 
              onChange={e => handleChange("fechaRecibido", e.target.value)}
              required
@@ -351,7 +550,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Cobertura de Orden</label>
           <div className="flex gap-2">
             {[["externa","🌍 Externa"],["interna","🏢 Interna"]].map(([v,l]) => (
-              <button type="button" key={v} onClick={() => handleChange("cobertura", v)} className={`flex-1 py-2.5 rounded-lg border-2 text-xs font-semibold transition-all ${
+              <button type="button" key={v} onClick={() => handleChange("cobertura", v)} className={`flex-1 py-3 px-2 rounded-xl border-2 text-xs font-bold min-h-[46px] flex items-center justify-center transition-all ${
                   form.cobertura === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
               }`}>{l}</button>
             ))}
@@ -359,9 +558,9 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Trabajo</label>
-          <div className="flex gap-1.5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
             {[["NORMAL","Normal"],["GARANTIA","Garantía"],["RECLAMO","Reclamo"],["MANTENIMIENTO","Mantenimiento"]].map(([v,l]) => (
-              <button type="button" key={v} onClick={() => handleChange("tipoTrabajo", v)} className={`flex-1 py-2.5 rounded-lg border-2 text-[10px] font-semibold transition-all ${
+              <button type="button" key={v} onClick={() => handleChange("tipoTrabajo", v)} className={`py-3 px-1.5 rounded-xl border-2 text-xs font-bold min-h-[46px] flex items-center justify-center transition-all ${
                   form.tipoTrabajo === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
               }`}>{l}</button>
             ))}
@@ -369,9 +568,9 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
         </div>
         <div>
           <label className="block text-xs font-semibold text-slate-700 mb-1.5">Tipo de Equipo</label>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {[["MEDICO","🏥 Médico"],["AIRE","❄️ Aire Acond."],["OTRO","🔧 Otro"]].map(([v,l]) => (
-              <button type="button" key={v} onClick={() => handleChange("equipo", v)} className={`flex-1 py-2.5 rounded-lg border-2 text-xs font-semibold transition-all ${
+              <button type="button" key={v} onClick={() => handleChange("equipo", v)} className={`py-3 px-1.5 rounded-xl border-2 text-xs font-bold min-h-[46px] flex items-center justify-center transition-all ${
                   form.equipo === v ? "border-indigo-600 bg-indigo-50 text-indigo-700" : "border-slate-100 bg-white text-slate-500 hover:border-slate-200"
               }`}>{l}</button>
             ))}
@@ -385,7 +584,7 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
           <select
             value={form.leyendaEstado || ""}
             onChange={e => handleChange("leyendaEstado", e.target.value)}
-            className="w-full px-3 py-2.5 rounded-lg border border-slate-200 text-xs font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-colors bg-white font-medium"
+            className="w-full px-3.5 py-3 rounded-xl border border-slate-200 text-sm min-h-[48px] font-semibold focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-colors bg-white text-slate-800"
           >
             <option value="">Por defecto (Según Cobertura)</option>
             <option value="RECIBIDO">RECIBIDO (En Taller)</option>
@@ -396,16 +595,241 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
         </div>
       </div>
 
+      {/* SECCIÓN DE VINCULACIÓN CON INVENTARIO GENERAL (ActivoFijo) */}
+      <div className="mb-4 bg-gradient-to-r from-slate-50 to-indigo-50/40 p-4 rounded-xl border border-indigo-100/80 shadow-xs">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Tags className="w-4 h-4 text-indigo-600" />
+            <h5 className="m-0 text-xs font-bold text-slate-800 uppercase tracking-wider">
+              Información del Equipo y Ficha Técnica ERP
+            </h5>
+          </div>
+          {selectedActivo ? (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-800 border border-green-200">
+              <Check className="w-3 h-3" /> Equipo Vinculado a ERP
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+              ⚡ Ficha Técnica & QR Automáticos
+            </span>
+          )}
+        </div>
+
+        {selectedActivo ? (
+          <div className="bg-white border border-indigo-200 rounded-2xl p-5 shadow-xs transition-all animate-in fade-in duration-200">
+            {/* Header Actions */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3.5 mb-4">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-indigo-600" />
+                <div>
+                  <h4 className="m-0 text-sm font-extrabold text-slate-900 tracking-tight">
+                    Detalle del Activo (Comprobación de Seguridad)
+                  </h4>
+                  <p className="m-0 text-[11px] text-slate-500 font-medium">
+                    Ficha técnica oficial cargada desde el Inventario General
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/inventario?edit=${selectedActivo.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-all shadow-2xs no-underline"
+                  title="Editar los datos maestros de este equipo en el Inventario"
+                >
+                  <Edit className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Editar en Inventario</span>
+                  <ExternalLink className="w-3 h-3 text-slate-400" />
+                </a>
+
+                <button
+                  type="button"
+                  onClick={handleDesvincularActivo}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                  title="Desvincular este equipo de la recepción"
+                >
+                  <Unlink className="w-3.5 h-3.5" />
+                  <span>Desvincular</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Layout Principal: Imagen + Info Header */}
+            <div className="flex flex-col md:flex-row gap-5 items-start mb-4">
+              {/* Imagen del Equipo en Inventario */}
+              <div className="w-full md:w-36 h-36 bg-slate-100 rounded-2xl overflow-hidden border border-slate-200 shrink-0 flex items-center justify-center relative shadow-2xs">
+                {selectedActivo.imagenUrl || selectedActivo.imagenWeb ? (
+                  <img
+                    src={selectedActivo.imagenUrl || selectedActivo.imagenWeb}
+                    alt={selectedActivo.descripcionCorta}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-3 text-center text-slate-400">
+                    <Wrench className="w-8 h-8 mb-1 opacity-40" />
+                    <span className="text-[10px] font-semibold">Sin Imagen en Inventario</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Bloque de Información Principal */}
+              <div className="flex-1 min-w-0 w-full">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="bg-indigo-50 border border-indigo-200 text-indigo-700 font-extrabold text-xs px-2.5 py-1 rounded-lg tracking-wide">
+                    {selectedActivo.idQr}
+                  </span>
+                  <span className="bg-slate-100 text-slate-700 font-bold text-[11px] px-2.5 py-0.5 rounded-md uppercase tracking-wider">
+                    {selectedActivo.cuentaAct || selectedActivo.area || 'INVENTARIO'}
+                  </span>
+                  <span className="bg-emerald-100 border border-emerald-200 text-emerald-800 font-bold text-[11px] px-2.5 py-0.5 rounded-full inline-flex items-center gap-1">
+                    <Check className="w-3 h-3 text-emerald-600" />
+                    {selectedActivo.estatusContable || 'VIGENTE'} OK
+                  </span>
+                </div>
+
+                <h3 className="text-xl font-black text-slate-900 tracking-tight m-0 mb-2">
+                  {selectedActivo.descripcionCorta}
+                </h3>
+
+                {/* Caja de Descripción Detallada (como en Imagen 2) */}
+                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200/80 mb-3">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
+                    DESCRIPCIÓN DETALLADA
+                  </span>
+                  <p className="text-xs text-slate-700 font-medium m-0">
+                    {selectedActivo.descripcionDetallada || `Registro de ${selectedActivo.descripcionCorta.toLowerCase()}`}
+                  </p>
+                </div>
+
+                {/* Grid de Datos Técnicos (Idéntico a Imagen 2) */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs bg-slate-50/60 p-3 rounded-xl border border-slate-100">
+                  <div>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-0.5">Área</span>
+                    <span className="font-bold text-slate-800">{selectedActivo.area || 'Taller / Soporte'}</span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-0.5">Registrado por</span>
+                    <span className="font-bold text-slate-800">
+                      {[selectedActivo.createdBy?.nombre, selectedActivo.createdBy?.apellido].filter(Boolean).join(" ") || 'Carlos Izaguirre'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-0.5">Modelo</span>
+                    <span className="font-bold text-slate-800">{selectedActivo.modelo || 'N/A'}</span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-0.5">No. Serie</span>
+                    <span className="font-bold text-slate-800">{selectedActivo.serie || 'N/A'}</span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-0.5">Origen</span>
+                    <span className="inline-block bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded text-[11px] border border-emerald-200">
+                      {selectedActivo.origenActivo || 'Americano'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-semibold text-slate-400 uppercase block mb-0.5">Condición</span>
+                    <span className="inline-block bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded text-[11px] border border-blue-200">
+                      {selectedActivo.condicionActivo || 'Usado'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Aviso de Inmutabilidad */}
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium italic border-t border-slate-100 pt-3">
+              <span>🔒</span>
+              <span>
+                Esta información proviene del Inventario y está bloqueada para evitar inconsistencias. Si necesitas hacer cambios maestros, usa el botón <strong>"Editar en Inventario"</strong>.
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="relative" ref={equipoDropdownRef}>
+            <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+              🔍 Buscar equipo existente en ERP (Por QR, N° Serie, Modelo, Marca o Cliente)
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-indigo-200 text-xs focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-colors bg-white text-slate-800 font-medium placeholder:text-slate-400"
+                placeholder="Escribe para buscar equipo previamente registrado..."
+                value={searchEquipoQuery}
+                onChange={e => handleSearchEquiposChange(e.target.value)}
+                onFocus={() => { if (searchEquipoResults.length > 0) setShowEquipoDropdown(true); }}
+              />
+              <Search className="w-4 h-4 text-indigo-500 absolute left-3 top-3" />
+            </div>
+
+            {showEquipoDropdown && (
+              <div className="absolute z-30 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto py-1">
+                {isSearchingEquipos ? (
+                  <div className="p-4 text-center text-xs text-slate-400 font-medium">Buscando equipos en el ERP...</div>
+                ) : searchEquipoResults.length === 0 ? (
+                  <div className="p-4 text-center text-xs text-slate-400 font-medium">No se encontraron equipos coincidentes.</div>
+                ) : (
+                  searchEquipoResults.map((eq: any) => (
+                    <div
+                      key={eq.id}
+                      className="px-4 py-2.5 hover:bg-indigo-50/70 cursor-pointer border-b border-slate-100 last:border-0 transition-colors"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelectEquipo(eq);
+                      }}
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs font-bold text-slate-800">{eq.descripcionCorta}</span>
+                        <span className="bg-indigo-100 text-indigo-800 text-[10px] font-extrabold px-2 py-0.5 rounded">
+                          {eq.idQr}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-500 flex items-center justify-between">
+                        <span>
+                          {eq.marca ? `Marca: ${eq.marca}` : ''} {eq.modelo ? `| Mod: ${eq.modelo}` : ''} {eq.serie ? `| S/N: ${eq.serie}` : ''}
+                        </span>
+                        {eq.cliente?.nombre && (
+                          <span className="text-slate-600 font-medium text-[10px] bg-slate-100 px-1.5 py-0.5 rounded">
+                            👤 {eq.cliente.nombre}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+            
+            <p className="text-[11px] text-slate-500 mt-2 mb-0 font-medium flex items-center gap-1.5">
+              <span>💡</span> Si el equipo ingresa al taller por primera vez, completa los campos de abajo. El ERP le asignará su Ficha Técnica y QR automáticamente.
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="mb-4">
         <label className="block text-xs font-semibold text-slate-700 mb-1.5">Nombre del Equipo *</label>
         <input 
-           className={`w-full px-3 py-2.5 rounded-lg border text-sm focus:ring-2 outline-none transition-colors bg-white font-medium ${
-             (showErrors && !form.nombreEquipo) 
-               ? 'border-red-500 focus:border-red-500 focus:ring-red-100' 
-               : 'border-slate-200 focus:ring-indigo-100 focus:border-indigo-600'
+           className={`w-full px-3.5 py-3 rounded-xl border text-sm min-h-[48px] focus:ring-2 outline-none transition-colors font-medium ${
+             selectedActivo 
+               ? 'border-slate-200 bg-slate-50 cursor-not-allowed text-slate-600 font-semibold'
+               : (showErrors && !form.nombreEquipo) 
+                 ? 'border-red-500 bg-white focus:border-red-500 focus:ring-red-100' 
+                 : 'border-slate-200 bg-white focus:ring-indigo-100 focus:border-indigo-600'
            }`}
            value={form.nombreEquipo} 
-           onChange={e => handleChange("nombreEquipo", e.target.value)} 
+           onChange={e => {
+             if (selectedActivo) return;
+             handleChange("nombreEquipo", e.target.value);
+           }}
+           readOnly={!!selectedActivo}
            placeholder="Ej. Concentrador de Oxígeno"
            required
         />
@@ -419,8 +843,18 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
           <div key={k}>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">{l}</label>
             <input 
-             className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:ring-2 outline-none focus:ring-indigo-100 focus:border-indigo-600 transition-colors"
-             value={(form as any)[k]} onChange={e => handleChange(k, e.target.value)} placeholder={ph}
+             className={`w-full px-3.5 py-3 rounded-xl border text-sm min-h-[48px] focus:ring-2 outline-none transition-colors ${
+               selectedActivo
+                 ? 'border-slate-200 bg-slate-50 cursor-not-allowed text-slate-600 font-semibold'
+                 : 'border-slate-200 bg-white focus:ring-indigo-100 focus:border-indigo-600 font-medium'
+             }`}
+             value={(form as any)[k]} 
+             onChange={e => {
+               if (selectedActivo) return;
+               handleChange(k, e.target.value);
+             }}
+             readOnly={!!selectedActivo}
+             placeholder={ph}
             />
           </div>
         ))}
@@ -704,6 +1138,120 @@ export default function ReceptionForm({ onSave, clientes = [], users = [], prefi
             >
               Revisar Formulario
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE REGISTRO RÁPIDO DE CLIENTE EN DIRECTORIO */}
+      {showCreateClientModal && (
+        <div className="fixed inset-0 z-[99999] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-5 sm:p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                  <UserPlus className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 m-0">Registrar Cliente en Directorio</h3>
+                  <p className="text-xs text-slate-500 font-medium m-0">Quedará guardado permanentemente en el ERP</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateClientModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Nombre o Empresa *</label>
+                <input
+                  type="text"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-medium"
+                  placeholder="Ej. Clínica San José / Dr. Roberto Rivas"
+                  value={newClientForm.nombre}
+                  onChange={e => setNewClientForm(p => ({ ...p, nombre: e.target.value }))}
+                  autoFocus
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono / WhatsApp</label>
+                  <input
+                    type="text"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-medium"
+                    placeholder="+504 9999-0000"
+                    value={newClientForm.telefono}
+                    onChange={e => setNewClientForm(p => ({ ...p, telefono: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">RTN (Opcional)</label>
+                  <input
+                    type="text"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-medium"
+                    placeholder="08011990000000"
+                    value={newClientForm.rtn}
+                    onChange={e => setNewClientForm(p => ({ ...p, rtn: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-medium"
+                    placeholder="cliente@ejemplo.com"
+                    value={newClientForm.email}
+                    onChange={e => setNewClientForm(p => ({ ...p, email: e.target.value }))}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Dirección</label>
+                  <input
+                    type="text"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none font-medium"
+                    placeholder="Tegucigalpa, Honduras"
+                    value={newClientForm.direccion}
+                    onChange={e => setNewClientForm(p => ({ ...p, direccion: e.target.value }))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 border-t border-slate-100 pt-3">
+              <button
+                type="button"
+                onClick={() => setShowCreateClientModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+                disabled={isCreatingClient}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveNewClient}
+                disabled={isCreatingClient || !newClientForm.nombre.trim()}
+                className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white transition-all shadow-md shadow-indigo-600/20 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                {isCreatingClient ? (
+                  <span>Guardando...</span>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Guardar y Seleccionar</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

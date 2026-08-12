@@ -92,14 +92,8 @@ export default function NuevoSoporteClient({ userId, clientes = [], users = [] }
     }
 
     return (
-        <div className="px-0 py-4 md:p-8 max-w-6xl mx-auto">
-            <button 
-                onClick={() => router.push('/soporte')}
-                className="text-slate-500 hover:text-slate-800 flex items-center gap-2 mb-6 font-medium transition-colors"
-            >
-                <ArrowLeft className="w-4 h-4" /> Volver al Taller
-            </button>
-            <ReceptionForm onSave={handleSave} clientes={clientes} users={users} prefilledData={prefilledData} />
+        <div className="p-1 sm:p-4 md:p-6 max-w-6xl mx-auto">
+            <ReceptionForm onSave={handleSave} onBack={() => router.push('/soporte')} clientes={clientes} users={users} prefilledData={prefilledData} />
         </div>
     );
 }

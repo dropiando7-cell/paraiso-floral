@@ -496,7 +496,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
             const comments = task?.comments || [];
 
             return (
-              <View key={orden.id} style={styles.odtCard} wrap={false}>
+              <View key={orden.id} style={styles.odtCard}>
                 {/* ODT Header */}
                 <View style={styles.odtHeader}>
                   <Text style={styles.odtCode}>Orden #{orden.codigoSeguridad}</Text>
@@ -535,7 +535,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
 
                   {/* Kanban Slack-like execution comments */}
                   {comments.length > 0 && (
-                    <View style={styles.commentsContainer} wrap={false}>
+                    <View style={styles.commentsContainer}>
                       <Text style={styles.textLabel}>Comentarios de Trabajo en Campo:</Text>
                       {comments.slice(0, 3).map((com: any) => (
                         <Text key={com.id} style={styles.commentRow}>
@@ -548,7 +548,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
 
                   {/* Evidencias fotográficas (Estado Inicial) */}
                   {receptionPhotos.length > 0 && (
-                    <View style={{ marginTop: 4, marginBottom: 4 }} wrap={false}>
+                    <View style={{ marginTop: 4, marginBottom: 4 }}>
                       <Text style={styles.textLabel}>Fotos de Evidencia de Recepción:</Text>
                       <View style={styles.imagesGrid}>
                         {receptionPhotos.slice(0, 6).map((imgUrl: string, idx: number) => (
@@ -560,11 +560,11 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
 
                   {/* Evidencias fotográficas */}
                   {fieldPhotos.length > 0 && (
-                    <View style={{ marginTop: 4 }} wrap={false}>
+                    <View style={{ marginTop: 4 }}>
                       <Text style={styles.textLabel}>Fotos de Evidencia en Campo:</Text>
                       <View style={styles.imagesGrid}>
                         {fieldPhotos.map((img: any) => (
-                          <View key={img.id} style={styles.imageContainer}>
+                          <View key={img.id} style={styles.imageContainer} wrap={false}>
                             <Image style={styles.evidencePhotoLarge} src={img.url} />
                             {img.descripcion ? (
                               <Text style={styles.photoDescription}>{img.descripcion}</Text>
@@ -577,7 +577,7 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
 
                   {/* Tiempo Laborado */}
                   {orden.tiempos && orden.tiempos.length > 0 && (
-                    <View style={styles.tiemposContainer} wrap={false}>
+                    <View style={styles.tiemposContainer}>
                       <Text style={styles.textLabel}>Tiempo Laborado:</Text>
                       {orden.tiempos.map((tmp: any) => {
                         const duracionHrs = Math.floor((tmp.duracion || 0) / 60);

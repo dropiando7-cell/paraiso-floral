@@ -197,6 +197,61 @@ export async function createOrdenTrabajo(data: {
             ? 'REGISTRO' 
             : (requiereAprobacion ? 'RECIBIDO' : 'REPARACION');
 
+        let finalActivoId = data.activoId || null;
+
+        if (!finalActivoId) {
+            // Auto-crear ActivoFijo (Ficha Técnica y QR único) si el equipo es nuevo o de cliente externo
+            const org = await prisma.organization.findUnique({
+                where: { id: orgId },
+                select: { qrPrefix: true }
+            });
+            const prefijoBase = org?.qrPrefix || 'BEA';
+
+            const todosActivos = await prisma.activoFijo.findMany({
+                where: { 
+                    organizationId: orgId,
+                    idQr: { startsWith: `${prefijoBase}-` }
+                },
+                select: { idQr: true }
+            });
+
+            let maxCorrelativo = 0;
+            for (const act of todosActivos) {
+                const parts = act.idQr.split('-');
+                if (parts.length >= 2) {
+                    const lastPart = parts[parts.length - 1];
+                    if (!isNaN(Number(lastPart))) {
+                        const num = Number(lastPart);
+                        if (num > maxCorrelativo) maxCorrelativo = num;
+                    }
+                }
+            }
+
+            const startNum = maxCorrelativo + 1;
+            const idQr = `${prefijoBase}-EQ-${String(startNum).padStart(6, '0')}`;
+            const equipoNombre = data.nombreEquipo?.trim() || (data.equipo.toLowerCase() === 'medico' ? 'Equipo Médico' : data.equipo.toLowerCase() === 'aire' ? 'Aire Acondicionado' : 'Otro');
+
+            const nuevoActivo = await prisma.activoFijo.create({
+                data: {
+                    organizationId: orgId,
+                    idQr,
+                    descripcionCorta: equipoNombre,
+                    marca: data.marca?.trim() || null,
+                    modelo: data.modelo?.trim() || null,
+                    serie: data.serie?.trim() || null,
+                    area: 'TALLER',
+                    cuentaAct: 'EQUIPOS_CLIENTES',
+                    cobertura: data.cobertura || 'externa',
+                    esEquipoCliente: true,
+                    clienteId: clienteRecord.id,
+                    garantia: data.garantiaMeses ? `${data.garantiaMeses} meses` : null,
+                    frecuenciaMantenimientoMeses: data.frecuenciaMantenimientoMeses ? parseInt(data.frecuenciaMantenimientoMeses.toString()) : 3
+                }
+            });
+
+            finalActivoId = nuevoActivo.id;
+        }
+
         const orden = await prisma.ordenTrabajo.create({
             data: {
                 organizationId: orgId,
@@ -225,7 +280,7 @@ export async function createOrdenTrabajo(data: {
                 garantiaMeses: data.garantiaMeses ? parseInt(data.garantiaMeses.toString()) : null,
                 frecuenciaMantenimientoMeses: data.frecuenciaMantenimientoMeses ? parseInt(data.frecuenciaMantenimientoMeses.toString()) : 3,
                 cantidadMantenimientos: data.cantidadMantenimientos ? parseInt(data.cantidadMantenimientos.toString()) : null,
-                activoId: data.activoId || null,
+                activoId: finalActivoId,
                 tipoOrden: data.tipoOrden || 'TALLER',
                 requiereAprobacion: requiereAprobacion,
             },
@@ -681,6 +736,111 @@ export async function searchRepuestos(query: string) {
         precioVenta: p.costoAdq ? Number(p.costoAdq) : 0,
         stockActual: p.stock || 0
     })));
+}
+
+export async function buscarEquiposInventarioGeneral(query: string) {
+    if (!query || query.trim().length === 0) return [];
+    const orgId = await getOrgId();
+
+    const cleanQuery = query.trim();
+
+    return prisma.activoFijo.findMany({
+        where: {
+            organizationId: orgId,
+            OR: [
+                { idQr: { contains: cleanQuery, mode: 'insensitive' } },
+                { serie: { contains: cleanQuery, mode: 'insensitive' } },
+                { descripcionCorta: { contains: cleanQuery, mode: 'insensitive' } },
+                { modelo: { contains: cleanQuery, mode: 'insensitive' } },
+                { marca: { contains: cleanQuery, mode: 'insensitive' } },
+                { codigoBarras: { contains: cleanQuery, mode: 'insensitive' } },
+                { cliente: { nombre: { contains: cleanQuery, mode: 'insensitive' } } }
+            ]
+        },
+        take: 15,
+        select: {
+            id: true,
+            idQr: true,
+            descripcionCorta: true,
+            descripcionDetallada: true,
+            marca: true,
+            modelo: true,
+            serie: true,
+            area: true,
+            cuentaAct: true,
+            estatusContable: true,
+            origenActivo: true,
+            condicionActivo: true,
+            imagenUrl: true,
+            imagenWeb: true,
+            cobertura: true,
+            esEquipoCliente: true,
+            garantia: true,
+            mantenimientosIncluidos: true,
+            frecuenciaMantenimientoMeses: true,
+            clienteId: true,
+            cliente: {
+                select: {
+                    id: true,
+                    nombre: true,
+                    telefono: true
+                }
+            },
+            createdBy: {
+                select: {
+                    nombre: true,
+                    apellido: true,
+                    email: true
+                }
+            }
+        },
+        orderBy: { updatedAt: 'desc' }
+    });
+}
+
+export async function getActivoByIdForReception(activoId: string) {
+    if (!activoId) return null;
+    const orgId = await getOrgId();
+
+    return prisma.activoFijo.findFirst({
+        where: { id: activoId, organizationId: orgId },
+        select: {
+            id: true,
+            idQr: true,
+            descripcionCorta: true,
+            descripcionDetallada: true,
+            marca: true,
+            modelo: true,
+            serie: true,
+            area: true,
+            cuentaAct: true,
+            estatusContable: true,
+            origenActivo: true,
+            condicionActivo: true,
+            imagenUrl: true,
+            imagenWeb: true,
+            cobertura: true,
+            esEquipoCliente: true,
+            garantia: true,
+            mantenimientosIncluidos: true,
+            frecuenciaMantenimientoMeses: true,
+            clienteId: true,
+            cliente: {
+                select: {
+                    id: true,
+                    nombre: true,
+                    telefono: true
+                }
+            },
+            createdBy: {
+                select: {
+                    nombre: true,
+                    apellido: true,
+                    email: true
+                }
+            }
+        }
+    });
 }
 
 export async function guardarDiagnostico(
