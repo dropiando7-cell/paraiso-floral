@@ -39,8 +39,34 @@ async function sanitizeImageUrlForPdf(imageUrl: string | null | undefined): Prom
   }
 }
 
+// Helper to process multiple images in parallel batches with strict timeout protection
+async function sanitizeImagesInParallel(urls: (string | null | undefined)[]): Promise<Map<string, string>> {
+  const urlMap = new Map<string, string>();
+  const validUrls = Array.from(new Set(urls.filter((u): u is string => typeof u === 'string' && u.length > 0)));
+
+  const chunkSize = 8;
+  for (let i = 0; i < validUrls.length; i += chunkSize) {
+    const chunk = validUrls.slice(i, i + chunkSize);
+    await Promise.all(
+      chunk.map(async (url) => {
+        try {
+          const sanitized = await Promise.race([
+            sanitizeImageUrlForPdf(url),
+            new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Timeout')), 3000))
+          ]);
+          if (sanitized) urlMap.set(url, sanitized);
+        } catch {
+          urlMap.set(url, url);
+        }
+      })
+    );
+  }
+  return urlMap;
+}
+
 // We need to set max duration since Vercel's default 10s might be too short 
 export const maxDuration = 60;
+export const dynamic = 'force-dynamic';
 
 // Helper to format currency
 const fmt = (val: number) => {
@@ -436,34 +462,50 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
       const hideSignatures = url.searchParams.get('mostrarFirmas') === 'false';
 
-      // Sanitize all image URLs in `activo` object to ensure react-pdf doesn't fail on complex EXIF metadata (e.g. iPhone photos)
+      // Sanitize all image URLs in `activo` object in parallel batches to prevent Vercel 504 timeouts
       if (activo) {
-        if (activo.imagenUrl) {
-          activo.imagenUrl = await sanitizeImageUrlForPdf(activo.imagenUrl);
-        }
-        if (activo.imagenWeb) {
-          activo.imagenWeb = await sanitizeImageUrlForPdf(activo.imagenWeb);
-        }
+        const allImageUrls: (string | null | undefined)[] = [];
+        if (activo.imagenUrl) allImageUrls.push(activo.imagenUrl);
+        if (activo.imagenWeb) allImageUrls.push(activo.imagenWeb);
+
         if (activo.ordenesTrabajo && Array.isArray(activo.ordenesTrabajo)) {
           for (const orden of activo.ordenesTrabajo) {
-            if (orden.firmaClienteUrl) {
-              orden.firmaClienteUrl = await sanitizeImageUrlForPdf(orden.firmaClienteUrl);
-            }
-            if (orden.firmaTecnicoUrl) {
-              orden.firmaTecnicoUrl = await sanitizeImageUrlForPdf(orden.firmaTecnicoUrl);
-            }
-            if (orden.fotosEstadoInicial && Array.isArray(orden.fotosEstadoInicial)) {
-              orden.fotosEstadoInicial = await Promise.all(
-                orden.fotosEstadoInicial.map((u: string) => sanitizeImageUrlForPdf(u))
-              );
-            }
-            if (orden.kanbanTasks && Array.isArray(orden.kanbanTasks)) {
+            if (orden.firmaClienteUrl) allImageUrls.push(orden.firmaClienteUrl);
+            if (orden.firmaTecnicoUrl) allImageUrls.push(orden.firmaTecnicoUrl);
+            if (Array.isArray(orden.fotosEstadoInicial)) allImageUrls.push(...orden.fotosEstadoInicial);
+            if (Array.isArray(orden.fotosTecnico)) allImageUrls.push(...orden.fotosTecnico);
+            if (Array.isArray(orden.kanbanTasks)) {
               for (const task of orden.kanbanTasks) {
-                if (task.attachments && Array.isArray(task.attachments)) {
+                if (Array.isArray(task.attachments)) {
                   for (const att of task.attachments) {
-                    if (att.url) {
-                      att.url = await sanitizeImageUrlForPdf(att.url);
-                    }
+                    if (att.url) allImageUrls.push(att.url);
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        const sanitizedMap = await sanitizeImagesInParallel(allImageUrls);
+
+        if (activo.imagenUrl) activo.imagenUrl = sanitizedMap.get(activo.imagenUrl) || activo.imagenUrl;
+        if (activo.imagenWeb) activo.imagenWeb = sanitizedMap.get(activo.imagenWeb) || activo.imagenWeb;
+
+        if (activo.ordenesTrabajo && Array.isArray(activo.ordenesTrabajo)) {
+          for (const orden of activo.ordenesTrabajo) {
+            if (orden.firmaClienteUrl) orden.firmaClienteUrl = sanitizedMap.get(orden.firmaClienteUrl) || orden.firmaClienteUrl;
+            if (orden.firmaTecnicoUrl) orden.firmaTecnicoUrl = sanitizedMap.get(orden.firmaTecnicoUrl) || orden.firmaTecnicoUrl;
+            if (Array.isArray(orden.fotosEstadoInicial)) {
+              orden.fotosEstadoInicial = orden.fotosEstadoInicial.map((u: string) => sanitizedMap.get(u) || u);
+            }
+            if (Array.isArray(orden.fotosTecnico)) {
+              orden.fotosTecnico = orden.fotosTecnico.map((u: string) => sanitizedMap.get(u) || u);
+            }
+            if (Array.isArray(orden.kanbanTasks)) {
+              for (const task of orden.kanbanTasks) {
+                if (Array.isArray(task.attachments)) {
+                  for (const att of task.attachments) {
+                    if (att.url) att.url = sanitizedMap.get(att.url) || att.url;
                   }
                 }
               }

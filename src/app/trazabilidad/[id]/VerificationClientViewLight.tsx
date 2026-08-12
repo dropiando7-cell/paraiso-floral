@@ -391,7 +391,7 @@ export default function VerificationClientViewLight({ data }: VerificationClient
                   </div>
                 )}
 
-                {/* 2. EVIDENCIAS FOTOGRAFICAS DE ESTA ORDEN (CON ZOOM LIGHTBOX) */}
+                {/* 2. EVIDENCIAS FOTOGRAFICAS DE ESTA ORDEN (CON ZOOM LIGHTBOX Y COMENTARIOS DEBAJO) */}
                 {images.length > 0 && (
                   <div className="space-y-2">
                     <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
@@ -400,22 +400,24 @@ export default function VerificationClientViewLight({ data }: VerificationClient
                     </h4>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {images.map((img, imgIdx) => (
-                        <div 
-                          key={imgIdx}
-                          onClick={() => setSelectedImage(img.url)}
-                          className="group relative aspect-square bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer hover:border-blue-600 transition-all shadow-2xs"
-                        >
-                          <img 
-                            src={img.url} 
-                            alt={img.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                            <div className="w-full flex items-center justify-between text-white text-[10px]">
-                              <span className="truncate max-w-[80%] font-semibold">{img.title}</span>
-                              <ZoomIn className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                        <div key={imgIdx} className="flex flex-col space-y-1.5">
+                          <div 
+                            onClick={() => setSelectedImage(img.url)}
+                            className="group relative aspect-square bg-slate-100 rounded-xl overflow-hidden border border-slate-200 cursor-pointer hover:border-blue-600 transition-all shadow-2xs"
+                          >
+                            <img 
+                              src={img.url} 
+                              alt={img.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" 
+                            />
+                            <div className="absolute inset-0 bg-slate-950/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <ZoomIn className="w-6 h-6 text-white drop-shadow-md" />
                             </div>
                           </div>
+                          {/* Comentario / Titulo visible debajo de la imagen */}
+                          <p className="text-[11px] font-semibold text-slate-600 leading-snug px-1 break-words">
+                            {img.title}
+                          </p>
                         </div>
                       ))}
                     </div>
