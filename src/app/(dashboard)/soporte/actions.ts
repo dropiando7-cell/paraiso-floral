@@ -843,6 +843,148 @@ export async function getActivoByIdForReception(activoId: string) {
     });
 }
 
+export async function registrarNuevoEquipoRapido(data: {
+    descripcionCorta: string;
+    descripcionDetallada?: string;
+    marca?: string;
+    modelo?: string;
+    serie?: string;
+    area?: string;
+    clienteNombre?: string;
+    clienteId?: string;
+    cobertura?: string;
+    condicionActivo?: string;
+    origenActivo?: string;
+    imagenUrl?: string;
+}) {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("No autenticado");
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            select: { id: true, organizationId: true }
+        });
+        if (!dbUser) throw new Error("Usuario no encontrado");
+
+        const organizationId = dbUser.organizationId;
+        const createdById = dbUser.id;
+
+        // Auto-generar ID QR (ej. BEA-001-000XXX)
+        const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { qrPrefix: true } });
+        const prefijoBase = org?.qrPrefix || 'BEA';
+
+        const todos = await prisma.activoFijo.findMany({
+            where: {
+                organizationId,
+                idQr: { startsWith: `${prefijoBase}-` }
+            },
+            select: { idQr: true }
+        });
+
+        let maxCorrelativo = 0;
+        for (const act of todos) {
+            const parts = act.idQr.split('-');
+            if (parts.length >= 2) {
+                const lastPart = parts[parts.length - 1];
+                if (!isNaN(Number(lastPart))) {
+                    const num = Number(lastPart);
+                    if (num > maxCorrelativo) maxCorrelativo = num;
+                }
+            }
+        }
+        const numPart = String(maxCorrelativo + 1).padStart(6, '0');
+        const generatedIdQr = `${prefijoBase}-001-${numPart}`;
+
+        // Resolviendo cliente
+        let finalClienteId = data.clienteId || null;
+        if (!finalClienteId && data.clienteNombre && data.clienteNombre.trim()) {
+            const clienteExistente = await prisma.cliente.findFirst({
+                where: {
+                    organizationId,
+                    nombre: { equals: data.clienteNombre.trim(), mode: 'insensitive' }
+                }
+            });
+            if (clienteExistente) {
+                finalClienteId = clienteExistente.id;
+            } else {
+                const nuevoCli = await prisma.cliente.create({
+                    data: {
+                        organizationId,
+                        nombre: data.clienteNombre.trim()
+                    }
+                });
+                finalClienteId = nuevoCli.id;
+            }
+        }
+
+        const esExterna = data.cobertura === 'externa';
+
+        const nuevoActivo = await prisma.activoFijo.create({
+            data: {
+                organizationId,
+                createdById,
+                idQr: generatedIdQr,
+                descripcionCorta: data.descripcionCorta.trim(),
+                descripcionDetallada: data.descripcionDetallada?.trim() || `Registro de ${data.descripcionCorta.trim()}`,
+                marca: data.marca?.trim() || null,
+                modelo: data.modelo?.trim() || null,
+                serie: data.serie?.trim() || null,
+                area: data.area?.trim() || 'Taller / Soporte',
+                cuentaAct: 'INVENTARIO',
+                estatusContable: 'VIGENTE',
+                origenActivo: data.origenActivo || 'Americano',
+                condicionActivo: data.condicionActivo || 'Usado',
+                cobertura: data.cobertura || 'externa',
+                esEquipoCliente: esExterna,
+                imagenUrl: data.imagenUrl || null,
+                clienteId: finalClienteId
+            },
+            select: {
+                id: true,
+                idQr: true,
+                descripcionCorta: true,
+                descripcionDetallada: true,
+                marca: true,
+                modelo: true,
+                serie: true,
+                area: true,
+                cuentaAct: true,
+                estatusContable: true,
+                origenActivo: true,
+                condicionActivo: true,
+                imagenUrl: true,
+                imagenWeb: true,
+                cobertura: true,
+                esEquipoCliente: true,
+                clienteId: true,
+                cliente: {
+                    select: {
+                        id: true,
+                        nombre: true,
+                        telefono: true
+                    }
+                },
+                createdBy: {
+                    select: {
+                        nombre: true,
+                        apellido: true,
+                        email: true
+                    }
+                }
+            }
+        });
+
+        revalidatePath('/soporte');
+        revalidatePath('/inventario');
+        return { success: true, activo: nuevoActivo };
+    } catch (e: any) {
+        console.error("Error registrando nuevo equipo rápido:", e);
+        return { success: false, error: e.message || "Error al registrar el equipo" };
+    }
+}
+
 export async function guardarDiagnostico(
     ordenId: string, 
     diagnostico: string, 

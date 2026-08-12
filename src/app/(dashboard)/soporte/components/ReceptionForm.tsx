@@ -5,7 +5,7 @@ import { UploadCloud, Check, X, Wrench, Snowflake, Tags, Camera, Search, QrCode,
 import toast from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
-import { getUltimaConfiguracionGarantia, buscarEquiposInventarioGeneral, getActivoByIdForReception } from '../actions';
+import { getUltimaConfiguracionGarantia, buscarEquiposInventarioGeneral, getActivoByIdForReception, registrarNuevoEquipoRapido } from '../actions';
 import { createContacto } from '@/app/(dashboard)/contactos/actions';
 
 type PrefilledData = {
@@ -147,6 +147,71 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
   const [selectedActivo, setSelectedActivo] = useState<any | null>(null);
   const equipoDropdownRef = useRef<HTMLDivElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Estado para la creación rápida de equipos en Inventario ERP
+  const [showCreateEquipoModal, setShowCreateEquipoModal] = useState(false);
+  const [isCreatingEquipo, setIsCreatingEquipo] = useState(false);
+  const [newEquipoForm, setNewEquipoForm] = useState({
+    descripcionCorta: '',
+    descripcionDetallada: '',
+    marca: '',
+    modelo: '',
+    serie: '',
+    area: 'Taller / Soporte',
+    cobertura: 'externa',
+    condicionActivo: 'Usado',
+    origenActivo: 'Americano'
+  });
+
+  const handleOpenCreateEquipoModal = (initialName: string = '') => {
+    setNewEquipoForm({
+      descripcionCorta: initialName.trim(),
+      descripcionDetallada: '',
+      marca: form.marca || '',
+      modelo: form.modelo || '',
+      serie: form.serie || '',
+      area: 'Taller / Soporte',
+      cobertura: form.cobertura || 'externa',
+      condicionActivo: 'Usado',
+      origenActivo: 'Americano'
+    });
+    setShowCreateEquipoModal(true);
+  };
+
+  const handleSaveNewEquipo = async () => {
+    if (!newEquipoForm.descripcionCorta || newEquipoForm.descripcionCorta.trim().length === 0) {
+      toast.error('El nombre del equipo es obligatorio');
+      return;
+    }
+    setIsCreatingEquipo(true);
+    try {
+      const res = await registrarNuevoEquipoRapido({
+        descripcionCorta: newEquipoForm.descripcionCorta,
+        descripcionDetallada: newEquipoForm.descripcionDetallada,
+        marca: newEquipoForm.marca,
+        modelo: newEquipoForm.modelo,
+        serie: newEquipoForm.serie,
+        area: newEquipoForm.area,
+        clienteNombre: form.cliente,
+        cobertura: newEquipoForm.cobertura,
+        condicionActivo: newEquipoForm.condicionActivo,
+        origenActivo: newEquipoForm.origenActivo
+      });
+
+      if (res.success && res.activo) {
+        handleSelectEquipo(res.activo);
+        toast.success(`Equipo registrado exitosamente con QR ${res.activo.idQr}`);
+        setShowCreateEquipoModal(false);
+      } else {
+        toast.error(res.error || 'Error al registrar el equipo');
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Error al registrar equipo');
+    } finally {
+      setIsCreatingEquipo(false);
+    }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -771,10 +836,30 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
 
             {showEquipoDropdown && (
               <div className="absolute z-30 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto py-1">
+                {/* Botón destacado superior para registrar nuevo equipo */}
+                <div
+                  className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 cursor-pointer text-xs font-bold text-indigo-700 flex items-center justify-between border-b border-indigo-100 transition-colors"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setShowEquipoDropdown(false);
+                    handleOpenCreateEquipoModal(searchEquipoQuery);
+                  }}
+                >
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Wrench className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span>Registrar Nuevo Equipo</span>
+                  </span>
+                  <span className="text-[10px] bg-indigo-600 text-white font-extrabold px-2 py-0.5 rounded-md shrink-0">
+                    + NUEVO
+                  </span>
+                </div>
+
                 {isSearchingEquipos ? (
                   <div className="p-4 text-center text-xs text-slate-400 font-medium">Buscando equipos en el ERP...</div>
                 ) : searchEquipoResults.length === 0 ? (
-                  <div className="p-4 text-center text-xs text-slate-400 font-medium">No se encontraron equipos coincidentes.</div>
+                  <div className="p-4 text-center text-xs text-slate-400 font-medium">
+                    No se encontraron equipos coincidentes. Usa la opción de arriba para registrarlo.
+                  </div>
                 ) : (
                   searchEquipoResults.map((eq: any) => (
                     <div
@@ -1250,6 +1335,149 @@ export default function ReceptionForm({ onSave, onBack, clientes = [], users = [
                     <span>Guardar y Seleccionar</span>
                   </>
                 )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Registrar Nuevo Equipo de forma rápida */}
+      {showCreateEquipoModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
+            <div className="px-6 py-4 bg-gradient-to-r from-indigo-600 to-blue-600 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                  <Wrench className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold m-0">Registrar Nuevo Equipo</h3>
+                  <p className="text-[11px] text-indigo-100 m-0">Se agregará al Inventario General y se asignará Ficha + QR</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateEquipoModal(false)}
+                className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Nombre / Tipo de Equipo *</label>
+                <input
+                  type="text"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-indigo-100 focus:border-indigo-600 outline-none transition-colors font-semibold"
+                  placeholder="Ej. Ultrasonido, Autoclave, Monitor Paramétrico"
+                  value={newEquipoForm.descripcionCorta}
+                  onChange={e => setNewEquipoForm(p => ({ ...p, descripcionCorta: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Marca</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none"
+                    placeholder="Ej. Mindray, GE"
+                    value={newEquipoForm.marca}
+                    onChange={e => setNewEquipoForm(p => ({ ...p, marca: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Modelo</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none"
+                    placeholder="Ej. DP-10, Logiq"
+                    value={newEquipoForm.modelo}
+                    onChange={e => setNewEquipoForm(p => ({ ...p, modelo: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">No. de Serie</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none font-mono"
+                    placeholder="Ej. SN982140"
+                    value={newEquipoForm.serie}
+                    onChange={e => setNewEquipoForm(p => ({ ...p, serie: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Área / Departamento</label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none"
+                    placeholder="Ej. Taller / Soporte"
+                    value={newEquipoForm.area}
+                    onChange={e => setNewEquipoForm(p => ({ ...p, area: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Origen del Activo</label>
+                  <select
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none font-medium"
+                    value={newEquipoForm.origenActivo}
+                    onChange={e => setNewEquipoForm(p => ({ ...p, origenActivo: e.target.value }))}
+                  >
+                    <option value="Americano">Americano</option>
+                    <option value="Chino">Chino</option>
+                    <option value="Aleman">Alemán</option>
+                    <option value="Japones">Japonés</option>
+                    <option value="Local">Local</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Condición</label>
+                  <select
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none font-medium"
+                    value={newEquipoForm.condicionActivo}
+                    onChange={e => setNewEquipoForm(p => ({ ...p, condicionActivo: e.target.value }))}
+                  >
+                    <option value="Usado">Usado</option>
+                    <option value="Nuevo">Nuevo</option>
+                    <option value="Reacondicionado">Reacondicionado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Descripción Corta / Notas</label>
+                <textarea
+                  rows={2}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-100 outline-none font-medium"
+                  placeholder="Detalles adicionales del equipo..."
+                  value={newEquipoForm.descripcionDetallada}
+                  onChange={e => setNewEquipoForm(p => ({ ...p, descripcionDetallada: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCreateEquipoModal(false)}
+                className="px-4 py-2.5 text-xs font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors shadow-2xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveNewEquipo}
+                disabled={isCreatingEquipo}
+                className="px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md shadow-indigo-200 disabled:opacity-50 flex items-center gap-2 cursor-pointer"
+              >
+                {isCreatingEquipo ? 'Registrando...' : 'Registrar y Vincular'}
               </button>
             </div>
           </div>
