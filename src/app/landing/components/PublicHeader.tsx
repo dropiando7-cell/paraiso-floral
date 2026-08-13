@@ -252,7 +252,7 @@ export default function PublicHeader({
                     <div className="h-16 flex items-center justify-center overflow-hidden">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
-                            src={logoUrl || '/logo-bioelectronica.jpg'} 
+                            src={logoUrl || '/logo-paraiso-floral.png'} 
                             alt={companyName} 
                             className="h-14 max-w-[320px] object-contain" 
                         />
@@ -266,19 +266,17 @@ export default function PublicHeader({
                             {/* Dropdown Productos */}
                             <div 
                                 ref={triggerRef}
-                                className="relative cursor-pointer flex items-center gap-1 py-2 hover:text-[#00509d] transition-colors"
+                                className="relative cursor-pointer flex items-center gap-1 py-2 hover:text-[#1b4332] transition-colors"
                                 onMouseEnter={() => setIsMegaMenuOpen(true)}
                                 onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)}
                             >
-                                <span className={isMegaMenuOpen ? 'text-[#00509d] border-b-2 border-[#00509d] pb-0.5' : ''}>Productos</span>
+                                <span className={isMegaMenuOpen ? 'text-[#1b4332] border-b-2 border-[#1b4332] pb-0.5' : ''}>Catálogo Floral</span>
                                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isMegaMenuOpen ? 'rotate-180' : ''}`} />
                             </div>
 
-                            <Link href="/servicios" className="hover:text-[#00509d] transition-colors">Servicios</Link>
-                            <Link href="/repuestos" className="hover:text-[#00509d] transition-colors">Repuestos</Link>
-                            <Link href="/blog" className="hover:text-[#00509d] transition-colors">Blog</Link>
-                            <Link href="/contacto" className="hover:text-[#00509d] transition-colors">Contacto</Link>
-                            <Link href="/nosotros" className="hover:text-[#00509d] transition-colors">Nosotros</Link>
+                            <Link href="/servicios" className="hover:text-[#1b4332] transition-colors">Servicios</Link>
+                            <Link href="/repuestos" className="hover:text-[#1b4332] transition-colors">Accesorios</Link>
+                            <Link href="/contacto" className="hover:text-[#1b4332] transition-colors">Contacto</Link>
                         </nav>
 
                         {/* Right Area: Soma Search Bar ONLY */}
@@ -287,8 +285,8 @@ export default function PublicHeader({
                                 <input 
                                     type="text"
                                     name="q"
-                                    placeholder="¿Qué busca?"
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 pl-9 pr-3 text-slate-800 focus:outline-none focus:border-[#00509d] focus:bg-white transition-all placeholder-slate-400 font-semibold"
+                                    placeholder="¿Qué flores busca?"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg text-xs py-2 pl-9 pr-3 text-slate-800 focus:outline-none focus:border-[#1b4332] focus:bg-white transition-all placeholder-slate-400 font-semibold"
                                 />
                                 <Search className="absolute left-3 top-2.5 text-slate-450" size={13} />
                             </form>
@@ -298,21 +296,21 @@ export default function PublicHeader({
                     <>
                         {/* DRE Navigation Links */}
                         <nav className="hidden lg:flex items-center gap-8 text-[12px] font-black uppercase tracking-wider text-slate-700">
-                            <Link href="/" className="hover:text-[#00A8CC] transition-colors">INICIO</Link>
+                            <Link href="/" className="hover:text-[#1b4332] transition-colors">INICIO</Link>
                             
                             {/* Equipos Trigger for Mega Menu */}
                             <div 
                                 ref={triggerRef}
-                                className="relative cursor-pointer flex items-center gap-1 py-2 hover:text-[#00A8CC] transition-colors"
+                                className="relative cursor-pointer flex items-center gap-1 py-2 hover:text-[#1b4332] transition-colors"
                                 onMouseEnter={() => setIsMegaMenuOpen(true)}
                                 onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)}
                             >
-                                <span>EQUIPOS</span>
+                                <span>CATÁLOGO FLORAL</span>
                                 <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isMegaMenuOpen ? 'rotate-180' : ''}`} />
                             </div>
 
-                            <Link href="/servicios" className="hover:text-[#00A8CC] transition-colors">SERVICIOS</Link>
-                            <Link href="/contacto" className="hover:text-[#00A8CC] transition-colors">CONTACTO</Link>
+                            <Link href="/servicios" className="hover:text-[#1b4332] transition-colors">EVENTOS Y SERVICIOS</Link>
+                            <Link href="/contacto" className="hover:text-[#1b4332] transition-colors">CONTACTO</Link>
                         </nav>
 
                         {/* Right Area: Search, WhatsApp Support, Quote Button */}
@@ -324,11 +322,11 @@ export default function PublicHeader({
                                 rel="noopener noreferrer" 
                                 className="flex items-center gap-2.5 text-left hover:opacity-90 transition-opacity"
                             >
-                                <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/10 shrink-0">
+                                <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white shadow-md shadow-emerald-600/10 shrink-0">
                                     <Phone size={14} className="fill-white" />
                                 </div>
                                 <div className="flex flex-col text-[10px] leading-tight">
-                                    <span className="text-slate-450 font-bold uppercase tracking-wider">Soporte</span>
+                                    <span className="text-slate-450 font-bold uppercase tracking-wider">Atención WhatsApp</span>
                                     <span className="font-mono font-bold text-slate-800 text-xs">
                                         {primaryPhone.startsWith('+') ? primaryPhone : `+${primaryPhone}`}
                                     </span>
@@ -340,8 +338,8 @@ export default function PublicHeader({
                                 <input 
                                     type="text"
                                     name="q"
-                                    placeholder="BUSCAR EQUIPO..."
-                                    className="w-36 bg-slate-100 border border-slate-200 rounded-full text-xs py-1.5 pl-8 pr-3 text-slate-800 focus:outline-none focus:border-[#00A8CC] focus:w-48 transition-all placeholder-slate-400 font-semibold"
+                                    placeholder="BUSCAR FLORES..."
+                                    className="w-36 bg-slate-100 border border-slate-200 rounded-full text-xs py-1.5 pl-8 pr-3 text-slate-800 focus:outline-none focus:border-[#1b4332] focus:w-48 transition-all placeholder-slate-400 font-semibold"
                                 />
                                 <Search className="absolute left-2.5 top-2 text-slate-400" size={13} />
                             </form>
@@ -349,9 +347,9 @@ export default function PublicHeader({
                             {/* Request Quote Button */}
                             <Link 
                                 href="/contacto"
-                                className="bg-[#00A8CC] hover:bg-[#008ba8] text-white text-[11px] font-black uppercase tracking-wider px-5 py-2.5 rounded-full transition-all shadow-md shadow-cyan-500/10 active:scale-[0.98]"
+                                className="bg-[#1b4332] hover:bg-[#2d6a4f] text-white text-[11px] font-black uppercase tracking-wider px-5 py-2.5 rounded-full transition-all shadow-md shadow-emerald-900/10 active:scale-[0.98]"
                             >
-                                Solicitar Cotización
+                                Cotizar Pedido
                             </Link>
                         </div>
                     </>

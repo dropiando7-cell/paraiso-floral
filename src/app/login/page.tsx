@@ -22,21 +22,26 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="flex bg-[#050B14] min-h-screen items-center justify-center p-4 relative overflow-hidden">
+        <div className="flex bg-[#081c15] min-h-screen items-center justify-center p-4 relative overflow-hidden">
             {/* Decorative background elements */}
-            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-600 rounded-full opacity-10 blur-[100px]"></div>
-            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-blue-500 rounded-full opacity-10 blur-[100px]"></div>
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-600 rounded-full opacity-10 blur-[100px]"></div>
+            <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-pink-500 rounded-full opacity-10 blur-[100px]"></div>
 
             <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl p-8 sm:p-12 relative z-10">
                 <div className="flex flex-col items-center justify-center text-center mb-8">
-                    <div className="w-14 h-14 rounded-2xl bg-brand-600 flex items-center justify-center font-bold text-white shadow-lg text-2xl mb-4">
-                        BE
+                    <div className="h-20 flex items-center justify-center overflow-hidden mb-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img 
+                            src="/logo-paraiso-floral.png" 
+                            alt="Distribuidora Paraíso Floral" 
+                            className="h-16 object-contain" 
+                        />
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight text-gray-900 mb-2">
-                        BioelectrónicaHN
+                    <h1 className="text-xl font-bold tracking-tight text-gray-900 mb-1.5">
+                        Distribuidora Paraíso Floral
                     </h1>
-                    <p className="text-sm text-gray-500 max-w-sm mx-auto">
-                        Centro de control para gestionar equipos, servicios y operaciones de bioelectrónica desde un solo lugar.
+                    <p className="text-xs text-gray-500 max-w-sm mx-auto leading-relaxed">
+                        Sistema integral para gestión de inventarios, facturación, ventas y catálogo de flores.
                     </p>
                 </div>
 
@@ -51,8 +56,8 @@ export default function LoginPage() {
                                 name="email"
                                 type="email"
                                 required
-                                placeholder="usuario@bioelectronicahn.com"
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors"
+                                placeholder="master@superapp.com"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-colors text-sm"
                             />
                         </div>
 
@@ -66,7 +71,7 @@ export default function LoginPage() {
                                 type="password"
                                 required
                                 placeholder="••••••••"
-                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-colors"
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-colors text-sm"
                             />
                         </div>
 
@@ -79,7 +84,7 @@ export default function LoginPage() {
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-brand-600 text-white py-3 px-4 rounded-xl font-medium hover:bg-brand-700 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 mt-2 disabled:opacity-70 flex justify-center items-center shadow-md shadow-brand-500/20"
+                            className="w-full bg-[#1b4332] hover:bg-[#2d6a4f] text-white py-3 px-4 rounded-xl font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 mt-2 disabled:opacity-70 flex justify-center items-center shadow-md shadow-emerald-900/20"
                         >
                             {loading ? (
                                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -91,7 +96,7 @@ export default function LoginPage() {
                 </div>
                 
                 <div className="mt-8 text-center text-xs text-gray-400">
-                    &copy; {new Date().getFullYear()} Bioelectrónica Honduras. Todos los derechos reservados.
+                    &copy; {new Date().getFullYear()} Distribuidora Paraíso Floral. Todos los derechos reservados.
                 </div>
             </div>
         </div>

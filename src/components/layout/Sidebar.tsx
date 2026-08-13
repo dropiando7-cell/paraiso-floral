@@ -57,7 +57,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
   {
     category: 'CORE',
     items: [
-      { name: 'Portal Bioelectrónica', href: '/', icon: LayoutDashboard },
+      { name: 'Portal Paraíso Floral', href: '/', icon: LayoutDashboard },
       { name: 'Órdenes de Trabajo', href: '/kanban', icon: Trello },
       { name: 'Soporte Técnico', href: '/soporte', icon: Wrench, roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
       { name: 'Marketing IA', href: '#', icon: Megaphone, badge: 'PLANIFICADO', badgeColor: 'bg-amber-500/10 text-amber-700' },
@@ -174,12 +174,20 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
       {/* Brand / Org Switcher */}
       <div className="h-[72px] flex items-center px-6 border-b border-slate-200 shrink-0">
         <div className="flex items-center gap-2 w-full pl-0.5">
-          <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center font-bold text-white shadow-md shadow-brand-500/20 shrink-0">
-            BE
+          <div className="h-10 w-10 flex items-center justify-center overflow-hidden shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img 
+              src="/logo-paraiso-floral.png" 
+              alt="Paraíso Floral" 
+              className="h-9 w-9 object-contain" 
+            />
           </div>
           <div className="flex flex-col flex-1 overflow-hidden ml-0.5">
-            <span className="truncate font-semibold text-[22px] leading-8 text-slate-900 tracking-tight">
-              Bioelectrónica
+            <span className="truncate font-bold text-[17px] leading-6 text-slate-900 tracking-tight">
+              Paraíso Floral
+            </span>
+            <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">
+              ERP & Catálogo
             </span>
           </div>
           {/* Close button — mobile only */}

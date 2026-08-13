@@ -11,10 +11,10 @@ export const dynamic = 'force-dynamic';
 
 
 export async function generateMetadata(): Promise<Metadata> {
-    let title = "Bioelectrónica Honduras - Enterprise Platform";
-    let description = "Estamos diseñando nuestro nuevo sitio corporativo y catálogo médico en línea. Muy pronto podrás explorar todas nuestras soluciones y productos médicos.";
-    let keywords = "bioelectronica, equipo medico, honduras, biomedico, soporte tecnico";
-    let image = "";
+    let title = "Distribuidora Paraíso Floral - Flores Frescas y Arreglos en Honduras";
+    let description = "Distribuidora mayorista y al detalle de rosas importadas, flores frescas de corte, follajes, bases, espuma floral y accesorios para floristerías y eventos.";
+    let keywords = "paraiso floral, distribuidora de flores, flores honduras, rosas importadas, san pedro sula, arreglos florales, accesorios floristerias";
+    let image = "/logo-paraiso-floral.png";
     let googleVerification = "";
 
     try {
@@ -352,10 +352,10 @@ export default async function PublicLayout({
     const primaryPhone = org?.telefono || settings.whatsappNumbers?.[0] || '50431782368';
     // Clean phone for wa.me link
     const cleanPhone = primaryPhone.replace(/\D/g, '');
-    const contactEmail = settings.topbarEmail || settings.contactEmails?.[0] || org?.correoContacto || 'ventas@bioelectronicahn.com';
-    const physicalAddress = org?.direccion || settings.physicalAddress || '7 Calle, 9 Avenida NO, San Pedro Sula, Cortés';
-    const companyName = org?.name || 'Bioelectrónica Honduras';
-    const logoUrl = org?.logoUrl || '';
+    const contactEmail = settings.topbarEmail || settings.contactEmails?.[0] || org?.correoContacto || 'ventas@paraisofloral.hn';
+    const physicalAddress = org?.direccion || settings.physicalAddress || 'San Pedro Sula, Cortés, Honduras';
+    const companyName = org?.name || 'Distribuidora Paraíso Floral';
+    const logoUrl = org?.logoUrl || '/logo-paraiso-floral.png';
 
     const isSoma = settings.activeTheme === 'SOMA';
 
@@ -540,7 +540,7 @@ export default async function PublicLayout({
                             )}
                         </Link>
                         <p className="leading-relaxed text-slate-400">
-                            Líderes en venta, distribución y mantenimiento técnico de equipo biomédico en Honduras. Más de 20 años de experiencia respaldan nuestras soluciones.
+                            Distribuidora mayorista y al detalle de rosas importadas, flores frescas de corte, follajes, espuma floral, bases y accesorios para floristerías y eventos en Honduras.
                         </p>
                         <div className="flex items-center gap-3 pt-2">
                             <a 

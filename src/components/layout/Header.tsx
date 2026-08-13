@@ -25,7 +25,7 @@ interface SearchItem {
 }
 
 const searchItems: SearchItem[] = [
-    { name: 'Portal Bioelectrónica', category: 'General', href: '/', keywords: ['dashboard', 'portal', 'inicio', 'home', 'main'] },
+    { name: 'Portal Paraíso Floral', category: 'General', href: '/', keywords: ['dashboard', 'portal', 'inicio', 'home', 'main'] },
     { name: 'Órdenes de Trabajo', category: 'Core', href: '/kanban', keywords: ['kanban', 'tareas', 'proyectos', 'board', 'tasks', 'projects', 'desarrollo', 'actividades', 'ordenes'] },
     { name: 'Soporte Técnico', category: 'Core', href: '/soporte', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['soporte', 'mantenimiento', 'reparaciones', 'tickets', 'taller', 'repair', 'ordenes', 'tecnico'] },
     { name: 'Rentas de Equipos', category: 'Core', href: '/rentas', keywords: ['rentas', 'alquiler', 'equipos', 'rent', 'lease'] },

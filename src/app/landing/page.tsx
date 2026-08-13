@@ -65,24 +65,24 @@ const mockAssets = [
 const defaultReviews = [
     {
         id: 'rev-1',
-        author: 'Dr. Carlos Mendoza',
-        date: 'Director Médico · San Pedro Sula',
+        author: 'Lic. María Elena Fernández',
+        date: 'Floristería Elegancia · San Pedro Sula',
         rating: 5,
-        text: 'El nivel de profesionalismo de Bioelectrónica Honduras es excepcional. Remodelamos nuestro bloque quirúrgico con sus máquinas de anestesia y monitores, la relación calidad-precio y el respaldo técnico no tienen comparación.'
+        text: 'Las rosas importadas que recibimos de Distribuidora Paraíso Floral tienen una duración impresionante y aperturan perfecto para los arreglos. La atención por WhatsApp y entrega son impecables.'
     },
     {
         id: 'rev-2',
-        author: 'Dra. Ana Flores',
-        date: 'Clínica de Especialidades · Tegucigalpa',
+        author: 'Arq. Roberto Alvarado',
+        date: 'Planificador de Bodas & Eventos · Tegucigalpa',
         rating: 5,
-        text: 'Como clínica en expansión, necesitábamos un proveedor que no solo vendiera el equipo, sino que nos capacitara. Los ecógrafos que adquirimos llegaron impecables y la calibración fue precisa.'
+        text: 'Para nuestro evento corporativo de más de 30 mesas necesitábamos volumen y frescura en lirios y follajes. Nos abastecieron a tiempo y con empaques impecables. Recomendados 100%.'
     },
     {
         id: 'rev-3',
-        author: 'Ing. Luis Castillo',
-        date: 'Jefe de Mantenimiento Hospitalario',
+        author: 'Sofía Martínez',
+        date: 'Diseñadora Floral · La Ceiba',
         rating: 5,
-        text: 'El soporte técnico es su mayor fortaleza. Se nos dañó el electrobisturí un sábado por la noche y el técnico estuvo a primera hora del domingo resolviendo el problema en la tarjeta principal. Totalmente recomendados.'
+        text: 'Tienen los mejores accesorios, espuma floral y papel koreano del país. Da gusto trabajar con una distribuidora que cuida la cadena de frío y el empaque en cada despacho.'
     }
 ];
 
@@ -409,8 +409,8 @@ export default async function LandingPage() {
                     <div className="h-16 flex items-center justify-center overflow-hidden mb-2">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img 
-                            src="/logo-bioelectronica.jpg" 
-                            alt="Bioelectrónica Honduras" 
+                            src="/logo-paraiso-floral.png" 
+                            alt="Distribuidora Paraíso Floral" 
                             className="h-14 object-contain" 
                         />
                     </div>
@@ -418,10 +418,10 @@ export default async function LandingPage() {
                     {/* Main Heading */}
                     <div className="space-y-2">
                         <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-slate-900">
-                            Sitio Web en <span className="text-blue-600">Construcción</span>
+                            Sitio Web en <span className="text-emerald-700">Construcción</span>
                         </h1>
                         <p className="text-xs text-slate-550 max-w-md mx-auto leading-relaxed">
-                            Estamos diseñando una nueva experiencia digital y catálogo de equipos médicos para brindarte el mejor servicio.
+                            Estamos preparando nuestro catálogo digital de flores importadas, arreglos exclusivos y suministros florales.
                         </p>
                     </div>
 
