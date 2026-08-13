@@ -2,14 +2,14 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
     return {
-        name: 'Bioelectrónica ERP',
-        short_name: 'BEA ERP',
-        description: 'Plataforma ERP de administración para Bioelectrónica Honduras',
+        name: 'Distribuidora Paraíso Floral ERP',
+        short_name: 'Paraíso Floral',
+        description: 'Plataforma ERP de administración y catálogo para Distribuidora Paraíso Floral',
         start_url: '/inventario',
         scope: '/',
         display: 'standalone',
         background_color: '#ffffff',
-        theme_color: '#0500A3',
+        theme_color: '#1b4332',
         icons: [
             {
                 src: '/icon-192.png',
@@ -19,6 +19,11 @@ export default function manifest(): MetadataRoute.Manifest {
             {
                 src: '/icon-512.png',
                 sizes: '512x512',
+                type: 'image/png',
+            },
+            {
+                src: '/apple-icon.png',
+                sizes: '180x180',
                 type: 'image/png',
             },
         ],
