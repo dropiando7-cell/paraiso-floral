@@ -2487,71 +2487,70 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
 
                                             {/* Es Consumible Toggle */}
                                             <div className={isServiceMode ? "col-span-3 sm:col-span-1" : ""}>
-                                                <FieldLabel>Clasificación de Ingreso</FieldLabel>
+                                                <FieldLabel>Tipo de Producto</FieldLabel>
                                                 <button
                                                     type="button"
                                                     disabled={isExistingGroup}
                                                     onClick={() => setEsConsumible(!esConsumible)}
-                                                    className={`w-full h-[42px] px-3 flex items-center justify-between rounded-xl border ${esConsumible ? 'bg-green-500 border-green-600 text-white' : 'bg-slate-100 border-slate-200 text-slate-500'} font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
+                                                    className={`w-full h-[42px] px-3 flex items-center justify-between rounded-xl border ${esConsumible ? 'bg-emerald-600 border-emerald-700 text-white' : 'bg-[#1b4332] border-[#081c15] text-white'} font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed`}
                                                 >
-                                                    <span className="text-sm">{esConsumible ? 'Consumibles' : 'Equipo Biomédico'}</span>
+                                                    <span className="text-xs">{esConsumible ? '🌸 Flor / Perecedero' : '📦 Insumos / Suministros'}</span>
                                                     <div className={`w-10 h-6 bg-black/20 rounded-full p-1 transition-all flex border border-black/10 ${esConsumible ? 'justify-end' : 'justify-start'}`}>
                                                         <div className="w-4 h-4 bg-white rounded-full shadow-sm"></div>
                                                     </div>
                                                 </button>
-                                                <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">{esConsumible ? 'Material de curación, gastables (Un solo QR)' : 'Máquinas, equipos permanentes (QR Serializado)'}</p>
+                                                <p className="text-[10px] text-slate-500 mt-1.5 leading-tight">{esConsumible ? 'Flores de corte, rosas, follajes (Control de lote y vencimiento)' : 'Bases, espuma floral, empaques, cintas (Stock general)'}</p>
                                             </div>
                                         </div>
 
-                                        {/* Nombre / Descripción Corta — AI controlled */}
-                                        <div className="mb-6 flex gap-2 items-end">
+                                        {/* Categoría y Nombre Floral */}
+                                        <div className="mb-4 flex gap-2 items-end">
                                             <div className="flex-1 min-w-0">
-                                                <FieldLabel>Clasificación General (Maestra)</FieldLabel>
+                                                <FieldLabel required>Categoría Floral / Insumos</FieldLabel>
                                                 <Combobox
                                                     options={categorias}
                                                     value={categoriaId}
                                                     onChange={setCategoriaId}
-                                                    placeholder="Ej: Sensores Médicos, Herramientas..."
+                                                    placeholder="Ej: Rosas Importadas, Follajes, Bases..."
                                                     allowClear
                                                     disabled={isExistingGroup}
                                                 />
                                             </div>
-                                            <button type="button" onClick={() => setCatModalOpen(true)} disabled={isExistingGroup} className="bg-slate-100 hover:bg-slate-200 text-[#0500A3] px-4 py-3.5 rounded-xl border border-slate-200 transition-colors shrink-0 font-bold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" title="Añadir Categoría Rápida">
+                                            <button type="button" onClick={() => setCatModalOpen(true)} disabled={isExistingGroup} className="bg-emerald-50 hover:bg-emerald-100 text-[#1b4332] px-4 py-3.5 rounded-xl border border-emerald-200 transition-colors shrink-0 font-bold flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" title="Añadir Categoría Rápida">
                                                 <Plus className="w-5 h-5"/>
                                             </button>
                                         </div>
 
                                         <div>
-                                            <FieldLabel required>Nombre / Descripción Corta <span className="opacity-50">(Para Tickets)</span></FieldLabel>
+                                            <FieldLabel required>Nombre del Producto / Variedad <span className="opacity-50">(Ej: Rosa Freedom 70cm, Espuma Oasis)</span></FieldLabel>
                                             <input type="text" name="descripcionCorta" required
                                                 disabled={isExistingGroup}
                                                 value={descripcionCorta || ''}
                                                 onChange={e => setDescripcionCorta(e.target.value)}
-                                                placeholder="Ej: Silla Ejecutiva, Escritorio 4 Gavetas..."
+                                                placeholder="Ej: Rosa Freedom 70cm Ecuador, Lirio Oriental Blanco..."
                                                 className={`${aiResult?.descripcionCorta ? inputAiCls : inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                         </div>
 
-                                        {/* Serie + Modelo */}
+                                        {/* Variedad + Especificación Floral */}
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div>
                                                 <FieldLabel>
-                                                    Número de Serie
+                                                    Código de Barras / SKU / EAN
                                                     {placaUploadPhase === 'analyzing' && <Loader2 className="w-3 h-3 text-purple-500 animate-spin ml-2 inline" />}
-                                                    {placaUploadPhase === 'done' && imagenPlacaUrl && <Sparkles className="w-3 h-3 text-purple-500 ml-2 inline" />}
                                                 </FieldLabel>
                                                 <div className="flex gap-2">
                                                     <input type="text" name="serie" value={serie || ''} onChange={e => setSerie(e.target.value)}
-                                                        placeholder="S/N si no aplica" className={placaUploadPhase === 'done' && imagenPlacaUrl ? inputAiCls : inputCls} />
+                                                        placeholder="EAN-13 o SKU interno" className={placaUploadPhase === 'done' && imagenPlacaUrl ? inputAiCls : inputCls} />
 
                                                     <input ref={placaCameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePlacaUpload} />
 
                                                     {imagenPlacaUrl ? (
                                                         <div className="shrink-0 relative">
                                                             {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                            <img src={imagenPlacaUrl} alt="Placa" onClick={() => setLightboxImage(imagenPlacaUrl)} className="w-[42px] h-[42px] object-cover rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity" />
+                                                            <img src={imagenPlacaUrl} alt="Etiqueta" onClick={() => setLightboxImage(imagenPlacaUrl)} className="w-[42px] h-[42px] object-cover rounded-xl border border-slate-200 cursor-pointer hover:opacity-90 transition-opacity" />
                                                             {(!isExistingGroup && (placaUploadPhase === 'idle' || placaUploadPhase === 'done')) ? (
                                                                 <button type="button" onClick={() => {
-                                                                    if (window.confirm('¿Eliminar la foto de la placa identificadora?')) {
+                                                                    if (window.confirm('¿Eliminar la foto del empaque/etiqueta?')) {
                                                                         setImagenPlacaUrl('');
                                                                     }
                                                                 }}
@@ -2566,7 +2565,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                         </div>
                                                     ) : (
                                                         <button type="button" onClick={() => placaCameraRef.current?.click()} disabled={isExistingGroup || placaUploadPhase === 'uploading' || placaUploadPhase === 'analyzing'}
-                                                            className="shrink-0 w-[42px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl transition-colors disabled:opacity-50" title="Escanear placa con cámara">
+                                                            className="shrink-0 w-[42px] flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl transition-colors disabled:opacity-50" title="Escanear barra/etiqueta con cámara">
                                                             {placaUploadPhase === 'uploading' ? <Loader2 className="w-4 h-4 animate-spin text-purple-500" /> : <Camera className="w-4 h-4" />}
                                                         </button>
                                                     )}
@@ -2574,83 +2573,74 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                             </div>
                                             <div>
                                                 <FieldLabel>
-                                                    Marca
+                                                    Variedad Floral / Marca
                                                     {aiResult?.marca && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
                                                 </FieldLabel>
                                                 <input type="text" name="marca"
                                                     value={marca || ''}
                                                     disabled={isExistingGroup}
                                                     onChange={e => setMarca(e.target.value)}
-                                                    placeholder="Ej: Yamaha, Sony..."
+                                                    placeholder="Ej: Freedom, Mondial, Explorer, Oasis..."
                                                     className={`${aiResult?.marca ? inputAiCls : inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                             </div>
                                             <div>
                                                 <FieldLabel>
-                                                    Modelo
+                                                    Sub-variedad / Color / Tipo
                                                     {aiResult?.modelo && <span className="ml-2 text-[10px] font-normal text-purple-500 inline-flex items-center gap-0.5"><Sparkles className="w-3 h-3" /> IA</span>}
                                                 </FieldLabel>
                                                 <input type="text" name="modelo"
                                                     value={modelo || ''}
                                                     disabled={isExistingGroup}
                                                     onChange={e => setModelo(e.target.value)}
-                                                    placeholder="Ej: P-125..."
+                                                    placeholder="Ej: Rojo Intenso, Blanco Nieve, XL..."
                                                     className={`${aiResult?.modelo ? inputAiCls : inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                             </div>
                                             <div>
-                                                <FieldLabel>Referencia Comercial</FieldLabel>
+                                                <FieldLabel>Referencia Comercial / Código Finca</FieldLabel>
                                                 <input type="text" name="referencia"
                                                     value={referencia || ''}
                                                     disabled={isExistingGroup}
                                                     onChange={e => setReferencia(e.target.value)}
-                                                    placeholder="Ej: REF-10293..."
+                                                    placeholder="Ej: FINCA-EC-089..."
                                                     className={`${inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
                                             </div>
                                             <div>
-                                                <FieldLabel>Lote</FieldLabel>
-                                                <input type="text" name="lote"
-                                                    value={lote || ''}
-                                                    disabled={isExistingGroup}
-                                                    onChange={e => setLote(e.target.value)}
-                                                    placeholder="Ej: LTA-2023..."
-                                                    className={`${inputCls} ${isExistingGroup ? 'bg-slate-50 opacity-60 cursor-not-allowed border-transparent' : ''}`} />
-                                            </div>
-                                            <div>
-                                                <FieldLabel>Garantía <span className="text-slate-400 font-normal text-xs">(Tiempo o años)</span></FieldLabel>
+                                                <FieldLabel>Longitud del Tallo</FieldLabel>
                                                 <input type="text" name="garantia"
                                                     value={garantia || ''}
                                                     onChange={e => setGarantia(e.target.value)}
-                                                    placeholder="Ej: 1 año, 18 meses, 2 años..."
+                                                    placeholder="Ej: 50cm, 60cm, 70cm, 80cm, N/A"
                                                     className={inputCls} />
                                             </div>
                                             <div>
-                                                <FieldLabel>Mantenimientos Incluidos</FieldLabel>
+                                                <FieldLabel>Tallos por Bonche / Paquete</FieldLabel>
                                                 <input type="number" name="mantenimientosIncluidos"
                                                     value={mantenimientosIncluidos || ''}
                                                     onChange={e => setMantenimientosIncluidos(e.target.value)}
-                                                    placeholder="Ej: 2, 4..."
+                                                    placeholder="Ej: 25 tallos, 10 tallos..."
                                                     className={inputCls} />
                                             </div>
                                             <div>
-                                                <FieldLabel>Frecuencia Mantenimiento (Meses)</FieldLabel>
+                                                <FieldLabel>Temp. Almacenamiento (°C)</FieldLabel>
                                                 <input type="number" name="frecuenciaMantenimientoMeses"
                                                     value={frecuenciaMantenimientoMeses || ''}
                                                     onChange={e => setFrecuenciaMantenimientoMeses(e.target.value)}
-                                                    placeholder="Ej: 6, 12..."
+                                                    placeholder="Ej: 2°C a 4°C (Cámara Fría)"
                                                     className={inputCls} />
                                             </div>
                                         </div>
 
-                                        {/* Compatibilidad Tags */}
-                                        <div className={`bg-slate-50 border border-slate-100 rounded-xl p-4 mt-2 mb-2 ${isExistingGroup ? 'opacity-60 pointer-events-none' : ''}`}>
-                                            <FieldLabel>Etiquetas de Compatibilidad / Marcas Funcionales</FieldLabel>
+                                        {/* Tags de Ocasiones o Estilos Florales */}
+                                        <div className={`bg-emerald-50/40 border border-emerald-100 rounded-xl p-4 mt-2 mb-2 ${isExistingGroup ? 'opacity-60 pointer-events-none' : ''}`}>
+                                            <FieldLabel>Etiquetas de Ocasión / Uso Recomendado</FieldLabel>
                                             <div className="flex flex-wrap gap-2 mb-3">
                                                 {compatibilidad.map(tag => (
-                                                    <span key={tag} className="inline-flex items-center gap-1.5 bg-indigo-100 text-[#0500A3] px-3 py-1.5 rounded-full text-xs font-bold border border-indigo-200">
+                                                    <span key={tag} className="inline-flex items-center gap-1.5 bg-emerald-100 text-[#1b4332] px-3 py-1.5 rounded-full text-xs font-bold border border-emerald-300">
                                                         {tag}
                                                         <button type="button" onClick={() => setCompatibilidad(compatibilidad.filter(t => t !== tag))} className="hover:text-red-500 hover:bg-white rounded-full p-0.5 transition-colors"><X className="w-3 h-3" /></button>
                                                     </span>
                                                 ))}
-                                                {compatibilidad.length === 0 && <span className="text-xs text-slate-400 italic py-1.5">Ninguna marca agregada...</span>}
+                                                {compatibilidad.length === 0 && <span className="text-xs text-slate-400 italic py-1.5">Ej: BODAS, ANIVERSARIOS, EVENTOS, REGALOS...</span>}
                                             </div>
                                             <div className="flex gap-2">
                                                 <input 
@@ -2667,7 +2657,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                             }
                                                         }
                                                     }}
-                                                    placeholder="Ej: MINDRAY (Enter)" 
+                                                    placeholder="Ej: BODAS (Presionar Enter)" 
                                                     className={inputCls} 
                                                 />
                                                 <button
@@ -2679,38 +2669,38 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                             setTagInput('');
                                                         }
                                                     }}
-                                                    className="shrink-0 px-4 py-2 bg-[#0500A3] text-white font-bold rounded-xl shadow-sm hover:bg-[#040080] active:scale-95 transition-all text-sm flex items-center justify-center"
+                                                    className="shrink-0 px-4 py-2 bg-[#1b4332] text-white font-bold rounded-xl shadow-sm hover:bg-[#2d6a4f] active:scale-95 transition-all text-sm flex items-center justify-center"
                                                 >
                                                     Añadir
                                                 </button>
                                             </div>
                                         </div>
                                         
-                                        {/* Lote y Fechas */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+                                        {/* Lote y Control de Frescura Perecedera */}
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4 bg-emerald-50/70 p-4 rounded-xl border border-emerald-200">
                                             <div>
-                                                <FieldLabel>Lote</FieldLabel>
-                                                <input type="text" value={lote || ''} onChange={e => setLote(e.target.value)} placeholder="Opcional" className={inputCls} disabled={isExistingGroup} />
+                                                <FieldLabel>Lote de Embarque / Finca</FieldLabel>
+                                                <input type="text" value={lote || ''} onChange={e => setLote(e.target.value)} placeholder="Ej: LOTE-EC-2026-08A" className={inputCls} disabled={isExistingGroup} />
                                             </div>
                                             <div>
-                                                <FieldLabel>Fecha Fabricación</FieldLabel>
+                                                <FieldLabel>Fecha de Corte / Recepción</FieldLabel>
                                                 <DateInput value={fechaFabricacion} onChange={val => setFechaFabricacion(val)} className={inputCls} />
                                             </div>
                                             <div>
-                                                <FieldLabel>Fecha Vencimiento</FieldLabel>
+                                                <FieldLabel>Fecha Vencimiento (Frescura)</FieldLabel>
                                                 <DateInput value={fechaVencimiento} onChange={val => setFechaVencimiento(val)} className={inputCls} />
                                             </div>
                                         </div>
 
                                         {/* Origen y Datos de Adquisición */}
-                                        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4 bg-indigo-50/30 p-4 rounded-xl border border-indigo-100/50">
+                                        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 mb-4 bg-stone-50 p-4 rounded-xl border border-stone-200">
                                             <div className="md:col-span-2">
                                                 <div className="flex justify-between items-center">
-                                                    <FieldLabel>Origen del Inventario</FieldLabel>
+                                                    <FieldLabel>Finca / País de Origen</FieldLabel>
                                                     <button
                                                         type="button"
                                                         onClick={onManageOrigins}
-                                                        className="text-[10px] text-[#0500A3] hover:text-[#0600c2] flex items-center gap-1 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100/50 hover:bg-blue-100 transition-colors mb-1.5"
+                                                        className="text-[10px] text-[#1b4332] hover:text-[#2d6a4f] flex items-center gap-1 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 hover:bg-emerald-100 transition-colors mb-1.5"
                                                         title="Administrar orígenes"
                                                     >
                                                         <Wrench className="w-3 h-3" /> Configurar
@@ -2721,7 +2711,11 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     onChange={e => setOrigenActivo(e.target.value)}
                                                     className={selectCls}
                                                 >
-                                                    <option value="">Nacional / General</option>
+                                                    <option value="">Nacional (Honduras)</option>
+                                                    <option value="Ecuador">Ecuador (Importado)</option>
+                                                    <option value="Colombia">Colombia (Importado)</option>
+                                                    <option value="Guatemala">Guatemala (Importado)</option>
+                                                    <option value="Holanda">Holanda (Importado)</option>
                                                     {originsList.map(o => (
                                                         <option key={o} value={o}>{o}</option>
                                                     ))}
@@ -2729,11 +2723,11 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                             </div>
                                             <div className="md:col-span-2">
                                                 <div className="flex justify-between items-center">
-                                                    <FieldLabel>Condición del Equipo</FieldLabel>
+                                                    <FieldLabel>Grado de Calidad Floral</FieldLabel>
                                                     <button
                                                         type="button"
                                                         onClick={onManageConditions}
-                                                        className="text-[10px] text-[#0500A3] hover:text-[#0600c2] flex items-center gap-1 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-100/50 hover:bg-blue-100 transition-colors mb-1.5"
+                                                        className="text-[10px] text-[#1b4332] hover:text-[#2d6a4f] flex items-center gap-1 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 hover:bg-emerald-100 transition-colors mb-1.5"
                                                         title="Administrar condiciones"
                                                     >
                                                         <Wrench className="w-3 h-3" /> Configurar
@@ -2744,27 +2738,31 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                     onChange={e => setCondicionActivo(e.target.value)}
                                                     className={selectCls}
                                                 >
-                                                    <option value="">Seleccionar condición</option>
+                                                    <option value="">Seleccionar Calidad</option>
+                                                    <option value="Exportación Selecta">Exportación Selecta</option>
+                                                    <option value="Grado A (Premium)">Grado A (Premium)</option>
+                                                    <option value="Grado B">Grado B</option>
+                                                    <option value="Estándar">Estándar</option>
                                                     {conditionsList.map(c => (
                                                         <option key={c} value={c}>{c}</option>
                                                     ))}
                                                 </select>
                                             </div>
                                             <div className="md:col-span-2">
-                                                <FieldLabel>Estatus de Inventario</FieldLabel>
+                                                <FieldLabel>Estatus en Bodega / Frío</FieldLabel>
                                                 <select
                                                     value={estatusContable}
                                                     onChange={e => setEstatusContable(e.target.value)}
                                                     className={selectCls}
                                                 >
-                                                    <option value="VIGENTE">Vigente (Disponible)</option>
-                                                    <option value="EN TRANSITO">En Tránsito (No recibido)</option>
-                                                    <option value="DEPRECIADO">Depreciado</option>
-                                                    <option value="PROCESO DE BAJA">Proceso de Baja</option>
+                                                    <option value="VIGENTE">Disponible en Cámara Fría</option>
+                                                    <option value="EN TRANSITO">En Tránsito / Importación</option>
+                                                    <option value="DEPRECIADO">Merma / Descarte</option>
+                                                    <option value="PROCESO DE BAJA">Muestra / Promoción</option>
                                                 </select>
                                             </div>
                                             <div className="md:col-span-3">
-                                                <FieldLabel>Costo Adquisición (Lps)</FieldLabel>
+                                                <FieldLabel>Costo de Compra por Bonche/Unidad (Lps)</FieldLabel>
                                                 <input
                                                     type="number"
                                                     step="0.01"
@@ -2775,7 +2773,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                                 />
                                             </div>
                                             <div className="md:col-span-3">
-                                                <FieldLabel>Fecha de Ingreso</FieldLabel>
+                                                <FieldLabel>Fecha de Ingreso a Bodega</FieldLabel>
                                                 <DateInput
                                                     value={fechaAdq}
                                                     onChange={val => setFechaAdq(val)}
@@ -3882,7 +3880,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                     'Modelo': a.modelo || 'N/A',
                     'Serie': a.serie || 'N/A',
                     'Ubicación / Área': a.area,
-                    'Clasificación': a.esConsumible ? 'Consumible' : 'Equipo Biomédico',
+                    'Clasificación': a.esConsumible ? 'Flor / Perecedero' : 'Suministro / Insumo',
                     'Estatus Contable': a.estatusContable,
                     'Origen': a.origenActivo || 'Nacional / General',
                     'Condición': a.condicionActivo || 'N/A',
