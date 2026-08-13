@@ -8,11 +8,12 @@ import {
     Trash2, AlertCircle, Search, Archive, Laptop, UserPlus, ChevronDown, 
     ChevronRight, Filter, FolderPlus, BookOpen, FileText, LayoutGrid, List,
     FolderArchive, Printer, Building2, ClipboardList, Trello, Pencil, Loader2,
-    ShieldAlert, Sparkles, Check, CheckSquare, Square, Eye, FileCheck
+    ShieldAlert, Sparkles, Check, CheckSquare, Square, Eye, FileCheck, PenTool, Maximize2, X, ExternalLink
 } from 'lucide-react';
 import { eliminarOrdenTrabajo, crearEquipoClienteAction, crearClienteAction, editarActivoSimple, eliminarActivoSimple } from './actions';
 import { toast } from 'react-hot-toast';
 import ReportConfigModal from '@/components/pdf/ReportConfigModal';
+import ClienteFirmaModal from '@/components/soporte/ClienteFirmaModal';
 
 type Orden = any; // Tipado parcial
 type Cliente = any;
@@ -102,6 +103,12 @@ export default function SoporteClient({
     }>({
         isOpen: false
     });
+
+    // Estado para el modal de Enlace de Firma Digital del Cliente
+    const [firmaModalCliente, setFirmaModalCliente] = useState<Cliente | null>(null);
+
+    // Estado para la vista en Lightbox de imágenes de equipos
+    const [activeLightbox, setActiveLightbox] = useState<{ url: string; title: string; subtitle?: string } | null>(null);
 
     const filterBySearch = (list: Orden[]) => {
         if (!searchQuery.trim()) return list;
@@ -989,6 +996,24 @@ export default function SoporteClient({
                                                     <span>Todos</span>
                                                 </button>
 
+                                                {/* Botón de Enlace de Firma Digital del Cliente */}
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setFirmaModalCliente(cli);
+                                                    }}
+                                                    className={`flex items-center gap-1 text-[10px] font-bold px-2 py-1 rounded-lg border transition cursor-pointer ${
+                                                        cli.firmaDigitalUrl 
+                                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100' 
+                                                            : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                                                    }`}
+                                                    title={cli.firmaDigitalUrl ? `Firmado por: ${cli.firmaDigitalNombre || 'Representante'}` : "Generar enlace de firma digital para el cliente"}
+                                                >
+                                                    <PenTool className="w-3 h-3" />
+                                                    <span>{cli.firmaDigitalUrl ? 'Firma Registrada' : 'Enlace Firma'}</span>
+                                                </button>
+
                                                 {cli.telefono && (
                                                     <span className="hidden lg:flex items-center gap-1 text-[10px] text-slate-500 font-semibold bg-white border border-slate-200 px-2 py-1 rounded-lg">
                                                         <Phone className="w-3 h-3 text-slate-400" />
@@ -1028,7 +1053,7 @@ export default function SoporteClient({
                                                                 >
                                                                     <div>
                                                                         {/* Cabecera de la Tarjeta con Checkbox y QR */}
-                                                                        <div className="flex items-center justify-between mb-2">
+                                                                        <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
                                                                             <div className="flex items-center gap-2">
                                                                                 <input
                                                                                     type="checkbox"
@@ -1079,31 +1104,57 @@ export default function SoporteClient({
                                                                             </div>
                                                                         </div>
 
-                                                                        {/* Miniatura de Imagen del Equipo */}
-                                                                        <div className="w-full h-28 mb-3 rounded-xl overflow-hidden border border-slate-100 bg-slate-50 flex items-center justify-center relative group">
-                                                                            {imgUrl ? (
-                                                                                <img 
-                                                                                    src={imgUrl} 
-                                                                                    alt={eq.descripcionCorta} 
-                                                                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                                                                                />
-                                                                            ) : (
-                                                                                <div className="flex flex-col items-center gap-1 text-slate-350">
-                                                                                    <MonitorSmartphone className="w-8 h-8 opacity-60" />
-                                                                                    <span className="text-[9px] font-semibold text-slate-400">Sin fotografía</span>
+                                                                        {/* Cuerpo de la Tarjeta (Detalles Izquierda + Imagen a la Derecha) */}
+                                                                        <div className="flex items-start justify-between gap-3 mb-1">
+                                                                            {/* Detalle del Equipo */}
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <h4 className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5 leading-snug">
+                                                                                    <MonitorSmartphone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                                                                    <span className="truncate">{eq.descripcionCorta}</span>
+                                                                                </h4>
+                                                                                <div className="space-y-0.5 mt-2 text-[10px] text-slate-500 font-bold">
+                                                                                    {eq.marca && <div>Marca: <span className="text-slate-800">{eq.marca}</span></div>}
+                                                                                    {eq.modelo && <div>Modelo: <span className="text-slate-800">{eq.modelo}</span></div>}
+                                                                                    {eq.serie && <div>Serie: <span className="text-slate-700 font-mono text-[9px]">{eq.serie}</span></div>}
+                                                                                    {eq.observaciones && <div className="line-clamp-2 text-slate-450 mt-1 font-medium italic">"{eq.observaciones}"</div>}
                                                                                 </div>
-                                                                            )}
-                                                                        </div>
+                                                                            </div>
 
-                                                                        <h4 className="font-extrabold text-slate-800 text-xs flex items-center gap-1.5">
-                                                                            <MonitorSmartphone className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-                                                                            {eq.descripcionCorta}
-                                                                        </h4>
-                                                                        <div className="space-y-1 mt-2 text-[10px] text-slate-500 font-bold">
-                                                                            {eq.marca && <div>Marca: <span className="text-slate-800">{eq.marca}</span></div>}
-                                                                            {eq.modelo && <div>Modelo: <span className="text-slate-800">{eq.modelo}</span></div>}
-                                                                            {eq.serie && <div>Serie: <span className="text-slate-700 font-mono text-[9px]">{eq.serie}</span></div>}
-                                                                            {eq.observaciones && <div className="line-clamp-2 text-slate-450 mt-1 font-medium italic">"{eq.observaciones}"</div>}
+                                                                            {/* Miniatura de Imagen a la Derecha (Click para Lightbox) */}
+                                                                            <div 
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    if (imgUrl) {
+                                                                                        setActiveLightbox({
+                                                                                            url: imgUrl,
+                                                                                            title: eq.descripcionCorta,
+                                                                                            subtitle: [cli.nombre, eq.marca, eq.modelo, eq.serie ? `Serie: ${eq.serie}` : null].filter(Boolean).join(' • ')
+                                                                                        });
+                                                                                    }
+                                                                                }}
+                                                                                className={`w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden border border-slate-200 bg-slate-50 flex items-center justify-center relative group p-1 shrink-0 ${
+                                                                                    imgUrl ? 'cursor-pointer hover:ring-2 hover:ring-blue-500/60 hover:shadow-md transition-all' : ''
+                                                                                }`}
+                                                                                title={imgUrl ? "Haz clic para ampliar imagen (Lightbox)" : "Sin fotografía"}
+                                                                            >
+                                                                                {imgUrl ? (
+                                                                                    <>
+                                                                                        <img 
+                                                                                            src={imgUrl} 
+                                                                                            alt={eq.descripcionCorta} 
+                                                                                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
+                                                                                        />
+                                                                                        <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-xl">
+                                                                                            <Maximize2 className="w-4 h-4 text-white drop-shadow-md" />
+                                                                                        </div>
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <div className="flex flex-col items-center gap-0.5 text-slate-350">
+                                                                                        <MonitorSmartphone className="w-6 h-6 opacity-60" />
+                                                                                        <span className="text-[8px] font-semibold text-slate-400 text-center">Sin foto</span>
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
                                                                         </div>
                                                                     </div>
 
@@ -1158,10 +1209,30 @@ export default function SoporteClient({
                                                                             className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 cursor-pointer shrink-0"
                                                                         />
 
-                                                                        {/* Miniatura Mini */}
-                                                                        <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shrink-0 flex items-center justify-center">
+                                                                        {/* Miniatura Mini (Click para Lightbox) */}
+                                                                        <div 
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (imgUrl) {
+                                                                                    setActiveLightbox({
+                                                                                        url: imgUrl,
+                                                                                        title: eq.descripcionCorta,
+                                                                                        subtitle: [cli.nombre, eq.marca, eq.modelo, eq.serie ? `Serie: ${eq.serie}` : null].filter(Boolean).join(' • ')
+                                                                                    });
+                                                                                }
+                                                                            }}
+                                                                            className={`w-10 h-10 rounded-lg overflow-hidden border border-slate-200 bg-slate-100 shrink-0 flex items-center justify-center relative group p-0.5 ${
+                                                                                imgUrl ? 'cursor-pointer hover:ring-2 hover:ring-blue-500/60 transition-all' : ''
+                                                                            }`}
+                                                                            title={imgUrl ? "Haz clic para ampliar imagen (Lightbox)" : "Sin fotografía"}
+                                                                        >
                                                                             {imgUrl ? (
-                                                                                <img src={imgUrl} alt={eq.descripcionCorta} className="w-full h-full object-cover" />
+                                                                                <>
+                                                                                    <img src={imgUrl} alt={eq.descripcionCorta} className="w-full h-full object-contain group-hover:scale-105 transition-transform" />
+                                                                                    <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-lg">
+                                                                                        <Maximize2 className="w-3 h-3 text-white drop-shadow-md" />
+                                                                                    </div>
+                                                                                </>
                                                                             ) : (
                                                                                 <MonitorSmartphone className="w-5 h-5 text-slate-400" />
                                                                             )}
@@ -1729,6 +1800,74 @@ export default function SoporteClient({
                 selectedEquipoIds={reportModalData.selectedEquipoIds}
                 clientesList={clientesConEquipos}
             />
+
+            {/* MODAL ENLACE DE FIRMA DIGITAL DEL CLIENTE */}
+            <ClienteFirmaModal
+                isOpen={!!firmaModalCliente}
+                onClose={() => setFirmaModalCliente(null)}
+                cliente={firmaModalCliente}
+            />
+
+            {/* LIGHTBOX MODAL DE FOTOGRAFÍA EN PANTALLA COMPLETA */}
+            {activeLightbox && (
+                <div 
+                    className="fixed inset-0 z-[200] bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-between p-4 sm:p-6 animate-in fade-in duration-200 select-none"
+                    onClick={() => setActiveLightbox(null)}
+                >
+                    {/* Cabecera del Lightbox */}
+                    <div className="w-full max-w-4xl flex items-center justify-between gap-4 z-10 py-2">
+                        <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-10 h-10 rounded-2xl bg-blue-600/30 border border-blue-500/40 text-blue-300 flex items-center justify-center shrink-0">
+                                <MonitorSmartphone className="w-5 h-5" />
+                            </div>
+                            <div className="min-w-0">
+                                <h3 className="text-white font-extrabold text-sm sm:text-base leading-tight truncate">
+                                    {activeLightbox.title}
+                                </h3>
+                                {activeLightbox.subtitle && (
+                                    <p className="text-slate-400 text-xs font-medium truncate">{activeLightbox.subtitle}</p>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                            <a
+                                href={activeLightbox.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2.5 text-slate-300 hover:text-white hover:bg-white/10 rounded-xl transition border border-white/10 cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                                title="Abrir imagen original en nueva pestaña"
+                            >
+                                <ExternalLink className="w-4 h-4" />
+                                <span className="hidden sm:inline">Abrir Original</span>
+                            </a>
+                            <button
+                                onClick={() => setActiveLightbox(null)}
+                                className="p-2.5 text-slate-300 hover:text-white hover:bg-white/15 bg-white/5 rounded-xl transition border border-white/10 cursor-pointer"
+                                title="Cerrar (Esc)"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Contenedor Principal de la Imagen */}
+                    <div className="flex-1 w-full max-w-4xl flex items-center justify-center my-auto p-2" onClick={(e) => e.stopPropagation()}>
+                        <img
+                            src={activeLightbox.url}
+                            alt={activeLightbox.title}
+                            className="max-h-[78vh] max-w-full object-contain rounded-2xl shadow-2xl border border-white/10 animate-in zoom-in-95 duration-200"
+                        />
+                    </div>
+
+                    {/* Pie de Foto */}
+                    <div className="w-full max-w-4xl text-center py-2 z-10">
+                        <span className="text-[11px] text-slate-400 font-semibold bg-white/5 border border-white/10 px-4 py-1.5 rounded-full inline-block">
+                            Haz clic fuera de la imagen o presiona la cruz para cerrar
+                        </span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

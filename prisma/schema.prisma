@@ -684,6 +684,7 @@ model Cliente {
   notas          String?
   firmaDigitalUrl    String?
   firmaDigitalNombre String?
+  firmaDigitalFecha  DateTime?
   nombreContacto   String?
   telefonoContacto String?
   emailsCC         String?

@@ -325,8 +325,6 @@ export default function OrdenEntregaTemplate({
 
         {/* Enabled Company Signatures */}
         {activeSigs.filter((s: any) => s.id !== 'cliente_firma' && s.id !== 'cliente').map((sig: any) => {
-          const pw = sig.penWidth;
-          const filterStyle = !pw || (pw > 1.8 && pw <= 3.2) ? 'none' : (pw <= 0.5 ? 'url(#sig-erode-ultra)' : (pw <= 1.0 ? 'url(#sig-erode-medium)' : (pw <= 1.8 ? 'url(#sig-erode-light)' : (pw <= 4.2 ? 'url(#sig-dilate-small)' : (pw <= 5.2 ? 'url(#sig-dilate-medium)' : 'url(#sig-dilate-large)')))));
           return (
             <div key={sig.id} className="flex flex-col items-center text-center relative flex-1 max-w-[240px]">
               <div className="flex items-end justify-center w-full relative z-10" style={{ height: `${signatureHeight}px` }}>
@@ -337,8 +335,7 @@ export default function OrdenEntregaTemplate({
                     className="object-contain max-h-full mix-blend-multiply relative z-10" 
                     style={{ 
                       height: `${sig.height || signatureHeight}px`,
-                      transform: `translate(${sig.offsetX || 0}px, ${(sig.offsetY || 0)}px)`,
-                      filter: filterStyle
+                      transform: `translate(${sig.offsetX || 0}px, ${(sig.offsetY || 0)}px)`
                     }}
                   />
                 )}
@@ -356,8 +353,6 @@ export default function OrdenEntregaTemplate({
         {(() => {
           const clientSigItem = activeSigs.find((s: any) => s.id === 'cliente_firma' || s.id === 'cliente' || s.isClientSig);
           const clientSigUrl = clientSigItem?.imageUrl || ordenEntrega.factura?.firmaClienteBase64 || ordenEntrega.firmaClienteUrl;
-          const pw = clientSigItem?.penWidth;
-          const filterStyle = !pw || (pw > 1.8 && pw <= 3.2) ? 'none' : (pw <= 0.5 ? 'url(#sig-erode-ultra)' : (pw <= 1.0 ? 'url(#sig-erode-medium)' : (pw <= 1.8 ? 'url(#sig-erode-light)' : (pw <= 4.2 ? 'url(#sig-dilate-small)' : (pw <= 5.2 ? 'url(#sig-dilate-medium)' : 'url(#sig-dilate-large)')))));
 
           return (
             <div className="flex flex-col items-center text-center relative flex-1 max-w-[240px]">
@@ -369,8 +364,7 @@ export default function OrdenEntregaTemplate({
                     className="object-contain max-h-full mix-blend-multiply relative z-10" 
                     style={{ 
                       height: `${clientSigItem?.height || signatureHeight}px`,
-                      transform: `translate(${clientSigItem?.offsetX || 0}px, ${(clientSigItem?.offsetY || 0)}px)`,
-                      filter: filterStyle
+                      transform: `translate(${clientSigItem?.offsetX || 0}px, ${(clientSigItem?.offsetY || 0)}px)`
                     }}
                   />
                 )}

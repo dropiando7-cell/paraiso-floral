@@ -218,7 +218,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 0.5,
     borderColor: '#d1d5db',
-    objectFit: 'cover',
+    objectFit: 'contain',
+    backgroundColor: '#f8fafc',
   },
   imageContainer: {
     flexDirection: 'column',
@@ -231,7 +232,8 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     borderWidth: 0.5,
     borderColor: '#d1d5db',
-    objectFit: 'cover',
+    objectFit: 'contain',
+    backgroundColor: '#f8fafc',
   },
   photoDescription: {
     fontSize: 6.5,
@@ -323,6 +325,67 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 2,
   },
+  finalSignatureSection: {
+    marginTop: 14,
+    paddingTop: 10,
+    borderTopWidth: 1.5,
+    borderTopColor: '#1e40af',
+  },
+  finalSectionHeader: {
+    fontSize: 8,
+    fontWeight: 700,
+    color: '#1e40af',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  signatureCardFinal: {
+    flex: 1,
+    borderWidth: 0.75,
+    borderColor: '#cbd5e1',
+    borderRadius: 6,
+    padding: 6,
+    backgroundColor: '#f8fafc',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  signatureImageLarge: {
+    height: 42,
+    width: '100%',
+    objectFit: 'contain',
+    marginVertical: 4,
+  },
+  signatureFooterBold: {
+    fontSize: 7.5,
+    fontWeight: 700,
+    color: '#0f172a',
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  signatureFooterSub: {
+    fontSize: 6.5,
+    color: '#475569',
+    textAlign: 'center',
+    marginTop: 1,
+  },
+  signaturePendingBox: {
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signaturePendingTitle: {
+    fontSize: 7,
+    fontWeight: 700,
+    color: '#b91c1c',
+    textTransform: 'uppercase',
+  },
+  signaturePendingText: {
+    fontSize: 6,
+    color: '#6b7280',
+    marginTop: 2,
+    textAlign: 'center',
+  },
   tiemposContainer: {
     marginTop: 6,
     borderTopWidth: 0.5,
@@ -342,6 +405,8 @@ type HistorialPDFProps = {
   logoUrl?: string;
   qrCodeUrl: string;
   hideSignatures?: boolean;
+  mostrarFirmaGerencia?: boolean;
+  manuelSigBase64?: string;
 };
 
 const parseHtmlToReactPdf = (html: string | null | undefined, style: any) => {
@@ -394,7 +459,14 @@ const formatHN = (dateInput: Date | string | null | undefined, includeTime: bool
   return `${day}/${month}/${year}`;
 };
 
-export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignatures = false }: HistorialPDFProps) {
+export default function HistorialPDF({ 
+  activo, 
+  logoUrl, 
+  qrCodeUrl, 
+  hideSignatures = false,
+  mostrarFirmaGerencia = true,
+  manuelSigBase64
+}: HistorialPDFProps) {
   const cliente = activo.cliente || {};
   const ordenes = activo.ordenesTrabajo || [];
 
@@ -649,33 +721,85 @@ export default function HistorialPDF({ activo, logoUrl, qrCodeUrl, hideSignature
                     </View>
                   )}
 
-                  {/* Firmas de Aceptación */}
-                  {!hideSignatures && (orden.firmaClienteUrl || orden.firmaTecnicoUrl) && (
-                    <View style={styles.signaturesContainer} wrap={false}>
-                      {orden.firmaClienteUrl && (
-                        <View style={styles.signatureCard}>
-                          <Text style={styles.signatureTitle}>4. Firma Cliente</Text>
-                          <Image style={styles.signatureImage} src={orden.firmaClienteUrl} />
-                          <Text style={styles.signatureFooter}>
-                            {orden.firmaClienteFecha ? formatHN(orden.firmaClienteFecha, true) : ''} Por {orden.firmaClienteNombre || 'Cliente'}
-                          </Text>
-                        </View>
-                      )}
-                      {orden.firmaTecnicoUrl && (
-                        <View style={styles.signatureCard}>
-                          <Text style={styles.signatureTitle}>5. Firma Técnico / Biomédico</Text>
-                          <Image style={styles.signatureImage} src={orden.firmaTecnicoUrl} />
-                          <Text style={styles.signatureFooter}>
-                            {orden.firmaTecnicoFecha ? formatHN(orden.firmaTecnicoFecha, true) : ''} Por {orden.firmaTecnicoNombre || 'Técnico'}
-                          </Text>
-                        </View>
-                      )}
-                    </View>
-                  )}
+                  {/* Firmas de la Orden Individual */}
+                  {!hideSignatures && (() => {
+                    const tecFirma = orden.firmaTecnicoUrl || orden.tecnicoReparacion?.firmaDigitalUrl || orden.tecnicosAsignados?.[0]?.firmaDigitalUrl;
+                    const tecNombre = orden.firmaTecnicoNombre || (orden.tecnicoReparacion ? `${orden.tecnicoReparacion.nombre || ''} ${orden.tecnicoReparacion.apellido || ''}`.trim() : (orden.tecnicosAsignados?.[0]?.nombre || 'Técnico Biomédico'));
+                    const cliFirma = orden.firmaClienteUrl;
+                    const cliNombre = orden.firmaClienteNombre || 'Cliente / Encargado';
+
+                    if (!tecFirma && !cliFirma) return null;
+
+                    return (
+                      <View style={styles.signaturesContainer} wrap={false}>
+                        {tecFirma && (
+                          <View style={styles.signatureCard}>
+                            <Text style={styles.signatureTitle}>Firma Técnico / Biomédico</Text>
+                            <Image style={styles.signatureImage} src={tecFirma} />
+                            <Text style={styles.signatureFooter}>
+                              {orden.firmaTecnicoFecha ? formatHN(orden.firmaTecnicoFecha, true) : ''} Por {tecNombre}
+                            </Text>
+                          </View>
+                        )}
+                        {cliFirma && (
+                          <View style={styles.signatureCard}>
+                            <Text style={styles.signatureTitle}>Firma Recepción / Cliente</Text>
+                            <Image style={styles.signatureImage} src={cliFirma} />
+                            <Text style={styles.signatureFooter}>
+                              {orden.firmaClienteFecha ? formatHN(orden.firmaClienteFecha, true) : ''} Por {cliNombre}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    );
+                  })()}
                 </View>
               </View>
             );
           })
+        )}
+
+        {/* Sección Final de Cierre y Validación Oficial del Reporte Unificado */}
+        {mostrarFirmaGerencia && (
+          <View style={styles.finalSignatureSection} wrap={false}>
+            <Text style={styles.finalSectionHeader}>CIERRE Y VALIDACIÓN OFICIAL DEL REPORTE UNIFICADO</Text>
+
+            <View style={styles.signaturesContainer}>
+              {/* Lado Izquierdo: Firma Ing. Manuel Tejada (Gerente General) */}
+              <View style={styles.signatureCardFinal}>
+                <Text style={styles.signatureTitle}>GERENCIA GENERAL — BIOELECTRÓNICA HONDURAS</Text>
+                <Image 
+                  style={styles.signatureImageLarge} 
+                  src={manuelSigBase64 || "https://sistema.bioelectronicahn.com/firmas-sellos/firma%20Ing%20Manuel%20Tejada.png"} 
+                />
+                <Text style={styles.signatureFooterBold}>Ing. Manuel Tejada</Text>
+                <Text style={styles.signatureFooterSub}>Gerente General — Bioelectrónica Honduras</Text>
+              </View>
+
+              {/* Lado Derecho: Firma del Representante Legal / Cliente */}
+              <View style={styles.signatureCardFinal}>
+                <Text style={styles.signatureTitle}>REPRESENTANTE LEGAL / CLIENTE AUTORIZADO</Text>
+                {cliente.firmaDigitalUrl ? (
+                  <>
+                    <Image style={styles.signatureImageLarge} src={cliente.firmaDigitalUrl} />
+                    <Text style={styles.signatureFooterBold}>
+                      {cliente.firmaDigitalNombre || cliente.nombreContacto || cliente.nombre || 'Representante Legal'}
+                    </Text>
+                    <Text style={styles.signatureFooterSub}>
+                      {cliente.firmaDigitalFecha ? `Firmado el ${formatHN(cliente.firmaDigitalFecha, true)}` : 'Firma Digital Registrada en Sistema'}
+                    </Text>
+                  </>
+                ) : (
+                  <View style={styles.signaturePendingBox}>
+                    <Text style={styles.signaturePendingTitle}>Firma del Cliente Pendiente</Text>
+                    <Text style={styles.signaturePendingText}>
+                      Enlace de firma digital generado para el representante legal de {cliente.nombre || 'la empresa'}.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
         )}
 
         {/* Footer (page and interactive QR footer) */}

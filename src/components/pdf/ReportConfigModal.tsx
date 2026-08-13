@@ -66,6 +66,7 @@ export default function ReportConfigModal({
   const [hasta, setHasta] = useState('');
   const [ordenCodigo, setOrdenCodigo] = useState(currentOrderCode || '');
   const [mostrarFirmas, setMostrarFirmas] = useState(true);
+  const [mostrarFirmaGerencia, setMostrarFirmaGerencia] = useState(true);
   const [ordenes, setOrdenes] = useState<any[]>([]);
   const [selectedOrdenId, setSelectedOrdenId] = useState('');
   const [loadingOrdenes, setLoadingOrdenes] = useState(false);
@@ -129,6 +130,7 @@ export default function ReportConfigModal({
       const params = new URLSearchParams();
       params.set('type', 'historial');
       params.set('mostrarFirmas', mostrarFirmas ? 'true' : 'false');
+      params.set('mostrarFirmaGerencia', mostrarFirmaGerencia ? 'true' : 'false');
 
       const activeClienteId = selectedClienteId || clienteId;
 
@@ -502,12 +504,13 @@ export default function ReportConfigModal({
             </div>
           </div>
 
-          {/* Firmas de Conformidad */}
-          <div className="border-t border-slate-150/60 pt-4">
+          {/* Firmas de Conformidad y Validación Oficial */}
+          <div className="border-t border-slate-150/60 pt-4 space-y-2.5">
+            {/* Switch 1: Firmas en Órdenes */}
             <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-2xl">
               <div>
-                <label className="text-xs font-bold text-slate-750 block">Incluir Firmas y Sellos</label>
-                <span className="text-[10px] text-slate-400 font-medium">Mostrar firmas digitales de clientes y técnicos en el PDF.</span>
+                <label className="text-xs font-bold text-slate-750 block">Incluir Firmas en Órdenes</label>
+                <span className="text-[10px] text-slate-400 font-medium">Mostrar firmas de técnicos y clientes en cada orden individual.</span>
               </div>
               <label className="relative inline-flex items-center cursor-pointer select-none">
                 <input 
@@ -519,6 +522,59 @@ export default function ReportConfigModal({
                 <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0500A3]"></div>
               </label>
             </div>
+
+            {/* Switch 2: Firma de Gerencia General y Firma del Cliente al Final */}
+            <div className="flex items-center justify-between bg-slate-50 border border-slate-200 p-3 rounded-2xl">
+              <div>
+                <label className="text-xs font-bold text-slate-750 block">Firma Gerencia General & Cliente (Cierre)</label>
+                <span className="text-[10px] text-slate-400 font-medium">Incluir firma Ing. Manuel Tejada y firma oficial del cliente al final del Reporte Unificado.</span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer select-none">
+                <input 
+                  type="checkbox" 
+                  checked={mostrarFirmaGerencia}
+                  onChange={e => setMostrarFirmaGerencia(e.target.checked)}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0500A3]"></div>
+              </label>
+            </div>
+
+            {/* Estado de Firma del Cliente en Base de Datos */}
+            {currentClienteObj && (
+              <div className={`p-3 rounded-2xl border text-xs font-medium ${
+                currentClienteObj.firmaDigitalUrl 
+                  ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' 
+                  : 'bg-amber-50/70 border-amber-200 text-amber-900'
+              }`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-extrabold flex items-center gap-1.5 truncate">
+                    {currentClienteObj.firmaDigitalUrl ? '✓ Firma del Representante Registrada' : '⚠ Firma del Representante Pendiente'}
+                  </span>
+                  {currentClienteObj.firmaDigitalUrl && (
+                    <span className="text-[9px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-full shrink-0">
+                      Guardada en BD
+                    </span>
+                  )}
+                </div>
+
+                {currentClienteObj.firmaDigitalUrl ? (
+                  <div className="mt-2 flex items-center gap-3 bg-white p-2 rounded-xl border border-emerald-200 shadow-2xs">
+                    <div className="h-10 w-20 bg-slate-50 rounded border border-slate-200 p-0.5 flex items-center justify-center shrink-0">
+                      <img src={currentClienteObj.firmaDigitalUrl} alt="Firma Registrada" className="max-h-full max-w-full object-contain" />
+                    </div>
+                    <div className="text-[10px] text-slate-600 leading-tight">
+                      <div>Firmado por: <strong className="text-slate-800 font-bold">{currentClienteObj.firmaDigitalNombre || currentClienteObj.nombreContacto || 'Representante'}</strong></div>
+                      <div className="text-slate-400 text-[9px] mt-0.5">Guardada en tabla <code className="bg-slate-100 px-1 rounded text-slate-700 font-mono">Cliente.firmaDigitalUrl</code></div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-amber-800 mt-1 leading-snug">
+                    El cliente aún no posee una firma digital registrada. Puedes enviarle el enlace seguro desde el menú <strong>Equipos de Clientes</strong>.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
         </div>

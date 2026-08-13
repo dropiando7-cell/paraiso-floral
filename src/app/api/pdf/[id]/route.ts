@@ -13,26 +13,38 @@ import sharp from 'sharp';
 
 // Helper to sanitize and auto-orient images for react-pdf rendering (strips bad EXIF tags like version 16717)
 async function sanitizeImageUrlForPdf(imageUrl: string | null | undefined): Promise<string | null> {
-  if (!imageUrl) return null;
-  if (imageUrl.startsWith('data:image/')) return imageUrl;
+  if (!imageUrl || imageUrl.trim().length === 0) return null;
   
   try {
-    const res = await fetch(imageUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-    });
-    
-    if (!res.ok) return imageUrl;
-    
-    const arrayBuffer = await res.arrayBuffer();
-    const inputBuffer = Buffer.from(arrayBuffer);
-    
-    // Sanitize image using sharp: resize to max 600px for ultra fast PDF rendering, auto-rotate EXIF and compress sRGB JPEG
+    let inputBuffer: Buffer;
+    if (imageUrl.startsWith('data:image/')) {
+      const base64Data = imageUrl.split(',')[1];
+      if (!base64Data) return imageUrl;
+      inputBuffer = Buffer.from(base64Data, 'base64');
+    } else if (imageUrl.startsWith('/')) {
+      const localPath = path.join(process.cwd(), 'public', imageUrl);
+      if (fs.existsSync(localPath)) {
+        inputBuffer = fs.readFileSync(localPath);
+      } else {
+        return imageUrl;
+      }
+    } else {
+      const res = await fetch(imageUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      });
+      if (!res.ok) return imageUrl;
+      const arrayBuffer = await res.arrayBuffer();
+      inputBuffer = Buffer.from(arrayBuffer);
+    }
+
+    // Flatten alpha channel onto pure white background (#ffffff) and output compressed JPEG
     const cleanBuffer = await sharp(inputBuffer)
-      .resize({ width: 600, height: 600, fit: 'inside', withoutEnlargement: true })
       .rotate()
-      .jpeg({ quality: 75, force: true })
+      .resize({ width: 800, height: 800, fit: 'inside', withoutEnlargement: true })
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .jpeg({ quality: 85, force: true })
       .toBuffer();
-      
+
     return `data:image/jpeg;base64,${cleanBuffer.toString('base64')}`;
   } catch (err) {
     console.error('Error sanitizing image for PDF:', imageUrl, err);
@@ -462,17 +474,29 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       const qrCodeUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${encodeURIComponent(targetUrl)}&scale=6&eclevel=M&includetext=false`;
 
       const hideSignatures = url.searchParams.get('mostrarFirmas') === 'false';
+      const mostrarFirmaGerencia = url.searchParams.get('mostrarFirmaGerencia') !== 'false';
+
+      // Cargar Firma de Gerencia General (Ing. Manuel Tejada)
+      let manuelSigBase64 = '';
+      try {
+        const sanitizedManuel = await sanitizeImageUrlForPdf('/firmas-sellos/firma Ing Manuel Tejada.png');
+        if (sanitizedManuel) manuelSigBase64 = sanitizedManuel;
+      } catch (err) {
+        console.error('Error loading Manuel Tejada signature for PDF:', err);
+      }
 
       // Sanitize all image URLs in `activo` object in parallel batches to prevent Vercel 504 timeouts
       if (activo) {
         const allImageUrls: (string | null | undefined)[] = [];
         if (activo.imagenUrl) allImageUrls.push(activo.imagenUrl);
         if (activo.imagenWeb) allImageUrls.push(activo.imagenWeb);
+        if (activo.cliente?.firmaDigitalUrl) allImageUrls.push(activo.cliente.firmaDigitalUrl);
 
         if (activo.ordenesTrabajo && Array.isArray(activo.ordenesTrabajo)) {
           for (const orden of activo.ordenesTrabajo) {
             if (orden.firmaClienteUrl) allImageUrls.push(orden.firmaClienteUrl);
             if (orden.firmaTecnicoUrl) allImageUrls.push(orden.firmaTecnicoUrl);
+            if (orden.tecnicoReparacion?.firmaDigitalUrl) allImageUrls.push(orden.tecnicoReparacion.firmaDigitalUrl);
             if (Array.isArray(orden.fotosEstadoInicial)) allImageUrls.push(...orden.fotosEstadoInicial);
             if (Array.isArray(orden.fotosTecnico)) allImageUrls.push(...orden.fotosTecnico);
             if (Array.isArray(orden.kanbanTasks)) {
@@ -491,11 +515,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
         if (activo.imagenUrl) activo.imagenUrl = sanitizedMap.get(activo.imagenUrl) || activo.imagenUrl;
         if (activo.imagenWeb) activo.imagenWeb = sanitizedMap.get(activo.imagenWeb) || activo.imagenWeb;
+        if (activo.cliente?.firmaDigitalUrl) {
+          activo.cliente.firmaDigitalUrl = sanitizedMap.get(activo.cliente.firmaDigitalUrl) || activo.cliente.firmaDigitalUrl;
+        }
 
         if (activo.ordenesTrabajo && Array.isArray(activo.ordenesTrabajo)) {
           for (const orden of activo.ordenesTrabajo) {
             if (orden.firmaClienteUrl) orden.firmaClienteUrl = sanitizedMap.get(orden.firmaClienteUrl) || orden.firmaClienteUrl;
             if (orden.firmaTecnicoUrl) orden.firmaTecnicoUrl = sanitizedMap.get(orden.firmaTecnicoUrl) || orden.firmaTecnicoUrl;
+            if (orden.tecnicoReparacion?.firmaDigitalUrl) {
+              orden.tecnicoReparacion.firmaDigitalUrl = sanitizedMap.get(orden.tecnicoReparacion.firmaDigitalUrl) || orden.tecnicoReparacion.firmaDigitalUrl;
+            }
             if (Array.isArray(orden.fotosEstadoInicial)) {
               orden.fotosEstadoInicial = orden.fotosEstadoInicial.map((u: string) => sanitizedMap.get(u) || u);
             }
@@ -520,7 +550,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
           activo,
           logoUrl: logoBase64 || undefined,
           qrCodeUrl,
-          hideSignatures
+          hideSignatures,
+          mostrarFirmaGerencia,
+          manuelSigBase64
         }) as any
       );
 
@@ -790,110 +822,47 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     // 3. Pre-fetch external images (Logo and Products) as Buffers
     const images: Record<string, string> = {};
     
-    // Helper to fetch and convert to base64
+    // Helper to fetch and convert to base64 with pure white background flattening for signatures and images
     const fetchImageAsBase64 = async (url: string, resizeOptions?: { width?: number, height?: number, quality?: number } | null) => {
       try {
-        if (!url || url.startsWith('data:')) return url;
+        if (!url || url.trim().length === 0) return null;
         
-        // If it's a local file path, read it directly from the public folder
-        if (url.startsWith('/')) {
+        let inputBuffer: Buffer;
+        if (url.startsWith('data:image/')) {
+          const base64Data = url.split(',')[1];
+          if (!base64Data) return url;
+          inputBuffer = Buffer.from(base64Data, 'base64');
+        } else if (url.startsWith('/')) {
           const localPath = path.join(process.cwd(), 'public', url);
           if (fs.existsSync(localPath)) {
-            let buffer = fs.readFileSync(localPath);
-            let contentType = 'image/jpeg';
-            if (url.toLowerCase().endsWith('.png')) contentType = 'image/png';
-            if (url.toLowerCase().endsWith('.svg')) contentType = 'image/svg+xml';
-            if (url.toLowerCase().endsWith('.gif')) contentType = 'image/gif';
-            
-            if (resizeOptions && !url.toLowerCase().endsWith('.svg')) {
-              try {
-                const sharp = (await import('sharp')).default;
-                let sharpInstance = sharp(buffer);
-                if (resizeOptions.width || resizeOptions.height) {
-                  sharpInstance = sharpInstance.resize({
-                    width: resizeOptions.width,
-                    height: resizeOptions.height,
-                    fit: 'inside',
-                    withoutEnlargement: true
-                  });
-                }
-                buffer = await sharpInstance.jpeg({ quality: resizeOptions.quality || 70 }).toBuffer();
-                contentType = 'image/jpeg';
-              } catch (e) {
-                console.warn(`Failed to compress local ${url}:`, e);
-              }
-            } else if (url.toLowerCase().endsWith('.webp') || url.toLowerCase().endsWith('.svg')) {
-              try {
-                const sharp = (await import('sharp')).default;
-                buffer = await sharp(buffer).png().toBuffer();
-                contentType = 'image/png';
-              } catch (e) {
-                console.warn(`Failed to convert local ${url} to png:`, e);
-                if (url.toLowerCase().endsWith('.webp')) contentType = 'image/webp';
-              }
-            }
-            return `data:${contentType};base64,${buffer.toString('base64')}`;
-          }
-        }
-
-        let fetchUrl = url;
-        const res = await fetch(fetchUrl);
-        if (!res.ok) return null;
-        const arrayBuffer = await res.arrayBuffer();
-        let buffer: any = Buffer.from(arrayBuffer);
-        let contentType = res.headers.get('content-type') || 'image/jpeg';
-        
-        if (!contentType.includes('svg')) {
-          try {
-            const sharp = (await import('sharp')).default;
-            let sharpInstance = sharp(buffer);
-            if (resizeOptions && (resizeOptions.width || resizeOptions.height)) {
-              sharpInstance = sharpInstance.resize({
-                width: resizeOptions.width,
-                height: resizeOptions.height,
-                fit: 'inside',
-                withoutEnlargement: true
-              });
-              buffer = await sharpInstance.jpeg({ quality: resizeOptions.quality || 70 }).toBuffer();
-              contentType = 'image/jpeg';
-            } else if (resizeOptions !== null) {
-              // Default thumbnail compression for remote images (unless explicitly requested null)
-              sharpInstance = sharpInstance.resize({
-                width: 200,
-                height: 200,
-                fit: 'inside',
-                withoutEnlargement: true
-              });
-              buffer = await sharpInstance.jpeg({ quality: 70 }).toBuffer();
-              contentType = 'image/jpeg';
-            } else {
-              // Handle webp to png fallback if no resize but webp
-              if (contentType.includes('webp') || url.toLowerCase().endsWith('.webp')) {
-                buffer = await sharpInstance.png().toBuffer();
-                contentType = 'image/png';
-              }
-            }
-          } catch (e) {
-            console.warn('Failed to resize remote image with sharp:', e);
-            if (contentType.includes('webp') || url.toLowerCase().endsWith('.webp')) {
-              try {
-                const sharp = (await import('sharp')).default;
-                buffer = await sharp(buffer).png().toBuffer();
-                contentType = 'image/png';
-              } catch (e2) {}
-            }
+            inputBuffer = fs.readFileSync(localPath);
+          } else {
+            return null;
           }
         } else {
-          try {
-            const sharp = (await import('sharp')).default;
-            buffer = await sharp(buffer).png().toBuffer();
-            contentType = 'image/png';
-          } catch (e) {}
+          const res = await fetch(url, {
+            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+          });
+          if (!res.ok) return null;
+          const arrayBuffer = await res.arrayBuffer();
+          inputBuffer = Buffer.from(arrayBuffer);
         }
 
-        return `data:${contentType};base64,${buffer.toString('base64')}`;
+        const maxWidth = resizeOptions?.width || 800;
+        const maxHeight = resizeOptions?.height || 800;
+        const quality = resizeOptions?.quality || 85;
+
+        // Use Sharp to rotate EXIF, flatten alpha channel onto pure white background (#ffffff), resize and output JPEG
+        const cleanBuffer = await sharp(inputBuffer)
+          .rotate()
+          .resize({ width: maxWidth, height: maxHeight, fit: 'inside', withoutEnlargement: true })
+          .flatten({ background: { r: 255, g: 255, b: 255 } })
+          .jpeg({ quality, force: true })
+          .toBuffer();
+
+        return `data:image/jpeg;base64,${cleanBuffer.toString('base64')}`;
       } catch (err) {
-        console.warn('Failed to fetch image:', url, err);
+        console.warn('Failed to fetch/process image for PDF:', url, err);
         return null;
       }
     };
@@ -951,51 +920,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }
     }
 
-    // Load signatures and seals if enabled
+    // Load signatures and seals flattened onto pure white background for zero black box rendering
     const getLocalOrRemoteImage = async (url: string) => {
-      try {
-        if (url.startsWith('/')) {
-          const fs = await import('fs');
-          const path = await import('path');
-          const localPath = path.join(process.cwd(), 'public', url);
-          if (fs.existsSync(localPath)) {
-            let buffer = fs.readFileSync(localPath);
-            
-            // Process signature and seal images to make their white background transparent
-            try {
-              const sharp = (await import('sharp')).default;
-              const image = sharp(buffer);
-              const { data, info } = await image.ensureAlpha().raw().toBuffer({ resolveWithObject: true });
-              for (let i = 0; i < data.length; i += 4) {
-                // If pixel is white/near-white, make it transparent
-                if (data[i] > 240 && data[i+1] > 240 && data[i+2] > 240) {
-                  data[i+3] = 0;
-                } else {
-                  // Enhance contrast/visibility by making non-white lines darker (decrease RGB values by 55%)
-                  data[i] = Math.max(0, Math.floor(data[i] * 0.45));
-                  data[i+1] = Math.max(0, Math.floor(data[i+1] * 0.45));
-                  data[i+2] = Math.max(0, Math.floor(data[i+2] * 0.45));
-                }
-              }
-              buffer = (await sharp(data as any, {
-                raw: {
-                  width: info.width,
-                  height: info.height,
-                  channels: 4
-                }
-              }).png().toBuffer()) as any;
-            } catch (sharpErr) {
-              console.warn('Failed to process image transparency with sharp:', sharpErr);
-            }
-
-            const contentType = 'image/png';
-            return `data:${contentType};base64,${buffer.toString('base64')}`;
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to read local image, trying fetch:', err);
-      }
-      return fetchImageAsBase64(url);
+      return fetchImageAsBase64(url, { width: 600, height: 600, quality: 85 });
     };
 
     const shouldLoadSignatures = settings.showSignatures || (doc.ordenEntrega && doc.ordenEntrega.mostrarFirmas !== false);
