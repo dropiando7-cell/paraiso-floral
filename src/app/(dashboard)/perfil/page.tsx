@@ -86,68 +86,73 @@ export default function ProfilePage() {
         if (!file) return;
 
         if (!file.type.startsWith('image/')) {
-            alert('Por favor selecciona una imagen válida.');
+            toast.error('Por favor selecciona una imagen válida (JPG, PNG, WebP).');
             return;
         }
 
-        if (file.size > 2 * 1024 * 1024) { // 2MB Limit
-            alert('La imagen no debe pesar más de 2MB');
+        if (file.size > 5 * 1024 * 1024) { // 5MB Limit
+            toast.error('La imagen no debe pesar más de 5MB');
             return;
         }
 
         setIsUploading(true);
 
         try {
-            // 1. Get Pre-Signed URL from our API
+            // Send file via FormData to /api/upload
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('fileName', file.name);
+
             const response = await fetch('/api/upload', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fileName: file.name,
-                    contentType: file.type,
-                }),
+                body: formData
             });
 
-            if (!response.ok) throw new Error('Error solicitando URL de subida');
+            const resData = await response.json();
 
-            const { uploadUrl, publicUrl } = await response.json();
-
-            // 2. Upload file directly to Cloudflare R2 (Bypassing our Next.js Server)
-            const uploadResponse = await fetch(uploadUrl, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': file.type,
-                },
-                body: file,
-            });
-
-            if (!uploadResponse.ok) throw new Error('Error subiendo imagen a Cloudflare R2');
-
-            // 3. Success! Set the new image in the UI
-            setProfilePic(publicUrl);
-
-            // 4. Update Supabase User Metadata
-            const supabase = createClient();
-            const { error: updateError } = await supabase.auth.updateUser({
-                data: {
-                    avatar_url: publicUrl,
-                    picture: publicUrl
-                }
-            });
-
-            if (updateError) {
-                console.error("Error updates supabase metadata", updateError);
+            if (!response.ok || resData.error) {
+                throw new Error(resData.error || 'Error al solicitar subida de archivo.');
             }
 
-            // 5. Update Prisma Database
-            const dbRes = await updateAvatarInDb(publicUrl);
+            let finalPublicUrl = resData.publicUrl;
+
+            // If an R2 presigned URL is returned, upload file to R2
+            if (resData.uploadUrl) {
+                const uploadResponse = await fetch(resData.uploadUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': file.type },
+                    body: file,
+                });
+                if (!uploadResponse.ok) throw new Error('Error subiendo imagen al almacenamiento');
+            }
+
+            // Set new profile picture in state
+            setProfilePic(finalPublicUrl);
+
+            // Update Supabase Auth metadata
+            try {
+                const supabase = createClient();
+                await supabase.auth.updateUser({
+                    data: {
+                        avatar_url: finalPublicUrl,
+                        picture: finalPublicUrl
+                    }
+                });
+            } catch (supErr) {
+                console.warn("Advertencia al actualizar avatar en Supabase:", supErr);
+            }
+
+            // Update Prisma Database
+            const dbRes = await updateAvatarInDb(finalPublicUrl);
             if (!dbRes.success) {
-                console.error("Error updating database avatar", dbRes.error);
+                console.error("Error actualizando avatar en DB:", dbRes.error);
             }
 
-        } catch (error) {
+            toast.success("Foto de perfil actualizada exitosamente.");
+
+        } catch (error: any) {
             console.error("Error cambiando foto:", error);
-            alert("Ocurrió un error al intentar subir la foto.");
+            toast.error(error.message || "Ocurrió un error al intentar subir la foto.");
         } finally {
             setIsUploading(false);
         }
@@ -321,7 +326,7 @@ export default function ProfilePage() {
                                                     disabled={isUploading}
                                                 />
                                                 <label htmlFor="avatar-upload" className={`px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm font-medium ${isUploading ? 'text-slate-400 cursor-wait' : 'text-slate-700 hover:bg-slate-50 cursor-pointer'} shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-brand-500/20`}>
-                                                    {isUploading ? 'Subiendo a R2...' : 'Cambiar foto'}
+                                                    {isUploading ? 'Subiendo foto...' : 'Cambiar foto'}
                                                 </label>
                                                 <button className="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors">
                                                     Eliminar

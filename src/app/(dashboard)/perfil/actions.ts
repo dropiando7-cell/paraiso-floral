@@ -13,38 +13,44 @@ export async function updateProfile(data: { fullName: string; phone: string }) {
             return { success: false, error: 'No autorizado' };
         }
 
-        // 1. Update Supabase Auth Metadata (for the name)
-        const { error: updateError } = await supabase.auth.updateUser({
-            data: {
-                full_name: data.fullName,
-                name: data.fullName
-            }
-        });
-
-        if (updateError) {
-            console.error('Error updating supabase metadata:', updateError);
-            return { success: false, error: 'Error al actualizar nombre en sesión.' };
+        // 1. Intentar actualizar en Supabase Auth Metadata (para el nombre en sesión)
+        try {
+            await supabase.auth.updateUser({
+                data: {
+                    full_name: data.fullName,
+                    name: data.fullName
+                }
+            });
+        } catch (supErr) {
+            console.warn('Advertencia al actualizar Supabase Auth User:', supErr);
         }
 
-        // 2. Update Prisma Database (for the name & phone)
+        // 2. Actualizar en Prisma Database (para nombre, apellido y teléfono)
         const parts = data.fullName.trim().split(/\s+/);
         const nombre = parts[0] || null;
-        const apellido = parts.slice(1).join(" ") || null;
+        const apellido = parts.length > 1 ? parts.slice(1).join(" ") : null;
 
-        await prisma.user.update({
-            where: { email: user.email },
-            data: {
-                phoneNumber: data.phone,
-                nombre,
-                apellido
-            }
-        });
+        if (user.email) {
+            await prisma.user.updateMany({
+                where: {
+                    email: {
+                        equals: user.email,
+                        mode: 'insensitive'
+                    }
+                },
+                data: {
+                    phoneNumber: data.phone,
+                    nombre,
+                    apellido
+                }
+            });
+        }
 
         revalidatePath('/perfil');
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error in updateProfile:', error);
-        return { success: false, error: 'Error interno del servidor al actualizar perfil.' };
+        return { success: false, error: error?.message || 'Error interno del servidor al actualizar perfil.' };
     }
 }
 
@@ -57,8 +63,13 @@ export async function updateAvatarInDb(url: string) {
             return { success: false, error: 'No autorizado' };
         }
 
-        await prisma.user.update({
-            where: { email: user.email },
+        await prisma.user.updateMany({
+            where: {
+                email: {
+                    equals: user.email,
+                    mode: 'insensitive'
+                }
+            },
             data: {
                 avatarUrl: url
             }
@@ -66,9 +77,9 @@ export async function updateAvatarInDb(url: string) {
 
         revalidatePath('/perfil');
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error in updateAvatarInDb:', error);
-        return { success: false, error: 'Error interno del servidor al actualizar foto en DB.' };
+        return { success: false, error: error?.message || 'Error interno del servidor al actualizar foto en DB.' };
     }
 }
 
@@ -81,8 +92,13 @@ export async function updateSignatureInDb(signatureUrl: string) {
             return { success: false, error: 'No autorizado' };
         }
 
-        await prisma.user.update({
-            where: { email: user.email },
+        await prisma.user.updateMany({
+            where: {
+                email: {
+                    equals: user.email,
+                    mode: 'insensitive'
+                }
+            },
             data: {
                 firmaDigitalUrl: signatureUrl || null
             }
@@ -90,8 +106,8 @@ export async function updateSignatureInDb(signatureUrl: string) {
 
         revalidatePath('/perfil');
         return { success: true };
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error in updateSignatureInDb:', error);
-        return { success: false, error: 'Error interno del servidor al actualizar firma digital.' };
+        return { success: false, error: error?.message || 'Error interno del servidor al actualizar firma digital.' };
     }
 }
