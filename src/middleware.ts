@@ -51,13 +51,10 @@ export async function middleware(request: NextRequest) {
         }
     }
 
-    // 2. ROOT PATH REDIRECTS FOR SYSTEM DOMAIN / LOCALHOST
-    if (url.pathname === '/') {
-        if (!user && (isSystemDomain || isLocalhost)) {
-            // Unauthenticated users on the system domain go to login
-            url.pathname = '/login'
-            return returnResponse(NextResponse.redirect(url))
-        }
+    // 2. ROOT PATH FOR UNAUTHENTICATED USERS
+    if (url.pathname === '/' && !user) {
+        url.pathname = '/landing'
+        return returnResponse(NextResponse.rewrite(url))
     }
 
     // 3. LOGIN PATH REDIRECT FOR LOGGED-IN USERS
