@@ -461,7 +461,7 @@ export async function registrarDesdeOdoo(input: {
 
         // Encolar etiqueta de impresión si se solicitó
         if (input.imprimirEtiqueta) {
-            const qrText = encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL || 'https://sistema.bioelectronicahn.com'}/ficha-tecnica/${idQr}`);
+            const qrText = encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL || 'https://paraiso-floral.vercel.app'}/ficha-tecnica/${idQr}`);
             const labelUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=4&eclevel=M&includetext=false`;
             await prisma.colaImpresion.create({
                 data: {

@@ -149,7 +149,7 @@ export async function sendCheckInNotification(
     const sid = "HXbbd437cb6c585ea474a41418a64cf4cc";
 
     // URL dinámica que genera la imagen con QR y Barras
-    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
+    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://paraiso-floral.vercel.app";
     const mediaUrl = `${domain}/api/checkin/pass?name=${encodeURIComponent(payload.kidName)}&room=${encodeURIComponent(payload.classroomName)}&code=${encodeURIComponent(payload.securityCode)}`;
 
     // La plantilla checkin_pase_recogidav8 usa {{1}} para texto y {{2}} para media
@@ -237,7 +237,7 @@ export async function sendSoporteRecepcion(
     
     // SID: recepcion_del_equipo
     const sid = "HXbcb3979eddda4b77766b46c8ea51e849";
-    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
+    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://paraiso-floral.vercel.app";
     const mediaUrl = `${domain}/api/soporte/pass?code=${encodeURIComponent(ordenCodigo)}&equipo=${encodeURIComponent(equipoDescripcion)}`;
 
     try {
@@ -350,7 +350,7 @@ export async function sendSoporteEquipoListo(
     
     // SID: equipo_listo_retiro
     const sid = "HXfdb98386354dbed017dd06788784e060";
-    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
+    const domain = process.env.NEXT_PUBLIC_APP_URL || "https://paraiso-floral.vercel.app";
     const mediaUrl = `${domain}/api/soporte/pass?code=${encodeURIComponent(ordenCodigo)}&equipo=${encodeURIComponent(equipoDescripcion)}`;
 
     try {

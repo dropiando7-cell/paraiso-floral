@@ -514,7 +514,7 @@ export default async function LandingPage() {
                         {/* Portal redirection block */}
                         <div className="pt-4 border-t border-slate-100 flex flex-col items-center">
                             <a
-                                href="https://sistema.bioelectronicahn.com"
+                                href="/login"
                                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold bg-blue-600 hover:bg-blue-700 text-white text-xs shadow-md shadow-blue-500/10 active:scale-[0.98] transition-all"
                             >
                                 Acceder al Portal Operativo (ERP)

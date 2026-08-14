@@ -66,7 +66,7 @@ export default function CompartirInformeModal({
             setTelDestino(clienteTelefono || '');
             
             // Generate public PDF download URL
-            const domain = typeof window !== 'undefined' ? window.location.origin : 'https://sistema.bioelectronicahn.com';
+            const domain = typeof window !== 'undefined' ? window.location.origin : 'https://paraiso-floral.vercel.app';
             const pdfDownloadUrl = `${domain}/api/pdf/${ordenId}?type=historial`;
             setWaMensaje(
                 `Estimado cliente, de parte de Bioelectrónica Honduras le hacemos llegar el informe técnico para la orden de trabajo *#${codigoSeguridad || ordenId}* del equipo *${equipoFull}*.\n\nPuede ver y descargar el informe en formato PDF ingresando al siguiente enlace:\n${pdfDownloadUrl}\n\nCualquier duda o consulta, quedamos a la orden.`

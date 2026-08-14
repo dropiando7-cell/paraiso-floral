@@ -3,10 +3,6 @@ import { updateSession } from '@/utils/supabase/middleware'
 
 export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone()
-    const host = request.headers.get('host') || ''
-    const isSystemDomain = host === 'sistema.bioelectronicahn.com'
-    const isLocalhost = host.includes('localhost') || host.includes('127.0.0.1')
-
     // Update the Supabase session first to know auth status
     const { supabase, supabaseResponse } = await updateSession(request)
     const { data: { user } } = await supabase.auth.getUser()
@@ -21,7 +17,7 @@ export async function middleware(request: NextRequest) {
 
     // Determine if the path is a public website path
     const isPublicPath =
-        (url.pathname === '/' && !((isSystemDomain || isLocalhost) && user)) ||
+        (url.pathname === '/' && !user) ||
         url.pathname.startsWith('/landing') ||
         url.pathname.startsWith('/productos') ||
         url.pathname.startsWith('/v/') ||
@@ -31,25 +27,6 @@ export async function middleware(request: NextRequest) {
         url.pathname === '/nosotros' ||
         url.pathname === '/bio' ||
         url.pathname.startsWith('/bio/');
-
-    // 1. DOMAIN ENFORCEMENT (PRODUCTION ONLY)
-    if (!isLocalhost) {
-        // A. System/Protected Routes and Login MUST only be served on sistema.bioelectronicahn.com
-        const isSystemRoute = !isPublicPath || url.pathname.startsWith('/login') || url.pathname.startsWith('/auth');
-        
-        if (isSystemRoute && !isSystemDomain) {
-            // Redirect to sistema.bioelectronicahn.com
-            return returnResponse(NextResponse.redirect(`https://sistema.bioelectronicahn.com${url.pathname}${url.search}`))
-        }
-
-        // B. Public Landing Routes on the System Domain:
-        // If the user is NOT logged in, redirect them to the main domain.
-        // If the user IS logged in, let them view the public pages on the system domain so they retain their session!
-        if (isPublicPath && isSystemDomain && !user) {
-            const targetPath = url.pathname === '/landing' ? '/' : url.pathname;
-            return returnResponse(NextResponse.redirect(`https://bioelectronicahn.com${targetPath}${url.search}`))
-        }
-    }
 
     // 2. ROOT PATH FOR UNAUTHENTICATED USERS
     if (url.pathname === '/' && !user) {

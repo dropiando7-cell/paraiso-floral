@@ -330,7 +330,7 @@ export default async function PublicLayout({
                         {/* Portal redirection block */}
                         <div className="pt-4 border-t border-slate-100 flex flex-col items-center">
                             <a
-                                href="https://sistema.bioelectronicahn.com"
+                                href="/login"
                                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold bg-blue-600 hover:bg-blue-700 text-white text-xs shadow-md shadow-blue-500/10 active:scale-[0.98] transition-all"
                             >
                                 Acceder al Portal Operativo (ERP)
@@ -630,7 +630,7 @@ export default async function PublicLayout({
 
                 <div className="max-w-7xl mx-auto border-t border-slate-800 mt-12 pt-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-[10px] text-slate-500 font-bold tracking-wider uppercase relative z-10">
                     <span>© {new Date().getFullYear()} {companyName}. Todos los derechos reservados.</span>
-                    <a href="https://sistema.bioelectronicahn.com" className="text-cyan-500 hover:text-cyan-400">Acceso Personal Autorizado (ERP)</a>
+                    <a href="/login" className="text-cyan-500 hover:text-cyan-400">Acceso Personal Autorizado (ERP)</a>
                 </div>
             </footer>
         </div>

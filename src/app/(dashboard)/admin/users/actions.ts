@@ -112,7 +112,7 @@ export async function createUser(data: {
         // Send Welcome Email asynchronously
         try {
             // Provide a graceful fallback if the URL environment variable isn't set
-            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bioelectronicahn.vercel.app';
+            const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://paraiso-floral.vercel.app';
             
             // Get Organization Details for Whitelabel
             const organization = await prisma.organization.findUnique({
@@ -654,7 +654,7 @@ export async function sendManualWelcomeEmail(userId: string) {
         const isGoogle = authTargetUser.app_metadata?.providers?.includes('google');
         const computedFirstName = authTargetUser.user_metadata?.full_name?.split(' ')[0] || targetUser.email.split('@')[0];
 
-        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://bioelectronicahn.vercel.app';
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://paraiso-floral.vercel.app';
         
         // Get Organization Details for Whitelabel
         const organization = await prisma.organization.findUnique({

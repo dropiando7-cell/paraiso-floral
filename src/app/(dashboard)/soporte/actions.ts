@@ -1528,7 +1528,7 @@ export async function generarPresupuestoReparacion(
             });
         });
 
-        const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
+        const domain = process.env.NEXT_PUBLIC_APP_URL || "https://paraiso-floral.vercel.app";
         const portalUrl = `${domain}/aprobar-presupuesto/${facturaId}`;
 
         revalidatePath('/soporte');
@@ -1569,7 +1569,7 @@ export async function enviarPresupuestoAlCliente(ordenId: string) {
         });
 
         // 2. Send Twilio notification
-        const domain = process.env.NEXT_PUBLIC_APP_URL || "https://bioelectronicahn.vercel.app";
+        const domain = process.env.NEXT_PUBLIC_APP_URL || "https://paraiso-floral.vercel.app";
         const portalUrl = `${domain}/aprobar-presupuesto/${factura.id}`;
 
         if (orden.cliente?.telefono) {
@@ -2366,7 +2366,7 @@ export async function enviarReportePorEmail(
 
         // Fetch PDF from route handler as buffer
         const headersList = await headers();
-        const host = headersList.get('host') || 'sistema.bioelectronicahn.com';
+        const host = headersList.get('host') || 'paraiso-floral.vercel.app';
         const protocol = host.includes('localhost') || host.includes('127.0.0.1') ? 'http' : 'https';
         const baseUrl = `${protocol}://${host}`;
         
