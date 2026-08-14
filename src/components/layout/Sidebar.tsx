@@ -177,14 +177,14 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
           <div className="h-10 w-10 flex items-center justify-center overflow-hidden shrink-0">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
-              src="/logo-paraiso-floral.png" 
-              alt="Paraíso Floral" 
+              src={dbUser?.organization?.logoUrl || "/logo-paraiso-floral.png"} 
+              alt={dbUser?.organization?.name || "Paraíso Floral"} 
               className="h-9 w-9 object-contain" 
             />
           </div>
           <div className="flex flex-col flex-1 overflow-hidden ml-0.5">
             <span className="truncate font-bold text-[17px] leading-6 text-slate-900 tracking-tight">
-              Paraíso Floral
+              {dbUser?.organization?.name || "Paraíso Floral"}
             </span>
             <span className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">
               ERP & Catálogo
@@ -273,7 +273,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                             clsx(
                               'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm w-full',
                               isEffectivelyActive || isChildActive
-                                ? 'bg-brand-600 text-white font-medium shadow-sm shadow-brand-500/20'
+                                ? 'bg-emerald-600 text-white font-semibold shadow-sm shadow-emerald-500/20'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                             )
                           )}
@@ -292,7 +292,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                             clsx(
                               'flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm',
                               isActive
-                                ? 'bg-brand-600 text-white font-medium shadow-sm shadow-brand-500/20'
+                                ? 'bg-emerald-600 text-white font-semibold shadow-sm shadow-emerald-500/20'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                             )
                           )}
@@ -360,7 +360,7 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                                   clsx(
                                     'flex items-center px-3 py-2 rounded-xl transition-all duration-200 group text-sm relative',
                                     isSubActive
-                                      ? 'bg-brand-600 text-white font-medium shadow-sm shadow-brand-500/20'
+                                      ? 'bg-emerald-600 text-white font-semibold shadow-sm shadow-emerald-500/20'
                                       : 'text-slate-500 hover:text-slate-900 hover:bg-slate-50'
                                   )
                                 )}
@@ -384,14 +384,22 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
       <div className="p-4 border-t border-slate-200 flex flex-col gap-1 shrink-0">
         {bottomItems.map((item) => {
           const Icon = item.icon;
+          const isBottomActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
           return (
             <Link
               key={item.name}
               href={item.href}
               onClick={onClose}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all duration-200 text-sm group font-medium"
+              className={twMerge(
+                clsx(
+                  'flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 text-sm group font-medium',
+                  isBottomActive
+                    ? 'bg-emerald-600 text-white font-semibold shadow-sm shadow-emerald-500/20'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                )
+              )}
             >
-              <Icon className="w-4 h-4 text-slate-400 group-hover:text-slate-600" />
+              <Icon className={clsx("w-4 h-4", isBottomActive ? "text-white" : "text-slate-400 group-hover:text-slate-600")} />
               <span>{item.name}</span>
             </Link>
           );

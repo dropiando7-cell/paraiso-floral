@@ -120,17 +120,12 @@ export default function LegacyTemplate(props: TemplateProps) {
  
  {/* Company Info */}
  <div className={`${settings.logoPosition === 'center' ? 'flex flex-col items-center text-center mt-4' : settings.logoPosition === 'right' ? 'flex-1 flex flex-col items-start text-left' : 'flex-1 text-right flex flex-col items-end'} text-sm`}>
- <h1 className={`font-bold text-lg ${theme.text}`}>{organization?.name || 'BIOELECTRONICA S. DE R.L. DE C.V'}</h1>
+ <h1 className={`font-bold text-lg ${theme.text}`}>{organization?.name || 'Distribuidora Paraíso Floral'}</h1>
  <div className="text-gray-700 leading-snug max-w-xs mt-1">
  {organization?.direccion ? (
  <p className="whitespace-pre-wrap">{organization.direccion}</p>
  ) : (
- <>
- <p>Barrio Paz Barahona 10 CALLE 12 Y 11 Ave.</p>
- <p>Casa NO. 81-A, media cuadra abajo de Restaurante Estelina</p>
- <p>San Pedro Sula CO 01201</p>
- <p>Honduras</p>
- </>
+ <p>San Pedro Sula, Honduras</p>
  )}
  </div>
 

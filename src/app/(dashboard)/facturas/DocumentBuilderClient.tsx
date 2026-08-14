@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import Link from 'next/link';
 // html2canvas and jspdf are imported dynamically inside handleDownloadPDF to avoid SSR issues
 import {
   Search, Plus, Trash2, ChevronDown, ChevronUp, GripVertical,
@@ -9,7 +10,7 @@ import {
   X, Calculator, Download, Eye, MoreHorizontal, ArrowRight,
   Sparkles, Hash, Calendar, CreditCard, Percent, ChevronRight,
   Tag, Info, Copy, Printer, Mail, Phone, MapPin, Star, Palette, Undo, LayoutGrid, Pencil,
-  Smartphone, Loader2, UploadCloud, PenTool, RefreshCw, Wrench
+  Smartphone, Loader2, UploadCloud, PenTool, RefreshCw, Wrench, UserPlus
 } from 'lucide-react';
 import DocumentActionsModal from '@/components/facturas/DocumentActionsModal';
 import SendEmailModal from '@/components/facturas/SendEmailModal';
@@ -240,27 +241,544 @@ const calculateUnitPriceFromTotal = (
 
 function DocTypeSelector({ value, onChange }: { value: DocType; onChange: (v: DocType) => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-1 max-w-full">
       {DOC_TYPES.map((dt) => {
         const active = value === dt.key;
         return (
           <button
             key={dt.key}
+            type="button"
             onClick={() => onChange(dt.key)}
             title={dt.description}
             className={`
-              flex flex-col items-center justify-center w-28 h-16 rounded-xl border transition-all duration-200 shadow-sm
+              flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border transition-all duration-200 shadow-sm shrink-0 cursor-pointer
               ${active 
-                ? `bg-white border-[currentColor] ${dt.color} shadow-md ring-4 ring-slate-100/30 font-bold scale-[1.02]` 
-                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-350 hover:bg-slate-50 font-medium'
+                ? `bg-white border-2 border-current ${dt.color} shadow-md font-bold scale-[1.02]` 
+                : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50 font-semibold'
               }
             `}
           >
-            <span className="mb-1">{dt.icon}</span>
-            <span className="text-[10px] uppercase tracking-wider font-bold">{dt.label}</span>
+            <span className={active ? dt.color : 'text-slate-400'}>{dt.icon}</span>
+            <span className="text-xs font-bold tracking-tight whitespace-nowrap">{dt.label}</span>
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function MobileDocumentForm({
+  docType, setDocType, docNumber, currentDocType, selectedClient, setShowClientModal,
+  resolvedFechaEmision, today, futureDate, validityDays, setValidityDays,
+  paymentTerms, setPaymentTerms, paymentMethod, setPaymentMethod,
+  lineItems, setLineItems, handleLineChange, handleDeleteLine, handleDuplicateLine,
+  handleToggleLongDesc, emptyLine, emptySectionLine, setShowProductModal,
+  totals, fmt, notes, setNotes, isSaving, handleSave, viewMode, isLocked,
+  setShowActionsModal, setShowWorkOrderModal, onOpenPreview, settings, handleEditClick,
+  isAnulada, isConvertida
+}: any) {
+  return (
+    <div className="space-y-4 pb-28 print:hidden">
+      {/* 1. Header Banner & Document Type Selector */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+          <div>
+            <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-bold block">Documento Fiscal</span>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-base font-black text-slate-900">{currentDocType.label}</span>
+              <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                {docNumber || 'PENDIENTE'}
+              </span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-1.5">
+            <Link
+              href="/facturas/pos"
+              prefetch={true}
+              className="px-3 py-2 bg-gradient-to-r from-emerald-600 to-indigo-600 text-white rounded-xl font-black text-xs flex items-center gap-1 shadow-md active:scale-95 transition-transform shrink-0"
+              title="Ir a Caja Rápida POS con Imágenes"
+            >
+              <Zap size={14} className="fill-white" />
+              <span>POS Móvil</span>
+            </Link>
+            {!viewMode && (
+              <button
+                type="button"
+                onClick={() => setShowWorkOrderModal(true)}
+                className="p-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-200 font-bold text-xs flex items-center gap-1 active:scale-95 transition-transform"
+                title="Extraer Orden de Trabajo"
+              >
+                <Wrench size={15} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowActionsModal(true)}
+              className="p-2.5 bg-slate-100 text-slate-700 rounded-xl border border-slate-200 font-bold text-xs flex items-center gap-1 active:scale-95 transition-transform"
+              title="Más Acciones"
+            >
+              <LayoutGrid size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* Tipo de Documento Segmented Control */}
+        <div>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1.5">Tipo de Documento</label>
+          <div className="grid grid-cols-2 gap-1.5 bg-slate-100 p-1 rounded-xl">
+            {DOC_TYPES.map((dt) => {
+              const active = docType === dt.key;
+              return (
+                <button
+                  key={dt.key}
+                  type="button"
+                  onClick={() => setDocType(dt.key)}
+                  className={`py-2 px-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                    active
+                      ? 'bg-white text-blue-700 shadow-sm'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span className={active ? 'text-blue-600' : 'text-slate-400'}>{dt.icon}</span>
+                  <span className="truncate">{dt.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Client Selection Card */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
+              <User size={15} className="text-blue-600" />
+            </div>
+            <span className="font-bold text-slate-900 text-sm">Cliente</span>
+          </div>
+          {selectedClient && (
+            <button
+              type="button"
+              onClick={() => setShowClientModal(true)}
+              className="text-xs font-bold text-blue-600 hover:underline"
+            >
+              Cambiar
+            </button>
+          )}
+        </div>
+
+        {!selectedClient ? (
+          <button
+            type="button"
+            onClick={() => setShowClientModal(true)}
+            className="w-full py-3.5 px-4 bg-blue-50/70 hover:bg-blue-100/70 border-2 border-dashed border-blue-300 rounded-xl text-blue-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.99]"
+          >
+            <UserPlus size={16} />
+            Seleccionar / Buscar Cliente
+          </button>
+        ) : (
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <p className="font-bold text-slate-900 text-sm leading-snug">{selectedClient.name}</p>
+                <p className="text-xs text-slate-500 font-mono mt-0.5">RTN: {selectedClient.rtn || 'Consumidor Final'}</p>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full shrink-0">
+                {selectedClient.category || 'General'}
+              </span>
+            </div>
+            {(selectedClient.email || selectedClient.phone) && (
+              <div className="mt-2 pt-2 border-t border-slate-200/60 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                {selectedClient.email && <span className="flex items-center gap-1"><Mail size={12} className="text-slate-400" />{selectedClient.email}</span>}
+                {selectedClient.phone && <span className="flex items-center gap-1"><Phone size={12} className="text-slate-400" />{selectedClient.phone}</span>}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Fechas y Condiciones Card */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+          <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
+            <Calendar size={15} className="text-indigo-600" />
+          </div>
+          <span className="font-bold text-slate-900 text-sm">Fechas & Pago</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Fecha Emisión</label>
+            <input
+              type="text"
+              readOnly
+              value={resolvedFechaEmision || today}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Validez (Días)</label>
+            <input
+              type="number"
+              value={validityDays}
+              onChange={(e) => setValidityDays(Number(e.target.value))}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2.5">
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Términos Pago</label>
+            <select
+              value={paymentTerms}
+              onChange={(e) => setPaymentTerms(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Contado">Contado</option>
+              <option value="Crédito 15 días">Crédito 15 días</option>
+              <option value="Crédito 30 días">Crédito 30 días</option>
+              <option value="Crédito 60 días">Crédito 60 días</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Forma de Pago</label>
+            <select
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-slate-800 focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="Efectivo">Efectivo</option>
+              <option value="Transferencia Bancaria">Transferencia</option>
+              <option value="Tarjeta de Crédito/Débito">Tarjeta</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* 4. Ítems y Productos Card */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <Package size={15} className="text-emerald-600" />
+            </div>
+            <span className="font-bold text-slate-900 text-sm">Ítems ({lineItems.length})</span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setShowProductModal(true)}
+            className="py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-transform cursor-pointer"
+          >
+            <Plus size={15} /> Catálogo
+          </button>
+          <button
+            type="button"
+            onClick={() => setLineItems((prev: any) => [...prev, emptyLine()])}
+            className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 border border-slate-200 active:scale-95 transition-transform cursor-pointer"
+          >
+            <Plus size={15} /> Ítem Libre
+          </button>
+        </div>
+
+        {/* List of items */}
+        <div className="space-y-3 pt-1">
+          {lineItems.map((item: any, index: number) => {
+            const { total } = calcLine(item, settings?.pricesIncludeTax);
+            return (
+              <div key={item.id} className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2.5 relative">
+                {/* Header row */}
+                <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
+                  <span className="text-[10px] font-bold font-mono px-2 py-0.5 bg-slate-200 text-slate-600 rounded-md">
+                    #{index + 1}
+                  </span>
+                  
+                  <input
+                    type="text"
+                    placeholder="SKU / Código"
+                    value={item.code}
+                    onChange={(e) => handleLineChange(item.id, 'code', e.target.value)}
+                    className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-mono text-slate-700 w-28 uppercase"
+                  />
+
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleDuplicateLine(item.id)}
+                      className="p-1.5 hover:bg-slate-200 text-slate-500 rounded-lg"
+                      title="Duplicar"
+                    >
+                      <Copy size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteLine(item.id)}
+                      className="p-1.5 hover:bg-red-100 text-red-500 rounded-lg"
+                      title="Eliminar"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Descripción del Producto</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Escribe la descripción del concepto..."
+                    value={item.shortDesc}
+                    onChange={(e) => handleLineChange(item.id, 'shortDesc', e.target.value)}
+                    className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-800 placeholder-slate-400 focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {/* Quantity & Price */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Cantidad</label>
+                    <div className="flex items-center border border-slate-200 rounded-xl bg-white overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => handleLineChange(item.id, 'qty', Math.max(1, Number(item.qty) - 1))}
+                        className="w-8 h-8 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        value={item.qty}
+                        onChange={(e) => handleLineChange(item.id, 'qty', e.target.value)}
+                        className="w-full text-center text-xs font-bold text-slate-800 focus:outline-none border-none p-0"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleLineChange(item.id, 'qty', Number(item.qty) + 1)}
+                        className="w-8 h-8 flex items-center justify-center text-slate-600 font-bold hover:bg-slate-100"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Precio Unit. (L)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={item.unitPrice}
+                      onChange={(e) => handleLineChange(item.id, 'unitPrice', e.target.value)}
+                      placeholder="0.00"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+
+                {/* Tax & Discount */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Impuesto</label>
+                    <select
+                      value={item.tax}
+                      onChange={(e) => handleLineChange(item.id, 'tax', e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl px-2 py-1.5 text-xs font-semibold text-slate-800"
+                    >
+                      <option value="isv15">ISV 15%</option>
+                      <option value="exento">Exento</option>
+                      <option value="isv18">ISV 18%</option>
+                      <option value="exonerado">Exonerado</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Desc. (%)</label>
+                    <input
+                      type="number"
+                      value={item.discount}
+                      onChange={(e) => handleLineChange(item.id, 'discount', e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-slate-800"
+                    />
+                  </div>
+                </div>
+
+                {/* Item Footer Total */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-200/80 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleToggleLongDesc(item.id)}
+                    className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-1"
+                  >
+                    {item.showLongDesc ? 'Ocultar Detalle' : '+ Serie / Detalle'}
+                  </button>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 mr-1">Subtotal:</span>
+                    <span className="font-black text-slate-900 text-xs sm:text-sm">{fmt(total)}</span>
+                  </div>
+                </div>
+
+                {/* Long Description Area */}
+                {item.showLongDesc && (
+                  <div className="pt-2">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Detalle Adicional / S/N / Garantía</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Especificaciones, serie o notas de este ítem..."
+                      value={item.longDesc}
+                      onChange={(e) => handleLineChange(item.id, 'longDesc', e.target.value)}
+                      className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 5. Totales & Observaciones */}
+      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
+          <div className="w-7 h-7 rounded-lg bg-amber-100 flex items-center justify-center">
+            <Calculator size={15} className="text-amber-600" />
+          </div>
+          <span className="font-bold text-slate-900 text-sm">Resumen de Totales</span>
+        </div>
+
+        <div className="space-y-1.5 text-xs">
+          <div className="flex justify-between text-slate-600">
+            <span>Subtotal Neto:</span>
+            <span className="font-semibold">{fmt(totals.subtotalNeto)}</span>
+          </div>
+          {totals.descuentoTotal > 0 && (
+            <div className="flex justify-between text-amber-600">
+              <span>Descuento Total:</span>
+              <span className="font-semibold">-{fmt(totals.descuentoTotal)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-slate-600">
+            <span>ISV (15%):</span>
+            <span className="font-semibold">{fmt(totals.isv15)}</span>
+          </div>
+          {totals.isv18 > 0 && (
+            <div className="flex justify-between text-slate-600">
+              <span>ISV (18%):</span>
+              <span className="font-semibold">{fmt(totals.isv18)}</span>
+            </div>
+          )}
+          <div className="flex justify-between text-slate-600">
+            <span>Exento / Exonerado:</span>
+            <span className="font-semibold">{fmt(totals.exento)}</span>
+          </div>
+
+          <div className="pt-2.5 border-t border-slate-200 flex justify-between items-center text-slate-900">
+            <span className="font-black text-xs uppercase tracking-wider">TOTAL A PAGAR:</span>
+            <span className="font-black text-lg text-blue-700">{fmt(totals.total)}</span>
+          </div>
+        </div>
+
+        <div className="pt-2">
+          <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1">Notas u Observaciones</label>
+          <textarea
+            rows={2}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Notas al pie del documento..."
+            className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-700 focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      {/* 6. Sticky Bottom Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 p-3 shadow-2xl flex items-center gap-2 print:hidden md:hidden">
+        <button
+          type="button"
+          onClick={onOpenPreview}
+          className="flex-1 py-3 px-3 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-800 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 border border-slate-300 transition-transform shadow-xs"
+        >
+          <Eye size={16} className="text-blue-600" />
+          Vista Previa
+        </button>
+
+        {viewMode && !isAnulada && !isConvertida && (docType === 'cotizacion' || docType === 'factura') && (
+          <button
+            type="button"
+            onClick={handleEditClick}
+            className="flex-1 py-3 px-3 bg-indigo-600 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform shadow-md shadow-indigo-500/20"
+          >
+            <Pencil size={15} /> Editar
+          </button>
+        )}
+
+        {!viewMode && !isAnulada && (
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={isSaving}
+            className={`flex-[1.4] py-3 px-4 text-white rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 shadow-lg transition-transform active:scale-95 ${
+              isSaving 
+                ? 'bg-slate-400 cursor-not-allowed' 
+                : 'bg-gradient-to-r from-blue-600 to-indigo-600 shadow-blue-500/25'
+            }`}
+          >
+            {isSaving ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Guardando...
+              </>
+            ) : (
+              <>
+                <Send size={16} />
+                {docType === 'factura' ? 'Emitir Factura' : 'Guardar Documento'}
+              </>
+            )}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MobilePrintPreviewModal({ isOpen, onClose, children }: { isOpen: boolean; onClose: () => void; children: React.ReactNode }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/95 backdrop-blur-sm flex flex-col print:relative print:z-auto print:bg-white print:inset-auto md:hidden">
+      {/* Header */}
+      <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between border-b border-slate-800 print:hidden shrink-0">
+        <div className="flex items-center gap-2">
+          <Eye size={18} className="text-blue-400" />
+          <span className="font-bold text-sm">Vista Previa de Impresión</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-transform"
+          >
+            <Printer size={14} /> Imprimir
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 bg-slate-800 text-slate-300 hover:text-white rounded-lg active:scale-95 transition-transform"
+          >
+            <X size={18} />
+          </button>
+        </div>
+      </div>
+
+      {/* Sheet Content */}
+      <div className="flex-1 overflow-auto p-2 sm:p-4 bg-slate-800 flex justify-center items-start print:p-0 print:bg-white print:overflow-visible">
+        <div className="w-full max-w-[816px] bg-white shadow-2xl rounded-sm overflow-hidden print:shadow-none print:max-w-none">
+          {children}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1919,6 +2437,7 @@ export default function DocumentBuilderClient({
 
   const [isLoaded, setIsLoaded] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [showMobilePreviewModal, setShowMobilePreviewModal] = useState(false);
 
   useEffect(() => {
     const handleShowLightbox = (e: Event) => {
@@ -3486,7 +4005,55 @@ export default function DocumentBuilderClient({
       </div>
       )}
 
-      <div className={`mx-auto px-4 py-8 flex flex-col md:flex-row print:p-0 print:max-w-none print:m-0 relative print:block transition-all duration-300 ${
+      {/* Mobile Form View (Visible on Mobile screens < md) */}
+      {!embedMode && (
+        <div className="block md:hidden px-3 py-3 print:hidden">
+          <MobileDocumentForm
+            docType={docType}
+            setDocType={setDocType}
+            docNumber={docNumber}
+            currentDocType={currentDocType}
+            selectedClient={selectedClient}
+            setShowClientModal={setShowClientModal}
+            resolvedFechaEmision={resolvedFechaEmision}
+            today={today}
+            futureDate={futureDate}
+            validityDays={validityDays}
+            setValidityDays={setValidityDays}
+            paymentTerms={paymentTerms}
+            setPaymentTerms={setPaymentTerms}
+            paymentMethod={paymentMethod}
+            setPaymentMethod={setPaymentMethod}
+            lineItems={lineItems}
+            setLineItems={setLineItems}
+            handleLineChange={handleLineChange}
+            handleDeleteLine={handleDeleteLine}
+            handleDuplicateLine={handleDuplicateLine}
+            handleToggleLongDesc={handleToggleLongDesc}
+            emptyLine={emptyLine}
+            emptySectionLine={emptySectionLine}
+            setShowProductModal={setShowProductModal}
+            totals={totals}
+            fmt={fmt}
+            notes={notes}
+            setNotes={setNotes}
+            isSaving={isSaving}
+            handleSave={handleSave}
+            viewMode={effectiveViewMode}
+            isLocked={isLocked}
+            setShowActionsModal={setShowActionsModal}
+            setShowWorkOrderModal={setShowWorkOrderModal}
+            onOpenPreview={() => setShowMobilePreviewModal(true)}
+            settings={settings}
+            handleEditClick={handleEditClick}
+            isAnulada={isAnulada}
+            isConvertida={isConvertida}
+          />
+        </div>
+      )}
+
+      {/* Desktop Canvas View (Visible on >= md screens or print) */}
+      <div className={`mx-auto px-4 py-8 hidden md:flex print:!flex flex-col md:flex-row print:p-0 print:max-w-none print:m-0 relative print:block transition-all duration-300 ${
         showCustomizer
           ? 'max-w-none w-full gap-5'
           : (viewMode && docType === 'factura' && !isLocked)
@@ -5836,6 +6403,105 @@ export default function DocumentBuilderClient({
           </div>
         </div>
       )}
+
+      {/* Mobile Print Preview Modal */}
+      <MobilePrintPreviewModal
+        isOpen={showMobilePreviewModal}
+        onClose={() => setShowMobilePreviewModal(false)}
+      >
+        <div className="relative bg-white min-h-[600px] p-2 sm:p-4">
+          {isAnulada && (
+             <div className="absolute inset-0 z-50 pointer-events-none flex items-center justify-center overflow-hidden mix-blend-multiply opacity-30 px-8">
+                 <span className="text-6xl sm:text-9xl font-black text-red-500 uppercase tracking-widest -rotate-45 block whitespace-nowrap">ANULADA</span>
+             </div>
+          )}
+          
+          {currentCanvasMode === 'orden_entrega' && (
+            <OrdenEntregaTemplate
+              settings={settings}
+              organization={organization}
+              docNumber={docNumber || 'PENDIENTE'}
+              nombreUsuario={resolvedNombreUsuario}
+              selectedClient={selectedClient}
+              today={getOrdenEntregaTodayStr()}
+              lineItems={lineItems}
+              viewMode={effectiveViewMode}
+              ordenEntrega={ordenEntrega}
+              onToggleItemExcluido={handleToggleItemExcluido}
+              ordenTrabajo={initialData?.ordenTrabajo}
+            />
+          )}
+
+          {currentCanvasMode === 'document' && settings.template === 'modern' && <ModernTemplate 
+            settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+            nombreUsuario={resolvedNombreUsuario}
+            docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+            today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+            setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+            setPaymentTerms={setPaymentTerms}
+            paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+            validityDays={validityDays} setValidityDays={setValidityDays} 
+            lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+            setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+            setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+            LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+            setSettings={setSettings}
+            onToggleTerms={handleToggleTerms}
+          />}
+          {currentCanvasMode === 'document' && settings.template === 'classic' && <ClassicTemplate 
+             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+             nombreUsuario={resolvedNombreUsuario}
+             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+             setPaymentTerms={setPaymentTerms}
+             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+             validityDays={validityDays} setValidityDays={setValidityDays} 
+             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+             LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+             setSettings={setSettings}
+             onToggleTerms={handleToggleTerms}
+          />}
+          {currentCanvasMode === 'document' && settings.template === 'minimalist' && <MinimalistTemplate 
+             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+             nombreUsuario={resolvedNombreUsuario}
+             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+             setPaymentTerms={setPaymentTerms}
+             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+             validityDays={validityDays} setValidityDays={setValidityDays} 
+             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+            handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+             LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+             setSettings={setSettings}
+             onToggleTerms={handleToggleTerms}
+          />}
+          {currentCanvasMode === 'document' && settings.template === 'legacy' && <LegacyTemplate 
+             settings={settings} organization={organization} docNumber={docNumber || 'PENDIENTE'} 
+             nombreUsuario={resolvedNombreUsuario}
+             docType={docType} currentDocType={currentDocType} docTypeStatusConfig={docTypeStatusConfig} 
+             today={today} fechaEmision={resolvedFechaEmision} futureDate={futureDate} selectedClient={selectedClient} 
+             setShowClientModal={isNotaCredito ? () => toast.error('No se puede cambiar el cliente en una Nota de Crédito') : setShowClientModal} paymentTerms={paymentTerms} 
+             setPaymentTerms={setPaymentTerms}
+             paymentMethod={paymentMethod} setPaymentMethod={setPaymentMethod}
+             validityDays={validityDays} setValidityDays={setValidityDays} 
+             lineItems={lineItems} handleLineChange={handleLineChange} handleDeleteLine={handleDeleteLine} handleDuplicateLine={handleDuplicateLine}
+             handleToggleLongDesc={handleToggleLongDesc} allProducts={allProducts} emptyLine={emptyLine} emptySectionLine={emptySectionLine}
+             setLineItems={setLineItems} setShowProductModal={setShowProductModal} notes={notes} 
+             setNotes={setNotes} totals={totals} handleSave={handleSave} isSaving={isSaving} fmt={fmt} 
+             LineItemRowComponent={LineItemRow} viewMode={true} clienteSignature={clienteSignaturePayload}
+             setSettings={setSettings}
+             onToggleTerms={handleToggleTerms}
+          />}
+        </div>
+      </MobilePrintPreviewModal>
     </div>
   );
 }

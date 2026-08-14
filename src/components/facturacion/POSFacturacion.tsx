@@ -1,8 +1,17 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, Plus, Minus, Trash2, Printer, X, Monitor, Zap, User, CreditCard, Banknote, ShoppingCart, CheckCircle2, QrCode, LayoutGrid, List, Grid3X3, ArrowDownCircle, FileText, Keyboard, Save } from 'lucide-react';
+import { 
+  Search, Plus, Minus, Trash2, Printer, X, Monitor, Zap, User, CreditCard, 
+  Banknote, ShoppingCart, CheckCircle2, QrCode, LayoutGrid, List, Grid3X3, 
+  ArrowDownCircle, FileText, Keyboard, Save, ArrowLeft, UserPlus, UserCheck, 
+  Loader2, Building2, Phone, Mail, MapPin, Sparkles, FileBadge 
+} from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
+import { searchClientes } from '@/app/(dashboard)/facturas/actions';
+import { crearClienteAction } from '@/app/(dashboard)/soporte/actions';
+import { crearProducto } from '@/app/(dashboard)/precios/actions';
 
 export interface POSProduct {
   id: string;
@@ -46,16 +55,59 @@ interface Props {
   onEmitirFactura: (payload: POSFacturaPayload) => Promise<{ success: boolean; correlativo?: string; facturaId?: string; error?: string }>;
   cajeroNombre: string;
   modoKiosko?: boolean;
+  organization?: {
+    name?: string;
+    direccion?: string;
+    telefono?: string;
+    correoContacto?: string;
+    rtn?: string;
+    logoUrl?: string;
+  };
 }
 
-export default function POSFacturacion({ productos, categorias, onEmitirFactura, cajeroNombre, modoKiosko = false }: Props) {
+export default function POSFacturacion({ productos, categorias, onEmitirFactura, cajeroNombre, modoKiosko = false, organization }: Props) {
   const router = useRouter();
   
   // State
+  const [localProducts, setLocalProducts] = useState<POSProduct[]>(productos);
+
+  useEffect(() => {
+    setLocalProducts(productos);
+  }, [productos]);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
+
+  // Client Selection & Creation State
   const [clientName, setClientName] = useState('Consumidor Final');
+  const [selectedClient, setSelectedClient] = useState<{ id?: string; nombre: string; rtn?: string; telefono?: string; email?: string } | null>(null);
+  
+  const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
+  const [isSearchingClients, setIsSearchingClients] = useState(false);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+
+  // Quick Add Client Modal
+  const [showAddClientModal, setShowAddClientModal] = useState(false);
+  const [isSavingClient, setIsSavingClient] = useState(false);
+  const [newClientData, setNewClientData] = useState({
+    nombre: '',
+    rtn: '',
+    telefono: '',
+    email: '',
+    direccion: ''
+  });
+
+  // Quick Add Product Modal
+  const [showAddProductModal, setShowAddProductModal] = useState(false);
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [newProductData, setNewProductData] = useState({
+    nombre: '',
+    precioVenta: '',
+    costoBase: '',
+    stockActual: '100'
+  });
+
   const [viewMode, setViewMode] = useState<'large' | 'small' | 'list'>('large');
   const [visibleCount, setVisibleCount] = useState(24);
   
@@ -68,6 +120,15 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
   const [cashTendered, setCashTendered] = useState<string>('');
   const [showClearCartModal, setShowClearCartModal] = useState(false);
+  const [showMobileCartSheet, setShowMobileCartSheet] = useState(false);
+  const [animatingProductId, setAnimatingProductId] = useState<string | null>(null);
+
+  const totalCartItemsCount = useMemo(() => cart.reduce((acc, item) => acc + item.qty, 0), [cart]);
+
+  const getItemCartQty = useCallback((productId: string) => {
+    const item = cart.find(i => i.id === productId);
+    return item ? item.qty : 0;
+  }, [cart]);
 
   // Shortcuts
   const [showShortcuts, setShowShortcuts] = useState(false);
@@ -92,14 +153,139 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   const barcodeBufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
 
+  // Client Search & Creation Handlers
+  const handleClientSearchChange = async (val: string) => {
+    setClientName(val);
+    if (!val.trim() || val === 'Consumidor Final') {
+      setClientSearchResults([]);
+      setShowClientDropdown(false);
+      return;
+    }
+    setIsSearchingClients(true);
+    setShowClientDropdown(true);
+    try {
+      const res = await searchClientes(val);
+      setClientSearchResults(res || []);
+    } catch (e) {
+      console.error('Error searching clients:', e);
+    } finally {
+      setIsSearchingClients(false);
+    }
+  };
+
+  const handleSelectClient = (c: any) => {
+    setClientName(c.nombre);
+    setSelectedClient(c);
+    setShowClientDropdown(false);
+    toast.success(`Cliente "${c.nombre}" seleccionado`);
+  };
+
+  const handleResetToConsumidorFinal = () => {
+    setClientName('Consumidor Final');
+    setSelectedClient(null);
+    setShowClientDropdown(false);
+  };
+
+  const handleSaveNewClient = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newClientData.nombre.trim()) {
+      toast.error('El nombre del cliente es obligatorio');
+      return;
+    }
+    setIsSavingClient(true);
+    try {
+      const res = await crearClienteAction({
+        nombre: newClientData.nombre,
+        rtn: newClientData.rtn || null,
+        telefono: newClientData.telefono || null,
+        email: newClientData.email || null,
+        direccion: newClientData.direccion || null
+      });
+
+      if (!res.success || !res.cliente) {
+        throw new Error(res.error || 'No se pudo crear el cliente');
+      }
+
+      setClientName(res.cliente.nombre);
+      setSelectedClient({
+        id: res.cliente.id,
+        nombre: res.cliente.nombre,
+        rtn: res.cliente.rtn || undefined,
+        telefono: res.cliente.telefono || undefined,
+        email: res.cliente.email || undefined
+      });
+      toast.success(`Cliente "${res.cliente.nombre}" guardado y seleccionado`);
+      setShowAddClientModal(false);
+      setNewClientData({ nombre: '', rtn: '', telefono: '', email: '', direccion: '' });
+    } catch (err: any) {
+      toast.error(err.message || 'Error al guardar el cliente');
+    } finally {
+      setIsSavingClient(false);
+    }
+  };
+
+  const handleSaveNewProduct = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newProductData.nombre.trim()) {
+      toast.error('El nombre de la flor o producto es obligatorio');
+      return;
+    }
+    const precio = parseFloat(newProductData.precioVenta) || 0;
+    if (precio <= 0) {
+      toast.error('Ingrese un precio de venta válido');
+      return;
+    }
+    const costo = parseFloat(newProductData.costoBase) || 0;
+    const stock = parseInt(newProductData.stockActual) || 100;
+
+    setIsSavingProduct(true);
+    try {
+      const sku = 'FLOR-' + String(Date.now()).slice(-6);
+      const res = await crearProducto({
+        codigo: sku,
+        descripcion: newProductData.nombre,
+        precioVenta: precio,
+        costoBase: costo
+      });
+
+      if (!res.success || !res.producto) {
+        throw new Error(res.message || 'Error al crear la flor o producto');
+      }
+
+      const createdItem: POSProduct = {
+        id: res.producto.id,
+        sku: res.producto.sku || sku,
+        nombre: res.producto.nombre,
+        precioVenta: Number(res.producto.precioVenta),
+        stockActual: stock,
+        isvAplicable: 15,
+        esServicio: false,
+        isActivoFijo: false
+      };
+
+      setLocalProducts(prev => [createdItem, ...prev]);
+      
+      // Auto add to cart
+      addToCart(createdItem);
+      
+      toast.success(`"${createdItem.nombre}" creado y agregado al ticket`);
+      setShowAddProductModal(false);
+      setNewProductData({ nombre: '', precioVenta: '', costoBase: '', stockActual: '100' });
+    } catch (err: any) {
+      toast.error(err.message || 'Error al guardar el producto');
+    } finally {
+      setIsSavingProduct(false);
+    }
+  };
+
   // Computed: Products Filtered
   const filteredProducts = useMemo(() => {
-    return productos.filter(p => {
+    return localProducts.filter(p => {
       const matchSearch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchCat = activeCategory === 'all' || true; // Placeholder for category filter logic if needed
+      const matchCat = activeCategory === 'all' || true;
       return matchSearch && matchCat;
     });
-  }, [productos, searchTerm, activeCategory]);
+  }, [localProducts, searchTerm, activeCategory]);
 
   const pagedProducts = useMemo(() => {
     return filteredProducts.slice(0, visibleCount);
@@ -145,17 +331,25 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
   // Actions
   const addToCart = useCallback((p: POSProduct) => {
+    setAnimatingProductId(p.id);
+    setTimeout(() => setAnimatingProductId(null), 400);
+
     setCart(prev => {
-      const exists = prev.find(i => i.id === p.id && !p.isActivoFijo);
-      if (exists) {
-        return prev.map(i => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
+      const existingIndex = prev.findIndex(i => i.id === p.id);
+      if (existingIndex >= 0) {
+        const updated = [...prev];
+        updated[existingIndex] = {
+          ...updated[existingIndex],
+          qty: updated[existingIndex].qty + 1
+        };
+        return updated;
       }
       return [{ 
         ...p, 
         qty: 1, 
         discountPercentage: 0, 
-        cartId: Math.random().toString(36).substr(2, 9),
-        taxState: p.isvAplicable === 15 ? 'isv15' : 'exento'
+        cartId: `${p.id}-${Date.now()}`,
+        taxState: p.isvAplicable === 15 ? 'isv15' : p.isvAplicable === 18 ? 'isv18' : 'exento'
       }, ...prev];
     });
   }, []);
@@ -316,149 +510,295 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cart.length, showCheckout, showSuccess, filteredProducts, addToCart, productos]);
 
+  const renderClientSection = () => (
+    <div className="bg-white border-b border-slate-200 p-3 space-y-2 relative">
+      <div className="flex items-center justify-between">
+        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+          <User size={12} className="text-indigo-600" />
+          <span>Cliente / Facturar A</span>
+        </label>
+        {selectedClient ? (
+          <button
+            type="button"
+            onClick={handleResetToConsumidorFinal}
+            className="text-[10px] font-bold text-rose-500 hover:underline"
+          >
+            Consumidor Final
+          </button>
+        ) : (
+          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
+            Consumidor Final
+          </span>
+        )}
+      </div>
+
+      <div className="flex items-center gap-1.5 relative">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            value={clientName}
+            onChange={e => handleClientSearchChange(e.target.value)}
+            onFocus={() => {
+              if (clientName && clientName !== 'Consumidor Final') setShowClientDropdown(true);
+            }}
+            placeholder="Buscar o ingresar cliente..."
+            className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none transition-all"
+          />
+          {isSearchingClients && (
+            <Loader2 size={14} className="absolute right-3 top-2.5 animate-spin text-indigo-500" />
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setShowAddClientModal(true)}
+          className="px-2.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm shrink-0 transition-transform"
+          title="Agregar Nuevo Cliente"
+        >
+          <UserPlus size={14} />
+          <span className="text-xs">+ Nuevo</span>
+        </button>
+      </div>
+
+      {/* Selected Client Badges */}
+      {selectedClient && (
+        <div className="bg-indigo-50/70 border border-indigo-100 rounded-lg p-2 text-[11px] space-y-0.5">
+          <p className="font-black text-indigo-950 flex items-center gap-1">
+            <UserCheck size={13} className="text-indigo-600 shrink-0" />
+            <span>{selectedClient.nombre}</span>
+          </p>
+          {selectedClient.rtn && (
+            <p className="text-indigo-700 font-mono text-[10px] pl-4">
+              RTN/DNI: <span className="font-bold">{selectedClient.rtn}</span>
+            </p>
+          )}
+          {selectedClient.telefono && (
+            <p className="text-slate-600 text-[10px] pl-4">
+              Tel: {selectedClient.telefono}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Autocomplete Dropdown */}
+      {showClientDropdown && clientSearchResults.length > 0 && (
+        <div className="absolute left-3 right-3 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100">
+          {clientSearchResults.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => handleSelectClient(c)}
+              className="w-full text-left px-3 py-2 hover:bg-indigo-50 transition-colors flex items-center justify-between"
+            >
+              <div>
+                <p className="text-xs font-bold text-slate-900">{c.nombre}</p>
+                <p className="text-[10px] text-slate-500">
+                  {c.rtn ? `RTN: ${c.rtn}` : c.telefono ? `Tel: ${c.telefono}` : 'Cliente registrado'}
+                </p>
+              </div>
+              <UserCheck size={14} className="text-indigo-500 opacity-80" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const fmt = (v: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL' }).format(v);
 
   return (
     <div className={`flex flex-col h-screen h-[100dvh] bg-[#F3F4F6] font-sans ${modoKiosko ? 'fixed inset-0 z-[1000] overflow-hidden' : 'relative w-full overflow-hidden'}`}>
       
       {/* HEADER POS - FIJO Y SIEMPRE VISIBLE */}
-      <header className="bg-white px-6 py-4 flex items-center justify-between border-b border-gray-200 shadow-sm shrink-0 z-20 print:hidden relative">
-        <div className="flex items-center gap-4 shrink-0 w-1/4">
+      <header className="bg-white px-3 sm:px-6 py-2.5 sm:py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between border-b border-gray-200 shadow-sm shrink-0 z-20 print:hidden relative gap-2">
+        
+        {/* Mobile top bar (Image 2 style) */}
+        <div className="flex md:hidden items-center justify-between bg-[#16a34a] text-white -mx-3 -mt-2.5 p-3 shadow-md mb-1">
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => router.push('/facturas')} 
+              className="p-1 rounded-lg hover:bg-white/20 text-white transition-colors"
+            >
+              <ArrowLeft size={20} />
+            </button>
+            <button 
+              onClick={() => setShowMobileCartSheet(true)}
+              className="flex items-center gap-1.5 bg-emerald-700/80 hover:bg-emerald-800 text-white px-2.5 py-1 rounded-lg text-xs font-black shadow-sm"
+            >
+              <ShoppingCart size={15} />
+              <span>Ticket</span>
+              <span className="bg-white text-emerald-800 text-[11px] font-black px-1.5 py-0.2 rounded-full">
+                {totalCartItemsCount}
+              </span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => {
+                if (cart.length > 0) setShowMobileCartSheet(true);
+              }}
+              className="px-2.5 py-1 bg-emerald-700/60 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold uppercase tracking-wider"
+            >
+              Guardar
+            </button>
+            <button 
+              onClick={() => {
+                if (cart.length > 0) setShowCheckout(true);
+              }}
+              disabled={cart.length === 0}
+              className="px-3 py-1 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 text-slate-900 font-black text-xs rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-1"
+            >
+              <span>COBRAR</span>
+              <span className="font-extrabold">{fmt(totals.total)}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Desktop Header */}
+        <div className="hidden md:flex items-center gap-4 shrink-0 w-1/4">
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
             <Zap className="text-white fill-white" size={20} />
           </div>
           <div>
             <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none">CAJA RÁPIDA</h1>
-            <p className="text-xs text-gray-500 font-medium mt-1 uppercase tracking-widest">Bioelectrónica HN</p>
+            <p className="text-xs text-gray-500 font-medium mt-1 uppercase tracking-widest">{organization?.name || 'Distribuidora Paraíso Floral'}</p>
           </div>
         </div>
 
-        <div className="flex-1 max-w-2xl mx-8 relative z-30">
+        {/* Search Bar */}
+        <div className="flex-1 max-w-2xl md:mx-8 relative z-30">
           <div className="relative group/search">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/search:text-indigo-500 transition-colors" size={20} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/search:text-indigo-500 transition-colors" size={18} />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder={`Buscar producto por código, nombre o escanea... (${shortcuts.search})`}
+              placeholder="Buscar producto por código, nombre o escanea..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value.replace(/'/g, '-'))}
-              className="w-full pl-12 pr-4 py-3.5 bg-gray-100 hover:bg-gray-200/50 focus:bg-white border-2 border-transparent focus:border-indigo-500 rounded-2xl outline-none text-base font-semibold transition-all shadow-sm focus:shadow-md"
+              className="w-full pl-10 pr-4 py-2 sm:py-3 bg-gray-100 hover:bg-gray-200/50 focus:bg-white border-2 border-transparent focus:border-indigo-500 rounded-xl outline-none text-xs sm:text-base font-semibold transition-all shadow-sm focus:shadow-md"
             />
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 px-2 py-1 rounded-md text-[10px] font-black text-indigo-500 shadow-sm border border-indigo-100 uppercase tracking-widest hidden md:block">
-              {shortcuts.search}
-            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4 shrink-0 w-1/4 justify-end">
-          <div className="text-right hidden md:block pr-4 border-r border-gray-200">
+        {/* Desktop Header Right */}
+        <div className="hidden md:flex items-center gap-4 shrink-0 w-1/4 justify-end">
+          <div className="text-right pr-4 border-r border-gray-200">
             <p className="text-sm font-bold text-gray-900">{cajeroNombre}</p>
             <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mt-0.5">Cajero</p>
           </div>
-          {modoKiosko ? (
-             <>
-               <button onClick={() => setShowShortcuts(true)} className="p-2.5 text-gray-500 hover:text-indigo-600 bg-gray-50 hover:bg-indigo-50 rounded-xl transition-colors" title="Teclas de Acceso Rápido">
-                 <Keyboard size={20} />
-               </button>
-               <button onClick={() => document.exitFullscreen().catch(()=>{})} className="p-2.5 text-gray-400 hover:text-rose-500 transition-colors bg-gray-50 hover:bg-rose-50 rounded-xl">
-                 <X size={20} />
-               </button>
-             </>
-          ) : (
-             <>
-               <button onClick={() => setShowShortcuts(true)} className="p-2.5 text-gray-500 hover:text-indigo-600 bg-gray-100 hover:bg-indigo-50 rounded-xl transition-colors" title="Teclas de Acceso Rápido">
-                 <Keyboard size={16} />
-               </button>
-               <button onClick={() => router.push('/facturas')} title="Salir / Volver (ESC)" className="p-2.5 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-500 rounded-xl transition-all font-bold text-sm flex gap-2 items-center">
-                 <X size={16} /> Cerrar POS
-               </button>
-             </>
-          )}
+          <button onClick={() => setShowShortcuts(true)} className="p-2.5 text-gray-500 hover:text-indigo-600 bg-gray-100 hover:bg-indigo-50 rounded-xl transition-colors" title="Teclas de Acceso Rápido">
+            <Keyboard size={16} />
+          </button>
+          <button onClick={() => router.push('/facturas')} title="Salir / Volver (ESC)" className="p-2.5 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-500 rounded-xl transition-all font-bold text-sm flex gap-2 items-center">
+            <X size={16} /> Cerrar POS
+          </button>
         </div>
       </header>
 
       {/* MAIN CONTENT DIVIDED */}
-      <div className="flex flex-1 overflow-hidden print:hidden relative z-10 w-full">
+      <div className="flex flex-1 overflow-hidden print:hidden relative z-10 w-full pb-16 md:pb-0">
         
         {/* LEFT PANEL - PRODUCTS */}
-        <div className="flex-1 flex flex-col min-w-0 bg-[#F8F9FB] overflow-hidden">
+        <div className="flex-1 flex flex-col min-w-0 bg-[#F8F9FB] overflow-hidden w-full">
           
-          <div className="py-4 px-6 flex items-center justify-between border-b border-gray-100 bg-white/50 backdrop-blur shrink-0 z-10">
-            <div className="flex gap-2">
+          <div className="py-2 sm:py-4 px-2 sm:px-6 flex items-center justify-between border-b border-gray-100 bg-white/50 backdrop-blur shrink-0 z-10">
+            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                <button
                  onClick={() => setActiveCategory('all')}
-                 className={`px-5 py-2.5 rounded-full text-sm font-semibold transition-all ${activeCategory === 'all' ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'}`}
+                 className="px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold bg-indigo-600 text-white shadow-md shadow-indigo-600/20 whitespace-nowrap"
                >
-                 Catálogo General
+                 Todos los artículos
+               </button>
+               <button
+                 type="button"
+                 onClick={() => setShowAddProductModal(true)}
+                 className="px-3 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 whitespace-nowrap flex items-center gap-1 active:scale-95 transition-transform"
+               >
+                 <Plus size={14} />
+                 <span>+ Nueva Flor</span>
                </button>
             </div>
 
             {/* Layout Toggles */}
-            <div className="bg-white rounded-xl border border-gray-200 p-1 flex items-center shadow-sm">
+            <div className="bg-white rounded-xl border border-gray-200 p-1 flex items-center shadow-sm shrink-0">
                 <button onClick={() => setViewMode('large')} title="Tarjetas Grandes" className={`p-1.5 rounded-lg transition-colors ${viewMode === 'large' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>
-                  <LayoutGrid size={18} />
+                  <LayoutGrid size={16} />
                 </button>
                 <button onClick={() => setViewMode('small')} title="Tarjetas Pequeñas" className={`p-1.5 rounded-lg transition-colors ${viewMode === 'small' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>
-                  <Grid3X3 size={18} />
+                  <Grid3X3 size={16} />
                 </button>
                 <button onClick={() => setViewMode('list')} title="Vista de Lista" className={`p-1.5 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400 hover:text-gray-600'}`}>
-                  <List size={18} />
+                  <List size={16} />
                 </button>
             </div>
           </div>
 
-          {/* Product Grid Area - SCROLLABLE */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 hide-scrollbar relative">
+          {/* Product Grid Area - SCROLLABLE (Image 2 style tight layout) */}
+          <div className="flex-1 overflow-y-auto p-1.5 sm:p-6 hide-scrollbar relative">
             <div className={
-              viewMode === 'large' ? 'grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4' : 
-              viewMode === 'small' ? 'grid grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 2xl:grid-cols-8 gap-3' : 
-              'flex flex-col gap-2'
+              viewMode === 'large' ? 'grid grid-cols-2 xs:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-1.5 sm:gap-4' : 
+              viewMode === 'small' ? 'grid grid-cols-3 xs:grid-cols-4 md:grid-cols-6 2xl:grid-cols-8 gap-1.5 sm:gap-3' : 
+              'flex flex-col gap-1.5'
             }>
-              {pagedProducts.map(p => (
-                <div 
-                  key={p.id} 
-                  onClick={() => addToCart(p)}
-                  className={`bg-white cursor-pointer hover:shadow-xl hover:border-indigo-200 border border-gray-200 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] transition-all group overflow-hidden ${
-                    viewMode === 'list' ? 'flex items-center p-3 rounded-2xl hover:-translate-y-0.5' : 'flex flex-col rounded-3xl p-4 hover:-translate-y-1'
-                  }`}
-                >
-                  <div className={`relative flex items-center justify-center overflow-hidden transition-colors ${
-                    viewMode === 'list' ? 'w-16 h-16 bg-gray-50 rounded-xl mr-4 shrink-0' : 
-                    viewMode === 'small' ? 'aspect-square bg-gray-50 rounded-2xl mb-3 p-2' : 
-                    'aspect-square bg-gray-50 rounded-2xl mb-4 p-4 group-hover:bg-indigo-50/30'
-                  }`}>
-                     {p.imageUrl ? (
-                       <img src={p.imageUrl} alt={p.nombre} className="w-full h-full object-contain mix-blend-multiply" />
-                     ) : (
-                       <span className={`${viewMode === 'small' || viewMode === 'list' ? 'text-2xl' : 'text-5xl'} font-black text-gray-200 group-hover:text-indigo-200 transition-colors uppercase`}>{p.nombre.substring(0,2)}</span>
-                     )}
-                     
-                     {p.stockActual <= 5 && !p.esServicio && viewMode !== 'list' && (
-                       <span className="absolute top-2 right-2 bg-rose-100 text-rose-600 text-[10px] font-black px-2 py-1 rounded-lg uppercase shadow-sm">Bajo</span>
-                     )}
-                  </div>
+              {pagedProducts.map(p => {
+                const qtyInCart = getItemCartQty(p.id);
+                const isAnimating = animatingProductId === p.id;
 
-                  <div className={viewMode === 'list' ? 'flex-1 min-w-0' : 'flex flex-col flex-1'}>
-                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1 line-clamp-1">{p.sku}</p>
-                    <h3 className={`font-bold text-gray-900 line-clamp-2 leading-tight ${viewMode === 'small' ? 'text-xs mb-1' : 'text-sm mb-2'}`}>{p.nombre}</h3>
-                    <div className={`mt-auto flex items-center justify-between ${viewMode === 'list' && 'mt-1'}`}>
-                      <p className={`font-black text-indigo-600 ${viewMode === 'small' ? 'text-sm' : 'text-lg'}`}>{fmt(p.precioVenta)}</p>
-                      
-                      {viewMode !== 'list' && (
-                        <button className="w-8 h-8 rounded-xl bg-gray-50 text-gray-400 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center transition-colors shadow-sm">
-                          <Plus size={16} />
-                        </button>
-                      )}
+                return (
+                  <div 
+                    key={p.id} 
+                    onClick={() => addToCart(p)}
+                    className={`bg-white cursor-pointer hover:shadow-xl border border-gray-200 shadow-xs transition-all group overflow-hidden relative select-none rounded-2xl p-1.5 sm:p-3 active:scale-95 ${
+                      qtyInCart > 0 ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20' : 'hover:border-indigo-200'
+                    } ${isAnimating ? 'scale-95 border-emerald-500 ring-4 ring-emerald-400/40' : ''}`}
+                  >
+                    {/* Quantity Badge on Product Card */}
+                    {qtyInCart > 0 && (
+                      <div className="absolute top-2 right-2 bg-emerald-600 text-white font-black text-[10px] sm:text-xs px-2 py-0.5 rounded-full shadow-md z-20 animate-in zoom-in-75">
+                        x{qtyInCart}
+                      </div>
+                    )}
+
+                    {/* Floating Fly-to-Cart Animation Indicator */}
+                    {isAnimating && (
+                      <div className="absolute top-1 left-1/2 -translate-x-1/2 bg-emerald-500 text-white font-black text-xs px-2.5 py-0.5 rounded-full shadow-xl animate-bounce z-30 pointer-events-none">
+                        +1
+                      </div>
+                    )}
+
+                    <div className={`relative flex items-center justify-center overflow-hidden transition-colors ${
+                      viewMode === 'list' ? 'w-14 h-14 bg-gray-50 rounded-xl mr-3 shrink-0' : 
+                      'aspect-square bg-gray-50/80 rounded-xl mb-1.5 sm:mb-3 p-1.5 group-hover:bg-emerald-50/20'
+                    }`}>
+                       {p.imageUrl ? (
+                         <img src={p.imageUrl} alt={p.nombre} className="w-full h-full object-contain mix-blend-multiply" />
+                       ) : (
+                         <span className="text-3xl sm:text-5xl font-black text-gray-200 group-hover:text-emerald-300 transition-colors uppercase">{p.nombre.substring(0,2)}</span>
+                       )}
+                       
+                       {p.stockActual <= 5 && !p.esServicio && qtyInCart === 0 && (
+                         <span className="absolute top-1 left-1 bg-rose-100 text-rose-600 text-[9px] font-black px-1.5 py-0.5 rounded uppercase shadow-xs">Bajo</span>
+                       )}
+                    </div>
+
+                    <div className={viewMode === 'list' ? 'flex-1 min-w-0' : 'flex flex-col flex-1'}>
+                      <h3 className="font-bold text-gray-900 line-clamp-2 leading-tight text-xs sm:text-sm">{p.nombre}</h3>
+                      <div className="mt-auto flex items-center justify-between pt-1">
+                        <p className="font-black text-emerald-600 text-xs sm:text-base">{fmt(p.precioVenta)}</p>
+                        
+                        {viewMode !== 'list' && (
+                          <button className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-colors shadow-xs ${
+                            qtyInCart > 0 ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-indigo-600 group-hover:text-white'
+                          }`}>
+                            <Plus size={14} />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  
-                  {viewMode === 'list' && (
-                     <button className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white flex items-center justify-center transition-colors shadow-sm ml-4 shrink-0">
-                       <Plus size={20} />
-                     </button>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {filteredProducts.length === 0 && (
@@ -482,8 +822,8 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
           </div>
         </div>
 
-        {/* RIGHT PANEL - TICKET - FIJO LATERAL */}
-        <div className="w-[420px] 2xl:w-[480px] bg-white border-l border-gray-200 flex flex-col shadow-2xl z-20 shrink-0 h-full">
+        {/* RIGHT PANEL - TICKET - FIJO LATERAL EN DESKTOP */}
+        <div className="hidden md:flex w-[420px] 2xl:w-[480px] bg-white border-l border-gray-200 flex-col shadow-2xl z-20 shrink-0 h-full">
           
           <div className="p-6 border-b border-gray-100 shrink-0">
             <div className="flex items-center justify-between mb-4">
@@ -497,17 +837,8 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
               )}
             </div>
             
-            {/* Quick Customer Select */}
-            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 opacity-90 focus-within:opacity-100 focus-within:border-indigo-400 focus-within:bg-white focus-within:ring-4 focus-within:ring-indigo-50 transition-all shadow-inner">
-              <User size={18} className="text-indigo-400 mr-3" />
-              <input 
-                type="text" 
-                value={clientName}
-                onChange={e => setClientName(e.target.value)}
-                className="w-full bg-transparent border-none focus:outline-none text-sm font-bold text-gray-900 placeholder:text-gray-400"
-                placeholder="Nombre del Cliente"
-              />
-            </div>
+            {/* Customer Select */}
+            {renderClientSection()}
           </div>
 
           {/* CART ITEMS - SCROLLABLE AREA */}
@@ -600,7 +931,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
             </div>
           </div>
 
-          {/* TOTALS & CHECKOUT - FIJO ABAJO */}
+          {/* TOTALS & CHECKOUT - FIJO ABAJO DESKTOP */}
           <div className="p-6 bg-white border-t border-gray-200 shadow-[0_-15px_40px_rgba(0,0,0,0.06)] shrink-0 z-30">
             <div className="space-y-2 mb-4 relative px-2">
               <div className="flex justify-between text-sm font-bold text-gray-400">
@@ -644,6 +975,172 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
         </div>
       </div>
+
+      {/* MOBILE STICKY BOTTOM BAR */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md text-white p-2.5 px-3.5 flex items-center justify-between shadow-2xl border-t border-slate-800 md:hidden">
+        <button 
+          onClick={() => setShowMobileCartSheet(true)}
+          className="flex items-center gap-2 text-left"
+        >
+          <div className="relative bg-emerald-600 text-white p-2 rounded-xl">
+            <ShoppingCart size={18} />
+            {totalCartItemsCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center border border-slate-900">
+                {totalCartItemsCount}
+              </span>
+            )}
+          </div>
+          <div>
+            <p className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wide">
+              {totalCartItemsCount} {totalCartItemsCount === 1 ? 'ítem' : 'ítems'} en Ticket
+            </p>
+            <p className="text-base font-black text-white leading-none">{fmt(totals.total)}</p>
+          </div>
+        </button>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowMobileCartSheet(true)}
+            className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl active:scale-95"
+          >
+            Ver Ticket
+          </button>
+          <button
+            onClick={() => {
+              if (cart.length > 0) setShowCheckout(true);
+            }}
+            disabled={cart.length === 0}
+            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-lg flex items-center gap-1 active:scale-95"
+          >
+            <span>Cobrar</span>
+            <span className="text-[11px] font-black">{fmt(totals.total)}</span>
+          </button>
+        </div>
+      </div>
+
+      {/* MOBILE FULLSCREEN CART SUMMARY SHEET */}
+      {showMobileCartSheet && (
+        <div className="fixed inset-0 z-[1500] bg-slate-900/60 backdrop-blur-sm flex flex-col justify-end animate-in fade-in duration-200 md:hidden print:hidden">
+          <div className="bg-white rounded-t-3xl max-h-[90vh] flex flex-col w-full shadow-2xl animate-in slide-in-from-bottom duration-300">
+            
+            {/* Sheet Header */}
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50 rounded-t-3xl">
+              <div className="flex items-center gap-2">
+                <ShoppingCart className="text-emerald-600" size={20} />
+                <h3 className="text-base font-black text-slate-900">Resumen del Ticket</h3>
+                <span className="bg-emerald-100 text-emerald-700 text-xs font-extrabold px-2 py-0.5 rounded-full">
+                  {totalCartItemsCount} ítems
+                </span>
+              </div>
+              <button 
+                onClick={() => setShowMobileCartSheet(false)}
+                className="p-1.5 rounded-full bg-slate-200 text-slate-600 hover:bg-slate-300 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Customer Select */}
+            {renderClientSection()}
+
+            {/* Cart List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-2.5 max-h-[50vh]">
+              {cart.map(item => (
+                <div key={item.cartId} className="bg-slate-50 p-2.5 rounded-xl flex gap-2 border border-slate-200 relative">
+                  <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.nombre} className="w-full h-full object-contain mix-blend-multiply" />
+                    ) : (
+                      <span className="font-black text-slate-400 text-base uppercase">{item.nombre.substring(0,2)}</span>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold text-xs text-slate-900 truncate pr-6">{item.nombre}</h4>
+                    <p className="text-[11px] font-black text-emerald-600 mt-0.5">{fmt(item.precioVenta)} c/u</p>
+                    
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <select
+                        value={item.taxState}
+                        onChange={(e) => changeTax(item.cartId, e.target.value as any)}
+                        className="text-[9px] font-bold px-1 py-0.5 rounded bg-slate-200 text-slate-700"
+                      >
+                        <option value="exento">EXENTO</option>
+                        <option value="exonerado">EXONERADO</option>
+                        <option value="isv15">+15% ISV</option>
+                        <option value="isv18">+18% ISV</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end justify-between shrink-0">
+                    <button 
+                      onClick={() => removeLine(item.cartId)} 
+                      className="text-slate-400 hover:text-rose-500 p-1"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                    
+                    <div className="flex items-center gap-1 bg-white rounded-lg p-0.5 border border-slate-200">
+                      <button onClick={() => changeQty(item.cartId, -1)} className="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded active:scale-95"><Minus size={12} /></button>
+                      <span className="text-xs font-black w-5 text-center text-slate-900">{item.qty}</span>
+                      <button onClick={() => changeQty(item.cartId, 1)} className="w-6 h-6 flex items-center justify-center text-slate-600 hover:bg-slate-100 rounded active:scale-95"><Plus size={12} /></button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {cart.length === 0 && (
+                <div className="text-center py-12 text-slate-400">
+                  <ShoppingCart size={32} className="mx-auto mb-2 opacity-40" />
+                  <p className="text-xs font-bold">El ticket está vacío</p>
+                </div>
+              )}
+            </div>
+
+            {/* Sheet Footer */}
+            <div className="p-4 border-t border-slate-200 bg-white space-y-3">
+              <div className="space-y-1 text-xs font-bold text-slate-600">
+                <div className="flex justify-between">
+                  <span>Sub Total</span>
+                  <span className="text-slate-900">{fmt(totals.subTotal)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>ISV 15%</span>
+                  <span className="text-slate-900">{fmt(totals.isv15)}</span>
+                </div>
+                <div className="flex justify-between text-base font-black text-slate-900 pt-1 border-t border-slate-100">
+                  <span>TOTAL A PAGAR</span>
+                  <span className="text-emerald-600">{fmt(totals.total)}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                {cart.length > 0 && (
+                  <button
+                    onClick={clearCart}
+                    className="px-3 py-3 bg-rose-50 text-rose-600 font-bold rounded-xl text-xs border border-rose-200"
+                  >
+                    Vaciar
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setShowMobileCartSheet(false);
+                    if (cart.length > 0) setShowCheckout(true);
+                  }}
+                  disabled={cart.length === 0}
+                  className="flex-1 py-3 bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-white font-black text-sm rounded-xl shadow-lg flex items-center justify-center gap-1.5 active:scale-95"
+                >
+                  <Banknote size={18} />
+                  <span>COBRAR {fmt(totals.total)}</span>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
 
       {/* CHECKOUT MODAL */}
       {showCheckout && (
@@ -787,9 +1284,14 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       {lastTicket && (
         <div className="hidden print:block w-[80mm] p-2 font-mono text-black mx-auto">
            <div className="text-center mb-4">
-             <h1 className="font-black text-lg leading-tight uppercase">BIOELECTRONICA HN</h1>
-             <p className="text-[10px] mt-1">Barrio Paz Barahona 10 CALLE 12 Y 11 Ave.</p>
-             <p className="text-[10px]">San Pedro Sula, Honduras</p>
+             <h1 className="font-black text-lg leading-tight uppercase">{organization?.name || 'Distribuidora Paraíso Floral'}</h1>
+             {organization?.direccion ? (
+               <p className="text-[10px] mt-1">{organization.direccion}</p>
+             ) : (
+               <p className="text-[10px] mt-1">San Pedro Sula, Honduras</p>
+             )}
+             {organization?.telefono && <p className="text-[10px]">Tel: {organization.telefono}</p>}
+             {organization?.rtn && <p className="text-[10px]">RTN: {organization.rtn}</p>}
              <p className="text-[10px] mt-3 font-bold font-sans">FACTURA OFICIAL: {lastTicket}</p>
              <p className="text-[10px] border-b border-dashed border-black pb-2 mb-2">Fecha: {new Date().toLocaleDateString('es-HN', { hour: '2-digit', minute:'2-digit' })}</p>
              <p className="text-[10px] text-left">Cliente: {clientName}</p>
@@ -927,6 +1429,208 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                 </button>
               </div>
            </div>
+        </div>
+      )}
+
+      {/* MODAL AGREGAR NUEVO CLIENTE */}
+      {showAddClientModal && (
+        <div className="fixed inset-0 z-[2000] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+                  <UserPlus size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-base">Registrar Nuevo Cliente</h3>
+                  <p className="text-xs text-slate-400">Crear cliente rápido para esta venta</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddClientModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewClient} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nombre / Razón Social <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Distribuidora Las Rosas S.A."
+                  value={newClientData.nombre}
+                  onChange={e => setNewClientData({ ...newClientData, nombre: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">RTN / DNI</label>
+                  <input
+                    type="text"
+                    placeholder="0801199012345"
+                    value={newClientData.rtn}
+                    onChange={e => setNewClientData({ ...newClientData, rtn: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono</label>
+                  <input
+                    type="text"
+                    placeholder="9999-9999"
+                    value={newClientData.telefono}
+                    onChange={e => setNewClientData({ ...newClientData, telefono: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico</label>
+                <input
+                  type="email"
+                  placeholder="cliente@ejemplo.com"
+                  value={newClientData.email}
+                  onChange={e => setNewClientData({ ...newClientData, email: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Dirección Física</label>
+                <input
+                  type="text"
+                  placeholder="Colonia, calle, referencia..."
+                  value={newClientData.direccion}
+                  onChange={e => setNewClientData({ ...newClientData, direccion: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddClientModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingClient}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                >
+                  {isSavingClient ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+                  <span>Guardar y Seleccionar</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CREAR NUEVO PRODUCTO / FLOR */}
+      {showAddProductModal && (
+        <div className="fixed inset-0 z-[2000] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-slate-900 text-base">Crear Nueva Flor o Artículo</h3>
+                  <p className="text-xs text-slate-400">Añadir al catálogo e incluir en el ticket</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAddProductModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewProduct} className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nombre del Producto / Flor <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej. Girasol Holandés Grado A"
+                  value={newProductData.nombre}
+                  onChange={e => setNewProductData({ ...newProductData, nombre: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Precio Venta (Lps) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    placeholder="0.00"
+                    value={newProductData.precioVenta}
+                    onChange={e => setNewProductData({ ...newProductData, precioVenta: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Costo Base (Lps)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={newProductData.costoBase}
+                    onChange={e => setNewProductData({ ...newProductData, costoBase: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Stock Inicial</label>
+                <input
+                  type="number"
+                  placeholder="100"
+                  value={newProductData.stockActual}
+                  onChange={e => setNewProductData({ ...newProductData, stockActual: e.target.value })}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-emerald-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAddProductModal(false)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProduct}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
+                >
+                  {isSavingProduct ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
+                  <span>Guardar y Agregar</span>
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
 

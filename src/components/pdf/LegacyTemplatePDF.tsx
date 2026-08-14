@@ -449,15 +449,12 @@ export default function LegacyTemplatePDF({ data, images }: LegacyTemplatePDFPro
             alignItems: isCenter ? 'center' : (isRight ? 'flex-start' : 'flex-end'),
             textAlign: isCenter ? 'center' : (isRight ? 'left' : 'right'),
           }]}>
-            <Text style={[styles.companyName, { color: primaryColor }]}>{organization?.name || 'BIOELECTRONICA S. DE R.L. DE C.V'}</Text>
+            <Text style={[styles.companyName, { color: primaryColor }]}>{organization?.name || 'Distribuidora Paraíso Floral'}</Text>
             {organization?.direccion ? (
               <Text>{organization.direccion}</Text>
             ) : (
               <View style={{ alignItems: isCenter ? 'center' : (isRight ? 'flex-start' : 'flex-end') }}>
-                <Text>Barrio Paz Barahona 10 CALLE 12 Y 11 Ave.</Text>
-                <Text>Casa NO. 81-A, media cuadra abajo de Restaurante Estelina</Text>
-                <Text>San Pedro Sula CO 01201</Text>
-                <Text>Honduras</Text>
+                <Text>San Pedro Sula, Honduras</Text>
               </View>
             )}
             <Text style={{ marginTop: 4 }}>

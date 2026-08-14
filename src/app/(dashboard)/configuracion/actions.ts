@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { EmailTemplateType, Role } from '@prisma/client';
 import { uploadToR2 } from '@/lib/storage/r2';
 
-export async function updatePreferences(data: { defaultModule: string | null; timezone: string | null; theme: string | null; idleTimeoutEnabled?: boolean; disableAiVision?: boolean }) {
+export async function updatePreferences(data: { defaultModule: string | null; timezone: string | null; theme: string | null; idleTimeoutEnabled?: boolean; disableAiVision?: boolean; enableVoiceAi?: boolean }) {
     try {
         const supabase = await createClient();
         const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -21,8 +21,9 @@ export async function updatePreferences(data: { defaultModule: string | null; ti
                 defaultModule: data.defaultModule,
                 timezone: data.timezone,
                 theme: data.theme || 'system',
-                ...(data.idleTimeoutEnabled !== undefined && { idleTimeoutEnabled: data.idleTimeoutEnabled })
-            }
+                ...(data.idleTimeoutEnabled !== undefined && { idleTimeoutEnabled: data.idleTimeoutEnabled }),
+                ...(data.enableVoiceAi !== undefined && { enableVoiceAi: data.enableVoiceAi })
+            } as any
         });
 
         if (dbUser.role === 'SUPER_ADMIN' && data.disableAiVision !== undefined) {
@@ -141,12 +142,12 @@ export async function getCompanyProfile() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user || !user.email) return null;
 
-        const dbUser = await prisma.user.findUnique({
-            where: { email: user.email },
+        const dbUser = await prisma.user.findFirst({
+            where: { email: { equals: user.email, mode: 'insensitive' } },
             include: { organization: true }
         });
 
-        if (!dbUser || dbUser.role !== 'SUPER_ADMIN') return null;
+        if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && dbUser.role !== 'GERENTE')) return null;
 
         return {
             name: dbUser.organization.name || '',
@@ -169,11 +170,11 @@ export async function saveCompanyProfile(data: any) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user || !user.email) return { success: false, error: 'No autorizado' };
 
-        const dbUser = await prisma.user.findUnique({
-            where: { email: user.email }
+        const dbUser = await prisma.user.findFirst({
+            where: { email: { equals: user.email, mode: 'insensitive' } }
         });
 
-        if (!dbUser || dbUser.role !== 'SUPER_ADMIN') return { success: false, error: 'Sin permisos' };
+        if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && dbUser.role !== 'GERENTE')) return { success: false, error: 'Sin permisos' };
 
         await prisma.organization.update({
             where: { id: dbUser.organizationId },
@@ -201,11 +202,11 @@ export async function uploadCompanyLogo(formData: FormData) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user || !user.email) return { success: false, error: 'No autorizado' };
 
-        const dbUser = await prisma.user.findUnique({
-            where: { email: user.email }
+        const dbUser = await prisma.user.findFirst({
+            where: { email: { equals: user.email, mode: 'insensitive' } }
         });
 
-        if (!dbUser || dbUser.role !== 'SUPER_ADMIN') return { success: false, error: 'Sin permisos' };
+        if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && dbUser.role !== 'GERENTE')) return { success: false, error: 'Sin permisos' };
 
         const file = formData.get('file') as File;
         if (!file) return { success: false, error: 'No se envió archivo' };

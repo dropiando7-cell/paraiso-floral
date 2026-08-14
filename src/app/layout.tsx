@@ -15,12 +15,15 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Bioelectrónica Honduras - Enterprise Platform",
-  description: "Plataforma de administración para Bioelectrónica Honduras",
+  title: {
+    default: "Distribuidora Paraíso Floral - ERP & Catálogo",
+    template: "%s | Distribuidora Paraíso Floral"
+  },
+  description: "Plataforma de administración y catálogo digital para Distribuidora Paraíso Floral",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "BEA ERP",
+    title: "Paraíso Floral",
   },
 };
 

@@ -117,6 +117,10 @@ export default async function POSPage() {
     }
   }
 
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId }
+  });
+
   return (
     <div className="fixed inset-0 bg-white z-[100] overflow-hidden">
       <POSFacturacion 
@@ -124,6 +128,14 @@ export default async function POSPage() {
         categorias={categorias}
         onEmitirFactura={emitFactura}
         cajeroNombre={user.fullName}
+        organization={org ? {
+          name: org.name || undefined,
+          direccion: org.direccion || undefined,
+          telefono: org.telefono || undefined,
+          correoContacto: org.correoContacto || undefined,
+          rtn: org.rtn || undefined,
+          logoUrl: org.logoUrl || undefined
+        } : undefined}
       />
     </div>
   );

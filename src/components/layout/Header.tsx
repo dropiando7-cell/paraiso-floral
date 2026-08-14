@@ -253,7 +253,9 @@ export function Header({ dbUser, onMenuClick }: HeaderProps) {
             </div>
 
             {/* Mobile: show app name when search is hidden */}
-            <div className="sm:hidden flex-1 font-semibold text-slate-700 text-sm">Bioelectrónica</div>
+            <div className="sm:hidden flex-1 font-bold text-slate-800 text-base truncate">
+                {dbUser?.organization?.name || 'Paraíso Floral'}
+            </div>
 
             {/* Right Actions */}
             <div className="flex items-center gap-3 md:gap-6 ml-auto">

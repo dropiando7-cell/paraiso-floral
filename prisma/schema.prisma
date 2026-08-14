@@ -91,6 +91,7 @@ model User {
   timezone              String?                @default("America/Tegucigalpa")
   theme                 String?                @default("system")
   idleTimeoutEnabled    Boolean                @default(true)
+  enableVoiceAi         Boolean                @default(true)
   approvedAreas         AreaInventoryStatus[]  @relation("AreaApprovedBy")
   closedAreas           AreaInventoryStatus[]  @relation("AreaClosedBy")
   openedAreas           AreaInventoryStatus[]  @relation("AreaOpenedBy")

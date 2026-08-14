@@ -5,6 +5,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { ToasterProvider } from "./ToasterProvider";
 import { RegisterOneSignal } from "@/components/layout/RegisterOneSignal";
 import { VoiceAssistant } from "@/components/assistant/VoiceAssistant";
+import { DynamicTabTitle } from "@/components/layout/DynamicTabTitle";
 
 
 export default async function AuthenticatedLayout({
@@ -38,7 +39,7 @@ export default async function AuthenticatedLayout({
     
     // Sync to Prisma DB if out of sync
     const updateData: any = {};
-    if (dbUser.avatarUrl !== supabaseAvatar) {
+    if (supabaseAvatar && dbUser.avatarUrl !== supabaseAvatar) {
         updateData.avatarUrl = supabaseAvatar;
     }
     
@@ -71,10 +72,11 @@ export default async function AuthenticatedLayout({
         authProvider: user.app_metadata?.providers?.[0] || "email",
     };
 
-    const showVoiceAssistant = combinedUser.role === 'SUPER_ADMIN' || (combinedUser.accessibleModules || []).includes('asistente_voz');
+    const showVoiceAssistant = ((combinedUser as any).enableVoiceAi ?? true) && (combinedUser.role === 'SUPER_ADMIN' || (combinedUser.accessibleModules || []).includes('asistente_voz'));
 
     return (
         <DashboardLayout dbUser={combinedUser}>
+            <DynamicTabTitle orgName={dbUser.organization?.name} />
             <ToasterProvider />
             <RegisterOneSignal dbUser={combinedUser} />
             {showVoiceAssistant && <VoiceAssistant />}

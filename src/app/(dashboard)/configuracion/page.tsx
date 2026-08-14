@@ -9,7 +9,7 @@ import {
     getAiVisionSetting, saveAiVisionSetting
 } from './actions';
 import { getUserPreferencesData } from './data';
-import { Settings, Globe, LayoutDashboard, Palette, Check, Loader2, Mail, Save } from 'lucide-react';
+import { Settings, Globe, LayoutDashboard, Palette, Check, Loader2, Mail, Save, Sparkles } from 'lucide-react';
 import { EmailTemplateType } from '@prisma/client';
 
 const allAvailableModules = [
@@ -55,7 +55,8 @@ export default function ConfiguracionPage() {
         defaultModule: '/',
         timezone: 'America/Tegucigalpa',
         theme: 'system',
-        idleTimeoutEnabled: true
+        idleTimeoutEnabled: true,
+        enableVoiceAi: true
     });
 
     // Email Templates State
@@ -85,12 +86,13 @@ export default function ConfiguracionPage() {
                         defaultModule: data.defaultModule || '/',
                         timezone: data.timezone || 'America/Tegucigalpa',
                         theme: data.theme || 'system',
-                        idleTimeoutEnabled: data.idleTimeoutEnabled ?? true
+                        idleTimeoutEnabled: data.idleTimeoutEnabled ?? true,
+                        enableVoiceAi: data.enableVoiceAi ?? true
                     });
 
-                    // Filter modules based on user access
                     setUserRole(dbData.role);
-                    if (dbData.role === 'SUPER_ADMIN') {
+                    const isAdmin = dbData.role === 'SUPER_ADMIN' || dbData.role === 'ORG_ADMIN' || dbData.role === 'GERENTE';
+                    if (isAdmin) {
                         setFilteredModules(allAvailableModules);
 
                         // Fetch Company Profile
@@ -101,7 +103,7 @@ export default function ConfiguracionPage() {
                         const aiSetting = await getAiVisionSetting();
                         if (aiSetting.success) setDisableAiVision(aiSetting.disabled || false);
 
-                        // Fetch Email Templates if Super Admin
+                        // Fetch Email Templates if Admin
                         const templates = await getEmailTemplates();
                         setEmailTemplates(templates);
 
@@ -216,6 +218,7 @@ export default function ConfiguracionPage() {
             timezone: preferences.timezone,
             theme: preferences.theme,
             idleTimeoutEnabled: preferences.idleTimeoutEnabled,
+            enableVoiceAi: preferences.enableVoiceAi,
             ...(userRole === 'SUPER_ADMIN' && { disableAiVision })
         });
 
@@ -280,17 +283,17 @@ export default function ConfiguracionPage() {
                     >
                         Preferencias Generales
                     </button>
-                    {userRole === 'SUPER_ADMIN' && (
+                    {(userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userRole === 'GERENTE') && (
                         <>
                             <button
                                 onClick={() => setActiveTab('company')}
-                                className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'company' ? 'text-brand-600 bg-brand-50' : 'text-slate-600 hover:bg-slate-50'}`}
+                                className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'company' ? 'text-brand-600 bg-brand-50 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
                             >
                                 Perfil de Empresa (Whitelabel)
                             </button>
                             <button
                                 onClick={() => setActiveTab('emails')}
-                                className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'emails' ? 'text-brand-600 bg-brand-50' : 'text-slate-600 hover:bg-slate-50'}`}
+                                className={`flex items-center justify-between w-full px-4 py-2 text-sm font-medium rounded-xl transition-colors ${activeTab === 'emails' ? 'text-brand-600 bg-brand-50 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
                             >
                                 Plantillas de Correos (Admin)
                             </button>
@@ -372,6 +375,28 @@ export default function ConfiguracionPage() {
                                 {userRole === 'SUPER_ADMIN' && (
                                     <>
                                         <hr className="border-slate-100" />
+
+                                 {/* Asistente de Voz IA */}
+                                 <div>
+                                     <div className="flex items-center justify-between mb-1 max-w-md">
+                                         <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                                             <Sparkles className="w-4 h-4 text-indigo-500" />
+                                             Asistente de Voz IA (Micrófono Flotante)
+                                         </label>
+                                         <button
+                                             type="button"
+                                             onClick={() => setPreferences({ ...preferences, enableVoiceAi: !preferences.enableVoiceAi })}
+                                             className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2 ${preferences.enableVoiceAi ? 'bg-brand-500' : 'bg-slate-300'}`}
+                                         >
+                                             <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${preferences.enableVoiceAi ? 'translate-x-5' : 'translate-x-0'}`} />
+                                         </button>
+                                     </div>
+                                     <p className="text-sm text-slate-500 mb-3 max-w-md">
+                                         Muestra o desactiva el botón flotante del micrófono con IA para dictado por voz y comandos inteligentes en la plataforma.
+                                     </p>
+                                 </div>
+
+                                 <hr className="border-slate-100" />
                                         <div>
                                             <div className="flex items-center justify-between mb-1 max-w-md">
                                                 <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
@@ -440,7 +465,7 @@ export default function ConfiguracionPage() {
                         </div>
                     )}
 
-                    {activeTab === 'emails' && userRole === 'SUPER_ADMIN' && (
+                    {activeTab === 'emails' && (userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userRole === 'GERENTE') && (
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                                 <div className="flex items-center gap-2">
@@ -573,7 +598,7 @@ export default function ConfiguracionPage() {
                         </div>
                     )}
 
-                    {activeTab === 'company' && userRole === 'SUPER_ADMIN' && (
+                    {activeTab === 'company' && (userRole === 'SUPER_ADMIN' || userRole === 'ORG_ADMIN' || userRole === 'GERENTE') && (
                         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
                             <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-2">
                                 <Globe className="w-5 h-5 text-brand-500" />

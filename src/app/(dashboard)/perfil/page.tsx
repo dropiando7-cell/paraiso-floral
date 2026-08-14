@@ -146,9 +146,10 @@ export default function ProfilePage() {
             const dbRes = await updateAvatarInDb(finalPublicUrl);
             if (!dbRes.success) {
                 console.error("Error actualizando avatar en DB:", dbRes.error);
+                toast.error(dbRes.error || "Error al guardar la foto en la base de datos.");
+            } else {
+                toast.success("Foto de perfil actualizada exitosamente.");
             }
-
-            toast.success("Foto de perfil actualizada exitosamente.");
 
         } catch (error: any) {
             console.error("Error cambiando foto:", error);
