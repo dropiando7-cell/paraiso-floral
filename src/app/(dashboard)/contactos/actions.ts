@@ -47,6 +47,7 @@ export async function fetchContactos(query: string, page: number = 1) {
             telefono: true,
             email: true,
             direccion: true,
+            departamento: true,
             nombreContacto: true,
             telefonoContacto: true,
             emailsCC: true,
@@ -66,13 +67,16 @@ export async function createContacto(data: {
     telefono?: string; 
     rtn?: string; 
     direccion?: string;
+    departamento?: string;
     nombreContacto?: string;
     telefonoContacto?: string;
     emailsCC?: string;
 }) {
     const orgId = await getOrgId();
 
-    const cleanNombre = data.nombre.trim();
+    const cleanNombre = data.nombre.trim().toUpperCase();
+    const cleanNombreContacto = data.nombreContacto?.trim() ? data.nombreContacto.trim().toUpperCase() : null;
+
     const existe = await prisma.cliente.findFirst({
         where: {
             organizationId: orgId,
@@ -91,6 +95,7 @@ export async function createContacto(data: {
         data: {
             ...data,
             nombre: cleanNombre,
+            nombreContacto: cleanNombreContacto,
             organizationId: orgId,
         },
     });
@@ -105,13 +110,21 @@ export async function updateContacto(id: string, data: {
     telefono?: string; 
     rtn?: string; 
     direccion?: string;
+    departamento?: string;
     nombreContacto?: string;
     telefonoContacto?: string;
     emailsCC?: string;
 }) {
+    const cleanNombre = data.nombre.trim().toUpperCase();
+    const cleanNombreContacto = data.nombreContacto?.trim() ? data.nombreContacto.trim().toUpperCase() : null;
+
     const updated = await prisma.cliente.update({
         where: { id },
-        data,
+        data: {
+            ...data,
+            nombre: cleanNombre,
+            nombreContacto: cleanNombreContacto,
+        },
     });
 
     revalidatePath('/contactos');

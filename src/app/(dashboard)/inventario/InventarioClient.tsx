@@ -3,11 +3,12 @@
 import { useState, useEffect, useTransition, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft, Wrench, Download, FileSpreadsheet,
-    Globe, UserPlus, Laptop
+    Globe, UserPlus, Laptop, ClipboardList
 } from 'lucide-react';
 import { crearClienteAction } from '../soporte/actions';
 import {
@@ -2017,79 +2018,11 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                         </p>
                                     </div>
                                 </button>
-                                
-                                <button type="button" onClick={() => setTipoRegistro('servicio')}
-                                    className="w-full text-left p-6 border-2 border-slate-100 rounded-2xl hover:border-[#0500A3] hover:bg-[#0500A3]/5 transition-all group flex items-start gap-5">
-                                    <div className="w-14 h-14 shrink-0 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#0500A3]">Nuevo Servicio</h3>
-                                        <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
-                                            Registrar un código para servicios, reparaciones o mantenimientos (no inventariable).
-                                        </p>
-                                    </div>
-                                </button>
-
-                                <button type="button" onClick={() => setTipoRegistro('equipo_cliente')}
-                                    className="w-full text-left p-6 border-2 border-slate-100 rounded-2xl hover:border-[#0500A3] hover:bg-[#0500A3]/5 transition-all group flex items-start gap-5">
-                                    <div className="w-14 h-14 shrink-0 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform shadow-sm">
-                                        <Laptop className="w-7 h-7" />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xl font-bold text-slate-800 group-hover:text-[#0500A3]">Equipo de Cliente (Interno/Externo)</h3>
-                                        <p className="text-sm text-slate-500 mt-1.5 leading-relaxed">
-                                            Registrar un equipo propiedad de un cliente (interno o externo) para dar seguimiento a revisiones, garantías y mantenimientos.
-                                        </p>
-                                    </div>
-                                </button>
                             </div>
                         ) : (
                             <form ref={formRef} onSubmit={handleSubmit} className="px-5 py-6 space-y-6">
 
-                                {/* ── SELECTOR TIPO DE INVENTARIO ── */}
-                                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2">
-                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Tipo de Inventario *</label>
-                                    <div className="flex gap-2 p-1 bg-slate-200/40 rounded-xl">
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setEsEquipoCliente(false);
-                                                if (!isEdit) setTipoRegistro('nuevo');
-                                            }}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all duration-200 active:scale-[0.98] ${
-                                                !esEquipoCliente
-                                                    ? 'bg-white text-[#0500A3] shadow-xs'
-                                                    : 'text-slate-500 hover:text-slate-800'
-                                            }`}
-                                        >
-                                            <Package className="w-3.5 h-3.5 animate-in fade-in zoom-in duration-200" />
-                                            <span>Inventario General</span>
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                setEsEquipoCliente(true);
-                                                if (!isEdit) setTipoRegistro('equipo_cliente');
-                                            }}
-                                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg text-xs font-bold transition-all duration-200 active:scale-[0.98] ${
-                                                esEquipoCliente
-                                                    ? 'bg-white text-[#0500A3] shadow-xs'
-                                                    : 'text-slate-500 hover:text-slate-800'
-                                            }`}
-                                        >
-                                            <Wrench className="w-3.5 h-3.5 animate-in fade-in zoom-in duration-200" />
-                                            <span>Equipos Internos/Externos (Cliente)</span>
-                                        </button>
-                                    </div>
-                                    <p className="text-[10px] text-slate-500 mt-1">
-                                        {!esEquipoCliente 
-                                            ? 'El equipo formará parte del inventario general de activos de la empresa.' 
-                                            : 'El equipo se registrará como propiedad de un cliente para seguimiento de servicios.'}
-                                    </p>
-                                </div>
-
-                                {/* ── PROPIETARIO DEL EQUIPO (CLIENTE) ── */}
+                                {/* ── PROPIETARIO DEL EQUIPO (CLIENTE - SOLO SI ES EDIT) ── */}
                                 {esEquipoCliente && (
                                     <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 space-y-3" style={{ backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }}>
                                         <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wider">Cliente Propietario *</label>
@@ -2146,26 +2079,6 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
                                             </div>
                                         </div>
                                     </div>
-                                )}
-
-                                {/* ── SWITCH SERVICIO ── */}
-                                <div className="flex items-center justify-between bg-purple-50 border border-purple-200 rounded-2xl p-4">
-                                    <div>
-                                        <h3 className="text-sm font-bold text-purple-900">Es un Servicio (No inventariable)</h3>
-                                        <p className="text-xs text-purple-700">Se ocultarán fotos e IA, y el stock se fijará en 9999.</p>
-                                    </div>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input type="checkbox" className="sr-only peer" checked={isServiceMode} onChange={(e) => setIsServiceMode(e.target.checked)} />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                                    </label>
-                                </div>
-
-                                {/* ── BUSCADOR TEMPORAL ODOO ── */}
-                                {!isEdit && tipoRegistro === 'nuevo' && !isServiceMode && (
-                                    <>
-                                        <BuscadorOdoo onSelect={handleOdooSelect} />
-                                        <OdooAlertPanel product={odooReference} />
-                                    </>
                                 )}
 
                                 {/* ── BUSCADOR CATÁLOGO WEB (SOMA/PUKANG/ETC.) ── */}
@@ -4245,6 +4158,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                             <Plus className="w-5 h-5" />
                             {isRentaMode ? 'Nuevo Equipo' : 'Nuevo Producto'}
                         </button>
+
+                        <Link
+                            href="/inventario/toma-fisica"
+                            className="flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-5 py-3.5 rounded-2xl font-bold transition-all shadow-md shadow-pink-900/10 active:scale-95 w-full sm:w-auto hide-on-print"
+                            title="Módulo táctil para conteo físico en cámaras frías"
+                        >
+                            <ClipboardList className="w-5 h-5" />
+                            <span>Toma Física Tablet</span>
+                        </Link>
 
                         <button
                             onClick={() => {

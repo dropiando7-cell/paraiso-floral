@@ -76,6 +76,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         icon: Box,
         subItems: [
           { name: 'Control de Inventario', href: '/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Toma Física / Auditoría', href: '/inventario/toma-fisica', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
           { name: 'Garantías y Reemplazos', href: '/inventario/garantias', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Catálogo de Modelos', href: '/inventario/modelos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
           { name: 'Entradas / Compras', href: '/inventario/entradas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },

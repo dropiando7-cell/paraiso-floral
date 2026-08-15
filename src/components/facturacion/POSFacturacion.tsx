@@ -5,7 +5,7 @@ import {
   Search, Plus, Minus, Trash2, Printer, X, Monitor, Zap, User, CreditCard, 
   Banknote, ShoppingCart, CheckCircle2, QrCode, LayoutGrid, List, Grid3X3, 
   ArrowDownCircle, FileText, Keyboard, Save, ArrowLeft, UserPlus, UserCheck, 
-  Loader2, Building2, Phone, Mail, MapPin, Sparkles, FileBadge 
+  Loader2, Building2, Phone, Mail, MapPin, Sparkles, FileBadge, Receipt, ZoomIn, ZoomOut, Eye
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -65,6 +65,26 @@ interface Props {
   };
 }
 
+export const HONDURAS_BANKS = [
+  // Top 5 Popular Honduran Banks
+  { id: 'ficohsa', name: 'Ficohsa', logo: '/logos_bancos/ficohsa.png', popular: true },
+  { id: 'atlantida', name: 'Atlántida', logo: '/logos_bancos/atlantida.png', popular: true },
+  { id: 'bac', name: 'BAC Credomatic', logo: '/logos_bancos/bac.png', popular: true },
+  { id: 'occidente', name: 'Banco de Occidente', logo: '/logos_bancos/occidente.png', popular: true },
+  { id: 'banpais', name: 'Banpaís', logo: '/logos_bancos/banpais.png', popular: true },
+
+  // Other Honduran Banks
+  { id: 'davivienda', name: 'Davivienda', logo: '/logos_bancos/davivienda.png', popular: false },
+  { id: 'lafise', name: 'LAFISE', logo: '/logos_bancos/lafise.png', popular: false },
+  { id: 'cuscatlan', name: 'Cuscatlán', logo: '/logos_bancos/cuscatlan.png', popular: false },
+  { id: 'banrural', name: 'Banrural', logo: '/logos_bancos/banrural.png', popular: false },
+  { id: 'promerica', name: 'Promerica', logo: '/logos_bancos/promerica.png', popular: false },
+  { id: 'azteca', name: 'Banco Azteca', logo: '/logos_bancos/azteca.png', popular: false },
+  { id: 'ficensa', name: 'Ficensa', logo: '/logos_bancos/ficensa.png', popular: false },
+  { id: 'banhcafe', name: 'Banhcafé', logo: '/logos_bancos/banhcafe.png', popular: false },
+  { id: 'popular', name: 'Banco Popular', logo: '/logos_bancos/popular.png', popular: false },
+];
+
 export default function POSFacturacion({ productos, categorias, onEmitirFactura, cajeroNombre, modoKiosko = false, organization }: Props) {
   const router = useRouter();
   
@@ -80,7 +100,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   const [cart, setCart] = useState<CartItem[]>([]);
 
   // Client Selection & Creation State
-  const [clientName, setClientName] = useState('Consumidor Final');
+  const [clientName, setClientName] = useState('CONSUMIDOR FINAL');
   const [selectedClient, setSelectedClient] = useState<{ id?: string; nombre: string; rtn?: string; telefono?: string; email?: string } | null>(null);
   
   const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
@@ -108,16 +128,49 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     stockActual: '100'
   });
 
-  const [viewMode, setViewMode] = useState<'large' | 'small' | 'list'>('large');
+  const [viewMode, setViewMode] = useState<'large' | 'small' | 'list'>('small');
   const [visibleCount, setVisibleCount] = useState(24);
   
-  // Modals
+  // Modals & Pinch Zoom State
   const [showCheckout, setShowCheckout] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showTicketPreviewModal, setShowTicketPreviewModal] = useState(false);
+  const [ticketZoom, setTicketZoom] = useState(1.2);
+  const touchStartDistRef = useRef<number | null>(null);
+  const initialZoomRef = useRef<number>(1.2);
+
+  const handleTicketTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchStartDistRef.current = dist;
+      initialZoomRef.current = ticketZoom;
+    }
+  };
+
+  const handleTicketTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 2 && touchStartDistRef.current !== null) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const scale = dist / touchStartDistRef.current;
+      const newZoom = Math.min(2.5, Math.max(0.75, initialZoomRef.current * scale));
+      setTicketZoom(Number(newZoom.toFixed(2)));
+    }
+  };
+
+  const handleTicketTouchEnd = () => {
+    touchStartDistRef.current = null;
+  };
   const [lastTicket, setLastTicket] = useState<string | null>(null);
   const [lastFacturaId, setLastFacturaId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
+  const [selectedBank, setSelectedBank] = useState<string | null>('ficohsa');
+  const [showAllBanks, setShowAllBanks] = useState(false);
   const [cashTendered, setCashTendered] = useState<string>('');
   const [showClearCartModal, setShowClearCartModal] = useState(false);
   const [showMobileCartSheet, setShowMobileCartSheet] = useState(false);
@@ -155,16 +208,26 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
   // Client Search & Creation Handlers
   const handleClientSearchChange = async (val: string) => {
-    setClientName(val);
-    if (!val.trim() || val === 'Consumidor Final') {
-      setClientSearchResults([]);
-      setShowClientDropdown(false);
-      return;
-    }
+    setClientName(val.toUpperCase());
     setIsSearchingClients(true);
     setShowClientDropdown(true);
     try {
-      const res = await searchClientes(val);
+      const q = val.trim().toUpperCase() === 'CONSUMIDOR FINAL' ? '' : val;
+      const res = await searchClientes(q);
+      setClientSearchResults(res || []);
+    } catch (e) {
+      console.error('Error searching clients:', e);
+    } finally {
+      setIsSearchingClients(false);
+    }
+  };
+
+  const handleFocusClientSearch = async () => {
+    setIsSearchingClients(true);
+    setShowClientDropdown(true);
+    try {
+      const q = clientName.trim().toUpperCase() === 'CONSUMIDOR FINAL' ? '' : clientName;
+      const res = await searchClientes(q);
       setClientSearchResults(res || []);
     } catch (e) {
       console.error('Error searching clients:', e);
@@ -174,14 +237,15 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   };
 
   const handleSelectClient = (c: any) => {
-    setClientName(c.nombre);
-    setSelectedClient(c);
+    const upperName = c.nombre ? c.nombre.toUpperCase() : 'CONSUMIDOR FINAL';
+    setClientName(upperName);
+    setSelectedClient({ ...c, nombre: upperName });
     setShowClientDropdown(false);
-    toast.success(`Cliente "${c.nombre}" seleccionado`);
+    toast.success(`Cliente "${upperName}" seleccionado`);
   };
 
   const handleResetToConsumidorFinal = () => {
-    setClientName('Consumidor Final');
+    setClientName('CONSUMIDOR FINAL');
     setSelectedClient(null);
     setShowClientDropdown(false);
   };
@@ -521,13 +585,13 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
           <button
             type="button"
             onClick={handleResetToConsumidorFinal}
-            className="text-[10px] font-bold text-rose-500 hover:underline"
+            className="text-[10px] font-black text-rose-500 hover:underline uppercase"
           >
-            Consumidor Final
+            CONSUMIDOR FINAL
           </button>
         ) : (
-          <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">
-            Consumidor Final
+          <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">
+            CONSUMIDOR FINAL
           </span>
         )}
       </div>
@@ -538,11 +602,9 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
             type="text"
             value={clientName}
             onChange={e => handleClientSearchChange(e.target.value)}
-            onFocus={() => {
-              if (clientName && clientName !== 'Consumidor Final') setShowClientDropdown(true);
-            }}
-            placeholder="Buscar o ingresar cliente..."
-            className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none transition-all"
+            onFocus={handleFocusClientSearch}
+            placeholder="Buscar o ingresar cliente (ej: CONSUMIDOR FINAL, Nombre, RTN)..."
+            className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-medium text-slate-800 outline-none transition-all uppercase"
           />
           {isSearchingClients && (
             <Loader2 size={14} className="absolute right-3 top-2.5 animate-spin text-indigo-500" />
@@ -563,13 +625,13 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       {/* Selected Client Badges */}
       {selectedClient && (
         <div className="bg-indigo-50/70 border border-indigo-100 rounded-lg p-2 text-[11px] space-y-0.5">
-          <p className="font-black text-indigo-950 flex items-center gap-1">
+          <p className="font-semibold text-indigo-950 flex items-center gap-1 uppercase">
             <UserCheck size={13} className="text-indigo-600 shrink-0" />
-            <span>{selectedClient.nombre}</span>
+            <span>{selectedClient.nombre.toUpperCase()}</span>
           </p>
           {selectedClient.rtn && (
             <p className="text-indigo-700 font-mono text-[10px] pl-4">
-              RTN/DNI: <span className="font-bold">{selectedClient.rtn}</span>
+              RTN/DNI: <span className="font-semibold">{selectedClient.rtn}</span>
             </p>
           )}
           {selectedClient.telefono && (
@@ -591,8 +653,8 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
               className="w-full text-left px-3 py-2 hover:bg-indigo-50 transition-colors flex items-center justify-between"
             >
               <div>
-                <p className="text-xs font-bold text-slate-900">{c.nombre}</p>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-xs font-medium text-slate-800 uppercase tracking-wide">{c.nombre.toUpperCase()}</p>
+                <p className="text-[10px] text-slate-500 font-normal">
                   {c.rtn ? `RTN: ${c.rtn}` : c.telefono ? `Tel: ${c.telefono}` : 'Cliente registrado'}
                 </p>
               </div>
@@ -977,7 +1039,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       </div>
 
       {/* MOBILE STICKY BOTTOM BAR */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md text-white p-2.5 px-3.5 flex items-center justify-between shadow-2xl border-t border-slate-800 md:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-slate-900/95 backdrop-blur-md text-white p-2.5 px-3.5 flex items-center justify-between shadow-2xl border-t border-slate-800 md:hidden print:hidden hide-on-print">
         <button 
           onClick={() => setShowMobileCartSheet(true)}
           className="flex items-center gap-2 text-left"
@@ -1057,7 +1119,19 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                   
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-xs text-slate-900 truncate pr-6">{item.nombre}</h4>
-                    <p className="text-[11px] font-black text-emerald-600 mt-0.5">{fmt(item.precioVenta)} c/u</p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <span className="text-[10px] font-extrabold text-slate-400">L.</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.precioVenta}
+                        onChange={(e) => changePrice(item.cartId, parseFloat(e.target.value) || 0)}
+                        className="w-20 px-1.5 py-0.5 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                        title="Haga clic para editar el precio de venta unitario"
+                      />
+                      <span className="text-[9px] font-bold text-slate-400">c/u</span>
+                    </div>
                     
                     <div className="flex items-center gap-1.5 mt-1.5">
                       <select
@@ -1146,18 +1220,18 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       {showCheckout && (
         <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm z-[2000] flex items-center justify-center print:hidden animate-in fade-in duration-200 p-4">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-300 flex flex-col max-h-screen">
-             <div className="bg-[#111827] px-8 py-10 text-center relative overflow-hidden">
+             <div className="bg-[#111827] px-6 sm:px-8 py-6 sm:py-8 text-center relative overflow-hidden">
                 <div className="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl"></div>
                 <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl"></div>
                 
                 <button onClick={() => setShowCheckout(false)} className="absolute top-6 right-6 text-gray-400 hover:text-white bg-gray-800 rounded-full p-2.5 transition-all"><X size={16} /></button>
-                <p className="text-gray-400 font-bold mb-2 uppercase tracking-widest text-sm relative z-10">Monto Final a Pagar</p>
-                <p className="text-[80px] leading-none font-black text-white tracking-tighter relative z-10">{fmt(totals.total)}</p>
+                <p className="text-gray-400 font-bold mb-1 uppercase tracking-widest text-xs sm:text-sm relative z-10">Monto Final a Pagar</p>
+                <p className="text-3xl sm:text-5xl font-black text-white tracking-tight relative z-10 break-all px-2 py-2">{fmt(totals.total)}</p>
              </div>
              
-             <div className="p-8 pb-4">
-               <h3 className="font-bold text-gray-900 mb-4 text-sm uppercase tracking-widest">Método de Pago</h3>
-               <div className="grid grid-cols-3 gap-4 mb-8">
+             <div className="p-6 sm:p-8 pb-4 overflow-y-auto">
+               <h3 className="font-bold text-gray-900 mb-4 text-xs sm:text-sm uppercase tracking-widest">Método de Pago</h3>
+               <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
                  {[
                    { id: 'Efectivo', icon: Banknote, active: 'bg-emerald-50 border-emerald-500 text-emerald-700', ring: 'ring-emerald-500/20' },
                    { id: 'Tarjeta', icon: CreditCard, active: 'bg-indigo-50 border-indigo-500 text-indigo-700', ring: 'ring-indigo-500/20' },
@@ -1166,19 +1240,19 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                    <button 
                       key={m.id}
                       onClick={() => setPaymentMethod(m.id)}
-                      className={`relative flex flex-col items-center justify-center p-4 rounded-2xl border-2 transition-all ${paymentMethod === m.id ? `${m.active} shadow-md ring-4 ${m.ring}` : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50'}`}
+                      className={`relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border-2 transition-all ${paymentMethod === m.id ? `${m.active} shadow-md ring-4 ${m.ring}` : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50'}`}
                    >
-                      <m.icon size={28} className="mb-2" />
-                      <span className="font-bold text-sm tracking-tight">{m.id}</span>
+                      <m.icon size={24} className="mb-1.5" />
+                      <span className="font-bold text-xs sm:text-sm tracking-tight">{m.id}</span>
                       {paymentMethod === m.id && <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-current shadow-sm" />}
                    </button>
                  ))}
                </div>
 
                {paymentMethod === 'Efectivo' && (
-                 <div className="mb-8 animate-in fade-in slide-in-from-top-2">
-                   <div className="flex justify-between items-center mb-4">
-                     <h3 className="font-bold text-gray-900 text-sm uppercase tracking-widest">Efectivo Recibido</h3>
+                 <div className="mb-6 animate-in fade-in slide-in-from-top-2">
+                   <div className="flex justify-between items-center mb-3">
+                     <h3 className="font-bold text-gray-900 text-xs sm:text-sm uppercase tracking-widest">Efectivo Recibido</h3>
                    </div>
                    <input 
                       type="number"
@@ -1186,22 +1260,130 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                       value={cashTendered}
                       onChange={e => setCashTendered(e.target.value)}
                       placeholder="Ej. 1000"
-                      className="w-full bg-gray-50 border-2 border-gray-200 text-gray-900 font-black text-4xl p-5 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-center placeholder:text-gray-300"
+                      className="w-full bg-gray-50 border-2 border-gray-200 text-gray-900 font-black text-2xl sm:text-4xl p-3.5 sm:p-5 rounded-2xl focus:outline-none focus:ring-4 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all text-center placeholder:text-gray-300"
                    />
                    <div className="grid grid-cols-4 gap-2 mt-3">
                      {[totals.total, totals.total + 100, totals.total + 500, totals.total + 1000].map((amt, i) => {
                         const roundedAmt = i === 0 ? totals.total : Math.ceil(amt / 100) * 100;
                         return (
-                          <button key={i} onClick={() => setCashTendered(roundedAmt.toString())} className="bg-white border border-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-colors text-sm shadow-sm">
+                          <button key={i} onClick={() => setCashTendered(roundedAmt.toString())} className="bg-white border border-gray-200 text-gray-700 font-bold py-2.5 sm:py-3 rounded-xl hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition-colors text-xs sm:text-sm shadow-sm">
                             {i === 0 ? 'Exacto' : `L. ${roundedAmt}`}
                           </button>
                         );
                      })}
                    </div>
                    {Number(cashTendered) >= totals.total && (
-                     <div className="mt-4 p-5 bg-emerald-50 rounded-2xl border-2 border-emerald-400 flex justify-between items-center animate-in zoom-in-95 shadow-inner">
-                        <span className="font-black text-emerald-800 text-xl uppercase tracking-widest">Su Cambio</span>
-                        <span className="font-black text-emerald-600 text-4xl">{fmt(Number(cashTendered) - totals.total)}</span>
+                     <div className="mt-4 p-4 bg-emerald-50 rounded-2xl border-2 border-emerald-400 flex justify-between items-center animate-in zoom-in-95 shadow-inner">
+                        <span className="font-black text-emerald-800 text-base sm:text-xl uppercase tracking-widest">Su Cambio</span>
+                        <span className="font-black text-emerald-600 text-2xl sm:text-4xl">{fmt(Number(cashTendered) - totals.total)}</span>
+                     </div>
+                   )}
+                 </div>
+               )}
+
+               {paymentMethod === 'Transferencia' && (
+                 <div className="mb-6 animate-in fade-in slide-in-from-top-2">
+                   <div className="flex justify-between items-center mb-2.5">
+                     <h3 className="font-bold text-gray-900 text-xs sm:text-sm uppercase tracking-widest flex items-center gap-1.5">
+                       <Building2 size={16} className="text-violet-600" />
+                       <span>Selecciona Banco para Transferencia</span>
+                     </h3>
+                   </div>
+
+                   {/* Top 5 Popular Honduran Banks Badges - GRID DE 3 COLUMNAS */}
+                   <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-3">
+                     {HONDURAS_BANKS.filter(b => b.popular).map(bank => {
+                       const isSelected = selectedBank === bank.id;
+                       return (
+                         <button
+                           key={bank.id}
+                           type="button"
+                           onClick={() => setSelectedBank(bank.id)}
+                           className={`relative flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border-2 transition-all cursor-pointer bg-white ${
+                             isSelected 
+                               ? 'border-violet-600 shadow-md ring-4 ring-violet-500/20 scale-102 z-10' 
+                               : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                           }`}
+                         >
+                           <div className="w-full h-10 sm:h-12 flex items-center justify-center p-1">
+                             <img src={bank.logo} alt={bank.name} className="max-h-full max-w-full object-contain" />
+                           </div>
+                           <span className="text-xs font-black text-slate-800 leading-tight mt-1 text-center truncate w-full">
+                             {bank.name}
+                           </span>
+                           {isSelected && (
+                             <div className="absolute -top-1.5 -right-1.5 bg-violet-600 text-white rounded-full p-1 shadow-sm">
+                               <CheckCircle2 size={14} />
+                             </div>
+                           )}
+                         </button>
+                       );
+                     })}
+                   </div>
+
+                   {/* Expandable Remaining Banks - GRID DE 3 COLUMNAS */}
+                   {showAllBanks && (
+                     <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3 pt-3 border-t border-dashed border-slate-200 animate-in fade-in zoom-in-95">
+                       {HONDURAS_BANKS.filter(b => !b.popular).map(bank => {
+                         const isSelected = selectedBank === bank.id;
+                         return (
+                           <button
+                             key={bank.id}
+                             type="button"
+                             onClick={() => setSelectedBank(bank.id)}
+                             className={`relative flex flex-col items-center justify-center p-2.5 sm:p-3 rounded-2xl border-2 transition-all cursor-pointer bg-white ${
+                               isSelected 
+                                 ? 'border-violet-600 shadow-md ring-4 ring-violet-500/20 scale-102 z-10' 
+                                 : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                             }`}
+                           >
+                             <div className="w-full h-9 sm:h-11 flex items-center justify-center p-1">
+                               <img src={bank.logo} alt={bank.name} className="max-h-full max-w-full object-contain" />
+                             </div>
+                             <span className="text-[11px] font-bold text-slate-800 leading-tight mt-1 text-center truncate w-full">
+                               {bank.name}
+                             </span>
+                             {isSelected && (
+                               <div className="absolute -top-1.5 -right-1.5 bg-violet-600 text-white rounded-full p-1 shadow-sm">
+                                 <CheckCircle2 size={14} />
+                               </div>
+                             )}
+                           </button>
+                         );
+                       })}
+                     </div>
+                   )}
+
+                   {/* Expand/Collapse Toggle Button */}
+                   <div className="text-center mt-2">
+                     <button
+                       type="button"
+                       onClick={() => setShowAllBanks(!showAllBanks)}
+                       className="text-[11px] font-extrabold text-violet-600 hover:text-violet-800 bg-violet-50 px-3 py-1 rounded-lg border border-violet-200 transition-colors cursor-pointer"
+                     >
+                       {showAllBanks ? '▲ Ocultar bancos secundarios' : '▼ Ver más bancos de Honduras (+9)'}
+                     </button>
+                   </div>
+
+                   {/* Selected Bank Banner */}
+                   {selectedBank && (
+                     <div className="mt-3 p-3 bg-violet-50/80 border border-violet-200 rounded-xl flex items-center justify-between text-xs animate-in fade-in">
+                       <div className="flex items-center gap-2.5">
+                         <img 
+                           src={HONDURAS_BANKS.find(b => b.id === selectedBank)?.logo} 
+                           alt="Bank logo" 
+                           className="w-8 h-8 object-contain bg-white p-1 rounded-lg border border-violet-200 shrink-0" 
+                         />
+                         <div>
+                           <p className="font-black text-slate-900 leading-tight">
+                             {HONDURAS_BANKS.find(b => b.id === selectedBank)?.name}
+                           </p>
+                           <p className="text-[10px] text-violet-700 font-medium">Pago vía transferencia bancaria</p>
+                         </div>
+                       </div>
+                       <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-md border border-emerald-300">
+                         ✓ Seleccionado
+                       </span>
                      </div>
                    )}
                  </div>
@@ -1210,7 +1392,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                <button
                   onClick={handleCheckout}
                   disabled={isProcessing || (paymentMethod === 'Efectivo' && Number(cashTendered) > 0 && Number(cashTendered) < totals.total)}
-                  className="w-full h-[72px] bg-gray-900 hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-white font-black text-xl rounded-[1.25rem] shadow-xl transition-all flex items-center justify-center gap-3 mt-auto mb-4"
+                  className="w-full h-[60px] sm:h-[72px] bg-gray-900 hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-white font-black text-lg sm:text-xl rounded-[1.25rem] shadow-xl transition-all flex items-center justify-center gap-3 mt-auto mb-4"
                >
                  {isProcessing ? 'Procesando Venta...' : `Emitir Documento Final`}
                </button>
@@ -1222,7 +1404,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       {/* SUCCESS MODAL WITH PRINT OPTIONS */}
       {showSuccess && (
         <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[3000] flex items-center justify-center print:hidden animate-in fade-in p-4">
-           <div className="bg-white rounded-3xl p-10 max-w-lg w-full flex flex-col items-center text-center shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-10 zoom-in-95 relative">
+           <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full flex flex-col items-center text-center shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-10 zoom-in-95 relative">
               <button 
                   onClick={() => {
                      setShowSuccess(false);
@@ -1230,38 +1412,39 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                      setCashTendered('');
                      setLastTicket(null);
                   }}
-                  className="absolute top-6 right-6 text-gray-400 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors"
+                  className="absolute top-5 right-5 text-gray-400 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 p-2 rounded-full transition-colors"
                   title="Cerrar y nueva venta"
               >
-                  <X size={20} />
+                  <X size={18} />
               </button>
-              <div className="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mb-6 shadow-inner ring-8 ring-emerald-50">
-                <CheckCircle2 size={48} className="text-emerald-500" />
+              <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mb-4 shadow-inner ring-8 ring-emerald-50">
+                <CheckCircle2 size={40} className="text-emerald-500" />
               </div>
               
-              <h2 className="text-3xl font-black text-gray-900 mb-2">¡Venta Exitosa!</h2>
-              <p className="text-gray-500 font-medium mb-1">La factura se ha generado y registrado en el inventario.</p>
+              <h2 className="text-2xl sm:text-3xl font-black text-gray-900 mb-1">¡Venta Exitosa!</h2>
+              <p className="text-gray-500 font-medium text-xs sm:text-sm mb-1">La factura se ha generado y registrado en el inventario.</p>
               
-              <div className="bg-indigo-50 border border-indigo-100 px-6 py-3 rounded-2xl mb-8 flex flex-col mt-4 w-full">
-                 <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mb-1">Correlativo Oficial</span>
-                 <span className="text-indigo-700 font-black text-3xl">{lastTicket}</span>
+              <div className="bg-indigo-50 border border-indigo-100 px-6 py-2.5 rounded-2xl mb-6 flex flex-col mt-3 w-full">
+                 <span className="text-indigo-400 text-[10px] font-black uppercase tracking-widest mb-0.5">Correlativo Oficial</span>
+                 <span className="text-indigo-700 font-black text-2xl sm:text-3xl">{lastTicket}</span>
               </div>
               
-              <h3 className="font-bold text-gray-400 uppercase tracking-widest text-xs mb-4 w-full text-left pl-2">Opciones de Impresión</h3>
-              <div className="flex gap-4 w-full mb-6">
+              <h3 className="font-bold text-gray-400 uppercase tracking-widest text-xs mb-3 w-full text-left pl-1">Opciones de Impresión / Previa</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full mb-6">
                 <button 
-                  onClick={() => window.print()}
-                  className="flex-1 py-5 bg-white border-2 border-slate-200 text-slate-700 font-bold rounded-2xl hover:bg-slate-50 hover:border-slate-300 transition-all flex flex-col justify-center items-center gap-2 group"
+                  onClick={() => setShowTicketPreviewModal(true)}
+                  className="py-3.5 bg-emerald-50 border-2 border-emerald-200 text-emerald-800 font-bold rounded-2xl hover:bg-emerald-100 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm shadow-xs cursor-pointer"
                 >
-                  <Printer size={28} className="text-slate-400 group-hover:text-slate-600 transition-colors" /> 
-                  Formato Ticket
+                  <Eye size={20} className="text-emerald-600" /> 
+                  <span>Ver Recibo</span>
                 </button>
+
                 <button 
                   onClick={() => window.open(`/facturas/ver/${lastFacturaId}?print=true`, '_blank', 'noopener,noreferrer')}
-                  className="flex-1 py-5 bg-indigo-50 border-2 border-indigo-100 text-indigo-700 font-bold rounded-2xl hover:bg-indigo-100 hover:border-indigo-200 transition-all flex flex-col justify-center items-center gap-2 group"
+                  className="py-3.5 bg-indigo-50 border-2 border-indigo-100 text-indigo-700 font-bold rounded-2xl hover:bg-indigo-100 transition-all flex items-center justify-center gap-2 text-xs sm:text-sm shadow-xs cursor-pointer"
                 >
-                  <FileText size={28} className="text-indigo-400 group-hover:text-indigo-600 transition-colors" /> 
-                  Formato Carta (PDF)
+                  <FileText size={20} className="text-indigo-600" /> 
+                  <span>Formato Carta (PDF)</span>
                 </button>
               </div>
 
@@ -1272,11 +1455,140 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                      setCashTendered('');
                      setLastTicket(null);
                   }}
-                  className="w-full py-4 text-gray-500 font-bold rounded-2xl border-2 border-transparent hover:bg-gray-100 transition-colors"
+                  className="w-full py-4 bg-[#0500A3] hover:bg-indigo-900 text-white font-black text-base rounded-2xl shadow-lg shadow-indigo-950/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center gap-2"
                 >
-                  Continuar con otra venta
+                  <Plus size={18} />
+                  <span>Continuar con otra venta</span>
               </button>
            </div>
+        </div>
+      )}
+
+      {/* INTERACTIVE ZOOMABLE TICKET PREVIEW MODAL */}
+      {showTicketPreviewModal && lastTicket && (
+        <div className="fixed inset-0 z-[3500] bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-between p-3 sm:p-4 print:hidden animate-in fade-in duration-200">
+          
+          {/* Top Bar with Zoom Controls & Close */}
+          <div className="w-full max-w-lg bg-slate-900 text-white rounded-2xl p-3 px-4 flex items-center justify-between shadow-2xl border border-slate-800 shrink-0 gap-2">
+            <div className="flex items-center gap-2">
+              <Receipt className="text-emerald-400 shrink-0" size={20} />
+              <div>
+                <h3 className="font-extrabold text-xs sm:text-sm text-white">Vista Previa del Recibo</h3>
+                <p className="text-[10px] text-slate-400 font-mono">{lastTicket}</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {/* Zoom Controls */}
+              <div className="flex items-center bg-slate-800 rounded-xl p-1 border border-slate-700">
+                <button 
+                  type="button"
+                  onClick={() => setTicketZoom(z => Math.max(0.75, z - 0.25))}
+                  className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 font-bold text-base flex items-center justify-center cursor-pointer active:scale-95 text-white"
+                  title="Alejar (Zoom Out)"
+                >
+                  -
+                </button>
+                <span className="w-12 text-center text-xs font-mono font-black text-emerald-400">
+                  {Math.round(ticketZoom * 100)}%
+                </span>
+                <button 
+                  type="button"
+                  onClick={() => setTicketZoom(z => Math.min(2.5, z + 0.25))}
+                  className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-slate-600 font-bold text-base flex items-center justify-center cursor-pointer active:scale-95 text-white"
+                  title="Acercar (Zoom In)"
+                >
+                  +
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowTicketPreviewModal(false)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+
+          {/* Scrollable & Pinchable Ticket Canvas */}
+          <div 
+            onTouchStart={handleTicketTouchStart}
+            onTouchMove={handleTicketTouchMove}
+            onTouchEnd={handleTicketTouchEnd}
+            className="flex-1 w-full max-w-lg overflow-auto my-3 flex items-start justify-center bg-slate-900/40 rounded-2xl p-4 border border-slate-800/80 touch-pan-x touch-pan-y"
+          >
+            <div 
+              style={{ transform: `scale(${ticketZoom})`, transformOrigin: 'center top' }}
+              className="transition-transform duration-150 ease-out bg-white text-black p-5 rounded-xl shadow-2xl w-[80mm] min-w-[80mm] font-mono text-xs select-text border border-slate-300 my-2"
+            >
+              {/* Ticket Content Duplicate for Mobile Interactive Zoom */}
+              <div className="text-center mb-3">
+                <h2 className="font-black text-sm uppercase tracking-tight">{organization?.name || 'Distribuidora Paraíso Floral'}</h2>
+                <p className="text-[10px] text-slate-600 mt-0.5">{organization?.direccion || 'San Pedro Sula, Cortés'}</p>
+                {organization?.telefono && <p className="text-[10px] text-slate-600">Tel: {organization.telefono}</p>}
+                {organization?.rtn && <p className="text-[10px] text-slate-600">RTN: {organization.rtn}</p>}
+                <div className="my-2 border-b border-dashed border-slate-400" />
+                <p className="text-xs font-bold text-indigo-900 font-sans">FACTURA OFICIAL: {lastTicket}</p>
+                <p className="text-[10px] text-slate-500">{new Date().toLocaleString('es-HN')}</p>
+                <p className="text-[10px] text-slate-700 text-left mt-2"><strong>Cliente:</strong> {clientName}</p>
+                <p className="text-[10px] text-slate-700 text-left"><strong>Cajero:</strong> {cajeroNombre}</p>
+              </div>
+
+              <table className="w-full my-2 text-[11px] border-y border-dashed border-slate-400 py-1">
+                <thead>
+                  <tr className="text-left font-bold text-slate-600 border-b border-slate-200">
+                    <th className="pb-1">Cant</th>
+                    <th className="pb-1 px-1">Producto</th>
+                    <th className="pb-1 text-right">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {cart.map((item, idx) => (
+                    <tr key={idx} className="align-top">
+                      <td className="py-1 font-bold">{item.qty}</td>
+                      <td className="py-1 px-1">{item.nombre}</td>
+                      <td className="py-1 text-right font-bold">{fmt((item.precioVenta * item.qty) * (1 - item.discountPercentage / 100))}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              <div className="space-y-0.5 text-right text-[11px] font-mono border-b border-dashed border-slate-400 pb-2">
+                <div className="flex justify-between"><span>Subtotal:</span><span>{fmt(totals.subTotal)}</span></div>
+                <div className="flex justify-between"><span>ISV (15%):</span><span>{fmt(totals.isv15)}</span></div>
+                <div className="flex justify-between font-black text-sm text-slate-900 pt-1 border-t border-slate-300">
+                  <span>TOTAL:</span>
+                  <span>{fmt(totals.total)}</span>
+                </div>
+              </div>
+
+              <div className="text-center mt-3 text-[10px] text-slate-500">
+                <p className="font-bold text-slate-800 uppercase">¡Gracias por su compra!</p>
+                <p>Este es un documento equivalente de facturación local.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Print & Share Actions */}
+          <div className="w-full max-w-lg bg-slate-900 p-3 rounded-2xl flex items-center gap-3 border border-slate-800 shrink-0">
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-sm rounded-xl flex items-center justify-center gap-2 shadow-md active:scale-95 cursor-pointer"
+            >
+              <Printer size={18} />
+              <span>Imprimir Ticket</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowTicketPreviewModal(false)}
+              className="px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs rounded-xl cursor-pointer"
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       )}
 

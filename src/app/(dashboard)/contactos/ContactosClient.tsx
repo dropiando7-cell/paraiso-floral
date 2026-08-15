@@ -10,6 +10,27 @@ import {
 } from 'lucide-react';
 import { fetchContactos, createContacto, updateContacto, deleteContacto } from './actions';
 
+export const DEPARTAMENTOS_HONDURAS = [
+    'Atlántida',
+    'Choluteca',
+    'Colón',
+    'Comayagua',
+    'Copán',
+    'Cortés',
+    'El Paraíso',
+    'Francisco Morazán',
+    'Gracias a Dios',
+    'Intibucá',
+    'Islas de la Bahía',
+    'La Paz',
+    'Lempira',
+    'Ocotepeque',
+    'Olancho',
+    'Santa Bárbara',
+    'Valle',
+    'Yoro'
+];
+
 type Cliente = {
     id: string;
     nombre: string;
@@ -17,6 +38,7 @@ type Cliente = {
     email?: string | null;
     telefono?: string | null;
     direccion?: string | null;
+    departamento?: string | null;
     nombreContacto?: string | null;
     telefonoContacto?: string | null;
     emailsCC?: string | null;
@@ -123,48 +145,145 @@ export default function ContactosClient({ initialData }: { initialData: Cliente[
     };
 
     return (
-        <div className="p-8 max-w-[1600px] mx-auto relative min-h-screen">
+        <div className="p-1 sm:p-6 md:p-8 max-w-[1600px] mx-auto relative min-h-screen">
             {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-8">
+            <div className="flex flex-row items-center justify-between gap-2 mb-3 sm:mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-3">
-                        <Users className="w-8 h-8 text-blue-600" />
-                        Directorio de Contactos
+                    <h1 className="text-base sm:text-2xl md:text-3xl font-bold text-slate-800 tracking-tight flex items-center gap-2">
+                        <Users className="w-5 h-5 sm:w-8 sm:h-8 text-blue-600 shrink-0" />
+                        <span className="truncate">Contactos</span>
                     </h1>
-                    <p className="text-slate-500 mt-2 text-lg">
+                    <p className="text-xs sm:text-sm text-slate-500 hidden sm:block">
                         Gestión de clientes y agenda de contactos
                     </p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => { setCurrentContacto({}); setModalMode('create'); }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-sm shadow-blue-200"
-                    >
-                        <Plus className="w-5 h-5" />
-                        Nuevo Contacto
-                    </button>
-                </div>
+                <button
+                    onClick={() => { setCurrentContacto({}); setModalMode('create'); }}
+                    className="bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-sm shadow-blue-200 shrink-0 cursor-pointer"
+                >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Nuevo Contacto</span>
+                </button>
             </div>
 
             {/* Filters */}
-            <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col md:flex-row gap-4 items-center justify-between">
-                <div className="relative w-full md:w-96">
-                    <Search className="w-5 h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="bg-white p-2 sm:p-4 rounded-2xl shadow-xs border border-slate-200 mb-3 sm:mb-6 flex flex-row items-center justify-between gap-2">
+                <div className="relative flex-1">
+                    <Search className="w-4 h-4 sm:w-5 sm:h-5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                     <input
                         type="text"
-                        placeholder="Buscar por nombre, correo, teléfono o RTN..."
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none transition-all text-slate-700 font-medium"
+                        placeholder="Buscar nombre, teléfono, RTN..."
+                        className="w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none transition-all text-xs sm:text-sm text-slate-800 font-medium"
                         value={search}
                         onChange={e => { setSearch(e.target.value); setPage(1); }}
                     />
                 </div>
-                <div className="text-sm font-semibold text-slate-500 bg-slate-50 px-4 py-2.5 rounded-xl">
-                    Total: <span className="text-blue-600">{totalCount}</span> contactos
+                <div className="text-xs font-semibold text-slate-500 bg-slate-50 px-2.5 py-2 sm:px-4 sm:py-2.5 rounded-xl shrink-0">
+                    Total: <span className="text-blue-600 font-black">{totalCount}</span>
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative">
+            {/* MOBILE CARDS VIEW */}
+            <div className="block md:hidden space-y-2 mb-4">
+                {contactos.length === 0 ? (
+                    <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center text-slate-400 text-xs font-medium">
+                        No se encontraron contactos.
+                    </div>
+                ) : (
+                    contactos.map(c => (
+                        <div key={c.id} className="bg-white p-3 rounded-2xl border border-slate-200 shadow-xs space-y-2">
+                            {/* Header: Initial avatar, Title, Actions */}
+                            <div className="flex items-start justify-between gap-2">
+                                <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="w-9 h-9 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 font-black text-sm shrink-0 uppercase">
+                                        {c.nombre.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h3 className="font-black text-xs sm:text-sm text-slate-900 leading-snug truncate uppercase">{c.nombre}</h3>
+                                        {c.nombreContacto && (
+                                            <p className="text-[11px] text-slate-600 font-bold flex items-center gap-1 truncate mt-0.5 uppercase">
+                                                <User className="w-3 h-3 text-slate-400 shrink-0" />
+                                                <span className="truncate">{c.nombreContacto}</span>
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Action Buttons */}
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                        onClick={() => { setCurrentContacto(c); setModalMode('edit'); }}
+                                        className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 active:scale-95 transition-all"
+                                        title="Editar"
+                                    >
+                                        <Pencil className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(c.id)}
+                                        className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 active:scale-95 transition-all"
+                                        title="Eliminar"
+                                    >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Department / RTN Badges */}
+                            <div className="flex flex-wrap items-center gap-1.5">
+                                {c.departamento && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                                        <MapPin className="w-2.5 h-2.5 text-blue-500 shrink-0" />
+                                        {c.departamento}
+                                    </span>
+                                )}
+                                {c.rtn && (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                                        <FileBadge className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                        RTN: {c.rtn}
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Address if present */}
+                            {c.direccion && (
+                                <p className="text-[11px] text-slate-600 flex items-start gap-1 leading-tight bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                    <MapPin className="w-3 h-3 text-slate-400 shrink-0 mt-0.5" />
+                                    <span className="line-clamp-2">{c.direccion}</span>
+                                </p>
+                            )}
+
+                            {/* Contact phone / email */}
+                            <div className="space-y-1 text-[11px] font-medium text-slate-600 pt-1 border-t border-slate-100">
+                                <div className="flex flex-wrap gap-2">
+                                    {c.telefono && (
+                                        <div className="flex items-center gap-1 text-slate-700 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                                            <Phone className="w-3 h-3 text-slate-400" />
+                                            <span>{c.telefono}</span>
+                                            <span className="text-[9px] bg-slate-200/80 px-1 rounded text-slate-600 font-bold ml-1">Empresa</span>
+                                        </div>
+                                    )}
+                                    {c.telefonoContacto && (
+                                        <div className="flex items-center gap-1 text-indigo-900 font-bold bg-indigo-50/70 px-2 py-1 rounded-md border border-indigo-100">
+                                            <Phone className="w-3 h-3 text-indigo-500" />
+                                            <span>{c.telefonoContacto}</span>
+                                            <span className="text-[9px] bg-indigo-200/70 px-1 rounded text-indigo-800 font-bold ml-1">Personal</span>
+                                        </div>
+                                    )}
+                                </div>
+                                {c.email && (
+                                    <div className="flex items-center gap-1.5 text-slate-600 truncate bg-slate-50 px-2 py-1 rounded-md border border-slate-100 mt-1">
+                                        <Mail className="w-3 h-3 text-slate-400 shrink-0" />
+                                        <span className="truncate">{c.email}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {/* DESKTOP TABLE VIEW */}
+            <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden relative">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
@@ -202,6 +321,14 @@ export default function ContactosClient({ initialData }: { initialData: Cliente[
                                                         <div className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
                                                             <MapPin className="w-3 h-3" />
                                                             <span className="truncate max-w-[200px]" title={c.direccion}>{c.direccion}</span>
+                                                        </div>
+                                                    )}
+                                                    {c.departamento && (
+                                                        <div className="mt-1">
+                                                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md">
+                                                                <MapPin className="w-3 h-3 text-blue-500" />
+                                                                {c.departamento}
+                                                            </span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -268,7 +395,7 @@ export default function ContactosClient({ initialData }: { initialData: Cliente[
                     </table>
                 </div>
 
-                {/* Pagination */}
+                {/* Pagination Desktop */}
                 {totalPages > 1 && (
                     <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
                         <span className="text-sm font-medium text-slate-500">
@@ -293,6 +420,31 @@ export default function ContactosClient({ initialData }: { initialData: Cliente[
                     </div>
                 )}
             </div>
+
+            {/* Mobile Pagination */}
+            {totalPages > 1 && (
+                <div className="block md:hidden mt-3 p-3 bg-white rounded-2xl border border-slate-200 flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-500">
+                        Pág. {page} de {totalPages}
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                        <button
+                            disabled={page === 1}
+                            onClick={() => setPage(p => p - 1)}
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 disabled:opacity-40"
+                        >
+                            Anterior
+                        </button>
+                        <button
+                            disabled={page === totalPages || totalPages === 0}
+                            onClick={() => setPage(p => p + 1)}
+                            className="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 disabled:opacity-40"
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Modal de Crear/Editar */}
             <ContactoModal
@@ -344,9 +496,11 @@ export function ContactoModal({
                     email: currentContacto.email || undefined,
                     telefono: currentContacto.telefono || undefined,
                     direccion: currentContacto.direccion || undefined,
+                    departamento: currentContacto.departamento || undefined,
                     rtn: currentContacto.rtn || undefined,
                     nombreContacto: currentContacto.nombreContacto || undefined,
-                    telefonoContacto: currentContacto.telefonoContacto || undefined
+                    telefonoContacto: currentContacto.telefonoContacto || undefined,
+                    emailsCC: currentContacto.emailsCC || undefined
                 });
                 onSuccess(res);
             } else {
@@ -355,9 +509,11 @@ export function ContactoModal({
                     email: currentContacto.email || undefined,
                     telefono: currentContacto.telefono || undefined,
                     direccion: currentContacto.direccion || undefined,
+                    departamento: currentContacto.departamento || undefined,
                     rtn: currentContacto.rtn || undefined,
                     nombreContacto: currentContacto.nombreContacto || undefined,
-                    telefonoContacto: currentContacto.telefonoContacto || undefined
+                    telefonoContacto: currentContacto.telefonoContacto || undefined,
+                    emailsCC: currentContacto.emailsCC || undefined
                 });
                 onSuccess(res || currentContacto);
             }
@@ -460,6 +616,19 @@ export function ContactoModal({
                              value={currentContacto.emailsCC || ''}
                              onChange={e => setCurrentContacto({ ...currentContacto, emailsCC: e.target.value })}
                          />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Departamento (Honduras)</label>
+                        <select
+                            className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-blue-100 outline-none font-medium text-slate-800 cursor-pointer"
+                            value={currentContacto.departamento || ''}
+                            onChange={e => setCurrentContacto({ ...currentContacto, departamento: e.target.value })}
+                        >
+                            <option value="">-- Seleccionar Departamento --</option>
+                            {DEPARTAMENTOS_HONDURAS.map(dept => (
+                                <option key={dept} value={dept}>{dept}</option>
+                            ))}
+                        </select>
                     </div>
                     <div>
                         <label className="block text-sm font-semibold text-slate-600 mb-1.5 focus-within:text-blue-600">Dirección</label>

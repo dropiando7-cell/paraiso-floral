@@ -41,14 +41,48 @@ function formatCorrelativo(numeroInterno: number, tipoDocumento: string): string
 export async function searchClientes(query: string = "") {
     try {
         const organizationId = await getOrganizationId();
-        return await prisma.cliente.findMany({
+        const queryTrim = query.trim();
+
+        // Auto-asegurar que exista el cliente "CONSUMIDOR FINAL" en la organización
+        const consumidorExists = await prisma.cliente.findFirst({
+            where: { organizationId, nombre: { equals: 'CONSUMIDOR FINAL', mode: 'insensitive' } }
+        });
+        if (!consumidorExists) {
+            try {
+                await prisma.cliente.create({
+                    data: {
+                        organizationId,
+                        nombre: 'CONSUMIDOR FINAL',
+                        rtn: '00000000000000',
+                        direccion: 'CONSUMIDOR FINAL',
+                        notas: 'Cliente genérico por defecto para caja POS'
+                    }
+                });
+            } catch (errCreate) {
+                console.error('Error auto-creating CONSUMIDOR FINAL:', errCreate);
+            }
+        }
+
+        const clientes = await prisma.cliente.findMany({
             where: { 
                 organizationId,
-                nombre: { contains: query, mode: 'insensitive' }
+                ...(queryTrim ? {
+                    OR: [
+                        { nombre: { contains: queryTrim, mode: 'insensitive' } },
+                        { rtn: { contains: queryTrim, mode: 'insensitive' } },
+                        { telefono: { contains: queryTrim, mode: 'insensitive' } },
+                    ]
+                } : {})
             },
-            take: 1000,
+            take: 100,
             orderBy: { nombre: 'asc' }
         });
+
+        return clientes.map(c => ({
+            ...c,
+            nombre: c.nombre.toUpperCase(),
+            nombreContacto: c.nombreContacto ? c.nombreContacto.toUpperCase() : null
+        }));
     } catch (e) {
         console.error(e);
         return [];

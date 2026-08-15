@@ -32,6 +32,7 @@ const searchItems: SearchItem[] = [
     { name: 'Control de Caja Chica', category: 'Core', href: '/caja-chica', keywords: ['caja', 'chica', 'gastos', 'flujo', 'dinero', 'petty cash'] },
     { name: 'Gráficas e Informes', category: 'Core', href: '/graficas', keywords: ['graficas', 'informes', 'reportes', 'analisis', 'charts', 'reports'] },
     { name: 'Control de Inventario', category: 'Inventario', href: '/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['inventario', 'activos', 'stock', 'control'] },
+    { name: 'Toma Física / Auditoría', category: 'Inventario', href: '/inventario/toma-fisica', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'], keywords: ['toma', 'fisica', 'conteo', 'auditoria', 'cuarto frio', 'tablet', 'kardex'] },
     { name: 'Garantías y Reemplazos', category: 'Inventario', href: '/inventario/garantias', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['garantias', 'reemplazos', 'rma', 'warranty'] },
     { name: 'Catálogo de Modelos', category: 'Inventario', href: '/inventario/modelos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'], keywords: ['modelos', 'catalogo', 'marcas', 'devices'] },
     { name: 'Entradas / Compras', category: 'Inventario', href: '/inventario/entradas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['entradas', 'compras', 'proveedores', 'buy', 'incoming'] },

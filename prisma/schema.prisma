@@ -682,6 +682,7 @@ model Cliente {
   telefono       String?
   email          String?
   direccion      String?
+  departamento   String?
   notas          String?
   firmaDigitalUrl    String?
   firmaDigitalNombre String?

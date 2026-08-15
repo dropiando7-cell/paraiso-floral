@@ -18,6 +18,7 @@ const allAvailableModules = [
     { id: '/checkin', name: 'Check-in Kids' },
     { id: '/medico', name: 'Asistencia Médica' },
     { id: '/inventario', name: 'Inventario de Activos' },
+    { id: '/inventario/toma-fisica', name: 'Toma Física de Inventario (Auditoría)' },
     { id: '/conciliacion', name: 'Conciliación Bancaria' },
     { id: '/boveda', name: 'Bóveda de Contraseñas' },
     { id: '/calendario', name: 'Calendario Centralizado' },

@@ -2098,6 +2098,7 @@ export async function crearClienteAction(data: {
     telefono?: string | null;
     email?: string | null;
     direccion?: string | null;
+    departamento?: string | null;
     notas?: string | null;
     nombreContacto?: string | null;
     telefonoContacto?: string | null;
@@ -2130,6 +2131,7 @@ export async function crearClienteAction(data: {
                 telefono: data.telefono?.trim() || null,
                 email: data.email?.trim() || null,
                 direccion: data.direccion?.trim() || null,
+                departamento: data.departamento?.trim() || null,
                 notas: data.notas?.trim() || null,
                 nombreContacto: data.nombreContacto?.trim() || null,
                 telefonoContacto: data.telefonoContacto?.trim() || null,

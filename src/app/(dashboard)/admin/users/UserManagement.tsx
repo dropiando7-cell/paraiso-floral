@@ -98,6 +98,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/rentas', label: 'Rentas de Equipos' },
         { id: '/graficas', label: 'Gráficas e Informes' },
         { id: '/inventario', label: 'Control de Inventario' },
+        { id: '/inventario/toma-fisica', label: 'Toma Física / Auditoría de Inventario (Tablet)' },
         { id: '/inventario/modelos', label: 'Catálogo de Modelos' },
         { id: '/inventario/entradas', label: 'Entradas / Compras' },
         { id: '/inventario/salidas', label: 'Salidas / Descargas' },
