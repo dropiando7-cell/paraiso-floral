@@ -24,24 +24,28 @@ export async function GET() {
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Obtener todas las facturas vigentes no anuladas
-    const facturas = await prisma.factura.findMany({
-      where: {
-        organizationId: orgId,
-        estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] }
-      },
+    // Fetch all clients with their invoices, payments, and credit notes
+    const clientes = await prisma.cliente.findMany({
+      where: { organizationId: orgId },
       select: {
         id: true,
-        clienteId: true,
-        total: true,
-        saldoPendiente: true,
-        estadoPago: true,
-        fechaEmision: true,
-        fechaVencimiento: true
+        saldoInicial: true,
+        facturas: {
+          where: { estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] } },
+          select: { total: true, saldoPendiente: true, estadoPago: true, fechaEmision: true }
+        },
+        pagos: {
+          where: { anulado: false },
+          select: { monto: true }
+        },
+        notasCredito: {
+          where: { anulado: false },
+          select: { monto: true }
+        }
       }
     });
 
-    // Abonos del mes actual
+    // Abonos del mes actual (para cobradoEsteMes)
     const abonosMes = await prisma.pagoCliente.aggregate({
       where: {
         organizationId: orgId,
@@ -51,44 +55,73 @@ export async function GET() {
       _sum: { monto: true }
     });
 
-    const saldoInicialSum = await prisma.cliente.aggregate({
-      where: { organizationId: orgId },
-      _sum: { saldoInicial: true }
-    });
-
-    const sumSInicial = Number(saldoInicialSum._sum.saldoInicial || 0);
-    let totalCartera = sumSInicial;
+    let totalCartera = 0;
     let totalVencido = 0;
-    let alDia = sumSInicial; // 0-7 días
-    let porVencer = 0; // 8-15 días
-    let vencido = 0; // 16-30 días
-    let enRiesgo = 0; // >30 días
+    let alDia = 0;
+    let porVencer = 0;
+    let vencido = 0;
+    let enRiesgo = 0;
+    let clientesMorososCount = 0;
 
-    const clientesMorososMap = new Set<string>();
+    clientes.forEach(c => {
+      const sInicial = Number(c.saldoInicial || 0);
+      const totalAbonado = c.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
+      const totalNotasCredito = c.notasCredito.reduce((sum, n) => sum + Number(n.monto), 0);
 
-    facturas.forEach(f => {
-      const totalFactura = Number(f.total || 0);
-      const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : totalFactura;
+      let totalFacturado = sInicial;
+      c.facturas.forEach(f => {
+        totalFacturado += Number(f.total || 0);
+      });
 
-      if (f.estadoPago === 'PAGADA' || saldo <= 0) return;
+      const saldoTotal = Math.max(0, totalFacturado - totalAbonado - totalNotasCredito);
+      if (saldoTotal <= 0) return; // No debt
 
-      totalCartera += saldo;
+      totalCartera += saldoTotal;
 
-      const diffTime = Math.abs(now.getTime() - new Date(f.fechaEmision).getTime());
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      let debtToAllocate = saldoTotal;
+      let hasOverdue = false;
 
-      if (diffDays <= 7) {
-        alDia += saldo;
-      } else if (diffDays <= 15) {
-        porVencer += saldo;
-      } else if (diffDays <= 30) {
-        vencido += saldo;
-        totalVencido += saldo;
-        clientesMorososMap.add(f.clienteId);
-      } else {
-        enRiesgo += saldo;
-        totalVencido += saldo;
-        clientesMorososMap.add(f.clienteId);
+      // Sort client's unpaid invoices by age (oldest first)
+      const unpaidFacturas = c.facturas
+        .filter(f => f.estadoPago !== 'PAGADA')
+        .map(f => {
+          const totalFactura = Number(f.total || 0);
+          const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : totalFactura;
+          const diffTime = Math.abs(now.getTime() - new Date(f.fechaEmision).getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return { saldo, diffDays };
+        })
+        .sort((a, b) => b.diffDays - a.diffDays);
+
+      unpaidFacturas.forEach(f => {
+        if (debtToAllocate <= 0) return;
+        const allocated = Math.min(debtToAllocate, f.saldo);
+        debtToAllocate -= allocated;
+
+        if (f.diffDays <= 7) {
+          alDia += allocated;
+        } else if (f.diffDays <= 15) {
+          porVencer += allocated;
+        } else if (f.diffDays <= 30) {
+          vencido += allocated;
+          totalVencido += allocated;
+          hasOverdue = true;
+        } else {
+          enRiesgo += allocated;
+          totalVencido += allocated;
+          hasOverdue = true;
+        }
+      });
+
+      // Remaining debt represents unpaid initial Excel balance
+      if (debtToAllocate > 0) {
+        enRiesgo += debtToAllocate;
+        totalVencido += debtToAllocate;
+        hasOverdue = true;
+      }
+
+      if (hasOverdue) {
+        clientesMorososCount++;
       }
     });
 
@@ -96,7 +129,7 @@ export async function GET() {
       totalCartera,
       totalVencido,
       cobradoEsteMes: Number(abonosMes._sum.monto || 0),
-      clientesMorososCount: clientesMorososMap.size,
+      clientesMorososCount,
       antiguedad: {
         alDia,
         porVencer,

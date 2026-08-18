@@ -224,7 +224,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
       saldoAcumulado = saldoAcumulado + item.debito - item.credito;
       return {
         ...item,
-        saldoAcumulado: Math.max(0, saldoAcumulado)
+        saldoAcumulado: saldoAcumulado
       };
     });
   }, [data]);
@@ -620,10 +620,20 @@ ${publicUrl}
 
           {/* 4 KPIs Métricas del Cliente */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-100">
-              <span className="text-[11px] font-bold text-emerald-800 uppercase">Saldo Pendiente</span>
-              <p className="text-xl sm:text-2xl font-black text-emerald-600 mt-1">
-                L. {resumen.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+            <div className={`p-4 rounded-2xl border transition-all ${
+              resumen.saldoTotal < 0 
+                ? 'bg-blue-50/60 border-blue-100' 
+                : 'bg-emerald-50/60 border-emerald-100'
+            }`}>
+              <span className={`text-[11px] font-bold uppercase ${
+                resumen.saldoTotal < 0 ? 'text-blue-800' : 'text-emerald-800'
+              }`}>
+                {resumen.saldoTotal < 0 ? 'Saldo a Favor' : 'Saldo Pendiente'}
+              </span>
+              <p className={`text-xl sm:text-2xl font-black mt-1 ${
+                resumen.saldoTotal < 0 ? 'text-blue-600' : 'text-emerald-600'
+              }`}>
+                L. {Math.abs(resumen.saldoTotal).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
               </p>
             </div>
 

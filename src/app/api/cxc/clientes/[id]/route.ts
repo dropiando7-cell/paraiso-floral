@@ -77,24 +77,24 @@ export async function GET(
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
     }
 
-    // Calcular consolidados
+    const totalAbonado = cliente.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
+    const totalNotasCredito = cliente.notasCredito.reduce((sum, n) => sum + Number(n.monto), 0);
+
     const sInicial = Number(cliente.saldoInicial || 0);
-    let saldoTotal = sInicial;
     let totalFacturado = sInicial;
 
     const listadoFacturas = cliente.facturas.map(f => {
       const total = Number(f.total || 0);
       const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : total;
       totalFacturado += total;
-      if (f.estadoPago !== 'PAGADA' && saldo > 0) {
-        saldoTotal += saldo;
-      }
       return {
         ...f,
         total,
         saldoPendiente: saldo
       };
     });
+
+    const saldoTotal = totalFacturado - totalAbonado - totalNotasCredito;
 
     const facturasProcesadas = [
       ...(sInicial > 0 ? [{
@@ -110,9 +110,6 @@ export async function GET(
       }] : []),
       ...listadoFacturas
     ];
-
-    const totalAbonado = cliente.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
-    const totalNotasCredito = cliente.notasCredito.reduce((sum, n) => sum + Number(n.monto), 0);
 
     return NextResponse.json({
       cliente: {

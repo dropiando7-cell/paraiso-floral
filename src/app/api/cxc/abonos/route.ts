@@ -103,7 +103,7 @@ export async function POST(request: Request) {
         });
       }
     } else {
-      // Descontar primero del Saldo Inicial Deuda (Excel) si existe
+      // Descontar primero del Saldo Inicial Deuda (Excel) si existe, pero manteniéndolo estático en DB
       const clienteData = await prisma.cliente.findUnique({
         where: { id: clienteId },
         select: { saldoInicial: true }
@@ -112,15 +112,26 @@ export async function POST(request: Request) {
       let saldoDisponible = montoNum;
 
       if (clienteData && Number(clienteData.saldoInicial || 0) > 0) {
-        const sInicialActual = Number(clienteData.saldoInicial);
-        const deduccion = Math.min(saldoDisponible, sInicialActual);
-        const nuevoSInicial = Math.max(0, sInicialActual - deduccion);
-
-        await prisma.cliente.update({
-          where: { id: clienteId },
-          data: { saldoInicial: nuevoSInicial }
+        // Calcular cuánto del saldoInicial ya fue pagado en abonos anteriores
+        const totalPastPagos = await prisma.pagoCliente.aggregate({
+          where: { clienteId, organizationId: orgId, anulado: false, id: { not: nuevoPago.id } },
+          _sum: { monto: true }
         });
+        const sumPastPagos = Number(totalPastPagos._sum.monto || 0);
 
+        const totalPastAllocations = await prisma.pagoDetalleFactura.aggregate({
+          where: {
+            pago: { clienteId, organizationId: orgId, anulado: false, id: { not: nuevoPago.id } }
+          },
+          _sum: { montoAplicado: true }
+        });
+        const sumPastAllocations = Number(totalPastAllocations._sum.montoAplicado || 0);
+
+        const pastAppliedToSInicial = Math.max(0, sumPastPagos - sumPastAllocations);
+        const sInicialOriginal = Number(clienteData.saldoInicial);
+        const sInicialActual = Math.max(0, sInicialOriginal - pastAppliedToSInicial);
+
+        const deduccion = Math.min(saldoDisponible, sInicialActual);
         saldoDisponible -= deduccion;
       }
 

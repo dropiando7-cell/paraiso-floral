@@ -173,6 +173,12 @@ ${publicUrl}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/cxc/reportes"
+            className="p-3 bg-white text-emerald-800 hover:bg-emerald-50 active:scale-95 rounded-2xl transition-all flex items-center gap-2 text-xs font-extrabold shadow-sm shrink-0"
+          >
+            <span>📊 Ver Reportes</span>
+          </Link>
           <button
             onClick={cargarDatos}
             className="p-3 bg-white/15 hover:bg-white/25 active:scale-95 text-white rounded-2xl transition-all flex items-center gap-2 text-xs font-bold shadow-sm"

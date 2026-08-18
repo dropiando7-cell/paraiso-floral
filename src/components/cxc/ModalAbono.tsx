@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, DollarSign, AlertCircle, Loader2, CheckCircle2, ChevronDown, Building2 } from 'lucide-react';
 
 export const HONDURAS_BANKS = [
@@ -46,8 +46,30 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
   const [notas, setNotas] = useState<string>('');
   const [fechaPago, setFechaPago] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [bankDropdownOpen, setBankDropdownOpen] = useState<boolean>(false);
+  const [bankSearchQuery, setBankSearchQuery] = useState<string>('');
+  const bankDropdownRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (bankDropdownRef.current && !bankDropdownRef.current.contains(event.target as Node)) {
+        setBankDropdownOpen(false);
+      }
+    }
+    if (bankDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [bankDropdownOpen]);
+
+  useEffect(() => {
+    if (!bankDropdownOpen) {
+      setBankSearchQuery('');
+    }
+  }, [bankDropdownOpen]);
 
   if (!isOpen || !cliente) return null;
 
@@ -100,8 +122,12 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
     }
   };
 
+  const filteredBanks = HONDURAS_BANKS.filter(b =>
+    b.name.toLowerCase().includes(bankSearchQuery.toLowerCase())
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
       <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
@@ -242,7 +268,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
           {metodoPago !== 'EFECTIVO' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {/* Selector Inteligente de Banco Destino */}
-              <div className="relative">
+              <div className="relative" ref={bankDropdownRef}>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Banco Destino <span className="text-emerald-600">*</span>
                 </label>
@@ -279,33 +305,48 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                   </div>
                   <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                 </button>
-
+ 
                 {/* Menú Desplegable Inteligente con Logos */}
                 {bankDropdownOpen && (
                   <div className="absolute top-full left-0 right-0 mt-1 z-[100] bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-60 overflow-y-auto p-1.5 space-y-1 animate-in fade-in zoom-in-95">
-                    {HONDURAS_BANKS.map((b) => (
-                      <button
-                        type="button"
-                        key={b.id}
-                        onClick={() => {
-                          setBanco(b.name);
-                          setBankDropdownOpen(false);
-                        }}
-                        className={`w-full px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
-                          banco.toLowerCase() === b.name.toLowerCase()
-                            ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
-                            : 'hover:bg-slate-100 text-slate-800'
-                        }`}
-                      >
-                        <div className="w-6 h-6 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0 shadow-2xs">
-                          <img src={b.logo} alt={b.name} className="w-full h-full object-contain" />
-                        </div>
-                        <span className="truncate">{b.name}</span>
-                        {banco.toLowerCase() === b.name.toLowerCase() && (
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 ml-auto shrink-0" />
-                        )}
-                      </button>
-                    ))}
+                    {/* Buscador de banco */}
+                    <div className="sticky top-0 bg-white pb-1.5 pt-0.5 px-1 z-10 border-b border-slate-100 mb-1">
+                      <input
+                        type="text"
+                        placeholder="Buscar banco..."
+                        value={bankSearchQuery}
+                        onChange={(e) => setBankSearchQuery(e.target.value)}
+                        className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white font-medium"
+                        autoFocus
+                      />
+                    </div>
+                    {filteredBanks.length === 0 ? (
+                      <p className="text-center text-slate-400 text-xs py-4 font-semibold">No se encontraron bancos</p>
+                    ) : (
+                      filteredBanks.map((b) => (
+                        <button
+                          type="button"
+                          key={b.id}
+                          onClick={() => {
+                            setBanco(b.name);
+                            setBankDropdownOpen(false);
+                          }}
+                          className={`w-full px-2.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 transition-colors cursor-pointer text-left ${
+                            banco.toLowerCase() === b.name.toLowerCase()
+                              ? 'bg-emerald-50 text-emerald-900 border border-emerald-200'
+                              : 'hover:bg-slate-100 text-slate-800'
+                          }`}
+                        >
+                          <div className="w-6 h-6 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0 shadow-2xs">
+                            <img src={b.logo} alt={b.name} className="w-full h-full object-contain" />
+                          </div>
+                          <span className="truncate">{b.name}</span>
+                          {banco.toLowerCase() === b.name.toLowerCase() && (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 ml-auto shrink-0" />
+                          )}
+                        </button>
+                      ))
+                    )}
                   </div>
                 )}
               </div>

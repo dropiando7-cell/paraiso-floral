@@ -63,9 +63,11 @@ export async function GET(request: Request) {
         },
         pagos: {
           where: { anulado: false },
-          select: { id: true, monto: true, fecha: true },
-          take: 1,
-          orderBy: { fecha: 'desc' }
+          select: { id: true, monto: true, fecha: true }
+        },
+        notasCredito: {
+          where: { anulado: false },
+          select: { monto: true }
         }
       },
       orderBy: { nombre: 'asc' }
@@ -75,19 +77,19 @@ export async function GET(request: Request) {
 
     const resultado = clientes.map(c => {
       const sInicial = Number(c.saldoInicial || 0);
-      let saldoTotal = sInicial;
+      const totalAbonado = c.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
+      const totalNotasCredito = c.notasCredito.reduce((sum, n) => sum + Number(n.monto), 0);
+
+      let totalFacturado = sInicial;
       let saldoVencido = 0;
-      let facturasPendientesCount = sInicial > 0 ? 1 : 0;
       let maxDiasMora = 0;
 
       c.facturas.forEach(f => {
         const totalFactura = Number(f.total || 0);
         const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : totalFactura;
+        totalFacturado += totalFactura;
 
         if (f.estadoPago === 'PAGADA' || saldo <= 0) return;
-
-        saldoTotal += saldo;
-        facturasPendientesCount++;
 
         const diffTime = Math.abs(now.getTime() - new Date(f.fechaEmision).getTime());
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -101,7 +103,19 @@ export async function GET(request: Request) {
         }
       });
 
-      const ultimoPago = c.pagos[0] || null;
+      const saldoTotal = totalFacturado - totalAbonado - totalNotasCredito;
+
+      let facturasPendientesCount = c.facturas.filter(f => {
+        const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : Number(f.total);
+        return f.estadoPago !== 'PAGADA' && saldo > 0;
+      }).length;
+
+      if (sInicial > 0 && saldoTotal > 0) {
+        facturasPendientesCount++;
+      }
+
+      const sortedPagos = [...c.pagos].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+      const ultimoPago = sortedPagos[0] || null;
 
       return {
         id: c.id,
