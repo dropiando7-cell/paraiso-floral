@@ -104,6 +104,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/inventario/salidas', label: 'Salidas / Descargas' },
         { id: '/inventario/kardex', label: 'Kardex de Movimientos' },
         { id: '/precios', label: 'Gestor de Precios' },
+        { id: '/cxc', label: 'Cuentas por Cobrar' },
         { id: '/admin/areas', label: 'Ubicaciones y Sucursales' },
         { id: '/inventario/historico', label: 'Inventario Histórico (Odoo)' },
         { id: '/contactos', label: 'Directorio de Contactos' },

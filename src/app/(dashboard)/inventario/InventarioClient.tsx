@@ -409,6 +409,7 @@ type Activo = {
     responsable?: string | null;
     observaciones?: string | null;
     createdBy?: { nombre?: string | null; apellido?: string | null; email?: string | null } | null;
+    updatedBy?: { nombre?: string | null; apellido?: string | null; email?: string | null } | null;
 
     historicoId?: string | null;
     categoriaDepreciacion?: string | null;
@@ -5039,6 +5040,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                         <div className="text-xs text-slate-400 mb-1">Registrado por</div>
                                         <div className="font-medium text-slate-800 truncate" title={viewActivo.createdBy?.nombre ? `${viewActivo.createdBy.nombre} ${viewActivo.createdBy.apellido || ''}`.trim() : (viewActivo.createdBy?.email?.split('@')[0] || '—')}>{viewActivo.createdBy?.nombre ? `${viewActivo.createdBy.nombre} ${viewActivo.createdBy.apellido || ''}`.trim() : (viewActivo.createdBy?.email?.split('@')[0] || '—')}</div>
                                     </div>
+                                    {viewActivo.updatedBy && (
+                                        <div>
+                                            <div className="text-xs text-slate-400 mb-1">Modificado por</div>
+                                            <div className="font-medium text-slate-800 truncate" title={viewActivo.updatedBy?.nombre ? `${viewActivo.updatedBy.nombre} ${viewActivo.updatedBy.apellido || ''}`.trim() : (viewActivo.updatedBy?.email?.split('@')[0] || '—')}>{viewActivo.updatedBy?.nombre ? `${viewActivo.updatedBy.nombre} ${viewActivo.updatedBy.apellido || ''}`.trim() : (viewActivo.updatedBy?.email?.split('@')[0] || '—')}</div>
+                                        </div>
+                                    )}
                                     {viewActivo.modelo && (
                                         <div>
                                             <div className="text-xs text-slate-400 mb-1">Modelo</div>

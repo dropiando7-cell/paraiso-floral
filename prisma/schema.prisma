@@ -1705,6 +1705,10 @@ model AuditoriaDetalle {
   stockSistema        Int
   conteoFisico        Int?
   diferencia          Int?
+  merma               Int?                @default(0)
+  mermaFecha          DateTime?
+  mermaFotos          Json?
+  ubicacion           String?
   createdAt           DateTime            @default(now())
   updatedAt           DateTime            @updatedAt
 

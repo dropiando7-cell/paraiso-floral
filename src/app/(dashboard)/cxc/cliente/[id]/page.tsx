@@ -49,6 +49,7 @@ interface ClienteDetalle {
     total: number;
     saldoPendiente: number;
     estadoPago: string;
+    creadoPor?: { nombre: string | null; apellido: string | null } | null;
     detalles: Array<{
       id: string;
       descripcion: string;
@@ -781,6 +782,7 @@ ${publicUrl}
                         <th className="pb-3 px-2 text-right">Total Factura</th>
                         <th className="pb-3 px-2 text-right">Saldo Pendiente</th>
                         <th className="pb-3 px-2 text-center">Estado Pago</th>
+                        <th className="pb-3 px-2">Usuario</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs">
@@ -808,6 +810,9 @@ ${publicUrl}
                             >
                               {f.estadoPago || 'PENDIENTE'}
                             </span>
+                          </td>
+                          <td className="py-3 px-2 text-slate-500 whitespace-nowrap">
+                            {f.creadoPor ? `${f.creadoPor.nombre || ''} ${f.creadoPor.apellido || ''}`.trim() : 'Sistema'}
                           </td>
                         </tr>
                       ))}
@@ -837,6 +842,7 @@ ${publicUrl}
                         <th className="pb-3 px-2">Método</th>
                         <th className="pb-3 px-2">Banco / Ref</th>
                         <th className="pb-3 px-2 text-right">Monto Abonado</th>
+                        <th className="pb-3 px-2">Usuario</th>
                         <th className="pb-3 px-2 text-center">Acciones</th>
                       </tr>
                     </thead>
@@ -857,6 +863,9 @@ ${publicUrl}
                           </td>
                           <td className="py-3 px-2 text-right font-black text-emerald-600">
                             L. {p.monto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-2 text-slate-500 whitespace-nowrap">
+                            {p.creadoPor ? `${p.creadoPor.nombre || ''} ${p.creadoPor.apellido || ''}`.trim() : 'Sistema'}
                           </td>
                           <td className="py-3 px-2 text-center">
                             <div className="flex items-center justify-center gap-1">
@@ -912,6 +921,9 @@ ${publicUrl}
                           </span>
                           <span className="text-slate-400">
                             {new Date(nc.fecha).toLocaleDateString('es-HN')}
+                          </span>
+                          <span className="text-[10px] bg-slate-100 border border-slate-200/60 px-2 py-0.5 rounded-md font-semibold text-slate-500">
+                            👤 {nc.creadoPor ? `${nc.creadoPor.nombre || ''} ${nc.creadoPor.apellido || ''}`.trim() : 'Sistema'}
                           </span>
                         </div>
                         <p className="text-slate-700 font-medium">{nc.descripcion}</p>

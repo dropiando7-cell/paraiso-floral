@@ -575,6 +575,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
             updatedAt: true,
             categoria: { select: { id: true, nombre: true } },
             createdBy: { select: { nombre: true, apellido: true, email: true } },
+            updatedBy: { select: { nombre: true, apellido: true, email: true } },
         },
     });
     const total = await prisma.activoFijo.count({ where });

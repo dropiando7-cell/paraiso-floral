@@ -38,7 +38,8 @@ export async function GET(
             estado: { notIn: ['ANULADA', 'CANCELADA', 'BORRADOR'] }
           },
           include: {
-            detalles: true
+            detalles: true,
+            creadoPor: { select: { nombre: true, apellido: true } }
           },
           orderBy: { fechaEmision: 'desc' }
         },

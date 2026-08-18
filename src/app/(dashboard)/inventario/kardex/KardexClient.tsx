@@ -100,7 +100,7 @@ export function KardexClient({ productos, movimientos }: any) {
                                                     {mov.usuario?.email?.charAt(0).toUpperCase() || 'U'}
                                                 </div>
                                                 <span className="text-slate-600 text-sm">
-                                                    {mov.usuario?.email?.split('@')[0]}
+                                                    {mov.usuario?.nombre ? `${mov.usuario.nombre} ${mov.usuario.apellido || ''}`.trim() : (mov.usuario?.email?.split('@')[0] || 'Sistema')}
                                                 </span>
                                             </div>
                                         </td>

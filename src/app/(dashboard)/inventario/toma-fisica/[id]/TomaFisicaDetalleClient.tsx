@@ -27,7 +27,10 @@ import {
     TrendingUp,
     Check,
     X,
-    Undo2
+    Undo2,
+    Camera,
+    Plus,
+    Trash2
 } from 'lucide-react';
 
 interface AuditHeader {
@@ -47,6 +50,50 @@ interface TomaFisicaDetalleClientProps {
     isAdmin: boolean;
 }
 
+// Client-side image compression helper
+const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const MAX_WIDTH = 1000;
+                const MAX_HEIGHT = 1000;
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > MAX_WIDTH) {
+                        height *= MAX_WIDTH / width;
+                        width = MAX_WIDTH;
+                    }
+                } else {
+                    if (height > MAX_HEIGHT) {
+                        width *= MAX_HEIGHT / height;
+                        height = MAX_HEIGHT;
+                    }
+                }
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext('2d');
+                ctx?.drawImage(img, 0, 0, width, height);
+
+                canvas.toBlob(
+                    (blob) => {
+                        resolve(blob || file);
+                    },
+                    'image/jpeg',
+                    0.6 // 60% quality compression (super lightweight!)
+                );
+            };
+        };
+    });
+};
+
 export default function TomaFisicaDetalleClient({ 
     initialItems, 
     auditoria, 
@@ -56,14 +103,64 @@ export default function TomaFisicaDetalleClient({
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
+    // Local items list state (supports duplicating rows for different locations)
+    const [items, setItems] = useState<ItemTomaFisica[]>(initialItems);
+
     // State for counted quantities (map of item.id -> number | null)
     const [conteos, setConteos] = useState<Record<string, number | null>>(() => {
         const initial: Record<string, number | null> = {};
         initialItems.forEach(item => {
-            initial[item.id] = item.conteoFisico; // loaded from DB
+            initial[item.id] = item.conteoFisico;
         });
         return initial;
     });
+
+    // Mermas count state (map of item.id -> number)
+    const [mermas, setMermas] = useState<Record<string, number>>(() => {
+        const initial: Record<string, number> = {};
+        initialItems.forEach(item => {
+            initial[item.id] = item.merma;
+        });
+        return initial;
+    });
+
+    // Mermas dates state (map of item.id -> YYYY-MM-DD string)
+    const [mermasFechas, setMermasFechas] = useState<Record<string, string>>(() => {
+        const initial: Record<string, string> = {};
+        initialItems.forEach(item => {
+            if (item.mermaFecha) {
+                initial[item.id] = item.mermaFecha.slice(0, 10);
+            } else {
+                const d = new Date();
+                const yyyy = d.getFullYear();
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                initial[item.id] = `${yyyy}-${mm}-${dd}`;
+            }
+        });
+        return initial;
+    });
+
+    // Mermas photos state (map of item.id -> array of photo URLs)
+    const [mermasFotos, setMermasFotos] = useState<Record<string, string[]>>(() => {
+        const initial: Record<string, string[]> = {};
+        initialItems.forEach(item => {
+            initial[item.id] = item.mermaFotos || [];
+        });
+        return initial;
+    });
+
+    // Locations state (map of item.id -> string)
+    const [ubicaciones, setUbicaciones] = useState<Record<string, string>>(() => {
+        const initial: Record<string, string> = {};
+        initialItems.forEach(item => {
+            initial[item.id] = item.ubicacion || '';
+        });
+        return initial;
+    });
+
+    // Uploading states to show local spinners for photos
+    const [uploadingItem, setUploadingItem] = useState<Record<string, boolean>>({});
 
     // Filters
     const [search, setSearch] = useState('');
@@ -83,6 +180,15 @@ export default function TomaFisicaDetalleClient({
         day: 'numeric'
     });
 
+    // Dynamic autocomplete suggestion list for locations
+    const uniqueLocationsSuggestion = useMemo(() => {
+        const set = new Set<string>();
+        Object.values(ubicaciones).forEach(loc => {
+            if (loc && loc.trim()) set.add(loc.trim());
+        });
+        return Array.from(set);
+    }, [ubicaciones]);
+
     // Get unique Areas and Categories for filter dropdowns
     const areas = useMemo(() => {
         const set = new Set(initialItems.map(i => i.area));
@@ -96,7 +202,7 @@ export default function TomaFisicaDetalleClient({
 
     // Filter items
     const filteredItems = useMemo(() => {
-        return initialItems.filter(item => {
+        return items.filter(item => {
             if (selectedArea !== 'TODAS' && item.area !== selectedArea) return false;
             if (selectedCategory !== 'TODAS' && item.categoriaNombre !== selectedCategory) return false;
 
@@ -116,20 +222,41 @@ export default function TomaFisicaDetalleClient({
 
             return true;
         });
-    }, [initialItems, selectedArea, selectedCategory, search, filterDiscrepancy, conteos]);
+    }, [items, selectedArea, selectedCategory, search, filterDiscrepancy, conteos]);
 
-    // KPI Metrics (Value/Cost completely removed)
+    // KPI Metrics (Aggregated by flower variety)
     const metrics = useMemo(() => {
         let totalCounted = 0;
         let totalDiferencia = 0;
         let totalFaltantes = 0;
         let totalSobrantes = 0;
 
-        initialItems.forEach(item => {
+        // Group counts by variety ID to check total discrepancies correctly
+        const varietyCounts: Record<string, { system: number; count: number }> = {};
+
+        items.forEach(item => {
             const count = conteos[item.id];
+            const vid = item.activoFijoId;
+
+            if (!varietyCounts[vid]) {
+                varietyCounts[vid] = { system: item.stockSistema, count: 0 };
+            }
+
             if (count !== null) {
+                varietyCounts[vid].count += count;
+            }
+        });
+
+        // Loop varieties
+        Object.keys(varietyCounts).forEach(vid => {
+            const group = varietyCounts[vid];
+            // If counted is 0, check if we counted at least one row for this variety
+            const rows = items.filter(i => i.activoFijoId === vid);
+            const isAnyRowCounted = rows.some(r => conteos[r.id] !== null);
+
+            if (isAnyRowCounted) {
                 totalCounted++;
-                const diff = count - item.stockSistema;
+                const diff = group.count - group.system;
                 totalDiferencia += diff;
                 if (diff < 0) totalFaltantes += Math.abs(diff);
                 if (diff > 0) totalSobrantes += diff;
@@ -137,13 +264,13 @@ export default function TomaFisicaDetalleClient({
         });
 
         return {
-            totalItems: initialItems.length,
+            totalItems: Array.from(new Set(items.map(i => i.activoFijoId))).length,
             totalCounted,
             totalDiferencia,
             totalFaltantes,
             totalSobrantes
         };
-    }, [initialItems, conteos]);
+    }, [items, conteos]);
 
     // Handlers to update counts
     const handleSetCount = (id: string, val: number | null) => {
@@ -159,6 +286,138 @@ export default function TomaFisicaDetalleClient({
         const base = currentVal !== null ? currentVal : systemVal;
         const next = Math.max(0, base + step);
         handleSetCount(id, next);
+    };
+
+    // Merma adjusters
+    const handleSetMerma = (id: string, val: number) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
+        setMermas(prev => ({
+            ...prev,
+            [id]: Math.max(0, val)
+        }));
+    };
+
+    const handleStepMerma = (id: string, step: number) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
+        const base = mermas[id] || 0;
+        const next = Math.max(0, base + step);
+        handleSetMerma(id, next);
+    };
+
+    // Upload photo for merma with Client-side compression
+    const handleUploadPhoto = async (id: string, event: React.ChangeEvent<HTMLInputElement>) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        setUploadingItem(prev => ({ ...prev, [id]: true }));
+        try {
+            // Compress image client side
+            const compressedBlob = await compressImage(file);
+            const formData = new FormData();
+            formData.append('file', compressedBlob, 'merma_photo.jpg');
+
+            const res = await fetch('/api/upload/inventario', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                if (data.url) {
+                    setMermasFotos(prev => ({
+                        ...prev,
+                        [id]: [...(prev[id] || []), data.url]
+                    }));
+                }
+            } else {
+                alert('No se pudo subir la foto de merma.');
+            }
+        } catch (err) {
+            console.error('Error compressing or uploading photo:', err);
+            alert('Error en la conexión al subir foto.');
+        } finally {
+            setUploadingItem(prev => ({ ...prev, [id]: false }));
+        }
+    };
+
+    // Remove photo from merma
+    const handleRemovePhoto = (id: string, url: string) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
+        setMermasFotos(prev => ({
+            ...prev,
+            [id]: (prev[id] || []).filter(u => u !== url)
+        }));
+    };
+
+    // Duplicate row for another location
+    const handleDuplicateRow = (original: ItemTomaFisica) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
+        const tempId = `temp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        
+        const newRow: ItemTomaFisica = {
+            ...original,
+            id: tempId,
+            stockSistema: 0, // Duplicate starts with 0 so the first row holds the entire system stock
+            conteoFisico: null,
+            diferencia: null,
+            merma: 0,
+            mermaFecha: null,
+            mermaFotos: [],
+            ubicacion: ''
+        };
+
+        setItems(prev => {
+            // Place new row directly under the original row
+            const index = prev.findIndex(item => item.id === original.id);
+            const updated = [...prev];
+            updated.splice(index + 1, 0, newRow);
+            return updated;
+        });
+
+        // Initialize states for new row
+        setConteos(prev => ({ ...prev, [tempId]: null }));
+        setMermas(prev => ({ ...prev, [tempId]: 0 }));
+        
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        setMermasFechas(prev => ({ ...prev, [tempId]: `${yyyy}-${mm}-${dd}` }));
+        setMermasFotos(prev => ({ ...prev, [tempId]: [] }));
+        setUbicaciones(prev => ({ ...prev, [tempId]: '' }));
+    };
+
+    // Remove a duplicated location row
+    const handleRemoveRow = (id: string) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
+        setItems(prev => prev.filter(item => item.id !== id));
+        setConteos(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+        setMermas(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+        setMermasFechas(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+        setMermasFotos(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+        setUbicaciones(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
     };
 
     // Bulk Actions
@@ -180,20 +439,30 @@ export default function TomaFisicaDetalleClient({
         setConteos(prev => ({ ...prev, ...next }));
     };
 
+    // Map current local state to submit parameter structure
+    const getSubmissionData = () => {
+        return items.map(item => ({
+            activoFijoId: item.activoFijoId,
+            stockSistema: item.stockSistema,
+            conteo: conteos[item.id],
+            merma: mermas[item.id] || 0,
+            mermaFecha: mermas[item.id] > 0 ? mermasFechas[item.id] : null,
+            mermaFotos: mermasFotos[item.id] || [],
+            ubicacion: ubicaciones[item.id] || null
+        }));
+    };
+
     // 1. Action: Save Progress
     const handleGuardarProgreso = () => {
         setActionError(null);
         setActionSuccess(null);
 
-        const conteosArray = Object.keys(conteos).map(id => ({
-            id,
-            conteo: conteos[id]
-        }));
+        const submissionList = getSubmissionData();
 
         startTransition(async () => {
-            const res = await guardarProgresoTomaFisica(auditoria.id, conteosArray);
+            const res = await guardarProgresoTomaFisica(auditoria.id, submissionList);
             if (res.success) {
-                setActionSuccess('¡Progreso de conteo guardado con éxito!');
+                setActionSuccess('¡Progreso de conteo, ubicaciones y mermas guardado con éxito!');
                 router.refresh();
             } else {
                 setActionError(res.error || 'Error al guardar progreso.');
@@ -206,23 +475,20 @@ export default function TomaFisicaDetalleClient({
         setActionError(null);
         setActionSuccess(null);
 
-        const conteosArray = Object.keys(conteos).map(id => ({
-            id,
-            conteo: conteos[id]
-        }));
-
-        const contadosCount = conteosArray.filter(c => c.conteo !== null).length;
+        const submissionList = getSubmissionData();
+        const contadosCount = submissionList.filter(c => c.conteo !== null).length;
+        
         if (contadosCount === 0) {
             alert('Por favor ingresa el conteo de al menos 1 producto antes de enviar a revisión.');
             return;
         }
 
-        const confirmMsg = `¿Confirmas enviar a revisión esta toma con ${contadosCount} productos contados?\nEl conteo quedará bloqueado y listo para aprobación de administración.`;
+        const confirmMsg = `¿Confirmas enviar a revisión esta toma con ${contadosCount} registros contados?\nEl conteo quedará bloqueado y listo para aprobación de administración.`;
         if (!confirm(confirmMsg)) return;
 
         startTransition(async () => {
             // First save progress
-            const saveRes = await guardarProgresoTomaFisica(auditoria.id, conteosArray);
+            const saveRes = await guardarProgresoTomaFisica(auditoria.id, submissionList);
             if (!saveRes.success) {
                 setActionError(saveRes.error || 'Error al guardar progreso antes de enviar.');
                 return;
@@ -243,20 +509,16 @@ export default function TomaFisicaDetalleClient({
         setActionError(null);
         setActionSuccess(null);
 
-        const conteosArray = Object.keys(conteos).map(id => ({
-            id,
-            conteo: conteos[id]
-        }));
+        const submissionList = getSubmissionData();
+        const contadosCount = submissionList.filter(c => c.conteo !== null).length;
 
-        const contadosCount = conteosArray.filter(c => c.conteo !== null).length;
-
-        const confirmMsg = `¿Confirmas aprobar esta auditoría (${contadosCount} items)?\nEsto aplicará el ajuste contable final y actualizará el stock disponible en el Kardex.`;
+        const confirmMsg = `¿Confirmas aprobar esta auditoría (${contadosCount} registros)?\nEsto aplicará el ajuste contable final y actualizará el stock disponible en el Kardex.`;
         if (!confirm(confirmMsg)) return;
 
         startTransition(async () => {
             // First save progress if it was in CONTEO state
             if (auditoria.estado === 'CONTEO') {
-                const saveRes = await guardarProgresoTomaFisica(auditoria.id, conteosArray);
+                const saveRes = await guardarProgresoTomaFisica(auditoria.id, submissionList);
                 if (!saveRes.success) {
                     setActionError(saveRes.error || 'Error al guardar progreso antes de aprobar.');
                     return;
@@ -309,6 +571,13 @@ export default function TomaFisicaDetalleClient({
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
+            {/* ── DATALIST PARA AUTOCOMPLETAR UBICACIONES ── */}
+            <datalist id="datalist-ubicaciones">
+                {uniqueLocationsSuggestion.map(loc => (
+                    <option key={loc} value={loc} />
+                ))}
+            </datalist>
+
             {/* ── HEADER DE NAVEGACIÓN ── */}
             <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs px-4 lg:px-8 py-3.5">
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -327,7 +596,7 @@ export default function TomaFisicaDetalleClient({
                                 </span>
                                 <span className="text-xs text-slate-400 font-medium hidden sm:inline">| Paraíso Floral</span>
                             </div>
-                            <h1 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">
+                            <h1 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight mt-0.5">
                                 Auditoría de Inventario Físico
                             </h1>
                         </div>
@@ -381,7 +650,7 @@ export default function TomaFisicaDetalleClient({
                     </div>
                 )}
 
-                {/* ── METRICAS / KPIS FLOTANTES (IMPACTO COSTO COMPLETAMENTE REMOVIDO) ── */}
+                {/* ── METRICAS / KPIS FLOTANTES ── */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
                         <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
@@ -512,9 +781,8 @@ export default function TomaFisicaDetalleClient({
                             )}
                         </div>
 
-                        {/* Botones de acción principales según estado y rol */}
+                        {/* Botones de acción principales */}
                         <div className="flex items-center gap-2">
-                            {/* Actions for CONTEO / PENDIENTE (Editable) */}
                             {isEditable && (
                                 <>
                                     <button
@@ -526,7 +794,6 @@ export default function TomaFisicaDetalleClient({
                                         <span>Guardar Progreso</span>
                                     </button>
 
-                                    {/* Helper triggers Submit to Review */}
                                     <button
                                         onClick={handleEnviarARevision}
                                         disabled={isPending}
@@ -536,12 +803,11 @@ export default function TomaFisicaDetalleClient({
                                         <span>Enviar a Revisión</span>
                                     </button>
 
-                                    {/* Admin triggers direct Approval */}
                                     {isAdmin && (
                                         <button
                                             onClick={handleAprobarAuditoria}
                                             disabled={isPending || metrics.totalCounted === 0}
-                                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-700/10 flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
                                         >
                                             {isPending ? (
                                                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -554,7 +820,6 @@ export default function TomaFisicaDetalleClient({
                                 </>
                             )}
 
-                            {/* Undo Action (Only for APROBADA state and ADMINS) */}
                             {auditoria.estado === 'APROBADA' && isAdmin && (
                                 <button
                                     onClick={handleDeshacerAuditoria}
@@ -573,25 +838,29 @@ export default function TomaFisicaDetalleClient({
                     </div>
                 </div>
 
-                {/* ── TABLA MATRIZ TÁCTIL (STOCK KARDEX VS CONTEO EN PISO) ── */}
+                {/* ── TABLA MATRIZ TÁCTIL ── */}
                 <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md overflow-hidden">
                     <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[768px]">
+                        <table className="w-full text-left border-collapse min-w-[992px]">
                             <thead>
                                 <tr className="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
-                                    <th className="py-4 px-5 w-12 text-center">#</th>
-                                    <th className="py-4 px-5">Producto / Variedad de Flor</th>
-                                    <th className="py-4 px-4 text-center bg-slate-800">
+                                    <th className="py-4 px-4 w-10 text-center font-mono">#</th>
+                                    <th className="py-4 px-4">Producto / Variedad de Flor & Ubicación</th>
+                                    <th className="py-4 px-3 text-center bg-slate-800">
                                         STOCK KARDEX <br />
-                                        <span className="text-[10px] text-slate-300 font-medium uppercase">(Teórico en Sistema)</span>
+                                        <span className="text-[10px] text-slate-300 font-medium uppercase">(Teórico)</span>
                                     </th>
-                                    <th className="py-4 px-6 text-center bg-pink-700 text-white min-w-[260px]">
+                                    <th className="py-4 px-4 text-center bg-pink-700 text-white min-w-[210px]">
                                         CONTEO EN PISO <br />
-                                        <span className="text-[10px] text-pink-200 font-bold uppercase">(Inventario Físico Real)</span>
+                                        <span className="text-[10px] text-pink-200 font-bold uppercase">(Físico Real)</span>
                                     </th>
-                                    <th className="py-4 px-5 text-center">
-                                        DIFERENCIA KARDEX <br />
-                                        <span className="text-[10px] text-slate-300 font-medium uppercase">(Ajuste de Kardex)</span>
+                                    <th className="py-4 px-4 text-center bg-amber-700 text-white min-w-[240px]">
+                                        MERMA (DAÑADO) <br />
+                                        <span className="text-[10px] text-amber-200 font-bold uppercase">(Mermas & Fotos)</span>
+                                    </th>
+                                    <th className="py-4 px-4 text-center">
+                                        DIFERENCIA <br />
+                                        <span className="text-[10px] text-slate-300 font-medium uppercase">(Ajuste)</span>
                                     </th>
                                 </tr>
                             </thead>
@@ -599,7 +868,7 @@ export default function TomaFisicaDetalleClient({
                             <tbody className="divide-y divide-slate-200/80 text-sm">
                                 {filteredItems.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="py-12 text-center text-slate-400">
+                                        <td colSpan={6} className="py-12 text-center text-slate-400">
                                             <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
                                             <p className="font-semibold text-base">No se encontraron flores con los filtros seleccionados.</p>
                                         </td>
@@ -609,6 +878,13 @@ export default function TomaFisicaDetalleClient({
                                         const count = conteos[item.id];
                                         const isCounted = count !== null;
                                         const diff = isCounted ? (count - item.stockSistema) : 0;
+                                        const currentMerma = mermas[item.id] || 0;
+
+                                        // Check if this row is a duplicate or if we have multiple locations for this same product variety
+                                        const sameProductRows = items.filter(i => i.activoFijoId === item.activoFijoId);
+                                        const countForThisProduct = sameProductRows.length;
+                                        const isDuplicatedRow = item.id.startsWith('temp_');
+                                        const isDeleteable = countForThisProduct > 1 || isDuplicatedRow;
 
                                         return (
                                             <tr 
@@ -624,64 +900,107 @@ export default function TomaFisicaDetalleClient({
                                                 }`}
                                             >
                                                 {/* Index */}
-                                                <td className="py-4 px-5 text-xs font-bold text-slate-400 text-center">
+                                                <td className="py-4 px-4 text-xs font-bold text-slate-400 text-center font-mono">
                                                     {idx + 1}
                                                 </td>
 
-                                                {/* Producto / Variedad */}
-                                                <td className="py-4 px-5">
-                                                    <div className="flex items-center gap-3.5">
+                                                {/* Producto y Ubicación */}
+                                                <td className="py-4 px-4">
+                                                    <div className="flex items-start gap-3.5">
                                                         {item.imagenUrl ? (
                                                             <img 
                                                                 src={item.imagenUrl} 
                                                                 alt={item.descripcionCorta}
-                                                                className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+                                                                className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0 shadow-2xs mt-0.5"
                                                             />
                                                         ) : (
-                                                            <div className="w-12 h-12 rounded-xl bg-pink-50 border border-pink-100 text-pink-600 flex items-center justify-center font-black text-sm shrink-0">
+                                                            <div className="w-12 h-12 rounded-xl bg-pink-50 border border-pink-100 text-pink-600 flex items-center justify-center font-black text-sm shrink-0 mt-0.5">
                                                                 🌸
                                                             </div>
                                                         )}
 
-                                                        <div>
-                                                            <h3 className="font-bold text-slate-900 text-base leading-tight">
-                                                                {item.descripcionCorta}
-                                                            </h3>
-                                                            <div className="flex flex-wrap items-center gap-2 mt-1">
-                                                                <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[11px] font-mono text-slate-600">
-                                                                    {item.idQr}
-                                                                </span>
-                                                                <span className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-700">
-                                                                    📍 {item.area}
-                                                                </span>
-                                                                <span className="text-xs text-slate-400">
-                                                                    • {item.categoriaNombre}
-                                                                </span>
+                                                        <div className="flex-1 space-y-1.5">
+                                                            <div>
+                                                                <h3 className="font-bold text-slate-900 text-base leading-tight">
+                                                                    {item.descripcionCorta}
+                                                                </h3>
+                                                                <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                                    <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[11px] font-mono text-slate-600">
+                                                                        {item.idQr}
+                                                                    </span>
+                                                                    <span className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-700">
+                                                                        📍 {item.area}
+                                                                    </span>
+                                                                    <span className="text-xs text-slate-400">
+                                                                        • {item.categoriaNombre}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Campo de Ubicación con Autocompletar */}
+                                                            <div className="flex items-center gap-1.5 max-w-[280px]">
+                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Ubicación:</span>
+                                                                <input
+                                                                    type="text"
+                                                                    list="datalist-ubicaciones"
+                                                                    disabled={!isEditable}
+                                                                    value={ubicaciones[item.id] || ''}
+                                                                    onChange={(e) => {
+                                                                        setUbicaciones(prev => ({ ...prev, [item.id]: e.target.value }));
+                                                                    }}
+                                                                    placeholder="Ej: Cuarto Frío 1, Entrada..."
+                                                                    className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white"
+                                                                />
+                                                            </div>
+
+                                                            {/* Controles de fila: Duplicar / Eliminar */}
+                                                            <div className="flex items-center gap-2 pt-0.5">
+                                                                {isEditable && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleDuplicateRow(item)}
+                                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 border border-indigo-100 hover:bg-[#0500A3] hover:text-white rounded-lg text-[10px] font-black text-indigo-700 transition active:scale-95 cursor-pointer"
+                                                                        title="Agregar este producto en otra ubicación diferente"
+                                                                    >
+                                                                        <Plus className="w-3.5 h-3.5" />
+                                                                        <span>+ Ubicación</span>
+                                                                    </button>
+                                                                )}
+
+                                                                {isDeleteable && isEditable && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => handleRemoveRow(item.id)}
+                                                                        className="inline-flex items-center justify-center p-1.5 bg-rose-50 border border-rose-100 hover:bg-rose-600 hover:text-white text-rose-700 rounded-lg transition active:scale-95 cursor-pointer"
+                                                                        title="Eliminar esta ubicación para este producto"
+                                                                    >
+                                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                                    </button>
+                                                                )}
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </td>
 
                                                 {/* STOCK KARDEX */}
-                                                <td className="py-4 px-4 text-center bg-slate-50 font-mono text-base font-black text-slate-700 border-x border-slate-200/60">
+                                                <td className="py-4 px-3 text-center bg-slate-50 font-mono text-base font-black text-slate-700 border-x border-slate-200/60">
                                                     {item.stockSistema} <span className="text-xs font-normal text-slate-400">paq</span>
                                                 </td>
 
-                                                {/* CONTEO EN PISO (Tactil) */}
-                                                <td className="py-4 px-6 text-center bg-pink-50/50 border-x border-pink-200/60">
-                                                    <div className="flex items-center justify-center gap-1.5 sm:gap-2">
-                                                        {/* Botón Restar -1 */}
+                                                {/* CONTEO EN PISO */}
+                                                <td className="py-4 px-4 text-center bg-pink-50/30 border-x border-pink-200/40">
+                                                    <div className="flex items-center justify-center gap-1.5">
+                                                        {/* Restar -1 */}
                                                         <button
                                                             type="button"
                                                             disabled={!isEditable}
                                                             onClick={() => handleStepCount(item.id, count, -1, item.stockSistema)}
-                                                            className="w-11 h-11 rounded-xl bg-white border border-slate-300 text-slate-800 font-black text-lg hover:bg-slate-100 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                                            title="Restar 1"
+                                                            className="w-10 h-10 rounded-xl bg-white border border-slate-300 text-slate-800 font-black text-base hover:bg-slate-100 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                                         >
                                                             -1
                                                         </button>
 
-                                                        {/* Input Numérico */}
+                                                        {/* Input */}
                                                         <input 
                                                             type="number"
                                                             min="0"
@@ -692,39 +1011,124 @@ export default function TomaFisicaDetalleClient({
                                                                 handleSetCount(item.id, val);
                                                             }}
                                                             placeholder={item.stockSistema.toString()}
-                                                            className={`w-20 sm:w-24 h-12 text-center text-lg font-black font-mono rounded-xl border-2 transition-all focus:outline-none ${
+                                                            className={`w-16 sm:w-20 h-10 text-center text-base font-black font-mono rounded-xl border-2 transition-all focus:outline-none ${
                                                                 isCounted 
                                                                     ? 'bg-white border-[#0500A3] text-slate-900 shadow-sm' 
                                                                     : 'bg-white/80 border-slate-300 text-slate-500 placeholder-slate-300'
                                                             } disabled:bg-slate-100 disabled:text-slate-500`}
                                                         />
 
-                                                        {/* Botón Sumar +1 */}
+                                                        {/* Sumar +1 */}
                                                         <button
                                                             type="button"
                                                             disabled={!isEditable}
                                                             onClick={() => handleStepCount(item.id, count, 1, item.stockSistema)}
-                                                            className="w-11 h-11 rounded-xl bg-pink-600 text-white font-black text-lg hover:bg-pink-700 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                                            title="Sumar 1"
+                                                            className="w-10 h-10 rounded-xl bg-pink-600 text-white font-black text-base hover:bg-pink-700 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                                         >
                                                             +1
-                                                        </button>
-
-                                                        {/* Botón Atajo +5 */}
-                                                        <button
-                                                            type="button"
-                                                            disabled={!isEditable}
-                                                            onClick={() => handleStepCount(item.id, count, 5, item.stockSistema)}
-                                                            className="w-10 h-11 rounded-xl bg-pink-100 border border-pink-200 text-pink-700 font-bold text-xs hover:bg-pink-200 active:scale-95 flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hidden sm:flex"
-                                                            title="Sumar 5"
-                                                        >
-                                                            +5
                                                         </button>
                                                     </div>
                                                 </td>
 
+                                                {/* MERMAS (Dañados, Fotos, Fecha) */}
+                                                <td className="py-4 px-4 bg-amber-50/20 border-x border-amber-200/40">
+                                                    <div className="flex flex-col gap-2">
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            {/* Control Numérico Merma */}
+                                                            <div className="flex items-center gap-1.5">
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={!isEditable}
+                                                                    onClick={() => handleStepMerma(item.id, -1)}
+                                                                    className="w-8 h-8 rounded-lg bg-white border border-slate-300 text-slate-700 font-black text-xs hover:bg-slate-100 active:scale-95 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                >
+                                                                    -
+                                                                </button>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    disabled={!isEditable}
+                                                                    value={currentMerma}
+                                                                    onChange={(e) => {
+                                                                        const val = parseInt(e.target.value, 10) || 0;
+                                                                        handleSetMerma(item.id, val);
+                                                                    }}
+                                                                    className="w-11 h-8 text-center font-bold text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    disabled={!isEditable}
+                                                                    onClick={() => handleStepMerma(item.id, 1)}
+                                                                    className="w-8 h-8 rounded-lg bg-amber-600 text-white font-black text-xs hover:bg-amber-700 active:scale-95 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                >
+                                                                    +
+                                                                </button>
+                                                            </div>
+
+                                                            {/* Cámara Button */}
+                                                            <div className="flex items-center gap-1.5">
+                                                                {uploadingItem[item.id] ? (
+                                                                    <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                                                                        <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                                                                    </div>
+                                                                ) : (
+                                                                    <label className={`w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center cursor-pointer hover:bg-slate-100 text-slate-500 transition relative shrink-0 shadow-3xs ${!isEditable ? 'opacity-40 pointer-events-none cursor-not-allowed' : ''}`}>
+                                                                        <Camera className="w-4.5 h-4.5" />
+                                                                        <input
+                                                                            type="file"
+                                                                            accept="image/*"
+                                                                            capture="environment"
+                                                                            disabled={!isEditable}
+                                                                            className="hidden"
+                                                                            onChange={(e) => handleUploadPhoto(item.id, e)}
+                                                                        />
+                                                                    </label>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Date selector (Only shown if merma > 0) */}
+                                                        {currentMerma > 0 && (
+                                                            <div className="space-y-1">
+                                                                <div className="relative">
+                                                                    <input
+                                                                        type="date"
+                                                                        disabled={!isEditable}
+                                                                        value={mermasFechas[item.id] || ''}
+                                                                        onChange={(e) => {
+                                                                            setMermasFechas(prev => ({ ...prev, [item.id]: e.target.value }));
+                                                                        }}
+                                                                        className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700 focus:outline-none focus:bg-white"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        {/* Photo Thumbnails */}
+                                                        {mermasFotos[item.id]?.length > 0 && (
+                                                            <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-1.5">
+                                                                {mermasFotos[item.id].map((url, uidx) => (
+                                                                    <div key={uidx} className="relative group w-8 h-8 rounded-lg overflow-hidden border border-slate-200 shrink-0">
+                                                                        <img src={url} alt="Merma" className="w-full h-full object-cover" />
+                                                                        {isEditable && (
+                                                                            <button
+                                                                                type="button"
+                                                                                onClick={() => handleRemovePhoto(item.id, url)}
+                                                                                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white flex items-center justify-center transition cursor-pointer"
+                                                                                title="Eliminar foto"
+                                                                            >
+                                                                                <X className="w-3.5 h-3.5" />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </td>
+
                                                 {/* DIFERENCIA */}
-                                                <td className="py-4 px-5 text-center">
+                                                <td className="py-4 px-4 text-center">
                                                     {!isCounted ? (
                                                         <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-400 text-xs font-semibold">
                                                             Pendiente

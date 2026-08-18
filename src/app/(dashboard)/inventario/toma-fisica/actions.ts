@@ -6,7 +6,8 @@ import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 
 export interface ItemTomaFisica {
-    id: string;
+    id: string; // AuditoriaDetalle.id (unique row key)
+    activoFijoId: string; // ActivoFijo.id
     idQr: string;
     descripcionCorta: string;
     area: string;
@@ -15,6 +16,20 @@ export interface ItemTomaFisica {
     stockSistema: number;
     conteoFisico: number | null;
     diferencia: number | null;
+    merma: number;
+    mermaFecha: string | null;
+    mermaFotos: string[];
+    ubicacion: string | null;
+}
+
+export interface ItemConteoSave {
+    activoFijoId: string;
+    stockSistema: number;
+    conteo: number | null;
+    merma: number;
+    mermaFecha: string | null;
+    mermaFotos: string[];
+    ubicacion: string | null;
 }
 
 async function getAuthContext() {
@@ -120,7 +135,11 @@ export async function iniciarNuevaTomaFisica(notas?: string) {
                 activoFijoId: a.id,
                 stockSistema: a.stock || 0,
                 conteoFisico: null,
-                diferencia: null
+                diferencia: null,
+                merma: 0,
+                mermaFecha: null,
+                mermaFotos: [],
+                ubicacion: null
             }));
 
             await tx.auditoriaDetalle.createMany({
@@ -175,7 +194,8 @@ export async function getAuditoriaInventarioDetalle(id: string) {
         }
 
         const items: ItemTomaFisica[] = auditoria.detalles.map(d => ({
-            id: d.activoFijoId,
+            id: d.id, // Using AuditoriaDetalle.id to allow duplicates of the same activoFijoId on the client
+            activoFijoId: d.activoFijoId,
             idQr: d.activoFijo?.idQr || '',
             descripcionCorta: d.activoFijo?.descripcionCorta || '',
             area: d.activoFijo?.area || 'BODEGA',
@@ -183,7 +203,11 @@ export async function getAuditoriaInventarioDetalle(id: string) {
             imagenUrl: d.activoFijo?.imagenUrl || null,
             stockSistema: d.stockSistema,
             conteoFisico: d.conteoFisico,
-            diferencia: d.diferencia
+            diferencia: d.diferencia,
+            merma: d.merma || 0,
+            mermaFecha: d.mermaFecha ? d.mermaFecha.toISOString() : null,
+            mermaFotos: Array.isArray(d.mermaFotos) ? (d.mermaFotos as string[]) : [],
+            ubicacion: d.ubicacion
         }));
 
         const usuarioNombre = `${user.nombre || ''} ${user.apellido || ''}`.trim() || user.id;
@@ -210,12 +234,15 @@ export async function getAuditoriaInventarioDetalle(id: string) {
     }
 }
 
-// 4. Save Counting Progress (Autosave endpoint or manual)
-export async function guardarProgresoTomaFisica(auditoriaId: string, conteos: { id: string, conteo: number | null }[]) {
+// 4. Save Counting Progress (Atomic delete-and-recreate transaction)
+export async function guardarProgresoTomaFisica(
+    auditoriaId: string, 
+    conteos: ItemConteoSave[]
+) {
     try {
         const user = await getAuthContext();
 
-        // Verify auditoria exists
+        // Verify auditoria exists and is editable
         const auditoria = await prisma.auditoriaInventario.findUnique({
             where: { id: auditoriaId },
             select: { id: true, estado: true, organizationId: true }
@@ -229,50 +256,40 @@ export async function guardarProgresoTomaFisica(auditoriaId: string, conteos: { 
             throw new Error('No se pueden modificar conteos en una auditoría cerrada o aprobada.');
         }
 
-        // Batch updates using a transaction
-        await prisma.$transaction(
-            conteos.map(item => {
-                const isCounted = item.conteo !== null;
-                return prisma.auditoriaDetalle.updateMany({
-                    where: {
-                        auditoriaId,
-                        activoFijoId: item.id
-                    },
-                    data: {
-                        conteoFisico: item.conteo,
-                        diferencia: isCounted ? {
-                            // Compute difference = conteo - stockSistema
-                            // We need to fetch stockSistema first or compute it in details.
-                            // To be absolutely transaction-safe, we'll update details.
-                        } : null
-                    }
-                });
-            })
-        );
-
-        // Since updateMany cannot reference other columns directly in standard Prisma, 
-        // let's do a fast query-and-update or direct update inside detals.
-        // Actually, we can fetch all details of this audit and map the updates.
-        const detalles = await prisma.auditoriaDetalle.findMany({
-            where: { auditoriaId },
-            select: { id: true, activoFijoId: true, stockSistema: true }
-        });
-
-        const updates = conteos.map(item => {
-            const d = detalles.find(det => det.activoFijoId === item.id);
-            if (!d) return null;
-            const conteoVal = item.conteo;
-            const diff = conteoVal !== null ? (conteoVal - d.stockSistema) : null;
-            return prisma.auditoriaDetalle.update({
-                where: { id: d.id },
-                data: {
-                    conteoFisico: conteoVal,
-                    diferencia: diff
-                }
+        // We run an atomic delete-and-recreate inside a transaction to support dynamic row additions/deletions
+        await prisma.$transaction(async (tx) => {
+            // Delete old details
+            await tx.auditoriaDetalle.deleteMany({
+                where: { auditoriaId }
             });
-        }).filter(Boolean) as any[];
 
-        await prisma.$transaction(updates);
+            // Create new details list
+            const insertData = conteos.map(item => {
+                const conteoVal = item.conteo;
+                const diff = conteoVal !== null ? (conteoVal - item.stockSistema) : null;
+                
+                let formattedMermaFecha = null;
+                if (item.mermaFecha) {
+                    formattedMermaFecha = new Date(item.mermaFecha);
+                }
+
+                return {
+                    auditoriaId,
+                    activoFijoId: item.activoFijoId,
+                    stockSistema: item.stockSistema,
+                    conteoFisico: conteoVal,
+                    diferencia: diff,
+                    merma: item.merma || 0,
+                    mermaFecha: formattedMermaFecha,
+                    mermaFotos: item.mermaFotos || [],
+                    ubicacion: item.ubicacion || null
+                };
+            });
+
+            await tx.auditoriaDetalle.createMany({
+                data: insertData
+            });
+        });
 
         revalidatePath(`/inventario/toma-fisica/${auditoriaId}`);
         return { success: true };
@@ -311,7 +328,7 @@ export async function enviarARevisionTomaFisica(auditoriaId: string) {
     }
 }
 
-// 6. Approve Audit and Apply Adjustments to Kardex (Admin Only)
+// 6. Approve Audit and Apply Adjustments (Aggregated by Flower Variety)
 export async function aprobarTomaFisica(auditoriaId: string, motivoNotas?: string) {
     try {
         const user = await getAuthContext();
@@ -343,35 +360,74 @@ export async function aprobarTomaFisica(auditoriaId: string, motivoNotas?: strin
             throw new Error('Esta auditoría ya fue cerrada, aprobada o anulada.');
         }
 
-        // Apply adjustments in transaction
+        // Aggregate details by activoFijoId
+        const aggregated: Record<string, {
+            activoFijoId: string;
+            stockSistema: number;
+            totalConteo: number;
+            totalMerma: number;
+            productoId: string | null;
+        }> = {};
+
+        for (const d of auditoria.detalles) {
+            const afId = d.activoFijoId;
+            const countVal = d.conteoFisico !== null ? d.conteoFisico : d.stockSistema;
+
+            if (!aggregated[afId]) {
+                aggregated[afId] = {
+                    activoFijoId: afId,
+                    stockSistema: d.stockSistema, // system stock is static
+                    totalConteo: 0,
+                    totalMerma: 0,
+                    productoId: d.activoFijo?.productoId || null
+                };
+            }
+
+            aggregated[afId].totalConteo += countVal;
+            aggregated[afId].totalMerma += (d.merma || 0);
+        }
+
+        // Apply adjustments and log mermas in transaction
         await prisma.$transaction(async (tx) => {
-            for (const d of auditoria.detalles) {
-                // If not counted, we treat it as 0 change (keep system stock) or count equal to system stock
-                const conteoVal = d.conteoFisico !== null ? d.conteoFisico : d.stockSistema;
-                const diferencia = conteoVal - d.stockSistema;
+            for (const key of Object.keys(aggregated)) {
+                const group = aggregated[key];
+                const diferencia = group.totalConteo - group.stockSistema;
 
-                if (diferencia !== 0) {
-                    // Update live stock in ActivoFijo
-                    await tx.activoFijo.update({
-                        where: { id: d.activoFijoId },
-                        data: { stock: conteoVal }
+                // 1. Update live stock in ActivoFijo
+                await tx.activoFijo.update({
+                    where: { id: group.activoFijoId },
+                    data: { stock: group.totalConteo }
+                });
+
+                // 2. Log stock difference adjustment
+                if (group.productoId && diferencia !== 0) {
+                    const tipoMov = diferencia < 0 ? 'AJUSTE_DISMINUCION' : 'AJUSTE_INCREMENTO';
+                    await tx.movimientoInventario.create({
+                        data: {
+                            organizationId: user.organizationId,
+                            productoId: group.productoId,
+                            tipoMovimiento: tipoMov,
+                            cantidad: Math.abs(diferencia),
+                            motivo: motivoNotas || `Ajuste por Auditoría Física ${auditoria.correlativo}`,
+                            referencia: auditoria.correlativo,
+                            usuarioId: user.id
+                        }
                     });
+                }
 
-                    // Log movement if linked to a product
-                    if (d.activoFijo?.productoId) {
-                        const tipoMov = diferencia < 0 ? 'AJUSTE_DISMINUCION' : 'AJUSTE_INCREMENTO';
-                        await tx.movimientoInventario.create({
-                            data: {
-                                organizationId: user.organizationId,
-                                productoId: d.activoFijo.productoId,
-                                tipoMovimiento: tipoMov,
-                                cantidad: Math.abs(diferencia),
-                                motivo: motivoNotas || `Ajuste por Auditoría Física ${auditoria.correlativo}`,
-                                referencia: auditoria.correlativo,
-                                usuarioId: user.id
-                            }
-                        });
-                    }
+                // 3. Log mermas if any
+                if (group.productoId && group.totalMerma > 0) {
+                    await tx.movimientoInventario.create({
+                        data: {
+                            organizationId: user.organizationId,
+                            productoId: group.productoId,
+                            tipoMovimiento: 'MERMA',
+                            cantidad: group.totalMerma,
+                            motivo: `Merma reportada en Auditoría Física ${auditoria.correlativo}`,
+                            referencia: auditoria.correlativo,
+                            usuarioId: user.id
+                        }
+                    });
                 }
             }
 
@@ -382,7 +438,7 @@ export async function aprobarTomaFisica(auditoriaId: string, motivoNotas?: strin
                     estado: 'APROBADA',
                     aprobadoPorId: user.id,
                     notas: auditoria.notas ? `${auditoria.notas}\n\nAprobado por ${user.nombre || user.id}` : `Aprobado por ${user.nombre || user.id}`
-                }
+                } as any
             });
         });
 
@@ -397,7 +453,7 @@ export async function aprobarTomaFisica(auditoriaId: string, motivoNotas?: strin
     }
 }
 
-// 7. Undo/Revert Applied Audit (Admin/Super Admin Only)
+// 7. Undo/Revert Applied Audit (Symmetric Reversion)
 export async function deshacerTomaFisica(auditoriaId: string) {
     try {
         const user = await getAuthContext();
@@ -429,34 +485,74 @@ export async function deshacerTomaFisica(auditoriaId: string) {
             throw new Error('Solo se pueden deshacer auditorías que estén en estado APROBADA.');
         }
 
+        // Aggregate details by activoFijoId to reconstruct reversion values
+        const aggregated: Record<string, {
+            activoFijoId: string;
+            stockSistema: number;
+            totalConteo: number;
+            totalMerma: number;
+            productoId: string | null;
+        }> = {};
+
+        for (const d of auditoria.detalles) {
+            const afId = d.activoFijoId;
+            const countVal = d.conteoFisico !== null ? d.conteoFisico : d.stockSistema;
+
+            if (!aggregated[afId]) {
+                aggregated[afId] = {
+                    activoFijoId: afId,
+                    stockSistema: d.stockSistema,
+                    totalConteo: 0,
+                    totalMerma: 0,
+                    productoId: d.activoFijo?.productoId || null
+                };
+            }
+
+            aggregated[afId].totalConteo += countVal;
+            aggregated[afId].totalMerma += (d.merma || 0);
+        }
+
         // Revert in transaction
         await prisma.$transaction(async (tx) => {
-            for (const d of auditoria.detalles) {
-                const conteoVal = d.conteoFisico !== null ? d.conteoFisico : d.stockSistema;
-                const diferencia = conteoVal - d.stockSistema; // difference applied in approve
+            for (const key of Object.keys(aggregated)) {
+                const group = aggregated[key];
+                const diferencia = group.totalConteo - group.stockSistema;
 
-                // If there was a difference applied, we revert it by forcing stock back to stockSistema
-                if (diferencia !== 0) {
-                    await tx.activoFijo.update({
-                        where: { id: d.activoFijoId },
-                        data: { stock: d.stockSistema }
+                // 1. Revert stock back to pre-audit stockSistema
+                await tx.activoFijo.update({
+                    where: { id: group.activoFijoId },
+                    data: { stock: group.stockSistema }
+                });
+
+                // 2. Log compensating stock adjustment
+                if (group.productoId && diferencia !== 0) {
+                    const tipoMovInverso = diferencia < 0 ? 'AJUSTE_INCREMENTO' : 'AJUSTE_DISMINUCION';
+                    await tx.movimientoInventario.create({
+                        data: {
+                            organizationId: user.organizationId,
+                            productoId: group.productoId,
+                            tipoMovimiento: tipoMovInverso,
+                            cantidad: Math.abs(diferencia),
+                            motivo: `Reversión de Ajuste de Auditoría Física ${auditoria.correlativo}`,
+                            referencia: `REV-${auditoria.correlativo}`,
+                            usuarioId: user.id
+                        }
                     });
+                }
 
-                    // Log compensating inventory movement (inverting type of difference)
-                    if (d.activoFijo?.productoId) {
-                        const tipoMovInverso = diferencia < 0 ? 'AJUSTE_INCREMENTO' : 'AJUSTE_DISMINUCION';
-                        await tx.movimientoInventario.create({
-                            data: {
-                                organizationId: user.organizationId,
-                                productoId: d.activoFijo.productoId,
-                                tipoMovimiento: tipoMovInverso,
-                                cantidad: Math.abs(diferencia),
-                                motivo: `Reversión de Ajuste de Auditoría Física ${auditoria.correlativo}`,
-                                referencia: `REV-${auditoria.correlativo}`,
-                                usuarioId: user.id
-                            }
-                        });
-                    }
+                // 3. Log compensating merma adjustment
+                if (group.productoId && group.totalMerma > 0) {
+                    await tx.movimientoInventario.create({
+                        data: {
+                            organizationId: user.organizationId,
+                            productoId: group.productoId,
+                            tipoMovimiento: 'AJUSTE_INCREMENTO',
+                            cantidad: group.totalMerma,
+                            motivo: `Reversión de Merma de Auditoría Física ${auditoria.correlativo}`,
+                            referencia: `REV-${auditoria.correlativo}`,
+                            usuarioId: user.id
+                        }
+                    });
                 }
             }
 
@@ -466,7 +562,7 @@ export async function deshacerTomaFisica(auditoriaId: string) {
                 data: {
                     estado: 'ANULADA',
                     notas: auditoria.notas ? `${auditoria.notas}\n\nRevertido/Anulado por ${user.nombre || user.id}` : `Revertido/Anulado por ${user.nombre || user.id}`
-                }
+                } as any
             });
         });
 
