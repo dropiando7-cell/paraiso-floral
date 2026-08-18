@@ -81,7 +81,9 @@ export async function searchClientes(query: string = "") {
         return clientes.map(c => ({
             ...c,
             nombre: c.nombre.toUpperCase(),
-            nombreContacto: c.nombreContacto ? c.nombreContacto.toUpperCase() : null
+            nombreContacto: c.nombreContacto ? c.nombreContacto.toUpperCase() : null,
+            limiteCredito: c.limiteCredito ? Number(c.limiteCredito) : 0,
+            diasCredito: c.diasCredito || 15
         }));
     } catch (e) {
         console.error(e);

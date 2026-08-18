@@ -280,7 +280,7 @@ function MobileDocumentForm({
   return (
     <div className="space-y-4 pb-28 print:hidden">
       {/* 1. Header Banner & Document Type Selector */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+      <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-sm space-y-3">
         <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
           <div>
             <span className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-bold block">Documento Fiscal</span>
@@ -293,25 +293,6 @@ function MobileDocumentForm({
           </div>
           
           <div className="flex items-center gap-1.5">
-            <Link
-              href="/facturas/pos"
-              prefetch={true}
-              className="px-3 py-2 bg-gradient-to-r from-emerald-600 to-indigo-600 text-white rounded-xl font-black text-xs flex items-center gap-1 shadow-md active:scale-95 transition-transform shrink-0"
-              title="Ir a Caja Rápida POS con Imágenes"
-            >
-              <Zap size={14} className="fill-white" />
-              <span>POS Móvil</span>
-            </Link>
-            {!viewMode && (
-              <button
-                type="button"
-                onClick={() => setShowWorkOrderModal(true)}
-                className="p-2 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-200 font-bold text-xs flex items-center gap-1 active:scale-95 transition-transform"
-                title="Extraer Orden de Trabajo"
-              >
-                <Wrench size={15} />
-              </button>
-            )}
             <button
               type="button"
               onClick={() => setShowActionsModal(true)}
@@ -350,7 +331,7 @@ function MobileDocumentForm({
       </div>
 
       {/* 2. Client Selection Card */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+      <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -400,7 +381,7 @@ function MobileDocumentForm({
       </div>
 
       {/* 3. Fechas y Condiciones Card */}
-      <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm space-y-3">
+      <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-sm space-y-3">
         <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
           <div className="w-7 h-7 rounded-lg bg-indigo-100 flex items-center justify-center">
             <Calendar size={15} className="text-indigo-600" />
@@ -3945,9 +3926,9 @@ export default function DocumentBuilderClient({
 
   return (
     <div className={`${embedMode ? 'bg-slate-100 p-2 sm:p-4 justify-center flex' : 'min-h-screen bg-slate-50 overflow-x-hidden'} font-sans print:!bg-white print:overflow-visible print:min-h-0 print:block`}>
-      {/* Top Bar */}
+      {/* Top Bar (Visible solo en escritorio md:block) */}
       {!embedMode && (
-      <div className={`bg-white border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[360px]' : ''}`}>
+      <div className={`hidden md:block bg-white border-b border-slate-100 shadow-sm print:hidden transition-all duration-300 ${showCustomizer ? 'pr-[360px]' : ''}`}>
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-y-3 gap-x-4 overflow-x-auto sm:overflow-visible">
           
           <div className="flex items-center gap-4">
@@ -3963,14 +3944,6 @@ export default function DocumentBuilderClient({
                     className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold hover:shadow-indigo-100 hover:shadow-lg transition-all shadow-sm whitespace-nowrap shrink-0"
                   >
                     <Pencil size={15} /> Editar
-                  </button>
-                )}
-                {!viewMode && (
-                  <button
-                    onClick={() => setShowWorkOrderModal(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:text-indigo-800 rounded-xl text-sm font-semibold transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
-                  >
-                    <Wrench size={15} className="stroke-[2.5]" /> Extraer Orden
                   </button>
                 )}
                 <button
@@ -4005,9 +3978,9 @@ export default function DocumentBuilderClient({
       </div>
       )}
 
-      {/* Mobile Form View (Visible on Mobile screens < md) */}
+      {/* Mobile Form View (Visible en móviles < md) */}
       {!embedMode && (
-        <div className="block md:hidden px-3 py-3 print:hidden">
+        <div className="block md:hidden px-1 py-1.5 sm:px-3 print:hidden">
           <MobileDocumentForm
             docType={docType}
             setDocType={setDocType}

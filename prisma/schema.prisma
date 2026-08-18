@@ -66,6 +66,8 @@ model Organization {
   equiposCliente        EquipoCliente[]
   mantenimientos        Mantenimiento[]
   actualizaciones       SistemaActualizacion[]
+  pagosClientes         PagoCliente[]
+  notasCreditoClientes  NotaCreditoCliente[]
 
   @@map("organizations")
 }
@@ -163,6 +165,8 @@ model User {
   isAssignable          Boolean                @default(true)
   activityLogs          ActivityLog[]          @relation("UserActivityLogs")
   mantenimientosRealizados Mantenimiento[]     @relation("MantenimientosRealizados")
+  pagosClientesCreados     PagoCliente[]       @relation("PagoClienteCreado")
+  notasCreditoCreadas      NotaCreditoCliente[] @relation("NotaCreditoCreada")
 
   @@map("users")
 }
@@ -690,14 +694,18 @@ model Cliente {
   nombreContacto   String?
   telefonoContacto String?
   emailsCC         String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  facturas       Factura[]
-  ordenesTrabajo OrdenTrabajo[]
-  rentasEquipo   RentaEquipo[]
-  equiposCliente EquipoCliente[]
-  activosClientes ActivoFijo[]   @relation("ActivoCliente")
+  limiteCredito      Decimal        @default(0) @db.Decimal(12, 2)
+  diasCredito        Int            @default(15)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  facturas           Factura[]
+  ordenesTrabajo     OrdenTrabajo[]
+  rentasEquipo       RentaEquipo[]
+  equiposCliente     EquipoCliente[]
+  activosClientes    ActivoFijo[]   @relation("ActivoCliente")
+  pagos              PagoCliente[]
+  notasCredito       NotaCreditoCliente[]
 
   @@index([organizationId])
   @@index([nombre])
@@ -754,6 +762,9 @@ model Factura {
   detalles                 DetalleFactura[]
   cliente                  Cliente          @relation(fields: [clienteId], references: [id])
   organization             Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  estadoPago               String?          @default("PENDIENTE")
+  saldoPendiente           Decimal          @default(0) @db.Decimal(12, 2)
+  fechaVencimiento         DateTime?
   metodoPago               String?
   cajaSessionId            String?          @db.Uuid
   cajaSession              CorteCajaSession? @relation(fields: [cajaSessionId], references: [id])
@@ -761,6 +772,8 @@ model Factura {
   firmaClienteAt           DateTime?
   ordenEntrega             OrdenEntrega?
   equiposCliente           EquipoCliente[]
+  detallesPago             PagoDetalleFactura[]
+  notasCredito             NotaCreditoCliente[]
 
   @@unique([organizationId, correlativo])
   @@index([organizationId])
@@ -1584,6 +1597,78 @@ model SistemaActualizacionVisto {
   @@index([actualizacionId])
   @@index([usuarioId])
   @@map("sistema_actualizacion_vistos")
+}
+
+model PagoCliente {
+  id             String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String               @db.Uuid
+  clienteId      String               @db.Uuid
+  correlativo    String?
+  monto          Decimal              @db.Decimal(12, 2)
+  fecha          DateTime             @default(now())
+  metodoPago     String               @default("TRANSFERENCIA")
+  banco          String?
+  referencia     String?
+  notas          String?
+  comprobanteUrl String?
+  anulado        Boolean              @default(false)
+  anuladoAt      DateTime?
+  creadoPorId    String?              @db.Uuid
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cliente        Cliente              @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  creadoPor      User?                @relation("PagoClienteCreado", fields: [creadoPorId], references: [id])
+  detalles       PagoDetalleFactura[]
+
+  @@index([organizationId])
+  @@index([clienteId])
+  @@index([fecha])
+  @@map("pagos_cliente")
+}
+
+model PagoDetalleFactura {
+  id            String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pagoId        String      @db.Uuid
+  facturaId     String      @db.Uuid
+  montoAplicado Decimal     @db.Decimal(12, 2)
+  createdAt     DateTime    @default(now())
+
+  pago          PagoCliente @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  factura       Factura     @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+
+  @@index([pagoId])
+  @@index([facturaId])
+  @@map("pagos_detalle_factura")
+}
+
+model NotaCreditoCliente {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String       @db.Uuid
+  clienteId      String       @db.Uuid
+  facturaId      String?      @db.Uuid
+  correlativo    String?
+  monto          Decimal      @db.Decimal(12, 2)
+  motivo         String       @default("FLOR_DANADA")
+  descripcion    String
+  fotos          Json?
+  fecha          DateTime     @default(now())
+  anulado        Boolean      @default(false)
+  anuladoAt      DateTime?
+  creadoPorId    String?      @db.Uuid
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cliente        Cliente      @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  factura        Factura?     @relation(fields: [facturaId], references: [id])
+  creadoPor      User?        @relation("NotaCreditoCreada", fields: [creadoPorId], references: [id])
+
+  @@index([organizationId])
+  @@index([clienteId])
+  @@index([fecha])
+  @@map("notas_credito_cliente")
 }
 
 

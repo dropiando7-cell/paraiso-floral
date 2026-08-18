@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import { compressImage } from '@/utils/image';
 import RichDescriptionEditor from '@/components/facturas/RichDescriptionEditor';
 import { buscarEquiposInventarioGeneral, getActivoByIdForReception, getUltimaConfiguracionGarantia } from '../actions';
-import { ContactoModal } from '@/app/(dashboard)/contactos/ContactosClient';
+import ContactoModal from '@/components/contactos/ContactoModal';
 import { ActivoModal } from '@/app/(dashboard)/inventario/InventarioClient';
 
 type PrefilledData = {

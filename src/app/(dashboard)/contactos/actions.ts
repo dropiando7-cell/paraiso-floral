@@ -33,6 +33,7 @@ export async function fetchContactos(query: string, page: number = 1) {
                 { rtn: { contains: query, mode: 'insensitive' as any } },
                 { nombreContacto: { contains: query, mode: 'insensitive' as any } },
                 { telefonoContacto: { contains: query, mode: 'insensitive' as any } },
+                { departamento: { contains: query, mode: 'insensitive' as any } },
             ],
         } : {}),
     };
@@ -51,6 +52,9 @@ export async function fetchContactos(query: string, page: number = 1) {
             nombreContacto: true,
             telefonoContacto: true,
             emailsCC: true,
+            limiteCredito: true,
+            diasCredito: true,
+            notas: true,
             createdAt: true
         },
         skip,
@@ -58,7 +62,15 @@ export async function fetchContactos(query: string, page: number = 1) {
         orderBy: { nombre: 'asc' },
     });
 
-    return { params: data, totalPages: Math.ceil(count / pageSize), count };
+    return { 
+      params: data.map(d => ({
+        ...d,
+        limiteCredito: d.limiteCredito ? Number(d.limiteCredito) : 0,
+        diasCredito: d.diasCredito || 15
+      })), 
+      totalPages: Math.ceil(count / pageSize), 
+      count 
+    };
 }
 
 export async function createContacto(data: { 
@@ -71,6 +83,9 @@ export async function createContacto(data: {
     nombreContacto?: string;
     telefonoContacto?: string;
     emailsCC?: string;
+    limiteCredito?: number;
+    diasCredito?: number;
+    notas?: string;
 }) {
     const orgId = await getOrgId();
 
@@ -101,7 +116,10 @@ export async function createContacto(data: {
     });
 
     revalidatePath('/contactos');
-    return created;
+    return {
+      ...created,
+      limiteCredito: created.limiteCredito ? Number(created.limiteCredito) : 0
+    };
 }
 
 export async function updateContacto(id: string, data: { 
@@ -114,6 +132,9 @@ export async function updateContacto(id: string, data: {
     nombreContacto?: string;
     telefonoContacto?: string;
     emailsCC?: string;
+    limiteCredito?: number;
+    diasCredito?: number;
+    notas?: string;
 }) {
     const cleanNombre = data.nombre.trim().toUpperCase();
     const cleanNombreContacto = data.nombreContacto?.trim() ? data.nombreContacto.trim().toUpperCase() : null;
@@ -128,7 +149,10 @@ export async function updateContacto(id: string, data: {
     });
 
     revalidatePath('/contactos');
-    return updated;
+    return {
+      ...updated,
+      limiteCredito: updated.limiteCredito ? Number(updated.limiteCredito) : 0
+    };
 }
 
 export async function deleteContacto(id: string) {

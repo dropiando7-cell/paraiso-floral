@@ -32,40 +32,11 @@ interface Props {
 
 const fmt = (n: number) => new Intl.NumberFormat('es-HN', { style: 'currency', currency: 'HNL', minimumFractionDigits: 2 }).format(n);
 
-function parseCleanItemDescription(rawDesc: string) {
-  if (!rawDesc) return { title: '', isSection: false };
-  let str = rawDesc;
-  
-  const metaIdx = str.indexOf('__METADATA__');
-  if (metaIdx !== -1) {
-    str = str.substring(0, metaIdx);
-  }
-
-  let isSection = false;
-  if (str.startsWith('__SECTION__')) {
-    isSection = true;
-    str = str.substring(11);
-    const styleIdx = str.indexOf('__STYLE__');
-    if (styleIdx !== -1) {
-      str = str.substring(0, styleIdx);
-    }
-  }
-
-  const cleanText = str.replace(/<[^>]+>/g, '').trim();
-
-  return {
-    title: cleanText || str,
-    isSection,
-    rawHtml: str
-  };
-}
-
 export default function DocumentListTable({ data, type }: Props) {
   const [search, setSearch] = useState('');
   const [showAnuladas, setShowAnuladas] = useState(false);
   const [isAnulando, setIsAnulando] = useState<string | null>(null);
   const [docToAnul, setDocToAnul] = useState<DocumentRecord | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   
   // Email modal states
   const [sendEmailModalOpen, setSendEmailModalOpen] = useState(false);
@@ -146,12 +117,9 @@ export default function DocumentListTable({ data, type }: Props) {
   };
 
   const filteredData = useMemo(() => {
-    // 1. Filter
     const filtered = data.filter(doc => {
-      // Filter out anuladas if the toggle is off
       if (!showAnuladas && doc.estado === 'ANULADA') return false;
       
-      // Si estamos en la pestaña FACTURA, mostrar tanto facturas como notas de crédito
       if (type === 'FACTURA') {
         if (doc.tipoDocumento !== 'FACTURA' && doc.tipoDocumento !== 'NOTA_CREDITO') return false;
       } else if (type !== 'TODOS' && doc.tipoDocumento !== type) {
@@ -164,7 +132,6 @@ export default function DocumentListTable({ data, type }: Props) {
              (doc.clienteRtn && doc.clienteRtn.toLowerCase().includes(q));
     });
 
-    // 2. Sort
     if (sortField) {
       filtered.sort((a, b) => {
         let valA = a[sortField];
@@ -183,7 +150,6 @@ export default function DocumentListTable({ data, type }: Props) {
         return 0;
       });
     } else {
-      // Default: sort by date descending
       filtered.sort((a, b) => new Date(b.fechaEmision).getTime() - new Date(a.fechaEmision).getTime());
     }
 
@@ -199,62 +165,162 @@ export default function DocumentListTable({ data, type }: Props) {
 
   const getStatusBadge = (estado: string) => {
     switch (estado) {
-      case 'BORRADOR': return <span className="px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold rounded-lg bg-slate-100 text-slate-600 border border-slate-200">Borrador</span>;
-      case 'EMITIDA': return <span className="px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-200">Emitida</span>;
-      case 'CONVERTIDA': return <span className="px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold rounded-lg bg-blue-50 text-blue-600 border border-blue-200" title="Este documento fue convertido en otro">Convertida</span>;
-      case 'PENDIENTE': return <span className="px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold rounded-lg bg-yellow-50 text-yellow-600 border border-yellow-200">Pendiente</span>;
-      case 'ANULADA': return <span className="px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold rounded-lg bg-red-50 text-red-600 border border-red-200">Anulada</span>;
-      default: return <span className="px-2.5 py-1 text-[11px] uppercase tracking-wider font-bold rounded-lg bg-slate-100 text-slate-600 border border-slate-200">{estado}</span>;
+      case 'BORRADOR': return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-slate-100 text-slate-600 border border-slate-200">Borrador</span>;
+      case 'EMITIDA': return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">Emitida</span>;
+      case 'CONVERTIDA': return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-blue-50 text-blue-700 border border-blue-200" title="Este documento fue convertido en otro">Convertida</span>;
+      case 'PENDIENTE': return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-amber-50 text-amber-700 border border-amber-200">Pendiente</span>;
+      case 'ANULADA': return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-rose-50 text-rose-700 border border-rose-200">Anulada</span>;
+      default: return <span className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-extrabold rounded-md bg-slate-100 text-slate-600 border border-slate-200">{estado}</span>;
     }
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full animate-in fade-in">
+    <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full animate-in fade-in">
       {/* Header & Controls */}
-      <div className="p-5 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 bg-slate-50/50">
+      <div className="p-3.5 sm:p-5 border-b border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 bg-slate-50/50">
         <div>
-          <h2 className="text-xl font-bold text-slate-800">
+          <h2 className="text-lg sm:text-xl font-black text-slate-900">
             {type === 'FACTURA' ? 'Historial de Facturas' : type === 'COTIZACION' ? 'Historial de Cotizaciones' : 'Documentos Recientes'}
           </h2>
-          <p className="text-sm text-slate-500 mt-0.5 font-medium">Mostrando {filteredData.length} resultados encontrados.</p>
+          <p className="text-xs text-slate-500 font-medium">Mostrando {filteredData.length} resultados encontrados.</p>
         </div>
 
-        <div className="relative w-full lg:w-auto flex flex-col sm:flex-row items-center gap-3">
+        <div className="relative w-full lg:w-auto flex flex-col sm:flex-row items-center gap-2">
           <button
             type="button"
             onClick={handleCleanDrafts}
             disabled={isCleaningDrafts}
-            className="flex items-center justify-center gap-1.5 px-3.5 py-2 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 text-slate-700 text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50 w-full sm:w-auto"
+            className="flex items-center justify-center gap-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all shadow-2xs cursor-pointer disabled:opacity-50 w-full sm:w-auto"
             title="Limpiar registros de Borrador Temporal en L 0.00 del historial"
           >
             <span>🧹</span>
             <span>{isCleaningDrafts ? 'Depurando...' : 'Depurar Borradores'}</span>
           </button>
 
-          <label className="flex items-center gap-2 cursor-pointer bg-white px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-sm">
+          <label className="flex items-center gap-2 cursor-pointer bg-white px-3 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors w-full sm:w-auto justify-center sm:justify-start shadow-2xs">
             <input 
               type="checkbox" 
               checked={showAnuladas}
               onChange={e => setShowAnuladas(e.target.checked)}
               className="w-4 h-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
             />
-            <span className="text-sm font-semibold text-slate-600 select-none">Mostrar Anuladas</span>
+            <span className="text-xs font-bold text-slate-700 select-none">Mostrar Anuladas</span>
           </label>
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
               placeholder="Buscar correlativo o cliente..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium placeholder:font-normal shadow-sm"
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
             />
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="overflow-x-auto flex-1 min-h-[400px]">
+      {/* 📱 VISTA MÓVIL EN CARDS (< md) */}
+      <div className="block md:hidden p-2 space-y-2.5 flex-1 overflow-y-auto">
+        {paginatedData.length === 0 ? (
+          <div className="p-8 text-center text-slate-400">
+            <FileText size={40} className="mx-auto text-slate-300 mb-2" />
+            <p className="text-sm font-bold text-slate-700">No hay registros</p>
+            <p className="text-xs text-slate-400 mt-0.5">No se encontraron documentos {search && 'con esa búsqueda'}.</p>
+          </div>
+        ) : (
+          paginatedData.map(doc => (
+            <div key={doc.id} className="p-3 bg-white border border-slate-200 rounded-xl shadow-2xs space-y-2.5">
+              {/* Encabezado Card */}
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-2xs border ${doc.tipoDocumento === 'FACTURA' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : doc.tipoDocumento === 'NOTA_CREDITO' ? 'bg-purple-50 text-purple-700 border-purple-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                    {doc.tipoDocumento === 'FACTURA' ? <CheckCircle2 size={16} /> : doc.tipoDocumento === 'NOTA_CREDITO' ? <Undo size={16} /> : <FileText size={16} />}
+                  </div>
+                  <div>
+                    <p className="font-black text-slate-900 text-sm leading-none tabular-nums">{doc.correlativo}</p>
+                    <p className="text-[9px] font-mono font-bold uppercase text-slate-400 mt-0.5">{doc.tipoDocumento}</p>
+                  </div>
+                </div>
+                <div>
+                  {getStatusBadge(doc.estado)}
+                </div>
+              </div>
+
+              {/* Información de Cliente y Fecha */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-slate-900 truncate">{doc.clienteNombre}</p>
+                  {doc.clienteRtn && <p className="text-[11px] text-slate-500 font-mono">RTN: {doc.clienteRtn}</p>}
+                  <p className="text-[11px] text-slate-400 mt-0.5 font-medium">
+                    Emisión: {new Date(doc.fechaEmision).toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-[10px] text-slate-400 block font-bold uppercase tracking-wider">Monto Total</span>
+                  <span className="text-base font-black text-slate-900 tracking-tight">{fmt(doc.total)}</span>
+                </div>
+              </div>
+
+              {/* Botones de Acción Móviles Táctiles */}
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-1 overflow-x-auto">
+                <div className="flex items-center gap-1.5">
+                  <Link 
+                    href={`/facturas/ver/${doc.id}`} 
+                    className="px-2.5 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 rounded-lg transition-colors flex items-center gap-1 text-xs font-bold"
+                  >
+                    <Eye size={14} /> Ver
+                  </Link>
+                  <Link 
+                    href={`/facturas/ver/${doc.id}?print=true`} 
+                    title="Imprimir" 
+                    className="p-1.5 bg-slate-50 border border-slate-200 text-slate-700 hover:text-blue-600 rounded-lg transition-colors"
+                  >
+                    <Printer size={15} />
+                  </Link>
+                  <Link 
+                    href={`/facturas/ver/${doc.id}?download=true`} 
+                    title="Descargar PDF" 
+                    className="p-1.5 bg-slate-50 border border-slate-200 text-slate-700 hover:text-emerald-600 rounded-lg transition-colors"
+                  >
+                    <Download size={15} />
+                  </Link>
+                  <button 
+                    onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent(`Aquí tienes tu documento: ${window.location.origin}/facturas/ver/${doc.id}`)}`, '_blank')} 
+                    title="Enviar por WhatsApp" 
+                    className="p-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 rounded-lg transition-colors"
+                  >
+                    <MessageCircle size={15} />
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <Link 
+                    href={`/facturas/${doc.id}`} 
+                    title="Editar" 
+                    className="p-1.5 bg-slate-50 border border-slate-200 text-slate-700 hover:text-amber-600 rounded-lg transition-colors"
+                  >
+                    <Pencil size={15} />
+                  </Link>
+                  {doc.estado !== 'ANULADA' && (
+                    <button 
+                      onClick={() => setDocToAnul(doc)} 
+                      disabled={isAnulando === doc.id}
+                      title="Anular Documento" 
+                      className={`p-1.5 rounded-lg border transition-colors ${isAnulando === doc.id ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'}`}
+                    >
+                      <Ban size={15} className={isAnulando === doc.id ? 'animate-pulse' : ''} />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* 💻 VISTA ESCRITORIO EN TABLA (>= md) */}
+      <div className="hidden md:block overflow-x-auto flex-1 min-h-[400px]">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10 backdrop-blur-sm">
@@ -387,8 +453,8 @@ export default function DocumentListTable({ data, type }: Props) {
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="px-5 py-4 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
-          <p className="text-xs text-slate-500 font-semibold">
+        <div className="px-3 py-3 sm:px-5 sm:py-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-2 bg-slate-50/50">
+          <p className="text-xs text-slate-500 font-semibold text-center sm:text-left">
             Mostrando <span className="font-bold text-slate-700">{((currentPage - 1) * itemsPerPage) + 1}</span> a{' '}
             <span className="font-bold text-slate-700">
               {Math.min(currentPage * itemsPerPage, filteredData.length)}
@@ -399,7 +465,7 @@ export default function DocumentListTable({ data, type }: Props) {
             <button
               onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1.5 bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="px-3 py-1.5 bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
             >
               Anterior
             </button>
@@ -410,7 +476,7 @@ export default function DocumentListTable({ data, type }: Props) {
                   onClick={() => setCurrentPage(page)}
                   className={`w-7 h-7 flex items-center justify-center text-xs font-black rounded-lg transition ${
                     currentPage === page
-                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                      ? 'bg-blue-600 text-white shadow-2xs'
                       : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
                   }`}
                 >
@@ -421,7 +487,7 @@ export default function DocumentListTable({ data, type }: Props) {
             <button
               onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1.5 bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              className="px-3 py-1.5 bg-white border border-slate-200 text-xs font-bold text-slate-700 rounded-lg hover:bg-slate-50 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
             >
               Siguiente
             </button>
@@ -429,50 +495,48 @@ export default function DocumentListTable({ data, type }: Props) {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Modal Confirmar Anulación */}
       {docToAnul && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-100">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-8 border-red-50">
-                <AlertTriangle size={28} className="stroke-[2.5]" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-800 mb-2">¿Anular esta {docToAnul.tipoDocumento.toLowerCase()}?</h3>
-              <p className="text-sm text-slate-500 font-medium px-2 leading-relaxed">
-                Estás a punto de anular el documento <strong className="text-slate-700">{docToAnul.correlativo}</strong> de <strong className="text-slate-700">{docToAnul.clienteNombre}</strong>.
-              </p>
-              <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-3 text-left">
-                <AlertCircle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                <p className="text-xs font-semibold text-amber-700">Esta acción restaurará el stock de inventario asignado a esta factura y dejará rastros de auditoría a tu nombre. No puede deshacerse.</p>
-              </div>
-            </div>
-            <div className="p-4 bg-slate-50 border-t border-slate-100 flex gap-3">
-              <button 
-                onClick={() => setDocToAnul(null)}
-                className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:text-slate-800 transition-all shadow-sm"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={confirmAnular}
-                className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-red-500 border border-red-500 rounded-xl hover:bg-red-600 transition-all shadow-sm shadow-red-200"
-              >
-                Sí, Anular
-              </button>
-            </div>
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4 animate-in fade-in zoom-in-95">
+             <div className="flex items-center gap-3 text-rose-600">
+               <div className="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center font-bold">
+                 <AlertTriangle size={20} />
+               </div>
+               <div>
+                 <h3 className="font-extrabold text-slate-900 text-base">¿Anular este Documento?</h3>
+                 <p className="text-xs text-slate-500 font-mono">{docToAnul.correlativo}</p>
+               </div>
+             </div>
+             <p className="text-xs text-slate-600 leading-relaxed font-medium">
+               Esta acción revertirá los saldos y liberará los ítems de inventario asociados. No se puede deshacer.
+             </p>
+             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setDocToAnul(null)}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmAnular}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-xs font-black rounded-xl shadow-md"
+                >
+                  Sí, Anular Documento
+                </button>
+             </div>
           </div>
         </div>
       )}
-      {sendEmailModalOpen && (
-        <SendEmailModal
-          isOpen={sendEmailModalOpen}
-          onClose={() => {
-            setSendEmailModalOpen(false);
-            setSendEmailDocId('');
-          }}
-          documentoId={sendEmailDocId}
-        />
-      )}
+
+      {/* Modal Enviar Email */}
+      <SendEmailModal
+        isOpen={sendEmailModalOpen}
+        onClose={() => setSendEmailModalOpen(false)}
+        documentoId={sendEmailDocId}
+      />
     </div>
   );
 }

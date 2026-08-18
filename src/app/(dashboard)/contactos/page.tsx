@@ -4,8 +4,8 @@ import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 
 export const metadata = {
-    title: 'Directorio de Contactos | Bioelectrónica',
-    description: 'Gestión de clientes y contactos',
+    title: 'Directorio de Contactos | Paraíso Floral',
+    description: 'Gestión de clientes y contactos de distribución',
 };
 
 export default async function ContactosPage() {
@@ -21,12 +21,18 @@ export default async function ContactosPage() {
 
     const orgId = dbUser.organizationId;
 
-    // SSR fetch the first 10 contacts ordered alphabetically
+    // SSR fetch the first 15 contacts ordered alphabetically
     const contacts = await prisma.cliente.findMany({
         where: { organizationId: orgId },
         orderBy: { nombre: 'asc' },
-        take: 10,
+        take: 15,
     });
 
-    return <ContactosClient initialData={contacts} />;
+    const sanitizedContacts = contacts.map(c => ({
+        ...c,
+        limiteCredito: c.limiteCredito ? Number(c.limiteCredito) : 0,
+        diasCredito: c.diasCredito || 15
+    }));
+
+    return <ContactosClient initialData={sanitizedContacts as any} />;
 }

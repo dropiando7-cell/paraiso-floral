@@ -100,7 +100,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
           { name: 'Cierre de Caja', href: '/cierre-caja' }
         ]
       },
-      { name: 'Cuentas por Cobrar', href: '#', icon: Coins, badge: 'PLANIFICADO', badgeColor: 'bg-slate-500/10 text-slate-700' },
+      { name: 'Cuentas por Cobrar', href: '/cxc', icon: Coins },
     ]
   },
   {

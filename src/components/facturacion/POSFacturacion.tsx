@@ -5,13 +5,14 @@ import {
   Search, Plus, Minus, Trash2, Printer, X, Monitor, Zap, User, CreditCard, 
   Banknote, ShoppingCart, CheckCircle2, QrCode, LayoutGrid, List, Grid3X3, 
   ArrowDownCircle, FileText, Keyboard, Save, ArrowLeft, UserPlus, UserCheck, 
-  Loader2, Building2, Phone, Mail, MapPin, Sparkles, FileBadge, Receipt, ZoomIn, ZoomOut, Eye
+  Loader2, Building2, Phone, Mail, MapPin, Sparkles, FileBadge, Receipt, ZoomIn, ZoomOut, Eye, Pencil
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { searchClientes } from '@/app/(dashboard)/facturas/actions';
 import { crearClienteAction } from '@/app/(dashboard)/soporte/actions';
 import { crearProducto } from '@/app/(dashboard)/precios/actions';
+import ContactoModal from '@/components/contactos/ContactoModal';
 
 export interface POSProduct {
   id: string;
@@ -106,6 +107,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
   const [isSearchingClients, setIsSearchingClients] = useState(false);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [editingClient, setEditingClient] = useState<any>(null);
 
   // Quick Add Client Modal
   const [showAddClientModal, setShowAddClientModal] = useState(false);
@@ -248,6 +250,21 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     setClientName('CONSUMIDOR FINAL');
     setSelectedClient(null);
     setShowClientDropdown(false);
+  };
+
+  const handleClearClientSearch = async () => {
+    setClientName('');
+    setSelectedClient(null);
+    setShowClientDropdown(true);
+    setIsSearchingClients(true);
+    try {
+      const res = await searchClientes('');
+      setClientSearchResults(res || []);
+    } catch (e) {
+      console.error('Error searching clients:', e);
+    } finally {
+      setIsSearchingClients(false);
+    }
   };
 
   const handleSaveNewClient = async (e?: React.FormEvent) => {
@@ -604,16 +621,28 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
             onChange={e => handleClientSearchChange(e.target.value)}
             onFocus={handleFocusClientSearch}
             placeholder="Buscar o ingresar cliente (ej: CONSUMIDOR FINAL, Nombre, RTN)..."
-            className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-medium text-slate-800 outline-none transition-all uppercase"
+            className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 pr-9 text-xs font-medium text-slate-800 outline-none transition-all uppercase"
           />
-          {isSearchingClients && (
+          {clientName ? (
+            <button
+              type="button"
+              onClick={handleClearClientSearch}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors"
+              title="Limpiar búsqueda para ingresar otro cliente"
+            >
+              <X size={14} />
+            </button>
+          ) : isSearchingClients ? (
             <Loader2 size={14} className="absolute right-3 top-2.5 animate-spin text-indigo-500" />
-          )}
+          ) : null}
         </div>
 
         <button
           type="button"
-          onClick={() => setShowAddClientModal(true)}
+          onClick={() => {
+            setEditingClient(null);
+            setShowAddClientModal(true);
+          }}
           className="px-2.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm shrink-0 transition-transform"
           title="Agregar Nuevo Cliente"
         >
@@ -642,24 +671,52 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
         </div>
       )}
 
-      {/* Autocomplete Dropdown */}
+      {/* Autocomplete Dropdown con opción de editar contacto */}
       {showClientDropdown && clientSearchResults.length > 0 && (
-        <div className="absolute left-3 right-3 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto divide-y divide-slate-100">
+        <div className="absolute left-3 right-3 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto divide-y divide-slate-100">
           {clientSearchResults.map(c => (
-            <button
+            <div
               key={c.id}
-              type="button"
-              onClick={() => handleSelectClient(c)}
-              className="w-full text-left px-3 py-2 hover:bg-indigo-50 transition-colors flex items-center justify-between"
+              className="w-full px-3 py-2 hover:bg-indigo-50/80 transition-colors flex items-center justify-between group"
             >
-              <div>
-                <p className="text-xs font-medium text-slate-800 uppercase tracking-wide">{c.nombre.toUpperCase()}</p>
-                <p className="text-[10px] text-slate-500 font-normal">
-                  {c.rtn ? `RTN: ${c.rtn}` : c.telefono ? `Tel: ${c.telefono}` : 'Cliente registrado'}
+              <button
+                type="button"
+                onClick={() => handleSelectClient(c)}
+                className="flex-1 text-left min-w-0 pr-2"
+              >
+                <p className="text-xs font-bold text-slate-900 uppercase tracking-wide truncate">
+                  {c.nombre.toUpperCase()}
                 </p>
+                <p className="text-[10px] text-slate-500 font-medium truncate">
+                  {c.rtn ? `RTN: ${c.rtn}` : c.telefono ? `Tel: ${c.telefono}` : 'Cliente registrado'}
+                  {c.departamento ? ` • ${c.departamento}` : ''}
+                </p>
+              </button>
+
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingClient(c);
+                    setShowAddClientModal(true);
+                  }}
+                  className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-bold"
+                  title="Editar datos de este cliente"
+                >
+                  <Pencil size={13} className="text-emerald-600" />
+                  <span className="text-[10px] text-emerald-700 font-extrabold hidden sm:inline">Editar</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSelectClient(c)}
+                  className="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+                  title="Seleccionar cliente"
+                >
+                  <UserCheck size={15} />
+                </button>
               </div>
-              <UserCheck size={14} className="text-indigo-500 opacity-80" />
-            </button>
+            </div>
           ))}
         </div>
       )}
@@ -1744,109 +1801,37 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
         </div>
       )}
 
-      {/* MODAL AGREGAR NUEVO CLIENTE */}
-      {showAddClientModal && (
-        <div className="fixed inset-0 z-[2000] bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                  <UserPlus size={20} />
-                </div>
-                <div>
-                  <h3 className="font-black text-slate-900 text-base">Registrar Nuevo Cliente</h3>
-                  <p className="text-xs text-slate-400">Crear cliente rápido para esta venta</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowAddClientModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveNewClient} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Nombre / Razón Social <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ej. Distribuidora Las Rosas S.A."
-                  value={newClientData.nombre}
-                  onChange={e => setNewClientData({ ...newClientData, nombre: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">RTN / DNI</label>
-                  <input
-                    type="text"
-                    placeholder="0801199012345"
-                    value={newClientData.rtn}
-                    onChange={e => setNewClientData({ ...newClientData, rtn: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono</label>
-                  <input
-                    type="text"
-                    placeholder="9999-9999"
-                    value={newClientData.telefono}
-                    onChange={e => setNewClientData({ ...newClientData, telefono: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Correo Electrónico</label>
-                <input
-                  type="email"
-                  placeholder="cliente@ejemplo.com"
-                  value={newClientData.email}
-                  onChange={e => setNewClientData({ ...newClientData, email: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Dirección Física</label>
-                <input
-                  type="text"
-                  placeholder="Colonia, calle, referencia..."
-                  value={newClientData.direccion}
-                  onChange={e => setNewClientData({ ...newClientData, direccion: e.target.value })}
-                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 text-xs font-bold text-slate-900 outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowAddClientModal(false)}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingClient}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-md flex items-center gap-1.5 active:scale-95 disabled:opacity-50"
-                >
-                  {isSavingClient ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-                  <span>Guardar y Seleccionar</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* MODAL REUTILIZABLE REGISTRAR / EDITAR CLIENTE (DISTRIBUIDORA) */}
+      <ContactoModal
+        open={showAddClientModal}
+        onClose={() => {
+          setShowAddClientModal(false);
+          setEditingClient(null);
+        }}
+        initialContacto={editingClient}
+        onSuccess={async (savedClient) => {
+          if (savedClient) {
+            const nuevoClienteObj = {
+              id: savedClient.id,
+              nombre: savedClient.nombre,
+              rtn: savedClient.rtn || undefined,
+              telefono: savedClient.telefono || undefined,
+              email: savedClient.email || undefined,
+              direccion: savedClient.direccion || undefined
+            };
+            setSelectedClient(nuevoClienteObj);
+            setClientName(savedClient.nombre.toUpperCase());
+            
+            try {
+              const res = await searchClientes(savedClient.nombre);
+              setClientSearchResults(res || []);
+            } catch (e) {
+              console.error(e);
+            }
+            toast.success(`Cliente "${savedClient.nombre}" guardado y seleccionado.`);
+          }
+        }}
+      />
 
       {/* MODAL CREAR NUEVO PRODUCTO / FLOR */}
       {showAddProductModal && (
