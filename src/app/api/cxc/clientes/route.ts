@@ -45,6 +45,7 @@ export async function GET(request: Request) {
         direccion: true,
         limiteCredito: true,
         saldoInicial: true,
+        fechaSaldoInicial: true,
         diasCredito: true,
         facturas: {
           where: {
@@ -125,6 +126,7 @@ export async function GET(request: Request) {
         direccion: c.direccion,
         limiteCredito: Number(c.limiteCredito || 0),
         saldoInicial: sInicial,
+        fechaSaldoInicial: c.fechaSaldoInicial,
         diasCredito: c.diasCredito || 15,
         saldoTotal,
         saldoVencido,

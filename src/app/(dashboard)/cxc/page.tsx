@@ -29,6 +29,7 @@ interface ClienteCxC {
   direccion: string | null;
   limiteCredito: number;
   saldoInicial?: number;
+  fechaSaldoInicial?: string | Date | null;
   diasCredito: number;
   saldoTotal: number;
   saldoVencido: number;
@@ -59,7 +60,7 @@ export default function CuentasPorCobrarPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
   const [filtro, setFiltro] = useState<string>('CON_SALDO');
-  const [viewMode, setViewMode] = useState<'CARDS' | 'INLINE'>('CARDS');
+  const [viewMode, setViewMode] = useState<'CARDS' | 'INLINE'>('INLINE');
 
   // Modales
   const [clienteSeleccionado, setClienteSeleccionado] = useState<ClienteCxC | null>(null);

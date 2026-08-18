@@ -101,7 +101,7 @@ export async function GET(
         id: 'saldo-inicial-excel',
         correlativo: 'SALDO INICIAL EXCEL',
         tipoDocumento: 'SALDO_INICIAL',
-        fechaEmision: cliente.createdAt,
+        fechaEmision: cliente.fechaSaldoInicial || cliente.createdAt,
         fechaVencimiento: null,
         total: sInicial,
         saldoPendiente: sInicial,
@@ -121,6 +121,7 @@ export async function GET(
         rtn: cliente.rtn,
         limiteCredito: Number(cliente.limiteCredito || 0),
         saldoInicial: sInicial,
+        fechaSaldoInicial: cliente.fechaSaldoInicial,
         diasCredito: cliente.diasCredito || 15
       },
       resumen: {

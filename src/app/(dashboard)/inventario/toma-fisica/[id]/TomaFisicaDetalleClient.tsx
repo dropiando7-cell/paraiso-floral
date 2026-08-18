@@ -1,11 +1,15 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useTransition } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
     ItemTomaFisica, 
-    conciliarTomaFisica 
-} from './actions';
+    guardarProgresoTomaFisica,
+    enviarARevisionTomaFisica,
+    aprobarTomaFisica,
+    deshacerTomaFisica
+} from '../actions';
 import { 
     ArrowLeft, 
     Search, 
@@ -15,27 +19,48 @@ import {
     Copy, 
     Save, 
     Filter, 
-    Sparkles,
     Loader2,
     Calendar,
     UserCheck,
     Package,
     TrendingDown,
     TrendingUp,
-    Check
+    Check,
+    X,
+    Undo2
 } from 'lucide-react';
 
-interface TomaFisicaClientProps {
-    initialItems: ItemTomaFisica[];
-    usuarioNombre: string;
+interface AuditHeader {
+    id: string;
+    correlativo: string;
+    estado: string;
+    notas: string | null;
+    createdAt: Date;
+    creadoPor: string;
+    aprobadoPor: string | null;
 }
 
-export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFisicaClientProps) {
+interface TomaFisicaDetalleClientProps {
+    initialItems: ItemTomaFisica[];
+    auditoria: AuditHeader;
+    usuarioNombre: string;
+    isAdmin: boolean;
+}
+
+export default function TomaFisicaDetalleClient({ 
+    initialItems, 
+    auditoria, 
+    usuarioNombre, 
+    isAdmin 
+}: TomaFisicaDetalleClientProps) {
+    const router = useRouter();
+    const [isPending, startTransition] = useTransition();
+
     // State for counted quantities (map of item.id -> number | null)
     const [conteos, setConteos] = useState<Record<string, number | null>>(() => {
         const initial: Record<string, number | null> = {};
         initialItems.forEach(item => {
-            initial[item.id] = null; // null means not counted yet
+            initial[item.id] = item.conteoFisico; // loaded from DB
         });
         return initial;
     });
@@ -46,12 +71,12 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
     const [selectedCategory, setSelectedCategory] = useState('TODAS');
     const [filterDiscrepancy, setFilterDiscrepancy] = useState<'TODOS' | 'SOLO_DESCUADRADOS' | 'SOLO_CONTADOS'>('TODOS');
 
-    // UI & Submission state
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
+    // UI state
     const [motivoNotas, setMotivoNotas] = useState('');
+    const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
 
-    const fechaHoy = new Date().toLocaleDateString('es-HN', {
+    const fechaHoy = new Date(auditoria.createdAt).toLocaleDateString('es-HN', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -93,13 +118,12 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
         });
     }, [initialItems, selectedArea, selectedCategory, search, filterDiscrepancy, conteos]);
 
-    // KPI Metrics
+    // KPI Metrics (Value/Cost completely removed)
     const metrics = useMemo(() => {
         let totalCounted = 0;
         let totalDiferencia = 0;
         let totalFaltantes = 0;
         let totalSobrantes = 0;
-        let costoImpacto = 0;
 
         initialItems.forEach(item => {
             const count = conteos[item.id];
@@ -109,7 +133,6 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                 totalDiferencia += diff;
                 if (diff < 0) totalFaltantes += Math.abs(diff);
                 if (diff > 0) totalSobrantes += diff;
-                costoImpacto += (diff * item.costoAdq);
             }
         });
 
@@ -118,13 +141,13 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
             totalCounted,
             totalDiferencia,
             totalFaltantes,
-            totalSobrantes,
-            costoImpacto
+            totalSobrantes
         };
     }, [initialItems, conteos]);
 
     // Handlers to update counts
     const handleSetCount = (id: string, val: number | null) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
         setConteos(prev => ({
             ...prev,
             [id]: val === null ? null : Math.max(0, val)
@@ -132,6 +155,7 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
     };
 
     const handleStepCount = (id: string, currentVal: number | null, step: number, systemVal: number) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
         const base = currentVal !== null ? currentVal : systemVal;
         const next = Math.max(0, base + step);
         handleSetCount(id, next);
@@ -139,6 +163,7 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
 
     // Bulk Actions
     const handleCopiarStockSistema = () => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
         const next: Record<string, number | null> = {};
         filteredItems.forEach(item => {
             next[item.id] = item.stockSistema;
@@ -147,6 +172,7 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
     };
 
     const handleLimpiarConteo = () => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
         const next: Record<string, number | null> = {};
         filteredItems.forEach(item => {
             next[item.id] = null;
@@ -154,34 +180,130 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
         setConteos(prev => ({ ...prev, ...next }));
     };
 
-    // Submit handler
-    const handleSubmitConciliacion = async () => {
-        const toSubmit = initialItems
-            .filter(item => conteos[item.id] !== null)
-            .map(item => ({
-                id: item.id,
-                stockConfeccion: conteos[item.id] as number,
-                diferencia: (conteos[item.id] as number) - item.stockSistema
-            }));
+    // 1. Action: Save Progress
+    const handleGuardarProgreso = () => {
+        setActionError(null);
+        setActionSuccess(null);
 
-        if (toSubmit.length === 0) {
-            alert('Por favor ingresa el conteo de al menos 1 producto antes de conciliar.');
+        const conteosArray = Object.keys(conteos).map(id => ({
+            id,
+            conteo: conteos[id]
+        }));
+
+        startTransition(async () => {
+            const res = await guardarProgresoTomaFisica(auditoria.id, conteosArray);
+            if (res.success) {
+                setActionSuccess('¡Progreso de conteo guardado con éxito!');
+                router.refresh();
+            } else {
+                setActionError(res.error || 'Error al guardar progreso.');
+            }
+        });
+    };
+
+    // 2. Action: Submit for Review
+    const handleEnviarARevision = () => {
+        setActionError(null);
+        setActionSuccess(null);
+
+        const conteosArray = Object.keys(conteos).map(id => ({
+            id,
+            conteo: conteos[id]
+        }));
+
+        const contadosCount = conteosArray.filter(c => c.conteo !== null).length;
+        if (contadosCount === 0) {
+            alert('Por favor ingresa el conteo de al menos 1 producto antes de enviar a revisión.');
             return;
         }
 
-        const confirmMsg = `¿Confirmas aplicar la conciliación de ${toSubmit.length} productos?\nEsto actualizará el inventario disponible en la base de datos ERP.`;
+        const confirmMsg = `¿Confirmas enviar a revisión esta toma con ${contadosCount} productos contados?\nEl conteo quedará bloqueado y listo para aprobación de administración.`;
         if (!confirm(confirmMsg)) return;
 
-        setIsSubmitting(true);
-        setSubmitSuccess(null);
+        startTransition(async () => {
+            // First save progress
+            const saveRes = await guardarProgresoTomaFisica(auditoria.id, conteosArray);
+            if (!saveRes.success) {
+                setActionError(saveRes.error || 'Error al guardar progreso antes de enviar.');
+                return;
+            }
 
-        const res = await conciliarTomaFisica(toSubmit, motivoNotas);
-        setIsSubmitting(false);
+            // Then submit
+            const res = await enviarARevisionTomaFisica(auditoria.id);
+            if (res.success) {
+                router.push('/inventario/toma-fisica');
+            } else {
+                setActionError(res.error || 'Error al enviar a revisión.');
+            }
+        });
+    };
 
-        if (res.success) {
-            setSubmitSuccess(`¡Conciliación aplicada con éxito! Se ajustaron ${res.totalAjustados} productos (${res.totalFaltantes} faltantes, ${res.totalSobrantes} sobrantes).`);
-        } else {
-            alert(res.error || 'Ocurrió un error al conciliar la toma física.');
+    // 3. Action: Approve Audit (Admin Only)
+    const handleAprobarAuditoria = () => {
+        setActionError(null);
+        setActionSuccess(null);
+
+        const conteosArray = Object.keys(conteos).map(id => ({
+            id,
+            conteo: conteos[id]
+        }));
+
+        const contadosCount = conteosArray.filter(c => c.conteo !== null).length;
+
+        const confirmMsg = `¿Confirmas aprobar esta auditoría (${contadosCount} items)?\nEsto aplicará el ajuste contable final y actualizará el stock disponible en el Kardex.`;
+        if (!confirm(confirmMsg)) return;
+
+        startTransition(async () => {
+            // First save progress if it was in CONTEO state
+            if (auditoria.estado === 'CONTEO') {
+                const saveRes = await guardarProgresoTomaFisica(auditoria.id, conteosArray);
+                if (!saveRes.success) {
+                    setActionError(saveRes.error || 'Error al guardar progreso antes de aprobar.');
+                    return;
+                }
+            }
+
+            const res = await aprobarTomaFisica(auditoria.id, motivoNotas);
+            if (res.success) {
+                router.push('/inventario/toma-fisica');
+            } else {
+                setActionError(res.error || 'Error al aprobar la auditoría.');
+            }
+        });
+    };
+
+    // 4. Action: Undo Audit (Admin Only)
+    const handleDeshacerAuditoria = () => {
+        setActionError(null);
+        setActionSuccess(null);
+
+        const confirmMsg = `⚠️ ¡ATENCIÓN! ¿Estás seguro de deshacer este ajuste de inventario?\nEsto restaurará el stock teórico anterior en el Kardex y anulará esta auditoría de forma permanente.`;
+        if (!confirm(confirmMsg)) return;
+
+        startTransition(async () => {
+            const res = await deshacerTomaFisica(auditoria.id);
+            if (res.success) {
+                router.push('/inventario/toma-fisica');
+            } else {
+                setActionError(res.error || 'Error al revertir la auditoría.');
+            }
+        });
+    };
+
+    const isEditable = auditoria.estado === 'CONTEO' || auditoria.estado === 'PENDIENTE_APROBACION';
+
+    const getEstadoHeaderPill = () => {
+        switch (auditoria.estado) {
+            case 'CONTEO':
+                return 'bg-blue-100 text-blue-700';
+            case 'PENDIENTE_APROBACION':
+                return 'bg-amber-100 text-amber-700';
+            case 'APROBADA':
+                return 'bg-emerald-100 text-emerald-700';
+            case 'ANULADA':
+                return 'bg-rose-100 text-rose-700';
+            default:
+                return 'bg-slate-100 text-slate-700';
         }
     };
 
@@ -192,21 +314,21 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                 <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <Link 
-                            href="/inventario" 
+                            href="/inventario/toma-fisica" 
                             className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition active:scale-95 cursor-pointer"
-                            title="Volver a Inventario"
+                            title="Volver a Auditorías"
                         >
                             <ArrowLeft className="w-5 h-5" />
                         </Link>
                         <div>
                             <div className="flex items-center gap-2">
-                                <span className="px-2.5 py-0.5 rounded-full bg-pink-100 text-pink-700 text-xs font-bold uppercase tracking-wider">
-                                    Módulo Auditoría Tablet
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider ${getEstadoHeaderPill()}`}>
+                                    Toma {auditoria.correlativo} ({auditoria.estado})
                                 </span>
                                 <span className="text-xs text-slate-400 font-medium hidden sm:inline">| Paraíso Floral</span>
                             </div>
                             <h1 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight">
-                                Toma de Inventario Físico (Auditoría Kardex)
+                                Auditoría de Inventario Físico
                             </h1>
                         </div>
                     </div>
@@ -215,7 +337,7 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                     <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs font-semibold text-slate-600 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200/60">
                         <div className="flex items-center gap-1.5">
                             <UserCheck className="w-4 h-4 text-[#0500A3]" />
-                            <span>Auditor: <strong className="text-slate-900">{usuarioNombre}</strong></span>
+                            <span>Auditor: <strong className="text-slate-900">{auditoria.creadoPor}</strong></span>
                         </div>
                         <div className="w-px h-4 bg-slate-300 hidden sm:block" />
                         <div className="flex items-center gap-1.5">
@@ -228,18 +350,15 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
 
             <div className="max-w-7xl mx-auto px-4 lg:px-8 pt-6 space-y-6">
 
-                {/* ── ALERTA ÉXITO DE CONCILIACIÓN ── */}
-                {submitSuccess && (
-                    <div className="bg-emerald-500 text-white rounded-2xl p-4 shadow-lg flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+                {/* ── MENSAJES DE ALERTA ÉXITO / ERROR ── */}
+                {actionSuccess && (
+                    <div className="bg-emerald-500 text-white rounded-2xl p-4 shadow-lg flex items-center justify-between gap-4 animate-in fade-in duration-300">
                         <div className="flex items-center gap-3">
                             <CheckCircle2 className="w-6 h-6 shrink-0" />
-                            <div>
-                                <h3 className="font-bold text-sm sm:text-base">¡Conciliación Completada!</h3>
-                                <p className="text-xs sm:text-sm text-emerald-100">{submitSuccess}</p>
-                            </div>
+                            <p className="text-sm font-bold">{actionSuccess}</p>
                         </div>
                         <button 
-                            onClick={() => setSubmitSuccess(null)}
+                            onClick={() => setActionSuccess(null)}
                             className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition"
                         >
                             Entendido
@@ -247,8 +366,23 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                     </div>
                 )}
 
-                {/* ── METRICAS / KPIS FLOTANTES ── */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4">
+                {actionError && (
+                    <div className="bg-rose-500 text-white rounded-2xl p-4 shadow-lg flex items-center justify-between gap-4 animate-in fade-in duration-300">
+                        <div className="flex items-center gap-3">
+                            <AlertTriangle className="w-6 h-6 shrink-0" />
+                            <p className="text-sm font-bold">{actionError}</p>
+                        </div>
+                        <button 
+                            onClick={() => setActionError(null)}
+                            className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition"
+                        >
+                            Cerrar
+                        </button>
+                    </div>
+                )}
+
+                {/* ── METRICAS / KPIS FLOTANTES (IMPACTO COSTO COMPLETAMENTE REMOVIDO) ── */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
                         <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                             <Package className="w-6 h-6" />
@@ -281,7 +415,7 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                         </div>
                     </div>
 
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5 col-span-2 md:col-span-1">
                         <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
                             <AlertTriangle className="w-6 h-6" />
                         </div>
@@ -292,26 +426,12 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                             </p>
                         </div>
                     </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-                            <Sparkles className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Impacto Costo</p>
-                            <p className={`text-xl sm:text-2xl font-black ${
-                                metrics.costoImpacto < 0 ? 'text-rose-600' : metrics.costoImpacto > 0 ? 'text-emerald-600' : 'text-slate-800'
-                            }`}>
-                                L {Math.abs(metrics.costoImpacto).toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                            </p>
-                        </div>
-                    </div>
                 </div>
 
-                {/* ── BARRA DE CONTROLES, FILTROS Y BOTONES MÓVILES ── */}
+                {/* ── BARRA DE CONTROLES, FILTROS Y BOTONERAS ── */}
                 <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-4">
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                        {/* Buscador de Alto Impacto */}
+                        {/* Buscador */}
                         <div className="relative flex-1 min-w-[260px]">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                             <input 
@@ -323,10 +443,9 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                             />
                         </div>
 
-                        {/* Selectores de Filtro */}
+                        {/* Filtros dropdown */}
                         <div className="flex flex-wrap items-center gap-2.5">
                             <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
-                                <Filter className="w-3.5 h-3.5 text-slate-400" />
                                 <span>Cámara:</span>
                                 <select 
                                     value={selectedArea}
@@ -370,49 +489,87 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                     {/* Botonera de Acciones Táctiles Rápida */}
                     <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
                         <div className="flex flex-wrap items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={handleCopiarStockSistema}
-                                className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 cursor-pointer"
-                                title="Pre-llenar con la cantidad teórica del Kardex"
-                            >
-                                <Copy className="w-4 h-4" />
-                                <span>Copiar Stock Kardex</span>
-                            </button>
-
-                            <button
-                                type="button"
-                                onClick={handleLimpiarConteo}
-                                className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 cursor-pointer"
-                            >
-                                <RotateCcw className="w-4 h-4" />
-                                <span>Resetear Conteo</span>
-                            </button>
-                        </div>
-
-                        {/* Botón de Conciliación Principal */}
-                        <button
-                            type="button"
-                            onClick={handleSubmitConciliacion}
-                            disabled={isSubmitting || metrics.totalCounted === 0}
-                            className={`px-6 py-3 rounded-xl text-sm font-black flex items-center gap-2.5 shadow-md transition active:scale-95 cursor-pointer ${
-                                isSubmitting || metrics.totalCounted === 0
-                                    ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none'
-                                    : 'bg-[#0500A3] hover:bg-indigo-900 text-white shadow-indigo-950/20'
-                            }`}
-                        >
-                            {isSubmitting ? (
+                            {isEditable && (
                                 <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    <span>Ajustando Kardex...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Save className="w-5 h-5" />
-                                    <span>Aprobar y Ajustar Kardex ({metrics.totalCounted})</span>
+                                    <button
+                                        type="button"
+                                        onClick={handleCopiarStockSistema}
+                                        className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 cursor-pointer"
+                                    >
+                                        <Copy className="w-4 h-4" />
+                                        <span>Copiar Stock Kardex</span>
+                                    </button>
+
+                                    <button
+                                        type="button"
+                                        onClick={handleLimpiarConteo}
+                                        className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 cursor-pointer"
+                                    >
+                                        <RotateCcw className="w-4 h-4" />
+                                        <span>Resetear Conteo</span>
+                                    </button>
                                 </>
                             )}
-                        </button>
+                        </div>
+
+                        {/* Botones de acción principales según estado y rol */}
+                        <div className="flex items-center gap-2">
+                            {/* Actions for CONTEO / PENDIENTE (Editable) */}
+                            {isEditable && (
+                                <>
+                                    <button
+                                        onClick={handleGuardarProgreso}
+                                        disabled={isPending}
+                                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                                    >
+                                        <Save className="w-4 h-4" />
+                                        <span>Guardar Progreso</span>
+                                    </button>
+
+                                    {/* Helper triggers Submit to Review */}
+                                    <button
+                                        onClick={handleEnviarARevision}
+                                        disabled={isPending}
+                                        className="px-4 py-2.5 bg-[#0500A3] hover:bg-indigo-900 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                                    >
+                                        <Check className="w-4 h-4" />
+                                        <span>Enviar a Revisión</span>
+                                    </button>
+
+                                    {/* Admin triggers direct Approval */}
+                                    {isAdmin && (
+                                        <button
+                                            onClick={handleAprobarAuditoria}
+                                            disabled={isPending || metrics.totalCounted === 0}
+                                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md shadow-emerald-700/10 flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                                        >
+                                            {isPending ? (
+                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                            ) : (
+                                                <CheckCircle2 className="w-4 h-4" />
+                                            )}
+                                            <span>Aprobar y Ajustar Kardex ({metrics.totalCounted})</span>
+                                        </button>
+                                    )}
+                                </>
+                            )}
+
+                            {/* Undo Action (Only for APROBADA state and ADMINS) */}
+                            {auditoria.estado === 'APROBADA' && isAdmin && (
+                                <button
+                                    onClick={handleDeshacerAuditoria}
+                                    disabled={isPending}
+                                    className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                                >
+                                    {isPending ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Undo2 className="w-4 h-4" />
+                                    )}
+                                    <span>Deshacer Ajuste (Revertir)</span>
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -505,28 +662,30 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                                                     </div>
                                                 </td>
 
-                                                {/* STOCK KARDEX (Teórico en Sistema) */}
+                                                {/* STOCK KARDEX */}
                                                 <td className="py-4 px-4 text-center bg-slate-50 font-mono text-base font-black text-slate-700 border-x border-slate-200/60">
                                                     {item.stockSistema} <span className="text-xs font-normal text-slate-400">paq</span>
                                                 </td>
 
-                                                {/* P. NUEVO (Conteo Físico Real - BOTONERA TÁCTIL) */}
+                                                {/* CONTEO EN PISO (Tactil) */}
                                                 <td className="py-4 px-6 text-center bg-pink-50/50 border-x border-pink-200/60">
                                                     <div className="flex items-center justify-center gap-1.5 sm:gap-2">
                                                         {/* Botón Restar -1 */}
                                                         <button
                                                             type="button"
+                                                            disabled={!isEditable}
                                                             onClick={() => handleStepCount(item.id, count, -1, item.stockSistema)}
-                                                            className="w-11 h-11 rounded-xl bg-white border border-slate-300 text-slate-800 font-black text-lg hover:bg-slate-100 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer"
+                                                            className="w-11 h-11 rounded-xl bg-white border border-slate-300 text-slate-800 font-black text-lg hover:bg-slate-100 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                                             title="Restar 1"
                                                         >
                                                             -1
                                                         </button>
 
-                                                        {/* Input Numérico Amplio */}
+                                                        {/* Input Numérico */}
                                                         <input 
                                                             type="number"
                                                             min="0"
+                                                            disabled={!isEditable}
                                                             value={count === null ? '' : count}
                                                             onChange={(e) => {
                                                                 const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
@@ -537,14 +696,15 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                                                                 isCounted 
                                                                     ? 'bg-white border-[#0500A3] text-slate-900 shadow-sm' 
                                                                     : 'bg-white/80 border-slate-300 text-slate-500 placeholder-slate-300'
-                                                            }`}
+                                                            } disabled:bg-slate-100 disabled:text-slate-500`}
                                                         />
 
                                                         {/* Botón Sumar +1 */}
                                                         <button
                                                             type="button"
+                                                            disabled={!isEditable}
                                                             onClick={() => handleStepCount(item.id, count, 1, item.stockSistema)}
-                                                            className="w-11 h-11 rounded-xl bg-pink-600 text-white font-black text-lg hover:bg-pink-700 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer"
+                                                            className="w-11 h-11 rounded-xl bg-pink-600 text-white font-black text-lg hover:bg-pink-700 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                                                             title="Sumar 1"
                                                         >
                                                             +1
@@ -553,8 +713,9 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                                                         {/* Botón Atajo +5 */}
                                                         <button
                                                             type="button"
+                                                            disabled={!isEditable}
                                                             onClick={() => handleStepCount(item.id, count, 5, item.stockSistema)}
-                                                            className="w-10 h-11 rounded-xl bg-pink-100 border border-pink-200 text-pink-700 font-bold text-xs hover:bg-pink-200 active:scale-95 flex items-center justify-center shrink-0 cursor-pointer hidden sm:flex"
+                                                            className="w-10 h-11 rounded-xl bg-pink-100 border border-pink-200 text-pink-700 font-bold text-xs hover:bg-pink-200 active:scale-95 flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed hidden sm:flex"
                                                             title="Sumar 5"
                                                         >
                                                             +5
@@ -562,7 +723,7 @@ export default function TomaFisicaClient({ initialItems, usuarioNombre }: TomaFi
                                                     </div>
                                                 </td>
 
-                                                {/* DIFERENCIA (Variancia Badge) */}
+                                                {/* DIFERENCIA */}
                                                 <td className="py-4 px-5 text-center">
                                                     {!isCounted ? (
                                                         <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-400 text-xs font-semibold">

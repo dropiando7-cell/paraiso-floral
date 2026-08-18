@@ -1,28 +1,28 @@
 import React from 'react';
-import TomaFisicaClient from './TomaFisicaClient';
-import { getDatosTomaFisica } from './actions';
+import AuditoriasListClient from './AuditoriasListClient';
+import { getAuditoriasInventario } from './actions';
 
 export const metadata = {
-    title: 'Toma de Inventario Físico | Paraíso Floral',
-    description: 'Módulo táctil para conteo y conciliación física de cuartos fríos',
+    title: 'Auditorías de Inventario Físico | Paraíso Floral',
+    description: 'Historial y control de tomas físicas de flores en cuartos fríos',
 };
 
-export default async function TomaFisicaPage() {
-    const data = await getDatosTomaFisica();
+export default async function TomaFisicaListPage() {
+    const data = await getAuditoriasInventario();
 
     if (!data.success) {
         return (
             <div className="p-8 text-center">
-                <h1 className="text-xl font-bold text-red-600">Error cargando inventario</h1>
+                <h1 className="text-xl font-bold text-red-600">Error cargando auditorías</h1>
                 <p className="text-slate-500 mt-2">{data.error}</p>
             </div>
         );
     }
 
     return (
-        <TomaFisicaClient 
-            initialItems={data.items || []} 
-            usuarioNombre={data.usuarioNombre || 'Auditor'} 
+        <AuditoriasListClient 
+            initialAuditorias={data.auditorias || []} 
+            isAdmin={data.isAdmin || false}
         />
     );
 }

@@ -26,6 +26,7 @@ model Organization {
   invoiceSettings       Json?
   invoiceTemplates      Json?
   activosFijos          ActivoFijo[]
+  auditorias            AuditoriaInventario[]
   areaInventoryStatuses AreaInventoryStatus[]
   areas                 Area[]
   calendarIntegrations  CalendarIntegration[]
@@ -167,6 +168,8 @@ model User {
   mantenimientosRealizados Mantenimiento[]     @relation("MantenimientosRealizados")
   pagosClientesCreados     PagoCliente[]       @relation("PagoClienteCreado")
   notasCreditoCreadas      NotaCreditoCliente[] @relation("NotaCreditoCreada")
+  auditoriasCreadas        AuditoriaInventario[] @relation("AuditoriaCreadoPor")
+  auditoriasAprobadas      AuditoriaInventario[] @relation("AuditoriaAprobadoPor")
 
   @@map("users")
 }
@@ -468,6 +471,7 @@ model ActivoFijo {
   clienteId             String?              @db.Uuid
   cliente               Cliente?             @relation("ActivoCliente", fields: [clienteId], references: [id])
   ordenesTrabajo        OrdenTrabajo[]
+  auditoriasDetalle     AuditoriaDetalle[]
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -696,6 +700,7 @@ model Cliente {
   emailsCC         String?
   limiteCredito      Decimal        @default(0) @db.Decimal(12, 2)
   saldoInicial       Decimal        @default(0) @db.Decimal(12, 2)
+  fechaSaldoInicial  DateTime?
   diasCredito        Int            @default(15)
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
@@ -1670,6 +1675,44 @@ model NotaCreditoCliente {
   @@index([clienteId])
   @@index([fecha])
   @@map("notas_credito_cliente")
+}
+
+model AuditoriaInventario {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String             @db.Uuid
+  correlativo    String
+  estado         String             @default("CONTEO") // CONTEO, PENDIENTE_APROBACION, APROBADA, ANULADA
+  notas          String?
+  creadoPorId    String?            @db.Uuid
+  aprobadoPorId  String?            @db.Uuid
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  
+  creadoPor      User?              @relation("AuditoriaCreadoPor", fields: [creadoPorId], references: [id])
+  aprobadoPor    User?              @relation("AuditoriaAprobadoPor", fields: [aprobadoPorId], references: [id])
+  organization   Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  detalles       AuditoriaDetalle[]
+
+  @@unique([organizationId, correlativo])
+  @@index([organizationId])
+  @@map("auditorias_inventario")
+}
+
+model AuditoriaDetalle {
+  id                  String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  auditoriaId         String              @db.Uuid
+  activoFijoId        String              @db.Uuid
+  stockSistema        Int
+  conteoFisico        Int?
+  diferencia          Int?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  auditoria           AuditoriaInventario @relation(fields: [auditoriaId], references: [id], onDelete: Cascade)
+  activoFijo          ActivoFijo          @relation(fields: [activoFijoId], references: [id], onDelete: Cascade)
+
+  @@index([auditoriaId])
+  @@map("auditorias_detalle")
 }
 
 

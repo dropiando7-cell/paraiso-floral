@@ -167,11 +167,12 @@ export async function deleteContacto(id: string) {
     return true;
 }
 
-export async function updateSaldoInicialCliente(clienteId: string, nuevoSaldoInicial: number, notas?: string) {
+export async function updateSaldoInicialCliente(clienteId: string, nuevoSaldoInicial: number, notas?: string, fecha?: Date | null) {
     const updated = await prisma.cliente.update({
         where: { id: clienteId },
         data: {
             saldoInicial: nuevoSaldoInicial,
+            fechaSaldoInicial: fecha || null,
             ...(notas ? { notas: notas.trim() } : {})
         }
     });
@@ -181,6 +182,7 @@ export async function updateSaldoInicialCliente(clienteId: string, nuevoSaldoIni
     revalidatePath('/contactos');
     return {
         success: true,
-        saldoInicial: Number(updated.saldoInicial)
+        saldoInicial: Number(updated.saldoInicial),
+        fechaSaldoInicial: updated.fechaSaldoInicial
     };
 }

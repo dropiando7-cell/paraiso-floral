@@ -11,12 +11,14 @@ interface ModalSaldoInicialProps {
     id: string;
     nombre: string;
     saldoInicial?: number;
+    fechaSaldoInicial?: string | Date | null;
   } | null;
   onSuccess: () => void;
 }
 
 export default function ModalSaldoInicial({ isOpen, onClose, cliente, onSuccess }: ModalSaldoInicialProps) {
   const [saldoInicial, setSaldoInicial] = useState<string>('0');
+  const [fecha, setFecha] = useState<string>('');
   const [notas, setNotas] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,6 +27,20 @@ export default function ModalSaldoInicial({ isOpen, onClose, cliente, onSuccess 
     if (cliente) {
       setSaldoInicial(cliente.saldoInicial ? String(cliente.saldoInicial) : '0');
       setNotas('');
+      
+      if (cliente.fechaSaldoInicial) {
+        const d = new Date(cliente.fechaSaldoInicial);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        setFecha(`${yyyy}-${mm}-${dd}`);
+      } else {
+        const d = new Date();
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        setFecha(`${yyyy}-${mm}-${dd}`);
+      }
       setError(null);
     }
   }, [cliente]);
@@ -38,7 +54,8 @@ export default function ModalSaldoInicial({ isOpen, onClose, cliente, onSuccess 
 
     try {
       const numSaldo = parseFloat(saldoInicial.replace(/,/g, '')) || 0;
-      await updateSaldoInicialCliente(cliente.id, numSaldo, notas);
+      const parsedFecha = fecha ? new Date(fecha + 'T12:00:00') : null;
+      await updateSaldoInicialCliente(cliente.id, numSaldo, notas, parsedFecha);
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -99,6 +116,22 @@ export default function ModalSaldoInicial({ isOpen, onClose, cliente, onSuccess 
             </div>
             <p className="text-[10px] text-amber-800 font-medium italic mt-1">
               * Este monto se sumará a la cartera de CxC del cliente y se reducirá automáticamente al aplicar abonos o notas de crédito.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
+              Fecha del Saldo Inicial <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="date"
+              required
+              value={fecha}
+              onChange={e => setFecha(e.target.value)}
+              className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 text-sm font-bold focus:ring-2 focus:ring-amber-500 focus:bg-white outline-none transition-all"
+            />
+            <p className="text-[10px] text-slate-500 font-medium italic mt-1">
+              Establece la fecha histórica en la que se originó esta deuda previa del cliente.
             </p>
           </div>
 

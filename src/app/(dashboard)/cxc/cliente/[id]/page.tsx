@@ -33,6 +33,7 @@ interface ClienteDetalle {
     rtn: string | null;
     limiteCredito: number;
     saldoInicial?: number;
+    fechaSaldoInicial?: string | Date | null;
     diasCredito: number;
   };
   resumen: {
@@ -160,7 +161,7 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
     if (data.cliente.saldoInicial && data.cliente.saldoInicial > 0) {
       list.push({
         id: 'saldo-inicial-excel',
-        fecha: new Date('2026-01-01'),
+        fecha: data.cliente.fechaSaldoInicial ? new Date(data.cliente.fechaSaldoInicial) : new Date('2026-01-01'),
         tipo: 'SALDO_INICIAL',
         documento: 'SALDO INICIAL EXCEL',
         detalles: 'Carga de deuda previa registrada de libreta Excel',
