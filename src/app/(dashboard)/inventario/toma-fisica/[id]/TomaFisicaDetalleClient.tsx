@@ -170,6 +170,23 @@ export default function TomaFisicaDetalleClient({
 
     // UI state
     const [motivoNotas, setMotivoNotas] = useState('');
+    const [confirmModal, setConfirmModal] = useState<{
+        isOpen: boolean;
+        type: 'revision' | 'aprobar' | 'deshacer' | null;
+        title: string;
+        message: string;
+        confirmText: string;
+        cancelText: string;
+        onConfirm: () => void;
+    }>({
+        isOpen: false,
+        type: null,
+        title: '',
+        message: '',
+        confirmText: '',
+        cancelText: '',
+        onConfirm: () => {}
+    });
     const [actionSuccess, setActionSuccess] = useState<string | null>(null);
     const [actionError, setActionError] = useState<string | null>(null);
 
@@ -483,24 +500,33 @@ export default function TomaFisicaDetalleClient({
             return;
         }
 
-        const confirmMsg = `¿Confirmas enviar a revisión esta toma con ${contadosCount} registros contados?\nEl conteo quedará bloqueado y listo para aprobación de administración.`;
-        if (!confirm(confirmMsg)) return;
+        const executeSubmission = () => {
+            startTransition(async () => {
+                // First save progress
+                const saveRes = await guardarProgresoTomaFisica(auditoria.id, submissionList);
+                if (!saveRes.success) {
+                    setActionError(saveRes.error || 'Error al guardar progreso antes de enviar.');
+                    return;
+                }
 
-        startTransition(async () => {
-            // First save progress
-            const saveRes = await guardarProgresoTomaFisica(auditoria.id, submissionList);
-            if (!saveRes.success) {
-                setActionError(saveRes.error || 'Error al guardar progreso antes de enviar.');
-                return;
-            }
+                // Then submit
+                const res = await enviarARevisionTomaFisica(auditoria.id);
+                if (res.success) {
+                    router.push('/inventario/toma-fisica');
+                } else {
+                    setActionError(res.error || 'Error al enviar a revisión.');
+                }
+            });
+        };
 
-            // Then submit
-            const res = await enviarARevisionTomaFisica(auditoria.id);
-            if (res.success) {
-                router.push('/inventario/toma-fisica');
-            } else {
-                setActionError(res.error || 'Error al enviar a revisión.');
-            }
+        setConfirmModal({
+            isOpen: true,
+            type: 'revision',
+            title: 'Enviar Conteo a Revisión',
+            message: `¿Confirmas enviar a revisión esta toma con ${contadosCount} registros contados? El conteo quedará bloqueado y listo para la aprobación de la gerencia.`,
+            confirmText: 'Sí, Enviar a Revisión',
+            cancelText: 'Cancelar',
+            onConfirm: executeSubmission
         });
     };
 
@@ -512,25 +538,34 @@ export default function TomaFisicaDetalleClient({
         const submissionList = getSubmissionData();
         const contadosCount = submissionList.filter(c => c.conteo !== null).length;
 
-        const confirmMsg = `¿Confirmas aprobar esta auditoría (${contadosCount} registros)?\nEsto aplicará el ajuste contable final y actualizará el stock disponible en el Kardex.`;
-        if (!confirm(confirmMsg)) return;
-
-        startTransition(async () => {
-            // First save progress if it was in CONTEO state
-            if (auditoria.estado === 'CONTEO') {
-                const saveRes = await guardarProgresoTomaFisica(auditoria.id, submissionList);
-                if (!saveRes.success) {
-                    setActionError(saveRes.error || 'Error al guardar progreso antes de aprobar.');
-                    return;
+        const executeApproval = () => {
+            startTransition(async () => {
+                // First save progress if it was in CONTEO state
+                if (auditoria.estado === 'CONTEO') {
+                    const saveRes = await guardarProgresoTomaFisica(auditoria.id, submissionList);
+                    if (!saveRes.success) {
+                        setActionError(saveRes.error || 'Error al guardar progreso antes de aprobar.');
+                        return;
+                    }
                 }
-            }
 
-            const res = await aprobarTomaFisica(auditoria.id, motivoNotas);
-            if (res.success) {
-                router.push('/inventario/toma-fisica');
-            } else {
-                setActionError(res.error || 'Error al aprobar la auditoría.');
-            }
+                const res = await aprobarTomaFisica(auditoria.id, motivoNotas);
+                if (res.success) {
+                    router.push('/inventario/toma-fisica');
+                } else {
+                    setActionError(res.error || 'Error al aprobar la auditoría.');
+                }
+            });
+        };
+
+        setConfirmModal({
+            isOpen: true,
+            type: 'aprobar',
+            title: 'Aprobar Auditoría y Ajustar Kardex',
+            message: `¿Confirmas aprobar esta auditoría (${contadosCount} registros)? Esto aplicará el ajuste contable final y actualizará el stock disponible en el Kardex.`,
+            confirmText: 'Aprobar y Ajustar',
+            cancelText: 'Cancelar',
+            onConfirm: executeApproval
         });
     };
 
@@ -539,16 +574,25 @@ export default function TomaFisicaDetalleClient({
         setActionError(null);
         setActionSuccess(null);
 
-        const confirmMsg = `⚠️ ¡ATENCIÓN! ¿Estás seguro de deshacer este ajuste de inventario?\nEsto restaurará el stock teórico anterior en el Kardex y anulará esta auditoría de forma permanente.`;
-        if (!confirm(confirmMsg)) return;
+        const executeReversion = () => {
+            startTransition(async () => {
+                const res = await deshacerTomaFisica(auditoria.id);
+                if (res.success) {
+                    router.push('/inventario/toma-fisica');
+                } else {
+                    setActionError(res.error || 'Error al revertir la auditoría.');
+                }
+            });
+        };
 
-        startTransition(async () => {
-            const res = await deshacerTomaFisica(auditoria.id);
-            if (res.success) {
-                router.push('/inventario/toma-fisica');
-            } else {
-                setActionError(res.error || 'Error al revertir la auditoría.');
-            }
+        setConfirmModal({
+            isOpen: true,
+            type: 'deshacer',
+            title: '⚠️ Revertir Ajuste de Inventario',
+            message: '¡ATENCIÓN! ¿Estás seguro de deshacer este ajuste de inventario? Esto restaurará el stock teórico anterior en el Kardex y anulará esta auditoría de forma permanente.',
+            confirmText: 'Sí, Deshacer y Revertir',
+            cancelText: 'Cancelar',
+            onConfirm: executeReversion
         });
     };
 
@@ -1157,6 +1201,104 @@ export default function TomaFisicaDetalleClient({
                     </div>
                 </div>
             </div>
+
+            {/* ── MODAL DE CONFIRMACIÓN MODERNO ── */}
+            {confirmModal.isOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col animate-in zoom-in-95 duration-200 border border-slate-100">
+                        {/* Header icon / Color bar */}
+                        <div className={`h-2.5 w-full ${
+                            confirmModal.type === 'deshacer' 
+                                ? 'bg-gradient-to-r from-rose-500 to-red-600' 
+                                : confirmModal.type === 'aprobar'
+                                    ? 'bg-gradient-to-r from-emerald-500 to-teal-600'
+                                    : 'bg-gradient-to-r from-blue-500 to-indigo-600'
+                        }`} />
+
+                        <div className="p-6 sm:p-8 space-y-6">
+                            <div className="flex items-start gap-4">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${
+                                    confirmModal.type === 'deshacer'
+                                        ? 'bg-rose-50 text-rose-600'
+                                        : confirmModal.type === 'aprobar'
+                                            ? 'bg-emerald-50 text-emerald-600'
+                                            : 'bg-blue-50 text-blue-600'
+                                }`}>
+                                    {confirmModal.type === 'deshacer' && <AlertTriangle className="w-6 h-6" />}
+                                    {confirmModal.type === 'aprobar' && <CheckCircle2 className="w-6 h-6" />}
+                                    {confirmModal.type === 'revision' && <Package className="w-6 h-6" />}
+                                </div>
+                                <div className="space-y-1.5">
+                                    <h3 className="text-xl font-black text-slate-900 tracking-tight">
+                                        {confirmModal.title}
+                                    </h3>
+                                    <p className="text-sm font-semibold text-slate-500 leading-relaxed">
+                                        {confirmModal.message}
+                                    </p>
+                                </div>
+                            </div>
+
+                            {/* Additional Field: Textarea for approvals only */}
+                            {confirmModal.type === 'aprobar' && (
+                                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/60 space-y-2.5">
+                                    <label htmlFor="modal-motivo" className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
+                                        Notas / Motivo del Ajuste (Opcional)
+                                    </label>
+                                    <textarea
+                                        id="modal-motivo"
+                                        rows={3}
+                                        value={motivoNotas}
+                                        onChange={(e) => setMotivoNotas(e.target.value)}
+                                        placeholder="Ej. Ajuste de stock mensual para cuadrar conteo físico en cuarto frío."
+                                        className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0500A3]/10 focus:border-[#0500A3] transition-all resize-none"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Danger Warning Alert for undo action */}
+                            {confirmModal.type === 'deshacer' && (
+                                <div className="bg-rose-50 p-4.5 rounded-2xl border border-rose-100 flex gap-3 text-rose-800 text-xs font-semibold">
+                                    <AlertTriangle className="w-5 h-5 shrink-0 text-rose-600" />
+                                    <div>
+                                        <h4 className="font-bold text-rose-900 uppercase tracking-wider text-[10px] mb-0.5">Atención Crítica</h4>
+                                        <p className="leading-relaxed">Esta acción es irreversible y restablecerá el inventario completo previo a esta auditoría, eliminando todo el historial de movimientos de ajuste.</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Actions Botonera */}
+                            <div className="flex items-center justify-end gap-3 pt-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                                    className="px-5 py-3 border border-slate-200 text-slate-600 hover:bg-slate-50 active:scale-95 text-xs font-extrabold rounded-xl transition cursor-pointer"
+                                >
+                                    {confirmModal.cancelText}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+                                        confirmModal.onConfirm();
+                                    }}
+                                    className={`px-6 py-3 text-white active:scale-95 text-xs font-extrabold rounded-xl shadow-md transition cursor-pointer flex items-center gap-2 ${
+                                        confirmModal.type === 'deshacer'
+                                            ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-500/10'
+                                            : confirmModal.type === 'aprobar'
+                                                ? 'bg-emerald-600 hover:bg-emerald-700 shadow-emerald-500/10'
+                                                : 'bg-[#0500A3] hover:bg-indigo-900 shadow-indigo-500/10'
+                                    }`}
+                                >
+                                    {confirmModal.type === 'deshacer' && <Undo2 className="w-4 h-4" />}
+                                    {confirmModal.type === 'aprobar' && <Check className="w-4 h-4" />}
+                                    {confirmModal.type === 'revision' && <Check className="w-4 h-4" />}
+                                    <span>{confirmModal.confirmText}</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
