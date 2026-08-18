@@ -4,8 +4,8 @@ const ensureConnectionConfig = (url: string | undefined) => {
     if (!url) return url;
     if (url.includes('connection_limit=')) return url;
     return url.includes('?') 
-        ? `${url}&connection_limit=1&pool_timeout=15` 
-        : `${url}?connection_limit=1&pool_timeout=15`;
+        ? `${url}&connection_limit=10&pool_timeout=15` 
+        : `${url}?connection_limit=10&pool_timeout=15`;
 };
 
 const prismaClientSingleton = () => {
