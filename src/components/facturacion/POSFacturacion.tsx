@@ -5,7 +5,7 @@ import {
   Search, Plus, Minus, Trash2, Printer, X, Monitor, Zap, User, CreditCard, 
   Banknote, ShoppingCart, CheckCircle2, QrCode, LayoutGrid, List, Grid3X3, 
   ArrowDownCircle, FileText, Keyboard, Save, ArrowLeft, UserPlus, UserCheck, 
-  Loader2, Building2, Phone, Mail, MapPin, Sparkles, FileBadge, Receipt, ZoomIn, ZoomOut, Eye, Pencil
+  Loader2, Building2, Phone, Mail, MapPin, Sparkles, FileBadge, Receipt, ZoomIn, ZoomOut, Eye, Pencil, Star, Flame, Clock
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -37,6 +37,7 @@ interface CartItem extends POSProduct {
 export interface POSFacturaPayload {
   clienteNombre: string;
   clienteId?: string;
+  diasCredito?: number;
   subTotal: number;
   descuentos: number;
   totalExento: number;
@@ -100,9 +101,40 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [cart, setCart] = useState<CartItem[]>([]);
 
+  // Favorites & Sales Counter State
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [salesCount, setSalesCount] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedFavs = localStorage.getItem('paraiso_pos_favorites');
+        if (savedFavs) setFavorites(JSON.parse(savedFavs));
+
+        const savedSales = localStorage.getItem('paraiso_pos_sales_count');
+        if (savedSales) setSalesCount(JSON.parse(savedSales));
+      } catch (e) {
+        console.error('Error loading POS favorites/sales:', e);
+      }
+    }
+  }, []);
+
+  const toggleFavorite = (productId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setFavorites(prev => {
+      const isFav = prev.includes(productId);
+      const updated = isFav ? prev.filter(id => id !== productId) : [...prev, productId];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('paraiso_pos_favorites', JSON.stringify(updated));
+      }
+      toast.success(isFav ? 'Removido de favoritos' : '⭐ Agregado a favoritos');
+      return updated;
+    });
+  };
+
   // Client Selection & Creation State
   const [clientName, setClientName] = useState('CONSUMIDOR FINAL');
-  const [selectedClient, setSelectedClient] = useState<{ id?: string; nombre: string; rtn?: string; telefono?: string; email?: string } | null>(null);
+  const [selectedClient, setSelectedClient] = useState<{ id?: string; nombre: string; rtn?: string; telefono?: string; email?: string; diasCredito?: number; limiteCredito?: number } | null>(null);
   
   const [clientSearchResults, setClientSearchResults] = useState<any[]>([]);
   const [isSearchingClients, setIsSearchingClients] = useState(false);
@@ -171,6 +203,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   const [lastFacturaId, setLastFacturaId] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('Efectivo');
+  const [customCreditDays, setCustomCreditDays] = useState<number>(15);
   const [selectedBank, setSelectedBank] = useState<string | null>('ficohsa');
   const [showAllBanks, setShowAllBanks] = useState(false);
   const [cashTendered, setCashTendered] = useState<string>('');
@@ -240,11 +273,25 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
   const handleSelectClient = (c: any) => {
     const upperName = c.nombre ? c.nombre.toUpperCase() : 'CONSUMIDOR FINAL';
+    const days = c.diasCredito !== undefined && c.diasCredito !== null ? Number(c.diasCredito) : 15;
+    const clientObj = { 
+      ...c, 
+      nombre: upperName,
+      diasCredito: days,
+      limiteCredito: c.limiteCredito !== undefined && c.limiteCredito !== null ? Number(c.limiteCredito) : 0
+    };
     setClientName(upperName);
-    setSelectedClient({ ...c, nombre: upperName });
+    setSelectedClient(clientObj);
+    setCustomCreditDays(days);
     setShowClientDropdown(false);
-    toast.success(`Cliente "${upperName}" seleccionado`);
+    toast.success(`Cliente "${upperName}" seleccionado (${days} días plazo)`);
   };
+
+  useEffect(() => {
+    if (selectedClient && selectedClient.diasCredito !== undefined && selectedClient.diasCredito !== null) {
+      setCustomCreditDays(Number(selectedClient.diasCredito));
+    }
+  }, [selectedClient]);
 
   const handleResetToConsumidorFinal = () => {
     setClientName('CONSUMIDOR FINAL');
@@ -359,14 +406,42 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     }
   };
 
-  // Computed: Products Filtered
+  // Computed: Products Filtered & Ranked
   const filteredProducts = useMemo(() => {
-    return localProducts.filter(p => {
-      const matchSearch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || p.sku.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchCat = activeCategory === 'all' || true;
-      return matchSearch && matchCat;
+    let list = localProducts.filter(p => {
+      const matchSearch = p.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                          p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+      if (!matchSearch) return false;
+
+      if (activeCategory === 'favorites') {
+        return favorites.includes(p.id);
+      }
+      if (activeCategory === 'popular') {
+        return (salesCount[p.id] || 0) > 0;
+      }
+      return true;
     });
-  }, [localProducts, searchTerm, activeCategory]);
+
+    // Auto-ranking:
+    // 1. Favorites pinned first
+    // 2. Highest salesCount second
+    // 3. Alphabetical third
+    return list.sort((a, b) => {
+      const isFavA = favorites.includes(a.id) ? 1 : 0;
+      const isFavB = favorites.includes(b.id) ? 1 : 0;
+      if (isFavA !== isFavB) {
+        return isFavB - isFavA;
+      }
+
+      const countA = salesCount[a.id] || 0;
+      const countB = salesCount[b.id] || 0;
+      if (countA !== countB) {
+        return countB - countA;
+      }
+
+      return a.nombre.localeCompare(b.nombre);
+    });
+  }, [localProducts, searchTerm, activeCategory, favorites, salesCount]);
 
   const pagedProducts = useMemo(() => {
     return filteredProducts.slice(0, visibleCount);
@@ -457,6 +532,71 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     setCart(prev => prev.map(i => i.cartId === cartId ? { ...i, taxState: newTax } : i));
   };
 
+  const setBulkTaxRate = (newTax: 'isv15' | 'isv18' | 'exento' | 'exonerado') => {
+    if (cart.length === 0) return;
+    setCart(prev => prev.map(i => ({ ...i, taxState: newTax })));
+    const labels: Record<string, string> = {
+      exento: 'EXENTO',
+      exonerado: 'EXONERADO',
+      isv15: '+15% ISV',
+      isv18: '+18% ISV'
+    };
+    toast.success(`Impuesto "${labels[newTax]}" aplicado a todos los ${cart.length} ítems`);
+  };
+
+  const renderBulkTaxBar = () => {
+    if (cart.length === 0) return null;
+
+    return (
+      <div className="bg-slate-100/90 border border-slate-200/90 rounded-xl p-2 mb-3 flex flex-col gap-1.5 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
+            <span>⚡ Impuesto Masivo ({cart.length} ítems)</span>
+          </span>
+          <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">1-Clic</span>
+        </div>
+
+        <div className="grid grid-cols-4 gap-1">
+          <button
+            type="button"
+            onClick={() => setBulkTaxRate('isv15')}
+            className="py-1 px-1 bg-white hover:bg-emerald-50 hover:text-emerald-700 active:scale-95 text-slate-700 font-black text-[10px] rounded-lg border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer"
+            title="Aplicar +15% ISV a todos los ítems del ticket"
+          >
+            +15% ISV
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setBulkTaxRate('exento')}
+            className="py-1 px-1 bg-white hover:bg-amber-50 hover:text-amber-700 active:scale-95 text-slate-700 font-black text-[10px] rounded-lg border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer"
+            title="Aplicar EXENTO a todos los ítems del ticket"
+          >
+            EXENTO
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setBulkTaxRate('exonerado')}
+            className="py-1 px-1 bg-white hover:bg-blue-50 hover:text-blue-700 active:scale-95 text-slate-700 font-black text-[10px] rounded-lg border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer"
+            title="Aplicar EXONERADO a todos los ítems del ticket"
+          >
+            EXONERADO
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setBulkTaxRate('isv18')}
+            className="py-1 px-1 bg-white hover:bg-purple-50 hover:text-purple-700 active:scale-95 text-slate-700 font-black text-[10px] rounded-lg border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer"
+            title="Aplicar +18% ISV a todos los ítems del ticket"
+          >
+            +18% ISV
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const removeLine = (cartId: string) => {
     setCart(prev => prev.filter(i => i.cartId !== cartId));
   };
@@ -476,6 +616,8 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
     const payload: POSFacturaPayload = {
       clienteNombre: clientName,
+      clienteId: selectedClient?.id,
+      diasCredito: paymentMethod === 'Crédito' ? customCreditDays : 0,
       subTotal: totals.subTotal,
       descuentos: totals.descuentos,
       totalExento: totals.exento,
@@ -505,7 +647,18 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       setLastFacturaId(res.facturaId || null);
       setShowCheckout(false);
       setShowSuccess(true);
-      // Cart text is not cleared yet to allow ticket to calculate correctly
+
+      // Auto-increment sales count for top products ranking
+      setSalesCount(prev => {
+        const updated = { ...prev };
+        cart.forEach(item => {
+          updated[item.id] = (updated[item.id] || 0) + item.qty;
+        });
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('paraiso_pos_sales_count', JSON.stringify(updated));
+        }
+        return updated;
+      });
     } else {
       alert("Error: " + res.error);
     }
@@ -822,22 +975,51 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
         <div className="flex-1 flex flex-col min-w-0 bg-[#F8F9FB] overflow-hidden w-full">
           
           <div className="py-2 sm:py-4 px-2 sm:px-6 flex items-center justify-between border-b border-gray-100 bg-white/50 backdrop-blur shrink-0 z-10">
-            <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-               <button
-                 onClick={() => setActiveCategory('all')}
-                 className="px-3 sm:px-5 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold bg-indigo-600 text-white shadow-md shadow-indigo-600/20 whitespace-nowrap"
-               >
-                 Todos los artículos
-               </button>
-               <button
-                 type="button"
-                 onClick={() => setShowAddProductModal(true)}
-                 className="px-3 py-1.5 sm:py-2.5 rounded-full text-xs sm:text-sm font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 whitespace-nowrap flex items-center gap-1 active:scale-95 transition-transform"
-               >
-                 <Plus size={14} />
-                 <span>+ Nueva Flor</span>
-               </button>
-            </div>
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+                <button
+                  onClick={() => setActiveCategory('all')}
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap ${
+                    activeCategory === 'all'
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 font-black'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  Todos los artículos
+                </button>
+
+                <button
+                  onClick={() => setActiveCategory('favorites')}
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
+                    activeCategory === 'favorites'
+                      ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20 font-black'
+                      : 'bg-white text-amber-700 border border-amber-200 hover:bg-amber-50'
+                  }`}
+                >
+                  <Star size={13} className="fill-amber-400 text-amber-500" />
+                  <span>Favoritos ({favorites.length})</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveCategory('popular')}
+                  className={`px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex items-center gap-1 ${
+                    activeCategory === 'popular'
+                      ? 'bg-rose-600 text-white shadow-md shadow-rose-600/20 font-black'
+                      : 'bg-white text-rose-700 border border-rose-200 hover:bg-rose-50'
+                  }`}
+                >
+                  <Flame size={13} className="text-rose-500 fill-rose-500" />
+                  <span>Más Vendidos</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAddProductModal(true)}
+                  className="px-3 py-1.5 sm:py-2 rounded-full text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 whitespace-nowrap flex items-center gap-1 active:scale-95 transition-transform"
+                >
+                  <Plus size={14} />
+                  <span>+ Nueva Flor</span>
+                </button>
+             </div>
 
             {/* Layout Toggles */}
             <div className="bg-white rounded-xl border border-gray-200 p-1 flex items-center shadow-sm shrink-0">
@@ -863,15 +1045,39 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
               {pagedProducts.map(p => {
                 const qtyInCart = getItemCartQty(p.id);
                 const isAnimating = animatingProductId === p.id;
+                const isFav = favorites.includes(p.id);
+                const totalSold = salesCount[p.id] || 0;
 
                 return (
                   <div 
                     key={p.id} 
                     onClick={() => addToCart(p)}
-                    className={`bg-white cursor-pointer hover:shadow-xl border border-gray-200 shadow-xs transition-all group overflow-hidden relative select-none rounded-2xl p-1.5 sm:p-3 active:scale-95 ${
+                    className={`bg-white cursor-pointer hover:shadow-xl border shadow-xs transition-all group overflow-hidden relative select-none rounded-2xl p-1.5 sm:p-3 active:scale-95 ${
+                      isFav ? 'border-amber-300 ring-1 ring-amber-300/40 bg-amber-50/10' : 'border-gray-200'
+                    } ${
                       qtyInCart > 0 ? 'border-2 border-emerald-500 ring-2 ring-emerald-500/20' : 'hover:border-indigo-200'
                     } ${isAnimating ? 'scale-95 border-emerald-500 ring-4 ring-emerald-400/40' : ''}`}
                   >
+                    {/* Favorite Star Toggle Pin Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => toggleFavorite(p.id, e)}
+                      className={`absolute top-1.5 left-1.5 p-1 rounded-full z-20 transition-all ${
+                        isFav 
+                          ? 'bg-amber-400 text-white shadow-md scale-110' 
+                          : 'bg-white/80 backdrop-blur-xs text-slate-300 hover:text-amber-400 hover:bg-white'
+                      }`}
+                      title={isFav ? 'Quitar de Favoritos' : 'Fijar como Favorito arriba'}
+                    >
+                      <Star size={12} className={isFav ? 'fill-white text-white' : ''} />
+                    </button>
+
+                    {/* Sales count badge if top seller */}
+                    {totalSold > 0 && !isFav && (
+                      <span className="absolute top-1.5 left-1.5 bg-rose-500/90 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs flex items-center gap-0.5 z-10" title={`${totalSold} unidades vendidas`}>
+                        <Flame size={9} className="fill-white" /> {totalSold}
+                      </span>
+                    )}
                     {/* Quantity Badge on Product Card */}
                     {qtyInCart > 0 && (
                       <div className="absolute top-2 right-2 bg-emerald-600 text-white font-black text-[10px] sm:text-xs px-2 py-0.5 rounded-full shadow-md z-20 animate-in zoom-in-75">
@@ -962,6 +1168,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
           {/* CART ITEMS - SCROLLABLE AREA */}
           <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 hide-scrollbar scroll-smooth">
+            {renderBulkTaxBar()}
             <div className="space-y-3">
               {cart.map(item => (
                 <div key={item.cartId} className="bg-white p-3 rounded-2xl flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 group relative border border-gray-200 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition-all">
@@ -987,9 +1194,15 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                        <span className="text-gray-400 font-bold text-[10px]">L.</span>
                        <input 
                          type="number"
-                         value={item.precioVenta}
-                         onChange={e => changePrice(item.cartId, Number(e.target.value))}
-                         className="w-14 rounded bg-gray-100 border border-transparent hover:border-gray-300 focus:bg-indigo-50 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 text-xs font-black text-indigo-700 outline-none transition-all px-1 py-0.5"
+                         step="0.01"
+                         min="0"
+                         value={item.precioVenta === 0 ? '' : item.precioVenta}
+                         onFocus={e => e.target.select()}
+                         onChange={e => {
+                           const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                           changePrice(item.cartId, raw === '' ? 0 : parseFloat(raw));
+                         }}
+                         className="w-16 rounded bg-gray-100 border border-transparent hover:border-gray-300 focus:bg-indigo-50 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 text-xs font-black text-indigo-700 outline-none transition-all px-1 py-0.5"
                        />
                       <select
                         value={item.taxState}
@@ -1011,7 +1224,11 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                         <input
                           type="number"
                           value={item.discountPercentage > 0 ? item.discountPercentage : ''}
-                          onChange={e => changeDiscount(item.cartId, Number(e.target.value))}
+                          onFocus={e => e.target.select()}
+                          onChange={e => {
+                            const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                            changeDiscount(item.cartId, raw === '' ? 0 : parseFloat(raw));
+                          }}
                           placeholder="0"
                           className="w-8 text-center bg-transparent text-[10px] font-black text-rose-600 outline-none placeholder:text-rose-300 [&::-webkit-inner-spin-button]:appearance-none"
                         />
@@ -1164,6 +1381,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
 
             {/* Cart List */}
             <div className="flex-1 overflow-y-auto p-3 space-y-2.5 max-h-[50vh]">
+              {renderBulkTaxBar()}
               {cart.map(item => (
                 <div key={item.cartId} className="bg-slate-50 p-2.5 rounded-xl flex gap-2 border border-slate-200 relative">
                   <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center shrink-0 border border-slate-200 overflow-hidden">
@@ -1182,8 +1400,12 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                         type="number"
                         step="0.01"
                         min="0"
-                        value={item.precioVenta}
-                        onChange={(e) => changePrice(item.cartId, parseFloat(e.target.value) || 0)}
+                        value={item.precioVenta === 0 ? '' : item.precioVenta}
+                        onFocus={e => e.target.select()}
+                        onChange={e => {
+                          const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                          changePrice(item.cartId, raw === '' ? 0 : parseFloat(raw));
+                        }}
                         className="w-20 px-1.5 py-0.5 text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-300 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
                         title="Haga clic para editar el precio de venta unitario"
                       />
@@ -1288,18 +1510,19 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
              
              <div className="p-6 sm:p-8 pb-4 overflow-y-auto">
                <h3 className="font-bold text-gray-900 mb-4 text-xs sm:text-sm uppercase tracking-widest">Método de Pago</h3>
-               <div className="grid grid-cols-3 gap-3 sm:gap-4 mb-6">
+               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 mb-6">
                  {[
                    { id: 'Efectivo', icon: Banknote, active: 'bg-emerald-50 border-emerald-500 text-emerald-700', ring: 'ring-emerald-500/20' },
                    { id: 'Tarjeta', icon: CreditCard, active: 'bg-indigo-50 border-indigo-500 text-indigo-700', ring: 'ring-indigo-500/20' },
                    { id: 'Transferencia', icon: QrCode, active: 'bg-violet-50 border-violet-500 text-violet-700', ring: 'ring-violet-500/20' },
+                   { id: 'Crédito', icon: Clock, active: 'bg-amber-50 border-amber-500 text-amber-700', ring: 'ring-amber-500/20' },
                  ].map(m => (
                    <button 
                       key={m.id}
                       onClick={() => setPaymentMethod(m.id)}
                       className={`relative flex flex-col items-center justify-center p-3 sm:p-4 rounded-2xl border-2 transition-all ${paymentMethod === m.id ? `${m.active} shadow-md ring-4 ${m.ring}` : 'border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:bg-gray-50'}`}
                    >
-                      <m.icon size={24} className="mb-1.5" />
+                      <m.icon size={22} className="mb-1.5" />
                       <span className="font-bold text-xs sm:text-sm tracking-tight">{m.id}</span>
                       {paymentMethod === m.id && <div className="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-current shadow-sm" />}
                    </button>
@@ -1446,12 +1669,81 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                  </div>
                )}
 
+               {paymentMethod === 'Crédito' && (
+                 <div className="mb-6 animate-in fade-in slide-in-from-top-2">
+                   {selectedClient && selectedClient.nombre.toUpperCase() !== 'CONSUMIDOR FINAL' ? (
+                     <div className="p-4 bg-amber-50/90 border-2 border-amber-300 rounded-2xl space-y-3 shadow-sm">
+                       <div className="flex items-center justify-between">
+                         <span className="text-xs font-black text-amber-900 uppercase flex items-center gap-1.5">
+                           <Clock size={16} className="text-amber-600" />
+                           <span>Venta a Crédito Comercial (CxC)</span>
+                         </span>
+                         <span className="text-[10px] font-extrabold bg-amber-200/80 text-amber-900 px-2.5 py-0.5 rounded-full uppercase">
+                           CxC Registrado
+                         </span>
+                       </div>
+                       
+                       <div className="text-xs text-amber-950 font-medium pt-2 border-t border-amber-200/80 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                         <div>
+                           <p className="text-[10px] text-amber-700 uppercase font-bold mb-0.5">Cliente Acreditable</p>
+                           <p className="font-bold text-slate-900 uppercase truncate">{selectedClient.nombre}</p>
+                         </div>
+
+                         <div>
+                           <label className="text-[10px] text-amber-800 uppercase font-extrabold block mb-1">
+                             Plazo de Crédito <span className="text-amber-600 font-bold">(Modificable)</span>
+                           </label>
+                           <select
+                             value={customCreditDays}
+                             onChange={e => setCustomCreditDays(Number(e.target.value))}
+                             className="w-full bg-white border-2 border-amber-300 rounded-xl px-2.5 py-1.5 text-xs font-extrabold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
+                           >
+                             <option value={0}>0 Días (Mismo Día / Contado)</option>
+                             <option value={7}>7 Días (Semanal)</option>
+                             <option value={15}>15 Días (Quincenal)</option>
+                             <option value={30}>30 Días (Mensual)</option>
+                             <option value={45}>45 Días (Especial)</option>
+                             <option value={60}>60 Días (Especial)</option>
+                           </select>
+                         </div>
+                       </div>
+
+                       {selectedClient.rtn && (
+                         <div className="text-[11px] font-bold text-slate-700 bg-white/80 p-2 rounded-xl border border-amber-200 flex justify-between items-center">
+                           <span>RTN / Identidad:</span>
+                           <span className="font-mono text-xs text-slate-900">{selectedClient.rtn}</span>
+                         </div>
+                       )}
+
+                       <p className="text-[10px] text-amber-800 font-medium italic pt-1">
+                         * Este ticket vencerá en {customCreditDays} días a partir de hoy y se registrará en Cuentas por Cobrar (CxC).
+                       </p>
+                     </div>
+                   ) : (
+                     <div className="p-4 bg-rose-50 border-2 border-rose-300 rounded-2xl space-y-2 shadow-xs">
+                       <div className="flex items-center gap-2 text-rose-800 font-black text-xs uppercase">
+                         <X className="shrink-0 text-rose-600" size={18} />
+                         <span>Requiere Cliente Registrado</span>
+                       </div>
+                       <p className="text-xs text-rose-700 font-semibold leading-relaxed">
+                         Las ventas a crédito comercial no se pueden facturar a <span className="font-black underline">"CONSUMIDOR FINAL"</span>.
+                         Por favor busque o cree el cliente registrado en la parte superior.
+                       </p>
+                     </div>
+                   )}
+                 </div>
+               )}
+
                <button
                   onClick={handleCheckout}
-                  disabled={isProcessing || (paymentMethod === 'Efectivo' && Number(cashTendered) > 0 && Number(cashTendered) < totals.total)}
-                  className="w-full h-[60px] sm:h-[72px] bg-gray-900 hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-white font-black text-lg sm:text-xl rounded-[1.25rem] shadow-xl transition-all flex items-center justify-center gap-3 mt-auto mb-4"
+                  disabled={
+                    isProcessing || 
+                    (paymentMethod === 'Efectivo' && Number(cashTendered) > 0 && Number(cashTendered) < totals.total) ||
+                    (paymentMethod === 'Crédito' && (!selectedClient || selectedClient.nombre.toUpperCase() === 'CONSUMIDOR FINAL'))
+                  }
+                  className="w-full h-[60px] sm:h-[72px] bg-gray-900 hover:bg-black disabled:bg-gray-200 disabled:text-gray-400 text-white font-black text-sm sm:text-lg rounded-[1.25rem] shadow-xl transition-all flex items-center justify-center gap-2 mt-auto mb-4 px-3 tracking-tight whitespace-nowrap overflow-hidden text-ellipsis cursor-pointer"
                >
-                 {isProcessing ? 'Procesando Venta...' : `Emitir Documento Final`}
+                 {isProcessing ? 'Procesando Venta...' : paymentMethod === 'Crédito' ? `Facturar a Crédito — ${fmt(totals.total)}` : `Emitir Documento Final`}
                </button>
              </div>
           </div>

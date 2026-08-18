@@ -695,6 +695,7 @@ model Cliente {
   telefonoContacto String?
   emailsCC         String?
   limiteCredito      Decimal        @default(0) @db.Decimal(12, 2)
+  saldoInicial       Decimal        @default(0) @db.Decimal(12, 2)
   diasCredito        Int            @default(15)
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt

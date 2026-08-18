@@ -37,6 +37,7 @@ export interface ClienteFormData {
   telefonoContacto?: string | null;
   emailsCC?: string | null;
   limiteCredito?: number | null;
+  saldoInicial?: number | null;
   diasCredito?: number | null;
   notas?: string | null;
 }
@@ -163,13 +164,21 @@ export default function ContactoModal({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Teléfono Empresa / WhatsApp</label>
-                <input
-                  type="tel"
-                  placeholder="+504 9999-8888"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                  value={formData.telefono || ''}
-                  onChange={e => setFormData({ ...formData, telefono: e.target.value })}
-                />
+                <div className="relative flex items-center">
+                  <span className="absolute left-2.5 text-[11px] font-black text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-lg border border-emerald-300/80 select-none shrink-0 pointer-events-none z-10">
+                    +504
+                  </span>
+                  <input
+                    type="tel"
+                    placeholder="9999-8888"
+                    className="w-full pl-16 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    value={(formData.telefono || '').replace(/^\+504\s*/, '')}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/^\+504\s*/, '');
+                      setFormData({ ...formData, telefono: raw ? `+504 ${raw}` : '' });
+                    }}
+                  />
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">RTN / DNI Identidad</label>
@@ -202,13 +211,21 @@ export default function ContactoModal({
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">Teléfono Directo Encargado</label>
-                <input
-                  type="tel"
-                  placeholder="Celular personal"
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
-                  value={formData.telefonoContacto || ''}
-                  onChange={e => setFormData({ ...formData, telefonoContacto: e.target.value })}
-                />
+                <div className="relative flex items-center">
+                  <span className="absolute left-2.5 text-[11px] font-black text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-lg border border-emerald-300/80 select-none shrink-0 pointer-events-none z-10">
+                    +504
+                  </span>
+                  <input
+                    type="tel"
+                    placeholder="8888-0000"
+                    className="w-full pl-16 pr-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                    value={(formData.telefonoContacto || '').replace(/^\+504\s*/, '')}
+                    onChange={e => {
+                      const raw = e.target.value.replace(/^\+504\s*/, '');
+                      setFormData({ ...formData, telefonoContacto: raw ? `+504 ${raw}` : '' });
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -280,7 +297,7 @@ export default function ContactoModal({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">Límite de Crédito (Lempiras)</label>
                 <div className="relative">
@@ -298,17 +315,35 @@ export default function ContactoModal({
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-amber-900 mb-1">
+                  Saldo Inicial (Excel) <span className="text-amber-600 font-normal">(Deuda previa)</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-amber-700">L.</span>
+                  <input
+                    type="number"
+                    step="100"
+                    min="0"
+                    placeholder="Ej: 15000"
+                    className="w-full pl-8 pr-3 py-2 bg-amber-50/70 border border-amber-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
+                    value={formData.saldoInicial !== undefined && formData.saldoInicial !== null ? formData.saldoInicial : ''}
+                    onChange={e => setFormData({ ...formData, saldoInicial: e.target.value ? parseFloat(e.target.value) : 0 })}
+                  />
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-slate-800 mb-1">Plazo de Crédito Rotativo</label>
                 <select
                   className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
                   value={formData.diasCredito !== undefined && formData.diasCredito !== null ? formData.diasCredito : 15}
                   onChange={e => setFormData({ ...formData, diasCredito: parseInt(e.target.value) })}
                 >
-                  <option value={0}>0 Días - Pago de Contado Inmediato</option>
-                  <option value={7}>7 Días - Crédito Semanal (Flor Perecedera)</option>
-                  <option value={15}>15 Días - Crédito Quincenal (Estándar)</option>
-                  <option value={30}>30 Días - Crédito Mensual Mayorista</option>
-                  <option value={45}>45 Días - Crédito Especial Institucional</option>
+                  <option value={7}>7 Días (Semanal)</option>
+                  <option value={15}>15 Días (Quincenal)</option>
+                  <option value={30}>30 Días (Mensual)</option>
+                  <option value={45}>45 Días (Especial)</option>
+                  <option value={60}>60 Días (Especial)</option>
                 </select>
               </div>
             </div>

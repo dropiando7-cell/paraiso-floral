@@ -44,6 +44,7 @@ export async function GET(request: Request) {
         email: true,
         direccion: true,
         limiteCredito: true,
+        saldoInicial: true,
         diasCredito: true,
         facturas: {
           where: {
@@ -73,9 +74,10 @@ export async function GET(request: Request) {
     const now = new Date();
 
     const resultado = clientes.map(c => {
-      let saldoTotal = 0;
+      const sInicial = Number(c.saldoInicial || 0);
+      let saldoTotal = sInicial;
       let saldoVencido = 0;
-      let facturasPendientesCount = 0;
+      let facturasPendientesCount = sInicial > 0 ? 1 : 0;
       let maxDiasMora = 0;
 
       c.facturas.forEach(f => {
@@ -108,6 +110,7 @@ export async function GET(request: Request) {
         email: c.email,
         direccion: c.direccion,
         limiteCredito: Number(c.limiteCredito || 0),
+        saldoInicial: sInicial,
         diasCredito: c.diasCredito || 15,
         saldoTotal,
         saldoVencido,

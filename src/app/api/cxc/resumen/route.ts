@@ -51,9 +51,15 @@ export async function GET() {
       _sum: { monto: true }
     });
 
-    let totalCartera = 0;
+    const saldoInicialSum = await prisma.cliente.aggregate({
+      where: { organizationId: orgId },
+      _sum: { saldoInicial: true }
+    });
+
+    const sumSInicial = Number(saldoInicialSum._sum.saldoInicial || 0);
+    let totalCartera = sumSInicial;
     let totalVencido = 0;
-    let alDia = 0; // 0-7 días
+    let alDia = sumSInicial; // 0-7 días
     let porVencer = 0; // 8-15 días
     let vencido = 0; // 16-30 días
     let enRiesgo = 0; // >30 días

@@ -4,7 +4,7 @@ import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
 
 export const metadata = {
-    title: 'Directorio de Contactos | Paraíso Floral',
+    title: 'Directorio de Clientes | Paraíso Floral',
     description: 'Gestión de clientes y contactos de distribución',
 };
 

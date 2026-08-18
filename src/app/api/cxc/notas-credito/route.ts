@@ -84,6 +84,27 @@ export async function POST(request: Request) {
         });
       }
     } else {
+      // Descontar primero del Saldo Inicial Deuda (Excel) si existe
+      const clienteData = await prisma.cliente.findUnique({
+        where: { id: clienteId },
+        select: { saldoInicial: true }
+      });
+
+      let saldoDisponible = montoNum;
+
+      if (clienteData && Number(clienteData.saldoInicial || 0) > 0) {
+        const sInicialActual = Number(clienteData.saldoInicial);
+        const deduccion = Math.min(saldoDisponible, sInicialActual);
+        const nuevoSInicial = Math.max(0, sInicialActual - deduccion);
+
+        await prisma.cliente.update({
+          where: { id: clienteId },
+          data: { saldoInicial: nuevoSInicial }
+        });
+
+        saldoDisponible -= deduccion;
+      }
+
       // Aplicación FIFO automática si no se especificó factura
       const facturasPendientes = await prisma.factura.findMany({
         where: {
@@ -97,8 +118,6 @@ export async function POST(request: Request) {
         },
         orderBy: { fechaEmision: 'asc' }
       });
-
-      let saldoDisponible = montoNum;
 
       for (const fac of facturasPendientes) {
         if (saldoDisponible <= 0) break;

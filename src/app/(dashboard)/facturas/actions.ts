@@ -83,7 +83,7 @@ export async function searchClientes(query: string = "") {
             nombre: c.nombre.toUpperCase(),
             nombreContacto: c.nombreContacto ? c.nombreContacto.toUpperCase() : null,
             limiteCredito: c.limiteCredito ? Number(c.limiteCredito) : 0,
-            diasCredito: c.diasCredito || 15
+            diasCredito: c.diasCredito !== null && c.diasCredito !== undefined ? c.diasCredito : 15
         }));
     } catch (e) {
         console.error(e);
@@ -328,6 +328,11 @@ export async function crearFacturaSegura(facturaData: any, detalles: any[], tipo
                     estado: 'EMITIDA',
                     inventarioDescontado: true,
                     metodoPago: facturaData.metodoPago || 'Efectivo',
+                    saldoPendiente: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') ? facturaData.total : 0,
+                    estadoPago: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') ? 'PENDIENTE' : 'PAGADA',
+                    fechaVencimiento: (facturaData.metodoPago === 'Crédito' || facturaData.metodoPago === 'CREDITO') 
+                        ? new Date(Date.now() + (Number(facturaData.diasCredito) || 15) * 24 * 60 * 60 * 1000) 
+                        : null,
                     cajaSessionId,
                     
                     detalles: {

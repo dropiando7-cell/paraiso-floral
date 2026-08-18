@@ -96,7 +96,7 @@ export default function ContactosClient({ initialData }: { initialData: Cliente[
                     <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-bold">
                         <Building2 className="w-4 h-4" /> Distribuidora Paraíso Floral
                     </div>
-                    <h1 className="text-2xl sm:text-3xl font-black text-slate-900">Directorio de Contactos y Clientes</h1>
+                    <h1 className="text-2xl sm:text-3xl font-black text-slate-900">Directorio de Clientes</h1>
                     <p className="text-xs sm:text-sm text-slate-500 font-medium">
                         Gestión de clientes, encargados de compras, departamentos de Honduras y condiciones de crédito.
                     </p>

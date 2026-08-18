@@ -3,11 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mail, Send, Loader2, AlertCircle, Settings, Save, MapPin, Phone, MessageSquare, Tag } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { getDocumentoById } from '@/app/(dashboard)/facturas/actions';
 import { 
   enviarDocumentoPorEmail, 
   getEmailSettings, 
   saveEmailSettings, 
+  getDocumentoById,
   EmailTemplateSettings 
 } from '@/app/(dashboard)/facturas/enviar-actions';
 

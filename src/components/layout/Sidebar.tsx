@@ -92,7 +92,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         href: '#',
         icon: Receipt,
         subItems: [
-          { name: 'Directorio de Contactos', href: '/contactos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Directorio de Clientes', href: '/contactos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Cotizaciones', href: '/cotizaciones', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Facturación', href: '/facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Órdenes de Entrega', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },

@@ -53,6 +53,7 @@ export async function fetchContactos(query: string, page: number = 1) {
             telefonoContacto: true,
             emailsCC: true,
             limiteCredito: true,
+            saldoInicial: true,
             diasCredito: true,
             notas: true,
             createdAt: true
@@ -66,6 +67,7 @@ export async function fetchContactos(query: string, page: number = 1) {
       params: data.map(d => ({
         ...d,
         limiteCredito: d.limiteCredito ? Number(d.limiteCredito) : 0,
+        saldoInicial: d.saldoInicial ? Number(d.saldoInicial) : 0,
         diasCredito: d.diasCredito || 15
       })), 
       totalPages: Math.ceil(count / pageSize), 
@@ -84,6 +86,7 @@ export async function createContacto(data: {
     telefonoContacto?: string;
     emailsCC?: string;
     limiteCredito?: number;
+    saldoInicial?: number;
     diasCredito?: number;
     notas?: string;
 }) {
@@ -118,7 +121,8 @@ export async function createContacto(data: {
     revalidatePath('/contactos');
     return {
       ...created,
-      limiteCredito: created.limiteCredito ? Number(created.limiteCredito) : 0
+      limiteCredito: created.limiteCredito ? Number(created.limiteCredito) : 0,
+      saldoInicial: created.saldoInicial ? Number(created.saldoInicial) : 0
     };
 }
 
@@ -133,6 +137,7 @@ export async function updateContacto(id: string, data: {
     telefonoContacto?: string;
     emailsCC?: string;
     limiteCredito?: number;
+    saldoInicial?: number;
     diasCredito?: number;
     notas?: string;
 }) {
@@ -151,7 +156,8 @@ export async function updateContacto(id: string, data: {
     revalidatePath('/contactos');
     return {
       ...updated,
-      limiteCredito: updated.limiteCredito ? Number(updated.limiteCredito) : 0
+      limiteCredito: updated.limiteCredito ? Number(updated.limiteCredito) : 0,
+      saldoInicial: updated.saldoInicial ? Number(updated.saldoInicial) : 0
     };
 }
 
@@ -159,4 +165,22 @@ export async function deleteContacto(id: string) {
     await prisma.cliente.delete({ where: { id } });
     revalidatePath('/contactos');
     return true;
+}
+
+export async function updateSaldoInicialCliente(clienteId: string, nuevoSaldoInicial: number, notas?: string) {
+    const updated = await prisma.cliente.update({
+        where: { id: clienteId },
+        data: {
+            saldoInicial: nuevoSaldoInicial,
+            ...(notas ? { notas: notas.trim() } : {})
+        }
+    });
+
+    revalidatePath('/cxc');
+    revalidatePath('/cxc/cliente/' + clienteId);
+    revalidatePath('/contactos');
+    return {
+        success: true,
+        saldoInicial: Number(updated.saldoInicial)
+    };
 }

@@ -39,13 +39,13 @@ export function ActivityTracker() {
                     module: activePath,
                     isIdle: idleState,
                 }),
-            });
+            }).catch(() => {});
 
             lastPingTime.current = now;
             lastPingPath.current = activePath;
             lastIdleState.current = idleState;
-        } catch (error) {
-            console.error('Failed to send activity ping:', error);
+        } catch {
+            // Silently swallow network exceptions for background telemetry pings
         }
     };
 

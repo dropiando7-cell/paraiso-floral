@@ -12,10 +12,16 @@ import {
   AlertTriangle,
   RefreshCw,
   Share2,
-  FileCheck
+  FileCheck,
+  Clock,
+  BookOpen,
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import ModalAbono from '@/components/cxc/ModalAbono';
 import ModalNotaCredito from '@/components/cxc/ModalNotaCredito';
+import ModalSaldoInicial from '@/components/cxc/ModalSaldoInicial';
+import ModalEditarAbono from '@/components/cxc/ModalEditarAbono';
 
 interface ClienteDetalle {
   cliente: {
@@ -26,6 +32,7 @@ interface ClienteDetalle {
     direccion: string | null;
     rtn: string | null;
     limiteCredito: number;
+    saldoInicial?: number;
     diasCredito: number;
   };
   resumen: {
@@ -78,12 +85,15 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
 
   const [data, setData] = useState<ClienteDetalle | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<'FACTURAS' | 'PAGOS' | 'NOTAS'>('FACTURAS');
+  const [activeTab, setActiveTab] = useState<'MAYOR' | 'FACTURAS' | 'PAGOS' | 'NOTAS'>('MAYOR');
   const [sharing, setSharing] = useState<boolean>(false);
 
   // Modales
   const [modalAbonoOpen, setModalAbonoOpen] = useState<boolean>(false);
   const [modalNCOpen, setModalNCOpen] = useState<boolean>(false);
+  const [modalSaldoInicialOpen, setModalSaldoInicialOpen] = useState<boolean>(false);
+  const [modalEditarAbonoOpen, setModalEditarAbonoOpen] = useState<boolean>(false);
+  const [pagoAEditar, setPagoAEditar] = useState<any>(null);
 
   const cargarEstadoCuenta = async () => {
     try {
@@ -100,9 +110,124 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
     }
   };
 
+  const handleAnularAbono = async (pagoId: string, correlativo?: string | null) => {
+    if (!confirm(`¿Estás seguro de anular el abono ${correlativo || ''}? El monto descontado volverá a sumarse automáticamente a la deuda del cliente.`)) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/cxc/abonos/${pagoId}`, { method: 'DELETE' });
+      const resJson = await res.json();
+      if (!res.ok) throw new Error(resJson.error || 'Error al anular abono');
+      cargarEstadoCuenta();
+    } catch (err: any) {
+      alert(err.message || 'Error al anular abono');
+      setLoading(false);
+    }
+  };
+
+  const handleAnularNotaCredito = async (ncId: string, correlativo?: string | null) => {
+    if (!confirm(`¿Estás seguro de anular la Nota de Crédito / Merma ${correlativo || ''}?`)) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/cxc/notas-credito/${ncId}`, { method: 'DELETE' });
+      const resJson = await res.json();
+      if (!res.ok) throw new Error(resJson.error || 'Error al anular nota de crédito');
+      cargarEstadoCuenta();
+    } catch (err: any) {
+      alert(err.message || 'Error al anular nota de crédito');
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     cargarEstadoCuenta();
   }, [clienteId]);
+
+  // Construcción del Libro Mayor Contable Unificado (Débitos y Créditos)
+  const movimientosContables = React.useMemo(() => {
+    if (!data) return [];
+
+    const list: Array<{
+      id: string;
+      fecha: Date;
+      tipo: 'SALDO_INICIAL' | 'FACTURA' | 'ABONO' | 'NOTA_CREDITO';
+      documento: string;
+      detalles: string;
+      debito: number;
+      credito: number;
+    }> = [];
+
+    // 1. Saldo Inicial (Excel)
+    if (data.cliente.saldoInicial && data.cliente.saldoInicial > 0) {
+      list.push({
+        id: 'saldo-inicial-excel',
+        fecha: new Date('2026-01-01'),
+        tipo: 'SALDO_INICIAL',
+        documento: 'SALDO INICIAL EXCEL',
+        detalles: 'Carga de deuda previa registrada de libreta Excel',
+        debito: data.cliente.saldoInicial,
+        credito: 0
+      });
+    }
+
+    // 2. Facturas
+    (data.facturas || []).forEach(f => {
+      if (f.correlativo !== 'SALDO INICIAL EXCEL') {
+        const desc = f.detalles && f.detalles.length > 0
+          ? f.detalles.map(d => `${d.cantidad}x ${d.descripcion}`).join(', ')
+          : 'Venta a Crédito Comercial';
+
+        list.push({
+          id: f.id,
+          fecha: new Date(f.fechaEmision),
+          tipo: 'FACTURA',
+          documento: `#${f.correlativo}`,
+          detalles: desc,
+          debito: f.total,
+          credito: 0
+        });
+      }
+    });
+
+    // 3. Abonos
+    (data.pagos || []).forEach(p => {
+      const desc = `Abono (${p.metodoPago})${p.banco ? ` en ${p.banco}` : ''}${p.referencia ? ` Ref: ${p.referencia}` : ''}${p.notas ? ` [${p.notas}]` : ''}`;
+      list.push({
+        id: p.id,
+        fecha: new Date(p.fecha),
+        tipo: 'ABONO',
+        documento: p.correlativo || 'RECIBO PAGO',
+        detalles: desc,
+        debito: 0,
+        credito: p.monto
+      });
+    });
+
+    // 4. Notas de Crédito / Mermas
+    (data.notasCredito || []).forEach(n => {
+      const desc = `Ajuste (${n.motivo || 'Flor Dañada'})${n.descripcion ? ` - ${n.descripcion}` : ''}`;
+      list.push({
+        id: n.id,
+        fecha: new Date(n.fecha),
+        tipo: 'NOTA_CREDITO',
+        documento: n.correlativo || 'NOTA CREDITO',
+        detalles: desc,
+        debito: 0,
+        credito: n.monto
+      });
+    });
+
+    // Ordenar cronológicamente (más antiguo primero)
+    list.sort((a, b) => a.fecha.getTime() - b.fecha.getTime());
+
+    let saldoAcumulado = 0;
+    return list.map(item => {
+      saldoAcumulado = saldoAcumulado + item.debito - item.credito;
+      return {
+        ...item,
+        saldoAcumulado: Math.max(0, saldoAcumulado)
+      };
+    });
+  }, [data]);
 
   const handlePrint = () => {
     window.print();
@@ -141,22 +266,22 @@ export default function ClienteEstadoCuentaPage({ params }: { params: Promise<{ 
     if (!data?.cliente.telefono) return null;
     const cleanPhone = data.cliente.telefono.replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 8 ? `504${cleanPhone}` : cleanPhone;
-    const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+    const publicUrl = typeof window !== 'undefined' ? `${window.location.origin}/c/${data.cliente.id}/cxc` : '';
 
-    const texto = `🌸 *DISTRIBUIDORA PARAÍSO FLORAL* 🌸
-*Estado de Cuenta Detallado*
+    const texto = `*DISTRIBUIDORA PARAISO FLORAL*
+*Estado de Cuenta Oficial*
 
 Cliente: *${data.cliente.nombre}*
 
-📌 *Saldo Pendiente Total:* L. ${data.resumen.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-📊 *Total Facturado:* L. ${data.resumen.totalFacturado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-💵 *Total Abonado:* L. ${data.resumen.totalAbonado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-🌹 *Notas de Crédito / Ajustes:* L. ${data.resumen.totalNotasCredito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+• *Saldo Pendiente Total:* L. ${data.resumen.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+• *Total Facturado:* L. ${data.resumen.totalFacturado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+• *Total Abonado:* L. ${data.resumen.totalAbonado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+• *Notas de Crédito / Mermas:* L. ${data.resumen.totalNotasCredito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
 
-🔗 *Ver o Descargar Estado de Cuenta:*
-${currentUrl}
+• *Ver o Descargar Estado de Cuenta en PDF:*
+${publicUrl}
 
-¡Agradecemos su preferencia! 🌺`;
+¡Agradecemos su preferencia!`;
 
     return `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(texto)}`;
   };
@@ -236,16 +361,19 @@ ${currentUrl}
 
       {/* VISTA PARA IMPRESIÓN OFICIAL (DOCUMENTO CONTABLE COMERCIAL) */}
       <div className="print-only max-w-4xl mx-auto p-4 space-y-6 text-slate-900 bg-white">
-        {/* Encabezado Membretado Oficial */}
-        <div className="print-header flex justify-between items-start">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-black text-emerald-800 tracking-tight">DISTRIBUIDORA PARAÍSO FLORAL</h1>
-            <p className="text-xs font-bold text-slate-700">Venta de Flores al Mayoreo y Detalle</p>
-            <p className="text-[11px] text-slate-600">RTN: 08011990123456 | Tegucigalpa, Honduras</p>
-            <p className="text-[11px] text-slate-600">Teléfono / WhatsApp: +(504) 9988-7766 | +(504) 3322-1100</p>
+        {/* Encabezado Membretado Oficial con Logo */}
+        <div className="print-header flex justify-between items-start border-b-2 border-emerald-600 pb-3 mb-4">
+          <div className="flex items-center gap-3">
+            <img src="/icon.png" alt="Paraíso Floral" className="w-14 h-14 object-contain rounded-full border border-slate-200 shrink-0" />
+            <div className="space-y-0.5">
+              <h1 className="text-2xl font-black text-emerald-800 tracking-tight">DISTRIBUIDORA PARAÍSO FLORAL</h1>
+              <p className="text-xs font-bold text-slate-700">Mayorista y Distribuidora de Flores y Follajes Fresh 🌹</p>
+              <p className="text-[11px] text-slate-600">RTN: 08011990123456 | Tegucigalpa, Honduras</p>
+              <p className="text-[11px] text-slate-600">Teléfono / WhatsApp: +(504) 9538-0113 | +(504) 3178-2368</p>
+            </div>
           </div>
-          <div className="text-right space-y-1">
-            <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-900 font-extrabold text-xs rounded border border-emerald-300">
+          <div className="text-right space-y-1 shrink-0">
+            <span className="inline-block px-3 py-1 bg-emerald-100 text-emerald-900 font-extrabold text-xs rounded-lg border border-emerald-300">
               ESTADO DE CUENTA
             </span>
             <p className="text-[11px] text-slate-500 pt-1">Emisión: {fechaHoy}</p>
@@ -263,9 +391,14 @@ ${currentUrl}
           </div>
 
           <div className="p-3 border border-emerald-300 rounded-lg bg-emerald-50/30 space-y-1 text-right">
-            <h3 className="text-xs font-bold text-emerald-900 uppercase border-b border-emerald-200 pb-1 text-right">RESUMEN DE CUENTA</h3>
+            {cliente.saldoInicial !== undefined && cliente.saldoInicial > 0 && (
+              <div className="flex justify-between text-xs py-0.5 text-amber-900 font-bold">
+                <span>Saldo Inicial Deuda (Excel):</span>
+                <span>L. {cliente.saldoInicial.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
+              </div>
+            )}
             <div className="flex justify-between text-xs py-0.5">
-              <span className="text-slate-600">Total Facturado:</span>
+              <span className="text-slate-600">Total Facturado Nuevos:</span>
               <span className="font-bold">L. {resumen.totalFacturado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="flex justify-between text-xs py-0.5">
@@ -475,6 +608,13 @@ ${currentUrl}
                 <Flower2 className="w-4 h-4" />
                 <span>Ajuste por Flor</span>
               </button>
+              <button
+                onClick={() => setModalSaldoInicialOpen(true)}
+                className="py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center gap-1.5"
+              >
+                <Clock className="w-4 h-4" />
+                <span>Saldo Excel</span>
+              </button>
             </div>
           </div>
 
@@ -512,10 +652,21 @@ ${currentUrl}
 
         {/* Pestañas de Navegación del Historial */}
         <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-6">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2 border-b border-slate-100 pb-3 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('MAYOR')}
+              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                activeTab === 'MAYOR'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <BookOpen className="w-3.5 h-3.5" />
+              <span>Libro Mayor Contable ({movimientosContables.length})</span>
+            </button>
             <button
               onClick={() => setActiveTab('FACTURAS')}
-              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all ${
+              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 activeTab === 'FACTURAS'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 hover:bg-slate-100'
@@ -525,7 +676,7 @@ ${currentUrl}
             </button>
             <button
               onClick={() => setActiveTab('PAGOS')}
-              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all ${
+              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 activeTab === 'PAGOS'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 hover:bg-slate-100'
@@ -535,7 +686,7 @@ ${currentUrl}
             </button>
             <button
               onClick={() => setActiveTab('NOTAS')}
-              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all ${
+              className={`py-2 px-4 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 activeTab === 'NOTAS'
                   ? 'bg-amber-600 text-white shadow-sm'
                   : 'text-slate-600 hover:bg-slate-100'
@@ -544,6 +695,61 @@ ${currentUrl}
               Ajustes / Flor Dañada ({notasCredito.length})
             </button>
           </div>
+
+          {/* TAB 0: LIBRO MAYOR CONTABLE */}
+          {activeTab === 'MAYOR' && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-black text-slate-900 flex items-center gap-2 uppercase tracking-wide">
+                  <BookOpen className="w-4 h-4 text-indigo-600" /> Libro Mayor Contable (Débitos y Créditos)
+                </h3>
+                <span className="text-xs font-bold text-slate-500">{movimientosContables.length} Movimientos Registrados</span>
+              </div>
+
+              {movimientosContables.length === 0 ? (
+                <p className="text-xs text-slate-500 p-4 text-center">No hay movimientos contables registrados para este cliente.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-100/80 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                        <th className="py-3 px-3">Fecha</th>
+                        <th className="py-3 px-3">Comprobante</th>
+                        <th className="py-3 px-3">Concepto / Detalles</th>
+                        <th className="py-3 px-3 text-right text-slate-900">Débito (+) [Cargo]</th>
+                        <th className="py-3 px-3 text-right text-emerald-700">Crédito (-) [Abono]</th>
+                        <th className="py-3 px-3 text-right text-indigo-900">Saldo Acumulado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {movimientosContables.map(m => (
+                        <tr key={m.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="py-3 px-3 font-medium text-slate-600 whitespace-nowrap">
+                            {m.fecha.toLocaleDateString('es-HN', { year: 'numeric', month: 'short', day: 'numeric' })}
+                          </td>
+                          <td className="py-3 px-3 font-extrabold text-slate-900 whitespace-nowrap">
+                            {m.documento}
+                          </td>
+                          <td className="py-3 px-3 text-slate-700 font-medium max-w-xs truncate">
+                            {m.detalles}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-slate-900 whitespace-nowrap">
+                            {m.debito > 0 ? `+ L. ${m.debito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-emerald-600 whitespace-nowrap">
+                            {m.credito > 0 ? `- L. ${m.credito.toLocaleString('es-HN', { minimumFractionDigits: 2 })}` : '-'}
+                          </td>
+                          <td className="py-3 px-3 text-right font-mono font-black text-indigo-950 whitespace-nowrap bg-indigo-50/40">
+                            L. {m.saldoAcumulado.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* TAB 1: FACTURAS */}
           {activeTab === 'FACTURAS' && (
@@ -620,6 +826,7 @@ ${currentUrl}
                         <th className="pb-3 px-2">Método</th>
                         <th className="pb-3 px-2">Banco / Ref</th>
                         <th className="pb-3 px-2 text-right">Monto Abonado</th>
+                        <th className="pb-3 px-2 text-center">Acciones</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 text-xs">
@@ -639,6 +846,27 @@ ${currentUrl}
                           </td>
                           <td className="py-3 px-2 text-right font-black text-emerald-600">
                             L. {p.monto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <button
+                                onClick={() => {
+                                  setPagoAEditar(p);
+                                  setModalEditarAbonoOpen(true);
+                                }}
+                                className="p-1 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                title="Editar valor de abono"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleAnularAbono(p.id, p.correlativo)}
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Anular abono"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -663,7 +891,7 @@ ${currentUrl}
                   {notasCredito.map(nc => (
                     <div
                       key={nc.id}
-                      className="p-4 bg-amber-50/60 border border-amber-200 rounded-2xl flex flex-col sm:flex-row justify-between gap-3 text-xs"
+                      className="p-4 bg-amber-50/60 border border-amber-200 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs"
                     >
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
@@ -678,11 +906,20 @@ ${currentUrl}
                         <p className="text-slate-700 font-medium">{nc.descripcion}</p>
                       </div>
 
-                      <div className="text-right shrink-0">
-                        <span className="text-slate-400 block text-[10px]">Monto Descontado</span>
-                        <span className="text-lg font-black text-amber-700">
-                          L. {nc.monto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-                        </span>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="text-right">
+                          <span className="text-slate-400 block text-[10px]">Monto Descontado</span>
+                          <span className="text-lg font-black text-amber-700">
+                            L. {nc.monto.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleAnularNotaCredito(nc.id, nc.correlativo)}
+                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer"
+                          title="Anular Nota de Crédito"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -715,6 +952,28 @@ ${currentUrl}
             saldoTotal: resumen.saldoTotal,
             facturas
           }}
+        />
+
+        <ModalSaldoInicial
+          isOpen={modalSaldoInicialOpen}
+          onClose={() => setModalSaldoInicialOpen(false)}
+          onSuccess={cargarEstadoCuenta}
+          cliente={{
+            id: cliente.id,
+            nombre: cliente.nombre,
+            saldoInicial: cliente.saldoInicial
+          }}
+        />
+
+        <ModalEditarAbono
+          isOpen={modalEditarAbonoOpen}
+          onClose={() => {
+            setModalEditarAbonoOpen(false);
+            setPagoAEditar(null);
+          }}
+          onSuccess={cargarEstadoCuenta}
+          clienteNombre={cliente.nombre}
+          pago={pagoAEditar}
         />
       </div>
     </>

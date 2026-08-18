@@ -1,60 +1,57 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, DollarSign, AlertCircle, Loader2, CheckCircle2, ChevronDown, Building2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, DollarSign, AlertCircle, Loader2, CheckCircle2, ChevronDown, Building2, Edit3 } from 'lucide-react';
+import { HONDURAS_BANKS } from './ModalAbono';
 
-export const HONDURAS_BANKS = [
-  { id: 'ficohsa', name: 'Ficohsa', logo: '/logos_bancos/ficohsa.png' },
-  { id: 'atlantida', name: 'Atlántida', logo: '/logos_bancos/atlantida.png' },
-  { id: 'bac', name: 'BAC Credomatic', logo: '/logos_bancos/bac.png' },
-  { id: 'occidente', name: 'Banco de Occidente', logo: '/logos_bancos/occidente.png' },
-  { id: 'banpais', name: 'Banpaís', logo: '/logos_bancos/banpais.png' },
-  { id: 'davivienda', name: 'Davivienda', logo: '/logos_bancos/davivienda.png' },
-  { id: 'lafise', name: 'LAFISE', logo: '/logos_bancos/lafise.png' },
-  { id: 'cuscatlan', name: 'Cuscatlán', logo: '/logos_bancos/cuscatlan.png' },
-  { id: 'banrural', name: 'Banrural', logo: '/logos_bancos/banrural.png' },
-  { id: 'promerica', name: 'Promerica', logo: '/logos_bancos/promerica.png' },
-  { id: 'azteca', name: 'Banco Azteca', logo: '/logos_bancos/azteca.png' },
-  { id: 'ficensa', name: 'Ficensa', logo: '/logos_bancos/ficensa.png' },
-  { id: 'banhcafe', name: 'Banhcafé', logo: '/logos_bancos/banhcafe.png' },
-  { id: 'popular', name: 'Banco Popular', logo: '/logos_bancos/popular.png' },
-];
+interface PagoAEditar {
+  id: string;
+  monto: number;
+  fecha: string;
+  metodoPago: string;
+  banco?: string | null;
+  referencia?: string | null;
+  notas?: string | null;
+  correlativo?: string | null;
+}
 
-interface ModalAbonoProps {
+interface ModalEditarAbonoProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  cliente: {
-    id: string;
-    nombre: string;
-    saldoTotal: number;
-    facturas?: Array<{
-      id: string;
-      correlativo: string;
-      total: number;
-      saldoPendiente: number;
-      fechaEmision: string;
-    }>;
-  } | null;
+  clienteNombre: string;
+  pago: PagoAEditar | null;
 }
 
-export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: ModalAbonoProps) {
+export default function ModalEditarAbono({ isOpen, onClose, onSuccess, clienteNombre, pago }: ModalEditarAbonoProps) {
   const [monto, setMonto] = useState<string>('');
   const [metodoPago, setMetodoPago] = useState<string>('TRANSFERENCIA');
-  const [banco, setBanco] = useState<string>('Ficohsa');
+  const [banco, setBanco] = useState<string>('');
   const [referencia, setReferencia] = useState<string>('');
   const [notas, setNotas] = useState<string>('');
-  const [fechaPago, setFechaPago] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [fechaPago, setFechaPago] = useState<string>('');
   const [bankDropdownOpen, setBankDropdownOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen || !cliente) return null;
+  useEffect(() => {
+    if (pago) {
+      setMonto(pago.monto.toString());
+      setMetodoPago(pago.metodoPago || 'TRANSFERENCIA');
+      setBanco(pago.banco || '');
+      setReferencia(pago.referencia || '');
+      setNotas(pago.notas || '');
+      
+      try {
+        const d = new Date(pago.fecha);
+        setFechaPago(d.toISOString().split('T')[0]);
+      } catch {
+        setFechaPago(new Date().toISOString().split('T')[0]);
+      }
+    }
+  }, [pago]);
 
-  const handleMontoRapido = (porcentaje: number) => {
-    const valor = Math.round(cliente.saldoTotal * porcentaje);
-    setMonto(valor.toString());
-  };
+  if (!isOpen || !pago) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,11 +65,10 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
 
     try {
       setLoading(true);
-      const res = await fetch('/api/cxc/abonos', {
-        method: 'POST',
+      const res = await fetch(`/api/cxc/abonos/${pago.id}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          clienteId: cliente.id,
           monto: valMonto,
           metodoPago,
           banco: banco.trim() || undefined,
@@ -84,99 +80,54 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Error al registrar el abono');
+        throw new Error(data.error || 'Error al editar el abono');
       }
 
-      setMonto('');
-      setBanco('');
-      setReferencia('');
-      setNotas('');
       onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Error registrando el abono');
+      setError(err.message || 'Error guardando los cambios');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="p-5 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+        <div className="p-5 bg-gradient-to-r from-emerald-700 to-teal-800 text-white flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg">
-              <DollarSign className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-lg">
+              <Edit3 className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h3 className="font-bold text-lg leading-tight">Registrar Abono / Pago</h3>
-              <p className="text-emerald-100 text-xs truncate max-w-[240px]">Cliente: {cliente.nombre}</p>
+              <h3 className="font-extrabold text-lg leading-tight">Editar Abono / Recibo {pago.correlativo || ''}</h3>
+              <p className="text-emerald-100 text-xs truncate max-w-[240px]">Cliente: {clienteNombre}</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto flex-1 bg-white">
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto flex-1 bg-white">
           {error && (
-            <div className="p-3 bg-red-50 text-red-700 rounded-xl text-sm flex items-center gap-2 border border-red-200">
-              <AlertCircle className="w-5 h-5 shrink-0 text-red-500" />
+            <div className="p-3.5 bg-red-50 text-red-700 rounded-2xl text-xs flex items-center gap-2 border border-red-200 font-medium">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
               <span>{error}</span>
             </div>
           )}
-
-          {/* Resumen de Saldo */}
-          <div className="p-3.5 bg-emerald-50/80 rounded-xl border border-emerald-200 flex justify-between items-center">
-            <div>
-              <span className="text-xs text-emerald-900 font-bold">Saldo Pendiente Actual</span>
-              <p className="text-xs text-slate-500">Total adeudado por el cliente</p>
-            </div>
-            <span className="text-xl font-black text-emerald-700">
-              L. {cliente.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-            </span>
-          </div>
-
-          {/* Botones de Abono Rápido */}
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Atajos de Monto Rápido
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleMontoRapido(0.25)}
-                className="py-1.5 px-2 bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 font-semibold text-xs rounded-lg transition-colors text-slate-700 border border-slate-200"
-              >
-                25% (L. {(cliente.saldoTotal * 0.25).toFixed(0)})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMontoRapido(0.50)}
-                className="py-1.5 px-2 bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 font-semibold text-xs rounded-lg transition-colors text-slate-700 border border-slate-200"
-              >
-                50% (L. {(cliente.saldoTotal * 0.50).toFixed(0)})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleMontoRapido(1.0)}
-                className="py-1.5 px-2 bg-emerald-600 text-white hover:bg-emerald-700 font-bold text-xs rounded-lg transition-colors shadow-sm"
-              >
-                Pago Total (100%)
-              </button>
-            </div>
-          </div>
 
           {/* Campo de Monto y Fecha del Pago */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-800 mb-1">
-                Monto a Abonar (Lempiras) *
+                Monto del Abono (Lempiras) *
               </label>
               <div className="relative">
                 <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400">L.</span>
@@ -188,22 +139,21 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                   value={monto}
                   onChange={(e) => setMonto(e.target.value)}
                   placeholder="0.00"
-                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-base font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
+                  className="w-full pl-9 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-base font-black text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center justify-between">
-                <span>Fecha del Pago *</span>
-                <span className="text-[9px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 uppercase">Modificable</span>
+              <label className="block text-xs font-bold text-slate-800 mb-1">
+                Fecha del Pago *
               </label>
               <input
                 type="date"
                 required
                 value={fechaPago}
                 onChange={(e) => setFechaPago(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none cursor-pointer"
               />
             </div>
           </div>
@@ -244,14 +194,13 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
               {/* Selector Inteligente de Banco Destino */}
               <div className="relative">
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Banco Destino <span className="text-emerald-600">*</span>
+                  Banco Destino
                 </label>
                 
-                {/* Botón Trigger con Logo */}
                 <button
                   type="button"
                   onClick={() => setBankDropdownOpen(!bankDropdownOpen)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium flex items-center justify-between gap-2 shadow-2xs cursor-pointer"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium flex items-center justify-between gap-2 cursor-pointer"
                 >
                   <div className="flex items-center gap-2 truncate">
                     {(() => {
@@ -280,9 +229,8 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                   <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
                 </button>
 
-                {/* Menú Desplegable Inteligente con Logos */}
                 {bankDropdownOpen && (
-                  <div className="absolute top-full left-0 right-0 mt-1 z-[100] bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-60 overflow-y-auto p-1.5 space-y-1 animate-in fade-in zoom-in-95">
+                  <div className="absolute top-full left-0 right-0 mt-1 z-[100] bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-60 overflow-y-auto p-1.5 space-y-1">
                     {HONDURAS_BANKS.map((b) => (
                       <button
                         type="button"
@@ -297,7 +245,7 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
                             : 'hover:bg-slate-100 text-slate-800'
                         }`}
                       >
-                        <div className="w-6 h-6 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0 shadow-2xs">
+                        <div className="w-6 h-6 rounded-lg bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0">
                           <img src={b.logo} alt={b.name} className="w-full h-full object-contain" />
                         </div>
                         <span className="truncate">{b.name}</span>
@@ -327,12 +275,12 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
 
           {/* Notas */}
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Notas Explicativas (Opcional)
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              Notas Explicativas
             </label>
             <textarea
               rows={2}
-              placeholder="Ej: Pagado por primo del cliente, comprobante enviado a WhatsApp..."
+              placeholder="Ej: Corrección de valor digitado..."
               value={notas}
               onChange={(e) => setNotas(e.target.value)}
               className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs text-slate-900 focus:bg-white focus:ring-2 focus:ring-emerald-500 outline-none font-medium"
@@ -344,24 +292,24 @@ export default function ModalAbono({ isOpen, onClose, onSuccess, cliente }: Moda
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 font-bold text-xs text-slate-700 rounded-xl transition-colors border border-slate-200"
+              className="flex-1 py-2.5 px-4 bg-slate-100 hover:bg-slate-200 font-bold text-xs text-slate-700 rounded-xl transition-colors border border-slate-200 cursor-pointer"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] font-bold text-xs text-white rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="flex-1 py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] font-bold text-xs text-white rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer"
             >
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Procesando...</span>
+                  <span>Guardando...</span>
                 </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  <span>Confirmar Abono</span>
+                  <span>Guardar Cambios</span>
                 </>
               )}
             </button>

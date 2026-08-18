@@ -41,7 +41,7 @@ const searchItems: SearchItem[] = [
     { name: 'Gestor de Precios', category: 'Inventario', href: '/precios', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['precios', 'tarifas', 'gestor', 'listas', 'prices'] },
     { name: 'Ubicaciones y Sucursales', category: 'Inventario', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['ubicaciones', 'sucursales', 'areas', 'bodegas', 'locations'] },
     { name: 'Inventario (Odoo)', category: 'Inventario', href: '/inventario/historico', roles: ['SUPER_ADMIN'], keywords: ['odoo', 'historico', 'referencia'] },
-    { name: 'Directorio de Contactos', category: 'Ventas y Servicios', href: '/contactos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['contactos', 'clientes', 'directorio', 'telefono', 'address book'] },
+    { name: 'Directorio de Clientes', category: 'Ventas y Servicios', href: '/contactos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['contactos', 'clientes', 'directorio', 'telefono', 'address book'] },
     { name: 'Cotizaciones', category: 'Ventas y Servicios', href: '/cotizaciones', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['cotizaciones', 'presupuestos', 'quotes', 'proposals'] },
     { name: 'Facturación', category: 'Ventas y Servicios', href: '/facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['facturas', 'ventas', 'billing', 'invoices'] },
     { name: 'Órdenes de Entrega', category: 'Ventas y Servicios', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['ordenes', 'entrega', 'delivery', 'shipping'] },

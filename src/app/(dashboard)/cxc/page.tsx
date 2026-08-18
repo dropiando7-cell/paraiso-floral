@@ -13,10 +13,13 @@ import {
   RefreshCw,
   TrendingUp,
   DollarSign,
-  Flower2
+  Flower2,
+  LayoutGrid,
+  List
 } from 'lucide-react';
 import ModalAbono from '@/components/cxc/ModalAbono';
 import ModalNotaCredito from '@/components/cxc/ModalNotaCredito';
+import ModalSaldoInicial from '@/components/cxc/ModalSaldoInicial';
 
 interface ClienteCxC {
   id: string;
@@ -25,6 +28,7 @@ interface ClienteCxC {
   email: string | null;
   direccion: string | null;
   limiteCredito: number;
+  saldoInicial?: number;
   diasCredito: number;
   saldoTotal: number;
   saldoVencido: number;
@@ -55,11 +59,13 @@ export default function CuentasPorCobrarPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [search, setSearch] = useState<string>('');
   const [filtro, setFiltro] = useState<string>('CON_SALDO');
+  const [viewMode, setViewMode] = useState<'CARDS' | 'INLINE'>('CARDS');
 
   // Modales
   const [clienteSeleccionado, setClienteSeleccionado] = useState<ClienteCxC | null>(null);
   const [modalAbonoOpen, setModalAbonoOpen] = useState<boolean>(false);
   const [modalNCOpen, setModalNCOpen] = useState<boolean>(false);
+  const [modalSaldoInicialOpen, setModalSaldoInicialOpen] = useState<boolean>(false);
 
   const cargarDatos = async () => {
     try {
@@ -98,19 +104,21 @@ export default function CuentasPorCobrarPage() {
     if (!cliente.telefono) return null;
     const cleanPhone = cliente.telefono.replace(/\D/g, '');
     const phoneWithCountry = cleanPhone.length === 8 ? `504${cleanPhone}` : cleanPhone;
+    const publicUrl = typeof window !== 'undefined' ? `${window.location.origin}/c/${cliente.id}/cxc` : '';
 
-    const texto = `🌸 *DISTRIBUIDORA PARAÍSO FLORAL* 🌸
-*Estado de Cuenta de Cliente*
+    const texto = `*DISTRIBUIDORA PARAISO FLORAL*
+*Estado de Cuenta Oficial*
 
-Estimado(a) *${cliente.nombre}*, le saludamos cordialmente.
+Cliente: *${cliente.nombre}*
 
-Le compartimos el resumen actualizado de su cuenta al día de hoy:
+• *Saldo Pendiente Total:* L. ${cliente.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+• *Facturas Pendientes:* ${cliente.facturasPendientesCount} factura(s)
+${cliente.saldoVencido > 0 ? `• *Saldo Vencido:* L. ${cliente.saldoVencido.toLocaleString('es-HN', { minimumFractionDigits: 2 })}` : '• *Estado:* Al día'}
 
-📌 *Saldo Pendiente Total:* L. ${cliente.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
-📄 *Facturas Pendientes:* ${cliente.facturasPendientesCount} factura(s)
-${cliente.saldoVencido > 0 ? `⚠️ *Saldo Vencido:* L. ${cliente.saldoVencido.toLocaleString('es-HN', { minimumFractionDigits: 2 })}` : '✅ *Estado:* Al día'}
+• *Ver o Descargar Estado de Cuenta en PDF:*
+${publicUrl}
 
-Agradecemos su preferencia y apoyo en realizar su abono a nuestras cuentas bancarias autorizadas. ¡Cualquier consulta estamos a la orden! 🌺`;
+¡Agradecemos su preferencia!`;
 
     return `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(texto)}`;
   };
@@ -281,6 +289,36 @@ Agradecemos su preferencia y apoyo en realizar su abono a nuestras cuentas banca
                 {tab.label}
               </button>
             ))}
+
+            {/* Switcher de Modo de Vista: Tarjetas vs Lista Inline */}
+            <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 shrink-0 ml-1">
+              <button
+                type="button"
+                onClick={() => setViewMode('CARDS')}
+                title="Vista de Tarjetas"
+                className={`p-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  viewMode === 'CARDS'
+                    ? 'bg-white text-emerald-800 shadow-2xs font-black'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <LayoutGrid className="w-4 h-4" />
+                <span className="hidden sm:inline">Tarjetas</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('INLINE')}
+                title="Vista Lista Inline (Filas)"
+                className={`p-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  viewMode === 'INLINE'
+                    ? 'bg-white text-emerald-800 shadow-2xs font-black'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+              >
+                <List className="w-4 h-4" />
+                <span className="hidden sm:inline">Lista Inline</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -301,7 +339,7 @@ Agradecemos su preferencia y apoyo en realizar su abono a nuestras cuentas banca
             Intenta cambiar el término de búsqueda o selecciona el filtro &quot;Todos&quot;.
           </p>
         </div>
-      ) : (
+      ) : viewMode === 'CARDS' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {clientes.map(c => {
             const waLink = generarWhatsAppLink(c);
@@ -353,14 +391,14 @@ Agradecemos su preferencia y apoyo en realizar su abono a nuestras cuentas banca
                 </div>
 
                 {/* Botones Rápidos Touch Móviles */}
-                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100">
+                <div className="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-100">
                   {/* Botón Abonar */}
                   <button
                     onClick={() => {
                       setClienteSeleccionado(c);
                       setModalAbonoOpen(true);
                     }}
-                    className="py-2 px-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1"
+                    className="py-2 px-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-[11px] rounded-xl transition-all shadow-2xs flex items-center justify-center gap-0.5"
                     title="Registrar Pago o Abono"
                   >
                     <span>Abonar</span>
@@ -372,10 +410,22 @@ Agradecemos su preferencia y apoyo en realizar su abono a nuestras cuentas banca
                       setClienteSeleccionado(c);
                       setModalNCOpen(true);
                     }}
-                    className="py-2 px-2 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1"
+                    className="py-2 px-1 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-[11px] rounded-xl transition-all shadow-2xs flex items-center justify-center gap-0.5"
                     title="Registrar Devolución o Flor Dañada"
                   >
-                    <span>Ajuste Flor</span>
+                    <span>Ajuste</span>
+                  </button>
+
+                  {/* Botón Saldo Inicial Excel */}
+                  <button
+                    onClick={() => {
+                      setClienteSeleccionado(c);
+                      setModalSaldoInicialOpen(true);
+                    }}
+                    className="py-2 px-1 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-[11px] rounded-xl transition-all shadow-2xs flex items-center justify-center gap-0.5"
+                    title="Asignar o editar Saldo Inicial (Excel)"
+                  >
+                    <span>Saldo Excel</span>
                   </button>
 
                   {/* Botón WhatsApp Directo */}
@@ -384,19 +434,19 @@ Agradecemos su preferencia y apoyo en realizar su abono a nuestras cuentas banca
                       href={waLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="py-2 px-2 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-sm flex items-center justify-center gap-1"
+                      className="py-2 px-1 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-[11px] rounded-xl transition-all shadow-2xs flex items-center justify-center gap-0.5"
                       title="Enviar Estado de Cuenta por WhatsApp"
                     >
                       <MessageCircle className="w-3.5 h-3.5" />
-                      <span>WhatsApp</span>
+                      <span>WApp</span>
                     </a>
                   ) : (
                     <button
                       disabled
-                      className="py-2 px-2 bg-slate-100 text-slate-400 font-bold text-xs rounded-xl cursor-not-allowed flex items-center justify-center gap-1"
+                      className="py-2 px-1 bg-slate-100 text-slate-400 font-bold text-[11px] rounded-xl cursor-not-allowed flex items-center justify-center gap-0.5"
                     >
                       <MessageCircle className="w-3.5 h-3.5" />
-                      <span>WhatsApp</span>
+                      <span>WApp</span>
                     </button>
                   )}
                 </div>
@@ -412,6 +462,137 @@ Agradecemos su preferencia y apoyo en realizar su abono a nuestras cuentas banca
               </div>
             );
           })}
+        </div>
+      ) : (
+        /* VISTA LISTA INLINE (FILAS) */
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-slate-100/90 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                  <th className="py-3.5 px-4">Cliente / Contacto</th>
+                  <th className="py-3.5 px-3">Estado Morosidad</th>
+                  <th className="py-3.5 px-3">Facturas Pendientes</th>
+                  <th className="py-3.5 px-3 text-right">Saldo Pendiente</th>
+                  <th className="py-3.5 px-4 text-center">Acciones Rápidas</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {clientes.map(c => {
+                  const waLink = generarWhatsAppLink(c);
+                  return (
+                    <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                      {/* Cliente Name & Phone */}
+                      <td className="py-3 px-4">
+                        <Link
+                          href={`/cxc/cliente/${c.id}`}
+                          className="font-extrabold text-sm text-slate-900 hover:text-emerald-600 transition-colors block"
+                        >
+                          {c.nombre}
+                        </Link>
+                        <span className="text-[11px] text-slate-500 font-medium">
+                          📱 {c.telefono || 'Sin teléfono'}
+                        </span>
+                      </td>
+
+                      {/* Status Badge */}
+                      <td className="py-3 px-3">
+                        {getStatusBadge(c.maxDiasMora, c.saldoTotal)}
+                      </td>
+
+                      {/* Facturas Pendientes Info */}
+                      <td className="py-3 px-3">
+                        <div className="font-bold text-slate-900">
+                          {c.facturasPendientesCount} factura(s)
+                        </div>
+                        {c.maxDiasMora > 0 ? (
+                          <span className="text-[10px] text-amber-700 font-semibold">
+                            Máx: {c.maxDiasMora} días
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-medium">Al día</span>
+                        )}
+                      </td>
+
+                      {/* Saldo Pendiente */}
+                      <td className="py-3 px-3 text-right whitespace-nowrap">
+                        <div className="text-base font-black text-slate-900 font-mono">
+                          L. {c.saldoTotal.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                        </div>
+                        {c.saldoVencido > 0 && (
+                          <div className="text-[10px] font-bold text-rose-600">
+                            Vencido: L. {c.saldoVencido.toLocaleString('es-HN', { minimumFractionDigits: 2 })}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Action Buttons Row */}
+                      <td className="py-3 px-4">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <button
+                            onClick={() => {
+                              setClienteSeleccionado(c);
+                              setModalAbonoOpen(true);
+                            }}
+                            className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                            title="Abonar"
+                          >
+                            <DollarSign className="w-3.5 h-3.5" />
+                            <span>Abonar</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setClienteSeleccionado(c);
+                              setModalNCOpen(true);
+                            }}
+                            className="py-1.5 px-3 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                            title="Ajuste por Flor"
+                          >
+                            <Flower2 className="w-3.5 h-3.5" />
+                            <span>Ajuste</span>
+                          </button>
+
+                          <button
+                            onClick={() => {
+                              setClienteSeleccionado(c);
+                              setModalSaldoInicialOpen(true);
+                            }}
+                            className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                            title="Editar Saldo Inicial de Excel"
+                          >
+                            <Clock className="w-3.5 h-3.5" />
+                            <span>Saldo Excel</span>
+                          </button>
+
+                          {waLink && (
+                            <a
+                              href={waLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="py-1.5 px-3 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center gap-1"
+                              title="Enviar por WhatsApp"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5" />
+                              <span>WApp</span>
+                            </a>
+                          )}
+
+                          <Link
+                            href={`/cxc/cliente/${c.id}`}
+                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+                            title="Ver Estado de Cuenta Completo"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -430,6 +611,16 @@ Agradecemos su preferencia y apoyo en realizar su abono a nuestras cuentas banca
         isOpen={modalNCOpen}
         onClose={() => {
           setModalNCOpen(false);
+          setClienteSeleccionado(null);
+        }}
+        onSuccess={cargarDatos}
+        cliente={clienteSeleccionado}
+      />
+
+      <ModalSaldoInicial
+        isOpen={modalSaldoInicialOpen}
+        onClose={() => {
+          setModalSaldoInicialOpen(false);
           setClienteSeleccionado(null);
         }}
         onSuccess={cargarDatos}

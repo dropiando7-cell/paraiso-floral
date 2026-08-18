@@ -78,10 +78,11 @@ export async function GET(
     }
 
     // Calcular consolidados
-    let saldoTotal = 0;
-    let totalFacturado = 0;
+    const sInicial = Number(cliente.saldoInicial || 0);
+    let saldoTotal = sInicial;
+    let totalFacturado = sInicial;
 
-    const facturasProcesadas = cliente.facturas.map(f => {
+    const listadoFacturas = cliente.facturas.map(f => {
       const total = Number(f.total || 0);
       const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : total;
       totalFacturado += total;
@@ -95,6 +96,21 @@ export async function GET(
       };
     });
 
+    const facturasProcesadas = [
+      ...(sInicial > 0 ? [{
+        id: 'saldo-inicial-excel',
+        correlativo: 'SALDO INICIAL EXCEL',
+        tipoDocumento: 'SALDO_INICIAL',
+        fechaEmision: cliente.createdAt,
+        fechaVencimiento: null,
+        total: sInicial,
+        saldoPendiente: sInicial,
+        estadoPago: 'PENDIENTE',
+        detalles: []
+      }] : []),
+      ...listadoFacturas
+    ];
+
     const totalAbonado = cliente.pagos.reduce((sum, p) => sum + Number(p.monto), 0);
     const totalNotasCredito = cliente.notasCredito.reduce((sum, n) => sum + Number(n.monto), 0);
 
@@ -107,6 +123,7 @@ export async function GET(
         direccion: cliente.direccion,
         rtn: cliente.rtn,
         limiteCredito: Number(cliente.limiteCredito || 0),
+        saldoInicial: sInicial,
         diasCredito: cliente.diasCredito || 15
       },
       resumen: {

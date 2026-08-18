@@ -249,3 +249,21 @@ export async function enviarDocumentoPorEmail(
     return { success: false, error: error.message || 'Error interno al enviar el correo' };
   }
 }
+
+export async function getDocumentoById(id: string) {
+  try {
+    const authUser = await getAuthenticatedUser();
+    const doc = await prisma.factura.findFirst({
+      where: { id, organizationId: authUser.organizationId },
+      include: {
+        cliente: true,
+        creadoPor: true,
+        detalles: true
+      }
+    });
+    return doc;
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
