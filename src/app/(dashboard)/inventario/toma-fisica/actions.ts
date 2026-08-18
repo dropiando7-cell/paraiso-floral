@@ -39,7 +39,7 @@ async function getAuthContext() {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
-        select: { id: true, nombre: true, apellido: true, organizationId: true, role: true, accessibleModules: true },
+        select: { id: true, nombre: true, apellido: true, organizationId: true, role: true, customRoleName: true, accessibleModules: true },
     });
     if (!dbUser) redirect('/unauthorized');
 
@@ -47,6 +47,8 @@ async function getAuthContext() {
                     dbUser.role === 'ORG_ADMIN' || 
                     dbUser.role === 'INVENTARIO_EDITOR' ||
                     dbUser.role === 'GERENTE' ||
+                    dbUser.customRoleName === 'PF_GERENCIA' ||
+                    (dbUser.customRoleName || '').toUpperCase().includes('GEREN') ||
                     (dbUser.accessibleModules || []).includes('/inventario/toma-fisica') ||
                     (dbUser.accessibleModules || []).includes('/inventario');
 
@@ -69,7 +71,11 @@ export async function getAuditoriasInventario() {
             orderBy: { createdAt: 'desc' }
         });
 
-        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN' || user.role === 'GERENTE';
+        const isAdmin = user.role === 'SUPER_ADMIN' || 
+                        user.role === 'ORG_ADMIN' || 
+                        user.role === 'GERENTE' || 
+                        user.customRoleName === 'PF_GERENCIA' || 
+                        (user.customRoleName || '').toUpperCase().includes('GEREN');
 
         return {
             success: true,
@@ -212,7 +218,11 @@ export async function getAuditoriaInventarioDetalle(id: string) {
         }));
 
         const usuarioNombre = `${user.nombre || ''} ${user.apellido || ''}`.trim() || user.id;
-        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN' || user.role === 'GERENTE';
+        const isAdmin = user.role === 'SUPER_ADMIN' || 
+                        user.role === 'ORG_ADMIN' || 
+                        user.role === 'GERENTE' || 
+                        user.customRoleName === 'PF_GERENCIA' || 
+                        (user.customRoleName || '').toUpperCase().includes('GEREN');
 
         return {
             success: true,
@@ -335,7 +345,11 @@ export async function aprobarTomaFisica(auditoriaId: string, motivoNotas?: strin
         const user = await getAuthContext();
 
         // Security check
-        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN' || user.role === 'GERENTE';
+        const isAdmin = user.role === 'SUPER_ADMIN' || 
+                        user.role === 'ORG_ADMIN' || 
+                        user.role === 'GERENTE' || 
+                        user.customRoleName === 'PF_GERENCIA' || 
+                        (user.customRoleName || '').toUpperCase().includes('GEREN');
         if (!isAdmin) {
             throw new Error('No autorizado. Solo administradores o la gerencia pueden aprobar auditorías.');
         }
@@ -460,7 +474,11 @@ export async function deshacerTomaFisica(auditoriaId: string) {
         const user = await getAuthContext();
 
         // Security check
-        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN' || user.role === 'GERENTE';
+        const isAdmin = user.role === 'SUPER_ADMIN' || 
+                        user.role === 'ORG_ADMIN' || 
+                        user.role === 'GERENTE' || 
+                        user.customRoleName === 'PF_GERENCIA' || 
+                        (user.customRoleName || '').toUpperCase().includes('GEREN');
         if (!isAdmin) {
             throw new Error('No autorizado. Solo administradores o la gerencia pueden revertir auditorías.');
         }
