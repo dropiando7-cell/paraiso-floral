@@ -46,6 +46,7 @@ async function getAuthContext() {
     const allowed = dbUser.role === 'SUPER_ADMIN' || 
                     dbUser.role === 'ORG_ADMIN' || 
                     dbUser.role === 'INVENTARIO_EDITOR' ||
+                    dbUser.role === 'GERENTE' ||
                     (dbUser.accessibleModules || []).includes('/inventario/toma-fisica') ||
                     (dbUser.accessibleModules || []).includes('/inventario');
 
@@ -68,7 +69,7 @@ export async function getAuditoriasInventario() {
             orderBy: { createdAt: 'desc' }
         });
 
-        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN' || user.role === 'GERENTE';
 
         return {
             success: true,
@@ -211,7 +212,7 @@ export async function getAuditoriaInventarioDetalle(id: string) {
         }));
 
         const usuarioNombre = `${user.nombre || ''} ${user.apellido || ''}`.trim() || user.id;
-        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN' || user.role === 'GERENTE';
 
         return {
             success: true,
@@ -334,9 +335,9 @@ export async function aprobarTomaFisica(auditoriaId: string, motivoNotas?: strin
         const user = await getAuthContext();
 
         // Security check
-        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN' || user.role === 'GERENTE';
         if (!isAdmin) {
-            throw new Error('No autorizado. Solo administradores pueden aprobar auditorías.');
+            throw new Error('No autorizado. Solo administradores o la gerencia pueden aprobar auditorías.');
         }
 
         const auditoria = await prisma.auditoriaInventario.findUnique({
@@ -459,9 +460,9 @@ export async function deshacerTomaFisica(auditoriaId: string) {
         const user = await getAuthContext();
 
         // Security check
-        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN';
+        const isAdmin = user.role === 'SUPER_ADMIN' || user.role === 'ORG_ADMIN' || user.role === 'GERENTE';
         if (!isAdmin) {
-            throw new Error('No autorizado. Solo administradores pueden revertir auditorías.');
+            throw new Error('No autorizado. Solo administradores o la gerencia pueden revertir auditorías.');
         }
 
         const auditoria = await prisma.auditoriaInventario.findUnique({

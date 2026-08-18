@@ -162,7 +162,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         } else if (newRole === 'RECEPCION' || newRole === 'TECNICO') {
             setAccessibleModules(['/', '/soporte', '/inventario']);
         } else if (newRole === 'GERENTE') {
-            setAccessibleModules(['/', '/soporte', '/inventario', '/graficas']);
+            setAccessibleModules(['/', '/soporte', '/inventario', '/graficas', '/inventario/toma-fisica', '/inventario/kardex']);
         } else {
             setAccessibleModules(['/']);
         }

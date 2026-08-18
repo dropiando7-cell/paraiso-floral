@@ -76,12 +76,12 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         icon: Box,
         subItems: [
           { name: 'Control de Inventario', href: '/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-          { name: 'Toma Física / Auditoría', href: '/inventario/toma-fisica', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
+          { name: 'Toma Física / Auditoría', href: '/inventario/toma-fisica', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR', 'GERENTE'] },
           { name: 'Garantías y Reemplazos', href: '/inventario/garantias', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Catálogo de Modelos', href: '/inventario/modelos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
           { name: 'Entradas / Compras', href: '/inventario/entradas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Salidas / Descargas', href: '/inventario/salidas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-          { name: 'Kardex de Movimientos', href: '/inventario/kardex', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Kardex de Movimientos', href: '/inventario/kardex', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE'] },
           { name: 'Gestor de Precios', href: '/precios', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Ubicaciones y Sucursales', href: '/admin/areas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Inventario (Odoo)', href: '/inventario/historico', roles: ['SUPER_ADMIN'] }
