@@ -2921,13 +2921,15 @@ export default function DocumentBuilderClient({
     }, 150);
   };
 
-  // Helper to save template settings to database safely outside React render phase
+  // Helper to save template settings to database safely outside React render phase (persists globally for Organization)
   const handleSaveTemplateSettings = (newSettings: any) => {
-    const docId = reservedDocId || initialData?.id;
-    if (!docId || docId === 'nuevo') return;
     setTimeout(async () => {
       try {
-        await updateDocumentTemplateSettings(docId, newSettings);
+        await updateOrganizationDefaultSettings(newSettings);
+        const docId = reservedDocId || initialData?.id;
+        if (docId && docId !== 'nuevo') {
+          await updateDocumentTemplateSettings(docId, newSettings);
+        }
       } catch (err) {
         console.error('Error auto-saving template settings:', err);
       }
@@ -5629,10 +5631,15 @@ export default function DocumentBuilderClient({
         <InvoiceCustomizerSidebar
           settings={settings}
           onChange={(key, val) => {
-            setSettings(prev => ({ ...prev, [key]: val }));
+            setSettings(prev => {
+              const updated = { ...prev, [key]: val };
+              handleSaveTemplateSettings(updated);
+              return updated;
+            });
           }}
           onLoadTemplate={(tplSettings) => {
             setSettings(tplSettings);
+            handleSaveTemplateSettings(tplSettings);
           }}
           onApplyTerms={handleApplyTerms}
           onClose={() => setShowCustomizer(false)}

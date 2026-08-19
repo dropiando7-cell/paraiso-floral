@@ -41,13 +41,16 @@ async function getContextUser(): Promise<{ orgId: string, userId: string }> {
 // ─── Auto-generate ID QR ─────────────────────────────────────────────────────
 async function generateIdQr(organizationId: string, area: string, codigoGrupo: string = '001', cantidadRegistros: number = 1): Promise<string[]> {
     const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { qrPrefix: true } });
-    const prefijoBase = org?.qrPrefix || 'BEA';
-
+    const prefijoBase = org?.qrPrefix || 'PF';
 
     const todos = await prisma.activoFijo.findMany({
         where: { 
             organizationId,
-            idQr: { startsWith: `${prefijoBase}-` }
+            OR: [
+                { idQr: { startsWith: `${prefijoBase}-` } },
+                { idQr: { startsWith: 'BEA-' } },
+                { idQr: { startsWith: 'PF-' } }
+            ]
         },
         select: { idQr: true }
     });
@@ -69,7 +72,7 @@ async function generateIdQr(organizationId: string, area: string, codigoGrupo: s
 
     for (let i = 0; i < cantidadRegistros; i++) {
         const numPart = String(startNum + i).padStart(6, '0');
-        ids.push(`${prefijoBase}-${codigoGrupo}-${numPart}`);
+        ids.push(`${prefijoBase}-${numPart}`);
     }
 
     return ids;

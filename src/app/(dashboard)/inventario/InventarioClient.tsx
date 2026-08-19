@@ -8,7 +8,7 @@ import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft, Wrench, Download, FileSpreadsheet,
-    Globe, UserPlus, Laptop, ClipboardList
+    Globe, UserPlus, Laptop, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown
 } from 'lucide-react';
 import { crearClienteAction } from '../soporte/actions';
 import {
@@ -410,6 +410,7 @@ type Activo = {
     observaciones?: string | null;
     createdBy?: { nombre?: string | null; apellido?: string | null; email?: string | null } | null;
     updatedBy?: { nombre?: string | null; apellido?: string | null; email?: string | null } | null;
+    createdAt?: Date | string | null;
 
     historicoId?: string | null;
     categoriaDepreciacion?: string | null;
@@ -3606,6 +3607,84 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const [filtroOrigen, setFiltroOrigen] = useState('');
     const [filtroCondicion, setFiltroCondicion] = useState('');
     const [tipoInventario, setTipoInventario] = useState<'real' | 'cliente' | 'servicio' | 'importado'>('real');
+    const [sortField, setSortField] = useState<string | null>(null);
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+
+    const handleSort = (fieldKey: string) => {
+        if (fieldKey === '' || fieldKey === 'FOTO') return;
+        if (sortField === fieldKey) {
+            setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortField(fieldKey);
+            setSortDirection((fieldKey === 'STOCK' || fieldKey === 'FECHA REGISTRO') ? 'desc' : 'asc');
+        }
+    };
+
+    const sortedActivos = useMemo(() => {
+        if (!sortField) return activos;
+
+        return [...activos].sort((a, b) => {
+            let valA: any = '';
+            let valB: any = '';
+
+            switch (sortField) {
+                case 'ID QR':
+                    valA = a.idQr || '';
+                    valB = b.idQr || '';
+                    break;
+                case 'DESCRIPCIÓN':
+                    valA = a.descripcionCorta || '';
+                    valB = b.descripcionCorta || '';
+                    break;
+                case 'REF.':
+                    valA = a.referencia || '';
+                    valB = b.referencia || '';
+                    break;
+                case 'LOTE':
+                    valA = a.lote || '';
+                    valB = b.lote || '';
+                    break;
+                case 'FECHA REGISTRO':
+                    valA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                    valB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                    break;
+                case 'ÁREA':
+                    valA = a.area || '';
+                    valB = b.area || '';
+                    break;
+                case 'STOCK':
+                    valA = Number(a.stock ?? 1);
+                    valB = Number(b.stock ?? 1);
+                    break;
+                case 'CUENTA':
+                    valA = a.cuentaAct || '';
+                    valB = b.cuentaAct || '';
+                    break;
+                case 'ESTATUS':
+                    valA = a.estatusContable || '';
+                    valB = b.estatusContable || '';
+                    break;
+                case 'ESTADO':
+                    valA = a.estadoDano || 'OK';
+                    valB = b.estadoDano || 'OK';
+                    break;
+                case 'CREADO POR':
+                    valA = a.createdBy?.nombre ? `${a.createdBy.nombre} ${a.createdBy.apellido || ''}`.trim() : (a.createdBy?.email || '');
+                    valB = b.createdBy?.nombre ? `${b.createdBy.nombre} ${b.createdBy.apellido || ''}`.trim() : (b.createdBy?.email || '');
+                    break;
+                default:
+                    return 0;
+            }
+
+            if (typeof valA === 'number' && typeof valB === 'number') {
+                return sortDirection === 'asc' ? valA - valB : valB - valA;
+            }
+
+            const comp = String(valA).localeCompare(String(valB), 'es', { sensitivity: 'base', numeric: true });
+            return sortDirection === 'asc' ? comp : -comp;
+        });
+    }, [activos, sortField, sortDirection]);
+
     const [exportingExcel, setExportingExcel] = useState(false);
     const [originsList, setOriginsList] = useState<string[]>(initialOrigins);
     const [defaultOrigin, setDefaultOrigin] = useState<string>(initialDefaultOrigin);
@@ -4537,56 +4616,6 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
 
             <div className="hide-on-print"><StatsCards stats={stats} /></div>
 
-            {/* Segmented Control / Tabs for Inventory Types */}
-            {!isRentaMode && (
-                <div className="flex p-1 bg-slate-200/60 backdrop-blur-sm rounded-2xl mb-6 max-w-4xl border border-slate-200/80 shadow-sm hide-on-print mt-4 overflow-x-auto">
-                    <button
-                        onClick={() => setTipoInventario('real')}
-                        className={`flex-1 min-w-[130px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
-                            tipoInventario === 'real'
-                                ? 'bg-white text-[#0500A3] shadow-md shadow-slate-300'
-                                : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                    >
-                        <Package className={`w-4 h-4 ${tipoInventario === 'real' ? 'text-[#0500A3]' : 'text-slate-400'}`} />
-                        <span>Inventario General</span>
-                    </button>
-                    <button
-                        onClick={() => setTipoInventario('cliente')}
-                        className={`flex-1 min-w-[160px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
-                            tipoInventario === 'cliente'
-                                ? 'bg-white text-[#0500A3] shadow-md shadow-slate-300'
-                                : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                    >
-                        <Wrench className={`w-4 h-4 ${tipoInventario === 'cliente' ? 'text-[#0500A3]' : 'text-slate-400'}`} />
-                        <span>Equipos Interno/Externo</span>
-                    </button>
-                    <button
-                        onClick={() => setTipoInventario('servicio')}
-                        className={`flex-1 min-w-[100px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
-                            tipoInventario === 'servicio'
-                                ? 'bg-white text-[#0500A3] shadow-md shadow-slate-300'
-                                : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                    >
-                        <RotateCw className={`w-4 h-4 ${tipoInventario === 'servicio' ? 'text-[#0500A3]' : 'text-slate-400'}`} />
-                        <span>Servicios</span>
-                    </button>
-                    <button
-                        onClick={() => setTipoInventario('importado')}
-                        className={`flex-1 min-w-[170px] flex items-center justify-center gap-2 py-3 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 active:scale-[0.98] ${
-                            tipoInventario === 'importado'
-                                ? 'bg-indigo-600 text-white shadow-md shadow-indigo-300'
-                                : 'text-indigo-600 hover:bg-indigo-50 font-extrabold'
-                        }`}
-                    >
-                        <Globe className={`w-4 h-4 ${tipoInventario === 'importado' ? 'text-white' : 'text-indigo-600'}`} />
-                        <span>Catálogo Web / Importados ({stats.totalImportadosWeb || 0})</span>
-                    </button>
-                </div>
-            )}
-
             {/* Search + filter toggle */}
             <div className="flex gap-2 mb-3 hide-on-print">
                 <div className="relative flex-1">
@@ -4663,19 +4692,45 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 <table className="w-full text-xs min-w-[800px]">
                     <thead>
                         <tr className="border-b border-slate-100 bg-slate-50">
-                            {['ID QR', 'FOTO', 'DESCRIPCIÓN', 'REF.', 'LOTE', 'ÁREA', 'STOCK', 'CUENTA', 'ESTATUS', 'ESTADO', 'CREADO POR', ''].map(h => (
-                                <th key={h} className={`text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 py-3 ${h === '' || h === 'FOTO' ? 'hide-on-print' : ''}`}>{h}</th>
-                            ))}
+                            {['ID QR', 'FOTO', 'DESCRIPCIÓN', 'LOTE', 'FECHA REGISTRO', 'ÁREA', 'STOCK', 'CUENTA', 'ESTATUS', 'ESTADO', 'CREADO POR', ''].map(h => {
+                                const isSortable = h !== '' && h !== 'FOTO';
+                                const isSorted = sortField === h;
+                                return (
+                                    <th 
+                                        key={h} 
+                                        onClick={() => isSortable && handleSort(h)}
+                                        className={`text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider px-3 py-3 ${h === '' || h === 'FOTO' ? 'hide-on-print' : 'cursor-pointer hover:bg-slate-100/80 hover:text-slate-900 transition-colors select-none'}`}
+                                        title={isSortable ? `Ordenar por ${h}` : undefined}
+                                    >
+                                        <div className="flex items-center gap-1.5">
+                                            <span>{h}</span>
+                                            {isSortable && (
+                                                <span className="shrink-0">
+                                                    {isSorted ? (
+                                                        sortDirection === 'asc' ? (
+                                                            <ArrowUp className="w-3 h-3 text-[#0500A3] font-bold" />
+                                                        ) : (
+                                                            <ArrowDown className="w-3 h-3 text-[#0500A3] font-bold" />
+                                                        )
+                                                    ) : (
+                                                        <ArrowUpDown className="w-3 h-3 text-slate-300 opacity-60 hover:opacity-100" />
+                                                    )}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </th>
+                                );
+                            })}
                         </tr>
                     </thead>
                     <tbody className={`divide-y divide-slate-50 transition-opacity duration-200 ${isRefetching ? 'opacity-40 pointer-events-none' : ''}`}>
-                        {activos.length === 0 && !isRefetching ? (
-                            <tr><td colSpan={9} className="text-center py-16 text-slate-400">
+                        {sortedActivos.length === 0 && !isRefetching ? (
+                            <tr><td colSpan={12} className="text-center py-16 text-slate-400">
                                 <Package className="w-10 h-10 mx-auto mb-3 opacity-20" />
                                 <div className="text-sm font-medium">No se encontraron activos</div>
                                 <div className="text-xs mt-1">Presiona "Registrar Activo" para comenzar el inventario</div>
                             </td></tr>
-                        ) : activos.map(a => (
+                        ) : sortedActivos.map(a => (
                             <tr key={a.id} onClick={() => setViewActivo(a)} className="hover:bg-slate-50/60 transition-colors group cursor-pointer">
                                 <td className="px-3 py-3">
                                     <div 
@@ -4732,11 +4787,22 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                         return <div className="mt-1 text-emerald-600 font-medium text-[10px] bg-emerald-50 px-1.5 py-0.5 rounded w-fit">Vence: {fv.toLocaleDateString('es-HN')}</div>;
                                     })()}
                                 </td>
-                                <td className="px-3 py-3 max-w-[120px]">
-                                    {a.referencia ? <div className="text-[10px] text-slate-600 font-mono truncate">{a.referencia}</div> : <div className="text-[10px] text-slate-300">—</div>}
-                                </td>
                                 <td className="px-3 py-3 max-w-[100px]">
                                     {a.lote ? <div className="text-[10px] text-slate-600 font-mono truncate">{a.lote}</div> : <div className="text-[10px] text-slate-300">—</div>}
+                                </td>
+                                <td className="px-3 py-3 max-w-[130px]">
+                                    {a.createdAt ? (
+                                        <div>
+                                            <div className="text-[10px] text-slate-700 font-semibold whitespace-nowrap">
+                                                {new Date(a.createdAt).toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                                            </div>
+                                            <div className="text-[9px] text-slate-400 font-mono">
+                                                {new Date(a.createdAt).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-[10px] text-slate-300">—</div>
+                                    )}
                                 </td>
                                 <td className="px-3 py-3"><div className="flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-400 shrink-0" /><span className="text-slate-600 font-mono text-[10px] whitespace-nowrap">{a.area}</span></div></td>
                                 <td className="px-3 py-3"><div className="font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded text-center w-fit">{a.stock ?? 1}</div></td>
@@ -4782,13 +4848,13 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
 
             {/* Mobile Card List View (< 768px) */}
             <div className="block md:hidden space-y-3">
-                {activos.length === 0 && !isRefetching ? (
+                {sortedActivos.length === 0 && !isRefetching ? (
                     <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
                         <Package className="w-10 h-10 mx-auto mb-3 opacity-20" />
                         <div className="text-sm font-medium">No se encontraron activos</div>
                     </div>
                 ) : (
-                    activos.map(a => (
+                    sortedActivos.map(a => (
                         <div 
                             key={a.id} 
                             onClick={() => setViewActivo(a)} 
@@ -4838,6 +4904,11 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                     {a.condicionActivo && (
                                         <span className="font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100/50">
                                             {a.condicionActivo}
+                                        </span>
+                                    )}
+                                     {a.createdAt && (
+                                        <span className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap">
+                                            Reg: {new Date(a.createdAt).toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: '2-digit' })} {new Date(a.createdAt).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })}
                                         </span>
                                     )}
                                     <span className="text-slate-300">|</span>

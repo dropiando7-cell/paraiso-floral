@@ -132,6 +132,31 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     });
   };
 
+  // Precios con ISV Incluido (Redondeado) State
+  const [pricesIncludeTax, setPricesIncludeTax] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedInc = localStorage.getItem('paraiso_pos_prices_include_tax');
+        if (savedInc !== null) {
+          setPricesIncludeTax(JSON.parse(savedInc));
+        }
+      } catch (e) {}
+    }
+  }, []);
+
+  const togglePricesIncludeTax = () => {
+    setPricesIncludeTax(prev => {
+      const next = !prev;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('paraiso_pos_prices_include_tax', JSON.stringify(next));
+      }
+      toast.success(next ? '🏷️ Precios ahora INCLUYEN ISV (Redondeado)' : '🏷️ Precios ahora MÁS ISV');
+      return next;
+    });
+  };
+
   // Client Selection & Creation State
   const [clientName, setClientName] = useState('CONSUMIDOR FINAL');
   const [selectedClient, setSelectedClient] = useState<{ id?: string; nombre: string; rtn?: string; telefono?: string; email?: string; diasCredito?: number; limiteCredito?: number } | null>(null);
@@ -458,32 +483,70 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     let gravado15 = 0; let isv15 = 0; let gravado18 = 0; let isv18 = 0;
 
     cart.forEach(item => {
-      const baseLinea = item.precioVenta * item.qty;
-      const descLinea = baseLinea * (item.discountPercentage / 100);
-      const totalLinea = baseLinea - descLinea;
+      const q = item.qty;
+      const p = item.precioVenta;
+      const dVal = item.discountPercentage;
 
-      subTotal += baseLinea;
-      descuentos += descLinea;
+      let tasa = 0;
+      if (item.taxState === 'isv15') tasa = 0.15;
+      if (item.taxState === 'isv18') tasa = 0.18;
 
-      if (item.taxState === 'exento') {
-        exento += totalLinea;
-      } else if (item.taxState === 'exonerado') {
-        exonerado += totalLinea;
-      } else if (item.taxState === 'isv15') {
-        gravado15 += totalLinea;
-        isv15 += totalLinea * 0.15;
-      } else if (item.taxState === 'isv18') {
-        gravado18 += totalLinea;
-        isv18 += totalLinea * 0.18;
+      if (pricesIncludeTax) {
+        // Precios INCLUYEN ISV (ej: L.300 precio final redondeado)
+        const totalConImpLinea = q * p;
+        const descConImpLinea = totalConImpLinea * (dVal / 100);
+        const totalNetoConImpDesc = totalConImpLinea - descConImpLinea;
+
+        const baseNetaLinea = totalNetoConImpDesc / (1 + tasa);
+        const impuestoLinea = totalNetoConImpDesc - baseNetaLinea;
+
+        subTotal += totalConImpLinea / (1 + tasa);
+        descuentos += descConImpLinea / (1 + tasa);
+
+        if (item.taxState === 'exento') {
+          exento += baseNetaLinea;
+        } else if (item.taxState === 'exonerado') {
+          exonerado += baseNetaLinea;
+        } else if (item.taxState === 'isv15') {
+          gravado15 += baseNetaLinea;
+          isv15 += impuestoLinea;
+        } else if (item.taxState === 'isv18') {
+          gravado18 += baseNetaLinea;
+          isv18 += impuestoLinea;
+        }
+      } else {
+        // Precios MÁS ISV (se suma arriba)
+        const baseLinea = q * p;
+        const descLinea = baseLinea * (dVal / 100);
+        const totalLinea = baseLinea - descLinea;
+
+        subTotal += baseLinea;
+        descuentos += descLinea;
+
+        if (item.taxState === 'exento') {
+          exento += totalLinea;
+        } else if (item.taxState === 'exonerado') {
+          exonerado += totalLinea;
+        } else if (item.taxState === 'isv15') {
+          gravado15 += totalLinea;
+          isv15 += totalLinea * 0.15;
+        } else if (item.taxState === 'isv18') {
+          gravado18 += totalLinea;
+          isv18 += totalLinea * 0.18;
+        }
       }
     });
+
+    const finalTotal = pricesIncludeTax 
+      ? (subTotal - descuentos + isv15 + isv18) 
+      : (subTotal - descuentos + isv15 + isv18);
 
     return {
       subTotal, descuentos, exento, exonerado,
       gravado15, isv15, gravado18, isv18,
-      total: subTotal - descuentos + isv15 + isv18
+      total: finalTotal
     };
-  }, [cart]);
+  }, [cart, pricesIncludeTax]);
 
   // Actions
   const addToCart = useCallback((p: POSProduct) => {
@@ -548,19 +611,41 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     if (cart.length === 0) return null;
 
     return (
-      <div className="bg-slate-100/90 border border-slate-200/90 rounded-xl p-2 mb-3 flex flex-col gap-1.5 shadow-2xs">
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
+      <div className="bg-slate-100/90 border border-slate-200/90 rounded-lg p-1.5 mb-2 flex flex-col gap-1 shadow-2xs">
+        {/* Interactive Tax Mode Toggle */}
+        <button
+          type="button"
+          onClick={togglePricesIncludeTax}
+          className={`w-full py-1 px-2 rounded-md text-[9.5px] font-black flex items-center justify-between border transition-all cursor-pointer ${
+            pricesIncludeTax 
+              ? 'bg-emerald-50/90 border-emerald-300 text-emerald-800 hover:bg-emerald-100' 
+              : 'bg-amber-50/90 border-amber-300 text-amber-900 hover:bg-amber-100'
+          }`}
+          title="Clic para cambiar entre Precios con ISV incluido o Precios más ISV"
+        >
+          <span className="flex items-center gap-1">
+            <Receipt size={12} className={pricesIncludeTax ? "text-emerald-600" : "text-amber-600"} />
+            <span>{pricesIncludeTax ? "Precios Incluyen ISV (L.300 Redondeado)" : "Precios Más ISV (+15% Adicional)"}</span>
+          </span>
+          <span className={`text-[8.5px] font-extrabold px-1.5 py-0.2 rounded uppercase ${
+            pricesIncludeTax ? 'bg-emerald-600 text-white' : 'bg-amber-600 text-white'
+          }`}>
+            {pricesIncludeTax ? 'Incluido' : '+ ISV Extra'}
+          </span>
+        </button>
+
+        <div className="flex items-center justify-between px-0.5">
+          <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 flex items-center gap-1">
             <span>⚡ Impuesto Masivo ({cart.length} ítems)</span>
           </span>
-          <span className="text-[9px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">1-Clic</span>
+          <span className="text-[8px] font-bold text-indigo-600 bg-indigo-50 px-1 py-0.2 rounded">1-Clic</span>
         </div>
 
         <div className="grid grid-cols-4 gap-1">
           <button
             type="button"
             onClick={() => setBulkTaxRate('isv15')}
-            className="py-1 px-1 bg-white hover:bg-emerald-50 hover:text-emerald-700 active:scale-95 text-slate-700 font-black text-[10px] rounded-lg border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer"
+            className="py-0.5 px-1 bg-white hover:bg-emerald-50 hover:text-emerald-700 active:scale-95 text-slate-700 font-black text-[9px] rounded border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer h-6"
             title="Aplicar +15% ISV a todos los ítems del ticket"
           >
             +15% ISV
@@ -569,7 +654,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
           <button
             type="button"
             onClick={() => setBulkTaxRate('exento')}
-            className="py-1 px-1 bg-white hover:bg-amber-50 hover:text-amber-700 active:scale-95 text-slate-700 font-black text-[10px] rounded-lg border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer"
+            className="py-0.5 px-1 bg-white hover:bg-amber-50 hover:text-amber-700 active:scale-95 text-slate-700 font-black text-[9px] rounded border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer h-6"
             title="Aplicar EXENTO a todos los ítems del ticket"
           >
             EXENTO
@@ -578,7 +663,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
           <button
             type="button"
             onClick={() => setBulkTaxRate('exonerado')}
-            className="py-1 px-1 bg-white hover:bg-blue-50 hover:text-blue-700 active:scale-95 text-slate-700 font-black text-[10px] rounded-lg border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer"
+            className="py-0.5 px-1 bg-white hover:bg-blue-50 hover:text-blue-700 active:scale-95 text-slate-700 font-black text-[9px] rounded border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer h-6"
             title="Aplicar EXONERADO a todos los ítems del ticket"
           >
             EXONERADO
@@ -587,7 +672,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
           <button
             type="button"
             onClick={() => setBulkTaxRate('isv18')}
-            className="py-1 px-1 bg-white hover:bg-purple-50 hover:text-purple-700 active:scale-95 text-slate-700 font-black text-[10px] rounded-lg border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer"
+            className="py-0.5 px-1 bg-white hover:bg-purple-50 hover:text-purple-700 active:scale-95 text-slate-700 font-black text-[9px] rounded border border-slate-200 shadow-2xs transition-all text-center truncate cursor-pointer h-6"
             title="Aplicar +18% ISV a todos los ítems del ticket"
           >
             +18% ISV
@@ -628,15 +713,25 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       isv18: totals.isv18,
       total: totals.total,
       metodoPago: paymentMethod,
-      detalles: cart.map(c => ({
-        productoId: c.isActivoFijo ? undefined : c.id,
-        activoId: c.isActivoFijo ? c.id : undefined,
-        descripcion: c.nombre,
-        cantidad: c.qty,
-        precioUnitario: c.precioVenta,
-        porcentajeIsv: c.taxState === 'isv15' ? 15 : c.taxState === 'isv18' ? 18 : 0,
-        totalLinea: (c.precioVenta * c.qty) * (1 - c.discountPercentage / 100)
-      }))
+      detalles: cart.map(c => {
+        let tasa = 0;
+        if (c.taxState === 'isv15') tasa = 0.15;
+        if (c.taxState === 'isv18') tasa = 0.18;
+
+        const totalConDesc = (c.precioVenta * c.qty) * (1 - c.discountPercentage / 100);
+        const precioUnitarioNeto = pricesIncludeTax && tasa > 0 ? (c.precioVenta / (1 + tasa)) : c.precioVenta;
+        const totalLineaNeta = pricesIncludeTax && tasa > 0 ? (totalConDesc / (1 + tasa)) : totalConDesc;
+
+        return {
+          productoId: c.isActivoFijo ? undefined : c.id,
+          activoId: c.isActivoFijo ? c.id : undefined,
+          descripcion: c.nombre,
+          cantidad: c.qty,
+          precioUnitario: precioUnitarioNeto,
+          porcentajeIsv: c.taxState === 'isv15' ? 15 : c.taxState === 'isv18' ? 18 : 0,
+          totalLinea: totalLineaNeta
+        };
+      })
     };
 
     const res = await onEmitirFactura(payload);
@@ -745,48 +840,48 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   }, [cart.length, showCheckout, showSuccess, filteredProducts, addToCart, productos]);
 
   const renderClientSection = () => (
-    <div className="bg-white border-b border-slate-200 p-3 space-y-2 relative">
+    <div className="bg-white p-2 space-y-1.5 relative rounded-xl border border-slate-200/80">
       <div className="flex items-center justify-between">
-        <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
-          <User size={12} className="text-indigo-600" />
+        <label className="text-[9px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1">
+          <User size={11} className="text-indigo-600" />
           <span>Cliente / Facturar A</span>
         </label>
         {selectedClient ? (
           <button
             type="button"
             onClick={handleResetToConsumidorFinal}
-            className="text-[10px] font-black text-rose-500 hover:underline uppercase"
+            className="text-[9px] font-black text-rose-500 hover:underline uppercase"
           >
             CONSUMIDOR FINAL
           </button>
         ) : (
-          <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded uppercase">
+          <span className="text-[9px] font-black text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded uppercase">
             CONSUMIDOR FINAL
           </span>
         )}
       </div>
 
-      <div className="flex items-center gap-1.5 relative">
+      <div className="flex items-center gap-1 relative">
         <div className="relative flex-1">
           <input
             type="text"
             value={clientName}
             onChange={e => handleClientSearchChange(e.target.value)}
             onFocus={handleFocusClientSearch}
-            placeholder="Buscar o ingresar cliente (ej: CONSUMIDOR FINAL, Nombre, RTN)..."
-            className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-xl px-3 py-2 pr-9 text-xs font-medium text-slate-800 outline-none transition-all uppercase"
+            placeholder="Buscar cliente (Nombre, RTN)..."
+            className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white rounded-lg px-2.5 py-1 pr-7 text-xs font-medium text-slate-800 outline-none transition-all uppercase h-8"
           />
           {clientName ? (
             <button
               type="button"
               onClick={handleClearClientSearch}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 rounded-lg transition-colors"
-              title="Limpiar búsqueda para ingresar otro cliente"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700 rounded transition-colors"
+              title="Limpiar búsqueda"
             >
-              <X size={14} />
+              <X size={12} />
             </button>
           ) : isSearchingClients ? (
-            <Loader2 size={14} className="absolute right-3 top-2.5 animate-spin text-indigo-500" />
+            <Loader2 size={12} className="absolute right-2.5 top-2 animate-spin text-indigo-500" />
           ) : null}
         </div>
 
@@ -796,31 +891,25 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
             setEditingClient(null);
             setShowAddClientModal(true);
           }}
-          className="px-2.5 py-2 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow-sm shrink-0 transition-transform"
+          className="px-2 py-1 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-lg flex items-center gap-1 shadow-2xs shrink-0 transition-transform h-8"
           title="Agregar Nuevo Cliente"
         >
-          <UserPlus size={14} />
-          <span className="text-xs">+ Nuevo</span>
+          <UserPlus size={13} />
+          <span className="text-[11px]">+ Nuevo</span>
         </button>
       </div>
 
       {/* Selected Client Badges */}
       {selectedClient && (
-        <div className="bg-indigo-50/70 border border-indigo-100 rounded-lg p-2 text-[11px] space-y-0.5">
-          <p className="font-semibold text-indigo-950 flex items-center gap-1 uppercase">
-            <UserCheck size={13} className="text-indigo-600 shrink-0" />
-            <span>{selectedClient.nombre.toUpperCase()}</span>
-          </p>
-          {selectedClient.rtn && (
-            <p className="text-indigo-700 font-mono text-[10px] pl-4">
-              RTN/DNI: <span className="font-semibold">{selectedClient.rtn}</span>
-            </p>
-          )}
-          {selectedClient.telefono && (
-            <p className="text-slate-600 text-[10px] pl-4">
-              Tel: {selectedClient.telefono}
-            </p>
-          )}
+        <div className="bg-indigo-50/80 border border-indigo-100 rounded-lg px-2 py-1 text-[10px] flex items-center justify-between">
+          <div className="flex items-center gap-1 truncate">
+            <UserCheck size={12} className="text-indigo-600 shrink-0" />
+            <span className="font-bold text-indigo-950 uppercase truncate">{selectedClient.nombre}</span>
+            {selectedClient.rtn && <span className="text-indigo-600 font-mono text-[9px] shrink-0">({selectedClient.rtn})</span>}
+          </div>
+          <button onClick={handleResetToConsumidorFinal} className="text-rose-500 hover:text-rose-700 ml-1">
+            <X size={12} />
+          </button>
         </div>
       )}
 
@@ -882,24 +971,24 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     <div className={`flex flex-col h-screen h-[100dvh] bg-[#F3F4F6] font-sans ${modoKiosko ? 'fixed inset-0 z-[1000] overflow-hidden' : 'relative w-full overflow-hidden'}`}>
       
       {/* HEADER POS - FIJO Y SIEMPRE VISIBLE */}
-      <header className="bg-white px-3 sm:px-6 py-2.5 sm:py-4 flex flex-col md:flex-row items-stretch md:items-center justify-between border-b border-gray-200 shadow-sm shrink-0 z-20 print:hidden relative gap-2">
+      <header className="bg-white px-3 sm:px-4 py-1.5 sm:py-2 flex flex-col md:flex-row items-stretch md:items-center justify-between border-b border-gray-200 shadow-2xs shrink-0 z-20 print:hidden relative gap-2">
         
         {/* Mobile top bar (Image 2 style) */}
-        <div className="flex md:hidden items-center justify-between bg-[#16a34a] text-white -mx-3 -mt-2.5 p-3 shadow-md mb-1">
+        <div className="flex md:hidden items-center justify-between bg-[#16a34a] text-white -mx-3 -mt-1.5 p-2 shadow-md mb-1">
           <div className="flex items-center gap-2">
             <button 
               onClick={() => router.push('/facturas')} 
               className="p-1 rounded-lg hover:bg-white/20 text-white transition-colors"
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={18} />
             </button>
             <button 
               onClick={() => setShowMobileCartSheet(true)}
-              className="flex items-center gap-1.5 bg-emerald-700/80 hover:bg-emerald-800 text-white px-2.5 py-1 rounded-lg text-xs font-black shadow-sm"
+              className="flex items-center gap-1.5 bg-emerald-700/80 hover:bg-emerald-800 text-white px-2 py-1 rounded-lg text-xs font-black shadow-xs"
             >
-              <ShoppingCart size={15} />
+              <ShoppingCart size={14} />
               <span>Ticket</span>
-              <span className="bg-white text-emerald-800 text-[11px] font-black px-1.5 py-0.2 rounded-full">
+              <span className="bg-white text-emerald-800 text-[10px] font-black px-1.5 py-0.2 rounded-full">
                 {totalCartItemsCount}
               </span>
             </button>
@@ -919,7 +1008,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                 if (cart.length > 0) setShowCheckout(true);
               }}
               disabled={cart.length === 0}
-              className="px-3 py-1 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 text-slate-900 font-black text-xs rounded-lg shadow-sm transition-all active:scale-95 flex items-center gap-1"
+              className="px-3 py-1 bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 text-slate-900 font-black text-xs rounded-lg shadow-xs transition-all active:scale-95 flex items-center gap-1"
             >
               <span>COBRAR</span>
               <span className="font-extrabold">{fmt(totals.total)}</span>
@@ -927,43 +1016,43 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
           </div>
         </div>
 
-        {/* Desktop Header */}
-        <div className="hidden md:flex items-center gap-4 shrink-0 w-1/4">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-600/30">
-            <Zap className="text-white fill-white" size={20} />
+        {/* Desktop Header Left */}
+        <div className="hidden md:flex items-center gap-2.5 shrink-0">
+          <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center shadow-md shadow-indigo-600/30">
+            <Zap className="text-white fill-white" size={16} />
           </div>
           <div>
-            <h1 className="text-xl font-black text-gray-900 tracking-tight leading-none">CAJA RÁPIDA</h1>
-            <p className="text-xs text-gray-500 font-medium mt-1 uppercase tracking-widest">{organization?.name || 'Distribuidora Paraíso Floral'}</p>
+            <h1 className="text-base font-black text-gray-900 tracking-tight leading-none">CAJA RÁPIDA</h1>
+            <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider">{organization?.name || 'Distribuidora Paraíso Floral'}</p>
           </div>
         </div>
 
         {/* Search Bar */}
-        <div className="flex-1 max-w-2xl md:mx-8 relative z-30">
+        <div className="flex-1 max-w-xl md:mx-4 relative z-30">
           <div className="relative group/search">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/search:text-indigo-500 transition-colors" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/search:text-indigo-500 transition-colors" size={15} />
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Buscar producto por código, nombre o escanea..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value.replace(/'/g, '-'))}
-              className="w-full pl-10 pr-4 py-2 sm:py-3 bg-gray-100 hover:bg-gray-200/50 focus:bg-white border-2 border-transparent focus:border-indigo-500 rounded-xl outline-none text-xs sm:text-base font-semibold transition-all shadow-sm focus:shadow-md"
+              className="w-full pl-9 pr-3 py-1.5 bg-gray-100 hover:bg-gray-200/50 focus:bg-white border border-transparent focus:border-indigo-500 rounded-xl outline-none text-xs sm:text-sm font-semibold transition-all shadow-2xs focus:shadow-xs h-9"
             />
           </div>
         </div>
 
         {/* Desktop Header Right */}
-        <div className="hidden md:flex items-center gap-4 shrink-0 w-1/4 justify-end">
-          <div className="text-right pr-4 border-r border-gray-200">
-            <p className="text-sm font-bold text-gray-900">{cajeroNombre}</p>
-            <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mt-0.5">Cajero</p>
+        <div className="hidden md:flex items-center gap-2.5 shrink-0 justify-end">
+          <div className="text-right pr-2.5 border-r border-gray-200">
+            <p className="text-xs font-bold text-gray-900 leading-tight">{cajeroNombre}</p>
+            <p className="text-[9px] text-gray-500 uppercase tracking-wider font-semibold">Cajero</p>
           </div>
-          <button onClick={() => setShowShortcuts(true)} className="p-2.5 text-gray-500 hover:text-indigo-600 bg-gray-100 hover:bg-indigo-50 rounded-xl transition-colors" title="Teclas de Acceso Rápido">
-            <Keyboard size={16} />
+          <button onClick={() => setShowShortcuts(true)} className="p-1.5 text-gray-500 hover:text-indigo-600 bg-gray-100 hover:bg-indigo-50 rounded-lg transition-colors" title="Teclas de Acceso Rápido">
+            <Keyboard size={15} />
           </button>
-          <button onClick={() => router.push('/facturas')} title="Salir / Volver (ESC)" className="p-2.5 text-rose-500 hover:text-white bg-rose-50 hover:bg-rose-500 rounded-xl transition-all font-bold text-sm flex gap-2 items-center">
-            <X size={16} /> Cerrar POS
+          <button onClick={() => router.push('/facturas')} title="Salir / Volver (ESC)" className="p-1.5 px-2.5 text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-500 rounded-lg transition-all font-bold text-xs flex gap-1.5 items-center">
+            <X size={15} /> <span className="hidden lg:inline">Cerrar POS</span>
           </button>
         </div>
       </header>
@@ -1072,12 +1161,6 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                       <Star size={12} className={isFav ? 'fill-white text-white' : ''} />
                     </button>
 
-                    {/* Sales count badge if top seller */}
-                    {totalSold > 0 && !isFav && (
-                      <span className="absolute top-1.5 left-1.5 bg-rose-500/90 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs flex items-center gap-0.5 z-10" title={`${totalSold} unidades vendidas`}>
-                        <Flame size={9} className="fill-white" /> {totalSold}
-                      </span>
-                    )}
                     {/* Quantity Badge on Product Card */}
                     {qtyInCart > 0 && (
                       <div className="absolute top-2 right-2 bg-emerald-600 text-white font-black text-[10px] sm:text-xs px-2 py-0.5 rounded-full shadow-md z-20 animate-in zoom-in-75">
@@ -1102,15 +1185,27 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                          <span className="text-3xl sm:text-5xl font-black text-gray-200 group-hover:text-emerald-300 transition-colors uppercase">{p.nombre.substring(0,2)}</span>
                        )}
                        
-                       {p.stockActual <= 5 && !p.esServicio && qtyInCart === 0 && (
-                         <span className="absolute top-1 left-1 bg-rose-100 text-rose-600 text-[9px] font-black px-1.5 py-0.5 rounded uppercase shadow-xs">Bajo</span>
+                       {/* Available Stock Badge on Image */}
+                       {!p.esServicio && (
+                         <span className={`absolute bottom-1 right-1 font-black text-[9.5px] px-1.5 py-0.5 rounded-md shadow-xs backdrop-blur-xs z-10 ${
+                           p.stockActual === 0 ? 'bg-rose-500 text-white' :
+                           p.stockActual <= 5 ? 'bg-amber-500 text-white' :
+                           'bg-slate-900/85 text-white'
+                         }`} title={`Stock disponible en inventario: ${p.stockActual}`}>
+                           Disp: {p.stockActual}
+                         </span>
                        )}
                     </div>
 
                     <div className={viewMode === 'list' ? 'flex-1 min-w-0' : 'flex flex-col flex-1'}>
                       <h3 className="font-bold text-gray-900 line-clamp-2 leading-tight text-xs sm:text-sm">{p.nombre}</h3>
-                      <div className="mt-auto flex items-center justify-between pt-1">
-                        <p className="font-black text-emerald-600 text-xs sm:text-base">{fmt(p.precioVenta)}</p>
+                      <div className="mt-auto flex items-center justify-between pt-1 gap-1">
+                        <div>
+                          <p className="font-black text-emerald-600 text-xs sm:text-base leading-none">{fmt(p.precioVenta)}</p>
+                          {p.esServicio && (
+                            <p className="text-[10px] font-extrabold text-slate-400 mt-0.5">Servicio</p>
+                          )}
+                        </div>
                         
                         {viewMode !== 'list' && (
                           <button className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-colors shadow-xs ${
@@ -1143,21 +1238,21 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                    <ArrowDownCircle size={18} /> Cargar más productos ({filteredProducts.length - pagedProducts.length} restantes)
                  </button>
               </div>
-            )}
+             )}
           </div>
         </div>
 
         {/* RIGHT PANEL - TICKET - FIJO LATERAL EN DESKTOP */}
-        <div className="hidden md:flex w-[420px] 2xl:w-[480px] bg-white border-l border-gray-200 flex-col shadow-2xl z-20 shrink-0 h-full">
+        <div className="hidden md:flex w-[380px] lg:w-[400px] xl:w-[420px] bg-white border-l border-gray-200 flex-col shadow-2xl z-20 shrink-0 h-full">
           
-          <div className="p-6 border-b border-gray-100 shrink-0">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-black text-gray-900 flex items-center gap-2">
-                Ticket <span className="text-xs bg-gray-900 text-white font-bold px-2 py-0.5 rounded-md shadow-sm">{cart.length}</span>
+          <div className="p-2.5 border-b border-gray-200 shrink-0 bg-white space-y-1.5">
+            <div className="flex items-center justify-between">
+              <h2 className="text-base font-black text-gray-900 flex items-center gap-1.5">
+                Ticket <span className="text-xs bg-gray-900 text-white font-bold px-2 py-0.5 rounded-md shadow-2xs">{cart.length}</span>
               </h2>
               {cart.length > 0 && (
-                 <button onClick={clearCart} className="text-xs font-bold text-gray-400 hover:text-rose-500 transition-colors flex gap-1 items-center bg-gray-50 px-2 py-1 rounded-lg">
-                   <Trash2 size={12} /> Vaciar {shortcuts.clear}
+                 <button onClick={clearCart} className="text-[11px] font-bold text-gray-400 hover:text-rose-500 transition-colors flex gap-1 items-center bg-gray-50 px-2 py-0.5 rounded-md">
+                   <Trash2 size={11} /> Vaciar {shortcuts.clear}
                  </button>
               )}
             </div>
@@ -1167,31 +1262,31 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
           </div>
 
           {/* CART ITEMS - SCROLLABLE AREA */}
-          <div className="flex-1 overflow-y-auto p-4 bg-gray-50/50 hide-scrollbar scroll-smooth">
+          <div className="flex-1 overflow-y-auto p-2 sm:p-2.5 bg-gray-50/60 hide-scrollbar scroll-smooth">
             {renderBulkTaxBar()}
-            <div className="space-y-3">
+            <div className="space-y-1.5">
               {cart.map(item => (
-                <div key={item.cartId} className="bg-white p-3 rounded-2xl flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-200 group relative border border-gray-200 shadow-[0_2px_10px_-4px_rgba(0,0,0,0.05)] hover:border-indigo-200 transition-all">
+                <div key={item.cartId} className="bg-white p-2 rounded-xl flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2 duration-200 group relative border border-gray-200 shadow-2xs hover:border-indigo-200 transition-all">
                   
                   {/* Delete overlay */}
-                  <button onClick={() => removeLine(item.cartId)} className="absolute -top-2 -right-2 w-7 h-7 bg-white text-gray-300 hover:text-white hover:bg-rose-500 border border-gray-100 rounded-full flex items-center justify-center shadow-md transition-all z-20 transform scale-0 group-hover:scale-100">
-                     <Trash2 size={12} />
+                  <button onClick={() => removeLine(item.cartId)} className="text-gray-300 hover:text-rose-500 p-0.5 rounded transition-colors shrink-0 order-last" title="Eliminar ítem">
+                     <Trash2 size={13} />
                   </button>
 
-                  <div className="w-16 h-16 bg-gray-50 rounded-xl flex items-center justify-center shrink-0 border border-gray-100 overflow-hidden">
+                  <div className="w-10 h-10 bg-gray-50 rounded-lg flex items-center justify-center shrink-0 border border-gray-100 overflow-hidden">
                      {item.imageUrl ? (
                        <img src={item.imageUrl} alt={item.nombre} className="w-full h-full object-contain mix-blend-multiply" />
                      ) : (
-                       <span className="font-black text-gray-300 text-2xl uppercase">{item.nombre.substring(0,2)}</span>
+                       <span className="font-black text-gray-300 text-xs uppercase">{item.nombre.substring(0,2)}</span>
                      )}
                   </div>
                   
-                  <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                    <h4 className="font-bold text-sm text-gray-900 line-clamp-2 pr-4 leading-tight">{item.nombre}</h4>
+                  <div className="flex-1 min-w-0 flex flex-col justify-center">
+                    <h4 className="font-bold text-xs text-gray-900 truncate leading-tight pr-1" title={item.nombre}>{item.nombre}</h4>
                     
                     {/* PRICING & TAX ROW */}
-                    <div className="flex items-center gap-1.5 mt-auto pt-2 flex-nowrap pr-1">
-                       <span className="text-gray-400 font-bold text-[10px]">L.</span>
+                    <div className="flex items-center gap-1 mt-1 flex-nowrap">
+                       <span className="text-gray-400 font-bold text-[9px]">L.</span>
                        <input 
                          type="number"
                          step="0.01"
@@ -1202,12 +1297,12 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                            const raw = e.target.value.replace(/^0+(?=\d)/, '');
                            changePrice(item.cartId, raw === '' ? 0 : parseFloat(raw));
                          }}
-                         className="w-16 rounded bg-gray-100 border border-transparent hover:border-gray-300 focus:bg-indigo-50 focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 text-xs font-black text-indigo-700 outline-none transition-all px-1 py-0.5"
+                         className="w-13 h-5 rounded bg-gray-100 border border-transparent hover:border-gray-300 focus:bg-indigo-50 focus:border-indigo-300 text-[10px] font-black text-indigo-700 outline-none transition-all px-1"
                        />
                       <select
                         value={item.taxState}
                         onChange={(e) => changeTax(item.cartId, e.target.value as any)}
-                        className={`text-[9px] font-black px-1.5 py-1 rounded transition-colors uppercase tracking-widest outline-none border-none appearance-none text-center cursor-pointer min-w-[76px] max-w-[90px] shrink-0 ${
+                        className={`text-[8px] font-black px-1 h-5 rounded transition-colors uppercase outline-none border-none appearance-none text-center cursor-pointer shrink-0 ${
                           item.taxState === 'isv15' ? 'bg-orange-100 text-orange-600' :
                           item.taxState === 'isv18' ? 'bg-red-100 text-red-600' :
                           item.taxState === 'exonerado' ? 'bg-blue-100 text-blue-600' :
@@ -1220,7 +1315,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                         <option value="isv15">+15% ISV</option>
                         <option value="isv18">+18% ISV</option>
                       </select>
-                      <div className="flex items-center bg-rose-50 rounded border border-rose-100 hover:border-rose-300 focus-within:ring-2 focus-within:ring-rose-200 transition-all h-6 px-1.5 shrink-0" title="Descuento aplicado al producto">
+                      <div className="flex items-center bg-rose-50 rounded border border-rose-100 h-5 px-1 shrink-0" title="Descuento aplicado al producto">
                         <input
                           type="number"
                           value={item.discountPercentage > 0 ? item.discountPercentage : ''}
@@ -1230,9 +1325,9 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                             changeDiscount(item.cartId, raw === '' ? 0 : parseFloat(raw));
                           }}
                           placeholder="0"
-                          className="w-8 text-center bg-transparent text-[10px] font-black text-rose-600 outline-none placeholder:text-rose-300 [&::-webkit-inner-spin-button]:appearance-none"
+                          className="w-6 text-center bg-transparent text-[9px] font-black text-rose-600 outline-none placeholder:text-rose-300 [&::-webkit-inner-spin-button]:appearance-none"
                         />
-                        <span className="text-rose-400 font-bold text-[9px] pointer-events-none">%</span>
+                        <span className="text-rose-400 font-bold text-[8px] pointer-events-none">%</span>
                       </div>
                     </div>
 
@@ -1240,71 +1335,69 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                   
                   <div className="flex flex-col items-end justify-between shrink-0 pl-1">
                      <div className="flex flex-col items-end">
-                       <p className={`text-xs font-black bg-gray-50 px-1.5 py-0.5 rounded-md border border-gray-100 ${item.discountPercentage > 0 ? 'text-indigo-600' : 'text-gray-900'}`}>
+                       <p className={`text-xs font-black ${item.discountPercentage > 0 ? 'text-indigo-600' : 'text-gray-900'}`}>
                          {fmt((item.precioVenta * item.qty) * (1 - item.discountPercentage / 100))}
                        </p>
-                       {item.discountPercentage > 0 && <p className="text-[9px] font-bold text-gray-400 line-through mt-0.5">{fmt(item.precioVenta * item.qty)}</p>}
+                       {item.discountPercentage > 0 && <p className="text-[8px] font-bold text-gray-400 line-through">{fmt(item.precioVenta * item.qty)}</p>}
                      </div>
                      
-                     <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 border border-gray-200 mt-2">
-                       <button onClick={() => changeQty(item.cartId, -1)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-white hover:text-indigo-600 hover:shadow-sm rounded-md transition-all active:scale-95"><Minus size={14} /></button>
-                       <span className="text-xs font-black w-6 text-center text-gray-800">{item.qty}</span>
-                       <button onClick={() => changeQty(item.cartId, 1)} className="w-7 h-7 flex items-center justify-center text-gray-500 hover:bg-white hover:text-indigo-600 hover:shadow-sm rounded-md transition-all active:scale-95"><Plus size={14} /></button>
+                     <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5 border border-gray-200 mt-1">
+                       <button onClick={() => changeQty(item.cartId, -1)} className="w-5 h-5 flex items-center justify-center text-gray-500 hover:bg-white hover:text-indigo-600 rounded transition-all active:scale-95"><Minus size={11} /></button>
+                       <span className="text-[11px] font-black w-5 text-center text-gray-800">{item.qty}</span>
+                       <button onClick={() => changeQty(item.cartId, 1)} className="w-5 h-5 flex items-center justify-center text-gray-500 hover:bg-white hover:text-indigo-600 rounded transition-all active:scale-95"><Plus size={11} /></button>
                      </div>
                   </div>
                 </div>
               ))}
               
               {cart.length === 0 && (
-                <div className="text-center py-32 flex flex-col items-center">
-                  <div className="w-24 h-24 rounded-full bg-gray-100 border-4 border-white shadow-inner flex items-center justify-center mb-6">
-                    <ShoppingCart size={40} className="text-gray-300" />
+                <div className="text-center py-16 flex flex-col items-center justify-center">
+                  <div className="w-14 h-14 rounded-full bg-gray-100 border-2 border-white shadow-inner flex items-center justify-center mb-3">
+                    <ShoppingCart size={24} className="text-gray-300" />
                   </div>
-                  <p className="text-gray-500 font-bold text-xl mb-1">El ticket está vacío</p>
-                  <p className="text-sm text-gray-400">Selecciona productos a la izquierda<br/>para armar la orden</p>
+                  <p className="text-gray-500 font-bold text-sm mb-0.5">Ticket Vacío</p>
+                  <p className="text-xs text-gray-400">Selecciona artículos del catálogo<br/>para agregarlos al carrito</p>
                 </div>
               )}
             </div>
           </div>
 
           {/* TOTALS & CHECKOUT - FIJO ABAJO DESKTOP */}
-          <div className="p-6 bg-white border-t border-gray-200 shadow-[0_-15px_40px_rgba(0,0,0,0.06)] shrink-0 z-30">
-            <div className="space-y-2 mb-4 relative px-2">
-              <div className="flex justify-between text-sm font-bold text-gray-400">
-                <span>Sub Total {totals.exento > 0 && <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded ml-2 uppercase">Tiene Exentos</span>}</span>
-                <span className="text-gray-900">{fmt(totals.subTotal)}</span>
+          <div className="p-3 px-4 bg-white border-t border-gray-200 shadow-[0_-8px_25px_rgba(0,0,0,0.05)] shrink-0 z-30 space-y-2">
+            <div className="space-y-1 relative text-xs font-semibold">
+              <div className="flex justify-between text-gray-500">
+                <span>Sub Total {totals.exento > 0 && <span className="text-[9px] bg-indigo-50 text-indigo-600 px-1 py-0.2 rounded ml-1 uppercase font-bold">Exento</span>}</span>
+                <span className="text-gray-900 font-bold">{fmt(totals.subTotal)}</span>
               </div>
               {totals.descuentos > 0 && (
-                <div className="flex justify-between text-sm font-bold text-rose-500">
-                  <span>Descuentos</span>
+                <div className="flex justify-between text-rose-600 font-bold">
+                  <span>Descuento</span>
                   <span>-{fmt(totals.descuentos)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm font-bold text-gray-400">
+              <div className="flex justify-between text-gray-500">
                 <span>Impuesto (15%)</span>
-                <span className="text-gray-900">{fmt(totals.isv15)}</span>
+                <span className="text-gray-900 font-bold">{fmt(totals.isv15)}</span>
               </div>
               {totals.isv18 > 0 && (
-                <div className="flex justify-between text-sm font-bold text-gray-400">
+                <div className="flex justify-between text-gray-500">
                   <span>Impuesto (18%)</span>
-                  <span className="text-gray-900">{fmt(totals.isv18)}</span>
+                  <span className="text-gray-900 font-bold">{fmt(totals.isv18)}</span>
                 </div>
               )}
               
-              <div className="h-px w-full bg-gray-200 border-dashed my-4" />
-              
-              <div className="flex justify-between items-end pt-1 pb-2">
-                <span className="text-2xl font-black text-gray-900">Total</span>
-                <span className="text-[40px] leading-none font-black text-indigo-600 tracking-tighter">{fmt(totals.total)}</span>
+              <div className="flex justify-between items-center pt-1.5 border-t border-gray-100 mt-1">
+                <span className="text-sm font-black text-gray-900 uppercase">Total</span>
+                <span className="text-2xl font-black text-indigo-600 tracking-tight">{fmt(totals.total)}</span>
               </div>
             </div>
 
             <button
               onClick={() => setShowCheckout(true)}
               disabled={cart.length === 0}
-              className="w-full h-[72px] bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-black text-2xl rounded-[1.25rem] shadow-xl shadow-indigo-600/30 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+              className="w-full h-11 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-700 hover:to-blue-700 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white font-black text-sm uppercase tracking-wider rounded-xl shadow-lg shadow-indigo-600/25 transition-all flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
             >
-              <Banknote size={28} className={cart.length === 0 ? "opacity-50" : ""} />
+              <Banknote size={18} className={cart.length === 0 ? "opacity-50" : ""} />
               COBRAR AHORA
             </button>
           </div>
@@ -1503,7 +1596,14 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                 <div className="absolute top-0 right-0 -mt-8 -mr-8 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl"></div>
                 <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl"></div>
                 
-                <button onClick={() => setShowCheckout(false)} className="absolute top-6 right-6 text-gray-400 hover:text-white bg-gray-800 rounded-full p-2.5 transition-all"><X size={16} /></button>
+                <button 
+                  type="button"
+                  onClick={() => setShowCheckout(false)} 
+                  className="absolute top-4 right-4 z-50 p-2 sm:p-2.5 bg-white/15 hover:bg-rose-600 text-white rounded-full transition-all border border-white/20 hover:border-rose-500 shadow-xl hover:scale-110 active:scale-95 cursor-pointer flex items-center justify-center"
+                  title="Cerrar ventana de cobro"
+                >
+                  <X size={22} className="stroke-[2.5]" />
+                </button>
                 <p className="text-gray-400 font-bold mb-1 uppercase tracking-widest text-xs sm:text-sm relative z-10">Monto Final a Pagar</p>
                 <p className="text-3xl sm:text-5xl font-black text-white tracking-tight relative z-10 break-all px-2 py-2">{fmt(totals.total)}</p>
              </div>
