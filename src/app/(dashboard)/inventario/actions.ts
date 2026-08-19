@@ -699,6 +699,7 @@ export async function getActivoStats(area?: string, tipoInventario = 'real') {
             depreciado: bigint;
             proceso_baja: bigint;
             con_dano: bigint;
+            bajo_stock: bigint;
             areas_count: bigint;
         }>
     >`
@@ -715,6 +716,7 @@ export async function getActivoStats(area?: string, tipoInventario = 'real') {
             COALESCE(SUM("stock") FILTER (WHERE "estatusContable" = 'DEPRECIADO'), 0) as depreciado,
             COALESCE(SUM("stock") FILTER (WHERE "estatusContable" = 'PROCESO DE BAJA'), 0) as proceso_baja,
             COALESCE(SUM("stock") FILTER (WHERE "estadoDano" IS NOT NULL), 0) as con_dano,
+            COALESCE(COUNT(1) FILTER (WHERE "stock" <= 5 AND "estatusContable" = 'VIGENTE'), 0) as bajo_stock,
             (SELECT areas_count FROM org_areas)
         FROM "activos_fijos"
         WHERE "organizationId" = ${orgId}::uuid ${filterSql}
@@ -730,6 +732,7 @@ export async function getActivoStats(area?: string, tipoInventario = 'real') {
         depreciado: Number(row?.depreciado || 0),
         procesoBaja: Number(row?.proceso_baja || 0),
         conDano: Number(row?.con_dano || 0),
+        bajoStock: Number(row?.bajo_stock || 0),
         areasRegistradas: Number(row?.areas_count || 0),
         totalImportadosWeb: totalImportadosWebCount
     };

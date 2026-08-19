@@ -8,7 +8,7 @@ import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft, Wrench, Download, FileSpreadsheet,
-    Globe, UserPlus, Laptop, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown
+    Globe, UserPlus, Laptop, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, Flower2, AlertCircle, Snowflake
 } from 'lucide-react';
 import { crearClienteAction } from '../soporte/actions';
 import {
@@ -632,23 +632,71 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 // ─── Stats Cards ──────────────────────────────────────────────────────────────
-function StatsCards({ stats }: { stats: any }) {
+function StatsCards({ stats, onSelectFilter }: { stats: any; onSelectFilter?: (estatus: string) => void }) {
     const cards = [
-        { label: 'Total de Productos', value: stats?.total ?? 0, sub: `${stats?.areasRegistradas ?? 0} áreas localizadas`, icon: Package, color: 'text-[#0500A3]', bg: 'bg-blue-50' },
-        { label: 'En Inventario', value: stats?.vigente ?? 0, sub: 'Disponibles para venta/uso', icon: CheckCircle2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-        { label: 'En Tránsito', value: stats?.enTransito ?? 0, sub: 'Aún no llegan a puerto', icon: ArrowRightLeft, color: 'text-purple-600', bg: 'bg-purple-50' },
-        { label: 'Obsoletos', value: (stats?.depreciado ?? 0) + (stats?.procesoBaja ?? 0), sub: `${stats?.procesoBaja ?? 0} en proceso de baja`, icon: TrendingDown, color: 'text-amber-600', bg: 'bg-amber-50' },
-        { label: 'Para Reparación', value: stats?.conDano ?? 0, sub: 'Requieren atención', icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+        { 
+            label: 'Total Productos', 
+            value: stats?.total ?? 0, 
+            sub: `${stats?.areasRegistradas ?? 0} cámaras frías`, 
+            icon: Flower2, 
+            color: 'text-[#0500A3]', 
+            bg: 'bg-blue-50',
+            filter: ''
+        },
+        { 
+            label: 'En Cámara Fría', 
+            value: stats?.vigente ?? 0, 
+            sub: 'Flores listas para venta', 
+            icon: CheckCircle2, 
+            color: 'text-emerald-600', 
+            bg: 'bg-emerald-50',
+            filter: 'VIGENTE'
+        },
+        { 
+            label: 'Bajo Stock', 
+            value: stats?.bajoStock ?? 0, 
+            sub: 'Stock crítico (≤ 5 paq.)', 
+            icon: AlertCircle, 
+            color: 'text-amber-600', 
+            bg: 'bg-amber-50',
+            filter: 'BAJO_STOCK'
+        },
+        { 
+            label: 'Merma de Flor', 
+            value: stats?.conDano ?? 0, 
+            sub: 'Flores marchitas o daño', 
+            icon: TrendingDown, 
+            color: 'text-rose-600', 
+            bg: 'bg-rose-50',
+            filter: 'CON_DANO'
+        },
+        { 
+            label: 'Cámaras Frías', 
+            value: stats?.areasRegistradas ?? 0, 
+            sub: 'Zonas de refrigeración', 
+            icon: Snowflake, 
+            color: 'text-sky-600', 
+            bg: 'bg-sky-50',
+            filter: ''
+        },
     ];
+
     return (
         <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-6">
             {cards.map(c => (
-                <div key={c.label} className="bg-white rounded-xl border border-slate-200 p-4 flex items-start gap-3 shadow-sm">
+                <div 
+                  key={c.label} 
+                  onClick={() => c.filter && onSelectFilter && onSelectFilter(c.filter)}
+                  className={`bg-white rounded-xl border border-slate-200 p-4 flex items-start gap-3 shadow-2xs hover:shadow-md transition-all ${
+                    c.filter ? 'cursor-pointer hover:border-indigo-300 active:scale-98' : ''
+                  }`}
+                  title={c.filter ? `Filtrar por ${c.label}` : undefined}
+                >
                     <div className={`${c.bg} p-2.5 rounded-lg shrink-0`}><c.icon className={`w-5 h-5 ${c.color}`} /></div>
                     <div className="min-w-0">
-                        <div className="text-xs text-slate-500 font-medium mb-0.5 leading-tight">{c.label}</div>
-                        <div className="text-2xl font-bold text-slate-900">{c.value}</div>
-                        <div className="text-xs text-slate-400 mt-0.5 leading-tight">{c.sub}</div>
+                        <div className="text-xs text-slate-500 font-bold mb-0.5 leading-tight">{c.label}</div>
+                        <div className="text-2xl font-black text-slate-900">{c.value}</div>
+                        <div className="text-xs text-slate-400 mt-0.5 leading-tight font-medium">{c.sub}</div>
                     </div>
                 </div>
             ))}
@@ -4792,11 +4840,11 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                 </td>
                                 <td className="px-3 py-3 max-w-[130px]">
                                     {a.createdAt ? (
-                                        <div>
-                                            <div className="text-[10px] text-slate-700 font-semibold whitespace-nowrap">
+                                        <div suppressHydrationWarning>
+                                            <div suppressHydrationWarning className="text-[10px] text-slate-700 font-semibold whitespace-nowrap">
                                                 {new Date(a.createdAt).toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                                             </div>
-                                            <div className="text-[9px] text-slate-400 font-mono">
+                                            <div suppressHydrationWarning className="text-[9px] text-slate-400 font-mono">
                                                 {new Date(a.createdAt).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })}
                                             </div>
                                         </div>
@@ -4907,7 +4955,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                         </span>
                                     )}
                                      {a.createdAt && (
-                                        <span className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap">
+                                        <span suppressHydrationWarning className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap">
                                             Reg: {new Date(a.createdAt).toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: '2-digit' })} {new Date(a.createdAt).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })}
                                         </span>
                                     )}

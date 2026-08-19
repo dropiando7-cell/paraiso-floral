@@ -78,13 +78,16 @@ export async function searchClientes(query: string = "") {
             orderBy: { nombre: 'asc' }
         });
 
-        return clientes.map(c => ({
-            ...c,
-            nombre: c.nombre.toUpperCase(),
-            nombreContacto: c.nombreContacto ? c.nombreContacto.toUpperCase() : null,
-            limiteCredito: c.limiteCredito ? Number(c.limiteCredito) : 0,
-            diasCredito: c.diasCredito !== null && c.diasCredito !== undefined ? c.diasCredito : 15
-        }));
+        return clientes.map(c => {
+            const plain = JSON.parse(JSON.stringify(c));
+            return {
+                ...plain,
+                nombre: plain.nombre ? plain.nombre.toUpperCase() : '',
+                nombreContacto: plain.nombreContacto ? plain.nombreContacto.toUpperCase() : null,
+                limiteCredito: plain.limiteCredito ? Number(plain.limiteCredito) : 0,
+                diasCredito: plain.diasCredito !== null && plain.diasCredito !== undefined ? plain.diasCredito : 15
+            };
+        });
     } catch (e) {
         console.error(e);
         return [];
