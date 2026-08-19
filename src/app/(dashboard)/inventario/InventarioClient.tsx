@@ -1279,7 +1279,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
     const [categorias, setCategorias] = useState<{value: string, label: string}[]>([]);
     const [catModalOpen, setCatModalOpen] = useState(false);
     const [nuevaCategoriaText, setNuevaCategoriaText] = useState('');
-    const [esConsumible, setEsConsumible] = useState(editActivo?.esConsumible || false);
+    const [esConsumible, setEsConsumible] = useState(editActivo ? (editActivo.esConsumible ?? true) : true);
     const [lote, setLote] = useState(editActivo?.lote || '');
     const [fechaVencimiento, setFechaVencimiento] = useState(editActivo?.fechaVencimiento ? getLocalDateString(editActivo.fechaVencimiento) : '');
     const [fechaFabricacion, setFechaFabricacion] = useState(editActivo?.fechaFabricacion ? getLocalDateString(editActivo.fechaFabricacion) : '');
@@ -1466,7 +1466,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setOrigenActivo(editActivo.origenActivo || '');
             setCondicionActivo(editActivo.condicionActivo || '');
             setCategoriaId(editActivo.categoriaId || '');
-            setEsConsumible(editActivo.esConsumible || false);
+            setEsConsumible(editActivo.esConsumible ?? true);
             setGarantia(editActivo.garantia || '');
             setMantenimientosIncluidos(editActivo.mantenimientosIncluidos ? String(editActivo.mantenimientosIncluidos) : '');
             setFrecuenciaMantenimientoMeses(editActivo.frecuenciaMantenimientoMeses ? String(editActivo.frecuenciaMantenimientoMeses) : '');
@@ -1485,7 +1485,7 @@ export function ActivoModal({ open, onClose, editActivo, onSuccess, lockedArea, 
             setDescripcionCorta(''); setDescripcionDetallada(''); setMarca(''); setModelo(''); setReferencia(''); setCodigoGrupo(''); setCodigoBarras(''); setCantidad('1');
             setResponsable(lockedArea && RESPONSABLES[lockedArea] ? RESPONSABLES[lockedArea] : '');
             setCategoriaDepreciacion(''); setVidaUtilOverride(''); setSelectedHistorico(null); setSearchHistoricoText('');
-            setFechaAdq(getLocalDateString(new Date())); setCostoAdq(''); setOrigenActivo(defaultOrigin); setCondicionActivo(defaultCondition); setCategoriaId(''); setEsConsumible(false); setGarantia(''); setMantenimientosIncluidos(''); setFrecuenciaMantenimientoMeses(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion(''); setSerie('');
+            setFechaAdq(getLocalDateString(new Date())); setCostoAdq(''); setOrigenActivo(defaultOrigin); setCondicionActivo(defaultCondition); setCategoriaId(''); setEsConsumible(true); setGarantia(''); setMantenimientosIncluidos(''); setFrecuenciaMantenimientoMeses(''); setLote(''); setFechaVencimiento(''); setFechaFabricacion(''); setSerie('');
             setTipoRegistro('seleccion');
             setEstatusContable('VIGENTE');
             setCobertura('externa');
