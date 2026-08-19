@@ -84,14 +84,73 @@ export async function GET(
     const sInicial = Number(cliente.saldoInicial || 0);
     let totalFacturado = sInicial;
 
+    // Calcular bolsa total de créditos aplicables (Abonos + Notas de Crédito por mermas)
+    let creditoDisponible = totalAbonado + totalNotasCredito;
+
+    if (sInicial > 0) {
+      if (creditoDisponible >= sInicial) {
+        creditoDisponible -= sInicial;
+      } else {
+        creditoDisponible = 0;
+      }
+    }
+
+    // Ordenar facturas por fecha de emisión ascendente (antiguas primero) para cascarada FIFO
+    const facturasAsc = [...cliente.facturas].sort(
+      (a, b) => new Date(a.fechaEmision).getTime() - new Date(b.fechaEmision).getTime()
+    );
+
+    const mapaFacturasInfo: Record<string, { saldoPendiente: number; estadoPago: string }> = {};
+
+    for (const f of facturasAsc) {
+      const total = Number(f.total || 0);
+
+      // Pagos o mermas asociados directamente a esta factura
+      const pagosDirectos = cliente.pagos.reduce((sum, p) => {
+        const det = p.detalles.find(d => d.facturaId === f.id);
+        return sum + (det ? Number(det.montoAplicado) : 0);
+      }, 0);
+
+      const ncDirectas = cliente.notasCredito.reduce((sum, nc) => {
+        return sum + (nc.facturaId === f.id ? Number(nc.monto) : 0);
+      }, 0);
+
+      const cubiertoDirecto = pagosDirectos + ncDirectas;
+
+      let saldo = total;
+      let estadoPago = 'PENDIENTE';
+
+      if (f.estado === 'PAGADA' || cubiertoDirecto >= total - 0.01) {
+        saldo = 0;
+        estadoPago = 'PAGADA';
+      } else if (cubiertoDirecto > 0) {
+        saldo = Math.max(0, total - cubiertoDirecto);
+        estadoPago = 'PARCIAL';
+      } else if (creditoDisponible >= total - 0.01) {
+        creditoDisponible -= total;
+        saldo = 0;
+        estadoPago = 'PAGADA';
+      } else if (creditoDisponible > 0) {
+        saldo = Math.max(0, total - creditoDisponible);
+        creditoDisponible = 0;
+        estadoPago = 'PARCIAL';
+      } else {
+        saldo = total;
+        estadoPago = 'PENDIENTE';
+      }
+
+      mapaFacturasInfo[f.id] = { saldoPendiente: saldo, estadoPago };
+    }
+
     const listadoFacturas = cliente.facturas.map(f => {
       const total = Number(f.total || 0);
-      const saldo = f.saldoPendiente !== null ? Number(f.saldoPendiente) : total;
       totalFacturado += total;
+      const info = mapaFacturasInfo[f.id] || { saldoPendiente: total, estadoPago: 'PENDIENTE' };
       return {
         ...f,
         total,
-        saldoPendiente: saldo
+        saldoPendiente: info.saldoPendiente,
+        estadoPago: info.estadoPago
       };
     });
 
