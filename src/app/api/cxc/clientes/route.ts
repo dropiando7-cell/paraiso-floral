@@ -25,8 +25,11 @@ export async function GET(request: Request) {
     const query = searchParams.get('q') || '';
     const filtro = searchParams.get('filtro') || 'TODOS'; // TODOS, CON_SALDO, AL_DIA, POR_VENCER, VENCIDO, RIESGO
 
-    // Obtener clientes de la organización
-    let whereCliente: any = { organizationId: orgId };
+    // Obtener clientes de la organización (excluyendo CONSUMIDOR FINAL)
+    let whereCliente: any = { 
+      organizationId: orgId,
+      nombre: { not: 'CONSUMIDOR FINAL' }
+    };
     if (query.trim()) {
       whereCliente.OR = [
         { nombre: { contains: query.trim(), mode: 'insensitive' } },

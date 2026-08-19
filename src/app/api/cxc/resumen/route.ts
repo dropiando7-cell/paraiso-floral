@@ -24,9 +24,12 @@ export async function GET() {
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Fetch all clients with their invoices, payments, and credit notes
+    // Fetch all clients with their invoices, payments, and credit notes (excluyendo CONSUMIDOR FINAL)
     const clientes = await prisma.cliente.findMany({
-      where: { organizationId: orgId },
+      where: { 
+        organizationId: orgId,
+        nombre: { not: 'CONSUMIDOR FINAL' }
+      },
       select: {
         id: true,
         saldoInicial: true,
@@ -50,7 +53,10 @@ export async function GET() {
       where: {
         organizationId: orgId,
         anulado: false,
-        fecha: { gte: firstDayOfMonth }
+        fecha: { gte: firstDayOfMonth },
+        cliente: {
+          nombre: { not: 'CONSUMIDOR FINAL' }
+        }
       },
       _sum: { monto: true }
     });

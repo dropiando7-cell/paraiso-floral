@@ -30,8 +30,11 @@ export async function GET(request: Request) {
     let start = fechaInicioStr ? new Date(fechaInicioStr + 'T00:00:00') : null;
     let end = fechaFinStr ? new Date(fechaFinStr + 'T23:59:59') : null;
 
-    // Get clients of the organization
-    const whereClient: any = { organizationId: orgId };
+    // Get clients of the organization (excluyendo CONSUMIDOR FINAL)
+    const whereClient: any = { 
+      organizationId: orgId,
+      nombre: { not: 'CONSUMIDOR FINAL' }
+    };
     if (clienteId !== 'TODOS') {
       whereClient.id = clienteId;
     }
