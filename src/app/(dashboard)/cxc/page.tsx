@@ -535,62 +535,76 @@ ${publicUrl}
 
                       {/* Action Buttons Row */}
                       <td className="py-3 px-4">
-                        <div className="flex items-center justify-center gap-1.5">
+                        <div className="flex items-center justify-end gap-2">
+                          {/* 1. Abonar */}
                           <button
                             onClick={() => {
                               setClienteSeleccionado(c);
                               setModalAbonoOpen(true);
                             }}
-                            className="py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                            className="w-[88px] h-8 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1 cursor-pointer shrink-0"
                             title="Abonar"
                           >
-                            <DollarSign className="w-3.5 h-3.5" />
+                            <DollarSign className="w-3.5 h-3.5 shrink-0" />
                             <span>Abonar</span>
                           </button>
 
+                          {/* 2. Ajuste */}
                           <button
                             onClick={() => {
                               setClienteSeleccionado(c);
                               setModalNCOpen(true);
                             }}
-                            className="py-1.5 px-3 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                            className="w-[84px] h-8 bg-amber-600 hover:bg-amber-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1 cursor-pointer shrink-0"
                             title="Ajuste por Flor"
                           >
-                            <Flower2 className="w-3.5 h-3.5" />
+                            <Flower2 className="w-3.5 h-3.5 shrink-0" />
                             <span>Ajuste</span>
                           </button>
 
+                          {/* 3. Saldo Excel */}
                           <button
                             onClick={() => {
                               setClienteSeleccionado(c);
                               setModalSaldoInicialOpen(true);
                             }}
-                            className="py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center gap-1 cursor-pointer"
+                            className="w-[104px] h-8 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1 cursor-pointer shrink-0"
                             title="Editar Saldo Inicial de Excel"
                           >
-                            <Clock className="w-3.5 h-3.5" />
+                            <Clock className="w-3.5 h-3.5 shrink-0" />
                             <span>Saldo Excel</span>
                           </button>
 
-                          {waLink && (
+                          {/* 4. WApp (Con Placeholder fijo para alineación simétrica perfecta) */}
+                          {waLink ? (
                             <a
                               href={waLink}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="py-1.5 px-3 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center gap-1"
+                              className="w-[78px] h-8 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white font-bold text-xs rounded-xl transition-all shadow-2xs flex items-center justify-center gap-1 shrink-0"
                               title="Enviar por WhatsApp"
                             >
-                              <MessageCircle className="w-3.5 h-3.5" />
+                              <MessageCircle className="w-3.5 h-3.5 shrink-0" />
                               <span>WApp</span>
                             </a>
+                          ) : (
+                            <button
+                              disabled
+                              className="w-[78px] h-8 bg-slate-100 text-slate-300 font-bold text-xs rounded-xl cursor-not-allowed flex items-center justify-center gap-1 shrink-0 border border-slate-200/50"
+                              title="Sin teléfono registrado"
+                            >
+                              <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>WApp</span>
+                            </button>
                           )}
 
+                          {/* 5. Chevron Ver Estado de Cuenta */}
                           <Link
                             href={`/cxc/cliente/${c.id}`}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors"
+                            className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-colors shrink-0"
                             title="Ver Estado de Cuenta Completo"
                           >
-                            <ChevronRight className="w-4 h-4" />
+                            <ChevronRight className="w-4 h-4 shrink-0" />
                           </Link>
                         </div>
                       </td>
