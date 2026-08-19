@@ -4045,10 +4045,12 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 cuentaAct: cleanRow.cuentaact || cleanRow.cuenta || '',
                 codigoGrupo: cleanRow.codigogrupo || cleanRow.grupo || '',
                 codigoBarras: cleanRow.codigobarras || cleanRow.codigo || '',
-                idQr: cleanRow.idqr || cleanRow.qr || ''
+                idQr: cleanRow.idqr || cleanRow.qr || '',
+                lote: cleanRow.lote || '',
+                fechaAdq: cleanRow.fechaingreso || cleanRow.fecha || ''
             };
 
-            if (normalizedRow.descripcionCorta && normalizedRow.area) {
+            if (normalizedRow.descripcionCorta) {
                 data.push(normalizedRow);
             }
         }

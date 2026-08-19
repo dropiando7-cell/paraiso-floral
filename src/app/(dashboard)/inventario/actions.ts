@@ -1710,6 +1710,21 @@ export async function bulkImportActivos(activos: any[]): Promise<{ success: bool
         const createdIds: string[] = [];
         let importedCount = 0;
 
+        function parseDate(dateStr?: string): Date | null {
+            if (!dateStr || !dateStr.trim()) return null;
+            const cleanStr = dateStr.trim();
+            const parts = cleanStr.split('/');
+            if (parts.length === 3) {
+                const day = parseInt(parts[0], 10);
+                const month = parseInt(parts[1], 10) - 1;
+                const year = parseInt(parts[2], 10);
+                const date = new Date(year, month, day);
+                if (!isNaN(date.getTime())) return date;
+            }
+            const fallback = new Date(cleanStr);
+            return !isNaN(fallback.getTime()) ? fallback : null;
+        }
+
         await prisma.$transaction(async (tx) => {
             for (const item of activos) {
                 // Find or create Area
@@ -1735,6 +1750,25 @@ export async function bulkImportActivos(activos: any[]): Promise<{ success: bool
                         });
                         areaIdOrName = newArea.name;
                     }
+                } else {
+                    const camaraArea = await tx.area.findFirst({
+                        where: { 
+                            organizationId: orgId,
+                            name: { contains: 'CAMARA', mode: 'insensitive' }
+                        },
+                        orderBy: { name: 'asc' }
+                    });
+                    if (camaraArea) {
+                        areaIdOrName = camaraArea.name;
+                    } else {
+                        const primerArea = await tx.area.findFirst({
+                            where: { organizationId: orgId },
+                            orderBy: { name: 'asc' }
+                        });
+                        if (primerArea) {
+                            areaIdOrName = primerArea.name;
+                        }
+                    }
                 }
 
                 // Find or create Categoria
@@ -1758,6 +1792,8 @@ export async function bulkImportActivos(activos: any[]): Promise<{ success: bool
                 const cantidad = Math.max(1, parseInt(item.cantidad) || 1);
                 const codigoGrupo = (item.codigoGrupo && item.codigoGrupo.trim()) || '001';
                 const codigoBarras = (item.codigoBarras && item.codigoBarras.trim()) || null;
+                const itemLote = (item.lote && item.lote.trim()) || null;
+                const itemFecha = parseDate(item.fechaAdq);
                 
                 // Base fields to insert
                 const baseData = {
@@ -1779,17 +1815,23 @@ export async function bulkImportActivos(activos: any[]): Promise<{ success: bool
                     codigoBarras,
                     categoriaId: catId,
                     createdById: userId,
-                    updatedById: userId
+                    updatedById: userId,
+                    lote: itemLote,
+                    fechaAdq: itemFecha
                 };
 
                 if (esConsumible) {
                     // Consumible Re-entry logic (Agrupación)
-                    const whereClause: any = { organizationId: orgId, area: areaIdOrName, esConsumible: true };
-                    if (codigoBarras) {
+                    const whereClause: any = { organizationId: orgId, esConsumible: true };
+                    if (item.idQr && item.idQr.trim()) {
+                        whereClause.idQr = item.idQr.trim();
+                    } else if (codigoBarras) {
                         whereClause.codigoBarras = codigoBarras;
+                        whereClause.area = areaIdOrName;
                     } else {
                         whereClause.codigoGrupo = codigoGrupo;
                         whereClause.descripcionCorta = baseData.descripcionCorta;
+                        whereClause.area = areaIdOrName;
                     }
 
                     const existente = await tx.activoFijo.findFirst({
@@ -1798,10 +1840,14 @@ export async function bulkImportActivos(activos: any[]): Promise<{ success: bool
                     });
 
                     if (existente) {
-                        // Increment stock
+                        // Increment stock and update lote/date
                         const updated = await tx.activoFijo.update({
                             where: { id: existente.id },
-                            data: { stock: existente.stock + cantidad }
+                            data: { 
+                                stock: existente.stock + cantidad,
+                                lote: itemLote || existente.lote,
+                                fechaAdq: itemFecha || existente.fechaAdq
+                            }
                         });
                         createdIds.push(updated.id);
                         importedCount += cantidad;
