@@ -22,6 +22,7 @@ interface ModalNotaCreditoProps {
 
 export default function ModalNotaCredito({ isOpen, onClose, onSuccess, cliente }: ModalNotaCreditoProps) {
   const [monto, setMonto] = useState<string>('');
+  const [fechaNC, setFechaNC] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [motivo, setMotivo] = useState<string>('FLOR_DANADA');
   const [facturaId, setFacturaId] = useState<string>('');
   const [descripcion, setDescripcion] = useState<string>('');
@@ -57,7 +58,8 @@ export default function ModalNotaCredito({ isOpen, onClose, onSuccess, cliente }
           monto: valMonto,
           motivo,
           descripcion: descripcion.trim(),
-          fotos: fotoUrl.trim() ? [fotoUrl.trim()] : []
+          fotos: fotoUrl.trim() ? [fotoUrl.trim()] : [],
+          fecha: fechaNC || undefined
         })
       });
 
@@ -150,22 +152,38 @@ export default function ModalNotaCredito({ isOpen, onClose, onSuccess, cliente }
             </div>
           )}
 
-          {/* Monto a Descontar */}
-          <div>
-            <label className="block text-xs font-bold text-slate-800 mb-1">
-              Monto a Descontar (Lempiras) *
-            </label>
-            <div className="relative">
-              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400">L.</span>
+          {/* Monto y Fecha del Ajuste */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1">
+                Monto a Descontar (Lempiras) *
+              </label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 font-bold text-slate-400">L.</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={monto}
+                  onChange={(e) => setMonto(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-base font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-800 mb-1 flex items-center justify-between">
+                <span>Fecha del Reclamo / Nota *</span>
+                <span className="text-[9px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 uppercase">Modificable</span>
+              </label>
               <input
-                type="number"
-                step="0.01"
-                min="0.01"
+                type="date"
                 required
-                value={monto}
-                onChange={(e) => setMonto(e.target.value)}
-                placeholder="0.00"
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-lg font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none"
+                value={fechaNC}
+                onChange={(e) => setFechaNC(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:ring-2 focus:ring-amber-500 outline-none cursor-pointer"
               />
             </div>
           </div>

@@ -29,7 +29,8 @@ export async function POST(request: Request) {
       monto,
       motivo = 'FLOR_DANADA',
       descripcion,
-      fotos
+      fotos,
+      fecha
     } = body;
 
     const montoNum = Number(monto);
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
         motivo,
         descripcion,
         fotos: fotos || [],
+        fecha: fecha ? new Date(fecha) : new Date(),
         creadoPorId: dbUser.id
       }
     });
