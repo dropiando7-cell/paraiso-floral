@@ -4257,11 +4257,11 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                     </p>
                 </div>
                 <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto mt-4 sm:mt-0">
-                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
                         {/* 1. Nuevo Producto */}
                         <button
                             onClick={() => setModalOpen(true)}
-                            className="h-11 px-4 text-sm font-bold bg-[#0500A3] hover:bg-[#0600c2] text-white rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                            className="w-full sm:w-auto h-11 px-5 text-sm font-bold bg-[#0500A3] hover:bg-[#0600c2] text-white rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0"
                         >
                             <Plus className="w-4.5 h-4.5" />
                             <span>{isRentaMode ? 'Nuevo Equipo' : 'Nuevo Producto'}</span>
@@ -4270,7 +4270,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                         {/* 2. Consultar */}
                         <button
                             onClick={() => setSearchModalOpen(true)}
-                            className="h-11 px-4 text-sm font-bold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0 hide-on-print"
+                            className="w-full sm:w-auto h-11 px-5 text-sm font-bold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0 hide-on-print"
                         >
                             <Search className="w-4.5 h-4.5 text-indigo-600" />
                             <span>Consultar</span>
@@ -4279,18 +4279,18 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                         {/* 3. Imprimir Lote */}
                         <button 
                             onClick={() => setLoteModalOpen(true)}
-                            className="h-11 px-4 text-sm font-bold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0 hide-on-print"
+                            className="w-full sm:w-auto h-11 px-5 text-sm font-bold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0 hide-on-print"
                         >
                             <Printer className="w-4.5 h-4.5 text-indigo-600" />
                             <span>Imprimir Lote</span>
                         </button>
 
                         {/* 4. Más Acciones (Dropdown Menu) */}
-                        <div className="relative shrink-0 hide-on-print" ref={moreActionsRef}>
+                        <div className="relative w-full sm:w-auto shrink-0 hide-on-print" ref={moreActionsRef}>
                             <button
                                 type="button"
                                 onClick={() => setMoreActionsOpen(prev => !prev)}
-                                className={`h-11 px-4 text-sm font-bold border rounded-xl shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${
+                                className={`w-full sm:w-auto h-11 px-5 text-sm font-bold border rounded-xl shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${
                                     moreActionsOpen 
                                         ? 'bg-slate-100 border-indigo-300 text-indigo-700 ring-2 ring-indigo-500/20' 
                                         : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
@@ -4302,7 +4302,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                             </button>
 
                             {moreActionsOpen && (
-                                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                                <div className="absolute right-0 left-0 sm:left-auto top-full mt-2 w-full sm:w-56 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
                                     <button
                                         onClick={() => {
                                             setMoreActionsOpen(false);
