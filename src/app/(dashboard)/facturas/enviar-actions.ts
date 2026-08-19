@@ -18,8 +18,8 @@ export interface EmailTemplateSettings {
 
 const DEFAULT_SETTINGS: EmailTemplateSettings = {
   bccList: 'administracion@bioelectronicahn.com, gerencia@bioelectronicahn.com',
-  address: 'Bo. Guamilito, 7 Calle, 9 Avenida NO, San Pedro Sula, Cortés',
-  phone: '+504 3178-2368 | +504 8924-6108',
+  address: '8 Calle, 9 Avenida NO, Barrio Guamilito, San Pedro Sula, Cortés',
+  phone: '+504 8854-2199 | +504 9645-3095',
   email: 'administracion@bioelectronicahn.com',
   defaultSubject: '{docType} {correlativo} - Bioelectrónica Honduras',
   defaultBody: 'Le hacemos llegar su {docType} número {correlativo} por un monto total de {total}, emitida el {fecha}.\n\nEn el archivo adjunto encontrará el documento PDF correspondiente.'

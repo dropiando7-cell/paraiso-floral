@@ -214,7 +214,7 @@ export default function ReportesCxCPage() {
               <div className="space-y-0.5">
                 <h1 className="text-xl font-black text-emerald-800 tracking-tight">DISTRIBUIDORA PARAÍSO FLORAL</h1>
                 <p className="text-[10px] font-bold text-slate-700">Mayorista y Distribuidora de Flores y Follajes Fresh 🌹</p>
-                <p className="text-[9px] text-slate-500">RTN: 08011990123456 | Tegucigalpa, Honduras | Tel: +(504) 9538-0113</p>
+                <p className="text-[9px] text-slate-500">8 Calle, 9 Avenida NO, Barrio Guamilito, San Pedro Sula, Cortés | Tel: +(504) 8854-2199 | +(504) 9645-3095</p>
               </div>
             </div>
             <div className="text-right space-y-0.5 shrink-0">

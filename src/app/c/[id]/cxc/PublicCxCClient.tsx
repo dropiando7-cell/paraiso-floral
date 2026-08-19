@@ -265,8 +265,8 @@ export default function PublicCxCClient({ initialData }: PublicCxCClientProps) {
                   {organization?.name || 'DISTRIBUIDORA PARAÍSO FLORAL'}
                 </h1>
                 <p className="text-xs font-bold text-slate-700">Venta de Flores al Mayoreo y Detalle</p>
-                <p className="text-[11px] text-slate-600">RTN: {organization?.rtn || '08011990123456'} | Tegucigalpa, Honduras</p>
-                <p className="text-[11px] text-slate-600">Teléfono / WhatsApp: {organization?.telefono || '+(504) 9538-0113 | +(504) 3178-2368'}</p>
+                <p className="text-[11px] text-slate-600">8 Calle, 9 Avenida NO, Barrio Guamilito, San Pedro Sula, Cortés</p>
+                <p className="text-[11px] text-slate-600">Teléfono / WhatsApp: {organization?.telefono || '+(504) 8854-2199 | +(504) 9645-3095'}</p>
               </div>
             </div>
 
@@ -285,7 +285,7 @@ export default function PublicCxCClient({ initialData }: PublicCxCClientProps) {
               <p className="text-base font-black text-slate-900">{cliente.nombre}</p>
               <p className="text-xs text-slate-700"><strong>Teléfono:</strong> {cliente.telefono || 'N/A'}</p>
               <p className="text-xs text-slate-700"><strong>RTN:</strong> {cliente.rtn || 'Consumidor Final'}</p>
-              <p className="text-xs text-slate-700"><strong>Dirección:</strong> {cliente.direccion || 'Tegucigalpa, Honduras'}</p>
+              <p className="text-xs text-slate-700"><strong>Dirección:</strong> {cliente.direccion || 'San Pedro Sula, Cortés'}</p>
             </div>
 
             <div className="p-4 border border-emerald-300 rounded-2xl bg-emerald-50/40 space-y-1 text-right flex flex-col justify-between">
