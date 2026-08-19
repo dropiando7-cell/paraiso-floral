@@ -3752,6 +3752,19 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
     const [soldInvoiceInfo, setSoldInvoiceInfo] = useState<{ id: string; correlativo: string } | null>(null);
     const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
 
+    const [moreActionsOpen, setMoreActionsOpen] = useState(false);
+    const moreActionsRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+            if (moreActionsRef.current && !moreActionsRef.current.contains(event.target as Node)) {
+                setMoreActionsOpen(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     useEffect(() => {
         if (viewActivo && (viewActivo.estatusContable === 'VENDIDO' || viewActivo.estatusContable === 'VENDIDO/ENTREGADO')) {
             setIsLoadingInvoice(true);
@@ -4244,86 +4257,130 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                     </p>
                 </div>
                 <div className="flex flex-col items-stretch sm:items-end gap-3 w-full sm:w-auto mt-4 sm:mt-0">
-                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-                        {/* Funciones de Impresión para ADMIN */}
-                        {userRole === 'SUPER_ADMIN' && (
-                            <>
-                                <button
-                                    onClick={handleClearQueue}
-                                    disabled={clearingQueue}
-                                    title="Limpiar cola de impresión pendiente completa"
-                                    className="flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 disabled:opacity-60 hidden sm:flex bg-red-50 border-red-200 text-red-600 hover:bg-red-100 hover:border-red-300"
-                                >
-                                    {clearingQueue ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eraser className="w-4 h-4" />}
-                                    Limpiar Cola
-                                </button>
-                                <button
-                                    onClick={handleDebugPrint}
-                                    disabled={debugPrinting}
-                                    title="Enviar etiqueta de prueba a la impresora Tally"
-                                    className={`flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 disabled:opacity-60 hidden sm:flex ${debugStatus === 'sent' ? 'bg-green-50 border-green-400 text-green-700' :
-                                        debugStatus === 'error' ? 'bg-red-50 border-red-400 text-red-700' :
-                                            'bg-yellow-50 border-yellow-400 text-yellow-700 hover:bg-yellow-100'
-                                        }`}
-                                >
-                                    {debugPrinting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
-                                    {debugStatus === 'sent' ? '✅ Enviado' : debugStatus === 'error' ? '❌ Error' : 'Debug Impr.'}
-                                </button>
-                                <button
-                                    onClick={() => setLabelPreviewOpen(true)}
-                                    title="Ver vista previa visual de la etiqueta (solo superadmin)"
-                                    className="flex items-center gap-2 text-sm font-semibold px-4 py-3 rounded-2xl border-2 transition-all active:scale-95 hidden sm:flex bg-purple-50 border-purple-300 text-purple-700 hover:bg-purple-100"
-                                >
-                                    <Eye className="w-4 h-4" />
-                                    Vista Etiqueta
-                                </button>
-                            </>
-                        )}
+                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        {/* 1. Nuevo Producto */}
                         <button
                             onClick={() => setModalOpen(true)}
-                            className="flex items-center justify-center gap-2 bg-[#0500A3] hover:bg-[#0600c2] text-white px-5 py-3.5 rounded-2xl font-bold transition-all shadow-md active:scale-95 w-full sm:w-auto"
+                            className="h-11 px-4 text-sm font-bold bg-[#0500A3] hover:bg-[#0600c2] text-white rounded-xl shadow-xs hover:shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0"
                         >
-                            <Plus className="w-5 h-5" />
-                            {isRentaMode ? 'Nuevo Equipo' : 'Nuevo Producto'}
+                            <Plus className="w-4.5 h-4.5" />
+                            <span>{isRentaMode ? 'Nuevo Equipo' : 'Nuevo Producto'}</span>
                         </button>
 
-                        <Link
-                            href="/inventario/toma-fisica"
-                            className="flex items-center justify-center gap-2 bg-pink-600 hover:bg-pink-700 text-white px-5 py-3.5 rounded-2xl font-bold transition-all shadow-md shadow-pink-900/10 active:scale-95 w-full sm:w-auto hide-on-print"
-                            title="Módulo táctil para conteo físico en cámaras frías"
-                        >
-                            <ClipboardList className="w-5 h-5" />
-                            <span>Toma Física Tablet</span>
-                        </Link>
-
-                        <button
-                            onClick={() => {
-                                setBulkModalOpen(true);
-                                setBulkFile(null);
-                                setBulkData([]);
-                                setImportSuccessData(null);
-                            }}
-                            className="flex items-center justify-center gap-2 text-base font-bold bg-white text-indigo-700 border-2 border-indigo-200 px-5 py-3.5 rounded-2xl hover:bg-indigo-50 active:scale-95 transition-all w-full sm:w-auto hide-on-print justify-center"
-                        >
-                            <Upload className="w-5 h-5" /> Cargar CSV
-                        </button>
-
+                        {/* 2. Consultar */}
                         <button
                             onClick={() => setSearchModalOpen(true)}
-                            className="flex items-center justify-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3.5 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto hide-on-print"
+                            className="h-11 px-4 text-sm font-bold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0 hide-on-print"
                         >
-                            <Search className="w-5 h-5" /> Consultar
+                            <Search className="w-4.5 h-4.5 text-indigo-600" />
+                            <span>Consultar</span>
                         </button>
 
-                        <button onClick={() => setLoteModalOpen(true)}
-                            className="flex items-center gap-2 text-base font-bold bg-white text-[#0500A3] border-2 border-[#0500A3]/20 px-5 py-3.5 rounded-2xl hover:bg-blue-50 active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print">
-                            <Printer className="w-5 h-5" /> Imprimir Lote
+                        {/* 3. Imprimir Lote */}
+                        <button 
+                            onClick={() => setLoteModalOpen(true)}
+                            className="h-11 px-4 text-sm font-bold bg-white text-slate-700 hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-xl shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer shrink-0 hide-on-print"
+                        >
+                            <Printer className="w-4.5 h-4.5 text-indigo-600" />
+                            <span>Imprimir Lote</span>
                         </button>
 
-                        <button onClick={handleExportExcel} disabled={exportingExcel}
-                            className="flex items-center justify-center gap-2 text-base font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3.5 rounded-2xl hover:shadow-md active:scale-95 transition-all w-full sm:w-auto justify-center hide-on-print disabled:opacity-60">
-                            {exportingExcel ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileSpreadsheet className="w-5 h-5" />} Exportar Excel
-                        </button>
+                        {/* 4. Más Acciones (Dropdown Menu) */}
+                        <div className="relative shrink-0 hide-on-print" ref={moreActionsRef}>
+                            <button
+                                type="button"
+                                onClick={() => setMoreActionsOpen(prev => !prev)}
+                                className={`h-11 px-4 text-sm font-bold border rounded-xl shadow-2xs transition-all active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${
+                                    moreActionsOpen 
+                                        ? 'bg-slate-100 border-indigo-300 text-indigo-700 ring-2 ring-indigo-500/20' 
+                                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 hover:border-slate-300'
+                                }`}
+                            >
+                                <Sparkles className="w-4 h-4 text-amber-500" />
+                                <span>Más Acciones</span>
+                                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${moreActionsOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {moreActionsOpen && (
+                                <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-2xl border border-slate-200 shadow-2xl z-50 py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                                    <button
+                                        onClick={() => {
+                                            setMoreActionsOpen(false);
+                                            setBulkModalOpen(true);
+                                            setBulkFile(null);
+                                            setBulkData([]);
+                                            setImportSuccessData(null);
+                                        }}
+                                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                        <Upload className="w-4 h-4 text-indigo-600 shrink-0" />
+                                        <span>Cargar CSV / Excel</span>
+                                    </button>
+
+                                    <button
+                                        onClick={() => {
+                                            setMoreActionsOpen(false);
+                                            handleExportExcel();
+                                        }}
+                                        disabled={exportingExcel}
+                                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+                                    >
+                                        {exportingExcel ? <Loader2 className="w-4 h-4 animate-spin text-emerald-600 shrink-0" /> : <FileSpreadsheet className="w-4 h-4 text-emerald-600 shrink-0" />}
+                                        <span>Exportar Excel</span>
+                                    </button>
+
+                                    <Link
+                                        href="/inventario/toma-fisica"
+                                        onClick={() => setMoreActionsOpen(false)}
+                                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-pink-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                        <ClipboardList className="w-4 h-4 text-pink-600 shrink-0" />
+                                        <span>Toma Física Tablet</span>
+                                    </Link>
+
+                                    {userRole === 'SUPER_ADMIN' && (
+                                        <>
+                                            <div className="h-px bg-slate-100 my-1" />
+                                            
+                                            <button
+                                                onClick={() => {
+                                                    setMoreActionsOpen(false);
+                                                    setLabelPreviewOpen(true);
+                                                }}
+                                                className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-purple-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                            >
+                                                <Eye className="w-4 h-4 text-purple-600 shrink-0" />
+                                                <span>Vista Etiqueta</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setMoreActionsOpen(false);
+                                                    handleClearQueue();
+                                                }}
+                                                disabled={clearingQueue}
+                                                className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-rose-600 flex items-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+                                            >
+                                                {clearingQueue ? <Loader2 className="w-4 h-4 animate-spin text-rose-600 shrink-0" /> : <Eraser className="w-4 h-4 text-rose-600 shrink-0" />}
+                                                <span>Limpiar Cola</span>
+                                            </button>
+
+                                            <button
+                                                onClick={() => {
+                                                    setMoreActionsOpen(false);
+                                                    handleDebugPrint();
+                                                }}
+                                                disabled={debugPrinting}
+                                                className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-amber-600 flex items-center gap-2.5 transition-colors cursor-pointer disabled:opacity-50"
+                                            >
+                                                {debugPrinting ? <Loader2 className="w-4 h-4 animate-spin text-amber-600 shrink-0" /> : <Printer className="w-4 h-4 text-amber-600 shrink-0" />}
+                                                <span>{debugStatus === 'sent' ? '✅ Enviado' : debugStatus === 'error' ? '❌ Error' : 'Debug Impr.'}</span>
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
