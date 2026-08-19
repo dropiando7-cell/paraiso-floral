@@ -682,21 +682,21 @@ function StatsCards({ stats, onSelectFilter }: { stats: any; onSelectFilter?: (e
     ];
 
     return (
-        <div className="grid grid-cols-2 xl:grid-cols-5 gap-3 mb-6">
+        <div className="flex sm:grid sm:grid-cols-2 xl:grid-cols-5 gap-3 mb-6 overflow-x-auto pb-2 scrollbar-none snap-x -mx-4 px-4 sm:mx-0 sm:px-0">
             {cards.map(c => (
                 <div 
                   key={c.label} 
                   onClick={() => c.filter && onSelectFilter && onSelectFilter(c.filter)}
-                  className={`bg-white rounded-xl border border-slate-200 p-4 flex items-start gap-3 shadow-2xs hover:shadow-md transition-all ${
+                  className={`bg-white rounded-xl border border-slate-200 p-3.5 flex items-start gap-3 shadow-2xs hover:shadow-md transition-all min-w-[170px] sm:min-w-0 shrink-0 snap-start ${
                     c.filter ? 'cursor-pointer hover:border-indigo-300 active:scale-98' : ''
                   }`}
                   title={c.filter ? `Filtrar por ${c.label}` : undefined}
                 >
-                    <div className={`${c.bg} p-2.5 rounded-lg shrink-0`}><c.icon className={`w-5 h-5 ${c.color}`} /></div>
+                    <div className={`${c.bg} p-2 rounded-lg shrink-0`}><c.icon className={`w-4.5 h-4.5 ${c.color}`} /></div>
                     <div className="min-w-0">
-                        <div className="text-xs text-slate-500 font-bold mb-0.5 leading-tight">{c.label}</div>
-                        <div className="text-2xl font-black text-slate-900">{c.value}</div>
-                        <div className="text-xs text-slate-400 mt-0.5 leading-tight font-medium">{c.sub}</div>
+                        <div className="text-[11px] text-slate-500 font-bold mb-0.5 leading-tight">{c.label}</div>
+                        <div className="text-xl sm:text-2xl font-black text-slate-900">{c.value}</div>
+                        <div className="text-[10px] text-slate-400 mt-0.5 leading-tight font-medium truncate">{c.sub}</div>
                     </div>
                 </div>
             ))}
@@ -4951,8 +4951,8 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 </table>
             </div>
 
-            {/* Mobile Card List View (< 768px) */}
-            <div className="block md:hidden space-y-3">
+            {/* Mobile Compact Inline List View (< 768px) */}
+            <div className="block md:hidden space-y-2">
                 {sortedActivos.length === 0 && !isRefetching ? (
                     <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center text-slate-400">
                         <Package className="w-10 h-10 mx-auto mb-3 opacity-20" />
@@ -4963,83 +4963,70 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                         <div 
                             key={a.id} 
                             onClick={() => setViewActivo(a)} 
-                            className="bg-white rounded-2xl border border-slate-200/70 p-3.5 shadow-xs hover:shadow-sm active:scale-[0.98] transition-all flex items-center gap-4 relative cursor-pointer"
+                            className="bg-white rounded-xl border border-slate-200/80 p-2.5 shadow-2xs hover:shadow-xs active:scale-[0.99] transition-all flex items-center justify-between gap-2.5 cursor-pointer"
                         >
-                            {/* Left Side Thumbnail */}
-                            {a.imagenUrl ? (
-                                <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-slate-100 bg-slate-50 relative shadow-inner">
-                                    <Image 
-                                        src={a.imagenUrl} 
-                                        fill 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            const imgs = [a.imagenUrl, a.imagenPlacaUrl].filter(Boolean) as string[];
-                                            if (imgs.length > 0) setPreviewImage({ index: 0, images: imgs });
-                                        }} 
-                                        alt="" 
-                                        className="object-cover" 
-                                        sizes="64px"
-                                    />
-                                </div>
-                            ) : (
-                                <div className="w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center shrink-0 border border-slate-200/50">
-                                    <Eye className="w-5 h-5 text-slate-300" />
-                                </div>
-                            )}
-                            
-                            {/* Middle Text Details */}
-                            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                                <h4 className="font-bold text-slate-800 text-sm leading-snug truncate">
-                                    {a.descripcionCorta}
-                                </h4>
+                            {/* Left Side Thumbnail + Main Info */}
+                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                {a.imagenUrl ? (
+                                    <div className="w-11 h-11 rounded-lg overflow-hidden shrink-0 border border-slate-100 bg-slate-50 relative shadow-2xs">
+                                        <Image 
+                                            src={a.imagenUrl} 
+                                            fill 
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                const imgs = [a.imagenUrl, a.imagenPlacaUrl].filter(Boolean) as string[];
+                                                if (imgs.length > 0) setPreviewImage({ index: 0, images: imgs });
+                                            }} 
+                                            alt="" 
+                                            className="object-cover" 
+                                            sizes="44px"
+                                            unoptimized
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="w-11 h-11 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200/60 shrink-0 text-slate-400">
+                                        <Package className="w-4 h-4 text-slate-400" />
+                                    </div>
+                                )}
                                 
-                                <span className="text-[10px] font-mono font-bold text-[#0500A3]/85 uppercase tracking-wider">
-                                    ID: {a.idQr}
-                                </span>
-                                
-                                <div className="flex items-center gap-1.5 flex-wrap text-slate-500 text-[11px] font-medium mt-1">
-                                    <span className="font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/50">
-                                        {a.stock ?? 1} ud.
-                                    </span>
-                                    {a.origenActivo && (
-                                        <span className="font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-100/50">
-                                            {a.origenActivo}
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-bold text-slate-900 text-xs truncate leading-tight">
+                                            {a.descripcionCorta}
                                         </span>
-                                    )}
-                                    {a.condicionActivo && (
-                                        <span className="font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100/50">
-                                            {a.condicionActivo}
+                                        <span className="font-mono text-[9px] font-bold text-[#0500A3] bg-blue-50 px-1 py-0.2 rounded border border-blue-200/60 shrink-0">
+                                            {a.idQr}
                                         </span>
-                                    )}
-                                     {a.createdAt && (
-                                        <span suppressHydrationWarning className="font-semibold text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap">
-                                            Reg: {new Date(a.createdAt).toLocaleDateString('es-HN', { day: '2-digit', month: '2-digit', year: '2-digit' })} {new Date(a.createdAt).toLocaleTimeString('es-HN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5 flex-wrap">
+                                        <span className="font-extrabold text-slate-800 bg-slate-100 px-1.5 py-0.2 rounded">
+                                            {a.stock ?? 1} paq.
                                         </span>
-                                    )}
-                                    <span className="text-slate-300">|</span>
-                                    <span className="flex items-center gap-0.5 max-w-[130px] truncate">
-                                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                                        {a.area}
-                                    </span>
-                                    {a.serie && (
-                                        <>
-                                            <span className="text-slate-300">|</span>
-                                            <span className="font-mono text-[10px] font-bold bg-amber-50 text-amber-800 px-1.5 py-0.5 rounded border border-amber-200/50 uppercase tracking-wider shrink-0">
-                                                S/N: {a.serie}
+                                        {a.origenActivo && (
+                                            <span className="font-bold text-emerald-700 bg-emerald-50 px-1 py-0.2 rounded border border-emerald-100/60">
+                                                {a.origenActivo}
                                             </span>
-                                        </>
-                                    )}
+                                        )}
+                                        <span className="text-slate-400 flex items-center gap-0.5">
+                                            <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
+                                            {a.area}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
-                            {/* Right Side Status Badge */}
-                            <div className="shrink-0 self-center">
-                                <EstatusBadge estatus={a.estatusContable} />
-                                {a.estadoDano && (
-                                    <div className="mt-1.5 text-right">
-                                        <DanoBadge dano={a.estadoDano} />
-                                    </div>
-                                )}
+                            {/* Right Side Status Badge + Arrow */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <div className="text-right">
+                                    <EstatusBadge estatus={a.estatusContable} />
+                                    {a.estadoDano && (
+                                        <div className="mt-1">
+                                            <DanoBadge dano={a.estadoDano} />
+                                        </div>
+                                    )}
+                                </div>
+                                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
                             </div>
                         </div>
                     ))
