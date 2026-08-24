@@ -30,7 +30,11 @@ import {
     Undo2,
     Camera,
     Plus,
-    Trash2
+    Trash2,
+    List,
+    LayoutGrid,
+    Maximize2,
+    Minimize2
 } from 'lucide-react';
 
 interface AuditHeader {
@@ -103,6 +107,13 @@ export default function TomaFisicaDetalleClient({
     const router = useRouter();
     const [isPending, startTransition] = useTransition();
 
+    // Autosave state and View Mode
+    const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+    const [viewMode, setViewMode] = useState<'tabla' | 'piso'>('piso'); // Default to Floor view for easier floor counts
+    const [isKioskMode, setIsKioskMode] = useState<boolean>(false);
+    const [showFilters, setShowFilters] = useState<boolean>(false);
+    const isInitialMount = React.useRef(true);
+
     // Local items list state (supports duplicating rows for different locations)
     const [items, setItems] = useState<ItemTomaFisica[]>(initialItems);
 
@@ -158,6 +169,51 @@ export default function TomaFisicaDetalleClient({
         });
         return initial;
     });
+
+    // Autosave Debounced Logic
+    React.useEffect(() => {
+        if (isInitialMount.current) {
+            isInitialMount.current = false;
+            return;
+        }
+
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') {
+            return;
+        }
+
+        setAutosaveStatus('saving');
+
+        const submissionList = items.map(item => ({
+            activoFijoId: item.activoFijoId,
+            stockSistema: item.stockSistema,
+            conteo: conteos[item.id],
+            merma: mermas[item.id] || 0,
+            mermaFecha: mermas[item.id] > 0 ? mermasFechas[item.id] : null,
+            mermaFotos: mermasFotos[item.id] || [],
+            ubicacion: ubicaciones[item.id] || null
+        }));
+
+        const delayDebounce = setTimeout(async () => {
+            try {
+                const res = await guardarProgresoTomaFisica(auditoria.id, submissionList);
+                if (res.success) {
+                    setAutosaveStatus('saved');
+                    // Automatically clear 'saved' message after 3 seconds back to idle
+                    setTimeout(() => {
+                        setAutosaveStatus(current => current === 'saved' ? 'idle' : current);
+                    }, 3000);
+                } else {
+                    setAutosaveStatus('error');
+                    console.error('Error in autosave:', res.error);
+                }
+            } catch (err) {
+                setAutosaveStatus('error');
+                console.error('Network error during autosave:', err);
+            }
+        }, 1500); // 1.5 second debounce
+
+        return () => clearTimeout(delayDebounce);
+    }, [items, conteos, mermas, mermasFechas, mermasFotos, ubicaciones, auditoria.id, auditoria.estado]);
 
     // Uploading states to show local spinners for photos
     const [uploadingItem, setUploadingItem] = useState<Record<string, boolean>>({});
@@ -614,7 +670,11 @@ export default function TomaFisicaDetalleClient({
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-800 pb-20">
+        <div className={`text-slate-800 pb-20 transition-all duration-300 ${
+            isKioskMode 
+                ? 'fixed inset-0 z-[100] bg-slate-50 overflow-y-auto w-screen h-screen px-4 md:px-8 py-6' 
+                : 'min-h-screen bg-slate-50'
+        }`}>
             {/* ── DATALIST PARA AUTOCOMPLETAR UBICACIONES ── */}
             <datalist id="datalist-ubicaciones">
                 {uniqueLocationsSuggestion.map(loc => (
@@ -624,7 +684,7 @@ export default function TomaFisicaDetalleClient({
 
             {/* ── HEADER DE NAVEGACIÓN ── */}
             <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs px-4 lg:px-8 py-3.5">
-                <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                         <Link 
                             href="/inventario/toma-fisica" 
@@ -640,14 +700,66 @@ export default function TomaFisicaDetalleClient({
                                 </span>
                                 <span className="text-xs text-slate-400 font-medium hidden sm:inline">| Paraíso Floral</span>
                             </div>
-                            <h1 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight mt-0.5">
-                                Auditoría de Inventario Físico
+                            <h1 className="text-xl lg:text-2xl font-black text-slate-900 tracking-tight mt-0.5 flex flex-wrap items-center gap-2">
+                                <span>Auditoría de Inventario Físico</span>
+                                
+                                {/* Autosave Status Indicator */}
+                                {isEditable && (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 rounded-lg border border-slate-200/60 text-xs font-bold transition-all duration-300">
+                                        {autosaveStatus === 'saving' && (
+                                            <span className="flex items-center gap-1.5 text-blue-600 animate-pulse">
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                <span>Guardando...</span>
+                                            </span>
+                                        )}
+                                        {autosaveStatus === 'saved' && (
+                                            <span className="flex items-center gap-1.5 text-emerald-600">
+                                                <Check className="w-3 h-3 font-black" />
+                                                <span>Guardado</span>
+                                            </span>
+                                        )}
+                                        {autosaveStatus === 'error' && (
+                                            <span className="flex items-center gap-1.5 text-rose-600 animate-bounce">
+                                                <AlertTriangle className="w-3 h-3" />
+                                                <span>Error al guardar</span>
+                                            </span>
+                                        )}
+                                        {autosaveStatus === 'idle' && (
+                                            <span className="flex items-center gap-1.5 text-slate-400">
+                                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                                                <span>Autoguardado activo</span>
+                                            </span>
+                                        )}
+                                    </span>
+                                )}
                             </h1>
                         </div>
                     </div>
 
+                    {/* Compact KPI Metrics Badges */}
+                    <div className="flex flex-wrap items-center gap-2">
+                        <div className="px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-xl text-xs font-black text-blue-700 flex items-center gap-1.5">
+                            <Package className="w-4 h-4 shrink-0" />
+                            <span>Variedades: <strong className="text-sm">{metrics.totalCounted}</strong> / {metrics.totalItems}</span>
+                        </div>
+                        <div className={`px-3 py-1.5 border rounded-xl text-xs font-black flex items-center gap-1.5 ${
+                            metrics.totalDiferencia === 0 
+                                ? 'bg-slate-50 border-slate-200 text-slate-700' 
+                                : metrics.totalDiferencia < 0 
+                                    ? 'bg-rose-50 border-rose-100 text-rose-700' 
+                                    : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                        }`}>
+                            {metrics.totalDiferencia < 0 ? <TrendingDown className="w-4 h-4 shrink-0" /> : <TrendingUp className="w-4 h-4 shrink-0" />}
+                            <span>Ajuste Kardex: <strong className="text-sm">{metrics.totalDiferencia > 0 ? `+${metrics.totalDiferencia}` : metrics.totalDiferencia}</strong></span>
+                        </div>
+                        <div className="px-3 py-1.5 bg-rose-50 border border-rose-100 rounded-xl text-xs font-black text-rose-700 flex items-center gap-1.5">
+                            <AlertTriangle className="w-4 h-4 shrink-0" />
+                            <span>Faltantes: <strong className="text-sm">{metrics.totalFaltantes}</strong></span>
+                        </div>
+                    </div>
+
                     {/* Metadata Pill */}
-                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs font-semibold text-slate-600 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200/60">
+                    <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs font-semibold text-slate-600 bg-slate-100/80 px-4 py-2 rounded-xl border border-slate-200/60 lg:self-stretch items-center">
                         <div className="flex items-center gap-1.5">
                             <UserCheck className="w-4 h-4 text-[#0500A3]" />
                             <span>Auditor: <strong className="text-slate-900">{auditoria.creadoPor}</strong></span>
@@ -694,397 +806,713 @@ export default function TomaFisicaDetalleClient({
                     </div>
                 )}
 
-                {/* ── METRICAS / KPIS FLOTANTES ── */}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-                        <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                            <Package className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Variedades</p>
-                            <p className="text-xl sm:text-2xl font-black text-slate-900">
-                                {metrics.totalCounted} <span className="text-xs font-normal text-slate-400">/ {metrics.totalItems}</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                            metrics.totalDiferencia === 0 
-                                ? 'bg-slate-100 text-slate-600' 
-                                : metrics.totalDiferencia < 0 
-                                    ? 'bg-rose-50 text-rose-600' 
-                                    : 'bg-emerald-50 text-emerald-600'
-                        }`}>
-                            {metrics.totalDiferencia < 0 ? <TrendingDown className="w-6 h-6" /> : <TrendingUp className="w-6 h-6" />}
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Ajuste Kardex Total</p>
-                            <p className={`text-xl sm:text-2xl font-black ${
-                                metrics.totalDiferencia === 0 ? 'text-slate-700' : metrics.totalDiferencia < 0 ? 'text-rose-600' : 'text-emerald-600'
-                            }`}>
-                                {metrics.totalDiferencia > 0 ? `+${metrics.totalDiferencia}` : metrics.totalDiferencia}
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs flex items-center gap-3.5 col-span-2 md:col-span-1">
-                        <div className="w-12 h-12 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
-                            <AlertTriangle className="w-6 h-6" />
-                        </div>
-                        <div>
-                            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Faltantes</p>
-                            <p className="text-xl sm:text-2xl font-black text-rose-600">
-                                {metrics.totalFaltantes} <span className="text-xs font-medium text-slate-400">paq.</span>
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                {/* ── BARRA DE CONTROLES, FILTROS Y BOTONERAS ── */}
-                <div className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-4">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                        {/* Buscador */}
-                        <div className="relative flex-1 min-w-[260px]">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                {/* ── CONTROLES Y BUSCADOR COMPACTO SIN DESPLAZAMIENTO ── */}
+                <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-sm space-y-4">
+                    {/* Fila Principal de Búsqueda y Accesos Rápidos */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                        {/* Buscador Principal Gigante */}
+                        <div className="relative flex-1">
+                            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-slate-400" />
                             <input 
                                 type="text"
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                placeholder="🔍 Buscar por variedad de flor o código QR..."
-                                className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-[#0500A3] transition-all"
+                                placeholder="🔍 Buscar variedad de flor o código QR..."
+                                className="w-full pl-14 pr-6 py-4 bg-slate-50 border-2 border-slate-200 rounded-2xl text-base font-extrabold text-slate-900 placeholder-slate-400 focus:bg-white focus:outline-none focus:border-[#0500A3] transition-all shadow-2xs"
                             />
                         </div>
 
-                        {/* Filtros dropdown */}
-                        <div className="flex flex-wrap items-center gap-2.5">
-                            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
-                                <span>Cámara:</span>
-                                <select 
-                                    value={selectedArea}
-                                    onChange={(e) => setSelectedArea(e.target.value)}
-                                    className="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer"
+                        {/* Botones de Control Directos */}
+                        <div className="flex flex-wrap items-center gap-2">
+                            {/* Selector de Vista */}
+                            <div className="flex items-center gap-0.5 bg-slate-100 p-1 rounded-xl border border-slate-200 shadow-2xs">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('tabla')}
+                                    className={`px-3 py-2 rounded-lg text-xs font-black flex items-center gap-1.5 transition active:scale-95 cursor-pointer ${
+                                        viewMode === 'tabla'
+                                            ? 'bg-white text-slate-900 shadow-2xs'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                    }`}
                                 >
-                                    {areas.map(a => (
-                                        <option key={a} value={a}>{a}</option>
-                                    ))}
-                                </select>
+                                    <List className="w-3.5 h-3.5" />
+                                    <span>Tabla</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewMode('piso')}
+                                    className={`px-3 py-2 rounded-lg text-xs font-black flex items-center gap-1.5 transition active:scale-95 cursor-pointer ${
+                                        viewMode === 'piso'
+                                            ? 'bg-[#0500A3] text-white shadow-2xs'
+                                            : 'text-slate-500 hover:text-slate-700'
+                                    }`}
+                                >
+                                    <LayoutGrid className="w-3.5 h-3.5" />
+                                    <span>Piso</span>
+                                </button>
                             </div>
 
-                            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
-                                <span>Categoría:</span>
-                                <select 
-                                    value={selectedCategory}
-                                    onChange={(e) => setSelectedCategory(e.target.value)}
-                                    className="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer"
-                                >
-                                    {categorias.map(c => (
-                                        <option key={c} value={c}>{c}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            {/* Botón de Modo Kiosko */}
+                            <button
+                                type="button"
+                                onClick={() => setIsKioskMode(prev => !prev)}
+                                className={`p-2.5 rounded-xl border-2 transition active:scale-95 cursor-pointer shadow-2xs ${
+                                    isKioskMode
+                                        ? 'bg-amber-500 border-amber-600 text-white'
+                                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                }`}
+                                title={isKioskMode ? "Salir de Kiosko" : "Modo Kiosko"}
+                            >
+                                {isKioskMode ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                            </button>
 
-                            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-700">
-                                <span>Ver:</span>
-                                <select 
-                                    value={filterDiscrepancy}
-                                    onChange={(e) => setFilterDiscrepancy(e.target.value as any)}
-                                    className="bg-transparent font-bold text-slate-900 focus:outline-none cursor-pointer"
-                                >
-                                    <option value="TODOS">Todos los ítems</option>
-                                    <option value="SOLO_DESCUADRADOS">Solo Descuadrados ⚠️</option>
-                                    <option value="SOLO_CONTADOS">Solo Contados ✅</option>
-                                </select>
-                            </div>
+                            {/* Botón para Desplegar Filtros y Acciones */}
+                            <button
+                                type="button"
+                                onClick={() => setShowFilters(prev => !prev)}
+                                className={`px-4 py-2.5 rounded-xl text-xs font-black flex items-center gap-2 border-2 transition active:scale-95 cursor-pointer shadow-2xs ${
+                                    showFilters
+                                        ? 'bg-slate-800 border-slate-800 text-white'
+                                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                                }`}
+                            >
+                                <Filter className="w-4 h-4" />
+                                <span>{showFilters ? "Ocultar Filtros" : "Filtros y Acciones"}</span>
+                            </button>
                         </div>
                     </div>
 
-                    {/* Botonera de Acciones Táctiles Rápida */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                        <div className="flex flex-wrap items-center gap-2">
-                            {isEditable && (
-                                <>
-                                    <button
-                                        type="button"
-                                        onClick={handleCopiarStockSistema}
-                                        className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 cursor-pointer"
+                    {/* Panel Desplegable (Filtros y Acciones Secundarias) */}
+                    {showFilters && (
+                        <div className="border-t border-slate-100 pt-4 space-y-4 animate-in slide-in-from-top duration-250">
+                            {/* Filtros Dropdown */}
+                            <div className="flex flex-wrap items-center gap-3">
+                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-extrabold text-slate-700 shadow-3xs">
+                                    <span>Cámara:</span>
+                                    <select 
+                                        value={selectedArea}
+                                        onChange={(e) => setSelectedArea(e.target.value)}
+                                        className="bg-transparent font-black text-slate-900 focus:outline-none cursor-pointer"
                                     >
-                                        <Copy className="w-4 h-4" />
-                                        <span>Copiar Stock Kardex</span>
-                                    </button>
+                                        {areas.map(a => (
+                                            <option key={a} value={a}>{a}</option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                                    <button
-                                        type="button"
-                                        onClick={handleLimpiarConteo}
-                                        className="px-3.5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95 cursor-pointer"
+                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-extrabold text-slate-700 shadow-3xs">
+                                    <span>Categoría:</span>
+                                    <select 
+                                        value={selectedCategory}
+                                        onChange={(e) => setSelectedCategory(e.target.value)}
+                                        className="bg-transparent font-black text-slate-900 focus:outline-none cursor-pointer"
                                     >
-                                        <RotateCcw className="w-4 h-4" />
-                                        <span>Resetear Conteo</span>
-                                    </button>
-                                </>
-                            )}
-                        </div>
+                                        {categorias.map(c => (
+                                            <option key={c} value={c}>{c}</option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                        {/* Botones de acción principales */}
-                        <div className="flex items-center gap-2">
-                            {isEditable && (
-                                <>
-                                    <button
-                                        onClick={handleGuardarProgreso}
-                                        disabled={isPending}
-                                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-extrabold text-slate-700 shadow-3xs">
+                                    <span>Ver:</span>
+                                    <select 
+                                        value={filterDiscrepancy}
+                                        onChange={(e) => setFilterDiscrepancy(e.target.value as any)}
+                                        className="bg-transparent font-black text-slate-900 focus:outline-none cursor-pointer"
                                     >
-                                        <Save className="w-4 h-4" />
-                                        <span>Guardar Progreso</span>
-                                    </button>
+                                        <option value="TODOS">Todos los ítems</option>
+                                        <option value="SOLO_DESCUADRADOS">Solo Descuadrados ⚠️</option>
+                                        <option value="SOLO_CONTADOS">Solo Contados ✅</option>
+                                    </select>
+                                </div>
+                            </div>
 
-                                    <button
-                                        onClick={handleEnviarARevision}
-                                        disabled={isPending}
-                                        className="px-4 py-2.5 bg-[#0500A3] hover:bg-indigo-900 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
-                                    >
-                                        <Check className="w-4 h-4" />
-                                        <span>Enviar a Revisión</span>
-                                    </button>
+                            {/* Botonera de Acciones Táctiles Rápida */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    {isEditable && (
+                                        <>
+                                            <button
+                                                type="button"
+                                                onClick={handleCopiarStockSistema}
+                                                className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                                            >
+                                                <Copy className="w-3.5 h-3.5" />
+                                                <span>Copiar Stock Kardex</span>
+                                            </button>
 
-                                    {isAdmin && (
+                                            <button
+                                                type="button"
+                                                onClick={handleLimpiarConteo}
+                                                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition active:scale-95 cursor-pointer"
+                                            >
+                                                <RotateCcw className="w-3.5 h-3.5" />
+                                                <span>Resetear Conteo</span>
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+
+                                {/* Botones de acción principales */}
+                                <div className="flex items-center gap-2">
+                                    {isEditable && (
+                                        <>
+                                            <button
+                                                onClick={handleGuardarProgreso}
+                                                disabled={isPending}
+                                                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-900 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                                            >
+                                                <Save className="w-3.5 h-3.5" />
+                                                <span>Guardar Progreso</span>
+                                            </button>
+
+                                            <button
+                                                onClick={handleEnviarARevision}
+                                                disabled={isPending}
+                                                className="px-3.5 py-2 bg-[#0500A3] hover:bg-indigo-900 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                                            >
+                                                <Check className="w-3.5 h-3.5" />
+                                                <span>Enviar a Revisión</span>
+                                            </button>
+
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={handleAprobarAuditoria}
+                                                    disabled={isPending || metrics.totalCounted === 0}
+                                                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                                                >
+                                                    {isPending ? (
+                                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                    ) : (
+                                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    )}
+                                                    <span>Aprobar y Ajustar Kardex ({metrics.totalCounted})</span>
+                                                </button>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {auditoria.estado === 'APROBADA' && isAdmin && (
                                         <button
-                                            onClick={handleAprobarAuditoria}
-                                            disabled={isPending || metrics.totalCounted === 0}
-                                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                                            onClick={handleDeshacerAuditoria}
+                                            disabled={isPending}
+                                            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
                                         >
                                             {isPending ? (
-                                                <Loader2 className="w-4 h-4 animate-spin" />
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                                             ) : (
-                                                <CheckCircle2 className="w-4 h-4" />
+                                                <Undo2 className="w-3.5 h-3.5" />
                                             )}
-                                            <span>Aprobar y Ajustar Kardex ({metrics.totalCounted})</span>
+                                            <span>Deshacer Ajuste (Revertir)</span>
                                         </button>
                                     )}
-                                </>
-                            )}
-
-                            {auditoria.estado === 'APROBADA' && isAdmin && (
-                                <button
-                                    onClick={handleDeshacerAuditoria}
-                                    disabled={isPending}
-                                    className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
-                                >
-                                    {isPending ? (
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                        <Undo2 className="w-4 h-4" />
-                                    )}
-                                    <span>Deshacer Ajuste (Revertir)</span>
-                                </button>
-                            )}
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
-                {/* ── TABLA MATRIZ TÁCTIL ── */}
-                <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse min-w-[992px]">
-                            <thead>
-                                <tr className="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
-                                    <th className="py-4 px-4 w-10 text-center font-mono">#</th>
-                                    <th className="py-4 px-4">Producto / Variedad de Flor & Ubicación</th>
-                                    <th className="py-4 px-3 text-center bg-slate-800">
-                                        STOCK KARDEX <br />
-                                        <span className="text-[10px] text-slate-300 font-medium uppercase">(Teórico)</span>
-                                    </th>
-                                    <th className="py-4 px-4 text-center bg-pink-700 text-white min-w-[210px]">
-                                        CONTEO EN PISO <br />
-                                        <span className="text-[10px] text-pink-200 font-bold uppercase">(Físico Real)</span>
-                                    </th>
-                                    <th className="py-4 px-4 text-center bg-amber-700 text-white min-w-[240px]">
-                                        MERMA (DAÑADO) <br />
-                                        <span className="text-[10px] text-amber-200 font-bold uppercase">(Mermas & Fotos)</span>
-                                    </th>
-                                    <th className="py-4 px-4 text-center">
-                                        DIFERENCIA <br />
-                                        <span className="text-[10px] text-slate-300 font-medium uppercase">(Ajuste)</span>
-                                    </th>
-                                </tr>
-                            </thead>
-
-                            <tbody className="divide-y divide-slate-200/80 text-sm">
-                                {filteredItems.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={6} className="py-12 text-center text-slate-400">
-                                            <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
-                                            <p className="font-semibold text-base">No se encontraron flores con los filtros seleccionados.</p>
-                                        </td>
+                {/* ── CONTENEDOR DE VISTAS (TABLA / PISO) ── */}
+                {viewMode === 'tabla' ? (
+                    <div className="bg-white rounded-2xl border border-slate-200/80 shadow-md overflow-hidden animate-in fade-in duration-200">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse min-w-[992px]">
+                                <thead>
+                                    <tr className="bg-slate-900 text-white text-xs font-bold uppercase tracking-wider">
+                                        <th className="py-4 px-4 w-10 text-center font-mono">#</th>
+                                        <th className="py-4 px-4">Producto / Variedad de Flor & Ubicación</th>
+                                        <th className="py-4 px-3 text-center bg-slate-800">
+                                            STOCK KARDEX <br />
+                                            <span className="text-[10px] text-slate-300 font-medium uppercase">(Teórico)</span>
+                                        </th>
+                                        <th className="py-4 px-4 text-center bg-pink-700 text-white min-w-[230px]">
+                                            CONTEO EN PISO <br />
+                                            <span className="text-[10px] text-pink-200 font-bold uppercase">(Físico Real)</span>
+                                        </th>
+                                        <th className="py-4 px-4 text-center bg-amber-700 text-white min-w-[240px]">
+                                            MERMA (DAÑADO) <br />
+                                            <span className="text-[10px] text-amber-200 font-bold uppercase">(Mermas & Fotos)</span>
+                                        </th>
+                                        <th className="py-4 px-4 text-center">
+                                            DIFERENCIA <br />
+                                            <span className="text-[10px] text-slate-300 font-medium uppercase">(Ajuste)</span>
+                                        </th>
                                     </tr>
-                                ) : (
-                                    filteredItems.map((item, idx) => {
-                                        const count = conteos[item.id];
-                                        const isCounted = count !== null;
-                                        const diff = isCounted ? (count - item.stockSistema) : 0;
-                                        const currentMerma = mermas[item.id] || 0;
+                                </thead>
 
-                                        // Check if this row is a duplicate or if we have multiple locations for this same product variety
-                                        const sameProductRows = items.filter(i => i.activoFijoId === item.activoFijoId);
-                                        const countForThisProduct = sameProductRows.length;
-                                        const isDuplicatedRow = item.id.startsWith('temp_');
-                                        const isDeleteable = countForThisProduct > 1 || isDuplicatedRow;
+                                <tbody className="divide-y divide-slate-200/80 text-sm">
+                                    {filteredItems.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} className="py-12 text-center text-slate-400">
+                                                <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                                                <p className="font-semibold text-base">No se encontraron flores con los filtros seleccionados.</p>
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        filteredItems.map((item, idx) => {
+                                            const count = conteos[item.id];
+                                            const isCounted = count !== null;
+                                            const diff = isCounted ? (count - item.stockSistema) : 0;
+                                            const currentMerma = mermas[item.id] || 0;
 
-                                        return (
-                                            <tr 
-                                                key={item.id}
-                                                className={`transition-colors hover:bg-blue-50/40 ${
-                                                    isCounted 
-                                                        ? diff === 0 
-                                                            ? 'bg-emerald-50/30' 
-                                                            : diff < 0 
-                                                                ? 'bg-rose-50/40' 
-                                                                : 'bg-amber-50/40'
-                                                        : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
-                                                }`}
-                                            >
-                                                {/* Index */}
-                                                <td className="py-4 px-4 text-xs font-bold text-slate-400 text-center font-mono">
-                                                    {idx + 1}
-                                                </td>
+                                            // Check if this row is a duplicate or if we have multiple locations for this same product variety
+                                            const sameProductRows = items.filter(i => i.activoFijoId === item.activoFijoId);
+                                            const countForThisProduct = sameProductRows.length;
+                                            const isDuplicatedRow = item.id.startsWith('temp_');
+                                            const isDeleteable = countForThisProduct > 1 || isDuplicatedRow;
 
-                                                {/* Producto y Ubicación */}
-                                                <td className="py-4 px-4">
-                                                    <div className="flex items-start gap-3.5">
-                                                        {item.imagenUrl ? (
-                                                            <img 
-                                                                src={item.imagenUrl} 
-                                                                alt={item.descripcionCorta}
-                                                                className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0 shadow-2xs mt-0.5"
-                                                            />
-                                                        ) : (
-                                                            <div className="w-12 h-12 rounded-xl bg-pink-50 border border-pink-100 text-pink-600 flex items-center justify-center font-black text-sm shrink-0 mt-0.5">
-                                                                🌸
+                                            return (
+                                                <tr 
+                                                    key={item.id}
+                                                    className={`transition-colors hover:bg-blue-50/40 ${
+                                                        isCounted 
+                                                            ? diff === 0 
+                                                                ? 'bg-emerald-50/30' 
+                                                                : diff < 0 
+                                                                    ? 'bg-rose-50/40' 
+                                                                    : 'bg-amber-50/40'
+                                                            : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'
+                                                    }`}
+                                                >
+                                                    {/* Index */}
+                                                    <td className="py-4 px-4 text-xs font-bold text-slate-400 text-center font-mono">
+                                                        {idx + 1}
+                                                    </td>
+
+                                                    {/* Producto y Ubicación */}
+                                                    <td className="py-4 px-4">
+                                                        <div className="flex items-start gap-3.5">
+                                                            {item.imagenUrl ? (
+                                                                <img 
+                                                                    src={item.imagenUrl} 
+                                                                    alt={item.descripcionCorta}
+                                                                    className="w-12 h-12 rounded-xl object-cover border border-slate-200 shrink-0 shadow-2xs mt-0.5"
+                                                                />
+                                                            ) : (
+                                                                <div className="w-12 h-12 rounded-xl bg-pink-50 border border-pink-100 text-pink-600 flex items-center justify-center font-black text-sm shrink-0 mt-0.5">
+                                                                    🌸
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex-1 space-y-1.5">
+                                                                <div>
+                                                                    <h3 className="font-bold text-slate-900 text-base leading-tight">
+                                                                        {item.descripcionCorta}
+                                                                    </h3>
+                                                                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                                                                        <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[11px] font-mono text-slate-600">
+                                                                            {item.idQr}
+                                                                        </span>
+                                                                        <span className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-700">
+                                                                            📍 {item.area}
+                                                                        </span>
+                                                                        <span className="text-xs text-slate-400">
+                                                                            • {item.categoriaNombre}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Campo de Ubicación con Autocompletar */}
+                                                                <div className="flex items-center gap-1.5 max-w-[280px]">
+                                                                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Ubicación:</span>
+                                                                    <input
+                                                                        type="text"
+                                                                        list="datalist-ubicaciones"
+                                                                        disabled={!isEditable}
+                                                                        value={ubicaciones[item.id] || ''}
+                                                                        onChange={(e) => {
+                                                                            setUbicaciones(prev => ({ ...prev, [item.id]: e.target.value }));
+                                                                        }}
+                                                                        placeholder="Ej: Cuarto Frío 1, Entrada..."
+                                                                        className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white"
+                                                                    />
+                                                                </div>
+
+                                                                {/* Controles de fila: Duplicar / Eliminar */}
+                                                                <div className="flex items-center gap-2 pt-0.5">
+                                                                    {isEditable && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleDuplicateRow(item)}
+                                                                            className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 border border-indigo-100 hover:bg-[#0500A3] hover:text-white rounded-lg text-[10px] font-black text-indigo-700 transition active:scale-95 cursor-pointer"
+                                                                            title="Agregar este producto en otra ubicación diferente"
+                                                                        >
+                                                                            <Plus className="w-3.5 h-3.5" />
+                                                                            <span>+ Ubicación</span>
+                                                                        </button>
+                                                                    )}
+
+                                                                    {isDeleteable && isEditable && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRemoveRow(item.id)}
+                                                                            className="inline-flex items-center justify-center p-1.5 bg-rose-50 border border-rose-100 hover:bg-rose-600 hover:text-white text-rose-700 rounded-lg transition active:scale-95 cursor-pointer"
+                                                                            title="Eliminar esta ubicación para este producto"
+                                                                        >
+                                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                        )}
+                                                        </div>
+                                                    </td>
 
-                                                        <div className="flex-1 space-y-1.5">
-                                                            <div>
-                                                                <h3 className="font-bold text-slate-900 text-base leading-tight">
-                                                                    {item.descripcionCorta}
-                                                                </h3>
-                                                                <div className="flex flex-wrap items-center gap-2 mt-1">
-                                                                    <span className="px-2 py-0.5 rounded-md bg-slate-100 border border-slate-200 text-[11px] font-mono text-slate-600">
-                                                                        {item.idQr}
-                                                                    </span>
-                                                                    <span className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-100 text-[11px] font-semibold text-blue-700">
-                                                                        📍 {item.area}
-                                                                    </span>
-                                                                    <span className="text-xs text-slate-400">
-                                                                        • {item.categoriaNombre}
-                                                                    </span>
+                                                    {/* STOCK KARDEX */}
+                                                    <td className="py-4 px-3 text-center bg-slate-50 font-mono text-base font-black text-slate-700 border-x border-slate-200/60">
+                                                        {item.stockSistema} <span className="text-xs font-normal text-slate-400">paq</span>
+                                                    </td>
+
+                                                    {/* CONTEO EN PISO */}
+                                                    <td className="py-4 px-4 text-center bg-pink-50/30 border-x border-pink-200/40">
+                                                        <div className="flex items-center justify-center gap-1.5">
+                                                            {/* Restar -1 */}
+                                                            <button
+                                                                type="button"
+                                                                disabled={!isEditable}
+                                                                onClick={() => handleStepCount(item.id, count, -1, item.stockSistema)}
+                                                                className="w-12 h-12 rounded-xl bg-white border border-slate-300 text-slate-800 font-extrabold text-lg hover:bg-slate-100 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                            >
+                                                                -1
+                                                            </button>
+
+                                                            {/* Input */}
+                                                            <input 
+                                                                type="number"
+                                                                min="0"
+                                                                disabled={!isEditable}
+                                                                value={count === null ? '' : count}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
+                                                                    handleSetCount(item.id, val);
+                                                                }}
+                                                                placeholder={item.stockSistema.toString()}
+                                                                className={`w-20 sm:w-24 h-12 text-center text-lg font-black font-mono rounded-xl border-2 transition-all focus:outline-none ${
+                                                                    isCounted 
+                                                                        ? 'bg-white border-[#0500A3] text-slate-900 shadow-sm' 
+                                                                        : 'bg-white/80 border-slate-300 text-slate-500 placeholder-slate-300'
+                                                                } disabled:bg-slate-100 disabled:text-slate-500`}
+                                                            />
+
+                                                            {/* Sumar +1 */}
+                                                            <button
+                                                                type="button"
+                                                                disabled={!isEditable}
+                                                                onClick={() => handleStepCount(item.id, count, 1, item.stockSistema)}
+                                                                className="w-12 h-12 rounded-xl bg-pink-600 text-white font-extrabold text-lg hover:bg-pink-700 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                            >
+                                                                +1
+                                                            </button>
+                                                        </div>
+                                                    </td>
+
+                                                    {/* MERMAS (Dañados, Fotos, Fecha) */}
+                                                    <td className="py-4 px-4 bg-amber-50/20 border-x border-amber-200/40">
+                                                        <div className="flex flex-col gap-2">
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                {/* Control Numérico Merma */}
+                                                                <div className="flex items-center gap-1.5">
+                                                                    <button
+                                                                        type="button"
+                                                                        disabled={!isEditable}
+                                                                        onClick={() => handleStepMerma(item.id, -1)}
+                                                                        className="w-8 h-8 rounded-lg bg-white border border-slate-300 text-slate-700 font-black text-xs hover:bg-slate-100 active:scale-95 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        -
+                                                                    </button>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        disabled={!isEditable}
+                                                                        value={currentMerma}
+                                                                        onChange={(e) => {
+                                                                            const val = parseInt(e.target.value, 10) || 0;
+                                                                            handleSetMerma(item.id, val);
+                                                                        }}
+                                                                        className="w-11 h-8 text-center font-bold text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        disabled={!isEditable}
+                                                                        onClick={() => handleStepMerma(item.id, 1)}
+                                                                        className="w-8 h-8 rounded-lg bg-amber-600 text-white font-black text-xs hover:bg-amber-700 active:scale-95 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        +
+                                                                    </button>
+                                                                </div>
+
+                                                                {/* Cámara Button */}
+                                                                <div className="flex items-center gap-1.5">
+                                                                    {uploadingItem[item.id] ? (
+                                                                        <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                                                                            <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <label className={`w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center cursor-pointer hover:bg-slate-100 text-slate-500 transition relative shrink-0 shadow-3xs ${!isEditable ? 'opacity-40 pointer-events-none cursor-not-allowed' : ''}`}>
+                                                                            <Camera className="w-4.5 h-4.5" />
+                                                                            <input
+                                                                                type="file"
+                                                                                accept="image/*"
+                                                                                capture="environment"
+                                                                                disabled={!isEditable}
+                                                                                className="hidden"
+                                                                                onChange={(e) => handleUploadPhoto(item.id, e)}
+                                                                            />
+                                                                        </label>
+                                                                    )}
                                                                 </div>
                                                             </div>
 
-                                                            {/* Campo de Ubicación con Autocompletar */}
-                                                            <div className="flex items-center gap-1.5 max-w-[280px]">
-                                                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider shrink-0">Ubicación:</span>
-                                                                <input
-                                                                    type="text"
-                                                                    list="datalist-ubicaciones"
-                                                                    disabled={!isEditable}
-                                                                    value={ubicaciones[item.id] || ''}
-                                                                    onChange={(e) => {
-                                                                        setUbicaciones(prev => ({ ...prev, [item.id]: e.target.value }));
-                                                                    }}
-                                                                    placeholder="Ej: Cuarto Frío 1, Entrada..."
-                                                                    className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white"
-                                                                />
-                                                            </div>
+                                                            {/* Date selector (Only shown if merma > 0) */}
+                                                            {currentMerma > 0 && (
+                                                                <div className="space-y-1">
+                                                                    <div className="relative">
+                                                                        <input
+                                                                            type="date"
+                                                                            disabled={!isEditable}
+                                                                            value={mermasFechas[item.id] || ''}
+                                                                            onChange={(e) => {
+                                                                                setMermasFechas(prev => ({ ...prev, [item.id]: e.target.value }));
+                                                                            }}
+                                                                            className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700 focus:outline-none focus:bg-white"
+                                                                        />
+                                                                    </div>
+                                                                </div>
+                                                            )}
 
-                                                            {/* Controles de fila: Duplicar / Eliminar */}
-                                                            <div className="flex items-center gap-2 pt-0.5">
-                                                                {isEditable && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleDuplicateRow(item)}
-                                                                        className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-indigo-50 border border-indigo-100 hover:bg-[#0500A3] hover:text-white rounded-lg text-[10px] font-black text-indigo-700 transition active:scale-95 cursor-pointer"
-                                                                        title="Agregar este producto en otra ubicación diferente"
-                                                                    >
-                                                                        <Plus className="w-3.5 h-3.5" />
-                                                                        <span>+ Ubicación</span>
-                                                                    </button>
-                                                                )}
-
-                                                                {isDeleteable && isEditable && (
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleRemoveRow(item.id)}
-                                                                        className="inline-flex items-center justify-center p-1.5 bg-rose-50 border border-rose-100 hover:bg-rose-600 hover:text-white text-rose-700 rounded-lg transition active:scale-95 cursor-pointer"
-                                                                        title="Eliminar esta ubicación para este producto"
-                                                                    >
-                                                                        <Trash2 className="w-3.5 h-3.5" />
-                                                                    </button>
-                                                                )}
-                                                            </div>
+                                                            {/* Photo Thumbnails */}
+                                                            {mermasFotos[item.id]?.length > 0 && (
+                                                                <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-1.5">
+                                                                    {mermasFotos[item.id].map((url, uidx) => (
+                                                                        <div key={uidx} className="relative group w-8 h-8 rounded-lg overflow-hidden border border-slate-200 shrink-0">
+                                                                            <img src={url} alt="Merma" className="w-full h-full object-cover" />
+                                                                            {isEditable && (
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={() => handleRemovePhoto(item.id, url)}
+                                                                                    className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white flex items-center justify-center transition cursor-pointer"
+                                                                                    title="Eliminar foto"
+                                                                                >
+                                                                                    <X className="w-3.5 h-3.5" />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    </div>
-                                                </td>
+                                                    </td>
 
-                                                {/* STOCK KARDEX */}
-                                                <td className="py-4 px-3 text-center bg-slate-50 font-mono text-base font-black text-slate-700 border-x border-slate-200/60">
+                                                    {/* DIFERENCIA */}
+                                                    <td className="py-4 px-4 text-center">
+                                                        {!isCounted ? (
+                                                            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-400 text-xs font-semibold">
+                                                                Pendiente
+                                                            </span>
+                                                        ) : diff === 0 ? (
+                                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-extrabold border border-emerald-200">
+                                                                <Check className="w-3.5 h-3.5" />
+                                                                Cuadrado (0)
+                                                            </span>
+                                                        ) : diff < 0 ? (
+                                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-rose-100 text-rose-800 text-xs font-black border border-rose-200">
+                                                                ⚠️ Faltan {diff} paq.
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-xs font-black border border-amber-200">
+                                                                ℹ️ Sobran +{diff} paq.
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                ) : (
+                    /* ── VISTA PISO (TARJETAS OPTIMIZADAS PARA CONTEO RAPIDO) ── */
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-200">
+                        {filteredItems.length === 0 ? (
+                            <div className="col-span-full bg-white rounded-2xl border border-slate-200/80 shadow-md p-12 text-center text-slate-400">
+                                <Package className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                                <p className="font-semibold text-base">No se encontraron flores con los filtros seleccionados.</p>
+                            </div>
+                        ) : (
+                            filteredItems.map((item, idx) => {
+                                const count = conteos[item.id];
+                                const isCounted = count !== null;
+                                const diff = isCounted ? (count - item.stockSistema) : 0;
+                                const currentMerma = mermas[item.id] || 0;
+
+                                const sameProductRows = items.filter(i => i.activoFijoId === item.activoFijoId);
+                                const countForThisProduct = sameProductRows.length;
+                                const isDuplicatedRow = item.id.startsWith('temp_');
+                                const isDeleteable = countForThisProduct > 1 || isDuplicatedRow;
+
+                                return (
+                                    <div 
+                                        key={item.id}
+                                        className={`bg-white rounded-3xl border-2 shadow-xs p-5 flex flex-col justify-between transition-all duration-300 ${
+                                            isCounted
+                                                ? diff === 0
+                                                    ? 'border-emerald-300 bg-emerald-50/10 shadow-emerald-100/30'
+                                                    : diff < 0
+                                                        ? 'border-rose-300 bg-rose-50/10 shadow-rose-100/30'
+                                                        : 'border-amber-300 bg-amber-50/10 shadow-amber-100/30'
+                                                : 'border-slate-200/80 hover:border-slate-300 hover:shadow-md'
+                                        }`}
+                                    >
+                                        <div className="space-y-4">
+                                            {/* Header: Imagen y Título */}
+                                            <div className="flex items-start gap-3.5">
+                                                {item.imagenUrl ? (
+                                                    <img 
+                                                        src={item.imagenUrl} 
+                                                        alt={item.descripcionCorta}
+                                                        className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shrink-0 shadow-xs"
+                                                    />
+                                                ) : (
+                                                    <div className="w-16 h-16 rounded-2xl bg-pink-50 border border-pink-100 text-pink-600 flex items-center justify-center font-black text-2xl shrink-0">
+                                                        🌸
+                                                    </div>
+                                                )}
+                                                
+                                                <div className="flex-1 space-y-1">
+                                                    <span className="text-[10px] font-mono font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">
+                                                        {item.idQr}
+                                                    </span>
+                                                    <h3 className="font-extrabold text-slate-900 text-base leading-snug">
+                                                        {item.descripcionCorta}
+                                                    </h3>
+                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                        <span className="px-2 py-0.5 rounded-md bg-blue-50 border border-blue-100 text-[10px] font-bold text-blue-700">
+                                                            📍 {item.area}
+                                                        </span>
+                                                        <span className="text-xs text-slate-400 font-semibold">
+                                                            • {item.categoriaNombre}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Stock Teórico */}
+                                            <div className="bg-slate-50 rounded-xl px-4 py-2.5 flex items-center justify-between border border-slate-200/50">
+                                                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Stock Kardex (Teórico)</span>
+                                                <span className="font-mono text-base font-black text-slate-700">
                                                     {item.stockSistema} <span className="text-xs font-normal text-slate-400">paq</span>
-                                                </td>
+                                                </span>
+                                            </div>
 
-                                                {/* CONTEO EN PISO */}
-                                                <td className="py-4 px-4 text-center bg-pink-50/30 border-x border-pink-200/40">
-                                                    <div className="flex items-center justify-center gap-1.5">
-                                                        {/* Restar -1 */}
+                                            {/* Campo Ubicación */}
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Ubicación física en piso</label>
+                                                <input
+                                                    type="text"
+                                                    list="datalist-ubicaciones"
+                                                    disabled={!isEditable}
+                                                    value={ubicaciones[item.id] || ''}
+                                                    onChange={(e) => {
+                                                        setUbicaciones(prev => ({ ...prev, [item.id]: e.target.value }));
+                                                    }}
+                                                    placeholder="Ej: Cuarto Frío 1, Estante B..."
+                                                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0500A3]"
+                                                />
+                                            </div>
+
+                                            {/* Conteo en Piso */}
+                                            <div className="bg-pink-50/20 border border-pink-100 rounded-2xl p-4 flex flex-col items-center gap-3">
+                                                <span className="text-xs font-extrabold text-pink-700 uppercase tracking-wider">Conteo en Piso (Físico Real)</span>
+                                                <div className="flex items-center gap-2.5">
+                                                    <button
+                                                        type="button"
+                                                        disabled={!isEditable}
+                                                        onClick={() => handleStepCount(item.id, count, -1, item.stockSistema)}
+                                                        className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-300 text-slate-800 font-extrabold text-xl hover:bg-slate-100 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40"
+                                                    >
+                                                        -1
+                                                    </button>
+
+                                                    <input 
+                                                        type="number"
+                                                        min="0"
+                                                        disabled={!isEditable}
+                                                        value={count === null ? '' : count}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
+                                                            handleSetCount(item.id, val);
+                                                        }}
+                                                        placeholder={item.stockSistema.toString()}
+                                                        className={`w-24 h-14 text-center text-xl font-black font-mono rounded-2xl border-2 transition-all focus:outline-none ${
+                                                            isCounted 
+                                                                ? 'bg-white border-[#0500A3] text-slate-900 shadow-sm' 
+                                                                : 'bg-white/80 border-slate-300 text-slate-500 placeholder-slate-300'
+                                                        }`}
+                                                    />
+
+                                                    <button
+                                                        type="button"
+                                                        disabled={!isEditable}
+                                                        onClick={() => handleStepCount(item.id, count, 1, item.stockSistema)}
+                                                        className="w-14 h-14 rounded-2xl bg-pink-600 text-white font-extrabold text-xl hover:bg-pink-700 active:scale-95 shadow-md flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40"
+                                                    >
+                                                        +1
+                                                    </button>
+                                                </div>
+
+                                                {/* Botones de ajuste rápido */}
+                                                {isEditable && (
+                                                    <div className="flex items-center gap-2 mt-1">
                                                         <button
                                                             type="button"
-                                                            disabled={!isEditable}
-                                                            onClick={() => handleStepCount(item.id, count, -1, item.stockSistema)}
-                                                            className="w-10 h-10 rounded-xl bg-white border border-slate-300 text-slate-800 font-black text-base hover:bg-slate-100 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                            onClick={() => handleStepCount(item.id, count, 5, item.stockSistema)}
+                                                            className="px-3.5 py-2 rounded-xl bg-white hover:bg-pink-50 border border-slate-200 hover:border-pink-200 text-pink-600 text-xs font-black transition active:scale-95 shadow-2xs cursor-pointer"
                                                         >
-                                                            -1
+                                                            +5
                                                         </button>
-
-                                                        {/* Input */}
-                                                        <input 
-                                                            type="number"
-                                                            min="0"
-                                                            disabled={!isEditable}
-                                                            value={count === null ? '' : count}
-                                                            onChange={(e) => {
-                                                                const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
-                                                                handleSetCount(item.id, val);
-                                                            }}
-                                                            placeholder={item.stockSistema.toString()}
-                                                            className={`w-16 sm:w-20 h-10 text-center text-base font-black font-mono rounded-xl border-2 transition-all focus:outline-none ${
-                                                                isCounted 
-                                                                    ? 'bg-white border-[#0500A3] text-slate-900 shadow-sm' 
-                                                                    : 'bg-white/80 border-slate-300 text-slate-500 placeholder-slate-300'
-                                                            } disabled:bg-slate-100 disabled:text-slate-500`}
-                                                        />
-
-                                                        {/* Sumar +1 */}
                                                         <button
                                                             type="button"
-                                                            disabled={!isEditable}
-                                                            onClick={() => handleStepCount(item.id, count, 1, item.stockSistema)}
-                                                            className="w-10 h-10 rounded-xl bg-pink-600 text-white font-black text-base hover:bg-pink-700 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                            onClick={() => handleStepCount(item.id, count, 10, item.stockSistema)}
+                                                            className="px-3.5 py-2 rounded-xl bg-white hover:bg-pink-50 border border-slate-200 hover:border-pink-200 text-pink-700 text-xs font-black transition active:scale-95 shadow-2xs cursor-pointer"
                                                         >
-                                                            +1
+                                                            +10
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleSetCount(item.id, item.stockSistema)}
+                                                            className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-700 text-xs font-extrabold transition active:scale-95 shadow-2xs cursor-pointer"
+                                                            title="Copiar stock sistema"
+                                                        >
+                                                            Copiar Teórico
                                                         </button>
                                                     </div>
-                                                </td>
+                                                )}
+                                            </div>
 
-                                                {/* MERMAS (Dañados, Fotos, Fecha) */}
-                                                <td className="py-4 px-4 bg-amber-50/20 border-x border-amber-200/40">
-                                                    <div className="flex flex-col gap-2">
-                                                        <div className="flex items-center justify-between gap-3">
-                                                            {/* Control Numérico Merma */}
+                                            {/* Merma / Dañado */}
+                                            <div className="border-t border-slate-100 pt-3">
+                                                {currentMerma === 0 ? (
+                                                    <button
+                                                        type="button"
+                                                        disabled={!isEditable}
+                                                        onClick={() => handleSetMerma(item.id, 1)}
+                                                        className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer"
+                                                    >
+                                                        ⚠️ Registrar Merma / Dañados
+                                                    </button>
+                                                ) : (
+                                                    <div className="bg-amber-50/20 border border-amber-200/50 rounded-2xl p-3.5 space-y-3">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <span className="text-xs font-black text-amber-800 uppercase tracking-wider">⚠️ Merma</span>
+                                                            
+                                                            {/* Numeric control */}
                                                             <div className="flex items-center gap-1.5">
                                                                 <button
                                                                     type="button"
                                                                     disabled={!isEditable}
                                                                     onClick={() => handleStepMerma(item.id, -1)}
-                                                                    className="w-8 h-8 rounded-lg bg-white border border-slate-300 text-slate-700 font-black text-xs hover:bg-slate-100 active:scale-95 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    className="w-8 h-8 rounded-lg bg-white border border-slate-300 text-slate-700 font-black text-sm hover:bg-slate-100 active:scale-95 flex items-center justify-center cursor-pointer"
                                                                 >
                                                                     -
                                                                 </button>
@@ -1097,27 +1525,25 @@ export default function TomaFisicaDetalleClient({
                                                                         const val = parseInt(e.target.value, 10) || 0;
                                                                         handleSetMerma(item.id, val);
                                                                     }}
-                                                                    className="w-11 h-8 text-center font-bold text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"
+                                                                    className="w-12 h-8 text-center font-bold text-xs font-mono bg-white border border-slate-300 rounded-lg focus:outline-none"
                                                                 />
                                                                 <button
                                                                     type="button"
                                                                     disabled={!isEditable}
                                                                     onClick={() => handleStepMerma(item.id, 1)}
-                                                                    className="w-8 h-8 rounded-lg bg-amber-600 text-white font-black text-xs hover:bg-amber-700 active:scale-95 flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                                                    className="w-8 h-8 rounded-lg bg-amber-600 text-white font-black text-sm hover:bg-amber-700 active:scale-95 flex items-center justify-center cursor-pointer"
                                                                 >
                                                                     +
                                                                 </button>
                                                             </div>
 
-                                                            {/* Cámara Button */}
-                                                            <div className="flex items-center gap-1.5">
+                                                            {/* Foto Upload */}
+                                                            <div>
                                                                 {uploadingItem[item.id] ? (
-                                                                    <div className="w-8 h-8 flex items-center justify-center shrink-0">
-                                                                        <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
-                                                                    </div>
+                                                                    <Loader2 className="w-5 h-5 animate-spin text-amber-600" />
                                                                 ) : (
-                                                                    <label className={`w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center cursor-pointer hover:bg-slate-100 text-slate-500 transition relative shrink-0 shadow-3xs ${!isEditable ? 'opacity-40 pointer-events-none cursor-not-allowed' : ''}`}>
-                                                                        <Camera className="w-4.5 h-4.5" />
+                                                                    <label className={`w-8 h-8 rounded-lg border border-slate-200 bg-white flex items-center justify-center cursor-pointer hover:bg-slate-100 text-slate-500 transition shadow-3xs ${!isEditable ? 'opacity-40 pointer-events-none' : ''}`}>
+                                                                        <Camera className="w-4 h-4" />
                                                                         <input
                                                                             type="file"
                                                                             accept="image/*"
@@ -1131,37 +1557,33 @@ export default function TomaFisicaDetalleClient({
                                                             </div>
                                                         </div>
 
-                                                        {/* Date selector (Only shown if merma > 0) */}
-                                                        {currentMerma > 0 && (
-                                                            <div className="space-y-1">
-                                                                <div className="relative">
-                                                                    <input
-                                                                        type="date"
-                                                                        disabled={!isEditable}
-                                                                        value={mermasFechas[item.id] || ''}
-                                                                        onChange={(e) => {
-                                                                            setMermasFechas(prev => ({ ...prev, [item.id]: e.target.value }));
-                                                                        }}
-                                                                        className="w-full px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[10px] font-bold text-slate-700 focus:outline-none focus:bg-white"
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                        {/* Date */}
+                                                        <div className="space-y-1">
+                                                            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fecha de Merma</label>
+                                                            <input
+                                                                type="date"
+                                                                disabled={!isEditable}
+                                                                value={mermasFechas[item.id] || ''}
+                                                                onChange={(e) => {
+                                                                    setMermasFechas(prev => ({ ...prev, [item.id]: e.target.value }));
+                                                                }}
+                                                                className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 focus:outline-none"
+                                                            />
+                                                        </div>
 
-                                                        {/* Photo Thumbnails */}
+                                                        {/* Photos */}
                                                         {mermasFotos[item.id]?.length > 0 && (
-                                                            <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-1.5">
+                                                            <div className="flex flex-wrap items-center gap-1.5 border-t border-amber-200/40 pt-2">
                                                                 {mermasFotos[item.id].map((url, uidx) => (
-                                                                    <div key={uidx} className="relative group w-8 h-8 rounded-lg overflow-hidden border border-slate-200 shrink-0">
+                                                                    <div key={uidx} className="relative group w-10 h-10 rounded-lg overflow-hidden border border-slate-200 shrink-0">
                                                                         <img src={url} alt="Merma" className="w-full h-full object-cover" />
                                                                         {isEditable && (
                                                                             <button
                                                                                 type="button"
                                                                                 onClick={() => handleRemovePhoto(item.id, url)}
                                                                                 className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 text-white flex items-center justify-center transition cursor-pointer"
-                                                                                title="Eliminar foto"
                                                                             >
-                                                                                <X className="w-3.5 h-3.5" />
+                                                                                <X className="w-4 h-4" />
                                                                             </button>
                                                                         )}
                                                                     </div>
@@ -1169,37 +1591,64 @@ export default function TomaFisicaDetalleClient({
                                                             </div>
                                                         )}
                                                     </div>
-                                                </td>
+                                                )}
+                                            </div>
+                                        </div>
 
-                                                {/* DIFERENCIA */}
-                                                <td className="py-4 px-4 text-center">
-                                                    {!isCounted ? (
-                                                        <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-400 text-xs font-semibold">
-                                                            Pendiente
-                                                        </span>
-                                                    ) : diff === 0 ? (
-                                                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-extrabold border border-emerald-200">
-                                                            <Check className="w-3.5 h-3.5" />
-                                                            Cuadrado (0)
-                                                        </span>
-                                                    ) : diff < 0 ? (
-                                                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-rose-100 text-rose-800 text-xs font-black border border-rose-200">
-                                                            ⚠️ Faltan {diff} paq.
-                                                        </span>
-                                                    ) : (
-                                                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-100 text-amber-800 text-xs font-black border border-amber-200">
-                                                            ℹ️ Sobran +{diff} paq.
-                                                        </span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
+                                        {/* Card Footer: Acciones y Diferencia */}
+                                        <div className="flex items-center justify-between border-t border-slate-100 pt-4 mt-4">
+                                            <div className="flex items-center gap-1.5">
+                                                {isEditable && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleDuplicateRow(item)}
+                                                        className="inline-flex items-center gap-1 px-3 py-2 bg-indigo-50 border border-indigo-100 hover:bg-[#0500A3] hover:text-white rounded-xl text-[10px] font-black text-indigo-700 transition active:scale-95 cursor-pointer"
+                                                        title="Agregar este producto en otra ubicación diferente"
+                                                    >
+                                                        <Plus className="w-3.5 h-3.5" />
+                                                        <span>+ Ubicación</span>
+                                                    </button>
+                                                )}
+
+                                                {isDeleteable && isEditable && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => handleRemoveRow(item.id)}
+                                                        className="inline-flex items-center justify-center p-2 bg-rose-50 border border-rose-100 hover:bg-rose-600 hover:text-white text-rose-700 rounded-xl transition active:scale-95 cursor-pointer"
+                                                        title="Eliminar esta ubicación"
+                                                    >
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                )}
+                                            </div>
+
+                                            <div>
+                                                {!isCounted ? (
+                                                    <span className="px-2.5 py-1.5 rounded-full bg-slate-100 text-slate-400 text-xs font-bold border border-slate-200">
+                                                        Pendiente
+                                                    </span>
+                                                ) : diff === 0 ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black border border-emerald-200">
+                                                        <Check className="w-3.5 h-3.5" />
+                                                        Cuadrado (0)
+                                                    </span>
+                                                ) : diff < 0 ? (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-100 text-rose-800 text-xs font-black border border-rose-200 animate-pulse">
+                                                        Faltan {diff} paq.
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-amber-100 text-amber-800 text-xs font-black border border-amber-200">
+                                                        Sobran +{diff} paq.
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
-                </div>
+                )}
             </div>
 
             {/* ── MODAL DE CONFIRMACIÓN MODERNO ── */}
