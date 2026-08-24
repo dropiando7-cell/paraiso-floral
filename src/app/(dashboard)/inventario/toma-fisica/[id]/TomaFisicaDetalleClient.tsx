@@ -109,7 +109,7 @@ export default function TomaFisicaDetalleClient({
 
     // Autosave state and View Mode
     const [autosaveStatus, setAutosaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-    const [viewMode, setViewMode] = useState<'tabla' | 'piso'>('piso'); // Default to Floor view for easier floor counts
+    const [viewMode, setViewMode] = useState<'tabla' | 'piso'>('tabla'); // Default to Table view
     const [isKioskMode, setIsKioskMode] = useState<boolean>(false);
     const [showFilters, setShowFilters] = useState<boolean>(false);
     const isInitialMount = React.useRef(true);
