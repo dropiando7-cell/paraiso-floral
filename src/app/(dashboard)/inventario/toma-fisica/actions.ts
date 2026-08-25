@@ -15,6 +15,8 @@ export interface ItemTomaFisica {
     imagenUrl: string | null;
     stockSistema: number;
     conteoFisico: number | null;
+    conteoAnterior: number | null;
+    conteoNuevo: number | null;
     diferencia: number | null;
     merma: number;
     mermaFecha: string | null;
@@ -26,6 +28,8 @@ export interface ItemConteoSave {
     activoFijoId: string;
     stockSistema: number;
     conteo: number | null;
+    conteoAnterior: number | null;
+    conteoNuevo: number | null;
     merma: number;
     mermaFecha: string | null;
     mermaFotos: string[];
@@ -142,6 +146,8 @@ export async function iniciarNuevaTomaFisica(notas?: string) {
                 activoFijoId: a.id,
                 stockSistema: a.stock || 0,
                 conteoFisico: null,
+                conteoAnterior: 0,
+                conteoNuevo: 0,
                 diferencia: null,
                 merma: 0,
                 mermaFecha: null,
@@ -210,6 +216,8 @@ export async function getAuditoriaInventarioDetalle(id: string) {
             imagenUrl: d.activoFijo?.imagenUrl || null,
             stockSistema: d.stockSistema,
             conteoFisico: d.conteoFisico,
+            conteoAnterior: d.conteoAnterior,
+            conteoNuevo: d.conteoNuevo,
             diferencia: d.diferencia,
             merma: d.merma || 0,
             mermaFecha: d.mermaFecha ? d.mermaFecha.toISOString() : null,
@@ -289,6 +297,8 @@ export async function guardarProgresoTomaFisica(
                     activoFijoId: item.activoFijoId,
                     stockSistema: item.stockSistema,
                     conteoFisico: conteoVal,
+                    conteoAnterior: item.conteoAnterior || 0,
+                    conteoNuevo: item.conteoNuevo || 0,
                     diferencia: diff,
                     merma: item.merma || 0,
                     mermaFecha: formattedMermaFecha,

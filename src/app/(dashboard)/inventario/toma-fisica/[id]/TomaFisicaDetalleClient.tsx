@@ -118,10 +118,29 @@ export default function TomaFisicaDetalleClient({
     const [items, setItems] = useState<ItemTomaFisica[]>(initialItems);
 
     // State for counted quantities (map of item.id -> number | null)
+    // State for counted quantities (map of item.id -> number | null)
     const [conteos, setConteos] = useState<Record<string, number | null>>(() => {
         const initial: Record<string, number | null> = {};
         initialItems.forEach(item => {
             initial[item.id] = item.conteoFisico;
+        });
+        return initial;
+    });
+
+    // State for previous order counted quantities (map of item.id -> number | null)
+    const [conteosAnteriores, setConteosAnteriores] = useState<Record<string, number | null>>(() => {
+        const initial: Record<string, number | null> = {};
+        initialItems.forEach(item => {
+            initial[item.id] = item.conteoAnterior;
+        });
+        return initial;
+    });
+
+    // State for new order counted quantities (map of item.id -> number | null)
+    const [conteosNuevos, setConteosNuevos] = useState<Record<string, number | null>>(() => {
+        const initial: Record<string, number | null> = {};
+        initialItems.forEach(item => {
+            initial[item.id] = item.conteoNuevo;
         });
         return initial;
     });
@@ -187,6 +206,8 @@ export default function TomaFisicaDetalleClient({
             activoFijoId: item.activoFijoId,
             stockSistema: item.stockSistema,
             conteo: conteos[item.id],
+            conteoAnterior: conteosAnteriores[item.id],
+            conteoNuevo: conteosNuevos[item.id],
             merma: mermas[item.id] || 0,
             mermaFecha: mermas[item.id] > 0 ? mermasFechas[item.id] : null,
             mermaFotos: mermasFotos[item.id] || [],
@@ -213,7 +234,7 @@ export default function TomaFisicaDetalleClient({
         }, 1500); // 1.5 second debounce
 
         return () => clearTimeout(delayDebounce);
-    }, [items, conteos, mermas, mermasFechas, mermasFotos, ubicaciones, auditoria.id, auditoria.estado]);
+    }, [items, conteos, conteosAnteriores, conteosNuevos, mermas, mermasFechas, mermasFotos, ubicaciones, auditoria.id, auditoria.estado]);
 
     // Uploading states to show local spinners for photos
     const [uploadingItem, setUploadingItem] = useState<Record<string, boolean>>({});
@@ -354,11 +375,58 @@ export default function TomaFisicaDetalleClient({
         }));
     };
 
+    const handleSetConteoAnterior = (id: string, val: number | null) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
+        const cleanVal = val === null ? null : Math.max(0, val);
+        setConteosAnteriores(prev => ({
+            ...prev,
+            [id]: cleanVal
+        }));
+        
+        // Sum immediately to total conteos
+        setConteos(prev => {
+            const currentNvo = conteosNuevos[id] || 0;
+            const currentAnt = cleanVal || 0;
+            const hasValue = cleanVal !== null || conteosNuevos[id] !== null;
+            return {
+                ...prev,
+                [id]: hasValue ? (currentAnt + currentNvo) : null
+            };
+        });
+    };
+
+    const handleSetConteoNuevo = (id: string, val: number | null) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
+        const cleanVal = val === null ? null : Math.max(0, val);
+        setConteosNuevos(prev => ({
+            ...prev,
+            [id]: cleanVal
+        }));
+
+        // Sum immediately to total conteos
+        setConteos(prev => {
+            const currentAnt = conteosAnteriores[id] || 0;
+            const currentNvo = cleanVal || 0;
+            const hasValue = cleanVal !== null || conteosAnteriores[id] !== null;
+            return {
+                ...prev,
+                [id]: hasValue ? (currentAnt + currentNvo) : null
+            };
+        });
+    };
+
     const handleStepCount = (id: string, currentVal: number | null, step: number, systemVal: number) => {
         if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
         const base = currentVal !== null ? currentVal : systemVal;
         const next = Math.max(0, base + step);
         handleSetCount(id, next);
+    };
+
+    const handleStepConteoNuevo = (id: string, currentVal: number | null, step: number, systemVal: number) => {
+        if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
+        const base = currentVal !== null ? currentVal : systemVal;
+        const next = Math.max(0, base + step);
+        handleSetConteoNuevo(id, next);
     };
 
     // Merma adjusters
@@ -434,6 +502,8 @@ export default function TomaFisicaDetalleClient({
             id: tempId,
             stockSistema: 0, // Duplicate starts with 0 so the first row holds the entire system stock
             conteoFisico: null,
+            conteoAnterior: null,
+            conteoNuevo: null,
             diferencia: null,
             merma: 0,
             mermaFecha: null,
@@ -451,6 +521,8 @@ export default function TomaFisicaDetalleClient({
 
         // Initialize states for new row
         setConteos(prev => ({ ...prev, [tempId]: null }));
+        setConteosAnteriores(prev => ({ ...prev, [tempId]: null }));
+        setConteosNuevos(prev => ({ ...prev, [tempId]: null }));
         setMermas(prev => ({ ...prev, [tempId]: 0 }));
         
         const d = new Date();
@@ -467,6 +539,16 @@ export default function TomaFisicaDetalleClient({
         if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
         setItems(prev => prev.filter(item => item.id !== id));
         setConteos(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+        setConteosAnteriores(prev => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+        });
+        setConteosNuevos(prev => {
             const next = { ...prev };
             delete next[id];
             return next;
@@ -496,20 +578,32 @@ export default function TomaFisicaDetalleClient({
     // Bulk Actions
     const handleCopiarStockSistema = () => {
         if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
-        const next: Record<string, number | null> = {};
+        const nextTotal: Record<string, number | null> = {};
+        const nextNuevo: Record<string, number | null> = {};
+        const nextAnterior: Record<string, number | null> = {};
         filteredItems.forEach(item => {
-            next[item.id] = item.stockSistema;
+            nextTotal[item.id] = item.stockSistema;
+            nextNuevo[item.id] = item.stockSistema;
+            nextAnterior[item.id] = 0;
         });
-        setConteos(prev => ({ ...prev, ...next }));
+        setConteos(prev => ({ ...prev, ...nextTotal }));
+        setConteosNuevos(prev => ({ ...prev, ...nextNuevo }));
+        setConteosAnteriores(prev => ({ ...prev, ...nextAnterior }));
     };
 
     const handleLimpiarConteo = () => {
         if (auditoria.estado !== 'CONTEO' && auditoria.estado !== 'PENDIENTE_APROBACION') return;
-        const next: Record<string, number | null> = {};
+        const nextTotal: Record<string, number | null> = {};
+        const nextAnt: Record<string, number | null> = {};
+        const nextNvo: Record<string, number | null> = {};
         filteredItems.forEach(item => {
-            next[item.id] = null;
+            nextTotal[item.id] = null;
+            nextAnt[item.id] = null;
+            nextNvo[item.id] = null;
         });
-        setConteos(prev => ({ ...prev, ...next }));
+        setConteos(prev => ({ ...prev, ...nextTotal }));
+        setConteosAnteriores(prev => ({ ...prev, ...nextAnt }));
+        setConteosNuevos(prev => ({ ...prev, ...nextNvo }));
     };
 
     // Map current local state to submit parameter structure
@@ -518,6 +612,8 @@ export default function TomaFisicaDetalleClient({
             activoFijoId: item.activoFijoId,
             stockSistema: item.stockSistema,
             conteo: conteos[item.id],
+            conteoAnterior: conteosAnteriores[item.id],
+            conteoNuevo: conteosNuevos[item.id],
             merma: mermas[item.id] || 0,
             mermaFecha: mermas[item.id] > 0 ? mermasFechas[item.id] : null,
             mermaFotos: mermasFotos[item.id] || [],
@@ -1414,7 +1510,7 @@ export default function TomaFisicaDetalleClient({
                                                     disabled={!isEditable}
                                                     value={ubicaciones[item.id] || ''}
                                                     onChange={(e) => {
-                                                        setUbicaciones(prev => ({ ...prev, [item.id]: e.target.value }));
+                                                        setUbicaciones(prev => ({ ...prev, [item.id]: e.target.value.toUpperCase() }));
                                                     }}
                                                     placeholder="Ej: Cuarto Frío 1, Estante B..."
                                                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#0500A3]"
@@ -1422,72 +1518,90 @@ export default function TomaFisicaDetalleClient({
                                             </div>
 
                                             {/* Conteo en Piso */}
-                                            <div className="bg-pink-50/20 border border-pink-100 rounded-2xl p-4 flex flex-col items-center gap-3">
-                                                <span className="text-xs font-extrabold text-pink-700 uppercase tracking-wider">Conteo en Piso (Físico Real)</span>
-                                                <div className="flex items-center gap-2.5">
-                                                    <button
-                                                        type="button"
-                                                        disabled={!isEditable}
-                                                        onClick={() => handleStepCount(item.id, count, -1, item.stockSistema)}
-                                                        className="w-14 h-14 rounded-2xl bg-white border-2 border-slate-300 text-slate-800 font-extrabold text-xl hover:bg-slate-100 active:scale-95 shadow-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40"
-                                                    >
-                                                        -1
-                                                    </button>
-
-                                                    <input 
-                                                        type="number"
-                                                        min="0"
-                                                        disabled={!isEditable}
-                                                        value={count === null ? '' : count}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
-                                                            handleSetCount(item.id, val);
-                                                        }}
-                                                        placeholder={item.stockSistema.toString()}
-                                                        className={`w-24 h-14 text-center text-xl font-black font-mono rounded-2xl border-2 transition-all focus:outline-none ${
-                                                            isCounted 
-                                                                ? 'bg-white border-[#0500A3] text-slate-900 shadow-sm' 
-                                                                : 'bg-white/80 border-slate-300 text-slate-500 placeholder-slate-300'
-                                                        }`}
-                                                    />
-
-                                                    <button
-                                                        type="button"
-                                                        disabled={!isEditable}
-                                                        onClick={() => handleStepCount(item.id, count, 1, item.stockSistema)}
-                                                        className="w-14 h-14 rounded-2xl bg-pink-600 text-white font-extrabold text-xl hover:bg-pink-700 active:scale-95 shadow-md flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40"
-                                                    >
-                                                        +1
-                                                    </button>
+                                            <div className="bg-pink-50/10 border border-pink-100/70 rounded-3xl p-4 flex flex-col gap-3">
+                                                <span className="text-xs font-extrabold text-pink-700 uppercase tracking-wider block text-center">Conteo en Piso</span>
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    <div className="flex flex-col gap-1.5 bg-white p-3 rounded-2xl border border-slate-200">
+                                                        <span className="text-[10px] font-black text-indigo-700 uppercase text-center">Pedido Ant.</span>
+                                                        <input 
+                                                            type="number"
+                                                            min="0"
+                                                            disabled={!isEditable}
+                                                            value={conteosAnteriores[item.id] ?? ''}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
+                                                                handleSetConteoAnterior(item.id, val);
+                                                            }}
+                                                            placeholder="0"
+                                                            className="w-full text-center font-bold font-mono text-lg text-slate-800 focus:outline-none"
+                                                        />
+                                                    </div>
+                                                    <div className="flex flex-col gap-1.5 bg-white p-3 rounded-2xl border border-slate-200">
+                                                        <span className="text-[10px] font-black text-indigo-950 uppercase text-center">Pedido Nvo.</span>
+                                                        <div className="flex items-center justify-between gap-1 w-full">
+                                                            <button
+                                                                type="button"
+                                                                disabled={!isEditable}
+                                                                onClick={() => handleStepConteoNuevo(item.id, conteosNuevos[item.id], -1, item.stockSistema)}
+                                                                className="w-6 h-6 rounded-md bg-slate-100 border border-slate-200 text-slate-700 font-extrabold text-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40"
+                                                            >
+                                                                -
+                                                            </button>
+                                                            <input 
+                                                                type="number"
+                                                                min="0"
+                                                                disabled={!isEditable}
+                                                                value={conteosNuevos[item.id] ?? ''}
+                                                                onChange={(e) => {
+                                                                    const val = e.target.value === '' ? null : parseInt(e.target.value, 10);
+                                                                    handleSetConteoNuevo(item.id, val);
+                                                                }}
+                                                                placeholder="0"
+                                                                className="w-full text-center font-bold font-mono text-lg text-slate-800 focus:outline-none"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                disabled={!isEditable}
+                                                                onClick={() => handleStepConteoNuevo(item.id, conteosNuevos[item.id], 1, item.stockSistema)}
+                                                                className="w-6 h-6 rounded-md bg-pink-600 text-white font-extrabold text-xs flex items-center justify-center shrink-0 cursor-pointer disabled:opacity-40"
+                                                            >
+                                                                +
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 </div>
 
-                                                {/* Botones de ajuste rápido */}
+                                                {/* Botones de ajuste rápido para Pedido Nuevo */}
                                                 {isEditable && (
-                                                    <div className="flex items-center gap-2 mt-1">
+                                                    <div className="flex items-center justify-center gap-1.5 flex-wrap mt-0.5">
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleStepCount(item.id, count, 5, item.stockSistema)}
-                                                            className="px-3.5 py-2 rounded-xl bg-white hover:bg-pink-50 border border-slate-200 hover:border-pink-200 text-pink-600 text-xs font-black transition active:scale-95 shadow-2xs cursor-pointer"
+                                                            onClick={() => handleStepConteoNuevo(item.id, conteosNuevos[item.id], 5, item.stockSistema)}
+                                                            className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-pink-50 border border-slate-200 hover:border-pink-200 text-pink-600 text-[10px] font-black transition active:scale-95 shadow-3xs cursor-pointer"
                                                         >
-                                                            +5
+                                                            +5 Nvo
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleStepCount(item.id, count, 10, item.stockSistema)}
-                                                            className="px-3.5 py-2 rounded-xl bg-white hover:bg-pink-50 border border-slate-200 hover:border-pink-200 text-pink-700 text-xs font-black transition active:scale-95 shadow-2xs cursor-pointer"
+                                                            onClick={() => handleStepConteoNuevo(item.id, conteosNuevos[item.id], 10, item.stockSistema)}
+                                                            className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-pink-50 border border-slate-200 hover:border-pink-200 text-pink-700 text-[10px] font-black transition active:scale-95 shadow-3xs cursor-pointer"
                                                         >
-                                                            +10
+                                                            +10 Nvo
                                                         </button>
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleSetCount(item.id, item.stockSistema)}
-                                                            className="px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-700 text-xs font-extrabold transition active:scale-95 shadow-2xs cursor-pointer"
-                                                            title="Copiar stock sistema"
+                                                            onClick={() => handleSetConteoNuevo(item.id, item.stockSistema)}
+                                                            className="px-2.5 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-700 text-[10px] font-extrabold transition active:scale-95 shadow-3xs cursor-pointer"
+                                                            title="Copiar stock sistema a Pedido Nuevo"
                                                         >
                                                             Copiar Teórico
                                                         </button>
                                                     </div>
                                                 )}
+
+                                                <div className="text-center font-mono text-sm font-black text-pink-700 pt-2 border-t border-pink-100/50">
+                                                    Total Conteo: {count === null ? '-' : `${count} paq`}
+                                                </div>
                                             </div>
 
                                             {/* Merma / Dañado */}

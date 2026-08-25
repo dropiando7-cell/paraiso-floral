@@ -1704,6 +1704,8 @@ model AuditoriaDetalle {
   activoFijoId        String              @db.Uuid
   stockSistema        Int
   conteoFisico        Int?
+  conteoAnterior      Int?                @default(0)
+  conteoNuevo         Int?                @default(0)
   diferencia          Int?
   merma               Int?                @default(0)
   mermaFecha          DateTime?
