@@ -32,9 +32,16 @@ function Combobox({
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
+    const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const cleanQuery = removeAccents(query.toLowerCase());
+
     const filtered = query.trim() === ''
         ? options
-        : options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()) || o.value.toLowerCase().includes(query.toLowerCase()));
+        : options.filter(o => {
+            const cleanLabel = removeAccents(o.label.toLowerCase());
+            const cleanVal = removeAccents(o.value.toLowerCase());
+            return cleanLabel.includes(cleanQuery) || cleanVal.includes(cleanQuery);
+        });
 
     const selected = options.find(o => o.value === value);
 

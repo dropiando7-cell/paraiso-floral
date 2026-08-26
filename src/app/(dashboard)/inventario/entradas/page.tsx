@@ -22,11 +22,18 @@ export default async function EntradasPage() {
 
     const orgId = dbUser.organizationId;
 
-    // Fetch catalog products to display in the dropdown
-    const productos = await prisma.producto.findMany({
-        where: { organizationId: orgId, estado: 'ACTIVO' },
-        orderBy: { nombre: 'asc' },
+    // Fetch catalog assets/flowers (ActivoFijo) to display in the dropdown
+    const activos = await prisma.activoFijo.findMany({
+        where: { organizationId: orgId, estatusContable: 'VIGENTE' },
+        orderBy: { descripcionCorta: 'asc' },
     });
+
+    const productos = activos.map(a => ({
+        id: a.id,
+        sku: a.codigoBarras || a.idQr,
+        nombre: a.descripcionCorta,
+        stockActual: a.stock
+    }));
 
     // Fetch recent movements for the history table
     const recientes = await prisma.movimientoInventario.findMany({
@@ -36,5 +43,15 @@ export default async function EntradasPage() {
         take: 50,
     });
 
-    return <EntradasClient productos={productos} recientes={recientes} orgId={orgId} userId={dbUser.id} />;
+    // Map to plain objects to serialize Decimal values (Next.js cannot pass Decimals to Client Components)
+    const plainRecientes = recientes.map(mov => ({
+        ...mov,
+        producto: mov.producto ? {
+            ...mov.producto,
+            precioVenta: mov.producto.precioVenta ? Number(mov.producto.precioVenta) : 0,
+            costoBase: mov.producto.costoBase ? Number(mov.producto.costoBase) : null,
+        } : null
+    }));
+
+    return <EntradasClient productos={productos} recientes={plainRecientes} orgId={orgId} userId={dbUser.id} />;
 }

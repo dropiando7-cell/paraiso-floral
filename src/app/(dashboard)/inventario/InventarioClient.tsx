@@ -501,9 +501,15 @@ function Combobox({
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
 
+    const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const cleanQuery = removeAccents(query.toLowerCase());
     const filtered = query.trim() === ''
         ? options
-        : options.filter(o => o.label.toLowerCase().includes(query.toLowerCase()) || o.value.toLowerCase().includes(query.toLowerCase()));
+        : options.filter(o => {
+            const cleanLabel = removeAccents(o.label.toLowerCase());
+            const cleanVal = removeAccents(o.value.toLowerCase());
+            return cleanLabel.includes(cleanQuery) || cleanVal.includes(cleanQuery);
+        });
 
     const selected = options.find(o => o.value === value);
 
@@ -4050,7 +4056,7 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                 fechaAdq: cleanRow.fechaingreso || cleanRow.fecha || ''
             };
 
-            if (normalizedRow.descripcionCorta) {
+            if (normalizedRow.descripcionCorta || normalizedRow.codigoBarras || normalizedRow.idQr) {
                 data.push(normalizedRow);
             }
         }
@@ -4059,47 +4065,46 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
 
     function downloadCsvTemplate() {
         const headers = [
+            'Codigo',
             'DescripcionCorta',
-            'DescripcionDetallada',
-            'Marca',
-            'Modelo',
-            'Serie',
-            'Area',
-            'Cantidad',
             'EsConsumible',
             'OrigenActivo',
-            'CondicionActivo',
-            'Garantia',
-            'Observaciones',
-            'CuentaAct',
-            'CodigoGrupo',
-            'CodigoBarras',
-            'IdQr'
+            'Cantidad'
         ];
-        const sampleRow = [
-            'Monitor de Signos Vitales Masimo',
-            'Monitor multiparametro con sensor SpO2 y pantalla tactil',
-            'Masimo',
-            'Rad-97',
-            'SN-12345/SN-9999',
-            'Bodega Guamilito',
-            '1',
-            'NO',
-            'Americano',
-            'Nuevo',
-            '12 meses',
-            'Importado de EE.UU.',
-            'Equipos Diversos',
-            '001',
-            '750102030405',
-            ''
+        const rows = [
+            [
+                'PF-ROS-001',
+                'Rosas Rojas Ecuatorianas',
+                'SI',
+                'Ecuador',
+                '30'
+            ],
+            [
+                'PF-MCL-002',
+                'Mini Clavel Rosado',
+                'SI',
+                'Guatemala',
+                '25'
+            ],
+            [
+                'PF-FOL-003',
+                'Dollar Follaje',
+                'SI',
+                'Honduras',
+                '12'
+            ]
         ];
+
         const csvContent = "data:text/csv;charset=utf-8," 
-            + [headers.join(','), sampleRow.join(',')].join('\n');
+            + [
+                headers.join(','),
+                ...rows.map(r => r.map(val => `"${val.replace(/"/g, '""')}"`).join(','))
+            ].join('\n');
+
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "plantilla_inventario_bioelectronica.csv");
+        link.setAttribute("download", "plantilla_inventario_paraiso_floral.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

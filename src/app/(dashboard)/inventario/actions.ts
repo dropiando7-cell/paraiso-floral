@@ -38,6 +38,17 @@ async function getContextUser(): Promise<{ orgId: string, userId: string }> {
 // Se eliminaron las constantes estáticas PREFIX_MAP y QR_TO_AREA_MAP 
 // porque ahora se usa el modelo Area desde Prisma.
 
+function getAccentInsensitiveRegex(search: string): string {
+    const escaped = search.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    return escaped
+        .replace(/[aáàâä]/gi, '[aáàâä]')
+        .replace(/[eéèêë]/gi, '[eéèêë]')
+        .replace(/[iíìîï]/gi, '[iíìîï]')
+        .replace(/[oóòôö]/gi, '[oóòôö]')
+        .replace(/[uúùûü]/gi, '[uúùûü]')
+        .replace(/[nñ]/gi, '[nñ]');
+}
+
 // ─── Auto-generate ID QR ─────────────────────────────────────────────────────
 async function generateIdQr(organizationId: string, area: string, codigoGrupo: string = '001', cantidadRegistros: number = 1): Promise<string[]> {
     const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { qrPrefix: true } });
@@ -435,7 +446,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
             organizationId: orgId,
             ...(cleanSearch && {
                 OR: [
-                    { nombre: { contains: cleanSearch, mode: 'insensitive' as const } },
+                    { nombre: { regex: getAccentInsensitiveRegex(cleanSearch), mode: 'insensitive' as const } },
                     { sku: { contains: cleanSearch, mode: 'insensitive' as const } },
                     { marca: { contains: cleanSearch, mode: 'insensitive' as const } },
                     { modelo: { contains: cleanSearch, mode: 'insensitive' as const } },
@@ -503,7 +514,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
         esParaRenta: false,
         ...(search && {
             OR: [
-                { descripcionCorta: { contains: cleanSearch, mode: 'insensitive' as const } },
+                { descripcionCorta: { regex: getAccentInsensitiveRegex(cleanSearch), mode: 'insensitive' as const } },
                 { idQr: { contains: cleanSearch, mode: 'insensitive' as const } },
                 { codigoBarras: { contains: cleanSearch, mode: 'insensitive' as const } },
                 { serie: { contains: cleanSearch, mode: 'insensitive' as const } },
@@ -606,7 +617,7 @@ export async function getActivosForExport(search = '', area = '', estatus = '', 
             esParaRenta: false,
             ...(search && {
                 OR: [
-                    { descripcionCorta: { contains: search, mode: 'insensitive' as const } },
+                    { descripcionCorta: { regex: getAccentInsensitiveRegex(search), mode: 'insensitive' as const } },
                     { idQr: { contains: search, mode: 'insensitive' as const } },
                     { codigoBarras: { contains: search, mode: 'insensitive' as const } },
                     { serie: { contains: search, mode: 'insensitive' as const } },
