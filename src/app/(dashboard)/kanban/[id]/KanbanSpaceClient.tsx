@@ -64,6 +64,11 @@ interface Task {
         nombre: string;
         avatarUrl: string | null;
     }[];
+    creadoPor?: {
+        id: string;
+        nombre: string;
+        avatarUrl: string | null;
+    } | null;
     createdAt: string;
     ordenTrabajoId?: string | null;
 }
@@ -772,6 +777,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
             });
 
             if (res.success && res.task) {
+                const currentUserInfo = members.find(m => m.id === initialData.currentUserId);
                 const createdTask: Task = {
                     id: res.task.id,
                     codigo: res.task.codigo,
@@ -788,6 +794,11 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                     modulo: res.task.modulo || null,
                     asignado: null,
                     asignados: [],
+                    creadoPor: currentUserInfo ? {
+                        id: currentUserInfo.id,
+                        nombre: currentUserInfo.nombre,
+                        avatarUrl: currentUserInfo.avatarUrl || null
+                    } : null,
                     createdAt: res.task.createdAt.toISOString()
                 };
 
@@ -967,6 +978,7 @@ export default function KanbanSpaceClient({ initialData }: Props) {
 
             const primaryAssignee = taskAssignees.length > 0 ? taskAssignees[0] : null;
 
+            const currentUserInfo = members.find(m => m.id === initialData.currentUserId);
             const createdTask: Task = {
                 id: res.task.id,
                 codigo: res.task.codigo,
@@ -983,6 +995,11 @@ export default function KanbanSpaceClient({ initialData }: Props) {
                 modulo: res.task.modulo || null,
                 asignado: primaryAssignee,
                 asignados: taskAssignees,
+                creadoPor: currentUserInfo ? {
+                    id: currentUserInfo.id,
+                    nombre: currentUserInfo.nombre,
+                    avatarUrl: currentUserInfo.avatarUrl || null
+                } : null,
                 createdAt: res.task.createdAt.toISOString()
             };
 

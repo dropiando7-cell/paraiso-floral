@@ -444,29 +444,33 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
     if (tipoInventario === 'importado') {
         const prodWhere: any = {
             organizationId: orgId,
-            ...(cleanSearch && {
-                OR: [
-                    { nombre: { regex: getAccentInsensitiveRegex(cleanSearch), mode: 'insensitive' as const } },
-                    { sku: { contains: cleanSearch, mode: 'insensitive' as const } },
-                    { marca: { contains: cleanSearch, mode: 'insensitive' as const } },
-                    { modelo: { contains: cleanSearch, mode: 'insensitive' as const } },
-                    { categoria: { contains: cleanSearch, mode: 'insensitive' as const } },
-                ]
-            }),
             ...(origen && origen !== 'TODOS' && origen !== 'SIN_DEFINIR' && {
                 sku: { startsWith: origen }
             })
         };
 
-        const productos = await prisma.producto.findMany({
+        let productos = await prisma.producto.findMany({
             where: prodWhere,
             orderBy: { createdAt: 'desc' },
-            skip,
-            take: PER_PAGE,
         });
-        const total = await prisma.producto.count({ where: prodWhere });
 
-        const plainActivos = productos.map(p => {
+        if (cleanSearch) {
+            const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            const searchNorm = removeAccents(cleanSearch);
+            productos = productos.filter(p => {
+                const nombre = removeAccents(p.nombre || '');
+                const sku = removeAccents(p.sku || '');
+                const marca = removeAccents(p.marca || '');
+                const modelo = removeAccents(p.modelo || '');
+                const cat = removeAccents(p.categoria || '');
+                return nombre.includes(searchNorm) || sku.includes(searchNorm) || marca.includes(searchNorm) || modelo.includes(searchNorm) || cat.includes(searchNorm);
+            });
+        }
+
+        const total = productos.length;
+        const paginatedProds = productos.slice(skip, skip + PER_PAGE);
+
+        const plainActivos = paginatedProds.map(p => {
             let providerName = 'Catálogo Web';
             if (p.sku.startsWith('SOMA-')) providerName = 'Soma Tech';
             else if (p.sku.startsWith('SOMAPARTS-') || p.sku.startsWith('PARTS-')) providerName = 'Soma Medical Parts';
@@ -509,19 +513,9 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
         return { activos: plainActivos, total, totalPages: Math.ceil(total / PER_PAGE) };
     }
 
-    const where = {
+    const where: any = {
         organizationId: orgId,
         esParaRenta: false,
-        ...(search && {
-            OR: [
-                { descripcionCorta: { regex: getAccentInsensitiveRegex(cleanSearch), mode: 'insensitive' as const } },
-                { idQr: { contains: cleanSearch, mode: 'insensitive' as const } },
-                { codigoBarras: { contains: cleanSearch, mode: 'insensitive' as const } },
-                { serie: { contains: cleanSearch, mode: 'insensitive' as const } },
-                { modelo: { contains: cleanSearch, mode: 'insensitive' as const } },
-                { responsable: { contains: cleanSearch, mode: 'insensitive' as const } },
-            ],
-        }),
         ...(area && { area }),
         ...(estatus && { estatusContable: estatus }),
         ...(origen && {
@@ -546,11 +540,9 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
         })
     };
 
-    const activos = await prisma.activoFijo.findMany({
+    let activos = await prisma.activoFijo.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip,
-        take: PER_PAGE,
         select: {
             id: true,
             organizationId: true,
@@ -590,11 +582,29 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
             categoria: { select: { id: true, nombre: true } },
             createdBy: { select: { nombre: true, apellido: true, email: true } },
             updatedBy: { select: { nombre: true, apellido: true, email: true } },
+            responsable: true,
         },
     });
-    const total = await prisma.activoFijo.count({ where });
 
-    const plainActivos = activos.map(a => ({
+    if (cleanSearch) {
+        const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+        const searchNorm = removeAccents(cleanSearch);
+        activos = activos.filter(a => {
+            const desc = removeAccents(a.descripcionCorta || '');
+            const qr = removeAccents(a.idQr || '');
+            const code = removeAccents(a.codigoBarras || '');
+            const ser = removeAccents(a.serie || '');
+            const mod = removeAccents(a.modelo || '');
+            const brand = removeAccents(a.marca || '');
+            const resp = removeAccents(a.responsable || '');
+            return desc.includes(searchNorm) || qr.includes(searchNorm) || code.includes(searchNorm) || ser.includes(searchNorm) || mod.includes(searchNorm) || brand.includes(searchNorm) || resp.includes(searchNorm);
+        });
+    }
+
+    const total = activos.length;
+    const paginatedActivos = activos.slice(skip, skip + PER_PAGE);
+
+    const plainActivos = paginatedActivos.map(a => ({
         ...a,
         costoAdq: a.costoAdq ? Number(a.costoAdq) : null,
         vidaUtilOverride: a.vidaUtilOverride ? Number(a.vidaUtilOverride) : null,
@@ -615,16 +625,6 @@ export async function getActivosForExport(search = '', area = '', estatus = '', 
         const where = {
             organizationId: orgId,
             esParaRenta: false,
-            ...(search && {
-                OR: [
-                    { descripcionCorta: { regex: getAccentInsensitiveRegex(search), mode: 'insensitive' as const } },
-                    { idQr: { contains: search, mode: 'insensitive' as const } },
-                    { codigoBarras: { contains: search, mode: 'insensitive' as const } },
-                    { serie: { contains: search, mode: 'insensitive' as const } },
-                    { modelo: { contains: search, mode: 'insensitive' as const } },
-                    { responsable: { contains: search, mode: 'insensitive' as const } },
-                ],
-            }),
             ...(area && { area }),
             ...(estatus && { estatusContable: estatus }),
             ...(origen && {
@@ -649,11 +649,26 @@ export async function getActivosForExport(search = '', area = '', estatus = '', 
             })
         };
 
-        const activos = await prisma.activoFijo.findMany({
+        let activos = await prisma.activoFijo.findMany({
             where,
             orderBy: { createdAt: 'desc' },
             include: { categoria: true }
         });
+
+        if (search) {
+            const removeAccents = (str: string) => str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+            const searchNorm = removeAccents(search.trim());
+            activos = activos.filter(a => {
+                const desc = removeAccents(a.descripcionCorta || '');
+                const qr = removeAccents(a.idQr || '');
+                const code = removeAccents(a.codigoBarras || '');
+                const ser = removeAccents(a.serie || '');
+                const mod = removeAccents(a.modelo || '');
+                const brand = removeAccents(a.marca || '');
+                const resp = removeAccents(a.responsable || '');
+                return desc.includes(searchNorm) || qr.includes(searchNorm) || code.includes(searchNorm) || ser.includes(searchNorm) || mod.includes(searchNorm) || brand.includes(searchNorm) || resp.includes(searchNorm);
+            });
+        }
 
         return activos.map(a => ({
             ...a,

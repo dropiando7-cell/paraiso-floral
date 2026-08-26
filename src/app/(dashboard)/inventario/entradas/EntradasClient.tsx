@@ -115,9 +115,10 @@ interface ProductCellProps {
     value: string;
     onChange: (p: any) => void;
     rowError?: string;
+    inputId?: string;
 }
 
-function ProductCell({ productos, value, onChange, rowError }: ProductCellProps) {
+function ProductCell({ productos, value, onChange, rowError, inputId }: ProductCellProps) {
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -142,53 +143,62 @@ function ProductCell({ productos, value, onChange, rowError }: ProductCellProps)
 
     useEffect(() => {
         function handler(e: MouseEvent) {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+            if (ref.current && !ref.current.contains(e.target as Node)) {
+                setOpen(false);
+            }
         }
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
+    useEffect(() => {
+        if (!open) {
+            setQuery('');
+        }
+    }, [open]);
+
+    const handleSelect = (p: any) => {
+        onChange(p);
+        setQuery('');
+        setOpen(false);
+    };
+
     return (
         <div ref={ref} className="relative w-full">
-            <button
-                type="button"
-                onClick={() => setOpen(o => !o)}
-                className={`w-full flex items-center justify-between border rounded-xl px-3 py-2 text-left text-sm bg-white transition-all focus:outline-none focus:ring-2 focus:ring-brand-500/20
-                    ${rowError ? 'border-amber-300 bg-amber-50/20' : 'border-slate-200'}
-                    ${open ? 'ring-2 ring-brand-500/20 border-brand-500/50' : 'hover:border-slate-300'}`}
-            >
-                <span className={`truncate ${selected ? 'text-slate-900 font-medium' : 'text-slate-400'}`}>
-                    {selected ? `${selected.sku} - ${selected.nombre}` : 'Buscar por nombre o SKU...'}
-                </span>
-                <ChevronDown className="w-4 h-4 shrink-0 text-slate-400" />
-            </button>
+            <div className="relative flex items-center">
+                <input
+                    id={inputId}
+                    type="text"
+                    autoComplete="off"
+                    placeholder="Buscar por nombre o SKU..."
+                    value={open ? query : (selected ? `${selected.sku} - ${selected.nombre}` : '')}
+                    onChange={e => {
+                        setQuery(e.target.value);
+                        setOpen(true);
+                    }}
+                    onFocus={() => {
+                        setOpen(true);
+                        if (selected) {
+                            setQuery(selected.nombre);
+                        }
+                    }}
+                    className={`w-full flex items-center justify-between border rounded-xl px-3 py-2 text-sm bg-white transition-all focus:outline-none focus:ring-2 focus:ring-brand-500/20 pr-8
+                        ${rowError ? 'border-amber-300 bg-amber-50/20' : 'border-slate-200'}
+                        ${open ? 'ring-2 ring-brand-500/20 border-brand-500/50' : 'hover:border-slate-300'}`}
+                />
+                <ChevronDown className="w-4 h-4 absolute right-3 text-slate-400 pointer-events-none" />
+            </div>
+
             {open && (
                 <div className="absolute z-50 left-0 w-full mt-1 bg-white rounded-xl border border-slate-200 shadow-xl overflow-hidden min-w-[280px] md:min-w-[340px]">
-                    <div className="p-2 border-b border-slate-100">
-                        <div className="relative">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                            <input
-                                type="text"
-                                autoFocus
-                                placeholder="Escribe para buscar..."
-                                value={query}
-                                onChange={e => setQuery(e.target.value)}
-                                className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-500/20"
-                            />
-                        </div>
-                    </div>
                     <div className="max-h-60 overflow-y-auto">
                         {filtered.length === 0 ? (
-                            <div className="text-xs text-slate-400 text-center py-3">Sin resultados</div>
+                            <div className="text-xs text-slate-400 text-center py-3 italic">Sin resultados</div>
                         ) : filtered.map(p => (
                             <button
                                 key={p.id}
                                 type="button"
-                                onClick={() => {
-                                    onChange(p);
-                                    setOpen(false);
-                                    setQuery('');
-                                }}
+                                onClick={() => handleSelect(p)}
                                 className={`w-full text-left px-3 py-2 text-xs truncate hover:bg-brand-50 transition-colors block
                                     ${value === p.id ? 'bg-brand-50 font-semibold text-brand-700' : 'text-slate-700'}`}
                             >
@@ -357,10 +367,15 @@ export function EntradasClient({ productos, recientes, orgId, userId }: any) {
 
     // Grid row handlers
     const addRow = () => {
+        const newId = Math.random().toString(36).substring(2, 9);
         setGridRows(prev => [
             ...prev,
-            { id: Math.random().toString(36).substring(2, 9), productoId: '', sku: '', nombre: '', cantidad: 1 }
+            { id: newId, productoId: '', sku: '', nombre: '', cantidad: 1 }
         ]);
+        setTimeout(() => {
+            const input = document.getElementById(`product-search-input-${newId}`);
+            if (input) input.focus();
+        }, 50);
     };
 
     useEffect(() => {
@@ -636,6 +651,7 @@ export function EntradasClient({ productos, recientes, orgId, userId }: any) {
                                                         value={row.productoId}
                                                         onChange={(p) => updateRowProduct(index, p)}
                                                         rowError={row.error}
+                                                        inputId={`product-search-input-${row.id}`}
                                                     />
                                                     {row.error && (
                                                         <span className="text-[10px] text-amber-600 font-semibold flex items-center gap-1 mt-1">
