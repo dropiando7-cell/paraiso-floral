@@ -76,7 +76,8 @@ export async function registrarEntrada(
                 data: {
                     stock: {
                         increment: cantidad
-                    }
+                    },
+                    estatusContable: 'VIGENTE'
                 }
             });
 
@@ -181,7 +182,8 @@ export async function registrarEntradasLote(
                     data: {
                         stock: {
                             increment: item.cantidad
-                        }
+                        },
+                        estatusContable: 'VIGENTE'
                     }
                 });
 

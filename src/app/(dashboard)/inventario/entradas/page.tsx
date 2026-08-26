@@ -24,7 +24,10 @@ export default async function EntradasPage() {
 
     // Fetch catalog assets/flowers (ActivoFijo) to display in the dropdown
     const activos = await prisma.activoFijo.findMany({
-        where: { organizationId: orgId, estatusContable: 'VIGENTE' },
+        where: { 
+            organizationId: orgId, 
+            estatusContable: { in: ['VIGENTE', 'VENDIDO', 'VENDIDO/ENTREGADO'] } 
+        },
         orderBy: { descripcionCorta: 'asc' },
     });
 
