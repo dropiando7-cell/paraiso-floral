@@ -161,6 +161,15 @@ export default function HomeClient({
       iconBg: 'bg-sky-50 text-sky-600',
     },
     {
+      name: 'Rutas y Auto-Venta',
+      href: '/inventario-ventas/rutas',
+      description: 'Gestión de rutas de distribución, camiones, auto-venta y cobros en campo.',
+      icon: Truck,
+      color: 'emerald',
+      glow: 'shadow-emerald-500/5 hover:shadow-emerald-500/15 border-emerald-100 hover:border-emerald-300',
+      iconBg: 'bg-emerald-50 text-emerald-600',
+    },
+    {
       name: 'Centro de Novedades',
       href: '/actualizaciones',
       description: 'Novedades, anuncios y videotutoriales explicativos del ERP.',

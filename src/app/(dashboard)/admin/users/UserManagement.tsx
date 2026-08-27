@@ -105,6 +105,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/inventario/kardex', label: 'Kardex de Movimientos' },
         { id: '/precios', label: 'Gestor de Precios' },
         { id: '/cxc', label: 'Cuentas por Cobrar' },
+        { id: '/inventario-ventas/rutas', label: 'Rutas y Auto-Venta' },
         { id: '/admin/areas', label: 'Ubicaciones y Sucursales' },
         { id: '/inventario/historico', label: 'Inventario Histórico (Odoo)' },
         { id: '/contactos', label: 'Directorio de Contactos' },
@@ -245,60 +246,68 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setLoading(true);
         setError(null);
 
-        if (editingUserId) {
-            if (password && password.length < 6) {
-                setError('La contraseña debe tener al menos 6 caracteres.');
-                toast.error('La contraseña debe tener al menos 6 caracteres.');
-                setLoading(false);
-                return;
+        try {
+            if (editingUserId) {
+                if (password && password.length < 6) {
+                    setError('La contraseña debe tener al menos 6 caracteres.');
+                    toast.error('La contraseña debe tener al menos 6 caracteres.');
+                    setLoading(false);
+                    return;
+                }
+                const res = await editUser(editingUserId, { 
+                    role, 
+                    customRoleName, 
+                    organizationId, 
+                    accessibleModules, 
+                    puedeAsignarEspacios, 
+                    puesto,
+                    nombre: firstName,
+                    apellido: lastName,
+                    password: password || undefined,
+                    isAssignable
+                });
+                if (!res.success) {
+                    const errMsg = res.error || 'Ocurrió un error al editar';
+                    setError(errMsg);
+                    toast.error(errMsg);
+                    setLoading(false);
+                    return;
+                }
+                toast.success('Usuario actualizado exitosamente');
+            } else {
+                const res = await createUser({
+                    email,
+                    firstName: authType === 'CLASSIC' ? firstName : undefined,
+                    lastName: authType === 'CLASSIC' ? lastName : undefined,
+                    password: authType === 'CLASSIC' ? password : undefined,
+                    role,
+                    customRoleName,
+                    organizationId,
+                    accessibleModules,
+                    puedeAsignarEspacios,
+                    puesto
+                });
+                if (!res.success) {
+                    const errMsg = res.error || 'Ocurrió un error al crear';
+                    setError(errMsg);
+                    toast.error(errMsg);
+                    setLoading(false);
+                    return;
+                }
+                toast.success('Usuario creado y autorizado exitosamente');
             }
-            const res = await editUser(editingUserId, { 
-                role, 
-                customRoleName, 
-                organizationId, 
-                accessibleModules, 
-                puedeAsignarEspacios, 
-                puesto,
-                nombre: firstName,
-                apellido: lastName,
-                password: password || undefined,
-                isAssignable
-            });
-            if (!res.success) {
-                const errMsg = res.error || 'Ocurrió un error al editar';
-                setError(errMsg);
-                toast.error(errMsg);
-                setLoading(false);
-                return;
-            }
-            toast.success('Usuario actualizado exitosamente');
-        } else {
-            const res = await createUser({
-                email,
-                firstName: authType === 'CLASSIC' ? firstName : undefined,
-                lastName: authType === 'CLASSIC' ? lastName : undefined,
-                password: authType === 'CLASSIC' ? password : undefined,
-                role,
-                customRoleName,
-                organizationId,
-                accessibleModules,
-                puedeAsignarEspacios,
-                puesto
-            });
-            if (!res.success) {
-                const errMsg = res.error || 'Ocurrió un error al crear';
-                setError(errMsg);
-                toast.error(errMsg);
-                setLoading(false);
-                return;
-            }
-            toast.success('Usuario creado y autorizado exitosamente');
-        }
 
-        // Refresh data via Server Component to get the nested Org easily, or manually append
-        setIsModalOpen(false);
-        setLoading(false);
-        router.refresh();
+            // Refresh data via Server Component to get the nested Org easily, or manually append
+            setIsModalOpen(false);
+            setLoading(false);
+            router.refresh();
+        } catch (err: any) {
+            console.error('Error al guardar usuario:', err);
+            const errMsg = err?.message || 'Ocurrió un error inesperado al guardar el usuario.';
+            setError(errMsg);
+            toast.error(errMsg);
+            setLoading(false);
+        }
     };
 
     const handleOpenCreateRole = () => {
@@ -306,6 +315,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setNewRoleName('');
         setNewRoleBase('USER');
         setNewRoleModules(['/']);
+        setOrganizationId(organizations[0]?.id || '');
         setError(null);
         setIsRoleModalOpen(true);
     };
@@ -315,6 +325,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setNewRoleName(template.name);
         setNewRoleBase(template.baseRole);
         setNewRoleModules(template.accessibleModules);
+        setOrganizationId(template.organizationId);
         setError(null);
         setIsRoleModalOpen(true);
     };
@@ -324,37 +335,45 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setLoading(true);
         setError(null);
 
-        if (editingRoleId) {
-            const res = await updateRoleTemplate(editingRoleId, {
-                name: newRoleName,
-                baseRole: newRoleBase,
-                organizationId,
-                accessibleModules: newRoleModules
-            });
+        try {
+            if (editingRoleId) {
+                const res = await updateRoleTemplate(editingRoleId, {
+                    name: newRoleName,
+                    baseRole: newRoleBase,
+                    organizationId,
+                    accessibleModules: newRoleModules
+                });
 
-            if (!res.success) {
-                setError(res.error || 'Error al actualizar la plantilla de rol.');
-                setLoading(false);
-                return;
-            }
-        } else {
-            const res = await createRoleTemplate({
-                name: newRoleName,
-                baseRole: newRoleBase,
-                organizationId,
-                accessibleModules: newRoleModules
-            });
+                if (!res.success) {
+                    setError(res.error || 'Error al actualizar la plantilla de rol.');
+                    setLoading(false);
+                    return;
+                }
+            } else {
+                const res = await createRoleTemplate({
+                    name: newRoleName,
+                    baseRole: newRoleBase,
+                    organizationId,
+                    accessibleModules: newRoleModules
+                });
 
-            if (!res.success) {
-                setError(res.error || 'Error al crear la plantilla de rol.');
-                setLoading(false);
-                return;
+                if (!res.success) {
+                    setError(res.error || 'Error al crear la plantilla de rol.');
+                    setLoading(false);
+                    return;
+                }
             }
+
+            setIsRoleModalOpen(false);
+            setLoading(false);
+            router.refresh();
+        } catch (err: any) {
+            console.error('Error al guardar plantilla de rol:', err);
+            const errMsg = err?.message || 'Ocurrió un error inesperado al guardar la plantilla de rol.';
+            setError(errMsg);
+            toast.error(errMsg);
+            setLoading(false);
         }
-
-        setIsRoleModalOpen(false);
-        setLoading(false);
-        router.refresh();
     };
 
     const handleDeleteTemplate = async (id: string, roleName: string) => {

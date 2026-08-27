@@ -47,6 +47,7 @@ const searchItems: SearchItem[] = [
     { name: 'Órdenes de Entrega', category: 'Ventas y Servicios', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['ordenes', 'entrega', 'delivery', 'shipping'] },
     { name: 'Cierre de Caja', category: 'Ventas y Servicios', href: '/cierre-caja', keywords: ['cierre', 'caja', 'cortes', 'arqueo', 'cash close'] },
     { name: 'Cuentas por Cobrar', category: 'Ventas y Servicios', href: '/cxc', keywords: ['cxc', 'cuentas', 'cobrar', 'abonos', 'pagos', 'clientes', 'saldos', 'credito', 'deuda', 'libro mayor'] },
+    { name: 'Rutas y Auto-Venta', category: 'Ventas y Servicios', href: '/inventario-ventas/rutas', keywords: ['rutas', 'auto-venta', 'reparto', 'camiones', 'conductores', 'vendedores', 'auto venta'] },
     { name: 'Usuarios y Roles', category: 'Administración', href: '/admin/users', roles: ['SUPER_ADMIN', 'CHECKIN_KIDS_ADMIN'], keywords: ['usuarios', 'roles', 'permisos', 'users', 'staff'] },
     { name: 'Avances del Desarrollo', category: 'Administración', href: '/admin/avances', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'GERENTE', 'EXECUTIVE_ASSISTANT'], keywords: ['avances', 'desarrollo', 'progreso', 'manuel tejada', 'erp', 'completion', 'usabilidad', 'ux'] },
     { name: 'Gestión Web / Tienda', category: 'Administración', href: '/admin/gestion-web', roles: ['SUPER_ADMIN', 'ORG_ADMIN'], keywords: ['web', 'tienda', 'shop', 'configuracion web'] },

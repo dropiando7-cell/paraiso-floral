@@ -22,6 +22,7 @@ const allAvailableModules = [
     { id: '/conciliacion', name: 'Conciliación Bancaria' },
     { id: '/boveda', name: 'Bóveda de Contraseñas' },
     { id: '/calendario', name: 'Calendario Centralizado' },
+    { id: '/inventario-ventas/rutas', name: 'Rutas y Auto-Venta' },
     { id: '/admin/tarjetas-digitales', name: 'Tarjetas Digitales' }
 ];
 

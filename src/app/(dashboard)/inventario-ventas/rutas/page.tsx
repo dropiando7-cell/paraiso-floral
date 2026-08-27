@@ -2,11 +2,12 @@ import { getRutas, getCediProductos, getCediClientes, getCamiones, getRutasPrede
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
+import { withRoleGuard } from '@/utils/rbac';
 import RutasClient from './RutasClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function RutasPage() {
+async function RutasPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -82,3 +83,5 @@ export default async function RutasPage() {
     />
   );
 }
+
+export default withRoleGuard('/inventario-ventas/rutas', RutasPage);

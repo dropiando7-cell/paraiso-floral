@@ -2,11 +2,12 @@ import { getRutas, getCediProductos, getCediClientes } from '../actions';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
+import { withRoleGuard } from '@/utils/rbac';
 import PosMovilClient from './PosMovilClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function PosMovilPage() {
+async function PosMovilPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -44,3 +45,5 @@ export default async function PosMovilPage() {
     />
   );
 }
+
+export default withRoleGuard('/inventario-ventas/rutas', PosMovilPage);
