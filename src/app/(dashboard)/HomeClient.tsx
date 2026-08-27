@@ -20,8 +20,10 @@ import {
   ShieldCheck,
   User,
   Zap,
-  Tv
+  Tv,
+  Truck
 } from 'lucide-react';
+import { getRutas } from './inventario-ventas/rutas/actions';
 
 interface HomeClientProps {
   dbUser: any;
@@ -52,6 +54,18 @@ export default function HomeClient({
 }: HomeClientProps) {
   const [activeTab, setActiveTab] = useState<'soporte' | 'kanban'>('soporte');
   const [greeting, setGreeting] = useState('¡Hola!');
+  const [routeStats, setRouteStats] = useState({ active: 0, cash: 0, pending: 0 });
+
+  useEffect(() => {
+    getRutas().then(rutas => {
+      const active = rutas.filter(r => r.estado === 'EN_RUTA').length;
+      const cash = rutas.reduce((acc, curr) => 
+        acc + (curr.estado === 'EN_RUTA' || curr.estado === 'EN_LIQUIDACION' ? Number(curr.ventasContado) + Number(curr.abonosCxC) : 0), 0
+      );
+      const pending = rutas.filter(r => r.estado === 'EN_LIQUIDACION').length;
+      setRouteStats({ active, cash, pending });
+    }).catch(() => {});
+  }, []);
 
   // Set greeting based on local hour
   useEffect(() => {
@@ -267,7 +281,7 @@ export default function HomeClient({
       </div>
 
       {/* 2. STATS ROW (V0 Modern layout) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         
         {/* Stat 1: Soporte */}
         <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex items-center justify-between group hover:shadow-md transition-all duration-300">
@@ -333,6 +347,36 @@ export default function HomeClient({
           <Link 
             href="/kanban"
             className="flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-700 bg-blue-50 px-3 py-2 rounded-lg transition-colors shrink-0"
+          >
+            <span>Ver todo</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        {/* Stat 3: Camiones en Ruta */}
+        <div className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm flex items-center justify-between group hover:shadow-md transition-all duration-300">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shadow-inner">
+              <Truck className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-slate-500 font-semibold">Reparto y Auto-Venta</span>
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight mt-0.5">
+                {routeStats.active} activos
+              </h2>
+              <div className="flex flex-wrap gap-1.5 mt-2 text-[10px] font-bold">
+                <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200">
+                  En Tránsito: L{routeStats.cash.toLocaleString('es-HN', { maximumFractionDigits: 0 })}
+                </span>
+                <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
+                  Liquidar: {routeStats.pending}
+                </span>
+              </div>
+            </div>
+          </div>
+          <Link 
+            href="/inventario-ventas/rutas"
+            className="flex items-center gap-1 text-xs font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-3 py-2 rounded-lg transition-colors shrink-0"
           >
             <span>Ver todo</span>
             <ChevronRight className="w-3.5 h-3.5" />

@@ -1,0 +1,309 @@
+{
+  "rutas": [
+    {
+      "id": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
+      "camionPlaca": "TRC-204",
+      "conductorId": "default-conductor-id",
+      "conductorNombre": "Marcio Vendedor",
+      "conductorAvatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=256",
+      "rutaNombre": "San Pedro Sula ➡️ La Esperanza",
+      "estado": "EN_RUTA",
+      "dock": "Muelle 3",
+      "fechaSalida": "2026-08-27T02:37:11.179Z",
+      "capacidadKilos": 1500,
+      "volumenM3": 12,
+      "efectivoInicial": 2500,
+      "ventasContado": 4500,
+      "abonosCxC": 1500,
+      "efectivoEntregado": 0,
+      "diferenciaFinanciera": 0,
+      "createdAt": "2026-08-27T00:37:11.179Z",
+      "updatedAt": "2026-08-27T06:37:11.179Z",
+      "cargoGrid": [
+        {
+          "id": "1",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "bahia": "A1",
+          "facturaNumero": "FAC-SO000102",
+          "contenido": "Rosas Rojas (100 tallos)"
+        },
+        {
+          "id": "2",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "bahia": "A2",
+          "facturaNumero": "FAC-SO000103",
+          "contenido": "Girasoles Premium (50 tallos)"
+        },
+        {
+          "id": "3",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "bahia": "B1",
+          "facturaNumero": "FAC-SO000104",
+          "contenido": "Lirios Blancos (30 tallos)"
+        },
+        {
+          "id": "4",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "bahia": "C1",
+          "contenido": "Follaje Eucalipto (10 paquetes)"
+        }
+      ],
+      "pedidos": [
+        {
+          "id": "p1",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "facturaId": "f1",
+          "facturaNumero": "FAC-SO000102",
+          "clienteNombre": "FLORISTERÍA ROSALÍA",
+          "totalFactura": 3500,
+          "estadoEntrega": "ENTREGADO",
+          "montoCobrado": 3500,
+          "formaPago": "EFECTIVO",
+          "firmaUrl": "firma_mock_1",
+          "entregadoAt": "2026-08-27T04:37:11.179Z"
+        },
+        {
+          "id": "p2",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "facturaId": "f2",
+          "facturaNumero": "FAC-SO000103",
+          "clienteNombre": "EVENTOS ELEGANTES",
+          "totalFactura": 4800,
+          "estadoEntrega": "PENDIETE",
+          "montoCobrado": 0
+        }
+      ],
+      "inventario": [
+        {
+          "id": "i1",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "productoId": "prod-rosas",
+          "productoNombre": "Rosas Rojas Importadas (Tallo)",
+          "productoSku": "FL-ROS-01",
+          "cantidadCargada": 500,
+          "cantidadVendida": 120,
+          "cantidadEntregada": 200,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 10,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "i2",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "productoId": "prod-girasoles",
+          "productoNombre": "Girasoles del Campo",
+          "productoSku": "FL-GIR-02",
+          "cantidadCargada": 200,
+          "cantidadVendida": 40,
+          "cantidadEntregada": 100,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 5,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "i3",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "productoId": "prod-eucalipto",
+          "productoNombre": "Follaje Eucalipto (Paquete)",
+          "productoSku": "FO-EUC-03",
+          "cantidadCargada": 100,
+          "cantidadVendida": 30,
+          "cantidadEntregada": 50,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        }
+      ],
+      "mermas": [
+        {
+          "id": "m1",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "productoId": "prod-rosas",
+          "productoNombre": "Rosas Rojas Importadas (Tallo)",
+          "cantidad": 10,
+          "motivo": "Maltrato por transporte"
+        },
+        {
+          "id": "m2",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "productoId": "prod-girasoles",
+          "productoNombre": "Girasoles del Campo",
+          "cantidad": 5,
+          "motivo": "Deshidratación"
+        }
+      ],
+      "abonos": [
+        {
+          "id": "a1",
+          "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+          "clienteId": "c1",
+          "clienteNombre": "DECO FLOR HONDURAS",
+          "monto": 1500,
+          "formaPago": "TRANSFERENCIA",
+          "referencia": "TRF-9823412",
+          "createdAt": "2026-08-27T05:37:11.179Z"
+        }
+      ]
+    },
+    {
+      "id": "c9975a24-86a6-4365-baa4-93611202e61f",
+      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
+      "camionPlaca": "TXF-101",
+      "conductorId": "b6ba7cb8-962f-4d82-9dea-62d6d7f03847",
+      "conductorNombre": "Erick Saavedra",
+      "conductorAvatar": "https://api.dicebear.com/7.x/initials/svg?seed=Erick%20Saavedra",
+      "rutaNombre": "San Pedro Sula / La Esperanza",
+      "estado": "CARGANDO",
+      "dock": "Muelle 1",
+      "capacidadKilos": 1500,
+      "volumenM3": 12,
+      "efectivoInicial": 1000,
+      "ventasContado": 0,
+      "abonosCxC": 0,
+      "efectivoEntregado": 0,
+      "diferenciaFinanciera": 0,
+      "createdAt": "2026-08-27T07:18:19.654Z",
+      "updatedAt": "2026-08-27T07:18:19.654Z",
+      "cargoGrid": [],
+      "pedidos": [],
+      "inventario": [],
+      "mermas": [],
+      "abonos": []
+    },
+    {
+      "id": "8d0a37b6-f4d5-4832-9eea-fe0325440aa7",
+      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
+      "camionPlaca": "TRC-999",
+      "conductorId": "7889b91d-5b66-4bf1-bc38-a796076f5cfb",
+      "conductorNombre": "Lucio Barahona",
+      "conductorAvatar": "https://api.dicebear.com/7.x/initials/svg?seed=Lucio%20Barahona",
+      "rutaNombre": "San Pedro Sula ➡️ Santa Rosa de Copán",
+      "estado": "CARGANDO",
+      "dock": "Muelle 1",
+      "acompanante": "Pedro Ayudante",
+      "capacidadKilos": 2000,
+      "volumenM3": 15,
+      "efectivoInicial": 1000,
+      "gastosIniciales": {
+        "vueltos": 1000,
+        "gasolina": 0,
+        "comida": 0,
+        "otros": 0
+      },
+      "ventasContado": 0,
+      "abonosCxC": 0,
+      "efectivoEntregado": 0,
+      "diferenciaFinanciera": 0,
+      "createdAt": "2026-08-27T08:11:51.501Z",
+      "updatedAt": "2026-08-27T08:11:51.501Z",
+      "cargoGrid": [],
+      "pedidos": [],
+      "inventario": [],
+      "mermas": [],
+      "abonos": []
+    }
+  ],
+  "logs": [
+    {
+      "rutaId": "8d0a37b6-f4d5-4832-9eea-fe0325440aa7",
+      "timestamp": "2026-08-27T08:11:51.503Z",
+      "accion": "CREACIÓN",
+      "detalle": "Ruta de reparto creada y camión asignado a Lucio Barahona",
+      "usuarioNombre": "Marcio Barahona"
+    },
+    {
+      "rutaId": "c9975a24-86a6-4365-baa4-93611202e61f",
+      "timestamp": "2026-08-27T07:18:19.655Z",
+      "accion": "CREACIÓN",
+      "detalle": "Ruta de reparto creada y camión asignado a Erick Saavedra",
+      "usuarioNombre": "Marcio Barahona"
+    },
+    {
+      "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+      "timestamp": "2026-08-27T02:37:11.179Z",
+      "accion": "SALIDA",
+      "detalle": "Camión despachado desde CEDI SPS",
+      "usuarioNombre": "Administrador"
+    },
+    {
+      "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+      "timestamp": "2026-08-27T03:07:11.179Z",
+      "accion": "ESCANEO",
+      "detalle": "Chofer escaneó entrega FAC-SO000102 para Floristería Rosalía",
+      "usuarioNombre": "Marcio Vendedor"
+    },
+    {
+      "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+      "timestamp": "2026-08-27T04:37:11.179Z",
+      "accion": "ENTREGA",
+      "detalle": "Entrega exitosa de FAC-SO000102 a Floristería Rosalía. Firma recolectada.",
+      "usuarioNombre": "Marcio Vendedor"
+    },
+    {
+      "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+      "timestamp": "2026-08-27T05:07:11.179Z",
+      "accion": "AUTO-VENTA",
+      "detalle": "Venta directa en ruta registrada a Consumidor Final (15 Rosas Rojas)",
+      "usuarioNombre": "Marcio Vendedor"
+    },
+    {
+      "rutaId": "8ed33065-da0c-4e5a-b885-ed034ce84853",
+      "timestamp": "2026-08-27T05:37:11.179Z",
+      "accion": "COBRO",
+      "detalle": "Abono CxC de L1,500.00 recibido de Deco Flor Honduras",
+      "usuarioNombre": "Marcio Vendedor"
+    }
+  ],
+  "camiones": [
+    {
+      "id": "cam-1",
+      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
+      "placa": "TRC-204",
+      "conductorId": "default-conductor-id",
+      "conductorNombre": "Marcio Vendedor",
+      "acompanante": "Juan Ayudante",
+      "capacidadKilos": 1500,
+      "volumenM3": 12,
+      "createdAt": "2026-08-27T06:44:03.004Z"
+    },
+    {
+      "id": "d49ef443-f43b-45b6-bcea-0641e0fd3066",
+      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
+      "placa": "TRC-999",
+      "conductorId": "c2216723-653d-4169-8985-c2f836a09a4b",
+      "conductorNombre": "Marcio Barahona",
+      "acompanante": "Pedro Ayudante",
+      "capacidadKilos": 2000,
+      "volumenM3": 15,
+      "createdAt": "2026-08-27T06:48:42.682Z"
+    },
+    {
+      "id": "df796d06-c1a0-4a35-8b90-f0936efd7a93",
+      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
+      "placa": "TXF-101",
+      "conductorId": "b6ba7cb8-962f-4d82-9dea-62d6d7f03847",
+      "conductorNombre": "Erick Saavedra",
+      "capacidadKilos": 1500,
+      "volumenM3": 12,
+      "createdAt": "2026-08-27T07:17:29.108Z"
+    }
+  ],
+  "rutasPredefinidas": [
+    {
+      "id": "rp-1",
+      "origen": "San Pedro Sula",
+      "destino": "La Esperanza"
+    },
+    {
+      "id": "rp-2",
+      "origen": "San Pedro Sula",
+      "destino": "Santa Rosa de Copán"
+    },
+    {
+      "id": "rp-3",
+      "origen": "San Pedro Sula",
+      "destino": "Tegucigalpa"
+    }
+  ]
+}

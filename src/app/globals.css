@@ -81,3 +81,15 @@ body {
   animation-play-state: paused;
 }
 
+/* Hide spin-button for Chrome, Safari, Edge, Opera */
+.no-spin::-webkit-outer-spin-button,
+.no-spin::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Hide spin-button for Firefox */
+.no-spin {
+  -moz-appearance: textfield;
+}
+

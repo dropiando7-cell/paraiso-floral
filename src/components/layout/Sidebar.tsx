@@ -27,7 +27,8 @@ import {
   Bell,
   Megaphone,
   Coins,
-  Tv
+  Tv,
+  Truck
 } from 'lucide-react';
 import clsx from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -101,6 +102,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         ]
       },
       { name: 'Cuentas por Cobrar', href: '/cxc', icon: Coins },
+      { name: 'Rutas y Auto-Venta', href: '/inventario-ventas/rutas', icon: Truck },
     ]
   },
   {
