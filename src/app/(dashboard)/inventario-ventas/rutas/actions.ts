@@ -10,15 +10,88 @@ import { IRuta, IRutaPedido, IRutaStock, IMerma, IRutaAbono, ITruckCargo, IVenta
 const DB_FILE_PATH = path.join(process.cwd(), 'src', 'app', '(dashboard)', 'inventario-ventas', 'rutas', 'db.json');
 
 // Ensure database file exists and is initialized
-function getDb() {
-  if (!fs.existsSync(DB_FILE_PATH)) {
-    const parentDir = path.dirname(DB_FILE_PATH);
-    if (!fs.existsSync(parentDir)) {
-      fs.mkdirSync(parentDir, { recursive: true });
+// Ensure database file exists and is initialized
+async function getDb() {
+  try {
+    const setting = await prisma.systemSetting.findUnique({
+      where: { key: 'rutas_db' }
+    });
+    if (setting) {
+      const parsed = JSON.parse(setting.value);
+      let needsSave = false;
+      
+      let localDb: any = null;
+      const getLocalFallback = () => {
+        if (localDb) return localDb;
+        try {
+          if (fs.existsSync(DB_FILE_PATH)) {
+            const raw = fs.readFileSync(DB_FILE_PATH, 'utf-8');
+            localDb = JSON.parse(raw);
+          }
+        } catch (err) {
+          // ignore
+        }
+        return localDb;
+      };
+
+      if (!parsed.rutas) {
+        const fallback = getLocalFallback();
+        parsed.rutas = fallback?.rutas || [];
+        needsSave = true;
+      }
+      if (!parsed.logs) {
+        const fallback = getLocalFallback();
+        parsed.logs = fallback?.logs || [];
+        needsSave = true;
+      }
+      if (!parsed.camiones) {
+        const fallback = getLocalFallback();
+        parsed.camiones = fallback?.camiones || [
+          {
+            id: 'cam-1',
+            organizationId: '',
+            placa: 'TRC-204',
+            conductorId: 'default-conductor-id',
+            conductorNombre: 'Marcio Vendedor',
+            acompanante: 'Juan Ayudante',
+            capacidadKilos: 1500,
+            volumenM3: 12,
+            createdAt: new Date().toISOString()
+          }
+        ];
+        needsSave = true;
+      }
+      if (!parsed.rutasPredefinidas) {
+        const fallback = getLocalFallback();
+        parsed.rutasPredefinidas = fallback?.rutasPredefinidas || [
+          { id: 'rp-1', origen: 'San Pedro Sula', destino: 'La Esperanza' },
+          { id: 'rp-2', origen: 'San Pedro Sula', destino: 'Santa Rosa de Copán' },
+          { id: 'rp-3', origen: 'San Pedro Sula', destino: 'Tegucigalpa' }
+        ];
+        needsSave = true;
+      }
+      if (needsSave) {
+        await saveDb(parsed);
+      }
+      return parsed;
     }
-    
-    // Seed data
-    const initialDb = {
+  } catch (err) {
+    console.error('Error fetching rutas_db from database:', err);
+  }
+
+  // Fallback / Seed from local db.json if database fetch failed or returned nothing
+  let localDb: any = null;
+  try {
+    if (fs.existsSync(DB_FILE_PATH)) {
+      const raw = fs.readFileSync(DB_FILE_PATH, 'utf-8');
+      localDb = JSON.parse(raw);
+    }
+  } catch (err) {
+    console.error('Error reading local db.json seed:', err);
+  }
+
+  if (!localDb) {
+    localDb = {
       rutas: [
         {
           id: '8ed33065-da0c-4e5a-b885-ed034ce84853',
@@ -136,16 +209,8 @@ function getDb() {
         { rutaId: '8ed33065-da0c-4e5a-b885-ed034ce84853', timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), accion: 'ENTREGA', detalle: 'Entrega exitosa de FAC-SO000102 a Floristería Rosalía. Firma recolectada.', usuarioNombre: 'Marcio Vendedor' },
         { rutaId: '8ed33065-da0c-4e5a-b885-ed034ce84853', timestamp: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(), accion: 'AUTO-VENTA', detalle: 'Venta directa en ruta registrada a Consumidor Final (15 Rosas Rojas)', usuarioNombre: 'Marcio Vendedor' },
         { rutaId: '8ed33065-da0c-4e5a-b885-ed034ce84853', timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), accion: 'COBRO', detalle: 'Abono CxC de L1,500.00 recibido de Deco Flor Honduras', usuarioNombre: 'Marcio Vendedor' }
-      ]
-    };
-    fs.writeFileSync(DB_FILE_PATH, JSON.stringify(initialDb, null, 2), 'utf-8');
-  }
-  
-  try {
-    const raw = fs.readFileSync(DB_FILE_PATH, 'utf-8');
-    const parsed = JSON.parse(raw);
-    if (!parsed.camiones) {
-      parsed.camiones = [
+      ],
+      camiones: [
         {
           id: 'cam-1',
           organizationId: '',
@@ -157,30 +222,49 @@ function getDb() {
           volumenM3: 12,
           createdAt: new Date().toISOString()
         }
-      ];
-    }
-    if (!parsed.rutasPredefinidas) {
-      parsed.rutasPredefinidas = [
+      ],
+      rutasPredefinidas: [
         { id: 'rp-1', origen: 'San Pedro Sula', destino: 'La Esperanza' },
         { id: 'rp-2', origen: 'San Pedro Sula', destino: 'Santa Rosa de Copán' },
         { id: 'rp-3', origen: 'San Pedro Sula', destino: 'Tegucigalpa' }
-      ];
-      fs.writeFileSync(DB_FILE_PATH, JSON.stringify(parsed, null, 2), 'utf-8');
-    }
-    return parsed;
+      ]
+    };
+  }
+
+  // Save the seed/local database to PostgreSQL
+  try {
+    await prisma.systemSetting.upsert({
+      where: { key: 'rutas_db' },
+      update: { value: JSON.stringify(localDb) },
+      create: { key: 'rutas_db', value: JSON.stringify(localDb) }
+    });
   } catch (err) {
-    console.error('Error reading JSON DB, reinitializing...', err);
-    return { rutas: [], logs: [], camiones: [], rutasPredefinidas: [] };
+    console.error('Failed to seed/save routes database in Postgres system_settings:', err);
+  }
+
+  return localDb;
+}
+
+async function saveDb(dbData: any) {
+  try {
+    await prisma.systemSetting.upsert({
+      where: { key: 'rutas_db' },
+      update: { value: JSON.stringify(dbData) },
+      create: { key: 'rutas_db', value: JSON.stringify(dbData) }
+    });
+  } catch (err) {
+    console.error('Failed to save routes database to Postgres system_settings:', err);
+    try {
+      fs.writeFileSync(DB_FILE_PATH, JSON.stringify(dbData, null, 2), 'utf-8');
+    } catch (fsErr) {
+      // ignore
+    }
   }
 }
 
-function saveDb(dbData: any) {
-  fs.writeFileSync(DB_FILE_PATH, JSON.stringify(dbData, null, 2), 'utf-8');
-}
-
 // Helper to log activities
-function addRouteLog(rutaId: string, accion: string, detalle: string, usuarioNombre: string) {
-  const db = getDb();
+async function addRouteLog(rutaId: string, accion: string, detalle: string, usuarioNombre: string) {
+  const db = await getDb();
   const newLog = {
     rutaId,
     timestamp: new Date().toISOString(),
@@ -189,7 +273,7 @@ function addRouteLog(rutaId: string, accion: string, detalle: string, usuarioNom
     usuarioNombre
   };
   db.logs = [newLog, ...(db.logs || [])];
-  saveDb(db);
+  await saveDb(db);
 }
 
 // ─── SERVER ACTIONS ──────────────────────────────────────────────────────────
@@ -213,14 +297,14 @@ async function getUserOrg() {
 // 1. List Routes
 export async function getRutas(): Promise<IRuta[]> {
   const user = await getUserOrg();
-  const db = getDb();
+  const db = await getDb();
   
   // Set default organizationId if empty
   if (user) {
     db.rutas.forEach((r: any) => {
       if (!r.organizationId) r.organizationId = user.organizationId;
     });
-    saveDb(db);
+    await saveDb(db);
     return db.rutas.filter((r: any) => r.organizationId === user.organizationId);
   }
   
@@ -229,14 +313,14 @@ export async function getRutas(): Promise<IRuta[]> {
 
 // 2. Get Route Detail
 export async function getRutaById(id: string): Promise<IRuta | null> {
-  const db = getDb();
+  const db = await getDb();
   const ruta = db.rutas.find((r: any) => r.id === id);
   return ruta || null;
 }
 
 // 3. Get Route Logs
 export async function getRutaLogs(rutaId: string) {
-  const db = getDb();
+  const db = await getDb();
   return (db.logs || []).filter((l: any) => l.rutaId === rutaId);
 }
 
@@ -258,7 +342,7 @@ export async function createRuta(data: {
   const user = await getUserOrg();
   if (!user) return { success: false, error: 'No autorizado' };
 
-  const db = getDb();
+  const db = await getDb();
   const newRutaId = crypto.randomUUID();
 
   // Create cargo grid automatically for pre-loaded orders
@@ -358,10 +442,10 @@ export async function createRuta(data: {
   };
 
   db.rutas.push(newRuta);
-  saveDb(db);
+  await saveDb(db);
 
   const userName = [user.nombre, user.apellido].filter(Boolean).join(' ') || 'Admin';
-  addRouteLog(newRutaId, 'CREACIÓN', `Ruta de reparto creada y camión asignado a ${data.conductorNombre}`, userName);
+  await addRouteLog(newRutaId, 'CREACIÓN', `Ruta de reparto creada y camión asignado a ${data.conductorNombre}`, userName);
 
   revalidatePath('/inventario-ventas/rutas');
   return { success: true, id: newRutaId };
@@ -370,16 +454,16 @@ export async function createRuta(data: {
 // 5. Despachar Camión (Start Route)
 export async function despacharCamion(id: string) {
   const user = await getUserOrg();
-  const db = getDb();
+  const db = await getDb();
   const idx = db.rutas.findIndex((r: any) => r.id === id);
   if (idx !== -1) {
     db.rutas[idx].estado = 'EN_RUTA';
     db.rutas[idx].fechaSalida = new Date().toISOString();
     db.rutas[idx].updatedAt = new Date().toISOString();
-    saveDb(db);
+    await saveDb(db);
 
     const userName = user ? [user.nombre, user.apellido].filter(Boolean).join(' ') : 'Admin';
-    addRouteLog(id, 'SALIDA', `Camión despachado desde CEDI con éxito`, userName || 'Admin');
+    await addRouteLog(id, 'SALIDA', `Camión despachado desde CEDI con éxito`, userName || 'Admin');
     
     revalidatePath('/inventario-ventas/rutas');
     return { success: true };
@@ -400,7 +484,7 @@ export async function registrarEntregaPedido(
     fotoComprobanteUrl?: string 
   }
 ) {
-  const db = getDb();
+  const db = await getDb();
   const rIdx = db.rutas.findIndex((r: any) => r.id === rutaId);
   if (rIdx === -1) return { success: false, error: 'Ruta no encontrada' };
   
@@ -452,9 +536,9 @@ export async function registrarEntregaPedido(
 
   ruta.updatedAt = new Date().toISOString();
   db.rutas[rIdx] = ruta;
-  saveDb(db);
+  await saveDb(db);
 
-  addRouteLog(
+  await addRouteLog(
     rutaId, 
     data.estadoEntrega === 'ENTREGADO' ? 'ENTREGADO' : 'RECHAZADO',
     `Entrega de factura ${pedido.facturaNumero} ${data.estadoEntrega === 'ENTREGADO' ? 'EXITOSA' : 'RECHAZADA (' + data.motivoRechazo + ')'}`,
@@ -467,7 +551,7 @@ export async function registrarEntregaPedido(
 
 // 7. Auto-Venta Directa en Ruta (Mobile POS)
 export async function registrarVentaMovil(rutaId: string, venta: IVentaMovil) {
-  const db = getDb();
+  const db = await getDb();
   const rIdx = db.rutas.findIndex((r: any) => r.id === rutaId);
   if (rIdx === -1) return { success: false, error: 'Ruta no encontrada' };
 
@@ -517,9 +601,9 @@ export async function registrarVentaMovil(rutaId: string, venta: IVentaMovil) {
 
   ruta.updatedAt = new Date().toISOString();
   db.rutas[rIdx] = ruta;
-  saveDb(db);
+  await saveDb(db);
 
-  addRouteLog(
+  await addRouteLog(
     rutaId, 
     'AUTO-VENTA', 
     `Auto-venta de contado emitida a ${venta.clienteNombre} por L${venta.total.toFixed(2)} (${facturaNumero})`,
@@ -569,7 +653,7 @@ export async function registrarAbonoCxC(rutaId: string, data: {
   formaPago: 'EFECTIVO' | 'TRANSFERENCIA';
   referencia?: string;
 }) {
-  const db = getDb();
+  const db = await getDb();
   const rIdx = db.rutas.findIndex((r: any) => r.id === rutaId);
   if (rIdx === -1) return { success: false, error: 'Ruta no encontrada' };
 
@@ -592,9 +676,9 @@ export async function registrarAbonoCxC(rutaId: string, data: {
   ruta.updatedAt = new Date().toISOString();
   
   db.rutas[rIdx] = ruta;
-  saveDb(db);
+  await saveDb(db);
 
-  addRouteLog(
+  await addRouteLog(
     rutaId, 
     'COBRO', 
     `Abono CxC de L${data.monto.toFixed(2)} registrado para ${data.clienteNombre} (${data.formaPago})`,
@@ -633,7 +717,7 @@ export async function registrarMermaRuta(rutaId: string, data: {
   motivo: string;
   fotoUrl?: string;
 }) {
-  const db = getDb();
+  const db = await getDb();
   const rIdx = db.rutas.findIndex((r: any) => r.id === rutaId);
   if (rIdx === -1) return { success: false, error: 'Ruta no encontrada' };
 
@@ -664,9 +748,9 @@ export async function registrarMermaRuta(rutaId: string, data: {
   ruta.mermas.push(newMerma);
   ruta.updatedAt = new Date().toISOString();
   db.rutas[rIdx] = ruta;
-  saveDb(db);
+  await saveDb(db);
 
-  addRouteLog(
+  await addRouteLog(
     rutaId, 
     'MERMA', 
     `Merma de ${data.cantidad} tallos registrada en ${data.productoNombre} (${data.motivo})`,
@@ -690,7 +774,7 @@ export async function liquidarRuta(
   const user = await getUserOrg();
   if (!user) return { success: false, error: 'No autorizado' };
 
-  const db = getDb();
+  const db = await getDb();
   const rIdx = db.rutas.findIndex((r: any) => r.id === rutaId);
   if (rIdx === -1) return { success: false, error: 'Ruta no encontrada' };
 
@@ -774,10 +858,10 @@ export async function liquidarRuta(
   ruta.updatedAt = new Date().toISOString();
 
   db.rutas[rIdx] = ruta;
-  saveDb(db);
+  await saveDb(db);
 
   const userName = [user.nombre, user.apellido].filter(Boolean).join(' ') || 'Admin';
-  addRouteLog(rutaId, 'LIQUIDACIÓN', `Ruta liquidada de forma definitiva. Diferencia financiera: L${ruta.diferenciaFinanciera.toFixed(2)}`, userName);
+  await addRouteLog(rutaId, 'LIQUIDACIÓN', `Ruta liquidada de forma definitiva. Diferencia financiera: L${ruta.diferenciaFinanciera.toFixed(2)}`, userName);
 
   revalidatePath('/inventario-ventas/rutas');
   return { success: true };
@@ -857,14 +941,14 @@ function getMockClientes() {
 // ─── Camiones Registry Actions ──────────────────────────────────────────────
 export async function getCamiones(): Promise<ICamion[]> {
   const user = await getUserOrg();
-  const db = getDb();
+  const db = await getDb();
   
   if (user) {
     if (!db.camiones) db.camiones = [];
     db.camiones.forEach((c: any) => {
       if (!c.organizationId) c.organizationId = user.organizationId;
     });
-    saveDb(db);
+    await saveDb(db);
     return db.camiones.filter((c: any) => c.organizationId === user.organizationId);
   }
   
@@ -883,7 +967,7 @@ export async function createCamion(data: {
   const user = await getUserOrg();
   if (!user) return { success: false, error: 'No autorizado' };
 
-  const db = getDb();
+  const db = await getDb();
   if (!db.camiones) db.camiones = [];
   
   // Check if plate already exists
@@ -906,7 +990,7 @@ export async function createCamion(data: {
   };
 
   db.camiones.push(newCamion);
-  saveDb(db);
+  await saveDb(db);
 
   revalidatePath('/inventario-ventas/rutas');
   return { success: true, camion: newCamion };
@@ -916,10 +1000,10 @@ export async function deleteCamion(id: string) {
   const user = await getUserOrg();
   if (!user) return { success: false, error: 'No autorizado' };
 
-  const db = getDb();
+  const db = await getDb();
   if (!db.camiones) db.camiones = [];
   db.camiones = db.camiones.filter((c: any) => c.id !== id);
-  saveDb(db);
+  await saveDb(db);
 
   revalidatePath('/inventario-ventas/rutas');
   return { success: true };
@@ -927,14 +1011,14 @@ export async function deleteCamion(id: string) {
 
 // ─── Predefined Routes CRUD Actions ──────────────────────────────────────────
 export async function getRutasPredefinidas(): Promise<{ id: string; origen: string; destino: string }[]> {
-  const db = getDb();
+  const db = await getDb();
   if (!db.rutasPredefinidas) {
     db.rutasPredefinidas = [
       { id: 'rp-1', origen: 'San Pedro Sula', destino: 'La Esperanza' },
       { id: 'rp-2', origen: 'San Pedro Sula', destino: 'Santa Rosa de Copán' },
       { id: 'rp-3', origen: 'San Pedro Sula', destino: 'Tegucigalpa' }
     ];
-    saveDb(db);
+    await saveDb(db);
   }
   return db.rutasPredefinidas;
 }
@@ -943,7 +1027,7 @@ export async function createRutaPredefinida(origen: string, destino: string) {
   const user = await getUserOrg();
   if (!user) return { success: false, error: 'No autorizado' };
 
-  const db = getDb();
+  const db = await getDb();
   if (!db.rutasPredefinidas) db.rutasPredefinidas = [];
 
   // Check duplicates
@@ -963,7 +1047,7 @@ export async function createRutaPredefinida(origen: string, destino: string) {
   };
 
   db.rutasPredefinidas.push(newRp);
-  saveDb(db);
+  await saveDb(db);
 
   revalidatePath('/inventario-ventas/rutas');
   return { success: true, rutaPredefinida: newRp };
@@ -973,10 +1057,10 @@ export async function deleteRutaPredefinida(id: string) {
   const user = await getUserOrg();
   if (!user) return { success: false, error: 'No autorizado' };
 
-  const db = getDb();
+  const db = await getDb();
   if (!db.rutasPredefinidas) db.rutasPredefinidas = [];
   db.rutasPredefinidas = db.rutasPredefinidas.filter((r: any) => r.id !== id);
-  saveDb(db);
+  await saveDb(db);
 
   revalidatePath('/inventario-ventas/rutas');
   return { success: true };
