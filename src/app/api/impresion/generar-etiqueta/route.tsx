@@ -27,9 +27,9 @@ export async function GET(req: NextRequest) {
     // Configuraciones de estilo dinámicas
     const cfg = {
         padding: is70x40 ? '22px 20px 22px 20px' : (is50x25 ? '12px 14px 8px 14px' : '20px 14px 20px 14px'),
-        idSize: is70x40 ? 22 : (is50x25 ? 22 : 17),
-        descSizeLong: is70x40 ? 18 : (is50x25 ? 18 : 14),
-        descSizeShort: is70x40 ? 22 : (is50x25 ? 24 : 18),
+        idSize: is70x40 ? 22 : (is50x25 ? 26 : 17),
+        descSizeLong: is70x40 ? 18 : (is50x25 ? 22 : 14),
+        descSizeShort: is70x40 ? 22 : (is50x25 ? 30 : 18),
         qrSize: is70x40 ? 110 : (is50x25 ? 75 : 90),
         qrImgSize: is70x40 ? 105 : (is50x25 ? 70 : 85),
         barcodeWidth: is70x40 ? 500 : (is50x25 ? 378 : 370),
