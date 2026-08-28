@@ -765,6 +765,31 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     }
   };
 
+  const playScannerBeep = useCallback(() => {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      
+      const audioContext = new AudioCtx();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(1400, audioContext.currentTime); // 1400 Hz
+      
+      gainNode.gain.setValueAtTime(0.18, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.065);
+      
+      oscillator.start();
+      oscillator.stop(audioContext.currentTime + 0.065);
+    } catch (e) {
+      console.warn("No se pudo reproducir el beep: ", e);
+    }
+  }, []);
+
   const handleScannedCode = useCallback((code: string) => {
     const cleanCode = code.trim().replace(/'/g, '-');
     
@@ -778,23 +803,15 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       addToCart(product);
       toast.success(`"${product.nombre}" agregado al ticket`);
       
-      // Beep de confirmación agradable
-      try {
-        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const oscillator = audioContext.createOscillator();
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
-        oscillator.connect(audioContext.destination);
-        oscillator.start();
-        oscillator.stop(audioContext.currentTime + 0.08);
-      } catch (e) {}
+      // Beep de confirmación tipo supermercado
+      playScannerBeep();
 
       // Cerrar el escáner
       setShowCameraScanner(false);
     } else {
       toast.error(`Código "${cleanCode}" no encontrado`);
     }
-  }, [productos, addToCart]);
+  }, [productos, addToCart, playScannerBeep]);
 
   const stopCameraScanner = useCallback(async () => {
     if (html5QrcodeRef.current && html5QrcodeRef.current.isScanning) {
@@ -877,6 +894,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
             const product = productos.find(p => p.sku.toLowerCase() === scannedSku.toLowerCase() || (p.codigoBarras && p.codigoBarras.toLowerCase() === scannedSku.toLowerCase()));
             if (product) {
                addToCart(product);
+               playScannerBeep();
                setSearchTerm(''); // Clear input so scanner garbage is removed
                return; // Stop processing further
             }
