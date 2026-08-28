@@ -33,12 +33,13 @@ export async function GET(req: NextRequest) {
         qrSize: is70x40 ? 110 : (is50x25 ? 75 : 90),
         qrImgSize: is70x40 ? 105 : (is50x25 ? 70 : 85),
         barcodeWidth: is70x40 ? 500 : (is50x25 ? 378 : 370),
-        barcodeHeight: is70x40 ? 40 : (is50x25 ? 50 : 26),
+        barcodeHeight: is70x40 ? 40 : (is50x25 ? 60 : 26),
         barcodeTextSize: is70x40 ? 14 : (is50x25 ? 12 : 11),
     };
 
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
-    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=M&includetext=false`;
+    // Usamos eclevel=L (menor densidad) para que los puntos del QR sean más grandes y definidos en impresoras térmicas
+    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=L&includetext=false`;
 
     // Barcode height=16 para 50x25 para que tenga suficiente resolución y altura
     const barcodeHeightAPI = is50x25 ? 16 : 8;
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest) {
                 {/* BARCODE ROW: altura y texto controlados para no desbordarse */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', marginTop: '8px' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={barcodeUrl} alt="Barcode" width={cfg.barcodeWidth} height={cfg.barcodeHeight} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
+                    <img src={barcodeUrl} alt="Barcode" width={cfg.barcodeWidth} height={cfg.barcodeHeight} style={{ objectFit: 'fill', imageRendering: 'pixelated' }} />
                     <span style={{ fontSize: cfg.barcodeTextSize, marginTop: '2px', letterSpacing: 3, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
                 </div>
             </div>
