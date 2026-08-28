@@ -10,7 +10,7 @@ import urllib.parse
 
 # ─── Configuración del Servidor y la Impresora ──────────────────────────────
 # URL base del ERP (se puede sobrescribir con la variable de entorno SERVER_URL)
-HOST = os.environ.get("SERVER_URL", "https://bioelectronicahn.vercel.app")
+HOST = os.environ.get("SERVER_URL", "https://paraiso-floral.vercel.app")
 
 API_PENDIENTES = f"{HOST}/api/impresion/niimbot/pendientes"
 API_COMPLETAR  = f"{HOST}/api/impresion/niimbot/completar"
