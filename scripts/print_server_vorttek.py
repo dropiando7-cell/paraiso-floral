@@ -48,10 +48,17 @@ DEFAULT_SIZE = "50x25"
 
 def imprimir_etiqueta(url_imagen, tamano_solicitado=None):
     try:
+        # Reemplazar dinámicamente el host de la URL por el HOST configurado
+        parsed_url = urllib.parse.urlparse(url_imagen)
+        parsed_host = urllib.parse.urlparse(HOST)
+        new_url_parts = list(parsed_url)
+        new_url_parts[0] = parsed_host.scheme
+        new_url_parts[1] = parsed_host.netloc
+        url_imagen = urllib.parse.urlunparse(new_url_parts)
+
         print(f"\n[*] Descargando etiqueta desde: {url_imagen}")
         
         # 1. Obtener los parámetros de la URL para determinar el tamaño
-        parsed_url = urllib.parse.urlparse(url_imagen)
         query_params = urllib.parse.parse_qs(parsed_url.query)
         
         size_param = tamano_solicitado or query_params.get('size', [DEFAULT_SIZE])[0]
