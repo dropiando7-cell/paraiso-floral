@@ -79,8 +79,9 @@ def imprimir_etiqueta(url_imagen, tamano_solicitado=None):
         img_scaled = img.resize((cfg['ANCHO_FIJO'], nuevo_alto), Image.NEAREST)
         
         # Binarización profunda para papel térmico (escala de grises -> Blanco y Negro puro)
+        # Umbral ajustado a 190 para engrosar trazos finos y mejorar el quemado térmico
         img_gris = img_scaled.convert("L")
-        img_final = img_gris.point(lambda x: 0 if x < 128 else 255, "1")
+        img_final = img_gris.point(lambda x: 0 if x < 190 else 255, "1")
         
         # 4. Enviar a la impresora en Windows
         hDC = win32ui.CreateDC()

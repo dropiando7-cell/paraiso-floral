@@ -26,22 +26,22 @@ export async function GET(req: NextRequest) {
     
     // Configuraciones de estilo dinámicas
     const cfg = {
-        padding: is70x40 ? '22px 20px 22px 20px' : (is50x25 ? '14px 14px 10px 14px' : '20px 14px 20px 14px'),
-        idSize: is70x40 ? 22 : (is50x25 ? 20 : 17),
-        descSizeLong: is70x40 ? 18 : (is50x25 ? 16 : 14),
-        descSizeShort: is70x40 ? 22 : (is50x25 ? 21 : 18),
-        qrSize: is70x40 ? 110 : (is50x25 ? 80 : 90),
-        qrImgSize: is70x40 ? 105 : (is50x25 ? 75 : 85),
+        padding: is70x40 ? '22px 20px 22px 20px' : (is50x25 ? '12px 14px 8px 14px' : '20px 14px 20px 14px'),
+        idSize: is70x40 ? 22 : (is50x25 ? 22 : 17),
+        descSizeLong: is70x40 ? 18 : (is50x25 ? 18 : 14),
+        descSizeShort: is70x40 ? 22 : (is50x25 ? 24 : 18),
+        qrSize: is70x40 ? 110 : (is50x25 ? 75 : 90),
+        qrImgSize: is70x40 ? 105 : (is50x25 ? 70 : 85),
         barcodeWidth: is70x40 ? 500 : (is50x25 ? 378 : 370),
-        barcodeHeight: is70x40 ? 40 : (is50x25 ? 35 : 26),
+        barcodeHeight: is70x40 ? 40 : (is50x25 ? 50 : 26),
         barcodeTextSize: is70x40 ? 14 : (is50x25 ? 12 : 11),
     };
 
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
     const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=M&includetext=false`;
 
-    // Barcode height=12 para 50x25 para que tenga suficiente resolución y altura
-    const barcodeHeightAPI = is50x25 ? 12 : 8;
+    // Barcode height=16 para 50x25 para que tenga suficiente resolución y altura
+    const barcodeHeightAPI = is50x25 ? 16 : 8;
     const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=${barcodeHeightAPI}&scale=4&includetext=false`;
 
     const descStr = descripcion.substring(0, 60).toUpperCase();
