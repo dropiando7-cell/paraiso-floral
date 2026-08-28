@@ -96,6 +96,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
           { name: 'Directorio de Clientes', href: '/contactos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Cotizaciones', href: '/cotizaciones', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Facturación', href: '/facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Pedidos y Picking', href: '/inventario-ventas/pedidos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'AUXILIAR_BODEGA', 'GERENTE'] },
           { name: 'Órdenes de Entrega', href: '/facturas?tab=facturas', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Garantías y Mantenimientos', href: '/mantenimientos', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Cierre de Caja', href: '/cierre-caja' }

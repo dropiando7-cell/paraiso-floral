@@ -62,6 +62,7 @@ model Organization {
   kanbanSpaces          KanbanSpace[]
   kanbanTasks           KanbanTask[]
   ordenesEntrega        OrdenEntrega[]
+  pedidos               Pedido[]
   digitalCards          DigitalCard[]
   activityLogs          ActivityLog[]
   equiposCliente        EquipoCliente[]
@@ -170,6 +171,11 @@ model User {
   notasCreditoCreadas      NotaCreditoCliente[] @relation("NotaCreditoCreada")
   auditoriasCreadas        AuditoriaInventario[] @relation("AuditoriaCreadoPor")
   auditoriasAprobadas      AuditoriaInventario[] @relation("AuditoriaAprobadoPor")
+
+  // Pedidos
+  pedidosAsignados         Pedido[]              @relation("AuxiliarPedidos")
+  pedidosCreados           Pedido[]              @relation("CreatedPedidos")
+  pedidosAnulados          Pedido[]              @relation("AnuladoPedidos")
 
   @@map("users")
 }
@@ -655,6 +661,8 @@ model Producto {
   movimientos             MovimientoInventario[]
   ordenesTrabajoRepuestos OrdenTrabajoRepuesto[]
   organization            Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pedidoItems             PedidoItem[]           @relation("PedidoItemsProducto")
+  pedidoItemsSustituidos  PedidoItem[]           @relation("PedidoItemsSustituto")
 
   @@unique([organizationId, sku])
   @@index([organizationId])
@@ -712,6 +720,7 @@ model Cliente {
   activosClientes    ActivoFijo[]   @relation("ActivoCliente")
   pagos              PagoCliente[]
   notasCredito       NotaCreditoCliente[]
+  pedidos            Pedido[]
 
   @@index([organizationId])
   @@index([nombre])
@@ -981,6 +990,7 @@ enum Role {
   RECEPCION
   TECNICO
   GERENTE
+  AUXILIAR_BODEGA
 }
 
 enum OrganizationStatus {
@@ -1719,6 +1729,62 @@ model AuditoriaDetalle {
 
   @@index([auditoriaId])
   @@map("auditorias_detalle")
+}
+
+model Pedido {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId     String       @db.Uuid
+  codigoPedido       String       // ej. PED-2026-0042
+  clienteId          String       @db.Uuid
+  destino            String
+  estado             String       @default("pendiente") // pendiente, en_preparacion, completado, despachado
+  estadoPago         String       @default("pagado") // pagado, contra_entrega, credito
+  auxiliarAsignadoId String?      @db.Uuid
+  notas              String?      @db.Text
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  // Trazabilidad Estándar (Workflow de Base de Datos)
+  creadoPorId        String?      @db.Uuid
+  creadoPor          User?        @relation("CreatedPedidos", fields: [creadoPorId], references: [id])
+  anuladoPorId       String?      @db.Uuid
+  anuladoPor         User?        @relation("AnuladoPedidos", fields: [anuladoPorId], references: [id])
+  anuladoAt          DateTime?
+
+  cliente            Cliente      @relation(fields: [clienteId], references: [id])
+  auxiliarAsignado   User?        @relation("AuxiliarPedidos", fields: [auxiliarAsignadoId], references: [id])
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items              PedidoItem[]
+
+  @@unique([organizationId, codigoPedido])
+  @@index([organizationId])
+  @@index([clienteId])
+  @@index([auxiliarAsignadoId])
+  @@map("pedidos")
+}
+
+model PedidoItem {
+  id                 String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pedidoId           String       @db.Uuid
+  productoId         String       @db.Uuid
+  nombreProducto     String
+  variedadTono       String?
+  codigoBarras       String?
+  cantidadSolicitada Int
+  cantidadPreparada  Int          @default(0)
+  recolectado        Boolean      @default(false)
+  
+  // Sustituto
+  sustituidoPorId    String?      @db.Uuid
+  nombreSustituto    String?
+
+  pedido             Pedido       @relation(fields: [pedidoId], references: [id], onDelete: Cascade)
+  producto           Producto     @relation("PedidoItemsProducto", fields: [productoId], references: [id])
+  sustituidoPor      Producto?    @relation("PedidoItemsSustituto", fields: [sustituidoPorId], references: [id])
+
+  @@index([pedidoId])
+  @@index([productoId])
+  @@map("pedido_items")
 }
 
 

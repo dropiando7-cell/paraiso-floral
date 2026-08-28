@@ -93,3 +93,15 @@ body {
   -moz-appearance: textfield;
 }
 
+/* Efecto de alerta/vibración para nuevos pedidos */
+@keyframes gentle-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-3px) rotate(-0.5deg); }
+  40%, 80% { transform: translateX(3px) rotate(0.5deg); }
+}
+
+.animate-alert-shake {
+  animation: gentle-shake 2.5s infinite ease-in-out;
+}
+
+

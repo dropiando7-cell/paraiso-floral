@@ -163,9 +163,26 @@ export default async function Home() {
     }
   }
 
+  // Fetch pending Pedidos assigned to the user
+  const pendingPedidos = await prisma.pedido.findMany({
+    where: {
+      organizationId: dbUser.organizationId,
+      auxiliarAsignadoId: dbUser.id,
+      estado: 'pendiente'
+    },
+    include: {
+      cliente: true,
+      items: true
+    },
+    orderBy: {
+      createdAt: 'desc'
+    }
+  });
+
   const serializedDbUser = JSON.parse(JSON.stringify(dbUser));
   const serializedKanbanTasks = JSON.parse(JSON.stringify(kanbanTasks));
   const serializedWorkOrders = JSON.parse(JSON.stringify(workOrders));
+  const serializedPendingPedidos = JSON.parse(JSON.stringify(pendingPedidos));
 
   return (
     <HomeClient
@@ -174,6 +191,7 @@ export default async function Home() {
       workOrders={serializedWorkOrders}
       totalPendingTasks={totalPendingTasks}
       totalPendingOrders={totalPendingOrders}
+      pendingPedidos={serializedPendingPedidos}
       tasksSummary={{
         pending: tasksPendingCount,
         inProgress: tasksInProgressCount,

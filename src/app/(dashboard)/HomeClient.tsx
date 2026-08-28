@@ -21,7 +21,8 @@ import {
   User,
   Zap,
   Tv,
-  Truck
+  Truck,
+  ShoppingBag
 } from 'lucide-react';
 import { getRutas } from './inventario-ventas/rutas/actions';
 
@@ -31,6 +32,7 @@ interface HomeClientProps {
   workOrders: any[];
   totalPendingTasks: number;
   totalPendingOrders: number;
+  pendingPedidos?: any[];
   tasksSummary?: {
     pending: number;
     inProgress: number;
@@ -49,6 +51,7 @@ export default function HomeClient({
   workOrders,
   totalPendingTasks,
   totalPendingOrders,
+  pendingPedidos = [],
   tasksSummary,
   ordersSummary
 }: HomeClientProps) {
@@ -288,6 +291,49 @@ export default function HomeClient({
           </div>
         </div>
       </div>
+
+      {/* Alerta de Pedido Nuevo Asignado para Auxiliares de Bodega */}
+      {(dbUser.role === 'AUXILIAR_BODEGA' || dbUser.role === 'SUPER_ADMIN') && pendingPedidos && pendingPedidos.length > 0 && (
+        <div className="animate-alert-shake relative overflow-hidden rounded-2xl border border-emerald-500 bg-white p-5 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="absolute inset-0 bg-emerald-50/20 pointer-events-none animate-pulse"></div>
+          
+          <div className="flex items-start gap-4 relative z-10">
+            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shadow-inner shrink-0">
+              <ShoppingBag className="w-6 h-6 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 tracking-wide uppercase">
+                  ¡Nuevo Pedido Asignado!
+                </span>
+                <span className="text-[11px] font-bold text-slate-400">
+                  {pendingPedidos[0].codigoPedido}
+                </span>
+              </div>
+              <h3 className="text-lg font-extrabold text-slate-900 mt-1">
+                {pendingPedidos[0].cliente?.nombre || 'Cliente sin nombre'}
+              </h3>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-500 mt-1 font-medium">
+                <span className="flex items-center gap-1">
+                  📍 Destino: {pendingPedidos[0].destino}
+                </span>
+                <span className="flex items-center gap-1 border-l border-slate-200 pl-4">
+                  📦 Ítems: {pendingPedidos[0].items?.length || 0} productos
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="relative z-10 shrink-0">
+            <Link
+              href={`/inventario-ventas/pedidos/preparar/${pendingPedidos[0].id}`}
+              className="w-full md:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            >
+              📦 Iniciar Preparación
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* 2. STATS ROW (V0 Modern layout) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
