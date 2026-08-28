@@ -21,7 +21,7 @@ async function main() {
 
     // 3. Construir la URL de generación de etiqueta
     // Usamos el host oficial para que el script de python descargue la imagen real
-    const host = 'https://bioelectronicahn.vercel.app';
+    const host = 'https://paraiso-floral.vercel.app';
     const params = new URLSearchParams({
         idQr,
         descripcion,

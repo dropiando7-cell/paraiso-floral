@@ -1575,7 +1575,7 @@ export async function encolarCopiasNiimbot(activoId: string, cantidad: number, s
         return { success: false, error: 'Activo no encontrado' };
     }
 
-    const host = process.env.NEXT_PUBLIC_APP_URL || 'https://bioelectronicahn.vercel.app';
+    const host = process.env.NEXT_PUBLIC_APP_URL || 'https://paraiso-floral.vercel.app';
     
     const params = new URLSearchParams({
         idQr: activo.idQr,
@@ -1934,7 +1934,7 @@ export async function encolarLoteImportado(ids: string[]) {
             return { success: false, error: 'No se encontraron activos para encolar' };
         }
 
-        const host = process.env.NEXT_PUBLIC_APP_URL || 'https://bioelectronicahn.vercel.app';
+        const host = process.env.NEXT_PUBLIC_APP_URL || 'https://paraiso-floral.vercel.app';
         const printJobs: any[] = [];
 
         for (const activo of activos) {
