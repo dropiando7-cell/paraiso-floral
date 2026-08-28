@@ -51,30 +51,22 @@ function getAccentInsensitiveRegex(search: string): string {
 
 // ─── Auto-generate ID QR ─────────────────────────────────────────────────────
 async function generateIdQr(organizationId: string, area: string, codigoGrupo: string = '001', cantidadRegistros: number = 1): Promise<string[]> {
-    const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { qrPrefix: true } });
-    const prefijoBase = org?.qrPrefix || 'PF';
-
     const todos = await prisma.activoFijo.findMany({
-        where: { 
-            organizationId,
-            OR: [
-                { idQr: { startsWith: `${prefijoBase}-` } },
-                { idQr: { startsWith: 'BEA-' } },
-                { idQr: { startsWith: 'PF-' } }
-            ]
-        },
+        where: { organizationId },
         select: { idQr: true }
     });
 
     let maxCorrelativo = 0;
     for (const act of todos) {
-        const parts = act.idQr.split('-');
-        if (parts.length >= 2) {
-            const lastPart = parts[parts.length - 1];
-            if (!isNaN(Number(lastPart))) {
-                const num = Number(lastPart);
-                if (num > maxCorrelativo) maxCorrelativo = num;
-            }
+        if (!act.idQr) continue;
+        let numStr = act.idQr;
+        if (act.idQr.includes('-')) {
+            const parts = act.idQr.split('-');
+            numStr = parts[parts.length - 1];
+        }
+        const num = Number(numStr);
+        if (!isNaN(num)) {
+            if (num > maxCorrelativo) maxCorrelativo = num;
         }
     }
 
@@ -83,7 +75,7 @@ async function generateIdQr(organizationId: string, area: string, codigoGrupo: s
 
     for (let i = 0; i < cantidadRegistros; i++) {
         const numPart = String(startNum + i).padStart(6, '0');
-        ids.push(`${prefijoBase}-${numPart}`);
+        ids.push(numPart);
     }
 
     return ids;
@@ -1700,31 +1692,23 @@ export async function bulkImportActivos(activos: any[]): Promise<{ success: bool
     try {
         const { orgId, userId } = await getContextUser();
         
-        // 1. Get organization QR Prefix
-        const org = await prisma.organization.findUnique({ 
-            where: { id: orgId }, 
-            select: { qrPrefix: true } 
-        });
-        const prefijoBase = org?.qrPrefix || 'BEA';
-
         // 2. Fetch all current assets to determine maxCorrelativo
         const todos = await prisma.activoFijo.findMany({
-            where: { 
-                organizationId: orgId,
-                idQr: { startsWith: `${prefijoBase}-` }
-            },
+            where: { organizationId: orgId },
             select: { idQr: true }
         });
 
         let maxCorrelativo = 0;
         for (const act of todos) {
-            const parts = act.idQr.split('-');
-            if (parts.length >= 2) {
-                const lastPart = parts[parts.length - 1];
-                if (!isNaN(Number(lastPart))) {
-                    const num = Number(lastPart);
-                    if (num > maxCorrelativo) maxCorrelativo = num;
-                }
+            if (!act.idQr) continue;
+            let numStr = act.idQr;
+            if (act.idQr.includes('-')) {
+                const parts = act.idQr.split('-');
+                numStr = parts[parts.length - 1];
+            }
+            const num = Number(numStr);
+            if (!isNaN(num)) {
+                if (num > maxCorrelativo) maxCorrelativo = num;
             }
         }
 
@@ -1882,8 +1866,7 @@ export async function bulkImportActivos(activos: any[]): Promise<{ success: bool
                         let finalQr = item.idQr?.trim();
                         if (!finalQr) {
                             maxCorrelativo++;
-                            const numPart = String(maxCorrelativo).padStart(6, '0');
-                            finalQr = `${prefijoBase}-${codigoGrupo}-${numPart}`;
+                            finalQr = String(maxCorrelativo).padStart(6, '0');
                         }
 
                         const created = await tx.activoFijo.create({
@@ -1903,8 +1886,7 @@ export async function bulkImportActivos(activos: any[]): Promise<{ success: bool
                         // If quantity > 1 or no idQr was provided, we generate a new sequential idQr
                         if (!finalQr || cantidad > 1) {
                             maxCorrelativo++;
-                            const numPart = String(maxCorrelativo).padStart(6, '0');
-                            finalQr = `${prefijoBase}-${codigoGrupo}-${numPart}`;
+                            finalQr = String(maxCorrelativo).padStart(6, '0');
                         }
 
                         const created = await tx.activoFijo.create({

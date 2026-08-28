@@ -417,24 +417,25 @@ export async function registrarDesdeOdoo(input: {
         const { id: userId, organizationId: orgId } = dbUser;
 
         // Generar idQr
-        const org = await prisma.organization.findUnique({
-            where: { id: orgId },
-            select: { qrPrefix: true }
-        });
-        const prefix = org?.qrPrefix || 'BEA';
-
         const todos = await prisma.activoFijo.findMany({
-            where: { organizationId: orgId, idQr: { startsWith: `${prefix}-` } },
+            where: { organizationId: orgId },
             select: { idQr: true }
         });
         let maxNum = 0;
         for (const a of todos) {
-            const parts = a.idQr.split('-');
-            const last = parts[parts.length - 1];
-            if (!isNaN(Number(last)) && Number(last) > maxNum) maxNum = Number(last);
+            if (!a.idQr) continue;
+            let numStr = a.idQr;
+            if (a.idQr.includes('-')) {
+                const parts = a.idQr.split('-');
+                numStr = parts[parts.length - 1];
+            }
+            const num = Number(numStr);
+            if (!isNaN(num)) {
+                if (num > maxNum) maxNum = num;
+            }
         }
         const nextNum = String(maxNum + 1).padStart(6, '0');
-        const idQr = `${prefix}-001-${nextNum}`;
+        const idQr = nextNum;
 
         // Crear el activo
         const activo = await prisma.activoFijo.create({
