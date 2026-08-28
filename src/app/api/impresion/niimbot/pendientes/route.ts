@@ -22,7 +22,17 @@ export async function GET(req: NextRequest) {
                 urlImagen: true,
                 impresora: true,
                 tamano: true,
-                organizationId: true
+                organizationId: true,
+                activo: {
+                    select: {
+                        idQr: true,
+                        descripcionCorta: true,
+                        marca: true,
+                        modelo: true,
+                        serie: true,
+                        codigoBarras: true
+                    }
+                }
             }
         });
 
