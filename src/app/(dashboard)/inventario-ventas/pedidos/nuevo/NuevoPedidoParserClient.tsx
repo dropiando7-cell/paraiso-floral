@@ -38,6 +38,7 @@ export default function NuevoPedidoParserClient({
   clients
 }: NuevoPedidoParserClientProps) {
   const router = useRouter();
+  const [creationMode, setCreationMode] = useState<'ia' | 'manual'>('manual');
   const [inputText, setInputText] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -52,7 +53,21 @@ export default function NuevoPedidoParserClient({
   const [estadoPago, setEstadoPago] = useState<'pagado' | 'contra_entrega' | 'credito'>('contra_entrega');
   const [auxiliarAsignadoId, setAuxiliarAsignadoId] = useState('');
   const [notas, setNotas] = useState('');
-  const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
+  const [parsedItems, setParsedItems] = useState<ParsedItem[]>([{ nombreProducto: '', cantidadSolicitada: 1 }]);
+
+  const toggleCreationMode = (mode: 'ia' | 'manual') => {
+    setCreationMode(mode);
+    if (mode === 'manual') {
+      setClienteId('');
+      setDestino('');
+      setEstadoPago('contra_entrega');
+      setNotas('');
+      setParsedItems([{ nombreProducto: '', cantidadSolicitada: 1 }]);
+    } else {
+      setHasParsedData(false);
+      setParsedItems([]);
+    }
+  };
 
   // File selection
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -255,7 +270,7 @@ export default function NuevoPedidoParserClient({
     <div className="flex flex-col gap-6 animate-in fade-in duration-300">
       
       {/* Header */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center justify-between">
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push('/inventario-ventas/pedidos')}
@@ -264,102 +279,136 @@ export default function NuevoPedidoParserClient({
             <ArrowLeft className="w-5 h-5" />
           </button>
           <div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">Creador de Pedidos IA</h1>
-            <p className="text-sm text-slate-500 font-medium">Parsea mensajes de WhatsApp o fotos de pedidos manuscritos</p>
+            <h1 className="text-xl font-black text-slate-900 tracking-tight">
+              {creationMode === 'manual' ? 'Nuevo Pedido Manual' : 'Creador de Pedidos IA'}
+            </h1>
+            <p className="text-sm text-slate-500 font-medium">
+              {creationMode === 'manual' 
+                ? 'Ingresa los datos del cliente y los productos solicitados' 
+                : 'Parsea mensajes de WhatsApp o fotos de pedidos manuscritos'}
+            </p>
           </div>
+        </div>
+
+        {/* Mode Selector Tabs */}
+        <div className="flex bg-slate-100 p-1 rounded-xl shrink-0 self-start sm:self-auto">
+          <button
+            type="button"
+            onClick={() => toggleCreationMode('manual')}
+            className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
+              creationMode === 'manual'
+                ? 'bg-white text-emerald-700 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            ✏️ Crear Manual
+          </button>
+          <button
+            type="button"
+            onClick={() => toggleCreationMode('ia')}
+            className={`px-4 py-2 rounded-lg font-bold text-xs transition-all ${
+              creationMode === 'ia'
+                ? 'bg-white text-emerald-700 shadow-sm'
+                : 'text-slate-500 hover:text-slate-900'
+            }`}
+          >
+            🤖 Importar con IA
+          </button>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Column: AI Parser input */}
-        <div className="lg:col-span-1 flex flex-col gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
-          <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-emerald-600 animate-pulse" />
-            Asistente de Carga IA
-          </h2>
-          <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-            Pega el texto del pedido copiado de WhatsApp o sube una fotografía del pedido escrito a mano en papel.
-          </p>
+        {/* Left Column: AI Parser input (Only visible in IA mode) */}
+        {creationMode === 'ia' && (
+          <div className="lg:col-span-1 flex flex-col gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-fit">
+            <h2 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-emerald-600 animate-pulse" />
+              Asistente de Carga IA
+            </h2>
+            <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+              Pega el texto del pedido copiado de WhatsApp o sube una fotografía del pedido escrito a mano en papel.
+            </p>
 
-          <div className="flex flex-col gap-4 mt-2">
-            {/* Input WhatsApp Text */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <MessageSquare className="w-4 h-4" /> Texto de WhatsApp
-              </label>
-              <textarea
-                placeholder="Ej. 'Pedido floreria rosalia, enviar a occidente la esperanza. ocupo 5 paquetes de rosas rojas y 2 rollos de eucalipto, cobrar contra entrega porfa'"
-                value={inputText}
-                onChange={(e) => {
-                  setInputText(e.target.value);
-                  setSelectedFile(null);
-                }}
-                disabled={isAnalyzing || !!selectedFile}
-                rows={6}
-                className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500 text-slate-800 bg-slate-50 font-medium placeholder-slate-400"
-              />
-            </div>
-
-            <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t border-slate-200"></div>
-              <span className="flex-shrink mx-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">o también</span>
-              <div className="flex-grow border-t border-slate-200"></div>
-            </div>
-
-            {/* File upload handwritten order */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Upload className="w-4 h-4" /> Comanda escrita a mano / Imagen
-              </label>
-              <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative group">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileChange}
-                  disabled={isAnalyzing || !!inputText}
-                  className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+            <div className="flex flex-col gap-4 mt-2">
+              {/* Input WhatsApp Text */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <MessageSquare className="w-4 h-4" /> Texto de WhatsApp
+                </label>
+                <textarea
+                  placeholder="Ej. 'Pedido floreria rosalia, enviar a occidente la esperanza. ocupo 5 paquetes de rosas rojas y 2 rollos de eucalipto, cobrar contra entrega porfa'"
+                  value={inputText}
+                  onChange={(e) => {
+                    setInputText(e.target.value);
+                    setSelectedFile(null);
+                  }}
+                  disabled={isAnalyzing || !!selectedFile}
+                  rows={6}
+                  className="w-full border border-slate-200 rounded-xl p-3 text-sm focus:outline-none focus:border-emerald-500 text-slate-800 bg-slate-50 font-medium placeholder-slate-400"
                 />
-                <Upload className="w-8 h-8 text-slate-400 group-hover:text-emerald-600 transition-colors mb-2" />
-                <span className="text-xs font-bold text-slate-700">
-                  {selectedFile ? selectedFile.name : 'Seleccionar fotografía'}
-                </span>
-                <span className="text-[10px] text-slate-400 mt-1 font-semibold">JPG, PNG, WebP hasta 5MB</span>
               </div>
-              {selectedFile && (
-                <button
-                  onClick={() => setSelectedFile(null)}
-                  className="text-right text-xs font-bold text-red-500 hover:text-red-700 mt-1"
-                >
-                  Quitar archivo
-                </button>
-              )}
-            </div>
 
-            {/* Action button */}
-            <button
-              onClick={handleAnalyze}
-              disabled={isAnalyzing || (!inputText && !selectedFile)}
-              className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
-            >
-              {isAnalyzing ? (
-                <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                  {isUploading ? 'Subiendo imagen...' : 'Analizando con IA...'}
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 animate-pulse" />
-                  Analizar con IA
-                </>
-              )}
-            </button>
+              <div className="relative flex py-2 items-center">
+                <div className="flex-grow border-t border-slate-200"></div>
+                <span className="flex-shrink mx-3 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">o también</span>
+                <div className="flex-grow border-t border-slate-200"></div>
+              </div>
+
+              {/* File upload handwritten order */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Upload className="w-4 h-4" /> Comanda escrita a mano / Imagen
+                </label>
+                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer relative group">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    disabled={isAnalyzing || !!inputText}
+                    className="absolute inset-0 opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                  />
+                  <Upload className="w-8 h-8 text-slate-400 group-hover:text-emerald-600 transition-colors mb-2" />
+                  <span className="text-xs font-bold text-slate-700">
+                    {selectedFile ? selectedFile.name : 'Seleccionar fotografía'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 mt-1 font-semibold">JPG, PNG, WebP hasta 5MB</span>
+                </div>
+                {selectedFile && (
+                  <button
+                    onClick={() => setSelectedFile(null)}
+                    className="text-right text-xs font-bold text-red-500 hover:text-red-700 mt-1"
+                  >
+                    Quitar archivo
+                  </button>
+                )}
+              </div>
+
+              {/* Action button */}
+              <button
+                onClick={handleAnalyze}
+                disabled={isAnalyzing || (!inputText && !selectedFile)}
+                className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+              >
+                {isAnalyzing ? (
+                  <>
+                    <RefreshCw className="w-4.5 h-4.5 animate-spin" />
+                    {isUploading ? 'Subiendo imagen...' : 'Analizando con IA...'}
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4.5 h-4.5 animate-pulse" />
+                    Analizar con IA
+                  </>
+                )}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Right Column: AI Extraction and Mappings Form */}
-        <div className="lg:col-span-2">
-          {!hasParsedData ? (
+        <div className={creationMode === 'ia' ? 'lg:col-span-2 animate-in fade-in duration-200' : 'lg:col-span-3 animate-in fade-in duration-200'}>
+          {creationMode === 'ia' && !hasParsedData ? (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-12 text-center flex flex-col items-center justify-center h-full min-h-[400px]">
               <HelpCircle className="w-12 h-12 text-slate-300 mb-3" />
               <h3 className="text-lg font-bold text-slate-800">Esperando Carga</h3>
@@ -369,20 +418,22 @@ export default function NuevoPedidoParserClient({
             <form onSubmit={handleSave} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-6 animate-in fade-in duration-300">
               <h2 className="text-base font-extrabold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                Pedido Extraído por la IA
+                {creationMode === 'manual' ? 'Información del Nuevo Pedido' : 'Pedido Extraído por la IA'}
               </h2>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Extracted client name (read-only reference) */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Cliente Extraído (IA)</label>
-                  <input
-                    type="text"
-                    value={clienteNombreAI || 'No detectado'}
-                    readOnly
-                    className="w-full border border-slate-200 rounded-xl p-2.5 text-sm bg-slate-50 text-slate-500 font-semibold focus:outline-none"
-                  />
-                </div>
+                {creationMode === 'ia' && (
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">Cliente Extraído (IA)</label>
+                    <input
+                      type="text"
+                      value={clienteNombreAI || 'No detectado'}
+                      readOnly
+                      className="w-full border border-slate-200 rounded-xl p-2.5 text-sm bg-slate-50 text-slate-500 font-semibold focus:outline-none"
+                    />
+                  </div>
+                )}
 
                 {/* Database Client Mapping selector */}
                 <div className="flex flex-col gap-1.5">
@@ -470,7 +521,9 @@ export default function NuevoPedidoParserClient({
               {/* Items mapping list */}
               <div className="flex flex-col gap-3 mt-4 border-t border-slate-100 pt-6">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-extrabold text-slate-900">Mapeo de Ítems del Pedido</h3>
+                  <h3 className="text-sm font-extrabold text-slate-900">
+                    {creationMode === 'manual' ? 'Productos a Solicitar' : 'Mapeo de Ítems del Pedido'}
+                  </h3>
                   <button
                     type="button"
                     onClick={handleAddItem}
@@ -484,25 +537,27 @@ export default function NuevoPedidoParserClient({
                   {parsedItems.map((item, index) => (
                     <div
                       key={index}
-                      className="flex flex-col md:flex-row gap-3 items-end md:items-center bg-slate-50 border border-slate-200 rounded-xl p-4 transition-all"
+                      className="flex flex-col md:flex-row gap-3 items-end md:items-center bg-slate-50 border border-slate-200 rounded-xl p-4 transition-all animate-in fade-in duration-150"
                     >
-                      {/* Product Name extracted */}
-                      <div className="flex-1 w-full flex flex-col gap-1">
-                        <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Detalle del Pedido</span>
-                        <div className="text-sm font-bold text-slate-800 flex flex-wrap items-center gap-1.5">
-                          <span>{item.nombreProducto || 'Nuevo Producto'}</span>
-                          {item.variedadTono && (
-                            <span className="px-2 py-0.5 rounded bg-slate-200/60 text-[10px] font-extrabold text-slate-600">
-                              {item.variedadTono}
-                            </span>
-                          )}
+                      {/* Product Name extracted (Only in IA mode) */}
+                      {creationMode === 'ia' && (
+                        <div className="flex-1 w-full flex flex-col gap-1">
+                          <span className="text-[10px] font-extrabold uppercase text-slate-400 tracking-wider">Detalle del Pedido (IA)</span>
+                          <div className="text-sm font-bold text-slate-800 flex flex-wrap items-center gap-1.5">
+                            <span>{item.nombreProducto || 'Nuevo Producto'}</span>
+                            {item.variedadTono && (
+                              <span className="px-2 py-0.5 rounded bg-slate-200/60 text-[10px] font-extrabold text-slate-600">
+                                {item.variedadTono}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Product Catalog mapping dropdown */}
-                      <div className="w-full md:w-72 flex flex-col gap-1">
+                      <div className={`w-full flex flex-col gap-1 ${creationMode === 'manual' ? 'flex-1' : 'md:w-72'}`}>
                         <span className="text-[10px] font-extrabold uppercase text-slate-800 tracking-wider flex items-center gap-1">
-                          Asociar a Producto Catálogo
+                          {creationMode === 'manual' ? 'Producto' : 'Asociar a Producto Catálogo'}
                           {!item.mappedProductoId && (
                             <AlertCircle className="w-3.5 h-3.5 text-red-500 animate-pulse" />
                           )}
@@ -516,13 +571,30 @@ export default function NuevoPedidoParserClient({
                               : 'border-red-300 text-red-700 bg-red-50'
                           }`}
                         >
-                          <option value="">-- No mapeado --</option>
+                          <option value="">-- Selecciona producto --</option>
                           {products.map(p => (
                             <option key={p.id} value={p.id}>
                               {p.nombre} ({p.sku}) [Stock: {p.stockActual}]
                             </option>
                           ))}
                         </select>
+                      </div>
+
+                      {/* Variety / Tone */}
+                      <div className="w-full md:w-36 flex flex-col gap-1">
+                        <span className="text-[10px] font-extrabold uppercase text-slate-800 tracking-wider">Variedad / Tono</span>
+                        <input
+                          type="text"
+                          placeholder="Ej. Rojo, Amarillo"
+                          value={item.variedadTono || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setParsedItems(prev => prev.map((it, idx) => 
+                              idx === index ? { ...it, variedadTono: val } : it
+                            ));
+                          }}
+                          className="w-full border border-slate-200 rounded-xl p-2 text-xs font-semibold focus:outline-none bg-white text-slate-800"
+                        />
                       </div>
 
                       {/* Quantity */}
@@ -534,7 +606,7 @@ export default function NuevoPedidoParserClient({
                           onChange={(e) => handleItemQtyChange(index, Number(e.target.value))}
                           min={1}
                           required
-                          className="w-full border border-slate-200 rounded-xl p-2 text-xs font-semibold text-center focus:outline-none bg-white"
+                          className="w-full border border-slate-200 rounded-xl p-2 text-xs font-semibold text-center focus:outline-none bg-white text-slate-800"
                         />
                       </div>
 
