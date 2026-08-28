@@ -153,6 +153,7 @@ export default function PreviewEtiquetaEquipoModal({
                         >
                             <option value="TSC TE200">TSC TE200</option>
                             <option value="Niimbot">NIIMBOT K3</option>
+                            <option value="Vorttek">Vorttek</option>
                         </select>
                     </div>
                 </div>

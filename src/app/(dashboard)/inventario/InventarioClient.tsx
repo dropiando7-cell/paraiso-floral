@@ -108,7 +108,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                     <div className="bg-blue-100 p-2.5 rounded-xl"><Printer className="w-5 h-5 text-[#0500A3]" /></div>
                     <div>
                         <h3 className="text-xl font-bold text-slate-800 leading-tight">Vista Previa de Etiqueta QR</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Asegúrate de que la impresora {impresora === 'Niimbot' ? 'NIIMBOT K3' : 'TSC TE200'} esté conectada y lista.</p>
+                        <p className="text-xs text-slate-500 mt-0.5">Asegúrate de que la impresora {impresora === 'Niimbot' ? 'NIIMBOT K3' : impresora} esté conectada y lista.</p>
                     </div>
                 </div>
                 <div className="mb-4 flex flex-col gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
@@ -144,6 +144,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                         >
                             <option value="Niimbot">NIIMBOT K3</option>
                             <option value="TSC TE200">TSC TE200</option>
+                            <option value="Vorttek">Vorttek</option>
                         </select>
                     </div>
                 </div>
@@ -3222,6 +3223,7 @@ function ImprimirLoteModal({ open, onClose, grupos, onSuccess }: { open: boolean
                         >
                             <option value="Niimbot">NIIMBOT K3</option>
                             <option value="TSC TE200">TSC TE200</option>
+                            <option value="Vorttek">Vorttek</option>
                         </select>
                     </div>
                 </div>
