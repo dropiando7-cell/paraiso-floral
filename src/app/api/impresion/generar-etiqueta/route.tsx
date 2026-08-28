@@ -30,14 +30,14 @@ export async function GET(req: NextRequest) {
         idSize: is70x40 ? 22 : (is50x25 ? 26 : 17),
         descSizeLong: is70x40 ? 18 : (is50x25 ? 22 : 14),
         descSizeShort: is70x40 ? 22 : (is50x25 ? 30 : 18),
-        qrSize: is70x40 ? 110 : (is50x25 ? 75 : 90),
-        qrImgSize: is70x40 ? 105 : (is50x25 ? 70 : 85),
-        barcodeWidth: is70x40 ? 500 : (is50x25 ? 378 : 370),
-        barcodeHeight: is70x40 ? 40 : (is50x25 ? 60 : 26),
+        qrSize: is70x40 ? 110 : (is50x25 ? 85 : 90),
+        qrImgSize: is70x40 ? 105 : (is50x25 ? 80 : 85),
+        barcodeWidth: is70x40 ? 500 : (is50x25 ? 280 : 370),
+        barcodeHeight: is70x40 ? 40 : (is50x25 ? 45 : 26),
         barcodeTextSize: is70x40 ? 14 : (is50x25 ? 12 : 11),
     };
 
-    const qrText = encodeURIComponent(`${req.nextUrl.origin}/ficha-tecnica/${idQr}`);
+    const qrText = encodeURIComponent(`${req.nextUrl.origin}/f/${idQr}`);
     // Usamos eclevel=L (menor densidad) para que los puntos del QR sean más grandes y definidos en impresoras térmicas
     const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=L&includetext=false`;
 
@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
                     {/* LEFT COLUMN: ID + Description */}
                     <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '10px', overflow: 'hidden' }}>
                         <span style={{ fontSize: cfg.idSize, fontWeight: 900, color: '#000', marginBottom: '2px' }}>{idQr}</span>
-                        <span style={{ fontSize: isLongName ? cfg.descSizeLong : cfg.descSizeShort, fontWeight: 900, color: '#000', lineHeight: 1.1, overflow: 'hidden', wordBreak: 'break-all', overflowWrap: 'break-word' }}>
+                        <span style={{ fontSize: isLongName ? cfg.descSizeLong : cfg.descSizeShort, fontWeight: 900, color: '#000', lineHeight: 1.1, overflow: 'hidden', wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
                             {descStr}
                         </span>
                     </div>
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
                 {/* BARCODE ROW: altura y texto controlados para no desbordarse */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', marginTop: '8px' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={barcodeUrl} alt="Barcode" width={cfg.barcodeWidth} height={cfg.barcodeHeight} style={{ objectFit: 'fill', imageRendering: 'pixelated' }} />
+                    <img src={barcodeUrl} alt="Barcode" width={cfg.barcodeWidth} height={cfg.barcodeHeight} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
                     <span style={{ fontSize: cfg.barcodeTextSize, marginTop: '2px', letterSpacing: 3, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
                 </div>
             </div>
