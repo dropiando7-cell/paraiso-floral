@@ -2417,6 +2417,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
             </form>
           </div>
         </div>
+      )}
       {/* Modal de Escáner de Cámara para Móviles y Tabletas */}
       {showCameraScanner && (
         <div className="fixed inset-0 z-[2100] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
