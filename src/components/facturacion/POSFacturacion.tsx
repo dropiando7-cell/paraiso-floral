@@ -5,9 +5,11 @@ import {
   Search, Plus, Minus, Trash2, Printer, X, Monitor, Zap, User, CreditCard, 
   Banknote, ShoppingCart, CheckCircle2, QrCode, LayoutGrid, List, Grid3X3, 
   ArrowDownCircle, FileText, Keyboard, Save, ArrowLeft, UserPlus, UserCheck, 
-  Loader2, Building2, Phone, Mail, MapPin, Sparkles, FileBadge, Receipt, ZoomIn, ZoomOut, Eye, Pencil, Star, Flame, Clock
+  Loader2, Building2, Phone, Mail, MapPin, Sparkles, FileBadge, Receipt, ZoomIn, ZoomOut, Eye, Pencil, Star, Flame, Clock,
+  Camera
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { Html5Qrcode } from 'html5-qrcode';
 import toast from 'react-hot-toast';
 import { searchClientes } from '@/app/(dashboard)/facturas/actions';
 import { crearClienteAction } from '@/app/(dashboard)/soporte/actions';
@@ -265,6 +267,10 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   // Scanner Refs
   const barcodeBufferRef = useRef<string>('');
   const lastKeyTimeRef = useRef<number>(0);
+  const html5QrcodeRef = useRef<Html5Qrcode | null>(null);
+
+  // Camera Scanner States
+  const [showCameraScanner, setShowCameraScanner] = useState(false);
 
   // Client Search & Creation Handlers
   const handleClientSearchChange = async (val: string) => {
@@ -759,6 +765,88 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
     }
   };
 
+  const handleScannedCode = useCallback((code: string) => {
+    const cleanCode = code.trim().replace(/'/g, '-');
+    
+    // Buscar coincidencia de SKU o código de barras
+    const product = productos.find(p => 
+      p.sku.toLowerCase() === cleanCode.toLowerCase() || 
+      (p.codigoBarras && p.codigoBarras.toLowerCase() === cleanCode.toLowerCase())
+    );
+
+    if (product) {
+      addToCart(product);
+      toast.success(`"${product.nombre}" agregado al ticket`);
+      
+      // Beep de confirmación agradable
+      try {
+        const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioContext.createOscillator();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioContext.currentTime);
+        oscillator.connect(audioContext.destination);
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.08);
+      } catch (e) {}
+
+      // Cerrar el escáner
+      setShowCameraScanner(false);
+    } else {
+      toast.error(`Código "${cleanCode}" no encontrado`);
+    }
+  }, [productos, addToCart]);
+
+  const stopCameraScanner = useCallback(async () => {
+    if (html5QrcodeRef.current && html5QrcodeRef.current.isScanning) {
+      try {
+        await html5QrcodeRef.current.stop();
+      } catch (err) {
+        console.error("Error al detener cámara: ", err);
+      }
+    }
+    html5QrcodeRef.current = null;
+  }, []);
+
+  // Hook para montar/desmontar la cámara web al abrir/cerrar el modal
+  useEffect(() => {
+    if (showCameraScanner) {
+      const timer = setTimeout(() => {
+        const container = document.getElementById("pos-camera-scanner-reader");
+        if (!container) return;
+
+        const html5Qrcode = new Html5Qrcode("pos-camera-scanner-reader");
+        html5QrcodeRef.current = html5Qrcode;
+
+        html5Qrcode.start(
+          { facingMode: "environment" },
+          {
+            fps: 20,
+            qrbox: (width, height) => {
+              const minSize = Math.min(width, height);
+              return {
+                width: Math.floor(width * 0.85),
+                height: Math.floor(height * 0.45)
+              };
+            }
+          },
+          (decodedText) => {
+            handleScannedCode(decodedText);
+          },
+          () => {}
+        ).catch(err => {
+          console.error("Error al iniciar cámara: ", err);
+          toast.error("Permiso de cámara denegado o cámara no disponible");
+          setShowCameraScanner(false);
+        });
+      }, 400);
+
+      return () => {
+        clearTimeout(timer);
+        stopCameraScanner();
+      };
+    }
+  }, [showCameraScanner, handleScannedCode, stopCameraScanner]);
+
   // Keyboard Shortcuts & Scanner Logic
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -1028,8 +1116,8 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
         </div>
 
         {/* Search Bar */}
-        <div className="flex-1 max-w-xl md:mx-4 relative z-30">
-          <div className="relative group/search">
+        <div className="flex-1 max-w-xl md:mx-4 relative z-30 flex items-center gap-2">
+          <div className="relative flex-1 group/search">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/search:text-indigo-500 transition-colors" size={15} />
             <input
               ref={searchInputRef}
@@ -1037,8 +1125,16 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
               placeholder="Buscar producto por código, nombre o escanea..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value.replace(/'/g, '-'))}
-              className="w-full pl-9 pr-3 py-1.5 bg-gray-100 hover:bg-gray-200/50 focus:bg-white border border-transparent focus:border-indigo-500 rounded-xl outline-none text-xs sm:text-sm font-semibold transition-all shadow-2xs focus:shadow-xs h-9"
+              className="w-full pl-9 pr-10 py-1.5 bg-gray-100 hover:bg-gray-200/50 focus:bg-white border border-transparent focus:border-indigo-500 rounded-xl outline-none text-xs sm:text-sm font-semibold transition-all shadow-2xs focus:shadow-xs h-9"
             />
+            <button
+              type="button"
+              onClick={() => setShowCameraScanner(true)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-indigo-600 bg-white/90 hover:bg-white rounded-lg transition-colors border border-slate-200/50 flex items-center justify-center cursor-pointer shadow-2xs"
+              title="Escanear con Cámara (Móvil/Tableta)"
+            >
+              <Camera size={14} className="text-indigo-600" />
+            </button>
           </div>
         </div>
 
@@ -2319,6 +2415,63 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      {/* Modal de Escáner de Cámara para Móviles y Tabletas */}
+      {showCameraScanner && (
+        <div className="fixed inset-0 z-[2100] bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-5 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 text-white">
+            
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center">
+                  <Camera size={16} />
+                </div>
+                <div>
+                  <h3 className="font-black text-xs uppercase tracking-wider text-slate-100">Escáner de Cámara</h3>
+                  <p className="text-[10px] text-slate-400 font-semibold">Apunta al código QR o de barras</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCameraScanner(false)}
+                className="p-1 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="relative aspect-square w-full bg-black rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
+              <div id="pos-camera-scanner-reader" className="w-full h-full overflow-hidden" />
+
+              <div className="absolute inset-x-0 h-[2px] bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse pointer-events-none" style={{
+                animation: 'scan-laser 2s linear infinite',
+                top: '0%'
+              }} />
+
+              <div className="absolute inset-4 border-2 border-dashed border-indigo-400/50 rounded-xl pointer-events-none flex items-center justify-center">
+                <div className="text-[10px] font-black uppercase text-indigo-400/80 tracking-widest bg-slate-950/80 px-2 py-0.5 rounded-md">
+                  Encuadrar código
+                </div>
+              </div>
+            </div>
+
+            <style dangerouslySetInnerHTML={{__html: `
+              @keyframes scan-laser {
+                0% { top: 10%; }
+                50% { top: 90%; }
+                100% { top: 10%; }
+              }
+            `}} />
+
+            <div className="mt-4 flex items-center justify-center">
+              <button
+                type="button"
+                onClick={() => setShowCameraScanner(false)}
+                className="w-full py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 text-xs font-black rounded-xl transition-all cursor-pointer text-center"
+              >
+                Cancelar Escaneo
+              </button>
+            </div>
           </div>
         </div>
       )}
