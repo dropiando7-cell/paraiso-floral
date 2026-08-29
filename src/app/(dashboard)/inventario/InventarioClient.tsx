@@ -8,7 +8,7 @@ import {
     Package, Search, Plus, Filter, ChevronLeft, ChevronRight,
     X, Upload, Pencil, Trash2, QrCode, CheckCircle2, AlertTriangle,
     TrendingDown, MapPin, Loader2, Eye, Camera, Sparkles, ChevronDown, Printer, ExternalLink, Eraser, RotateCw, Lock, Unlock, LayoutGrid, List, Tag, ArrowRightLeft, Wrench, Download, FileSpreadsheet,
-    Globe, UserPlus, Laptop, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, Flower2, AlertCircle, Snowflake
+    Globe, UserPlus, Laptop, ClipboardList, ArrowUp, ArrowDown, ArrowUpDown, Flower2, AlertCircle, Snowflake, Truck
 } from 'lucide-react';
 import { crearClienteAction } from '../soporte/actions';
 import {
@@ -4345,6 +4345,15 @@ export function InventarioClient({ initialData, initialStats, dbAreas, userRole,
                                     >
                                         <ClipboardList className="w-4 h-4 text-pink-600 shrink-0" />
                                         <span>Toma Física Tablet</span>
+                                    </Link>
+
+                                    <Link
+                                        href="/inventario/recepcion"
+                                        onClick={() => setMoreActionsOpen(false)}
+                                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-emerald-600 flex items-center gap-2.5 transition-colors cursor-pointer"
+                                    >
+                                        <Truck className="w-4 h-4 text-emerald-600 shrink-0" />
+                                        <span>Recepción de Lotes</span>
                                     </Link>
 
                                     {userRole === 'SUPER_ADMIN' && (

@@ -71,6 +71,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         MEDICAL_STAFF: 'MEDICAL_STAFF',
         EXECUTIVE_ASSISTANT: 'EXECUTIVE_ASSISTANT',
         INVENTARIO_EDITOR: 'INVENTARIO_EDITOR',
+        AUXILIAR_BODEGA: 'AUXILIAR_BODEGA',
         RECEPCION: 'RECEPCION',
         TECNICO: 'TECNICO',
         GERENTE: 'GERENTE'
@@ -85,6 +86,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         MEDICAL_STAFF: 'MEDICAL_STAFF',
         EXECUTIVE_ASSISTANT: 'EXECUTIVE_ASSISTANT',
         INVENTARIO_EDITOR: 'Editor de Inventario',
+        AUXILIAR_BODEGA: 'Auxiliar de Bodega / Chequeador',
         RECEPCION: 'Soporte - Recepción',
         TECNICO: 'Soporte - Técnico',
         GERENTE: 'Soporte - Gerencia'
@@ -98,6 +100,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/rentas', label: 'Rentas de Equipos' },
         { id: '/graficas', label: 'Gráficas e Informes' },
         { id: '/inventario', label: 'Control de Inventario' },
+        { id: '/inventario/recepcion', label: 'Recepción de Packing Lists (Auxiliar Bodega / Chequeadores)' },
         { id: '/inventario/toma-fisica', label: 'Toma Física / Auditoría de Inventario (Tablet)' },
         { id: '/inventario/modelos', label: 'Catálogo de Modelos' },
         { id: '/inventario/entradas', label: 'Entradas / Compras' },

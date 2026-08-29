@@ -52,6 +52,7 @@ model Organization {
   tasks                 Task[]
   users                 User[]
   voiceLogs             AsistenteVozLog[]
+  recepcionesLote       RecepcionLote[]
 
 
   cajaChicaSessions     CajaChicaSession[]
@@ -454,6 +455,7 @@ model ActivoFijo {
   frecuenciaMantenimientoMeses Int?
   fechaVencimiento      DateTime?
   lote                  String?
+  tipoEmpaque           String?              @default("Cartón")
   productoId            String?              @db.Uuid
   fechaFabricacion      DateTime?
   referencia            String?
@@ -478,6 +480,7 @@ model ActivoFijo {
   cliente               Cliente?             @relation("ActivoCliente", fields: [clienteId], references: [id])
   ordenesTrabajo        OrdenTrabajo[]
   auditoriasDetalle     AuditoriaDetalle[]
+  recepcionesItem       RecepcionItem[]
 
   @@unique([organizationId, idQr])
   @@index([organizationId])
@@ -1786,6 +1789,74 @@ model PedidoItem {
   @@index([productoId])
   @@map("pedido_items")
 }
+
+model RecepcionLote {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  organizationId String          @db.Uuid
+  numeroEnvio    String
+  proveedor      String          @default("LUCIO NAHUN BARAHONA SUAREZ SPS")
+  estado         String          @default("EN_TRANSITO") // EN_TRANSITO, EN_RECEPCION, COMPLETADO, CON_DISCREPANCIA
+  totalCajas     Int             @default(0)
+  totalBonches   Int             @default(0)
+  fechaLlegada   DateTime        @default(now())
+  notas          String?         @db.Text
+  creadoPorId    String?         @db.Uuid
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  cajas          RecepcionCaja[]
+
+  @@unique([organizationId, numeroEnvio])
+  @@index([organizationId])
+  @@index([estado])
+  @@map("recepciones_lote")
+}
+
+model RecepcionCaja {
+  id             String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  recepcionId    String          @db.Uuid
+  numeroCaja     Int
+  codigoProveedor String?        // Ej. "119764", "119765"
+  estado         String          @default("PENDIENTE") // PENDIENTE, VERIFICADA, INCOMPLETA
+  verificadaAt   DateTime?
+  verificadaPorId String?        @db.Uuid
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  recepcion      RecepcionLote   @relation(fields: [recepcionId], references: [id], onDelete: Cascade)
+  items          RecepcionItem[]
+
+  @@index([recepcionId])
+  @@index([codigoProveedor])
+  @@map("recepciones_caja")
+}
+
+model RecepcionItem {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cajaId           String        @db.Uuid
+  activoFijoId     String?       @db.Uuid
+  cultivoOriginal  String
+  descripcion      String
+  bonchesEsperados Int
+  bonchesRecibidos Int           @default(0)
+  bonchesDanados   Int           @default(0)
+  motivoDano       String?
+  fotosDano        Json?
+  tipoEmpaque      String        @default("Cartón") // Cartón, Plastipel
+  verificado       Boolean       @default(false)
+  notas            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  caja             RecepcionCaja @relation(fields: [cajaId], references: [id], onDelete: Cascade)
+  activoFijo       ActivoFijo?   @relation(fields: [activoFijoId], references: [id])
+
+  @@index([cajaId])
+  @@index([activoFijoId])
+  @@map("recepciones_item")
+}
+
 
 
 

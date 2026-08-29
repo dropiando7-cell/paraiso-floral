@@ -77,6 +77,7 @@ const menuItems: { category: string; items: MenuItem[] }[] = [
         icon: Box,
         subItems: [
           { name: 'Control de Inventario', href: '/inventario', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+          { name: 'Recepción de Packing Lists', href: '/inventario/recepcion', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR', 'GERENTE', 'AUXILIAR_BODEGA', 'RECEPCION'] },
           { name: 'Toma Física / Auditoría', href: '/inventario/toma-fisica', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR', 'GERENTE'] },
           { name: 'Garantías y Reemplazos', href: '/inventario/garantias', roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
           { name: 'Catálogo de Modelos', href: '/inventario/modelos', roles: ['SUPER_ADMIN', 'ORG_ADMIN', 'INVENTARIO_EDITOR'] },
@@ -261,9 +262,8 @@ export function Sidebar({ dbUser, onClose }: SidebarProps) {
                   }) || [];
 
                   const hasSubMenu = visibleSubItems.length > 0;
-                  const isOpen = openMenus[item.name];
-                  // If we are currently on a submenu page, we should highlight the parent differently or keep it open
                   const isChildActive = hasSubMenu && visibleSubItems.some(sub => pathname === sub.href || pathname.startsWith(sub.href + '/'));
+                  const isOpen = openMenus[item.name] !== undefined ? openMenus[item.name] : isChildActive;
                   const isEffectivelyActive = isActive && !isChildActive;
 
                   const Icon = item.icon;
