@@ -16,7 +16,6 @@ try:
 except ImportError:
     GENERACION_LOCAL_DISPONIBLE = False
 
-# ─── Configuración Base ───────────────────────────────────────────────────────
 HOST = os.environ.get("SERVER_URL", "https://paraiso-floral.vercel.app")
 
 API_PENDIENTES = f"{HOST}/api/impresion/niimbot/pendientes"
@@ -35,70 +34,70 @@ TAMANOS = {
     "50x25": {
         "ANCHO_FIJO": 399,
         "ALTO_MAXIMO": 198,
-        "QR_SIZE": 80,
-        "QR_X": 305,
-        "QR_Y": 10,
-        "TEXT_MAX_W": 280,
-        "ID_SIZE": 24,
-        "ID_X": 14,
-        "ID_Y": 10,
+        "QR_SIZE": 85,
+        "QR_X": 302,
+        "QR_Y": 8,
+        "TEXT_MAX_W": 284,
+        "ID_SIZE": 28,
+        "ID_X": 12,
+        "ID_Y": 8,
         "DESC_Y": 40,
-        "BC_WIDTH": 280,
-        "BC_HEIGHT": 38,
-        "BC_Y": 130,
-        "BC_TEXT_SIZE": 12,
-        "BC_TEXT_Y": 174,
+        "BC_WIDTH": 310,
+        "BC_HEIGHT": 46,
+        "BC_Y": 118,
+        "BC_TEXT_SIZE": 14,
+        "BC_TEXT_Y": 170,
     },
     "50x30": {
         "ANCHO_FIJO": 399,
         "ALTO_MAXIMO": 240,
-        "QR_SIZE": 85,
-        "QR_X": 300,
-        "QR_Y": 12,
-        "TEXT_MAX_W": 275,
-        "ID_SIZE": 26,
+        "QR_SIZE": 90,
+        "QR_X": 298,
+        "QR_Y": 10,
+        "TEXT_MAX_W": 280,
+        "ID_SIZE": 30,
         "ID_X": 14,
-        "ID_Y": 12,
+        "ID_Y": 10,
         "DESC_Y": 44,
-        "BC_WIDTH": 290,
-        "BC_HEIGHT": 42,
-        "BC_Y": 165,
-        "BC_TEXT_SIZE": 13,
-        "BC_TEXT_Y": 214,
+        "BC_WIDTH": 310,
+        "BC_HEIGHT": 50,
+        "BC_Y": 155,
+        "BC_TEXT_SIZE": 15,
+        "BC_TEXT_Y": 210,
     },
     "50x33": {
         "ANCHO_FIJO": 399,
         "ALTO_MAXIMO": 245,
-        "QR_SIZE": 85,
-        "QR_X": 300,
-        "QR_Y": 12,
-        "TEXT_MAX_W": 275,
-        "ID_SIZE": 26,
+        "QR_SIZE": 90,
+        "QR_X": 298,
+        "QR_Y": 10,
+        "TEXT_MAX_W": 280,
+        "ID_SIZE": 30,
         "ID_X": 14,
-        "ID_Y": 12,
+        "ID_Y": 10,
         "DESC_Y": 44,
-        "BC_WIDTH": 290,
-        "BC_HEIGHT": 42,
-        "BC_Y": 170,
-        "BC_TEXT_SIZE": 13,
-        "BC_TEXT_Y": 218,
+        "BC_WIDTH": 310,
+        "BC_HEIGHT": 50,
+        "BC_Y": 160,
+        "BC_TEXT_SIZE": 15,
+        "BC_TEXT_Y": 214,
     },
     "70x40": {
         "ANCHO_FIJO": 559,
         "ALTO_MAXIMO": 310,
         "QR_SIZE": 100,
         "QR_X": 440,
-        "QR_Y": 16,
-        "TEXT_MAX_W": 410,
-        "ID_SIZE": 32,
-        "ID_X": 18,
-        "ID_Y": 16,
-        "DESC_Y": 56,
-        "BC_WIDTH": 460,
-        "BC_HEIGHT": 46,
-        "BC_Y": 225,
-        "BC_TEXT_SIZE": 15,
-        "BC_TEXT_Y": 278,
+        "QR_Y": 12,
+        "TEXT_MAX_W": 415,
+        "ID_SIZE": 36,
+        "ID_X": 16,
+        "ID_Y": 12,
+        "DESC_Y": 54,
+        "BC_WIDTH": 480,
+        "BC_HEIGHT": 54,
+        "BC_Y": 218,
+        "BC_TEXT_SIZE": 16,
+        "BC_TEXT_Y": 276,
     }
 }
 DEFAULT_SIZE = "50x25"
@@ -114,7 +113,7 @@ def obtener_fuente(size):
             return ImageFont.load_default()
 
 
-def wrap_texto(texto, font, max_px=280):
+def wrap_texto(texto, font, max_px=284):
     if not texto:
         return []
     
@@ -153,6 +152,20 @@ def wrap_texto(texto, font, max_px=280):
     return [linea1]
 
 
+def calcular_tamano_optimo(descripcion, max_w, is_70=False):
+    desc = descripcion.strip().upper()
+    sizes = [44, 40, 36, 32, 28, 26, 22, 20] if is_70 else [36, 32, 28, 26, 22, 20]
+    for sz in sizes:
+        f = obtener_fuente(sz)
+        lineas = wrap_texto(desc, f, max_px=max_w)
+        if len(lineas) == 1 and sz >= (36 if is_70 else 28):
+            return sz, lineas
+        if len(lineas) <= 2 and sz <= (40 if is_70 else 32):
+            return sz, lineas
+    min_sz = 20 if is_70 else 18
+    return min_sz, wrap_texto(desc, obtener_fuente(min_sz), max_px=max_w)
+
+
 def generar_imagen_local(activo, cfg, size_name="50x25"):
     id_qr = str(activo.get('idQr') or '000000').strip()
     descripcion = str(activo.get('descripcionCorta') or activo.get('descripcion') or 'Sin descripción').strip().upper()
@@ -163,46 +176,27 @@ def generar_imagen_local(activo, cfg, size_name="50x25"):
     draw = ImageDraw.Draw(img)
 
     is_70 = (size_name == "70x40")
-    len_desc = len(descripcion)
-    if len_desc <= 14:
-        font_size_desc = 34 if is_70 else 25
-    elif len_desc <= 22:
-        font_size_desc = 28 if is_70 else 19
-    elif len_desc <= 35:
-        font_size_desc = 24 if is_70 else 16
-    else:
-        font_size_desc = 20 if is_70 else 14
 
     fuente_id = obtener_fuente(cfg['ID_SIZE'])
-    fuente_desc = obtener_fuente(font_size_desc)
-    fuente_bar = obtener_fuente(cfg['BC_TEXT_SIZE'])
-
-    # 1. ID Arriba a la izquierda
     draw.text((cfg['ID_X'], cfg['ID_Y']), id_qr, fill="black", font=fuente_id)
 
-    # 2. QR Code Arriba a la derecha
     qr_url = f"{HOST}/f/{id_qr}"
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=qrcode.constants.ERROR_CORRECT_L,
-        box_size=3,
-        border=1
-    )
+    qr = qrcode.QRCode(version=1, error_correction=qrcode.constants.ERROR_CORRECT_L, box_size=3, border=1)
     qr.add_data(qr_url)
     qr.make(fit=True)
     img_qr = qr.make_image(fill_color="black", back_color="white").convert("RGB")
     img_qr = img_qr.resize((cfg['QR_SIZE'], cfg['QR_SIZE']), Image.NEAREST)
     img.paste(img_qr, (cfg['QR_X'], cfg['QR_Y']))
 
-    # 3. Descripción / Nombre de la flor
-    lineas = wrap_texto(descripcion, fuente_desc, max_px=cfg['TEXT_MAX_W'])
+    font_size_desc, lineas = calcular_tamano_optimo(descripcion, cfg['TEXT_MAX_W'], is_70=is_70)
+    fuente_desc = obtener_fuente(font_size_desc)
+
     y_curr = cfg['DESC_Y']
-    line_h = font_size_desc + 4
+    line_h = font_size_desc + 3
     for linea in lineas[:2]:
         draw.text((cfg['ID_X'], y_curr), linea, fill="black", font=fuente_desc)
         y_curr += line_h
 
-    # 4. Código de Barras 1D
     rv = io.BytesIO()
     barcode.Code128(codigo_barras, writer=ImageWriter()).write(rv, options={"write_text": False})
     rv.seek(0)
@@ -229,18 +223,17 @@ def generar_imagen_local(activo, cfg, size_name="50x25"):
     y_bar = cfg['BC_Y']
     img.paste(img_barcode, (x_bar, y_bar))
 
-    # 5. Texto del código de barras
+    fuente_bar = obtener_fuente(cfg['BC_TEXT_SIZE'])
     texto_bar = codigo_barras
     try:
         w_texto = draw.textlength(texto_bar, font=fuente_bar)
     except:
-        w_texto = len(texto_bar) * 8
+        w_texto = len(texto_bar) * 8.5
 
     x_texto = (W - w_texto) // 2
     y_texto = cfg['BC_TEXT_Y']
     draw.text((x_texto, y_texto), texto_bar, fill="black", font=fuente_bar)
 
-    # 6. Binarización profunda
     img_gris = img.convert("L")
     img_final = img_gris.point(lambda x: 0 if x < 190 else 255, "1")
     return img_final

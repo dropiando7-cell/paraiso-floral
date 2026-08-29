@@ -31,38 +31,38 @@ export async function GET(req: NextRequest) {
     const descStr = descripcion.substring(0, 60).toUpperCase().trim();
     const len = descStr.length;
 
-    // Tamaño de texto dinámico:
-    // - Corto (<= 14 chars, ej. ROSA FLORIDA): 25px
-    // - Mediano (15-22 chars, ej. ROJA FREEDOM CARTON): 19px
-    // - Largo (23-35 chars): 16px
-    // - Muy largo (> 35 chars): 14px
-    let descSize = 25;
-    if (len <= 14) {
-        descSize = is70x40 ? 34 : 25;
+    // Tamaño de texto MÁXIMO GRANDE y DINÁMICO:
+    // - Muy Corto (<= 13 chars, ej. ROSA FLORIDA, GIRASOL): 36px (en 1 línea de alto impacto)
+    // - Mediano (14-22 chars, ej. MACENLLANA MIXTOS, ROJA FREEDOM CARTON): 32px (en 2 líneas llenando el espacio)
+    // - Largo (23-35 chars, ej. ROSA EXPLORER ROJA ECUADOR): 26px
+    // - Muy largo (> 35 chars): 20px
+    let descSize = 32;
+    if (len <= 13) {
+        descSize = is70x40 ? 44 : 36;
     } else if (len <= 22) {
-        descSize = is70x40 ? 28 : 19;
+        descSize = is70x40 ? 40 : 32;
     } else if (len <= 35) {
-        descSize = is70x40 ? 24 : 16;
+        descSize = is70x40 ? 32 : 26;
     } else {
-        descSize = is70x40 ? 20 : 14;
+        descSize = is70x40 ? 26 : 20;
     }
 
     const cfg = {
-        padding: is70x40 ? '16px 20px 14px 20px' : '10px 14px 8px 14px',
-        idSize: is70x40 ? 32 : 24,
+        padding: is70x40 ? '12px 16px 12px 16px' : '8px 12px 6px 12px',
+        idSize: is70x40 ? 36 : 28,
         descSize: descSize,
-        qrBoxSize: is70x40 ? 100 : 80,
-        qrImgSize: is70x40 ? 95 : 80,
-        barcodeWidth: is70x40 ? 460 : 280,
-        barcodeHeight: is70x40 ? 46 : 38,
-        barcodeTextSize: is70x40 ? 14 : 12,
+        qrBoxSize: is70x40 ? 100 : 85,
+        qrImgSize: is70x40 ? 95 : 85,
+        barcodeWidth: is70x40 ? 480 : 310,
+        barcodeHeight: is70x40 ? 54 : 46,
+        barcodeTextSize: is70x40 ? 16 : 14,
     };
 
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/f/${idQr}`);
     // Usamos eclevel=L (menor densidad) para que los puntos del QR sean más grandes y definidos en impresoras térmicas
     const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=4&eclevel=L&includetext=false`;
 
-    const barcodeHeightAPI = is70x40 ? 12 : 10;
+    const barcodeHeightAPI = is70x40 ? 14 : 12;
     const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=${barcodeHeightAPI}&scale=3&includetext=false`;
 
     return new ImageResponse(
@@ -83,16 +83,16 @@ export async function GET(req: NextRequest) {
                 {/* FILA SUPERIOR: ID + Nombre de la Flor (izquierda) + Código QR (derecha) */}
                 <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%', alignItems: 'flex-start' }}>
                     
-                    {/* COLUMNA IZQUIERDA: ID y Descripción Dinámica */}
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '10px', maxWidth: `${W - cfg.qrBoxSize - 35}px`, overflow: 'hidden' }}>
-                        <span style={{ fontSize: cfg.idSize, fontWeight: 900, color: '#000', marginBottom: '2px', letterSpacing: '-0.5px' }}>
+                    {/* COLUMNA IZQUIERDA: ID y Descripción Dinámica GIGANTE */}
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '8px', maxWidth: `${W - cfg.qrBoxSize - 25}px`, overflow: 'hidden' }}>
+                        <span style={{ fontSize: cfg.idSize, fontWeight: 900, color: '#000', marginBottom: '1px', letterSpacing: '-0.5px' }}>
                             {idQr}
                         </span>
                         <span style={{ 
                             fontSize: cfg.descSize, 
                             fontWeight: 900, 
                             color: '#000', 
-                            lineHeight: 1.15, 
+                            lineHeight: 1.05, 
                             overflow: 'hidden', 
                             wordBreak: 'break-word',
                         }}>
@@ -108,7 +108,7 @@ export async function GET(req: NextRequest) {
 
                 </div>
 
-                {/* FILA INFERIOR: Código de Barras bajado y texto */}
+                {/* FILA INFERIOR: Código de Barras grande y texto bien centrado */}
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', marginTop: 'auto' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={barcodeUrl} alt="Barcode" width={cfg.barcodeWidth} height={cfg.barcodeHeight} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
