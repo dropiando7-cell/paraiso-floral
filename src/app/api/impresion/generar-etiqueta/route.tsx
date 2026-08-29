@@ -3,50 +3,67 @@ import { NextRequest } from 'next/server';
 
 export const runtime = 'edge';
 
-// Genera un PNG de la etiqueta de activo para impresión con la Tally Dascom DL-210 o similar
-// Dimensiones: 2" x 1" a 203 DPI = 406px ancho x 203px alto (50x25)
-// Solo incluye Código, Nombre, QR a la derecha y Código de barras abajo.
+// Genera un PNG de la etiqueta de flor / producto / activo para impresión térmica
+// Dimensiones estándar:
+// 50x25 mm (2" x 1" a 203 DPI) = 399px ancho x 198px alto
+// 50x30 mm = 399px ancho x 240px alto
+// 50x33 mm = 399px ancho x 245px alto
+// 70x40 mm = 559px ancho x 310px alto
 
 export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
-    const idQr = searchParams.get('idQr') || 'ACTPB000000';
+    const idQr = searchParams.get('idQr') || '000000';
     const descripcion = searchParams.get('descripcion') || 'Sin descripción';
     const codigoBarras = searchParams.get('codigoBarras') || '';
 
     const size = searchParams.get('size') || '50x25';
     const is70x40 = size === '70x40';
-    const is50x25 = size === '50x25';
+    const is50x30 = size === '50x30';
+    const is50x33 = size === '50x33';
 
-    // Si no hay codigo de barras explícito, utilizamos el id interno como codigo de barra 1D también.
+    // Si no hay código de barras explícito, utilizamos el id interno como código de barra 1D
     const barcodeData = codigoBarras ? codigoBarras : idQr;
 
-    // Dimensiones según tamaño
-    const W = is70x40 ? 559 : 406;
-    const H = is70x40 ? 320 : (is50x25 ? 203 : 264);
-    
-    // Configuraciones de estilo dinámicas
+    // Dimensiones según tamaño solicitado
+    const W = is70x40 ? 559 : 399;
+    const H = is70x40 ? 310 : (is50x30 ? 240 : (is50x33 ? 245 : 198));
+
+    const descStr = descripcion.substring(0, 60).toUpperCase().trim();
+    const len = descStr.length;
+
+    // Tamaño de texto dinámico:
+    // - Corto (<= 14 chars, ej. ROSA FLORIDA): 25px
+    // - Mediano (15-22 chars, ej. ROJA FREEDOM CARTON): 19px
+    // - Largo (23-35 chars): 16px
+    // - Muy largo (> 35 chars): 14px
+    let descSize = 25;
+    if (len <= 14) {
+        descSize = is70x40 ? 34 : 25;
+    } else if (len <= 22) {
+        descSize = is70x40 ? 28 : 19;
+    } else if (len <= 35) {
+        descSize = is70x40 ? 24 : 16;
+    } else {
+        descSize = is70x40 ? 20 : 14;
+    }
+
     const cfg = {
-        padding: is70x40 ? '22px 20px 22px 20px' : (is50x25 ? '12px 14px 8px 14px' : '20px 14px 20px 14px'),
-        idSize: is70x40 ? 22 : (is50x25 ? 26 : 17),
-        descSizeLong: is70x40 ? 18 : (is50x25 ? 22 : 14),
-        descSizeShort: is70x40 ? 22 : (is50x25 ? 30 : 18),
-        qrSize: is70x40 ? 110 : (is50x25 ? 85 : 90),
-        qrImgSize: is70x40 ? 105 : (is50x25 ? 80 : 85),
-        barcodeWidth: is70x40 ? 500 : (is50x25 ? 280 : 370),
-        barcodeHeight: is70x40 ? 40 : (is50x25 ? 45 : 26),
-        barcodeTextSize: is70x40 ? 14 : (is50x25 ? 12 : 11),
+        padding: is70x40 ? '16px 20px 14px 20px' : '10px 14px 8px 14px',
+        idSize: is70x40 ? 32 : 24,
+        descSize: descSize,
+        qrBoxSize: is70x40 ? 100 : 80,
+        qrImgSize: is70x40 ? 95 : 80,
+        barcodeWidth: is70x40 ? 460 : 280,
+        barcodeHeight: is70x40 ? 46 : 38,
+        barcodeTextSize: is70x40 ? 14 : 12,
     };
 
     const qrText = encodeURIComponent(`${req.nextUrl.origin}/f/${idQr}`);
     // Usamos eclevel=L (menor densidad) para que los puntos del QR sean más grandes y definidos en impresoras térmicas
-    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=5&eclevel=L&includetext=false`;
+    const qrUrl = `https://bwipjs-api.metafloor.com/?bcid=qrcode&text=${qrText}&scale=4&eclevel=L&includetext=false`;
 
-    // Barcode height=16 para 50x25 para que tenga suficiente resolución y altura
-    const barcodeHeightAPI = is50x25 ? 16 : 8;
-    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=${barcodeHeightAPI}&scale=4&includetext=false`;
-
-    const descStr = descripcion.substring(0, 60).toUpperCase();
-    const isLongName = descStr.length > 22;
+    const barcodeHeightAPI = is70x40 ? 12 : 10;
+    const barcodeUrl = `https://bwipjs-api.metafloor.com/?bcid=code128&text=${encodeURIComponent(barcodeData)}&height=${barcodeHeightAPI}&scale=3&includetext=false`;
 
     return new ImageResponse(
         (
@@ -54,6 +71,7 @@ export async function GET(req: NextRequest) {
                 style={{
                     display: 'flex',
                     flexDirection: 'column',
+                    justifyContent: 'space-between',
                     width: W,
                     height: H,
                     backgroundColor: '#FFFFFF',
@@ -62,30 +80,41 @@ export async function GET(req: NextRequest) {
                     boxSizing: 'border-box',
                 }}
             >
-                {/* TOP ROW: Data (left) + QR (right) */}
-                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%', flex: 1, overflow: 'hidden' }}>
-
-                    {/* LEFT COLUMN: ID + Description */}
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '10px', overflow: 'hidden' }}>
-                        <span style={{ fontSize: cfg.idSize, fontWeight: 900, color: '#000', marginBottom: '2px' }}>{idQr}</span>
-                        <span style={{ fontSize: isLongName ? cfg.descSizeLong : cfg.descSizeShort, fontWeight: 900, color: '#000', lineHeight: 1.1, overflow: 'hidden', wordBreak: 'keep-all', overflowWrap: 'break-word' }}>
+                {/* FILA SUPERIOR: ID + Nombre de la Flor (izquierda) + Código QR (derecha) */}
+                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%', alignItems: 'flex-start' }}>
+                    
+                    {/* COLUMNA IZQUIERDA: ID y Descripción Dinámica */}
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '10px', maxWidth: `${W - cfg.qrBoxSize - 35}px`, overflow: 'hidden' }}>
+                        <span style={{ fontSize: cfg.idSize, fontWeight: 900, color: '#000', marginBottom: '2px', letterSpacing: '-0.5px' }}>
+                            {idQr}
+                        </span>
+                        <span style={{ 
+                            fontSize: cfg.descSize, 
+                            fontWeight: 900, 
+                            color: '#000', 
+                            lineHeight: 1.15, 
+                            overflow: 'hidden', 
+                            wordBreak: 'break-word',
+                        }}>
                             {descStr}
                         </span>
                     </div>
 
-                    {/* RIGHT COLUMN: QR Code */}
-                    <div style={{ display: 'flex', width: cfg.qrSize, height: cfg.qrSize, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
+                    {/* COLUMNA DERECHA: QR Code */}
+                    <div style={{ display: 'flex', width: cfg.qrBoxSize, height: cfg.qrBoxSize, flexShrink: 0, alignItems: 'center', justifyContent: 'center' }}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={qrUrl} alt="QR" width={cfg.qrImgSize} height={cfg.qrImgSize} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
                     </div>
 
                 </div>
 
-                {/* BARCODE ROW: altura y texto controlados para no desbordarse */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', marginTop: '8px' }}>
+                {/* FILA INFERIOR: Código de Barras bajado y texto */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%', marginTop: 'auto' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={barcodeUrl} alt="Barcode" width={cfg.barcodeWidth} height={cfg.barcodeHeight} style={{ objectFit: 'contain', imageRendering: 'pixelated' }} />
-                    <span style={{ fontSize: cfg.barcodeTextSize, marginTop: '2px', letterSpacing: 3, fontWeight: 900, color: '#000' }}>{barcodeData}</span>
+                    <span style={{ fontSize: cfg.barcodeTextSize, marginTop: '2px', letterSpacing: 2, fontWeight: 900, color: '#000' }}>
+                        {barcodeData}
+                    </span>
                 </div>
             </div>
         ),
