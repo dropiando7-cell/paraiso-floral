@@ -891,137 +891,125 @@ export default function ChecklistBodegaClient({
                                         return (
                                             <div
                                                 key={item.id}
-                                                className={`p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl border-2 transition-all space-y-3.5 md:space-y-4 ${
+                                                className={`p-3 sm:p-3.5 rounded-xl md:rounded-2xl border transition-all space-y-2 ${
                                                     tieneDano
-                                                        ? 'bg-rose-50/90 border-rose-300 shadow-xs'
+                                                        ? 'bg-rose-50/90 border-rose-200 shadow-xs'
                                                         : item.verificado
-                                                        ? 'bg-emerald-50/60 border-emerald-300 shadow-xs'
+                                                        ? 'bg-emerald-50/60 border-emerald-200 shadow-xs'
                                                         : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
                                                 }`}
                                             >
-                                                {/* Fila Adaptable Táctil */}
-                                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                                                    {/* Izquierda: Checkbox Grande + Nombre y Badges */}
-                                                    <div className="flex items-center gap-3.5 flex-1 min-w-0 w-full sm:w-auto">
+                                                {/* Fila Horizontal en 1 Sola Línea (Sin Solapamiento) */}
+                                                <div className="flex items-center justify-between gap-2.5 sm:gap-3">
+                                                    {/* Izquierda: Checkbox + Nombre y QR/Cultivo */}
+                                                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
                                                         <button
                                                             onClick={() => handleToggleItem(item)}
                                                             disabled={isPending}
-                                                            className={`p-2 md:p-3 rounded-2xl transition-all shrink-0 active:scale-95 min-w-[56px] min-h-[56px] md:min-w-[64px] md:min-h-[64px] flex items-center justify-center ${
+                                                            className={`p-1 md:p-1.5 rounded-xl transition-all shrink-0 active:scale-90 ${
                                                                 item.verificado
-                                                                    ? 'text-emerald-700 bg-emerald-100 border-2 border-emerald-500 shadow-2xs'
+                                                                    ? 'text-emerald-700 bg-emerald-100 border-2 border-emerald-400'
                                                                     : 'text-slate-400 hover:text-slate-600 bg-slate-100 border-2 border-slate-300'
                                                             }`}
                                                         >
                                                             {item.verificado ? (
-                                                                <CheckSquare className="w-8 h-8 md:w-9 md:h-9" />
+                                                                <CheckSquare className="w-6 h-6 md:w-7 md:h-7" />
                                                             ) : (
-                                                                <Square className="w-8 h-8 md:w-9 md:h-9" />
+                                                                <Square className="w-6 h-6 md:w-7 md:h-7" />
                                                             )}
                                                         </button>
 
-                                                        <div className="min-w-0 flex-1 space-y-1">
-                                                            <div className="flex items-center gap-2.5 flex-wrap">
-                                                                <span className="text-base sm:text-lg md:text-xl font-black text-slate-900 leading-snug">
+                                                        <div className="min-w-0 flex-1">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="text-xs sm:text-sm md:text-base font-extrabold text-slate-900 truncate">
                                                                     {descLive}
                                                                 </span>
-                                                                <span className="font-mono text-xs md:text-sm font-extrabold bg-slate-100 text-emerald-800 px-3 py-1 rounded-xl border border-slate-300 shrink-0">
+                                                                <span className="font-mono text-[10px] sm:text-xs font-bold bg-slate-100 text-emerald-800 px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
                                                                     QR: {item.activoFijo?.idQr || 'N/A'}
                                                                 </span>
                                                                 
                                                                 {(item.bonchesRecibidos > item.bonchesEsperados || item.bonchesEsperados === 0) && (
-                                                                    <span className="font-sans text-xs md:text-sm font-bold bg-amber-100 text-amber-800 px-3 py-1 rounded-xl border border-amber-300 shrink-0">
+                                                                    <span className="font-sans text-[10px] sm:text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md border border-amber-300 shrink-0">
                                                                         +{item.bonchesEsperados === 0 ? item.bonchesRecibidos : (item.bonchesRecibidos - item.bonchesEsperados)} Extra
                                                                     </span>
                                                                 )}
                                                             </div>
 
-                                                            <div className="text-xs md:text-sm text-slate-500 font-semibold">
-                                                                Cultivo: <span className="text-slate-800 font-bold">{item.cultivoOriginal}</span>
-                                                            </div>
-
-                                                            {tieneDano && (
-                                                                <div className="pt-1">
-                                                                    <span className="inline-flex items-center gap-2 font-black text-xs md:text-sm bg-amber-50 text-slate-800 px-3 py-1.5 rounded-xl border border-amber-300 shadow-2xs">
-                                                                        <span className="text-emerald-700 flex items-center gap-1.5">
-                                                                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                                                            {Math.max(0, (item.verificado ? item.bonchesRecibidos : item.bonchesEsperados) - item.bonchesDanados)} a Stock
-                                                                        </span>
+                                                            <div className="text-[11px] text-slate-500 font-medium truncate">
+                                                                Cultivo: <span className="text-slate-700 font-semibold">{item.cultivoOriginal}</span>
+                                                                {tieneDano && (
+                                                                    <span className="ml-2 inline-flex items-center gap-1 font-extrabold text-[10px] bg-amber-50 text-slate-800 px-2 py-0.5 rounded-md border border-amber-200">
+                                                                        <span className="text-emerald-700">{Math.max(0, (item.verificado ? item.bonchesRecibidos : item.bonchesEsperados) - item.bonchesDanados)} Stock</span>
                                                                         <span className="text-slate-300">|</span>
-                                                                        <span className="text-rose-600 flex items-center gap-1.5">
-                                                                            <AlertTriangle className="w-4 h-4 text-rose-500" />
-                                                                            {item.bonchesDanados} Merma
-                                                                        </span>
+                                                                        <span className="text-rose-600">{item.bonchesDanados} Merma</span>
                                                                     </span>
-                                                                </div>
-                                                            )}
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
 
-                                                    {/* Derecha: Campo Código de Barra con Botón Cámara + Cantidad y Daño */}
-                                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-                                                        
+                                                    {/* Derecha: Campo Código de Barra con Botón Cámara + Cantidad y Daño (Siempre Inline en 1 Línea) */}
+                                                    <div className="flex items-center gap-2 shrink-0">
                                                         {/* Campo Código de Barra + Botón Cámara */}
-                                                        <div className="flex items-center gap-2 bg-white border-2 border-slate-300 focus-within:border-emerald-600 focus-within:ring-4 focus-within:ring-emerald-500/20 px-3 md:px-4 py-2.5 md:py-3.5 rounded-2xl shadow-xs transition-all w-full sm:w-auto min-h-[52px]">
-                                                            <span className="text-xs md:text-sm text-slate-500 font-black uppercase shrink-0">Cód:</span>
+                                                        <div className="flex items-center gap-1 bg-white border border-slate-300 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 px-2 py-1 rounded-xl shadow-2xs transition-all">
+                                                            <span className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase shrink-0">Cód:</span>
                                                             <input
                                                                 type="text"
                                                                 placeholder="Escribir/Escanear..."
                                                                 value={item.codigoBarras || ''}
                                                                 onChange={(e) => handleCambiarCodigoBarras(item, e.target.value)}
                                                                 disabled={isPending}
-                                                                className="w-full sm:w-44 md:w-60 lg:w-72 bg-transparent text-sm md:text-base font-bold font-mono text-slate-900 focus:outline-none placeholder:text-slate-300"
+                                                                className="w-24 sm:w-36 md:w-44 bg-transparent text-xs sm:text-sm font-bold font-mono text-slate-800 focus:outline-none placeholder:text-slate-300"
                                                             />
                                                             
                                                             {/* Botón Escanear con Cámara */}
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setItemEscaneandoCamaraId(item.id)}
-                                                                className="p-2 md:p-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl shadow-xs shrink-0 flex items-center gap-1.5 font-bold text-xs md:text-sm transition-all"
+                                                                className="p-1 md:p-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg shadow-2xs shrink-0 flex items-center gap-1 font-bold text-[10px] sm:text-xs transition-all"
                                                                 title="Escanear con Cámara de la Tablet"
                                                             >
-                                                                <Camera className="w-4 h-4 md:w-5 md:h-5" />
+                                                                <Camera className="w-3.5 h-3.5 md:w-4 md:h-4" />
                                                                 <span className="hidden sm:inline">Cámara</span>
                                                             </button>
                                                         </div>
 
-                                                        <div className="flex items-center gap-3 justify-between sm:justify-end">
-                                                            {/* Cantidad Input */}
-                                                            <div className="flex items-center gap-2 bg-slate-100 px-3 md:px-4 py-2 md:py-2.5 rounded-2xl border-2 border-slate-200 min-h-[52px]">
-                                                                <input
-                                                                    type="number"
-                                                                    min={0}
-                                                                    value={item.verificado ? (item.bonchesRecibidos || item.bonchesEsperados) : item.bonchesEsperados}
-                                                                    onChange={(e) => handleCambiarBonches(item, parseInt(e.target.value, 10) || 0)}
-                                                                    className="w-14 sm:w-16 md:w-20 bg-white text-center font-black text-slate-900 text-base md:text-xl rounded-xl border-2 border-slate-300 focus:outline-none focus:border-emerald-600 py-1.5 md:py-2 shadow-2xs"
-                                                                />
-                                                                <span className="text-xs md:text-base text-slate-700 font-extrabold">/{item.bonchesEsperados} pqt</span>
-                                                            </div>
-
-                                                            {/* Botón Daño / Merma */}
-                                                            <button
-                                                                onClick={() => setItemEditandoDanoId(estaEditandoDano ? null : item.id)}
-                                                                title={tieneDano ? `${item.bonchesDanados} dañados (Neto a stock: ${Math.max(0, item.bonchesRecibidos - item.bonchesDanados)})` : "Reportar daño o merma"}
-                                                                className={`p-3 md:px-4 rounded-2xl text-xs md:text-sm font-black flex items-center gap-2 transition-all border-2 min-h-[52px] ${
-                                                                    tieneDano
-                                                                        ? 'bg-rose-100 text-rose-800 border-rose-300 shadow-2xs'
-                                                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
-                                                                }`}
-                                                            >
-                                                                <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
-                                                                {tieneDano && <span>{item.bonchesDanados}</span>}
-                                                            </button>
+                                                        {/* Cantidad Input */}
+                                                        <div className="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-xl border border-slate-200">
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                value={item.verificado ? (item.bonchesRecibidos || item.bonchesEsperados) : item.bonchesEsperados}
+                                                                onChange={(e) => handleCambiarBonches(item, parseInt(e.target.value, 10) || 0)}
+                                                                className="w-10 sm:w-12 md:w-14 bg-white text-center font-extrabold text-slate-900 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 py-0.5"
+                                                            />
+                                                            <span className="text-[10px] sm:text-xs text-slate-600 font-bold">/{item.bonchesEsperados} pqt</span>
                                                         </div>
-                                                    </div>
 
-                                                    {/* Formulario desplegable para reportar Daño / Merma + Foto Cámara / R2 */}
-                                                    {estaEditandoDano && (
-                                                        <FormularioDanoMerma 
-                                                            item={item}
-                                                            onGuardar={(danados, motivo, fotos) => handleGuardarDano(item, danados, motivo, fotos)}
-                                                            onCancelar={() => setItemEditandoDanoId(null)}
-                                                        />
-                                                    )}
+                                                        {/* Botón Daño / Merma */}
+                                                        <button
+                                                            onClick={() => setItemEditandoDanoId(estaEditandoDano ? null : item.id)}
+                                                            title={tieneDano ? `${item.bonchesDanados} dañados (Neto a stock: ${Math.max(0, item.bonchesRecibidos - item.bonchesDanados)})` : "Reportar daño o merma"}
+                                                            className={`p-1.5 sm:px-2 rounded-xl text-xs font-bold flex items-center gap-1 transition-all border ${
+                                                                tieneDano
+                                                                    ? 'bg-rose-100 text-rose-800 border-rose-300 shadow-2xs'
+                                                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
+                                                            }`}
+                                                        >
+                                                            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                                                            {tieneDano && <span>{item.bonchesDanados}</span>}
+                                                        </button>
+                                                    </div>
                                                 </div>
+
+                                                {/* Formulario desplegable para reportar Daño / Merma + Foto Cámara / R2 */}
+                                                {estaEditandoDano && (
+                                                    <FormularioDanoMerma 
+                                                        item={item}
+                                                        onGuardar={(danados, motivo, fotos) => handleGuardarDano(item, danados, motivo, fotos)}
+                                                        onCancelar={() => setItemEditandoDanoId(null)}
+                                                    />
+                                                )}
                                             </div>
                                         );
                                     })
