@@ -153,6 +153,7 @@ export default function ChecklistBodegaClient({
         loteInitial.cajas.length > 0 ? loteInitial.cajas[0].id : ''
     );
     const [busquedaItem, setBusquedaItem] = useState<string>('');
+    const [busquedaGlobalLote, setBusquedaGlobalLote] = useState<string>('');
     const [isPending, startTransition] = useTransition();
     const [mensajeFeedback, setMensajeFeedback] = useState<{ tipo: 'exito' | 'error'; texto: string } | null>(null);
     const [itemEditandoDanoId, setItemEditandoDanoId] = useState<string | null>(null);
@@ -285,6 +286,30 @@ export default function ChecklistBodegaClient({
         const barras = (item.activoFijo?.codigoBarras || '').toLowerCase();
         return descLive.includes(q) || descOrig.includes(q) || cultivo.includes(q) || qr.includes(q) || barras.includes(q);
     }) : [];
+
+    // Búsqueda global a lo largo de TODAS las cajas del lote
+    const itemsResultadoGlobal = React.useMemo(() => {
+        if (!busquedaGlobalLote.trim()) return [];
+        const term = busquedaGlobalLote.toLowerCase().trim();
+        const results: { item: ItemRecepcion; caja: CajaRecepcion }[] = [];
+        
+        lote.cajas.forEach(caja => {
+            caja.items.forEach(item => {
+                const desc = (item.activoFijo?.descripcionCorta || item.descripcion).toLowerCase();
+                const descOrig = item.descripcion.toLowerCase();
+                const qr = (item.activoFijo?.idQr || '').toLowerCase();
+                const codigoBarras = (item.codigoBarras || item.activoFijo?.codigoBarras || '').toLowerCase();
+                const cultivo = item.cultivoOriginal.toLowerCase();
+                const sticker = (caja.codigoProveedor || '').toLowerCase();
+
+                if (desc.includes(term) || descOrig.includes(term) || qr.includes(term) || codigoBarras.includes(term) || cultivo.includes(term) || sticker.includes(term)) {
+                    results.push({ item, caja });
+                }
+            });
+        });
+
+        return results;
+    }, [lote.cajas, busquedaGlobalLote]);
 
     // Cálculos globales de progreso
     let totalItemsGlobal = 0;
@@ -697,6 +722,104 @@ export default function ChecklistBodegaClient({
                         style={{ width: `${porcentajeGlobal}%` }}
                     />
                 </div>
+            </div>
+
+            {/* BUSCADOR GLOBAL A LO LARGO DEL MÓDULO (Para saber en qué caja viene cualquier flor) */}
+            <div className="max-w-7xl mx-auto mb-4 relative z-20">
+                <div className="relative flex items-center bg-white border-2 border-emerald-500/40 focus-within:border-emerald-600 focus-within:ring-4 focus-within:ring-emerald-500/20 rounded-2xl shadow-sm transition-all p-1">
+                    <Search className="w-5 h-5 text-emerald-600 ml-3 shrink-0" />
+                    <input
+                        type="text"
+                        value={busquedaGlobalLote}
+                        onChange={(e) => setBusquedaGlobalLote(e.target.value)}
+                        placeholder="🔍 BUSCADOR GENERAL DEL ENVÍO: Escribe cualquier flor, QR, código o cultivo para saber en qué caja viene..."
+                        className="w-full bg-transparent px-3 py-2.5 text-xs sm:text-sm md:text-base font-bold text-slate-800 focus:outline-none placeholder:text-slate-400 font-sans"
+                    />
+                    {busquedaGlobalLote && (
+                        <button
+                            onClick={() => setBusquedaGlobalLote('')}
+                            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl mr-1 transition-colors"
+                            title="Limpiar búsqueda general"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Panel desplegable de Resultados Globales por Caja */}
+                {busquedaGlobalLote.trim().length > 0 && (
+                    <div className="mt-2 bg-white border-2 border-emerald-200 rounded-2xl shadow-2xl p-3 md:p-4 max-h-[450px] overflow-y-auto space-y-3 animate-in fade-in duration-150">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <span className="text-xs font-black text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
+                                <Package className="w-4 h-4 text-emerald-600" />
+                                Coincidencias en el Envío ({itemsResultadoGlobal.length})
+                            </span>
+                            <button
+                                onClick={() => setBusquedaGlobalLote('')}
+                                className="text-xs font-bold text-slate-400 hover:text-slate-700"
+                            >
+                                Cerrar X
+                            </button>
+                        </div>
+
+                        {itemsResultadoGlobal.length === 0 ? (
+                            <div className="p-6 text-center text-slate-500 text-xs md:text-sm font-medium">
+                                No se encontró ninguna flor que coincida con &quot;<strong className="text-slate-800">{busquedaGlobalLote}</strong>&quot; en ninguna de las {lote.cajas.length} cajas del envío.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                                {itemsResultadoGlobal.map(({ item, caja }) => {
+                                    const desc = item.activoFijo?.descripcionCorta || item.descripcion;
+                                    return (
+                                        <div
+                                            key={`${caja.id}-${item.id}`}
+                                            className="p-3 bg-slate-50 hover:bg-emerald-50/70 border border-slate-200 hover:border-emerald-300 rounded-xl transition-all flex items-center justify-between gap-3 shadow-2xs group"
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <div className="flex items-center gap-1.5 flex-wrap">
+                                                    <span className="text-xs sm:text-sm font-extrabold text-slate-900 group-hover:text-emerald-950">
+                                                        {desc}
+                                                    </span>
+                                                    <span className="font-mono text-[10px] font-bold bg-white text-emerald-800 px-1.5 py-0.5 rounded border border-slate-200">
+                                                        QR: {item.activoFijo?.idQr || 'N/A'}
+                                                    </span>
+                                                </div>
+                                                
+                                                <div className="mt-1 flex items-center gap-2 flex-wrap text-xs">
+                                                    <span className="bg-emerald-100 text-emerald-800 font-extrabold px-2 py-0.5 rounded-md border border-emerald-200 flex items-center gap-1">
+                                                        <Box className="w-3.5 h-3.5" />
+                                                        Caja #{caja.numeroCaja}
+                                                        {caja.codigoProveedor && <span className="font-mono opacity-80">({caja.codigoProveedor})</span>}
+                                                    </span>
+                                                    <span className="text-slate-600 font-bold">
+                                                        {item.bonchesEsperados} pqt
+                                                    </span>
+                                                    {item.verificado && (
+                                                        <span className="text-emerald-700 font-bold flex items-center gap-0.5 text-[11px]">
+                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Listo
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            <button
+                                                onClick={() => {
+                                                    handleSelectCaja(caja.id);
+                                                    setBusquedaItem(desc);
+                                                    setBusquedaGlobalLote('');
+                                                }}
+                                                className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs flex items-center gap-1 shadow-2xs shrink-0 active:scale-95 transition-all"
+                                            >
+                                                <span>Ir a C#{caja.numeroCaja}</span>
+                                                <ChevronRight className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Responsive Grid: Box Selector + Checklist Ultra Adaptable */}
