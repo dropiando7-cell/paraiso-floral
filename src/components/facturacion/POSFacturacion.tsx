@@ -791,12 +791,20 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
   }, []);
 
   const handleScannedCode = useCallback((code: string) => {
-    const cleanCode = code.trim().replace(/'/g, '-');
+    let cleanCode = code.trim().replace(/'/g, '-');
     
-    // Buscar coincidencia de SKU o código de barras
+    // Si el QR contiene una URL completa (ej: https://paraiso-floral.vercel.app/catalogo/000279)
+    if (cleanCode.includes('/')) {
+      const parts = cleanCode.split('/').filter(Boolean);
+      const lastPart = parts.pop();
+      if (lastPart) cleanCode = lastPart.trim();
+    }
+    
+    // Buscar coincidencia de SKU (QR), código de barras o ID
     const product = productos.find(p => 
       p.sku.toLowerCase() === cleanCode.toLowerCase() || 
-      (p.codigoBarras && p.codigoBarras.toLowerCase() === cleanCode.toLowerCase())
+      (p.codigoBarras && p.codigoBarras.toLowerCase() === cleanCode.toLowerCase()) ||
+      p.id.toLowerCase() === cleanCode.toLowerCase()
     );
 
     if (product) {
@@ -809,7 +817,7 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
       // Cerrar el escáner
       setShowCameraScanner(false);
     } else {
-      toast.error(`Código "${cleanCode}" no encontrado`);
+      toast.error(`Código o QR "${cleanCode}" no encontrado`);
     }
   }, [productos, addToCart, playScannerBeep]);
 
@@ -887,11 +895,20 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
          const timeDiff = now - lastKeyTimeRef.current;
          if (timeDiff < 200) {
             e.preventDefault();
-            const scannedSku = barcodeBufferRef.current.replace(/'/g, '-');
+            let scannedSku = barcodeBufferRef.current.replace(/'/g, '-');
             barcodeBufferRef.current = '';
+            if (scannedSku.includes('/')) {
+              const parts = scannedSku.split('/').filter(Boolean);
+              const lastPart = parts.pop();
+              if (lastPart) scannedSku = lastPart.trim();
+            }
             
-            // Find exact SKU or barcode
-            const product = productos.find(p => p.sku.toLowerCase() === scannedSku.toLowerCase() || (p.codigoBarras && p.codigoBarras.toLowerCase() === scannedSku.toLowerCase()));
+            // Find exact SKU, barcode, or ID
+            const product = productos.find(p => 
+              p.sku.toLowerCase() === scannedSku.toLowerCase() || 
+              (p.codigoBarras && p.codigoBarras.toLowerCase() === scannedSku.toLowerCase()) ||
+              p.id.toLowerCase() === scannedSku.toLowerCase()
+            );
             if (product) {
                addToCart(product);
                playScannerBeep();
@@ -1321,10 +1338,57 @@ export default function POSFacturacion({ productos, categorias, onEmitirFactura,
                           )}
                         </div>
                         
-                        {viewMode !== 'list' && (
-                          <button className={`w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-colors shadow-xs ${
-                            qtyInCart > 0 ? 'bg-emerald-600 text-white' : 'bg-gray-100 text-gray-500 group-hover:bg-indigo-600 group-hover:text-white'
-                          }`}>
+                        {qtyInCart > 0 ? (
+                          <div 
+                            className="flex items-center gap-0.5 bg-emerald-50 border border-emerald-300 rounded-xl p-0.5 shadow-2xs z-20"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const cartItem = cart.find(i => i.id === p.id);
+                                if (cartItem) {
+                                  if (cartItem.qty <= 1) {
+                                    removeLine(cartItem.cartId);
+                                    toast.success(`Removido "${p.nombre}"`);
+                                  } else {
+                                    changeQty(cartItem.cartId, -1);
+                                  }
+                                }
+                              }}
+                              className="w-5 h-5 sm:w-7 sm:h-7 bg-white hover:bg-rose-50 text-rose-600 hover:border-rose-300 rounded-lg flex items-center justify-center font-black shadow-2xs active:scale-90 transition-all border border-slate-200 cursor-pointer"
+                              title="Restar 1 unidad"
+                            >
+                              <Minus size={12} className="stroke-[3]" />
+                            </button>
+                            
+                            <span className="font-black text-xs sm:text-sm text-emerald-950 px-1 min-w-[16px] text-center select-none">
+                              {qtyInCart}
+                            </span>
+                            
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                addToCart(p);
+                              }}
+                              className="w-5 h-5 sm:w-7 sm:h-7 bg-emerald-600 hover:bg-emerald-700 active:scale-90 text-white rounded-lg flex items-center justify-center font-black shadow-2xs transition-all cursor-pointer"
+                              title="Sumar 1 unidad"
+                            >
+                              <Plus size={12} className="stroke-[3]" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              addToCart(p);
+                            }}
+                            className="w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center transition-colors shadow-xs bg-gray-100 text-gray-500 group-hover:bg-emerald-600 group-hover:text-white cursor-pointer"
+                            title="Agregar al ticket"
+                          >
                             <Plus size={14} />
                           </button>
                         )}
