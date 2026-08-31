@@ -526,47 +526,47 @@ export default function ChecklistBodegaClient({
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-800 px-1.5 sm:px-4 py-2 sm:py-4 pb-32 font-sans select-none">
+        <div className="min-h-screen bg-slate-50 text-slate-800 px-2 sm:px-4 md:px-6 lg:px-8 py-3 sm:py-5 pb-36 font-sans select-none">
             {/* Top Bar Navigation */}
-            <div className="max-w-7xl mx-auto mb-3 flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
+            <div className="max-w-7xl mx-auto mb-4 flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
                     <Link 
                         href="/inventario/recepcion" 
-                        className="p-2 bg-white hover:bg-slate-100 active:scale-95 rounded-xl border border-slate-200 text-slate-600 shadow-xs transition-all"
+                        className="p-2.5 md:p-3 bg-white hover:bg-slate-100 active:scale-95 rounded-xl border border-slate-200 text-slate-600 shadow-xs transition-all"
                     >
-                        <ArrowLeft className="w-4 h-4" />
+                        <ArrowLeft className="w-4 h-4 md:w-5 md:h-5" />
                     </Link>
                     <div>
-                        <div className="flex items-center gap-1.5">
-                            <span className="bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded text-[10px] border border-emerald-200 uppercase tracking-wider">
+                        <div className="flex items-center gap-2">
+                            <span className="bg-emerald-50 text-emerald-700 font-extrabold px-2.5 py-0.5 rounded-md text-[10px] md:text-xs border border-emerald-200 uppercase tracking-wider">
                                 LOTE / ENVÍO
                             </span>
-                            <h1 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                            <h1 className="text-base sm:text-lg md:text-2xl font-black text-slate-900 tracking-tight">
                                 ENVÍO #{lote.numeroEnvio}
                             </h1>
                         </div>
-                        <p className="text-slate-500 text-[11px]">
-                            Proveedor: <strong className="text-slate-700">{lote.proveedor}</strong>
+                        <p className="text-slate-500 text-xs md:text-sm">
+                            Proveedor: <strong className="text-slate-800 font-bold">{lote.proveedor}</strong>
                         </p>
                     </div>
                 </div>
 
                 {/* Acciones Globales: PDF, Imprimir, Debug Pooler y Estado */}
-                <div className="flex items-center gap-1.5 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                     <button
                         onClick={() => setMostrarModalPdf(true)}
-                        className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 active:scale-95 rounded-xl font-bold text-xs flex items-center gap-1.5 border border-emerald-200 shadow-xs transition-all"
+                        className="px-3 md:px-4 py-2 md:py-2.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 active:scale-95 rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 border border-emerald-200 shadow-xs transition-all"
                     >
-                        <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                        <FileText className="w-4 h-4 text-emerald-700" />
                         <span>📄 PDF Ref</span>
                     </button>
 
                     <button
                         onClick={handleImprimirLoteCompleto}
                         disabled={isPending}
-                        className="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+                        className="px-3 md:px-4 py-2 md:py-2.5 bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white rounded-xl font-bold text-xs md:text-sm flex items-center gap-2 shadow-sm transition-all"
                     >
-                        <Printer className="w-3.5 h-3.5" />
+                        <Printer className="w-4 h-4" />
                         <span>Imprimir Lote</span>
                     </button>
 
@@ -574,18 +574,18 @@ export default function ChecklistBodegaClient({
                         onClick={handleLimpiarColaImpresion}
                         disabled={isPending}
                         title="Limpiar trabajos pendientes en la cola del Print Server"
-                        className="px-2.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 active:scale-95 rounded-xl font-bold text-xs flex items-center gap-1 border border-rose-200 transition-all"
+                        className="px-3 md:px-4 py-2 md:py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 active:scale-95 rounded-xl font-bold text-xs md:text-sm flex items-center gap-1.5 border border-rose-200 transition-all"
                     >
-                        <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                        <Trash2 className="w-4 h-4 text-rose-600" />
                         <span>Limpiar Cola</span>
                     </button>
 
-                    <span className={`px-2.5 py-1 rounded-xl text-xs font-bold border flex items-center gap-1 ${
+                    <span className={`px-3 py-1.5 md:py-2 rounded-xl text-xs md:text-sm font-bold border flex items-center gap-1.5 ${
                         lote.estado === 'COMPLETADO' 
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                             : 'bg-amber-50 text-amber-700 border-amber-200'
                     }`}>
-                        <Clock className="w-3.5 h-3.5" />
+                        <Clock className="w-4 h-4" />
                         {lote.estado === 'COMPLETADO' ? 'COMPLETADO' : 'EN RECEPCIÓN'}
                     </span>
                 </div>
@@ -593,47 +593,47 @@ export default function ChecklistBodegaClient({
 
             {/* Mensajes de Alerta/Feedback */}
             {mensajeFeedback && (
-                <div className={`max-w-7xl mx-auto mb-3 p-3 rounded-xl border flex items-center justify-between gap-3 shadow-xs ${
+                <div className={`max-w-7xl mx-auto mb-4 p-3.5 md:p-4 rounded-xl md:rounded-2xl border flex items-center justify-between gap-3 shadow-xs ${
                     mensajeFeedback.tipo === 'exito' 
                         ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
                         : 'bg-rose-50 border-rose-200 text-rose-800'
                 }`}>
-                    <div className="flex items-center gap-2">
-                        {mensajeFeedback.tipo === 'exito' ? <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />}
-                        <span className="text-xs font-medium">{mensajeFeedback.texto}</span>
+                    <div className="flex items-center gap-2.5">
+                        {mensajeFeedback.tipo === 'exito' ? <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" /> : <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />}
+                        <span className="text-xs md:text-sm font-bold">{mensajeFeedback.texto}</span>
                     </div>
-                    <button onClick={() => setMensajeFeedback(null)} className="text-xs opacity-60 hover:opacity-100 p-1">Cerrar</button>
+                    <button onClick={() => setMensajeFeedback(null)} className="text-xs opacity-60 hover:opacity-100 p-1 font-bold">Cerrar</button>
                 </div>
             )}
 
             {/* Compact Progress Header */}
-            <div className="max-w-7xl mx-auto mb-3 bg-white border border-slate-200 rounded-xl p-3 shadow-xs">
-                <div className="flex items-center justify-between gap-2 mb-2">
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-600">
-                            <TrendingUp className="w-4 h-4" />
+            <div className="max-w-7xl mx-auto mb-4 bg-white border border-slate-200 rounded-xl md:rounded-2xl p-3.5 md:p-5 shadow-xs">
+                <div className="flex items-center justify-between gap-3 mb-2.5">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 md:p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-600">
+                            <TrendingUp className="w-5 h-5 md:w-6 md:h-6" />
                         </div>
                         <div>
-                            <div className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Avance de Recepción</div>
-                            <div className="text-xs sm:text-sm font-bold text-slate-900">
+                            <div className="text-[10px] md:text-xs text-slate-400 uppercase font-extrabold tracking-wider">Avance de Recepción</div>
+                            <div className="text-xs sm:text-sm md:text-base font-black text-slate-900">
                                 {cajasVerificadasCount} / {lote.cajas.length} Cajas • <span className="text-emerald-700">{itemsVerificadosGlobal}/{totalItemsGlobal} Items</span>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                         {totalDanadosGlobal > 0 && (
-                            <span className="bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold px-2 py-0.5 rounded-lg flex items-center gap-1">
-                                <AlertTriangle className="w-3 h-3 text-rose-600" />
+                            <span className="bg-rose-50 text-rose-700 border border-rose-200 text-xs md:text-sm font-bold px-2.5 py-1 rounded-xl flex items-center gap-1.5">
+                                <AlertTriangle className="w-4 h-4 text-rose-600" />
                                 {totalDanadosGlobal} dañados
                             </span>
                         )}
-                        <span className="text-lg sm:text-xl font-black text-emerald-700">{porcentajeGlobal}%</span>
+                        <span className="text-lg sm:text-xl md:text-3xl font-black text-emerald-700">{porcentajeGlobal}%</span>
                     </div>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden p-0.5 border border-slate-200">
+                <div className="w-full bg-slate-100 rounded-full h-2.5 md:h-3 overflow-hidden p-0.5 border border-slate-200">
                     <div 
                         className="bg-emerald-600 h-full rounded-full transition-all duration-300" 
                         style={{ width: `${porcentajeGlobal}%` }}
@@ -641,44 +641,44 @@ export default function ChecklistBodegaClient({
                 </div>
             </div>
 
-            {/* Responsive Grid: Box Selector + Checklist Ultra Compacto */}
-            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-3">
+            {/* Responsive Grid: Box Selector + Checklist Ultra Adaptable */}
+            <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4">
                 
-                {/* Selector de Cajas con Scroll Horizontal 100% Suave y Controles de Flechas */}
-                <div className="lg:col-span-4 space-y-1.5">
+                {/* Selector de Cajas con Scroll Horizontal en Móvil y Lista Vertical Spaciosa en Tablet/Laptop */}
+                <div className="lg:col-span-4 space-y-2">
                     <div className="flex items-center justify-between px-1">
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                            <Box className="w-3.5 h-3.5 text-emerald-600" />
+                        <h2 className="text-xs md:text-sm font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                            <Box className="w-4 h-4 text-emerald-600" />
                             Cajas ({lote.cajas.length})
                         </h2>
 
-                        {/* Botones de Flechas para desplazar horizontalmente en Móvil/Laptop */}
+                        {/* Botones de Flechas para desplazar horizontalmente en Móvil/Tablet Portrait */}
                         <div className="flex items-center gap-1 lg:hidden">
                             <button
                                 onClick={() => scrollCajas('left')}
-                                className="p-1 bg-white border border-slate-200 hover:bg-slate-100 rounded-md text-slate-600 active:scale-95 shadow-2xs"
+                                className="p-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-slate-600 active:scale-95 shadow-2xs"
                                 title="Desplazar a la izquierda"
                             >
-                                <ChevronLeft className="w-3.5 h-3.5" />
+                                <ChevronLeft className="w-4 h-4" />
                             </button>
                             <button
                                 onClick={() => scrollCajas('right')}
-                                className="p-1 bg-white border border-slate-200 hover:bg-slate-100 rounded-md text-slate-600 active:scale-95 shadow-2xs"
+                                className="p-1.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-lg text-slate-600 active:scale-95 shadow-2xs"
                                 title="Desplazar a la derecha"
                             >
-                                <ChevronRight className="w-3.5 h-3.5" />
+                                <ChevronRight className="w-4 h-4" />
                             </button>
                         </div>
                     </div>
 
-                    {/* Contenedor táctil / Mouse Drag / Scroll Horizontal en Móvil */}
+                    {/* Contenedor táctil / Mouse Drag / Scroll Horizontal */}
                     <div 
                         ref={cajasScrollRef}
                         onMouseDown={handleMouseDown}
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUpOrLeave}
                         onMouseLeave={handleMouseUpOrLeave}
-                        className={`flex lg:flex-col overflow-x-auto lg:overflow-x-visible gap-1.5 pb-2 lg:pb-0 touch-pan-x cursor-grab active:cursor-grabbing select-none scroll-smooth ${
+                        className={`flex lg:flex-col overflow-x-auto lg:overflow-x-visible gap-2 pb-2 lg:pb-0 touch-pan-x cursor-grab active:cursor-grabbing select-none scroll-smooth ${
                             isDragging ? 'cursor-grabbing' : ''
                         }`}
                         style={{
@@ -696,31 +696,31 @@ export default function ChecklistBodegaClient({
                                 <button
                                     key={caja.id}
                                     onClick={() => handleSelectCaja(caja.id)}
-                                    className={`flex-shrink-0 min-w-[160px] lg:min-w-0 lg:w-full text-left p-2.5 rounded-xl border transition-all flex items-center justify-between gap-2 active:scale-[0.98] ${
+                                    className={`flex-shrink-0 min-w-[170px] md:min-w-[210px] lg:min-w-0 lg:w-full text-left p-3 md:p-3.5 rounded-xl md:rounded-2xl border transition-all flex items-center justify-between gap-3 active:scale-[0.98] ${
                                         esActiva
-                                            ? 'bg-emerald-50/80 border-emerald-500 text-slate-900 shadow-xs ring-2 ring-emerald-500/20 font-bold'
+                                            ? 'bg-emerald-50/90 border-emerald-500 text-slate-900 shadow-sm ring-2 ring-emerald-500/20 font-bold'
                                             : estaCompleta
                                             ? 'bg-white border-emerald-200 hover:bg-slate-50'
                                             : 'bg-white border-slate-200 hover:bg-slate-50'
                                     }`}
                                 >
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs border shrink-0 ${
+                                    <div className="flex items-center gap-2.5">
+                                        <div className={`w-9 h-9 md:w-11 md:h-11 rounded-lg md:rounded-xl flex items-center justify-center font-black text-xs md:text-sm border shrink-0 ${
                                             estaCompleta 
                                                 ? 'bg-emerald-100 text-emerald-700 border-emerald-300' 
                                                 : esActiva 
-                                                ? 'bg-emerald-600 text-white border-emerald-600 font-bold'
+                                                ? 'bg-emerald-600 text-white border-emerald-600'
                                                 : 'bg-slate-100 text-slate-700 border-slate-200'
                                         }`}>
-                                            {estaCompleta ? <Check className="w-4 h-4 stroke-[3]" /> : `C${caja.numeroCaja}`}
+                                            {estaCompleta ? <Check className="w-5 h-5 stroke-[3]" /> : `C${caja.numeroCaja}`}
                                         </div>
                                         <div>
-                                            <div className="font-bold text-slate-900 text-xs flex items-center gap-1">
+                                            <div className="font-extrabold text-slate-900 text-xs md:text-sm flex items-center gap-1">
                                                 Caja #{caja.numeroCaja}
-                                                {tieneDanoCaja && <AlertTriangle className="w-3 h-3 text-rose-500" />}
+                                                {tieneDanoCaja && <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />}
                                             </div>
                                             {caja.codigoProveedor && (
-                                                <div className="text-[10px] font-mono text-emerald-700 font-semibold">
+                                                <div className="text-[10px] md:text-xs font-mono text-emerald-700 font-bold">
                                                     Folio: {caja.codigoProveedor}
                                                 </div>
                                             )}
@@ -729,11 +729,11 @@ export default function ChecklistBodegaClient({
 
                                     <div className="flex items-center shrink-0">
                                         {estaCompleta ? (
-                                            <span className="bg-emerald-100 text-emerald-700 text-[10px] font-extrabold px-1.5 py-0.5 rounded border border-emerald-200">
+                                            <span className="bg-emerald-100 text-emerald-700 text-[10px] md:text-xs font-extrabold px-2 py-0.5 rounded-md border border-emerald-200">
                                                 OK
                                             </span>
                                         ) : (
-                                            <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-200">
+                                            <span className="bg-slate-100 text-slate-600 text-[10px] md:text-xs font-bold px-2 py-0.5 rounded-md border border-slate-200">
                                                 {itemsVerifCaja}/{caja.items.length}
                                             </span>
                                         )}
@@ -744,55 +744,55 @@ export default function ChecklistBodegaClient({
                     </div>
                 </div>
 
-                {/* Checklist Interactivo Ultra Compacto estilo Lista */}
+                {/* Checklist Interactivo Adaptado a Tablets (Galaxy Tab S10 Lite 10.9") */}
                 <div className="lg:col-span-8">
                     {cajaSeleccionada ? (
-                        <div className="bg-white border border-slate-200 rounded-xl p-2.5 sm:p-4 shadow-xs space-y-2.5">
+                        <div className="bg-white border border-slate-200 rounded-xl md:rounded-2xl p-3 sm:p-5 md:p-6 shadow-xs space-y-3.5 md:space-y-5 min-h-[450px]">
                             {/* Subheader Caja + Botones Imprimir Caja / Verificar Completa */}
-                            <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-100">
+                            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
                                 <div>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <h2 className="text-base font-bold text-slate-900">
+                                    <div className="flex items-center gap-2.5 flex-wrap">
+                                        <h2 className="text-base sm:text-lg md:text-xl font-black text-slate-900">
                                             Caja #{cajaSeleccionada.numeroCaja}
                                         </h2>
                                         {cajaSeleccionada.codigoProveedor && (
-                                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[11px] font-mono font-bold">
+                                            <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs font-mono font-bold">
                                                 STICKER: {cajaSeleccionada.codigoProveedor}
                                             </span>
                                         )}
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-1.5 flex-wrap w-full sm:w-auto">
+                                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
                                     {/* Botón Agregar Producto Extra a esta Caja */}
                                     <button
                                         onClick={handleAbrirModalExtra}
                                         disabled={isPending}
-                                        className="flex-1 sm:flex-initial px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 rounded-lg text-xs font-bold flex items-center justify-center gap-1 border border-emerald-200 transition-all shadow-2xs"
+                                        className="flex-1 sm:flex-initial px-3 md:px-4 py-2 md:py-2.5 bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-800 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-1.5 border border-emerald-200 transition-all shadow-2xs"
                                     >
-                                        <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
+                                        <PlusCircle className="w-4 h-4 text-emerald-600" />
                                         <span>+ Extra / Sobrante</span>
                                     </button>
 
                                     <button
                                         onClick={handleImprimirCaja}
                                         disabled={isPending}
-                                        className="flex-1 sm:flex-initial px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-lg text-xs font-bold flex items-center justify-center gap-1 border border-slate-200 transition-all"
+                                        className="flex-1 sm:flex-initial px-3 md:px-4 py-2 md:py-2.5 bg-slate-100 hover:bg-slate-200 active:scale-95 text-slate-700 rounded-xl text-xs md:text-sm font-bold flex items-center justify-center gap-1.5 border border-slate-200 transition-all"
                                     >
-                                        <Printer className="w-3.5 h-3.5 text-indigo-600" />
+                                        <Printer className="w-4 h-4 text-indigo-600" />
                                         <span>Etiquetas C#{cajaSeleccionada.numeroCaja}</span>
                                     </button>
 
                                     <button
                                         onClick={() => handleVerificarCajaCompleta(cajaSeleccionada.estado !== 'VERIFICADA')}
                                         disabled={isPending}
-                                        className={`flex-1 sm:flex-initial px-3 py-1.5 rounded-lg font-bold text-xs flex items-center justify-center gap-1 transition-all shadow-xs active:scale-95 ${
+                                        className={`flex-1 sm:flex-initial px-4 md:px-5 py-2 md:py-2.5 rounded-xl font-bold text-xs md:text-sm flex items-center justify-center gap-1.5 transition-all shadow-xs active:scale-95 ${
                                             cajaSeleccionada.estado === 'VERIFICADA'
                                                 ? 'bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200'
                                                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                                         }`}
                                     >
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
+                                        <CheckCircle2 className="w-4 h-4" />
                                         {cajaSeleccionada.estado === 'VERIFICADA' ? 'Desmarcar' : 'Caja LISTA ✅'}
                                     </button>
                                 </div>
@@ -800,28 +800,28 @@ export default function ChecklistBodegaClient({
 
                             {/* BUSCADOR DENTRO DE LA CAJA SELECCIONADA */}
                             <div className="relative">
-                                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                                 <input
                                     type="text"
                                     placeholder="🔍 Buscar variedad, cultivo o QR (ej. Freedom, 000005)..."
                                     value={busquedaItem}
                                     onChange={(e) => setBusquedaItem(e.target.value)}
-                                    className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-8 pr-8 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-medium"
+                                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-9 py-2 md:py-2.5 text-xs md:text-sm text-slate-800 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all font-semibold"
                                 />
                                 {busquedaItem && (
                                     <button
                                         onClick={() => setBusquedaItem('')}
-                                        className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700"
+                                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700"
                                     >
-                                        <X className="w-3.5 h-3.5" />
+                                        <X className="w-4 h-4" />
                                     </button>
                                 )}
                             </div>
 
-                            {/* LISTA COMPACTA DE ITEMS (ESTILO CHECKLIST 1 A 2 LÍNEAS) */}
-                            <div className="divide-y divide-slate-100 space-y-1.5">
+                            {/* LISTA ADAPTABLE DE ITEMS CON CAMPOS TÁCTILES AMPLIOS */}
+                            <div className="divide-y divide-slate-100 space-y-2 md:space-y-3">
                                 {itemsFiltrados.length === 0 ? (
-                                    <div className="p-6 text-center bg-slate-50 rounded-lg border border-slate-200 text-slate-500 text-xs">
+                                    <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-slate-500 text-xs md:text-sm font-medium">
                                         No se encontraron flores que coincidan con &quot;<strong className="text-slate-800">{busquedaItem}</strong>&quot;.
                                     </div>
                                 ) : (
@@ -833,107 +833,116 @@ export default function ChecklistBodegaClient({
                                         return (
                                             <div
                                                 key={item.id}
-                                                className={`p-2 sm:p-2.5 rounded-lg border transition-all ${
+                                                className={`p-3 sm:p-3.5 md:p-4 rounded-xl md:rounded-2xl border transition-all space-y-2 md:space-y-2.5 ${
                                                     tieneDano
-                                                        ? 'bg-rose-50/80 border-rose-200'
+                                                        ? 'bg-rose-50/90 border-rose-200'
                                                         : item.verificado
-                                                        ? 'bg-emerald-50/40 border-emerald-200'
+                                                        ? 'bg-emerald-50/50 border-emerald-200'
                                                         : 'bg-white border-slate-200 hover:border-slate-300'
                                                 }`}
                                             >
-                                                {/* Fila compacta de 1 a 2 líneas */}
-                                                <div className="flex items-center justify-between gap-2">
+                                                {/* Fila Adaptable Táctil */}
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                                                     {/* Izquierda: Checkbox + Nombre y QR/Cultivo */}
-                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
                                                         <button
                                                             onClick={() => handleToggleItem(item)}
                                                             disabled={isPending}
-                                                            className={`p-0.5 rounded transition-all shrink-0 active:scale-90 ${
+                                                            className={`p-1.5 md:p-2 rounded-xl transition-all shrink-0 active:scale-90 ${
                                                                 item.verificado
-                                                                    ? 'text-emerald-700 bg-emerald-100 border border-emerald-300'
-                                                                    : 'text-slate-400 hover:text-slate-600 bg-slate-100 border border-slate-200'
+                                                                    ? 'text-emerald-700 bg-emerald-100 border-2 border-emerald-400'
+                                                                    : 'text-slate-400 hover:text-slate-600 bg-slate-100 border-2 border-slate-300'
                                                             }`}
                                                         >
                                                             {item.verificado ? (
-                                                                <CheckSquare className="w-5 h-5" />
+                                                                <CheckSquare className="w-6 h-6 md:w-8 md:h-8" />
                                                             ) : (
-                                                                <Square className="w-5 h-5" />
+                                                                <Square className="w-6 h-6 md:w-8 md:h-8" />
                                                             )}
                                                         </button>
 
                                                         <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center gap-1.5 flex-wrap">
-                                                                <span className="text-xs font-bold text-slate-900 truncate">
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                <span className="text-xs sm:text-sm md:text-base font-extrabold text-slate-900">
                                                                     {descLive}
                                                                 </span>
-                                                                <span className="font-mono text-[10px] font-bold bg-slate-100 text-emerald-800 px-1.5 py-0.2 rounded border border-slate-200 shrink-0">
+                                                                <span className="font-mono text-[10px] sm:text-xs font-bold bg-slate-100 text-emerald-800 px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
                                                                     QR: {item.activoFijo?.idQr || 'N/A'}
                                                                 </span>
-                                                                {/* Columna/Campo Código de Barra */}
-                                                                <div className="flex items-center gap-1 bg-white border border-slate-200 px-1.5 py-0.5 rounded shadow-2xs">
-                                                                    <span className="text-[9px] text-slate-400 font-bold uppercase shrink-0">Cód:</span>
-                                                                    <input
-                                                                        type="text"
-                                                                        placeholder="Escribir/Escanear..."
-                                                                        value={item.codigoBarras || ''}
-                                                                        onChange={(e) => handleCambiarCodigoBarras(item, e.target.value)}
-                                                                        disabled={isPending}
-                                                                        className="w-28 bg-transparent text-[10px] font-semibold font-mono text-slate-700 focus:outline-none placeholder:text-slate-300"
-                                                                    />
-                                                                </div>
+                                                                
                                                                 {(item.bonchesRecibidos > item.bonchesEsperados || item.bonchesEsperados === 0) && (
-                                                                    <span className="font-sans text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded border border-amber-300 shrink-0">
+                                                                    <span className="font-sans text-[10px] sm:text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md border border-amber-300 shrink-0">
                                                                         +{item.bonchesEsperados === 0 ? item.bonchesRecibidos : (item.bonchesRecibidos - item.bonchesEsperados)} Extra
                                                                     </span>
                                                                 )}
-                                                                                   <div className="text-[11px] text-slate-500 truncate flex items-center gap-2 flex-wrap">
-                                                                <span>Cultivo: <span className="text-slate-700 font-medium">{item.cultivoOriginal}</span></span>
-                                                                {tieneDano && (
-                                                                    <span className="inline-flex items-center gap-1.5 font-extrabold text-[10px] bg-amber-50 text-slate-800 px-2 py-0.5 rounded-md border border-amber-200 shadow-2xs">
+                                                            </div>
+
+                                                            {/* Campo Código de Barra Adaptado para Entrada Táctil en Tablet */}
+                                                            <div className="mt-1.5 flex items-center gap-2 flex-wrap">
+                                                                <div className="flex items-center gap-1.5 bg-white border border-slate-300 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 px-2.5 py-1 rounded-xl shadow-2xs transition-all w-full sm:w-auto">
+                                                                    <span className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase shrink-0">Cód:</span>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Escribir/Escanear código..."
+                                                                        value={item.codigoBarras || ''}
+                                                                        onChange={(e) => handleCambiarCodigoBarras(item, e.target.value)}
+                                                                        disabled={isPending}
+                                                                        className="w-full sm:w-44 md:w-56 lg:w-64 bg-transparent text-xs sm:text-sm font-bold font-mono text-slate-800 focus:outline-none placeholder:text-slate-300"
+                                                                    />
+                                                                </div>
+
+                                                                <span className="text-xs text-slate-500 font-medium">
+                                                                    Cultivo: <span className="text-slate-800 font-semibold">{item.cultivoOriginal}</span>
+                                                                </span>
+                                                            </div>
+
+                                                            {tieneDano && (
+                                                                <div className="mt-1">
+                                                                    <span className="inline-flex items-center gap-2 font-extrabold text-xs bg-amber-50 text-slate-800 px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs">
                                                                         <span className="text-emerald-700 flex items-center gap-1">
-                                                                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                                                                             {Math.max(0, (item.verificado ? item.bonchesRecibidos : item.bonchesEsperados) - item.bonchesDanados)} a Stock
                                                                         </span>
                                                                         <span className="text-slate-300">|</span>
                                                                         <span className="text-rose-600 flex items-center gap-1">
-                                                                            <AlertTriangle className="w-3 h-3 text-rose-500" />
+                                                                            <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
                                                                             {item.bonchesDanados} Merma
                                                                         </span>
                                                                     </span>
-                                                                )}
-                                                            </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
 
                                                     {/* Derecha: Cantidad y Botón compacto de Daño */}
-                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                    <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
                                                         {/* Cantidad Input */}
-                                                        <div className="flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
+                                                        <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
                                                             <input
                                                                 type="number"
                                                                 min={0}
                                                                 value={item.verificado ? (item.bonchesRecibidos || item.bonchesEsperados) : item.bonchesEsperados}
                                                                 onChange={(e) => handleCambiarBonches(item, parseInt(e.target.value, 10) || 0)}
-                                                                className="w-10 bg-white text-center font-bold text-slate-900 text-xs rounded border border-slate-300 focus:outline-none focus:border-emerald-600 py-0.5"
+                                                                className="w-12 sm:w-14 md:w-16 bg-white text-center font-black text-slate-900 text-xs sm:text-sm md:text-base rounded-lg border-2 border-slate-300 focus:outline-none focus:border-emerald-600 py-1"
                                                             />
-                                                            <span className="text-[10px] text-slate-500 font-medium">/{item.bonchesEsperados} pqt</span>
+                                                            <span className="text-xs md:text-sm text-slate-600 font-bold">/{item.bonchesEsperados} pqt</span>
                                                         </div>
 
                                                         {/* Botón Compacto Daño / Merma */}
                                                         <button
                                                             onClick={() => setItemEditandoDanoId(estaEditandoDano ? null : item.id)}
                                                             title={tieneDano ? `${item.bonchesDanados} dañados (Neto a stock: ${Math.max(0, item.bonchesRecibidos - item.bonchesDanados)})` : "Reportar daño o merma"}
-                                                            className={`p-1.5 rounded-md text-[11px] font-bold flex items-center gap-1 transition-all border ${
+                                                            className={`p-2 md:px-3 rounded-xl text-xs md:text-sm font-bold flex items-center gap-1.5 transition-all border ${
                                                                 tieneDano
                                                                     ? 'bg-rose-100 text-rose-800 border-rose-300 shadow-2xs'
                                                                     : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
                                                             }`}
                                                         >
-                                                            <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                                                            {tieneDano && <span className="text-[10px]">{item.bonchesDanados}</span>}
+                                                            <AlertTriangle className="w-4 h-4 text-rose-600" />
+                                                            {tieneDano && <span>{item.bonchesDanados}</span>}
                                                         </button>
                                                     </div>
-                                                </div>                                             </div>
+                                                </div>
 
                                                 {/* Formulario desplegable para reportar Daño / Merma + Foto Cámara / R2 */}
                                                 {estaEditandoDano && (
@@ -950,34 +959,34 @@ export default function ChecklistBodegaClient({
                             </div>
                         </div>
                     ) : (
-                        <div className="bg-white border border-slate-200 rounded-xl p-8 text-center text-slate-500 shadow-xs">
-                            No hay caja seleccionada.
+                        <div className="bg-white border border-slate-200 rounded-xl md:rounded-2xl p-8 text-center text-slate-500 shadow-xs min-h-[450px] flex items-center justify-center">
+                            <p className="text-sm md:text-base font-semibold">Selecciona una caja a la izquierda para comenzar la verificación.</p>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Bottom Flotante Compacto: Ver Resumen / Finalizar Recepción */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white/95 border-t border-slate-200 p-2.5 sm:p-3 backdrop-blur z-30 shadow-lg">
-                <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            {/* Bottom Flotante Adaptado a Tablet: Ver Resumen / Finalizar Recepción */}
+            <div className="fixed bottom-0 left-0 right-0 bg-white/95 border-t border-slate-200 p-3 sm:p-4 backdrop-blur-md z-30 shadow-2xl">
+                <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
                     <button
                         onClick={() => setMostrarModalResumen(true)}
-                        className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 border border-slate-200 transition-all"
+                        className="px-4 sm:px-5 md:px-6 py-2.5 md:py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl md:rounded-2xl text-xs sm:text-sm md:text-base font-extrabold flex items-center gap-2 border border-slate-200 transition-all shadow-xs"
                     >
-                        <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                        <FileSpreadsheet className="w-4 h-4 md:w-5 md:h-5 text-emerald-600" />
                         <span>Resumen Lote #{lote.numeroEnvio}</span>
                     </button>
 
                     <button
                         onClick={handleFinalizarRecepcion}
                         disabled={isPending || lote.estado === 'COMPLETADO'}
-                        className={`px-4 sm:px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm flex items-center gap-1.5 transition-all shadow-xs active:scale-95 ${
+                        className={`px-5 sm:px-6 md:px-8 py-2.5 md:py-3.5 rounded-xl md:rounded-2xl font-black text-xs sm:text-sm md:text-base flex items-center gap-2 transition-all shadow-md active:scale-95 ${
                             lote.estado === 'COMPLETADO'
                                 ? 'bg-slate-200 text-slate-500 cursor-not-allowed border border-slate-300'
-                                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                : 'bg-emerald-600 hover:bg-emerald-700 text-white ring-2 ring-emerald-600/30'
                         }`}
                     >
-                        <Save className="w-4 h-4" />
+                        <Save className="w-4 h-4 md:w-5 md:h-5" />
                         <span>{lote.estado === 'COMPLETADO' ? 'COMPLETADO' : 'PROCESAR Y CARGAR STOCK'}</span>
                     </button>
                 </div>
