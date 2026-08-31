@@ -106,6 +106,7 @@ interface ItemRecepcion {
         descripcionCorta: string;
         stock: number;
     } | null;
+    codigoBarras?: string | null;
 }
 
 interface CajaRecepcion {
@@ -354,6 +355,36 @@ export default function ChecklistBodegaClient({
 
         startTransition(async () => {
             await toggleVerificacionItem(item.id, item.verificado, item.tipoEmpaque, cantValida, item.bonchesDanados, item.motivoDano || undefined);
+        });
+    };
+
+    // Handler: Cambiar código de barras de un item
+    const handleCambiarCodigoBarras = (item: ItemRecepcion, codigo: string) => {
+        setLote(prev => ({
+            ...prev,
+            cajas: prev.cajas.map(c => {
+                if (c.id !== item.cajaId) return c;
+                return {
+                    ...c,
+                    items: c.items.map(i => i.id === item.id ? { ...i, codigoBarras: codigo } : i)
+                };
+            })
+        }));
+
+        startTransition(async () => {
+            const res = await toggleVerificacionItem(
+                item.id,
+                item.verificado,
+                item.tipoEmpaque,
+                item.bonchesRecibidos,
+                item.bonchesDanados,
+                item.motivoDano || undefined,
+                item.fotosDano || undefined,
+                codigo
+            );
+            if (!res.success) {
+                setMensajeFeedback({ tipo: 'error', texto: res.error || 'Error al actualizar código de barras.' });
+            }
         });
     };
 
@@ -838,6 +869,18 @@ export default function ChecklistBodegaClient({
                                                                 <span className="font-mono text-[10px] font-bold bg-slate-100 text-emerald-800 px-1.5 py-0.2 rounded border border-slate-200 shrink-0">
                                                                     QR: {item.activoFijo?.idQr || 'N/A'}
                                                                 </span>
+                                                                {/* Columna/Campo Código de Barra */}
+                                                                <div className="flex items-center gap-1 bg-white border border-slate-200 px-1.5 py-0.5 rounded shadow-2xs">
+                                                                    <span className="text-[9px] text-slate-400 font-bold uppercase shrink-0">Cód:</span>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Escribir/Escanear..."
+                                                                        value={item.codigoBarras || ''}
+                                                                        onChange={(e) => handleCambiarCodigoBarras(item, e.target.value)}
+                                                                        disabled={isPending}
+                                                                        className="w-28 bg-transparent text-[10px] font-semibold font-mono text-slate-700 focus:outline-none placeholder:text-slate-300"
+                                                                    />
+                                                                </div>
                                                                 {(item.bonchesRecibidos > item.bonchesEsperados || item.bonchesEsperados === 0) && (
                                                                     <span className="font-sans text-[10px] font-bold bg-amber-100 text-amber-800 px-1.5 py-0.2 rounded border border-amber-300 shrink-0">
                                                                         +{item.bonchesEsperados === 0 ? item.bonchesRecibidos : (item.bonchesRecibidos - item.bonchesEsperados)} Extra

@@ -1846,6 +1846,7 @@ model RecepcionItem {
   tipoEmpaque      String        @default("Cartón") // Cartón, Plastipel
   verificado       Boolean       @default(false)
   notas            String?
+  codigoBarras     String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 

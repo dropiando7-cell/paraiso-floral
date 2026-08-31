@@ -194,7 +194,8 @@ export async function toggleVerificacionItem(
     bonchesRecibidos?: number,
     bonchesDanados?: number,
     motivoDano?: string,
-    fotosDano?: string[]
+    fotosDano?: string[],
+    codigoBarras?: string
 ) {
     try {
         const user = await getAuthContext();
@@ -219,7 +220,8 @@ export async function toggleVerificacionItem(
                 bonchesDanados: danados,
                 motivoDano: motivoDano !== undefined ? motivoDano : item.motivoDano,
                 fotosDano: fotosDano !== undefined ? (fotosDano as any) : (item.fotosDano ?? undefined),
-                tipoEmpaque: empaque
+                tipoEmpaque: empaque,
+                codigoBarras: codigoBarras !== undefined ? codigoBarras : item.codigoBarras
             }
         });
 
@@ -350,7 +352,8 @@ export async function finalizarRecepcionLote(loteId: string) {
                                     stock: { increment: netoRecibido },
                                     lote: lote.numeroEnvio,
                                     tipoEmpaque: item.tipoEmpaque || 'Cartón',
-                                    estatusContable: 'VIGENTE'
+                                    estatusContable: 'VIGENTE',
+                                    ...(item.codigoBarras ? { codigoBarras: item.codigoBarras } : {})
                                 }
                             });
 
