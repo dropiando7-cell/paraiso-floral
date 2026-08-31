@@ -1043,24 +1043,24 @@ export default function ChecklistBodegaClient({
                                                             )}
                                                         </button>
 
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <span className="text-xs sm:text-sm md:text-base font-extrabold text-slate-900 truncate">
-                                                                    {descLive}
-                                                                </span>
-                                                                <span className="font-mono text-[10px] sm:text-xs font-bold bg-slate-100 text-emerald-800 px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
-                                                                    QR: {item.activoFijo?.idQr || 'N/A'}
-                                                                </span>
-                                                                
-                                                                {(item.bonchesRecibidos > item.bonchesEsperados || item.bonchesEsperados === 0) && (
-                                                                    <span className="font-sans text-[10px] sm:text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md border border-amber-300 shrink-0">
-                                                                        +{item.bonchesEsperados === 0 ? item.bonchesRecibidos : (item.bonchesRecibidos - item.bonchesEsperados)} Extra
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <span className="text-xs sm:text-sm md:text-base font-extrabold text-slate-900 leading-tight break-words">
+                                                                        {descLive}
                                                                     </span>
-                                                                )}
-                                                            </div>
+                                                                    <span className="font-mono text-[10px] sm:text-xs font-bold bg-slate-100 text-emerald-800 px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
+                                                                        QR: {item.activoFijo?.idQr || 'N/A'}
+                                                                    </span>
+                                                                    
+                                                                    {(item.bonchesRecibidos > item.bonchesEsperados || item.bonchesEsperados === 0) && (
+                                                                        <span className="font-sans text-[10px] sm:text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md border border-amber-300 shrink-0">
+                                                                            +{item.bonchesEsperados === 0 ? item.bonchesRecibidos : (item.bonchesRecibidos - item.bonchesEsperados)} Extra
+                                                                        </span>
+                                                                    )}
+                                                                </div>
 
-                                                            <div className="text-[11px] text-slate-500 font-medium truncate">
-                                                                Cultivo: <span className="text-slate-700 font-semibold">{item.cultivoOriginal}</span>
+                                                                <div className="text-[11px] text-slate-500 font-medium leading-tight">
+                                                                    Cultivo: <span className="text-slate-700 font-semibold">{item.cultivoOriginal}</span>
                                                                 {tieneDano && (
                                                                     <span className="ml-2 inline-flex items-center gap-1 font-extrabold text-[10px] bg-amber-50 text-slate-800 px-2 py-0.5 rounded-md border border-amber-200">
                                                                         <span className="text-emerald-700">{Math.max(0, (item.verificado ? item.bonchesRecibidos : item.bonchesEsperados) - item.bonchesDanados)} Stock</span>
