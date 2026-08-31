@@ -43,6 +43,7 @@ import {
     getActivosCatalogoParaRecepcion,
     agregarItemExtraACaja
 } from './actions';
+import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 
 // Función para emitir un pitido de confirmación mediante Web Audio API (sin archivos de audio externos)
 function playAudioFeedback(type: 'check' | 'complete' | 'uncheck' = 'check') {
@@ -157,6 +158,7 @@ export default function ChecklistBodegaClient({
     const [itemEditandoDanoId, setItemEditandoDanoId] = useState<string | null>(null);
     const [mostrarModalResumen, setMostrarModalResumen] = useState<boolean>(false);
     const [mostrarModalPdf, setMostrarModalPdf] = useState<boolean>(false);
+    const [itemEscaneandoCamaraId, setItemEscaneandoCamaraId] = useState<string | null>(null);
 
     // Modal para agregar producto extra/sobrante
     const [mostrarModalExtra, setMostrarModalExtra] = useState<boolean>(false);
@@ -166,6 +168,31 @@ export default function ChecklistBodegaClient({
     const [extraBonches, setExtraBonches] = useState<number>(1);
     const [extraCultivo, setExtraCultivo] = useState<string>('');
     const [cargandoCatalogo, setCargandoCatalogo] = useState<boolean>(false);
+
+    // PERSISTENCIA & AUTOGUARDADO EN LOCALSTORAGE (Para no perder datos al refrescar o salir de la App)
+    useEffect(() => {
+        try {
+            const backupKey = `recepcion_lote_backup_${loteInitial.id}`;
+            const cachedData = localStorage.getItem(backupKey);
+            if (cachedData) {
+                const parsed = JSON.parse(cachedData);
+                if (parsed && parsed.cajas && Array.isArray(parsed.cajas)) {
+                    setLote(parsed);
+                }
+            }
+        } catch (e) {
+            console.error('Error al restaurar autoguardado local:', e);
+        }
+    }, [loteInitial.id]);
+
+    useEffect(() => {
+        try {
+            const backupKey = `recepcion_lote_backup_${lote.id}`;
+            localStorage.setItem(backupKey, JSON.stringify(lote));
+        } catch (e) {
+            console.error('Error al guardar respaldo local:', e);
+        }
+    }, [lote]);
 
     const handleAbrirModalExtra = async () => {
         setMostrarModalExtra(true);
@@ -386,6 +413,37 @@ export default function ChecklistBodegaClient({
                 setMensajeFeedback({ tipo: 'error', texto: res.error || 'Error al actualizar código de barras.' });
             }
         });
+    };
+
+    // Handler: Escanear código de barras con Cámara de Tablet y asignarlo al item objetivo
+    const handleScannerBarcodeSuccess = (scannedText: string) => {
+        if (!itemEscaneandoCamaraId) return;
+
+        let targetItem: ItemRecepcion | null = null;
+        for (const caja of lote.cajas) {
+            const found = caja.items.find(i => i.id === itemEscaneandoCamaraId);
+            if (found) {
+                targetItem = found;
+                break;
+            }
+        }
+
+        if (targetItem) {
+            const desc = targetItem.activoFijo?.descripcionCorta || targetItem.descripcion;
+            handleCambiarCodigoBarras(targetItem, scannedText);
+
+            if (!targetItem.verificado) {
+                handleToggleItem(targetItem);
+            }
+
+            playAudioFeedback('check');
+            setMensajeFeedback({
+                tipo: 'exito',
+                texto: `¡Código "${scannedText}" escaneado con cámara y asignado a "${desc}"!`
+            });
+        }
+
+        setItemEscaneandoCamaraId(null);
     };
 
     // Handler: Registrar o Eliminar Daño / Merma en Item
@@ -818,10 +876,10 @@ export default function ChecklistBodegaClient({
                                 )}
                             </div>
 
-                            {/* LISTA ADAPTABLE DE ITEMS CON CAMPOS TÁCTILES AMPLIOS */}
-                            <div className="divide-y divide-slate-100 space-y-2 md:space-y-3">
+                            {/* LISTA ADAPTABLE DE ITEMS CON CAMPOS TÁCTILES AMPLIOS PARA TABLET */}
+                            <div className="divide-y divide-slate-100 space-y-3.5 md:space-y-4">
                                 {itemsFiltrados.length === 0 ? (
-                                    <div className="p-8 text-center bg-slate-50 rounded-xl border border-slate-200 text-slate-500 text-xs md:text-sm font-medium">
+                                    <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 text-slate-500 text-sm font-medium">
                                         No se encontraron flores que coincidan con &quot;<strong className="text-slate-800">{busquedaItem}</strong>&quot;.
                                     </div>
                                 ) : (
@@ -833,79 +891,64 @@ export default function ChecklistBodegaClient({
                                         return (
                                             <div
                                                 key={item.id}
-                                                className={`p-3 sm:p-3.5 md:p-4 rounded-xl md:rounded-2xl border transition-all space-y-2 md:space-y-2.5 ${
+                                                className={`p-4 sm:p-5 md:p-6 rounded-2xl md:rounded-3xl border-2 transition-all space-y-3.5 md:space-y-4 ${
                                                     tieneDano
-                                                        ? 'bg-rose-50/90 border-rose-200'
+                                                        ? 'bg-rose-50/90 border-rose-300 shadow-xs'
                                                         : item.verificado
-                                                        ? 'bg-emerald-50/50 border-emerald-200'
-                                                        : 'bg-white border-slate-200 hover:border-slate-300'
+                                                        ? 'bg-emerald-50/60 border-emerald-300 shadow-xs'
+                                                        : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
                                                 }`}
                                             >
                                                 {/* Fila Adaptable Táctil */}
-                                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                                                    {/* Izquierda: Checkbox + Nombre y QR/Cultivo */}
-                                                    <div className="flex items-center gap-3 flex-1 min-w-0 w-full sm:w-auto">
+                                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                                                    {/* Izquierda: Checkbox Grande + Nombre y Badges */}
+                                                    <div className="flex items-center gap-3.5 flex-1 min-w-0 w-full sm:w-auto">
                                                         <button
                                                             onClick={() => handleToggleItem(item)}
                                                             disabled={isPending}
-                                                            className={`p-1.5 md:p-2 rounded-xl transition-all shrink-0 active:scale-90 ${
+                                                            className={`p-2 md:p-3 rounded-2xl transition-all shrink-0 active:scale-95 min-w-[56px] min-h-[56px] md:min-w-[64px] md:min-h-[64px] flex items-center justify-center ${
                                                                 item.verificado
-                                                                    ? 'text-emerald-700 bg-emerald-100 border-2 border-emerald-400'
+                                                                    ? 'text-emerald-700 bg-emerald-100 border-2 border-emerald-500 shadow-2xs'
                                                                     : 'text-slate-400 hover:text-slate-600 bg-slate-100 border-2 border-slate-300'
                                                             }`}
                                                         >
                                                             {item.verificado ? (
-                                                                <CheckSquare className="w-6 h-6 md:w-8 md:h-8" />
+                                                                <CheckSquare className="w-8 h-8 md:w-9 md:h-9" />
                                                             ) : (
-                                                                <Square className="w-6 h-6 md:w-8 md:h-8" />
+                                                                <Square className="w-8 h-8 md:w-9 md:h-9" />
                                                             )}
                                                         </button>
 
-                                                        <div className="min-w-0 flex-1">
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <span className="text-xs sm:text-sm md:text-base font-extrabold text-slate-900">
+                                                        <div className="min-w-0 flex-1 space-y-1">
+                                                            <div className="flex items-center gap-2.5 flex-wrap">
+                                                                <span className="text-base sm:text-lg md:text-xl font-black text-slate-900 leading-snug">
                                                                     {descLive}
                                                                 </span>
-                                                                <span className="font-mono text-[10px] sm:text-xs font-bold bg-slate-100 text-emerald-800 px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
+                                                                <span className="font-mono text-xs md:text-sm font-extrabold bg-slate-100 text-emerald-800 px-3 py-1 rounded-xl border border-slate-300 shrink-0">
                                                                     QR: {item.activoFijo?.idQr || 'N/A'}
                                                                 </span>
                                                                 
                                                                 {(item.bonchesRecibidos > item.bonchesEsperados || item.bonchesEsperados === 0) && (
-                                                                    <span className="font-sans text-[10px] sm:text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md border border-amber-300 shrink-0">
+                                                                    <span className="font-sans text-xs md:text-sm font-bold bg-amber-100 text-amber-800 px-3 py-1 rounded-xl border border-amber-300 shrink-0">
                                                                         +{item.bonchesEsperados === 0 ? item.bonchesRecibidos : (item.bonchesRecibidos - item.bonchesEsperados)} Extra
                                                                     </span>
                                                                 )}
                                                             </div>
 
-                                                            {/* Campo Código de Barra Adaptado para Entrada Táctil en Tablet */}
-                                                            <div className="mt-1.5 flex items-center gap-2 flex-wrap">
-                                                                <div className="flex items-center gap-1.5 bg-white border border-slate-300 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 px-2.5 py-1 rounded-xl shadow-2xs transition-all w-full sm:w-auto">
-                                                                    <span className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase shrink-0">Cód:</span>
-                                                                    <input
-                                                                        type="text"
-                                                                        placeholder="Escribir/Escanear código..."
-                                                                        value={item.codigoBarras || ''}
-                                                                        onChange={(e) => handleCambiarCodigoBarras(item, e.target.value)}
-                                                                        disabled={isPending}
-                                                                        className="w-full sm:w-44 md:w-56 lg:w-64 bg-transparent text-xs sm:text-sm font-bold font-mono text-slate-800 focus:outline-none placeholder:text-slate-300"
-                                                                    />
-                                                                </div>
-
-                                                                <span className="text-xs text-slate-500 font-medium">
-                                                                    Cultivo: <span className="text-slate-800 font-semibold">{item.cultivoOriginal}</span>
-                                                                </span>
+                                                            <div className="text-xs md:text-sm text-slate-500 font-semibold">
+                                                                Cultivo: <span className="text-slate-800 font-bold">{item.cultivoOriginal}</span>
                                                             </div>
 
                                                             {tieneDano && (
-                                                                <div className="mt-1">
-                                                                    <span className="inline-flex items-center gap-2 font-extrabold text-xs bg-amber-50 text-slate-800 px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs">
-                                                                        <span className="text-emerald-700 flex items-center gap-1">
-                                                                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                                                <div className="pt-1">
+                                                                    <span className="inline-flex items-center gap-2 font-black text-xs md:text-sm bg-amber-50 text-slate-800 px-3 py-1.5 rounded-xl border border-amber-300 shadow-2xs">
+                                                                        <span className="text-emerald-700 flex items-center gap-1.5">
+                                                                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                                                                             {Math.max(0, (item.verificado ? item.bonchesRecibidos : item.bonchesEsperados) - item.bonchesDanados)} a Stock
                                                                         </span>
                                                                         <span className="text-slate-300">|</span>
-                                                                        <span className="text-rose-600 flex items-center gap-1">
-                                                                            <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                                                                        <span className="text-rose-600 flex items-center gap-1.5">
+                                                                            <AlertTriangle className="w-4 h-4 text-rose-500" />
                                                                             {item.bonchesDanados} Merma
                                                                         </span>
                                                                     </span>
@@ -914,44 +957,71 @@ export default function ChecklistBodegaClient({
                                                         </div>
                                                     </div>
 
-                                                    {/* Derecha: Cantidad y Botón compacto de Daño */}
-                                                    <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
-                                                        {/* Cantidad Input */}
-                                                        <div className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-xl border border-slate-200">
+                                                    {/* Derecha: Campo Código de Barra con Botón Cámara + Cantidad y Daño */}
+                                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full sm:w-auto pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                                                        
+                                                        {/* Campo Código de Barra + Botón Cámara */}
+                                                        <div className="flex items-center gap-2 bg-white border-2 border-slate-300 focus-within:border-emerald-600 focus-within:ring-4 focus-within:ring-emerald-500/20 px-3 md:px-4 py-2.5 md:py-3.5 rounded-2xl shadow-xs transition-all w-full sm:w-auto min-h-[52px]">
+                                                            <span className="text-xs md:text-sm text-slate-500 font-black uppercase shrink-0">Cód:</span>
                                                             <input
-                                                                type="number"
-                                                                min={0}
-                                                                value={item.verificado ? (item.bonchesRecibidos || item.bonchesEsperados) : item.bonchesEsperados}
-                                                                onChange={(e) => handleCambiarBonches(item, parseInt(e.target.value, 10) || 0)}
-                                                                className="w-12 sm:w-14 md:w-16 bg-white text-center font-black text-slate-900 text-xs sm:text-sm md:text-base rounded-lg border-2 border-slate-300 focus:outline-none focus:border-emerald-600 py-1"
+                                                                type="text"
+                                                                placeholder="Escribir/Escanear..."
+                                                                value={item.codigoBarras || ''}
+                                                                onChange={(e) => handleCambiarCodigoBarras(item, e.target.value)}
+                                                                disabled={isPending}
+                                                                className="w-full sm:w-44 md:w-60 lg:w-72 bg-transparent text-sm md:text-base font-bold font-mono text-slate-900 focus:outline-none placeholder:text-slate-300"
                                                             />
-                                                            <span className="text-xs md:text-sm text-slate-600 font-bold">/{item.bonchesEsperados} pqt</span>
+                                                            
+                                                            {/* Botón Escanear con Cámara */}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setItemEscaneandoCamaraId(item.id)}
+                                                                className="p-2 md:p-2.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl shadow-xs shrink-0 flex items-center gap-1.5 font-bold text-xs md:text-sm transition-all"
+                                                                title="Escanear con Cámara de la Tablet"
+                                                            >
+                                                                <Camera className="w-4 h-4 md:w-5 md:h-5" />
+                                                                <span className="hidden sm:inline">Cámara</span>
+                                                            </button>
                                                         </div>
 
-                                                        {/* Botón Compacto Daño / Merma */}
-                                                        <button
-                                                            onClick={() => setItemEditandoDanoId(estaEditandoDano ? null : item.id)}
-                                                            title={tieneDano ? `${item.bonchesDanados} dañados (Neto a stock: ${Math.max(0, item.bonchesRecibidos - item.bonchesDanados)})` : "Reportar daño o merma"}
-                                                            className={`p-2 md:px-3 rounded-xl text-xs md:text-sm font-bold flex items-center gap-1.5 transition-all border ${
-                                                                tieneDano
-                                                                    ? 'bg-rose-100 text-rose-800 border-rose-300 shadow-2xs'
-                                                                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
-                                                            }`}
-                                                        >
-                                                            <AlertTriangle className="w-4 h-4 text-rose-600" />
-                                                            {tieneDano && <span>{item.bonchesDanados}</span>}
-                                                        </button>
-                                                    </div>
-                                                </div>
+                                                        <div className="flex items-center gap-3 justify-between sm:justify-end">
+                                                            {/* Cantidad Input */}
+                                                            <div className="flex items-center gap-2 bg-slate-100 px-3 md:px-4 py-2 md:py-2.5 rounded-2xl border-2 border-slate-200 min-h-[52px]">
+                                                                <input
+                                                                    type="number"
+                                                                    min={0}
+                                                                    value={item.verificado ? (item.bonchesRecibidos || item.bonchesEsperados) : item.bonchesEsperados}
+                                                                    onChange={(e) => handleCambiarBonches(item, parseInt(e.target.value, 10) || 0)}
+                                                                    className="w-14 sm:w-16 md:w-20 bg-white text-center font-black text-slate-900 text-base md:text-xl rounded-xl border-2 border-slate-300 focus:outline-none focus:border-emerald-600 py-1.5 md:py-2 shadow-2xs"
+                                                                />
+                                                                <span className="text-xs md:text-base text-slate-700 font-extrabold">/{item.bonchesEsperados} pqt</span>
+                                                            </div>
 
-                                                {/* Formulario desplegable para reportar Daño / Merma + Foto Cámara / R2 */}
-                                                {estaEditandoDano && (
-                                                    <FormularioDanoMerma 
-                                                        item={item}
-                                                        onGuardar={(danados, motivo, fotos) => handleGuardarDano(item, danados, motivo, fotos)}
-                                                        onCancelar={() => setItemEditandoDanoId(null)}
-                                                    />
-                                                )}
+                                                            {/* Botón Daño / Merma */}
+                                                            <button
+                                                                onClick={() => setItemEditandoDanoId(estaEditandoDano ? null : item.id)}
+                                                                title={tieneDano ? `${item.bonchesDanados} dañados (Neto a stock: ${Math.max(0, item.bonchesRecibidos - item.bonchesDanados)})` : "Reportar daño o merma"}
+                                                                className={`p-3 md:px-4 rounded-2xl text-xs md:text-sm font-black flex items-center gap-2 transition-all border-2 min-h-[52px] ${
+                                                                    tieneDano
+                                                                        ? 'bg-rose-100 text-rose-800 border-rose-300 shadow-2xs'
+                                                                        : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-200'
+                                                                }`}
+                                                            >
+                                                                <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+                                                                {tieneDano && <span>{item.bonchesDanados}</span>}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Formulario desplegable para reportar Daño / Merma + Foto Cámara / R2 */}
+                                                    {estaEditandoDano && (
+                                                        <FormularioDanoMerma 
+                                                            item={item}
+                                                            onGuardar={(danados, motivo, fotos) => handleGuardarDano(item, danados, motivo, fotos)}
+                                                            onCancelar={() => setItemEditandoDanoId(null)}
+                                                        />
+                                                    )}
+                                                </div>
                                             </div>
                                         );
                                     })
@@ -991,6 +1061,13 @@ export default function ChecklistBodegaClient({
                     </button>
                 </div>
             </div>
+
+            {/* Modal de Escáner con Cámara de la Tablet */}
+            <BarcodeScannerModal
+                onOpen={!!itemEscaneandoCamaraId}
+                onClose={() => setItemEscaneandoCamaraId(null)}
+                onScanSuccess={handleScannerBarcodeSuccess}
+            />
 
             {/* Modal Consulta de Packing List Original (PDF / Referencia) */}
             {mostrarModalPdf && (() => {
