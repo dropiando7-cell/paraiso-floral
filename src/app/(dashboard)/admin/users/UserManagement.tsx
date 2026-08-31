@@ -48,6 +48,9 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     const [puesto, setPuesto] = useState('');
     const [isAssignable, setIsAssignable] = useState(true);
     const [deletingUser, setDeletingUser] = useState<{ id: string; email: string } | null>(null);
+    const [searchModulesQuery, setSearchModulesQuery] = useState('');
+    const [searchRoleModulesQuery, setSearchRoleModulesQuery] = useState('');
+    const [searchRolesQuery, setSearchRolesQuery] = useState('');
 
     // Form State for Role Template
     const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
@@ -205,6 +208,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setEditingUserId(null);
         setAuthType('CLASSIC');
         setEmail('');
+        setSearchModulesQuery('');
         setFirstName('');
         setLastName('');
         setPassword('');
@@ -230,6 +234,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setEditingUserId(user.id);
         setAuthType('CLASSIC'); // Edit doesn't allow changing auth type or password easily here
         setEmail(user.email);
+        setSearchModulesQuery('');
         setPassword('');
         setFirstName(user.nombre || '');
         setLastName(user.apellido || '');
@@ -318,6 +323,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setNewRoleName('');
         setNewRoleBase('USER');
         setNewRoleModules(['/']);
+        setSearchRoleModulesQuery('');
         setOrganizationId(organizations[0]?.id || '');
         setError(null);
         setIsRoleModalOpen(true);
@@ -328,6 +334,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setNewRoleName(template.name);
         setNewRoleBase(template.baseRole);
         setNewRoleModules(template.accessibleModules);
+        setSearchRoleModulesQuery('');
         setOrganizationId(template.organizationId);
         setError(null);
         setIsRoleModalOpen(true);
@@ -733,14 +740,26 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
 
             {currentUserRole === 'SUPER_ADMIN' && roleTemplates.length > 0 && (
                 <div className="mt-8">
-                    <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-                        <h2 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
-                            <Tag className="w-5 h-5 text-indigo-600" />
-                            Roles Personalizados
-                        </h2>
-                        <p className="text-sm text-slate-500 mt-1">
-                            Plantillas de roles que has creado para asignar permisos específicos.
-                        </p>
+                    <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div>
+                            <h2 className="text-xl font-bold tracking-tight text-slate-800 flex items-center gap-2">
+                                <Tag className="w-5 h-5 text-indigo-600" />
+                                Roles Personalizados
+                            </h2>
+                            <p className="text-sm text-slate-500 mt-1">
+                                Plantillas de roles que has creado para asignar permisos específicos.
+                            </p>
+                        </div>
+                        <div className="relative w-full md:max-w-xs shrink-0">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                            <input
+                                type="text"
+                                placeholder="Buscar rol personalizado..."
+                                value={searchRolesQuery}
+                                onChange={(e) => setSearchRolesQuery(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all placeholder:text-slate-400 shadow-sm text-slate-700"
+                            />
+                        </div>
                     </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-left text-sm whitespace-nowrap">
@@ -753,7 +772,12 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {roleTemplates.map((t) => (
+                                {roleTemplates
+                                    .filter(t => 
+                                        t.name.toLowerCase().includes(searchRolesQuery.toLowerCase()) || 
+                                        t.baseRole.toLowerCase().includes(searchRolesQuery.toLowerCase())
+                                    )
+                                    .map((t) => (
                                     <tr key={t.id} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-4 font-medium text-slate-700">
                                             {t.name}
@@ -933,19 +957,31 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                     <label className="block text-sm font-medium text-slate-700 mb-2">
                                         Módulos Permitidos (Checklist)
                                     </label>
+                                    <div className="relative w-full mb-2">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar módulo..."
+                                            value={searchModulesQuery}
+                                            onChange={(e) => setSearchModulesQuery(e.target.value)}
+                                            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400 text-slate-700"
+                                        />
+                                    </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50">
-                                        {availableModules.map((module) => (
-                                            <label key={module.id} className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-white rounded-lg transition-colors">
-                                                <input
-                                                    type="checkbox"
-                                                    disabled={role === 'SUPER_ADMIN' || !!customRoleName || currentUserRole === 'CHECKIN_KIDS_ADMIN'}
-                                                    checked={role === 'SUPER_ADMIN' || accessibleModules.includes(module.id)}
-                                                    onChange={() => toggleModule(module.id)}
-                                                    className="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                />
-                                                <span className="text-sm text-slate-600 leading-tight">{module.label}</span>
-                                            </label>
-                                        ))}
+                                        {availableModules
+                                            .filter(m => m.label.toLowerCase().includes(searchModulesQuery.toLowerCase()))
+                                            .map((module) => (
+                                                <label key={module.id} className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-white rounded-lg transition-colors">
+                                                    <input
+                                                        type="checkbox"
+                                                        disabled={role === 'SUPER_ADMIN' || !!customRoleName || currentUserRole === 'CHECKIN_KIDS_ADMIN'}
+                                                        checked={role === 'SUPER_ADMIN' || accessibleModules.includes(module.id)}
+                                                        onChange={() => toggleModule(module.id)}
+                                                        className="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                    />
+                                                    <span className="text-sm text-slate-600 leading-tight">{module.label}</span>
+                                                </label>
+                                            ))}
                                     </div>
                                     <p className="text-xs text-slate-500 mt-1.5">
                                         {role === 'SUPER_ADMIN' ? 'Los Super Administradores tienen acceso a todo.' :
@@ -1069,19 +1105,31 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                     <label className="block text-sm font-medium text-slate-700 mb-2">
                                         Módulos Permitidos para este Rol
                                     </label>
+                                    <div className="relative w-full mb-2">
+                                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar módulo..."
+                                            value={searchRoleModulesQuery}
+                                            onChange={(e) => setSearchRoleModulesQuery(e.target.value)}
+                                            className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 transition-all placeholder:text-slate-400 text-slate-700"
+                                        />
+                                    </div>
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto p-2 border border-slate-200 rounded-xl bg-slate-50">
-                                        {availableModules.map((module) => (
-                                            <label key={module.id} className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-white rounded-lg transition-colors">
-                                                <input
-                                                    type="checkbox"
-                                                    disabled={newRoleBase === 'SUPER_ADMIN'}
-                                                    checked={newRoleBase === 'SUPER_ADMIN' || newRoleModules.includes(module.id)}
-                                                    onChange={() => toggleModule(module.id, true)}
-                                                    className="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 disabled:opacity-50"
-                                                />
-                                                <span className="text-sm text-slate-600 leading-tight">{module.label}</span>
-                                            </label>
-                                        ))}
+                                        {availableModules
+                                            .filter(m => m.label.toLowerCase().includes(searchRoleModulesQuery.toLowerCase()))
+                                            .map((module) => (
+                                                <label key={module.id} className="flex items-start gap-2 cursor-pointer p-1.5 hover:bg-white rounded-lg transition-colors">
+                                                    <input
+                                                        type="checkbox"
+                                                        disabled={newRoleBase === 'SUPER_ADMIN'}
+                                                        checked={newRoleBase === 'SUPER_ADMIN' || newRoleModules.includes(module.id)}
+                                                        onChange={() => toggleModule(module.id, true)}
+                                                        className="w-4 h-4 mt-0.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 disabled:opacity-50"
+                                                    />
+                                                    <span className="text-sm text-slate-600 leading-tight">{module.label}</span>
+                                                </label>
+                                            ))}
                                     </div>
                                 </div>
                             </div>

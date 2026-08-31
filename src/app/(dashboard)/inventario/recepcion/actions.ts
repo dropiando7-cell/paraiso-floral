@@ -24,7 +24,8 @@ async function getAuthContext() {
                     dbUser.role === 'RECEPCION' ||
                     (dbUser.customRoleName || '').toUpperCase().includes('GEREN') ||
                     (dbUser.customRoleName || '').toUpperCase().includes('BODEG') ||
-                    (dbUser.accessibleModules || []).includes('/inventario');
+                    (dbUser.accessibleModules || []).includes('/inventario') ||
+                    (dbUser.accessibleModules || []).includes('/inventario/recepcion');
 
     if (!allowed) redirect('/unauthorized');
 
