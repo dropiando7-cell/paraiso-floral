@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
                 <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', width: '100%', alignItems: 'flex-start' }}>
                     
                     {/* COLUMNA IZQUIERDA: ID y Descripción Dinámica GIGANTE */}
-                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '8px', maxWidth: `${W - cfg.qrBoxSize - 25}px`, overflow: 'hidden' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, paddingRight: '8px', maxWidth: `${W - cfg.qrBoxSize - 46}px`, overflow: 'hidden' }}>
                         <span style={{ fontSize: cfg.idSize, fontWeight: 900, color: '#000', marginBottom: '1px', letterSpacing: '-0.5px' }}>
                             {idQr}
                         </span>

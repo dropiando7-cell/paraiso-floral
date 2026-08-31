@@ -39,7 +39,7 @@ TAMANOS = {
         "QR_SIZE": 85,
         "QR_X": 302,
         "QR_Y": 8,
-        "TEXT_MAX_W": 284,
+        "TEXT_MAX_W": 265,
         "ID_SIZE": 28,
         "ID_X": 12,
         "ID_Y": 8,
@@ -56,7 +56,7 @@ TAMANOS = {
         "QR_SIZE": 90,
         "QR_X": 298,
         "QR_Y": 10,
-        "TEXT_MAX_W": 280,
+        "TEXT_MAX_W": 265,
         "ID_SIZE": 30,
         "ID_X": 14,
         "ID_Y": 10,
@@ -73,7 +73,7 @@ TAMANOS = {
         "QR_SIZE": 90,
         "QR_X": 298,
         "QR_Y": 10,
-        "TEXT_MAX_W": 280,
+        "TEXT_MAX_W": 265,
         "ID_SIZE": 30,
         "ID_X": 14,
         "ID_Y": 10,
@@ -90,7 +90,7 @@ TAMANOS = {
         "QR_SIZE": 100,
         "QR_X": 440,
         "QR_Y": 12,
-        "TEXT_MAX_W": 415,
+        "TEXT_MAX_W": 395,
         "ID_SIZE": 36,
         "ID_X": 16,
         "ID_Y": 12,
@@ -115,11 +115,10 @@ def obtener_fuente(size):
             return ImageFont.load_default()
 
 
-def wrap_texto(texto, font, max_px=284):
+def wrap_texto(texto, font, max_px=265):
     """
     Divide el texto en hasta 2 líneas respetando palabras completas.
-    Si cabe en 1 sola línea, retorna [texto].
-    Si no cabe, hace salto de línea limpio.
+    Sincronizado con la vista previa del ERP.
     """
     if not texto:
         return []
@@ -131,14 +130,39 @@ def wrap_texto(texto, font, max_px=284):
             try:
                 return font.getsize(t)[0]
             except:
-                return len(t) * 10
-
-    if medir(texto) <= max_px:
-        return [texto]
+                return len(t) * 12
 
     palabras = texto.split()
-    linea1 = ""
+    if len(palabras) == 1:
+        if medir(texto) <= max_px:
+            return [texto]
+        else:
+            return [texto[:12] + "..."]
 
+    if len(texto) > 13:
+        linea1 = ""
+        for i, p in enumerate(palabras):
+            candidato = (linea1 + " " + p).strip() if linea1 else p
+            if len(candidato) <= 14 and medir(candidato) <= max_px:
+                linea1 = candidato
+            else:
+                if not linea1:
+                    linea1 = p
+                    resto = palabras[i+1:]
+                else:
+                    resto = palabras[i:]
+                linea2 = " ".join(resto)
+                if medir(linea2) <= max_px:
+                    return [linea1, linea2]
+                while resto:
+                    c2 = " ".join(resto) + "..."
+                    if medir(c2) <= max_px:
+                        return [linea1, c2]
+                    resto.pop()
+                return [linea1, p[:12] + "..."]
+        return [linea1]
+
+    linea1 = ""
     for i, p in enumerate(palabras):
         candidato = (linea1 + " " + p).strip() if linea1 else p
         if medir(candidato) <= max_px:
@@ -148,42 +172,39 @@ def wrap_texto(texto, font, max_px=284):
             linea2 = " ".join(resto)
             if medir(linea2) <= max_px:
                 return [linea1, linea2]
-            
-            # Truncar con '...' si excede 2 líneas
-            while resto:
-                c2 = " ".join(resto) + "..."
-                if medir(c2) <= max_px:
-                    return [linea1, c2]
-                resto.pop()
-            return [linea1, p[:12] + "..."]
-
+            return [linea1, " ".join(resto)]
     return [linea1]
 
 
-def calcular_tamano_optimo(descripcion, max_w, is_70=False):
+def calcular_tamano_optimo(descripcion, max_w=265, is_70=False):
     """
-    Calcula el tamaño de fuente MÁXIMO posible para que el nombre de la flor
-    se vea enorme y llene el espacio disponible.
+    Calcula el tamaño de fuente y la disposición de líneas dinámicamente
+    sincronizado al 100% con el diseño de la vista previa del ERP.
     """
     desc = descripcion.strip().upper()
+    length = len(desc)
     
-    # Lista de tamaños candidatos de mayor a menor
-    sizes = [44, 40, 36, 32, 28, 26, 22, 20] if is_70 else [36, 32, 28, 26, 22, 20]
-    
+    if length <= 13:
+        target_sz = 44 if is_70 else 36
+    elif length <= 22:
+        target_sz = 40 if is_70 else 32
+    elif length <= 35:
+        target_sz = 32 if is_70 else 26
+    else:
+        target_sz = 26 if is_70 else 20
+        
+    sizes = [44, 40, 36, 32, 28, 26, 22, 20, 18] if is_70 else [36, 32, 28, 26, 22, 20, 18]
+    sizes = [s for s in sizes if s <= target_sz]
+
     for sz in sizes:
         f = obtener_fuente(sz)
         lineas = wrap_texto(desc, f, max_px=max_w)
-        
-        # Si cabe en 1 línea con tamaño grande
-        if len(lineas) == 1 and sz >= (36 if is_70 else 28):
+        if len(lineas) <= 2:
             return sz, lineas
-            
-        # Si cabe en 2 líneas
-        if len(lineas) <= 2 and sz <= (40 if is_70 else 32):
-            return sz, lineas
-            
-    min_sz = 20 if is_70 else 18
+
+    min_sz = 18 if is_70 else 16
     return min_sz, wrap_texto(desc, obtener_fuente(min_sz), max_px=max_w)
+
 
 
 def generar_imagen_local(activo, cfg, size_name="50x25"):
