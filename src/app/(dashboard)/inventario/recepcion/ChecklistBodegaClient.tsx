@@ -44,6 +44,7 @@ import {
     agregarItemExtraACaja
 } from './actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
+import { ProveedorLogo } from '@/components/inventario/ProveedorLogo';
 
 // Función para emitir un pitido de confirmación mediante Web Audio API (sin archivos de audio externos)
 function playAudioFeedback(type: 'check' | 'complete' | 'uncheck' = 'check') {
@@ -628,9 +629,9 @@ export default function ChecklistBodegaClient({
                                 ENVÍO #{lote.numeroEnvio}
                             </h1>
                         </div>
-                        <p className="text-slate-500 text-xs md:text-sm">
-                            Proveedor: <strong className="text-slate-800 font-bold">{lote.proveedor}</strong>
-                        </p>
+                        <div className="mt-1">
+                            <ProveedorLogo nombre={lote.proveedor} size="sm" />
+                        </div>
                     </div>
                 </div>
 
@@ -1183,10 +1184,10 @@ export default function ChecklistBodegaClient({
             {mostrarModalPdf && (() => {
                 const pdfPath = lote.numeroEnvio === '123419'
                     ? '/referencias/QUALITY_DISTR_123419.pdf'
-                    : '/referencias/PACKING_LIST_19918.pdf';
-                const pdfName = lote.numeroEnvio === '123419'
-                    ? 'QUALITY DISTR-123419.pdf (ECUADOR PREMIUM)'
-                    : 'PACKIN LIST LUCIO SPS 28.08.26.pdf';
+                    : lote.numeroEnvio === '19918'
+                    ? '/referencias/PACKING_LIST_19918.pdf'
+                    : `/referencias/PACKING_LIST_${lote.numeroEnvio}.pdf`;
+                const pdfName = `PACKING_LIST_${lote.numeroEnvio}.pdf (${lote.proveedor})`;
 
                 return (
                     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4 overflow-y-auto">

@@ -16,6 +16,7 @@ import {
     Calendar
 } from 'lucide-react';
 import SubirPackingModal from './SubirPackingModal';
+import { ProveedorLogo } from '@/components/inventario/ProveedorLogo';
 
 interface LoteItem {
     id: string;
@@ -200,9 +201,9 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                                                         )}
                                                     </span>
                                                 </div>
-                                                <h3 className="text-lg md:text-xl font-black text-slate-900 mt-2 group-hover:text-emerald-600 transition-colors">
-                                                    {lote.proveedor}
-                                                </h3>
+                                                <div className="mt-2.5">
+                                                    <ProveedorLogo nombre={lote.proveedor} size="md" />
+                                                </div>
                                             </div>
 
                                             <div className="p-2.5 bg-slate-100 group-hover:bg-emerald-600 group-hover:text-white rounded-xl text-slate-500 transition-colors shrink-0">
