@@ -966,11 +966,10 @@ export default function ChecklistBodegaClient({
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setItemEscaneandoCamaraId(item.id)}
-                                                                className="p-1 md:p-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg shadow-2xs shrink-0 flex items-center gap-1 font-bold text-[10px] sm:text-xs transition-all"
+                                                                className="p-1.5 md:p-2 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-lg shadow-2xs shrink-0 flex items-center justify-center transition-all"
                                                                 title="Escanear con Cámara de la Tablet"
                                                             >
-                                                                <Camera className="w-3.5 h-3.5 md:w-4 md:h-4" />
-                                                                <span className="hidden sm:inline">Cámara</span>
+                                                                <Camera className="w-4 h-4" />
                                                             </button>
                                                         </div>
 
