@@ -47,10 +47,18 @@ export async function getLotesRecepcion() {
                         estado: true,
                         items: {
                             select: {
+                                descripcion: true,
+                                cultivoOriginal: true,
                                 bonchesEsperados: true,
                                 bonchesRecibidos: true,
                                 bonchesDanados: true,
-                                verificado: true
+                                verificado: true,
+                                activoFijo: {
+                                    select: {
+                                        descripcionCorta: true,
+                                        idQr: true
+                                    }
+                                }
                             }
                         }
                     }
@@ -65,11 +73,17 @@ export async function getLotesRecepcion() {
                 let itemsTotal = 0;
                 let itemsVerificados = 0;
                 let totalDanados = 0;
+                const productosSet = new Set<string>();
+
                 l.cajas.forEach(c => {
                     c.items.forEach(i => {
                         itemsTotal++;
                         if (i.verificado) itemsVerificados++;
                         totalDanados += i.bonchesDanados || 0;
+                        if (i.descripcion) productosSet.add(i.descripcion);
+                        if (i.cultivoOriginal) productosSet.add(i.cultivoOriginal);
+                        if (i.activoFijo?.descripcionCorta) productosSet.add(i.activoFijo.descripcionCorta);
+                        if (i.activoFijo?.idQr) productosSet.add(i.activoFijo.idQr);
                     });
                 });
 
@@ -86,6 +100,7 @@ export async function getLotesRecepcion() {
                     totalDanados,
                     itemsTotal,
                     itemsVerificados,
+                    productosLista: Array.from(productosSet),
                     porcentaje,
                     fechaLlegada: l.fechaLlegada,
                     createdAt: l.createdAt

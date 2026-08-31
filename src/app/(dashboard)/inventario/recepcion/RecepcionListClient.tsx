@@ -28,6 +28,7 @@ interface LoteItem {
     cajasVerificadas: number;
     porcentaje: number;
     createdAt: string;
+    productosLista?: string[];
 }
 
 export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
@@ -43,14 +44,15 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
         l.estado === 'COMPLETADO' || l.estado === 'INGRESADO_CEDI' || l.porcentaje === 100
     );
 
-    // Filtrar según el tab activo y el término de búsqueda
+    // Filtrar según el tab activo y el término de búsqueda (envío #, proveedor o producto)
     const listadoActual = (tabActiva === 'pendientes' ? lotesPendientes : lotesIngresados).filter(l => {
         if (!busqueda.trim()) return true;
         const q = busqueda.toLowerCase().trim();
-        return (
-            l.numeroEnvio.toLowerCase().includes(q) ||
-            l.proveedor.toLowerCase().includes(q)
-        );
+        const coincideEnvio = l.numeroEnvio.toLowerCase().includes(q);
+        const coincideProveedor = l.proveedor.toLowerCase().includes(q);
+        const coincideProducto = (l.productosLista || []).some(prod => prod.toLowerCase().includes(q));
+
+        return coincideEnvio || coincideProveedor || coincideProducto;
     });
 
     return (
@@ -118,12 +120,12 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                         </button>
                     </div>
 
-                    {/* Buscador de Lote por Envio o Proveedor */}
+                    {/* Buscador de Lote por Envio, Proveedor o Producto */}
                     <div className="relative flex-1 max-w-md">
                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                             type="text"
-                            placeholder="Buscar por envío # o proveedor..."
+                            placeholder="Buscar por envío #, proveedor o producto (ej. Gypsophila, Freedom)..."
                             value={busqueda}
                             onChange={(e) => setBusqueda(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-9 py-2 text-xs md:text-sm font-semibold text-slate-800 focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
@@ -204,6 +206,21 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                                                 <div className="mt-2.5">
                                                     <ProveedorLogo nombre={lote.proveedor} size="md" />
                                                 </div>
+
+                                                {/* Coincidencias de Productos Encontrados */}
+                                                {busqueda.trim().length > 0 && lote.productosLista && (
+                                                    <div className="mt-2 flex flex-wrap items-center gap-1">
+                                                        {lote.productosLista
+                                                            .filter(p => p.toLowerCase().includes(busqueda.toLowerCase().trim()))
+                                                            .slice(0, 3)
+                                                            .map((prodMatch, idx) => (
+                                                                <span key={idx} className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                                    <Package className="w-3 h-3 text-emerald-600 shrink-0" />
+                                                                    {prodMatch}
+                                                                </span>
+                                                            ))}
+                                                    </div>
+                                                )}
                                             </div>
 
                                             <div className="p-2.5 bg-slate-100 group-hover:bg-emerald-600 group-hover:text-white rounded-xl text-slate-500 transition-colors shrink-0">
