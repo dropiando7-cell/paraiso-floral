@@ -766,6 +766,7 @@ export async function liquidarRuta(
   rutaId: string, 
   data: {
     devoluciones: { productoId: string; cantidadDevuelta: number }[];
+    ventasFacturadas?: number;
     efectivoEntregado: number;
     gastosReportados: { gasolina: number; comida: number; otros: number };
     gastosExtras?: { concepto: string; monto: number }[];
@@ -781,6 +782,10 @@ export async function liquidarRuta(
   const ruta = db.rutas[rIdx];
   
   // 1. Financial reconcile
+  if (data.ventasFacturadas !== undefined) {
+    ruta.ventasContado = Number(data.ventasFacturadas);
+  }
+
   const totalGastosReportados = Number(data.gastosReportados.gasolina) + Number(data.gastosReportados.comida) + Number(data.gastosReportados.otros);
   const totalGastosExtras = data.gastosExtras?.reduce((acc, curr) => acc + Number(curr.monto), 0) || 0;
   const efectivoEsperado = Number(ruta.efectivoInicial) + Number(ruta.ventasContado) + Number(ruta.abonosCxC) - totalGastosReportados - totalGastosExtras;

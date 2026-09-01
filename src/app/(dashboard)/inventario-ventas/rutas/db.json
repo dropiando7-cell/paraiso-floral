@@ -1,5 +1,517 @@
 {
+  "rutasPredefinidas": [
+    {
+      "id": "rp-1",
+      "origen": "San Pedro Sula",
+      "destino": "La Esperanza"
+    },
+    {
+      "id": "rp-2",
+      "origen": "San Pedro Sula",
+      "destino": "Santa Rosa de Copán"
+    },
+    {
+      "id": "rp-3",
+      "origen": "San Pedro Sula",
+      "destino": "Tegucigalpa"
+    },
+    {
+      "id": "11c3e9c8-3b8e-48e2-a15c-1e909d594065",
+      "origen": "San Pedro Sula",
+      "destino": "Occidente"
+    }
+  ],
+  "camiones": [
+    {
+      "id": "cam-1",
+      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
+      "placa": "TRC-204",
+      "conductorId": "default-conductor-id",
+      "conductorNombre": "Marcio Vendedor",
+      "acompanante": "Juan Ayudante",
+      "capacidadKilos": 1500,
+      "volumenM3": 12,
+      "createdAt": "2026-08-27T17:15:18.981Z"
+    },
+    {
+      "id": "cam-camioneta-isamara",
+      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
+      "placa": "CAMIONETA",
+      "conductorId": "dd8f9376-cc9a-48cc-bb25-7ced02d229fa",
+      "conductorNombre": "Isamara",
+      "acompanante": "Auxiliar de Ruta",
+      "capacidadKilos": 1000,
+      "volumenM3": 8,
+      "fotoUrl": "/camion-reparto-icono.png",
+      "createdAt": "2026-08-31T06:00:00.000Z"
+    }
+  ],
   "rutas": [
+    {
+      "id": "ruta-isamara-la-esperanza-31ago",
+      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
+      "camionPlaca": "CAMIONETA",
+      "conductorId": "dd8f9376-cc9a-48cc-bb25-7ced02d229fa",
+      "conductorNombre": "Isamara",
+      "conductorAvatar": "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=256",
+      "rutaNombre": "San Pedro Sula ➡️ La Esperanza",
+      "estado": "EN_RUTA",
+      "dock": "Muelle 1 (CEDI SPS)",
+      "fechaSalida": "2026-08-31T06:00:00.000Z",
+      "capacidadKilos": 1000,
+      "volumenM3": 8,
+      "efectivoInicial": 2000,
+      "ventasContado": 0,
+      "abonosCxC": 0,
+      "efectivoEntregado": 0,
+      "diferenciaFinanciera": 0,
+      "acompanante": "Auxiliar de Bodega",
+      "fotoUrl": "/camion-reparto-icono.png",
+      "createdAt": "2026-08-31T05:30:00.000Z",
+      "updatedAt": "2026-09-01T06:30:44.056Z",
+      "cargoGrid": [
+        {
+          "id": "grid-1",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "A1",
+          "contenido": "Rosas Rojas (20 paq.)"
+        },
+        {
+          "id": "grid-2",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "A2",
+          "contenido": "Solidago (27 paq.)"
+        },
+        {
+          "id": "grid-3",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "A3",
+          "contenido": "Rosas Colores (33 paq.)"
+        },
+        {
+          "id": "grid-4",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "B1",
+          "contenido": "Rosas Blancas (10 paq.)"
+        },
+        {
+          "id": "grid-5",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "B2",
+          "contenido": "Pompones Blanco (7 paq.)"
+        },
+        {
+          "id": "grid-6",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "B3",
+          "contenido": "Pinocho Verde (1 paq.)"
+        },
+        {
+          "id": "grid-7",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "C1",
+          "contenido": "Eucalipto Dólar (2 paq.)"
+        },
+        {
+          "id": "grid-8",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "C2",
+          "contenido": "Minigirasol (3 paq.)"
+        },
+        {
+          "id": "grid-9",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "C3",
+          "contenido": "Lagrimas (1 paq.)"
+        },
+        {
+          "id": "grid-10",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "D1",
+          "contenido": "Quinceañeras (2 paq.)"
+        },
+        {
+          "id": "grid-11",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "D2",
+          "contenido": "Rosas Colores (1 paq.)"
+        },
+        {
+          "id": "grid-12",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "bahia": "D3",
+          "contenido": "Cotoc / Cotopaxi (2 paq.)"
+        }
+      ],
+      "pedidos": [
+        {
+          "id": "ped-la-esperanza-1",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "facturaId": "FAC-PRE-001",
+          "facturaNumero": "PEDIDO 1 - LA ESPERANZA",
+          "clienteNombre": "CLIENTE LOCAL LA ESPERANZA",
+          "totalFactura": 0,
+          "estadoEntrega": "PENDIENTE",
+          "montoCobrado": 0,
+          "formaPago": "EFECTIVO"
+        }
+      ],
+      "inventario": [
+        {
+          "id": "inv-1",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "861cc82e-e2f4-41ec-a3ef-e7fec3c26e97",
+          "productoNombre": "Rosas Rojas",
+          "productoSku": "PF-000001",
+          "cantidadCargada": 20,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-2",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "2812550b-c217-4ffa-bdfa-44357e8286d3",
+          "productoNombre": "Solidago",
+          "productoSku": "PF-000160",
+          "cantidadCargada": 27,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-3",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "4506d405-5e00-4008-b87c-e2e4b74b4857",
+          "productoNombre": "Rosas Colores",
+          "productoSku": "PF-000002",
+          "cantidadCargada": 33,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-4",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "7b37a179-5b3b-4618-ae9a-55f811c2882e",
+          "productoNombre": "Rosas Blancas",
+          "productoSku": "PF-000003",
+          "cantidadCargada": 10,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-5",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "805ebd9e-678e-48c9-955a-36504a5c4646",
+          "productoNombre": "Pompones Blanco",
+          "productoSku": "PF-000128",
+          "cantidadCargada": 7,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-6",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "80839856-653a-45a1-88f6-7e3e70772995",
+          "productoNombre": "Pinocho Verde",
+          "productoSku": "PF-000153",
+          "cantidadCargada": 1,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-7",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "92b753e4-c1cb-4fcf-bf0f-ffffe5fcf14d",
+          "productoNombre": "Eucalipto Dólar",
+          "productoSku": "PF-000164",
+          "cantidadCargada": 2,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-8",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "77d59ec1-5e82-4a59-a528-b47410579b4c",
+          "productoNombre": "Minigirasol",
+          "productoSku": "PF-000186",
+          "cantidadCargada": 3,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-9",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "5064df6f-fc4f-4e66-bffe-fc0550439897",
+          "productoNombre": "Lagrimas",
+          "productoSku": "PF-000214",
+          "cantidadCargada": 1,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-10",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "1783eb25-fb93-4f68-bd29-32a3e6c2ad90",
+          "productoNombre": "Quinceañeras",
+          "productoSku": "PF-000152",
+          "cantidadCargada": 2,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-11",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "4506d405-5e00-4008-b87c-e2e4b74b4857",
+          "productoNombre": "Rosas Colores",
+          "productoSku": "PF-000002",
+          "cantidadCargada": 1,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-12",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "5fe485a3-43fc-43c6-b211-3f0f10aabba3",
+          "productoNombre": "Cotoc / Cotopaxi",
+          "productoSku": "PF-000216",
+          "cantidadCargada": 2,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-13",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "ff15970e-8627-453f-be40-a9a3a082a0e3",
+          "productoNombre": "Mini Rosa",
+          "productoSku": "PF-000217",
+          "cantidadCargada": 5,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-14",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "7d970206-e972-41c8-959e-8ca7608878f7",
+          "productoNombre": "Miniclavel Colores",
+          "productoSku": "PF-000122",
+          "cantidadCargada": 34,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-15",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "23b9e1bf-5c47-4c7f-b6fc-243a854b57cc",
+          "productoNombre": "Gerberas Colores",
+          "productoSku": "PF-000074",
+          "cantidadCargada": 20,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-16",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "d7de2723-a096-4c82-a861-3e6bbf0953bb",
+          "productoNombre": "Astromelias Colores",
+          "productoSku": "PF-000091",
+          "cantidadCargada": 4,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-17",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "d65689ab-216b-4e16-8d22-5a4372a97b73",
+          "productoNombre": "Pitosporo",
+          "productoSku": "PF-000218",
+          "cantidadCargada": 5,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-18",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "f175888e-8d83-40f4-9c44-ffa4993329d6",
+          "productoNombre": "Dusty Miller / Dustin",
+          "productoSku": "PF-000219",
+          "cantidadCargada": 2,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-19",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "ad68e40a-aaf0-4d42-b79e-d45a69778261",
+          "productoNombre": "Girasoles",
+          "productoSku": "PF-000067",
+          "cantidadCargada": 1,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-20",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "cb288c4a-04e0-4c1c-a7f7-376b0e8e0543",
+          "productoNombre": "Claveles Colores",
+          "productoSku": "PF-000116",
+          "cantidadCargada": 3,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-21",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "43185043-43a0-4a48-a775-6ece0784770e",
+          "productoNombre": "Margaritas Colores",
+          "productoSku": "PF-000138",
+          "cantidadCargada": 6,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-22",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "3d7582ff-9ec8-4c08-92a0-ab567beafa92",
+          "productoNombre": "Craspedia",
+          "productoSku": "PF-000220",
+          "cantidadCargada": 2,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-23",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "7e46448b-ac39-4ff0-b104-e2dc44a60a11",
+          "productoNombre": "Pinocho Morado",
+          "productoSku": "PF-000221",
+          "cantidadCargada": 2,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-24",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "ca4130f2-53c7-4206-ab96-0ff0d2ab02bd",
+          "productoNombre": "Limonium",
+          "productoSku": "PF-000222",
+          "cantidadCargada": 2,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-25",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "9910cad1-b4fe-473f-b5eb-d96081b3d501",
+          "productoNombre": "Lisianthus Colores",
+          "productoSku": "PF-000109",
+          "cantidadCargada": 1,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-26",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "3b003d1b-fa2e-48c0-9419-7ff5f4c688f9",
+          "productoNombre": "Lirios Colores",
+          "productoSku": "PF-000126",
+          "cantidadCargada": 3,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        },
+        {
+          "id": "inv-27",
+          "rutaId": "ruta-isamara-la-esperanza-31ago",
+          "productoId": "779405a7-7a4b-4a95-b0c5-bee1976b889d",
+          "productoNombre": "Baby Ecuatoriano (Gypsophila)",
+          "productoSku": "PF-000223",
+          "cantidadCargada": 15,
+          "cantidadVendida": 0,
+          "cantidadEntregada": 0,
+          "cantidadDevuelta": 0,
+          "cantidadMerma": 0,
+          "cantidadDiferencia": 0
+        }
+      ],
+      "mermas": [],
+      "abonos": []
+    },
     {
       "id": "8ed33065-da0c-4e5a-b885-ed034ce84853",
       "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
@@ -253,57 +765,6 @@
       "accion": "COBRO",
       "detalle": "Abono CxC de L1,500.00 recibido de Deco Flor Honduras",
       "usuarioNombre": "Marcio Vendedor"
-    }
-  ],
-  "camiones": [
-    {
-      "id": "cam-1",
-      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
-      "placa": "TRC-204",
-      "conductorId": "default-conductor-id",
-      "conductorNombre": "Marcio Vendedor",
-      "acompanante": "Juan Ayudante",
-      "capacidadKilos": 1500,
-      "volumenM3": 12,
-      "createdAt": "2026-08-27T06:44:03.004Z"
-    },
-    {
-      "id": "d49ef443-f43b-45b6-bcea-0641e0fd3066",
-      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
-      "placa": "TRC-999",
-      "conductorId": "c2216723-653d-4169-8985-c2f836a09a4b",
-      "conductorNombre": "Marcio Barahona",
-      "acompanante": "Pedro Ayudante",
-      "capacidadKilos": 2000,
-      "volumenM3": 15,
-      "createdAt": "2026-08-27T06:48:42.682Z"
-    },
-    {
-      "id": "df796d06-c1a0-4a35-8b90-f0936efd7a93",
-      "organizationId": "a0287245-6cad-4df5-a32a-f214b7b72e04",
-      "placa": "TXF-101",
-      "conductorId": "b6ba7cb8-962f-4d82-9dea-62d6d7f03847",
-      "conductorNombre": "Erick Saavedra",
-      "capacidadKilos": 1500,
-      "volumenM3": 12,
-      "createdAt": "2026-08-27T07:17:29.108Z"
-    }
-  ],
-  "rutasPredefinidas": [
-    {
-      "id": "rp-1",
-      "origen": "San Pedro Sula",
-      "destino": "La Esperanza"
-    },
-    {
-      "id": "rp-2",
-      "origen": "San Pedro Sula",
-      "destino": "Santa Rosa de Copán"
-    },
-    {
-      "id": "rp-3",
-      "origen": "San Pedro Sula",
-      "destino": "Tegucigalpa"
     }
   ]
 }

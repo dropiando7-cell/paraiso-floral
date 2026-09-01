@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   Truck,
   Plus,
@@ -25,7 +26,8 @@ import {
   Layers,
   Sparkles,
   ChevronRight,
-  Printer
+  Printer,
+  Smartphone
 } from 'lucide-react';
 import { IRuta, IRutaPedido, IRutaStock, IMerma, IRutaAbono, ITruckCargo, ICamion, IGastosDesglose } from '@/types/rutas';
 import { createRuta, getRutas, getRutaById, despacharCamion, liquidarRuta, registrarMermaRuta, getRutaLogs, getCamiones, createCamion, deleteCamion, getRutasPredefinidas, createRutaPredefinida, deleteRutaPredefinida, createCediInvoice } from './actions';
@@ -108,9 +110,11 @@ export default function RutasClient({
   const [liquidGasolina, setLiquidGasolina] = useState('0');
   const [liquidComida, setLiquidComida] = useState('0');
   const [liquidOtros, setLiquidOtros] = useState('0');
+  const [liquidVentasContado, setLiquidVentasContado] = useState('0');
   const [gastosExtras, setGastosExtras] = useState<{ concepto: string; monto: number }[]>([]);
   const [newGastoConcepto, setNewGastoConcepto] = useState('');
   const [newGastoMonto, setNewGastoMonto] = useState('');
+  const [sidebarTab, setSidebarTab] = useState<'activas' | 'historial'>('activas');
 
   
   // Selected items for new route cargo/orders
@@ -179,14 +183,21 @@ export default function RutasClient({
 
   useEffect(() => {
     if (selectedRoute) {
-      setLiquidGasolina(selectedRoute.gastosIniciales?.gasolina?.toString() || '0');
-      setLiquidComida(selectedRoute.gastosIniciales?.comida?.toString() || '0');
-      setLiquidOtros(selectedRoute.gastosIniciales?.otros?.toString() || '0');
-      setGastosExtras([]);
+      setLiquidGasolina(selectedRoute.gastosReportados?.gasolina?.toString() || selectedRoute.gastosIniciales?.gasolina?.toString() || '0');
+      setLiquidComida(selectedRoute.gastosReportados?.comida?.toString() || selectedRoute.gastosIniciales?.comida?.toString() || '0');
+      setLiquidOtros(selectedRoute.gastosReportados?.otros?.toString() || selectedRoute.gastosIniciales?.otros?.toString() || '0');
+      setLiquidVentasContado(selectedRoute.ventasContado?.toString() || '0');
+      setGastosExtras(selectedRoute.gastosExtras || []);
       setNewGastoConcepto('');
       setNewGastoMonto('');
-      setEfectivoEntregado('');
-      setDevoluciones({});
+      setEfectivoEntregado(selectedRoute.efectivoEntregado ? selectedRoute.efectivoEntregado.toString() : '');
+      const initialDevs: Record<string, number> = {};
+      selectedRoute.inventario.forEach(item => {
+        if (item.cantidadDevuelta > 0) {
+          initialDevs[item.productoId] = item.cantidadDevuelta;
+        }
+      });
+      setDevoluciones(initialDevs);
     }
   }, [selectedRoute]);
 
@@ -472,6 +483,7 @@ export default function RutasClient({
 
     const res = await liquidarRuta(selectedRouteId, {
       devoluciones: devArray,
+      ventasFacturadas: liquidVentasContado !== '' ? Number(liquidVentasContado) : undefined,
       efectivoEntregado: Number(efectivoEntregado),
       gastosReportados: {
         gasolina: Number(liquidGasolina),
@@ -602,14 +614,44 @@ export default function RutasClient({
             </div>
           </div>
 
+          {/* TAB SWITCHER: ACTIVAS VS HISTORIAL/CERRADAS */}
+          <div className="flex bg-slate-100 p-1 rounded-xl gap-1">
+            <button
+              type="button"
+              onClick={() => setSidebarTab('activas')}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                sidebarTab === 'activas'
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <Truck className="w-3.5 h-3.5 text-blue-600" />
+              <span>En Ruta ({routes.filter(r => r.estado !== 'LIQUIDADA').length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSidebarTab('historial')}
+              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                sidebarTab === 'historial'
+                  ? 'bg-white text-emerald-800 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
+            >
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Cerradas ({routes.filter(r => r.estado === 'LIQUIDADA').length})</span>
+            </button>
+          </div>
+
           <div className="flex flex-col gap-3">
-            {routes.length === 0 ? (
+            {(sidebarTab === 'activas' ? routes.filter(r => r.estado !== 'LIQUIDADA') : routes.filter(r => r.estado === 'LIQUIDADA')).length === 0 ? (
               <div className="bg-white border border-dashed border-slate-300 p-8 rounded-xl text-center text-slate-500">
                 <Truck className="w-8 h-8 mx-auto mb-2 text-slate-300" />
-                <span className="text-sm font-semibold">No hay camiones programados</span>
+                <span className="text-sm font-semibold">
+                  {sidebarTab === 'activas' ? 'No hay camiones en ruta actualmente' : 'No hay historial de rutas cerradas'}
+                </span>
               </div>
             ) : (
-              routes.map(route => {
+              (sidebarTab === 'activas' ? routes.filter(r => r.estado !== 'LIQUIDADA') : routes.filter(r => r.estado === 'LIQUIDADA')).map(route => {
                 const isSelected = selectedRouteId === route.id;
                 const isExpanded = selectedRouteId === route.id || hoveredRouteId === route.id;
                 const totalCargado = route.inventario.reduce((acc, curr) => acc + curr.cantidadCargada, 0);
@@ -780,6 +822,16 @@ export default function RutasClient({
                       {selectedRoute.conductorNombre} {selectedRoute.acompanante ? `(Ayud: ${selectedRoute.acompanante})` : ''}
                     </span>
                   </div>
+
+                  {selectedRoute.estado !== 'LIQUIDADA' && (
+                    <Link
+                      href="/inventario-ventas/rutas/pos-movil"
+                      className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                    >
+                      <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>POS Móvil de Ruta</span>
+                    </Link>
+                  )}
 
                   {selectedRoute.estado === 'CARGANDO' && (
                     <button
@@ -1061,50 +1113,193 @@ export default function RutasClient({
                 <div className="flex flex-col gap-6 animate-in fade-in duration-200">
                   
                   {selectedRoute.estado === 'LIQUIDADA' ? (
-                    <div className="border border-green-200 bg-green-50 p-6 rounded-xl flex flex-col gap-4 text-center">
-                      <CheckCircle className="w-12 h-12 text-green-600 mx-auto" />
-                      <div>
-                        <h4 className="font-extrabold text-green-900 text-lg">Ruta Liquidada Definitivamente</h4>
-                        <p className="text-green-800 text-sm mt-1 max-w-md mx-auto">
-                          Esta ruta fue cerrada y auditada el {selectedRoute.fechaRetorno ? new Date(selectedRoute.fechaRetorno).toLocaleString('es-HN') : ''}. Los saldos de stock retornaron al CEDI general.
-                        </p>
-                      </div>
-
-                      {/* PRINT SUMMARY REPORT */}
-                      <div className="bg-white border border-green-200 rounded-lg p-4 max-w-sm mx-auto w-full text-left flex flex-col gap-2">
-                        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block text-center">Resumen Liquidación</span>
-                        <div className="flex justify-between text-xs text-slate-700 border-b border-slate-100 py-1 font-semibold">
-                          <span>Efectivo Inicial:</span>
-                          <span>L{selectedRoute.efectivoInicial.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-slate-700 border-b border-slate-100 py-1 font-semibold">
-                          <span>Ventas Contado:</span>
-                          <span>L{selectedRoute.ventasContado.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-slate-700 border-b border-slate-100 py-1 font-semibold">
-                          <span>Abonos CxC:</span>
-                          <span>L{selectedRoute.abonosCxC.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-slate-700 border-b border-slate-100 py-1 font-semibold">
-                          <span>Efectivo Contado:</span>
-                          <span>L{selectedRoute.efectivoEntregado.toFixed(2)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs border-t border-slate-200 pt-2 font-black">
-                          <span className={selectedRoute.diferenciaFinanciera >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
-                            Diferencia:
-                          </span>
-                          <span className={selectedRoute.diferenciaFinanciera >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
-                            L{selectedRoute.diferenciaFinanciera.toFixed(2)}
-                          </span>
+                    <div className="border border-emerald-200 bg-white p-6 sm:p-8 rounded-2xl flex flex-col gap-6 shadow-sm">
+                      
+                      {/* Success Banner */}
+                      <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-xl flex items-center justify-between gap-4 print:hidden">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0">
+                            <CheckCircle className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h4 className="font-black text-emerald-950 text-base">Ruta Liquidada y Cerrada Exitosamente</h4>
+                            <p className="text-xs text-emerald-800 font-semibold">
+                              Cerrada el {selectedRoute.fechaRetorno ? new Date(selectedRoute.fechaRetorno).toLocaleString('es-HN') : new Date().toLocaleString('es-HN')}. El inventario devuelto retornó al CEDI.
+                            </p>
+                          </div>
                         </div>
                         <button
+                          type="button"
                           onClick={() => window.print()}
-                          className="bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-bold py-2 px-3 rounded-lg mt-3 flex items-center justify-center gap-1.5 cursor-pointer"
+                          className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl flex items-center gap-2 transition-all cursor-pointer shadow-md shadow-emerald-500/20 active:scale-95 shrink-0"
                         >
-                          <Printer className="w-3.5 h-3.5" />
-                          Imprimir Liquidación
+                          <Printer className="w-4 h-4" />
+                          <span>Imprimir Comprobante</span>
                         </button>
                       </div>
+
+                      {/* PRINTABLE COMPROBANTE OFICIAL */}
+                      <div className="border border-slate-200 rounded-2xl p-6 flex flex-col gap-6 bg-white">
+                        
+                        {/* Header Document */}
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-200 gap-4">
+                          <div>
+                            <span className="text-[10px] font-extrabold uppercase text-emerald-700 tracking-widest block">Distribuidora Paraíso Floral</span>
+                            <h2 className="text-xl font-black text-slate-900 tracking-tight">Comprobante de Liquidación de Despacho</h2>
+                            <p className="text-xs text-slate-500 font-semibold mt-0.5">{selectedRoute.rutaNombre}</p>
+                          </div>
+                          <div className="text-left sm:text-right">
+                            <span className="text-xs font-black text-slate-900 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 block sm:inline-block">
+                              Placa: {selectedRoute.camionPlaca}
+                            </span>
+                            <p className="text-[11px] text-slate-400 font-bold mt-1">
+                              Fecha: {selectedRoute.fechaRetorno ? new Date(selectedRoute.fechaRetorno).toLocaleDateString('es-HN') : new Date().toLocaleDateString('es-HN')}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Info Drivers Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 bg-slate-50 rounded-xl text-xs font-semibold">
+                          <div>
+                            <span className="text-[10px] uppercase text-slate-400 font-bold block">Conductor</span>
+                            <span className="text-slate-900 font-extrabold">{selectedRoute.conductorNombre}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase text-slate-400 font-bold block">Acompañante</span>
+                            <span className="text-slate-800">{selectedRoute.acompanante || 'Sin auxiliar'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase text-slate-400 font-bold block">Fecha Salida</span>
+                            <span className="text-slate-800">{selectedRoute.fechaSalida ? new Date(selectedRoute.fechaSalida).toLocaleDateString('es-HN') : '31/08/2026'}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] uppercase text-slate-400 font-bold block">Total Cargado</span>
+                            <span className="text-emerald-800 font-black">{selectedRoute.inventario.reduce((a, b) => a + b.cantidadCargada, 0)} Paquetes</span>
+                          </div>
+                        </div>
+
+                        {/* Financial Table & Viáticos */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          
+                          {/* Financial Summary */}
+                          <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-2.5">
+                            <span className="text-xs font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
+                              Resumen Financiero y Cuadre
+                            </span>
+                            <div className="flex justify-between text-xs font-semibold text-slate-600">
+                              <span>(+) Fondo Inicial de Ruta:</span>
+                              <span className="font-bold text-slate-900">L. {selectedRoute.efectivoInicial.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-semibold text-slate-600">
+                              <span>(+) Ventas Facturadas / Contado:</span>
+                              <span className="font-bold text-emerald-700">+ L. {selectedRoute.ventasContado.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-semibold text-slate-600">
+                              <span>(+) Recaudación CxC Abonos:</span>
+                              <span className="font-bold text-emerald-700">+ L. {selectedRoute.abonosCxC.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-semibold text-slate-600">
+                              <span>(-) Total Viáticos y Gastos:</span>
+                              <span className="font-bold text-rose-600">
+                                - L. {(Number(selectedRoute.gastosReportados?.gasolina || 0) + Number(selectedRoute.gastosReportados?.comida || 0) + Number(selectedRoute.gastosReportados?.otros || 0) + (selectedRoute.gastosExtras || []).reduce((a, b) => a + Number(b.monto), 0)).toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs font-extrabold text-slate-900 border-t border-slate-200 pt-2">
+                              <span>(=) Total Efectivo Esperado:</span>
+                              <span>
+                                L. {(selectedRoute.efectivoInicial + selectedRoute.ventasContado + selectedRoute.abonosCxC - (Number(selectedRoute.gastosReportados?.gasolina || 0) + Number(selectedRoute.gastosReportados?.comida || 0) + Number(selectedRoute.gastosReportados?.otros || 0) + (selectedRoute.gastosExtras || []).reduce((a, b) => a + Number(b.monto), 0))).toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs font-black text-slate-900 bg-slate-50 p-2 rounded-lg">
+                              <span>Efectivo Físico Entregado:</span>
+                              <span className="text-emerald-700 font-black">L. {selectedRoute.efectivoEntregado.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-black pt-1 border-t border-slate-200">
+                              <span className={selectedRoute.diferenciaFinanciera >= 0 ? 'text-emerald-700' : 'text-rose-700'}>
+                                {selectedRoute.diferenciaFinanciera === 0 ? 'Diferencia (Cuadre Exacto):' : selectedRoute.diferenciaFinanciera > 0 ? 'Sobrante en Caja:' : 'Faltante en Caja:'}
+                              </span>
+                              <span className={selectedRoute.diferenciaFinanciera >= 0 ? 'text-emerald-700 font-black' : 'text-rose-700 font-black'}>
+                                L. {selectedRoute.diferenciaFinanciera.toFixed(2)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Viáticos Breakdown */}
+                          <div className="border border-slate-200 rounded-xl p-4 flex flex-col gap-2.5">
+                            <span className="text-xs font-black text-slate-800 uppercase tracking-wider border-b border-slate-100 pb-2">
+                              Desglose de Viáticos Reportados
+                            </span>
+                            <div className="flex justify-between text-xs text-slate-600 font-semibold">
+                              <span>Gasolina:</span>
+                              <span className="font-bold text-slate-900">L. {(selectedRoute.gastosReportados?.gasolina || 0).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-slate-600 font-semibold">
+                              <span>Comida / Alimentación:</span>
+                              <span className="font-bold text-slate-900">L. {(selectedRoute.gastosReportados?.comida || 0).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-xs text-slate-600 font-semibold">
+                              <span>Otros Gastos / Peajes:</span>
+                              <span className="font-bold text-slate-900">L. {(selectedRoute.gastosReportados?.otros || 0).toFixed(2)}</span>
+                            </div>
+                            {(selectedRoute.gastosExtras || []).map((g, idx) => (
+                              <div key={idx} className="flex justify-between text-xs text-slate-600 font-semibold">
+                                <span>{g.concepto}:</span>
+                                <span className="font-bold text-slate-900">L. {Number(g.monto).toFixed(2)}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                        </div>
+
+                        {/* Inventory Table Reconcile */}
+                        <div className="flex flex-col gap-2">
+                          <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                            Auditoría de Mercancía y Retorno a CEDI
+                          </span>
+                          <div className="border border-slate-200 rounded-xl overflow-hidden text-xs">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="bg-slate-100 font-black text-slate-700 border-b border-slate-200 text-[11px]">
+                                  <th className="p-2.5">SKU</th>
+                                  <th className="p-2.5">Producto</th>
+                                  <th className="p-2.5 text-center">Cargado</th>
+                                  <th className="p-2.5 text-center">Vendido</th>
+                                  <th className="p-2.5 text-center">Merma</th>
+                                  <th className="p-2.5 text-center font-black text-emerald-800 bg-emerald-50">Devuelto a CEDI</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-150 font-semibold text-slate-700">
+                                {selectedRoute.inventario.map(item => (
+                                  <tr key={item.id}>
+                                    <td className="p-2 font-mono font-bold text-slate-900">{item.productoSku}</td>
+                                    <td className="p-2">{item.productoNombre}</td>
+                                    <td className="p-2 text-center font-bold text-slate-900">{item.cantidadCargada}</td>
+                                    <td className="p-2 text-center text-blue-700 font-bold">{item.cantidadVendida + item.cantidadEntregada}</td>
+                                    <td className="p-2 text-center text-rose-600">{item.cantidadMerma}</td>
+                                    <td className="p-2 text-center font-black text-emerald-900 bg-emerald-50/60">{item.cantidadDevuelta}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+
+                        {/* Signatures for Print */}
+                        <div className="grid grid-cols-2 gap-12 pt-12 pb-4 mt-6 border-t border-slate-200 text-center">
+                          <div className="flex flex-col items-center">
+                            <div className="w-48 border-t-2 border-slate-400 mb-1.5" />
+                            <span className="text-xs font-bold text-slate-800">Firma del Conductor / Vendedor</span>
+                            <span className="text-[10px] text-slate-400 font-semibold">{selectedRoute.conductorNombre}</span>
+                          </div>
+                          <div className="flex flex-col items-center">
+                            <div className="w-48 border-t-2 border-slate-400 mb-1.5" />
+                            <span className="text-xs font-bold text-slate-800">Recibido Conforme / Administración</span>
+                            <span className="text-[10px] text-slate-400 font-semibold">CEDI Paraíso Floral</span>
+                          </div>
+                        </div>
+
+                      </div>
+
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
@@ -1240,14 +1435,30 @@ export default function RutasClient({
                         <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">2. Cuadre de Caja</span>
                         
                         <div className="bg-white border border-slate-200 p-4 rounded-xl flex flex-col gap-3 shadow-sm">
-                          <div className="flex justify-between text-xs font-bold text-slate-500">
+                          <div className="flex justify-between items-center text-xs font-bold text-slate-500">
                             <span>Efectivo Inicial (Fondo):</span>
                             <span>L{selectedRoute.efectivoInicial.toFixed(2)}</span>
                           </div>
-                          <div className="flex justify-between text-xs font-bold text-slate-700">
-                            <span>Ventas Contado en Campo:</span>
-                            <span className="text-emerald-700">+ L{selectedRoute.ventasContado.toFixed(2)}</span>
+                          
+                          {/* Ventas Contado / Facturadas Editable */}
+                          <div className="flex justify-between items-center text-xs font-bold text-slate-700 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100">
+                            <div>
+                              <span className="block text-emerald-900 font-extrabold">Ventas Facturadas / Contado:</span>
+                              <span className="text-[9px] text-slate-400">Total cobrado en ruta</span>
+                            </div>
+                            <div className="relative w-28">
+                              <span className="absolute left-2.5 top-1.5 text-[10px] font-bold text-slate-400">L</span>
+                              <input
+                                type="number"
+                                value={liquidVentasContado}
+                                onFocus={(e) => e.target.select()}
+                                onChange={(e) => setLiquidVentasContado(e.target.value)}
+                                className="w-full border border-emerald-300 bg-white rounded pl-6 pr-2 py-1 text-xs font-black text-right text-emerald-800 no-spin"
+                                min={0}
+                              />
+                            </div>
                           </div>
+
                           <div className="flex justify-between text-xs font-bold text-slate-700">
                             <span>Recaudación CxC Abonos:</span>
                             <span className="text-emerald-700">+ L{selectedRoute.abonosCxC.toFixed(2)}</span>
@@ -1384,15 +1595,15 @@ export default function RutasClient({
                           
                           <div className="flex justify-between text-xs font-black text-slate-900 border-t border-slate-100 pt-3">
                             <span>Total Efectivo Esperado:</span>
-                            <span>
-                              L{(selectedRoute.efectivoInicial + selectedRoute.ventasContado + selectedRoute.abonosCxC - (Number(liquidGasolina) + Number(liquidComida) + Number(liquidOtros) + gastosExtras.reduce((acc, curr) => acc + curr.monto, 0))).toFixed(2)}
+                            <span className="text-brand-600 text-sm">
+                              L{(selectedRoute.efectivoInicial + Number(liquidVentasContado || 0) + selectedRoute.abonosCxC - (Number(liquidGasolina) + Number(liquidComida) + Number(liquidOtros) + gastosExtras.reduce((acc, curr) => acc + curr.monto, 0))).toFixed(2)}
                             </span>
                           </div>
 
                           {/* Counting Input */}
                           <form onSubmit={handleLiquidate} className="flex flex-col gap-3 mt-3 border-t border-slate-200 pt-3">
                             <div className="flex flex-col gap-1">
-                              <label className="text-[10px] font-black text-slate-500 uppercase">Efectivo Físico Entregado</label>
+                              <label className="text-[10px] font-black text-slate-500 uppercase">Efectivo Físico Entregado por Vendedor</label>
                               <div className="relative">
                                 <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
                                 <input
@@ -1410,9 +1621,9 @@ export default function RutasClient({
 
                             <button
                               type="submit"
-                              className="w-full bg-brand-600 hover:bg-brand-700 text-white font-black text-sm py-3 px-4 rounded-xl mt-2 transition-colors cursor-pointer shadow-md shadow-brand-500/10"
+                              className="w-full bg-brand-600 hover:bg-brand-700 text-white font-black text-sm py-3 px-4 rounded-xl mt-2 transition-colors cursor-pointer shadow-md shadow-brand-500/10 active:scale-[0.99]"
                             >
-                              Finalizar y Liquidar Ruta
+                              Finalizar y Cerrar Despacho de Ruta
                             </button>
                           </form>
                         </div>
