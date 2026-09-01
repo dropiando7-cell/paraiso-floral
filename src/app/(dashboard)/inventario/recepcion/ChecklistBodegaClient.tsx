@@ -1176,9 +1176,16 @@ export default function ChecklistBodegaClient({
                                                                         QR: {item.activoFijo?.idQr || 'N/A'}
                                                                     </span>
                                                                     
-                                                                    {(item.bonchesRecibidos > item.bonchesEsperados || item.bonchesEsperados === 0) && (
+                                                                    {(item.verificado && item.bonchesRecibidos > item.bonchesEsperados || item.bonchesEsperados === 0) && (
                                                                         <span className="font-sans text-[10px] sm:text-xs font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-md border border-amber-300 shrink-0">
                                                                             +{item.bonchesEsperados === 0 ? item.bonchesRecibidos : (item.bonchesRecibidos - item.bonchesEsperados)} Extra
+                                                                        </span>
+                                                                    )}
+
+                                                                    {item.verificado && item.bonchesRecibidos < item.bonchesEsperados && (
+                                                                        <span className="font-sans text-[10px] sm:text-xs font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-md border border-rose-300 shrink-0 flex items-center gap-1">
+                                                                            <AlertTriangle className="w-3 h-3 text-rose-600" />
+                                                                            -{item.bonchesEsperados - item.bonchesRecibidos} Faltante(s)
                                                                         </span>
                                                                     )}
                                                                 </div>
@@ -1234,8 +1241,12 @@ export default function ChecklistBodegaClient({
                                                             <input
                                                                 type="number"
                                                                 min={0}
-                                                                value={item.verificado ? (item.bonchesRecibidos || item.bonchesEsperados) : item.bonchesEsperados}
-                                                                onChange={(e) => handleCambiarBonches(item, parseInt(e.target.value, 10) || 0)}
+                                                                value={item.bonchesRecibidos !== undefined && item.bonchesRecibidos !== null ? item.bonchesRecibidos : item.bonchesEsperados}
+                                                                onChange={(e) => {
+                                                                    const valStr = e.target.value;
+                                                                    const valNum = valStr === '' ? 0 : (parseInt(valStr, 10) || 0);
+                                                                    handleCambiarBonches(item, valNum);
+                                                                }}
                                                                 className="w-10 sm:w-12 md:w-14 bg-white text-center font-extrabold text-slate-900 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:border-emerald-600 py-0.5"
                                                             />
                                                             <span className="text-[10px] sm:text-xs text-slate-600 font-bold">/{item.bonchesEsperados} pqt</span>
