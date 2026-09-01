@@ -27,20 +27,30 @@ export async function POST(req: NextRequest) {
     const genai = new GoogleGenAI({ apiKey });
 
     const systemInstruction = `
-Eres un procesador de pedidos inteligente para Paraíso Floral. Tu objetivo es analizar textos de mensajes de WhatsApp o imágenes de comandas escritas a mano, y estructurarlos en un JSON válido que representa los detalles del pedido.
+Eres un procesador de pedidos experto para la Distribuidora Paraíso Floral. Tu objetivo es analizar textos de mensajes de WhatsApp o imágenes de notas escritas a mano, y estructurarlos en un JSON válido con los detalles del pedido.
+Conoces a fondo la jerga floral de exportación e importación, abreviaciones y nombres comerciales de flores y follajes.
+
+Reglas de interpretación floral:
+- "rojas freedom", "freedom", "explorer", "mondial", "vendela", "playa blanca" -> nombreProducto: "Rosas", variedadTono: "Freedom", "Explorer", "Blanco", etc.
+- "eucalipto dollar", "dollar", "dólar", "baby blue", "cinerea", "silver dollar" -> nombreProducto: "Eucalipto Dólar" o "Eucalipto", variedadTono: "Dólar" o "Baby Blue".
+- "babys", "baby", "baby breath", "gipsofila", "gypso", "velo de novia" -> nombreProducto: "Gypsophila / Baby Breath", variedadTono: "Blanco".
+- "astromelias", "alstroemerias" -> nombreProducto: "Astromelias".
+- "fuji", "fuji amarillo", "fuji blanco" -> nombreProducto: "Fuji", variedadTono: "Amarillo", "Blanco", etc.
+- "fichitas", "fichas" -> nombreProducto: "Fichitas".
+- "girasoles", "claveles", "miniclaveles", "hortensias", "lirios", "ruscus", "solidago", "estatice", "pinocho", "margaritas".
 
 Extrae con precisión:
 1. Nombre del cliente (clienteNombre). Si no se menciona, deja en blanco.
 2. Teléfono del cliente (clienteTelefono).
 3. Lugar de entrega/destino de envío (destino). Si dice retiro o pasar a traer, pon "Retiro en Tienda".
-4. Estado de pago (estadoPago): Debe ser uno de 'pagado', 'contra_entrega' o 'credito'. Intenta deducir esto por palabras como "ya pagó", "a crédito", "cobrar al entregar", etc. Si no se puede deducir, pon "contra_entrega" por defecto.
+4. Estado de pago (estadoPago): 'pagado', 'contra_entrega' (default) o 'credito'.
 5. Notas: Cualquier instrucción especial de despacho o empaque.
 6. Lista de ítems (items):
-   - nombreProducto: Nombre del producto (ej: Rosas, Claveles, Eucalyptus, etc.).
-   - variedadTono: Color o variedad (ej: Freedom, Explorer, Rojo, Blanco, etc.).
-   - cantidadSolicitada: Cantidad numérica. Intenta interpretar paquetes, rollos o tallos (ej: si dice "5 paquetes" o "5 rollos", pon 5).
+   - nombreProducto: Nombre normalizado del producto.
+   - variedadTono: Color o variedad.
+   - cantidadSolicitada: Cantidad numérica de paquetes o rollos.
 
-Devuelve estrictamente un objeto JSON con la estructura del esquema configurado, sin texto aclaratorio de introducción o conclusión.
+Devuelve estrictamente un objeto JSON con la estructura del esquema configurado, sin texto aclaratorio.
 `;
 
     let contentInput: any[] = [];
@@ -70,43 +80,56 @@ Devuelve estrictamente un objeto JSON con la estructura del esquema configurado,
       
     contentInput.push(promptText);
 
-    const response = await genai.models.generateContent({
-      model: 'gemini-2.5-pro',
-      contents: contentInput,
-      config: {
-        systemInstruction,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            clienteNombre: { type: Type.STRING },
-            clienteTelefono: { type: Type.STRING },
-            destino: { type: Type.STRING },
-            estadoPago: { 
-              type: Type.STRING,
-              enum: ['pagado', 'contra_entrega', 'credito']
-            },
-            notas: { type: Type.STRING },
-            items: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  nombreProducto: { type: Type.STRING },
-                  variedadTono: { type: Type.STRING },
-                  cantidadSolicitada: { type: Type.INTEGER }
-                },
-                required: ['nombreProducto', 'cantidadSolicitada']
-              }
-            }
-          },
-          required: ['clienteNombre', 'destino', 'estadoPago', 'items']
-        }
-      }
-    });
+    const candidateModels = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'];
+    let response: any = null;
+    let lastError: any = null;
 
-    if (!response.text) {
-      return NextResponse.json({ error: 'No se obtuvo respuesta del modelo de IA' }, { status: 500 });
+    for (const modelName of candidateModels) {
+      try {
+        response = await genai.models.generateContent({
+          model: modelName,
+          contents: contentInput,
+          config: {
+            systemInstruction,
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                clienteNombre: { type: Type.STRING },
+                clienteTelefono: { type: Type.STRING },
+                destino: { type: Type.STRING },
+                estadoPago: { 
+                  type: Type.STRING,
+                  enum: ['pagado', 'contra_entrega', 'credito']
+                },
+                notas: { type: Type.STRING },
+                items: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      nombreProducto: { type: Type.STRING },
+                      variedadTono: { type: Type.STRING },
+                      cantidadSolicitada: { type: Type.INTEGER }
+                    },
+                    required: ['nombreProducto', 'cantidadSolicitada']
+                  }
+                }
+              },
+              required: ['clienteNombre', 'destino', 'estadoPago', 'items']
+            }
+          }
+        });
+
+        if (response?.text) break;
+      } catch (err: any) {
+        console.warn(`Modelo ${modelName} falló o está saturado, probando alternativa...`, err?.message || err);
+        lastError = err;
+      }
+    }
+
+    if (!response?.text) {
+      throw lastError || new Error('No se obtuvo respuesta del modelo de IA');
     }
 
     const result = JSON.parse(response.text);

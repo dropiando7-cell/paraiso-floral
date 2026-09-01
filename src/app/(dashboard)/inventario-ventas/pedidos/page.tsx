@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { withRoleGuard } from '@/utils/rbac';
 import { getPedidos, getAuxiliares } from './actions';
+import { getCediProductos } from '../rutas/actions';
 import PedidosAdminClient from './PedidosAdminClient';
 
 export const dynamic = 'force-dynamic';
@@ -24,9 +25,10 @@ async function PedidosPage() {
     redirect('/unauthorized');
   }
 
-  // Fetch orders and assistants
+  // Fetch orders, assistants, and catalog products
   const initialPedidos = await getPedidos();
   const assistants = await getAuxiliares();
+  const products = await getCediProductos();
 
   const serializedUser = JSON.parse(JSON.stringify(dbUser));
 
@@ -35,6 +37,7 @@ async function PedidosPage() {
       dbUser={serializedUser}
       initialPedidos={initialPedidos as any}
       assistants={assistants}
+      products={products}
     />
   );
 }

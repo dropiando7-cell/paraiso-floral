@@ -40,41 +40,54 @@ Por ejemplo:
 `;
 
     try {
-        const response = await genai.models.generateContent({
-            model: 'gemini-2.5-pro',
-            contents: transcripcion,
-            config: {
-                systemInstruction,
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        action: {
-                            type: Type.STRING,
-                            enum: ['CREATE_COTIZACION', 'CREATE_FACTURA', 'CHECK_INVENTORY']
-                        },
-                        clienteNombre: { type: Type.STRING },
-                        items: {
-                            type: Type.ARRAY,
-                            items: {
-                                type: Type.OBJECT,
-                                properties: {
-                                    nombre: { type: Type.STRING },
-                                    cantidad: { type: Type.INTEGER },
-                                    precioVenta: { type: Type.NUMBER },
-                                    costoBase: { type: Type.NUMBER }
-                                },
-                                required: ['nombre', 'cantidad']
-                            }
-                        }
-                    },
-                    required: ['action', 'clienteNombre', 'items']
-                }
-            }
-        });
+        const candidateModels = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'];
+        let response: any = null;
+        let lastError: any = null;
 
-        if (!response.text) {
-            throw new Error("No se obtuvo respuesta del modelo de IA.");
+        for (const modelName of candidateModels) {
+            try {
+                response = await genai.models.generateContent({
+                    model: modelName,
+                    contents: transcripcion,
+                    config: {
+                        systemInstruction,
+                        responseMimeType: 'application/json',
+                        responseSchema: {
+                            type: Type.OBJECT,
+                            properties: {
+                                action: {
+                                    type: Type.STRING,
+                                    enum: ['CREATE_COTIZACION', 'CREATE_FACTURA', 'CHECK_INVENTORY']
+                                },
+                                clienteNombre: { type: Type.STRING },
+                                items: {
+                                    type: Type.ARRAY,
+                                    items: {
+                                        type: Type.OBJECT,
+                                        properties: {
+                                            nombre: { type: Type.STRING },
+                                            cantidad: { type: Type.INTEGER },
+                                            precioVenta: { type: Type.NUMBER },
+                                            costoBase: { type: Type.NUMBER }
+                                        },
+                                        required: ['nombre', 'cantidad']
+                                    }
+                                }
+                            },
+                            required: ['action', 'clienteNombre', 'items']
+                        }
+                    }
+                });
+
+                if (response?.text) break;
+            } catch (err: any) {
+                console.warn(`Modelo ${modelName} ocupado, probando fallback...`, err?.message || err);
+                lastError = err;
+            }
+        }
+
+        if (!response?.text) {
+            throw lastError || new Error("No se obtuvo respuesta del modelo de IA.");
         }
 
         return JSON.parse(response.text) as VoiceIntentResponse;

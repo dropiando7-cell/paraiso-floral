@@ -456,3 +456,100 @@ export async function anularPedido(pedidoId: string) {
     return { success: false, error: error.message };
   }
 }
+
+// Add item to an existing order in real time (e.g. client requested extra products)
+export async function agregarItemAPedido(data: {
+  pedidoId: string;
+  productoId: string;
+  nombreProducto: string;
+  variedadTono?: string;
+  codigoBarras?: string;
+  cantidadSolicitada: number;
+}) {
+  try {
+    const dbUser = await getDbUser();
+
+    // Verify order exists in organization
+    const pedido = await prisma.pedido.findFirst({
+      where: {
+        id: data.pedidoId,
+        organizationId: dbUser.organizationId
+      }
+    });
+
+    if (!pedido) throw new Error('Pedido no encontrado');
+    if (pedido.estado === 'completado') throw new Error('No se pueden agregar ítems a un pedido completado');
+
+    const newItem = await prisma.pedidoItem.create({
+      data: {
+        pedidoId: data.pedidoId,
+        productoId: data.productoId,
+        nombreProducto: data.nombreProducto,
+        variedadTono: data.variedadTono || null,
+        codigoBarras: data.codigoBarras || null,
+        cantidadSolicitada: Math.max(1, data.cantidadSolicitada),
+        cantidadPreparada: 0,
+        recolectado: false
+      }
+    });
+
+    // Touch order updatedAt
+    await prisma.pedido.update({
+      where: { id: data.pedidoId },
+      data: { updatedAt: new Date() }
+    });
+
+    revalidatePath('/');
+    revalidatePath('/inventario-ventas/pedidos');
+    revalidatePath(`/inventario-ventas/pedidos/preparar/${data.pedidoId}`);
+    return { success: true, item: newItem };
+  } catch (error: any) {
+    console.error('Error en agregarItemAPedido:', error);
+    return { success: false, error: error.message || 'Error al agregar el ítem' };
+  }
+}
+
+// Get refreshed picking items for live polling / synchronization
+export async function getPedidoPickingItems(pedidoId: string) {
+  try {
+    const dbUser = await getDbUser();
+    const pedido = await prisma.pedido.findFirst({
+      where: {
+        id: pedidoId,
+        organizationId: dbUser.organizationId
+      },
+      include: {
+        items: true,
+        cliente: true,
+        auxiliarAsignado: {
+          select: { id: true, nombre: true, apellido: true }
+        }
+      }
+    });
+
+    if (!pedido) return null;
+
+    return {
+      id: pedido.id,
+      estado: pedido.estado,
+      updatedAt: pedido.updatedAt.toISOString(),
+      items: pedido.items.map(item => ({
+        id: item.id,
+        productoId: item.productoId,
+        nombreProducto: item.nombreProducto,
+        variedadTono: item.variedadTono || undefined,
+        codigoBarras: item.codigoBarras || undefined,
+        cantidadSolicitada: item.cantidadSolicitada,
+        cantidadPreparada: item.cantidadPreparada,
+        recolectado: item.recolectado,
+        sustituidoPor: item.sustituidoPorId ? {
+          productoId: item.sustituidoPorId,
+          nombreProducto: item.nombreSustituto || ''
+        } : undefined
+      }))
+    };
+  } catch (error) {
+    console.error('Error en getPedidoPickingItems:', error);
+    return null;
+  }
+}

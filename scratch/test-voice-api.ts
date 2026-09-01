@@ -2,7 +2,7 @@ import { analizarIntencionVoz } from '../src/lib/gemini';
 import { prisma } from '../src/lib/prisma';
 
 // Configurar variables de entorno si es necesario
-process.env.GEMINI_API_KEY = "AQ.Ab8RN6IucU0r_c0etYiEizbJCLvyMuG2gsHKslvfY3jXp5Iq5g";
+process.env.GEMINI_API_KEY = "AQ.Ab8RN6IoFEPGk8wQ2D2LhMJ3yM1S8E0VAkYu2m5c3hvo_nOaEw";
 
 async function test() {
     console.log("=== INICIANDO PRUEBA LOCAL DE ASISTENTE DE VOZ ===");
