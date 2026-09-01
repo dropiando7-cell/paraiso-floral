@@ -104,4 +104,20 @@ body {
   animation: gentle-shake 2.5s infinite ease-in-out;
 }
 
+/* Regla Global de Mayúsculas para el Módulo de Inventario */
+.inventario-module-uppercase,
+.inventario-module-uppercase *,
+.inventario-module-uppercase input,
+.inventario-module-uppercase select,
+.inventario-module-uppercase textarea,
+.inventario-module-uppercase button,
+.inventario-module-uppercase span,
+.inventario-module-uppercase p,
+.inventario-module-uppercase td,
+.inventario-module-uppercase th,
+.inventario-module-uppercase ::placeholder {
+  text-transform: uppercase !important;
+}
+
+
 

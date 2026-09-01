@@ -16,6 +16,7 @@ import {
     ArrowRight
 } from 'lucide-react';
 import { crearLoteDesdeSubidaAI } from './actions';
+import { formatNombreProductoRecepcion } from '@/utils/recepcionHelpers';
 
 export default function SubirPackingModal() {
     const router = useRouter();
@@ -216,7 +217,7 @@ export default function SubirPackingModal() {
                                                     {caja.items?.map((item: any, iIdx: number) => (
                                                         <div key={iIdx} className="flex items-center justify-between gap-2 text-[11px] text-slate-700">
                                                             <div>
-                                                                <span className="font-bold text-slate-900">{item.descripcion}</span>
+                                                                <span className="font-bold text-slate-900">{formatNombreProductoRecepcion(item.descripcion)}</span>
                                                                 <span className="text-slate-400 ml-1.5">({item.cultivo})</span>
                                                             </div>
                                                             <div className="font-bold text-emerald-700 shrink-0">

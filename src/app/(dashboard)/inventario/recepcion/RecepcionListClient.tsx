@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import SubirPackingModal from './SubirPackingModal';
 import { ProveedorLogo } from '@/components/inventario/ProveedorLogo';
+import { formatNombreProductoRecepcion, matchProductoRecepcion } from '@/utils/recepcionHelpers';
 
 interface LoteItem {
     id: string;
@@ -32,7 +33,7 @@ interface LoteItem {
 }
 
 export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
-    const [tabActiva, setTabActiva] = useState<'pendientes' | 'ingresados'>('pendientes');
+    const [tabActiva, setTabActiva] = useState<'pendientes' | 'ingresados' | 'todos'>('pendientes');
     const [busqueda, setBusqueda] = useState<string>('');
 
     // Clasificar lotes por estado: pendientes vs ingresados al CEDI
@@ -44,15 +45,31 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
         l.estado === 'COMPLETADO' || l.estado === 'INGRESADO_CEDI' || l.porcentaje === 100
     );
 
-    // Filtrar según el tab activo y el término de búsqueda (envío #, proveedor o producto)
-    const listadoActual = (tabActiva === 'pendientes' ? lotesPendientes : lotesIngresados).filter(l => {
-        if (!busqueda.trim()) return true;
+    // Búsqueda global en TODOS los proveedores y lotes cuando hay un término de búsqueda
+    const estaBuscando = busqueda.trim().length > 0;
+
+    const listadoFiltradoGlobal = lotes.filter(l => {
+        if (!estaBuscando) return true;
         const q = busqueda.toLowerCase().trim();
         const coincideEnvio = l.numeroEnvio.toLowerCase().includes(q);
         const coincideProveedor = l.proveedor.toLowerCase().includes(q);
-        const coincideProducto = (l.productosLista || []).some(prod => prod.toLowerCase().includes(q));
+        const coincideProducto = (l.productosLista || []).some(prod => matchProductoRecepcion(prod, q));
 
         return coincideEnvio || coincideProveedor || coincideProducto;
+    });
+
+    // Si está buscando, por defecto busca en TODOS los proveedores, pero si el usuario selecciona una pestaña específica, respeta la pestaña
+    const listadoActual = listadoFiltradoGlobal.filter(l => {
+        if (!estaBuscando) {
+            return tabActiva === 'pendientes' 
+                ? (l.estado !== 'COMPLETADO' && l.estado !== 'INGRESADO_CEDI' && l.porcentaje < 100)
+                : (l.estado === 'COMPLETADO' || l.estado === 'INGRESADO_CEDI' || l.porcentaje === 100);
+        }
+
+        if (tabActiva === 'todos') return true;
+        if (tabActiva === 'pendientes') return l.estado !== 'COMPLETADO' && l.estado !== 'INGRESADO_CEDI' && l.porcentaje < 100;
+        if (tabActiva === 'ingresados') return l.estado === 'COMPLETADO' || l.estado === 'INGRESADO_CEDI' || l.porcentaje === 100;
+        return true;
     });
 
     return (
@@ -207,18 +224,23 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
                                                     <ProveedorLogo nombre={lote.proveedor} size="md" />
                                                 </div>
 
-                                                {/* Coincidencias de Productos Encontrados */}
-                                                {busqueda.trim().length > 0 && lote.productosLista && (
-                                                    <div className="mt-2 flex flex-wrap items-center gap-1">
+                                                {/* Coincidencias de Productos Encontrados / Lista de Flores */}
+                                                {lote.productosLista && lote.productosLista.length > 0 && (
+                                                    <div className="mt-2.5 flex flex-wrap items-center gap-1">
                                                         {lote.productosLista
-                                                            .filter(p => p.toLowerCase().includes(busqueda.toLowerCase().trim()))
-                                                            .slice(0, 3)
+                                                            .filter(p => busqueda.trim() ? matchProductoRecepcion(p, busqueda) : true)
+                                                            .slice(0, 4)
                                                             .map((prodMatch, idx) => (
-                                                                <span key={idx} className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1">
+                                                                <span key={idx} className="bg-emerald-50/90 text-emerald-900 border border-emerald-200 text-[11px] font-extrabold px-2 py-0.5 rounded-md flex items-center gap-1">
                                                                     <Package className="w-3 h-3 text-emerald-600 shrink-0" />
-                                                                    {prodMatch}
+                                                                    {formatNombreProductoRecepcion(prodMatch)}
                                                                 </span>
                                                             ))}
+                                                        {lote.productosLista.filter(p => busqueda.trim() ? matchProductoRecepcion(p, busqueda) : true).length > 4 && (
+                                                            <span className="text-[10px] text-slate-400 font-bold px-1">
+                                                                +{lote.productosLista.filter(p => busqueda.trim() ? matchProductoRecepcion(p, busqueda) : true).length - 4} más
+                                                            </span>
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>

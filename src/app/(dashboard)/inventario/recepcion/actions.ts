@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { createClient } from '@/utils/supabase/server';
 import { redirect } from 'next/navigation';
+import { formatNombreProductoRecepcion } from '@/utils/recepcionHelpers';
 
 async function getAuthContext() {
     const supabase = await createClient();
@@ -429,8 +430,13 @@ export async function finalizarRecepcionLote(loteId: string) {
     }
 }
 
-// 6. Imprimir etiquetas de una caja específica
-export async function encolarImpresionCaja(cajaId: string, impresora: string = 'Niimbot', tamano: string = '70x40') {
+// 6. Imprimir etiquetas de una caja específica con pre-visualización y soporte de código 1D
+export async function encolarImpresionCaja(
+    cajaId: string, 
+    impresora: string = 'Niimbot', 
+    tamano: string = '70x40',
+    itemsCustom?: Array<{ idQr: string; descripcion: string; codigoBarras: string; cantidad: number; activoFijoId?: string }>
+) {
     try {
         const user = await getAuthContext();
 
@@ -448,39 +454,67 @@ export async function encolarImpresionCaja(cajaId: string, impresora: string = '
         const host = process.env.NEXT_PUBLIC_APP_URL || 'https://paraiso-floral.vercel.app';
         const printJobs: any[] = [];
 
-        for (const item of caja.items) {
-            const activo = item.activoFijo;
-            if (!activo) continue;
+        if (itemsCustom && itemsCustom.length > 0) {
+            for (const itemCustom of itemsCustom) {
+                const cantidad = Math.max(0, itemCustom.cantidad || 0);
+                if (cantidad === 0) continue;
 
-            const cantidadEtiquetas = item.verificado && item.bonchesRecibidos > 0 ? item.bonchesRecibidos : item.bonchesEsperados;
-
-            for (let i = 0; i < cantidadEtiquetas; i++) {
                 const params = new URLSearchParams({
-                    idQr: activo.idQr,
-                    descripcion: activo.descripcionCorta,
-                    area: activo.area || 'BODEGA',
-                    cuenta: activo.cuentaAct || 'INVENTARIO',
-                    marca: activo.marca || '',
-                    modelo: activo.modelo || '',
-                    codigoBarras: activo.codigoBarras || '',
-                    serie: activo.serie || '',
+                    idQr: itemCustom.idQr || '000000',
+                    descripcion: formatNombreProductoRecepcion(itemCustom.descripcion),
+                    codigoBarras: itemCustom.codigoBarras || itemCustom.idQr || '',
                     size: tamano
                 });
                 const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
 
-                printJobs.push({
-                    organizationId: user.organizationId,
-                    activoId: activo.id,
-                    urlImagen,
-                    estado: 'PENDIENTE',
-                    impresora,
-                    tamano
+                for (let i = 0; i < cantidad; i++) {
+                    printJobs.push({
+                        organizationId: user.organizationId,
+                        activoId: itemCustom.activoFijoId || null,
+                        urlImagen,
+                        estado: 'PENDIENTE',
+                        impresora,
+                        tamano
+                    });
+                }
+            }
+        } else {
+            for (const item of caja.items) {
+                const activo = item.activoFijo;
+                const descLive = formatNombreProductoRecepcion(activo?.descripcionCorta || item.descripcion);
+                const codBarrasLive = item.codigoBarras || activo?.codigoBarras || activo?.idQr || '';
+                const idQrLive = activo?.idQr || '000000';
+
+                const cantidadEtiquetas = item.verificado && item.bonchesRecibidos > 0 ? item.bonchesRecibidos : item.bonchesEsperados;
+
+                const params = new URLSearchParams({
+                    idQr: idQrLive,
+                    descripcion: descLive,
+                    area: activo?.area || 'BODEGA',
+                    cuenta: activo?.cuentaAct || 'INVENTARIO',
+                    marca: activo?.marca || '',
+                    modelo: activo?.modelo || '',
+                    codigoBarras: codBarrasLive,
+                    serie: activo?.serie || '',
+                    size: tamano
                 });
+                const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+
+                for (let i = 0; i < cantidadEtiquetas; i++) {
+                    printJobs.push({
+                        organizationId: user.organizationId,
+                        activoId: activo?.id || null,
+                        urlImagen,
+                        estado: 'PENDIENTE',
+                        impresora,
+                        tamano
+                    });
+                }
             }
         }
 
         if (printJobs.length === 0) {
-            return { success: false, error: 'No hay etiquetas para encolar en esta caja.' };
+            return { success: false, error: 'No hay etiquetas seleccionadas para encolar en esta caja.' };
         }
 
         const countPayload = await prisma.colaImpresion.createMany({
@@ -494,8 +528,13 @@ export async function encolarImpresionCaja(cajaId: string, impresora: string = '
     }
 }
 
-// 7. Imprimir etiquetas de todo el packing list completo
-export async function encolarImpresionLoteCompleto(loteId: string, impresora: string = 'Niimbot', tamano: string = '70x40') {
+// 7. Imprimir etiquetas de todo el packing list completo con pre-visualización y soporte 1D
+export async function encolarImpresionLoteCompleto(
+    loteId: string, 
+    impresora: string = 'Niimbot', 
+    tamano: string = '70x40',
+    itemsCustom?: Array<{ idQr: string; descripcion: string; codigoBarras: string; cantidad: number; activoFijoId?: string }>
+) {
     try {
         const user = await getAuthContext();
 
@@ -519,30 +558,23 @@ export async function encolarImpresionLoteCompleto(loteId: string, impresora: st
         const host = process.env.NEXT_PUBLIC_APP_URL || 'https://paraiso-floral.vercel.app';
         const printJobs: any[] = [];
 
-        for (const caja of lote.cajas) {
-            for (const item of caja.items) {
-                const activo = item.activoFijo;
-                if (!activo) continue;
+        if (itemsCustom && itemsCustom.length > 0) {
+            for (const itemCustom of itemsCustom) {
+                const cantidad = Math.max(0, itemCustom.cantidad || 0);
+                if (cantidad === 0) continue;
 
-                const cantidadEtiquetas = item.verificado && item.bonchesRecibidos > 0 ? item.bonchesRecibidos : item.bonchesEsperados;
+                const params = new URLSearchParams({
+                    idQr: itemCustom.idQr || '000000',
+                    descripcion: formatNombreProductoRecepcion(itemCustom.descripcion),
+                    codigoBarras: itemCustom.codigoBarras || itemCustom.idQr || '',
+                    size: tamano
+                });
+                const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
 
-                for (let i = 0; i < cantidadEtiquetas; i++) {
-                    const params = new URLSearchParams({
-                        idQr: activo.idQr,
-                        descripcion: activo.descripcionCorta,
-                        area: activo.area || 'BODEGA',
-                        cuenta: activo.cuentaAct || 'INVENTARIO',
-                        marca: activo.marca || '',
-                        modelo: activo.modelo || '',
-                        codigoBarras: activo.codigoBarras || '',
-                        serie: activo.serie || '',
-                        size: tamano
-                    });
-                    const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
-
+                for (let i = 0; i < cantidad; i++) {
                     printJobs.push({
                         organizationId: user.organizationId,
-                        activoId: activo.id,
+                        activoId: itemCustom.activoFijoId || null,
                         urlImagen,
                         estado: 'PENDIENTE',
                         impresora,
@@ -550,10 +582,45 @@ export async function encolarImpresionLoteCompleto(loteId: string, impresora: st
                     });
                 }
             }
+        } else {
+            for (const caja of lote.cajas) {
+                for (const item of caja.items) {
+                    const activo = item.activoFijo;
+                    const descLive = formatNombreProductoRecepcion(activo?.descripcionCorta || item.descripcion);
+                    const codBarrasLive = item.codigoBarras || activo?.codigoBarras || activo?.idQr || '';
+                    const idQrLive = activo?.idQr || '000000';
+
+                    const cantidadEtiquetas = item.verificado && item.bonchesRecibidos > 0 ? item.bonchesRecibidos : item.bonchesEsperados;
+
+                    const params = new URLSearchParams({
+                        idQr: idQrLive,
+                        descripcion: descLive,
+                        area: activo?.area || 'BODEGA',
+                        cuenta: activo?.cuentaAct || 'INVENTARIO',
+                        marca: activo?.marca || '',
+                        modelo: activo?.modelo || '',
+                        codigoBarras: codBarrasLive,
+                        serie: activo?.serie || '',
+                        size: tamano
+                    });
+                    const urlImagen = `${host}/api/impresion/generar-etiqueta?${params.toString()}`;
+
+                    for (let i = 0; i < cantidadEtiquetas; i++) {
+                        printJobs.push({
+                            organizationId: user.organizationId,
+                            activoId: activo?.id || null,
+                            urlImagen,
+                            estado: 'PENDIENTE',
+                            impresora,
+                            tamano
+                        });
+                    }
+                }
+            }
         }
 
         if (printJobs.length === 0) {
-            return { success: false, error: 'No hay etiquetas para encolar en este lote.' };
+            return { success: false, error: 'No hay etiquetas seleccionadas para encolar en este lote.' };
         }
 
         const countPayload = await prisma.colaImpresion.createMany({

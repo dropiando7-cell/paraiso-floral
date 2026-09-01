@@ -42,8 +42,43 @@ export async function updatePreferences(data: { defaultModule: string | null; ti
     }
 }
 
+// --- ORGANIZACIONES Y WHITELABEL MULTI-TENANT ---
+export async function getAllOrganizations() {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !user.email) return [];
+
+        const dbUser = await prisma.user.findFirst({
+            where: { email: { equals: user.email, mode: 'insensitive' } }
+        });
+
+        if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && dbUser.role !== 'GERENTE')) return [];
+
+        const orgs = await prisma.organization.findMany({
+            select: {
+                id: true,
+                name: true,
+                slug: true,
+                logoUrl: true,
+                rtn: true,
+                telefono: true,
+                direccion: true,
+                correoContacto: true,
+                qrPrefix: true
+            },
+            orderBy: { name: 'asc' }
+        });
+
+        return orgs;
+    } catch (e) {
+        console.error('Error fetching organizations:', e);
+        return [];
+    }
+}
+
 // --- EMAIL TEMPLATES (ADMIN ONLY) ---
-export async function getEmailTemplates() {
+export async function getEmailTemplates(targetOrgId?: string) {
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -59,8 +94,10 @@ export async function getEmailTemplates() {
             return [];
         }
 
+        const orgId = (targetOrgId && dbUser.role === 'SUPER_ADMIN') ? targetOrgId : dbUser.organizationId;
+
         const templates = await prisma.emailTemplate.findMany({
-            where: { organizationId: dbUser.organizationId }
+            where: { organizationId: orgId }
         });
 
         return templates;
@@ -77,6 +114,7 @@ export async function saveEmailTemplate(data: {
     body: string;
     buttonText: string;
     isActive: boolean;
+    organizationId?: string;
 }) {
     try {
         const supabase = await createClient();
@@ -93,10 +131,12 @@ export async function saveEmailTemplate(data: {
             return { success: false, error: 'Se requieren permisos de administrador' };
         }
 
+        const orgId = (data.organizationId && dbUser.role === 'SUPER_ADMIN') ? data.organizationId : dbUser.organizationId;
+
         const existing = await prisma.emailTemplate.findUnique({
             where: {
                 organizationId_type: {
-                    organizationId: dbUser.organizationId,
+                    organizationId: orgId,
                     type: data.type
                 }
             }
@@ -116,7 +156,7 @@ export async function saveEmailTemplate(data: {
         } else {
             await prisma.emailTemplate.create({
                 data: {
-                    organizationId: dbUser.organizationId,
+                    organizationId: orgId,
                     type: data.type,
                     subject: data.subject,
                     title: data.title,
@@ -136,7 +176,7 @@ export async function saveEmailTemplate(data: {
 }
 
 // --- PERFIL DE EMPRESA (WHITELABEL) ---
-export async function getCompanyProfile() {
+export async function getCompanyProfile(targetOrgId?: string) {
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -149,14 +189,21 @@ export async function getCompanyProfile() {
 
         if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && dbUser.role !== 'GERENTE')) return null;
 
+        let org = dbUser.organization;
+        if (targetOrgId && dbUser.role === 'SUPER_ADMIN') {
+            const requestedOrg = await prisma.organization.findUnique({ where: { id: targetOrgId } });
+            if (requestedOrg) org = requestedOrg;
+        }
+
         return {
-            name: dbUser.organization.name || '',
-            direccion: dbUser.organization.direccion || '',
-            telefono: dbUser.organization.telefono || '',
-            correoContacto: dbUser.organization.correoContacto || '',
-            rtn: dbUser.organization.rtn || '',
-            logoUrl: dbUser.organization.logoUrl || '',
-            qrPrefix: dbUser.organization.qrPrefix || 'PF'
+            id: org.id,
+            name: org.name || '',
+            direccion: org.direccion || '',
+            telefono: org.telefono || '',
+            correoContacto: org.correoContacto || '',
+            rtn: org.rtn || '',
+            logoUrl: org.logoUrl || '',
+            qrPrefix: org.qrPrefix || 'PF'
         };
     } catch(e) {
         console.error(e);
@@ -164,7 +211,7 @@ export async function getCompanyProfile() {
     }
 }
 
-export async function saveCompanyProfile(data: any) {
+export async function saveCompanyProfile(data: any, targetOrgId?: string) {
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -176,14 +223,17 @@ export async function saveCompanyProfile(data: any) {
 
         if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && dbUser.role !== 'GERENTE')) return { success: false, error: 'Sin permisos' };
 
+        const orgId = (targetOrgId && dbUser.role === 'SUPER_ADMIN') ? targetOrgId : dbUser.organizationId;
+
         await prisma.organization.update({
-            where: { id: dbUser.organizationId },
+            where: { id: orgId },
             data: {
                 name: data.name,
                 direccion: data.direccion,
                 telefono: data.telefono,
                 correoContacto: data.correoContacto,
                 rtn: data.rtn,
+                logoUrl: data.logoUrl,
                 qrPrefix: data.qrPrefix ? String(data.qrPrefix).toUpperCase().substring(0, 4) : 'PF'
             }
         });
@@ -196,7 +246,7 @@ export async function saveCompanyProfile(data: any) {
     }
 }
 
-export async function uploadCompanyLogo(formData: FormData) {
+export async function uploadCompanyLogo(formData: FormData, targetOrgId?: string) {
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -209,18 +259,23 @@ export async function uploadCompanyLogo(formData: FormData) {
         if (!dbUser || (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN' && dbUser.role !== 'GERENTE')) return { success: false, error: 'Sin permisos' };
 
         const file = formData.get('file') as File;
+        const formOrgId = formData.get('organizationId') as string;
         if (!file) return { success: false, error: 'No se envió archivo' };
+
+        const orgId = (targetOrgId || formOrgId) && dbUser.role === 'SUPER_ADMIN' 
+            ? (targetOrgId || formOrgId) 
+            : dbUser.organizationId;
 
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
         
         const extension = file.name.split('.').pop() || 'png';
-        const fileName = `logos/${dbUser.organizationId}-${Date.now()}.${extension}`;
+        const fileName = `logos/${orgId}-${Date.now()}.${extension}`;
 
         const url = await uploadToR2(buffer, fileName, file.type);
         
         await prisma.organization.update({
-            where: { id: dbUser.organizationId },
+            where: { id: orgId },
             data: { logoUrl: url }
         });
 

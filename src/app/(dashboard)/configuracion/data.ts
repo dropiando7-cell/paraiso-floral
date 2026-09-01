@@ -15,7 +15,8 @@ export async function getUserPreferencesData(email: string) {
                 idleTimeoutEnabled: true,
                 enableVoiceAi: true,
                 role: true,
-                accessibleModules: true
+                accessibleModules: true,
+                organizationId: true
             }
         });
         return user;

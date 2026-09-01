@@ -45,6 +45,8 @@ import {
 } from './actions';
 import { BarcodeScannerModal } from '@/components/BarcodeScannerModal';
 import { ProveedorLogo } from '@/components/inventario/ProveedorLogo';
+import { formatNombreProductoRecepcion, matchProductoRecepcion } from '@/utils/recepcionHelpers';
+import ModalPrevisualizarImpresion, { ItemPrevisualizacion } from './ModalPrevisualizarImpresion';
 
 // Función para emitir un pitido de confirmación mediante Web Audio API (sin archivos de audio externos)
 function playAudioFeedback(type: 'check' | 'complete' | 'uncheck' = 'check') {
@@ -162,6 +164,17 @@ export default function ChecklistBodegaClient({
     const [mostrarModalPdf, setMostrarModalPdf] = useState<boolean>(false);
     const [itemEscaneandoCamaraId, setItemEscaneandoCamaraId] = useState<string | null>(null);
 
+    // Modal de Pre-visualización de Impresión de Etiquetas
+    const [datosModalImpresion, setDatosModalImpresion] = useState<{
+        isOpen: boolean;
+        tipo: 'caja' | 'lote';
+        cajaId?: string;
+        loteId?: string;
+        titulo: string;
+        subtitulo?: string;
+        items: ItemPrevisualizacion[];
+    } | null>(null);
+
     // Modal para agregar producto extra/sobrante
     const [mostrarModalExtra, setMostrarModalExtra] = useState<boolean>(false);
     const [activosCatalogo, setActivosCatalogo] = useState<any[]>([]);
@@ -276,19 +289,24 @@ export default function ChecklistBodegaClient({
 
     const cajaSeleccionada = lote.cajas.find(c => c.id === cajaActivaId) || lote.cajas[0];
 
-    // Filtrar items por término de búsqueda en la caja activa
+    // Filtrar items por término de búsqueda en la caja activa con alias CEDI
     const itemsFiltrados = cajaSeleccionada ? cajaSeleccionada.items.filter(item => {
         if (!busquedaItem.trim()) return true;
         const q = busquedaItem.toLowerCase().trim();
-        const descLive = (item.activoFijo?.descripcionCorta || item.descripcion).toLowerCase();
-        const descOrig = item.descripcion.toLowerCase();
-        const cultivo = item.cultivoOriginal.toLowerCase();
+        const descLive = item.activoFijo?.descripcionCorta || item.descripcion;
+        const descOrig = item.descripcion;
+        const cultivo = item.cultivoOriginal;
         const qr = (item.activoFijo?.idQr || '').toLowerCase();
-        const barras = (item.activoFijo?.codigoBarras || '').toLowerCase();
-        return descLive.includes(q) || descOrig.includes(q) || cultivo.includes(q) || qr.includes(q) || barras.includes(q);
+        const barras = (item.codigoBarras || item.activoFijo?.codigoBarras || '').toLowerCase();
+        
+        return matchProductoRecepcion(descLive, q) || 
+               matchProductoRecepcion(descOrig, q) || 
+               matchProductoRecepcion(cultivo, q) || 
+               qr.includes(q) || 
+               barras.includes(q);
     }) : [];
 
-    // Búsqueda global a lo largo de TODAS las cajas del lote
+    // Búsqueda global a lo largo de TODAS las cajas del lote con alias CEDI
     const itemsResultadoGlobal = React.useMemo(() => {
         if (!busquedaGlobalLote.trim()) return [];
         const term = busquedaGlobalLote.toLowerCase().trim();
@@ -296,14 +314,19 @@ export default function ChecklistBodegaClient({
         
         lote.cajas.forEach(caja => {
             caja.items.forEach(item => {
-                const desc = (item.activoFijo?.descripcionCorta || item.descripcion).toLowerCase();
-                const descOrig = item.descripcion.toLowerCase();
+                const desc = item.activoFijo?.descripcionCorta || item.descripcion;
+                const descOrig = item.descripcion;
                 const qr = (item.activoFijo?.idQr || '').toLowerCase();
                 const codigoBarras = (item.codigoBarras || item.activoFijo?.codigoBarras || '').toLowerCase();
-                const cultivo = item.cultivoOriginal.toLowerCase();
+                const cultivo = item.cultivoOriginal;
                 const sticker = (caja.codigoProveedor || '').toLowerCase();
 
-                if (desc.includes(term) || descOrig.includes(term) || qr.includes(term) || codigoBarras.includes(term) || cultivo.includes(term) || sticker.includes(term)) {
+                if (matchProductoRecepcion(desc, term) || 
+                    matchProductoRecepcion(descOrig, term) || 
+                    matchProductoRecepcion(cultivo, term) || 
+                    qr.includes(term) || 
+                    codigoBarras.includes(term) || 
+                    sticker.includes(term)) {
                     results.push({ item, caja });
                 }
             });
@@ -411,8 +434,10 @@ export default function ChecklistBodegaClient({
         });
     };
 
-    // Handler: Cambiar código de barras de un item
-    const handleCambiarCodigoBarras = (item: ItemRecepcion, codigo: string) => {
+    const barcodeSaveTimerRef = useRef<{ [key: string]: NodeJS.Timeout }>({});
+
+    // Handler: Cambiar código de barras de un item (fluido, continuo con teclado o escáner sin deshabilitar foco)
+    const handleCambiarCodigoBarras = (item: ItemRecepcion, codigo: string, immediate = false) => {
         setLote(prev => ({
             ...prev,
             cajas: prev.cajas.map(c => {
@@ -424,21 +449,33 @@ export default function ChecklistBodegaClient({
             })
         }));
 
-        startTransition(async () => {
-            const res = await toggleVerificacionItem(
-                item.id,
-                item.verificado,
-                item.tipoEmpaque,
-                item.bonchesRecibidos,
-                item.bonchesDanados,
-                item.motivoDano || undefined,
-                item.fotosDano || undefined,
-                codigo
-            );
-            if (!res.success) {
-                setMensajeFeedback({ tipo: 'error', texto: res.error || 'Error al actualizar código de barras.' });
-            }
-        });
+        if (barcodeSaveTimerRef.current[item.id]) {
+            clearTimeout(barcodeSaveTimerRef.current[item.id]);
+        }
+
+        const persistir = () => {
+            startTransition(async () => {
+                const res = await toggleVerificacionItem(
+                    item.id,
+                    item.verificado,
+                    item.tipoEmpaque,
+                    item.bonchesRecibidos,
+                    item.bonchesDanados,
+                    item.motivoDano || undefined,
+                    item.fotosDano || undefined,
+                    codigo
+                );
+                if (!res.success) {
+                    setMensajeFeedback({ tipo: 'error', texto: res.error || 'Error al actualizar código de barras.' });
+                }
+            });
+        };
+
+        if (immediate) {
+            persistir();
+        } else {
+            barcodeSaveTimerRef.current[item.id] = setTimeout(persistir, 500);
+        }
     };
 
     // Handler: Escanear código de barras con Cámara de Tablet y asignarlo al item objetivo
@@ -550,29 +587,116 @@ export default function ChecklistBodegaClient({
         });
     };
 
-    // Handler: Imprimir Etiquetas por Caja
+    // Handler: Abrir Modal Pre-Visualización para Imprimir Etiquetas por Caja
     const handleImprimirCaja = () => {
         if (!cajaSeleccionada) return;
-        startTransition(async () => {
-            const res = await encolarImpresionCaja(cajaSeleccionada.id);
-            if (res.success) {
-                setMensajeFeedback({ tipo: 'exito', texto: `¡Se enviaron ${res.count} etiquetas de la Caja #${cajaSeleccionada.numeroCaja} al Print Server!` });
-            } else {
-                setMensajeFeedback({ tipo: 'error', texto: res.error || 'Error al enviar a impresión.' });
-            }
+
+        const itemsPrev: ItemPrevisualizacion[] = cajaSeleccionada.items.map(i => ({
+            id: i.id,
+            cajaNumero: cajaSeleccionada.numeroCaja,
+            descripcion: formatNombreProductoRecepcion(i.activoFijo?.descripcionCorta || i.descripcion),
+            idQr: i.activoFijo?.idQr || '000000',
+            codigoBarras: i.codigoBarras || i.activoFijo?.codigoBarras || i.activoFijo?.idQr || '',
+            cantidad: i.verificado && i.bonchesRecibidos > 0 ? i.bonchesRecibidos : i.bonchesEsperados,
+            activoFijoId: i.activoFijo?.id || undefined
+        }));
+
+        setDatosModalImpresion({
+            isOpen: true,
+            tipo: 'caja',
+            cajaId: cajaSeleccionada.id,
+            titulo: `Pre-visualización de Etiquetas - Caja #${cajaSeleccionada.numeroCaja}`,
+            subtitulo: `Sticker Finca: ${cajaSeleccionada.codigoProveedor || 'N/A'} • ${cajaSeleccionada.items.length} Variedades`,
+            items: itemsPrev
         });
     };
 
-    // Handler: Imprimir Etiquetas del Lote Completo
+    // Handler: Abrir Modal Pre-Visualización para Imprimir la Etiqueta de 1 Producto Individual
+    const handleImprimirItemIndividual = (item: ItemRecepcion) => {
+        if (!cajaSeleccionada) return;
+
+        const itemPrev: ItemPrevisualizacion = {
+            id: item.id,
+            cajaNumero: cajaSeleccionada.numeroCaja,
+            descripcion: formatNombreProductoRecepcion(item.activoFijo?.descripcionCorta || item.descripcion),
+            idQr: item.activoFijo?.idQr || '000000',
+            codigoBarras: item.codigoBarras || item.activoFijo?.codigoBarras || item.activoFijo?.idQr || '',
+            cantidad: item.verificado && item.bonchesRecibidos > 0 ? item.bonchesRecibidos : (item.bonchesEsperados || 1),
+            activoFijoId: item.activoFijo?.id || undefined
+        };
+
+        setDatosModalImpresion({
+            isOpen: true,
+            tipo: 'caja',
+            cajaId: cajaSeleccionada.id,
+            titulo: `Imprimir Etiqueta - ${itemPrev.descripcion}`,
+            subtitulo: `Caja #${cajaSeleccionada.numeroCaja} • QR: ${itemPrev.idQr} • Cód 1D: ${itemPrev.codigoBarras || 'N/A'}`,
+            items: [itemPrev]
+        });
+    };
+
+    // Handler: Abrir Modal Pre-Visualización para Imprimir Etiquetas del Lote Completo
     const handleImprimirLoteCompleto = () => {
-        startTransition(async () => {
-            const res = await encolarImpresionLoteCompleto(lote.id);
+        const itemsPrev: ItemPrevisualizacion[] = [];
+        lote.cajas.forEach(c => {
+            c.items.forEach(i => {
+                itemsPrev.push({
+                    id: i.id,
+                    cajaNumero: c.numeroCaja,
+                    descripcion: formatNombreProductoRecepcion(i.activoFijo?.descripcionCorta || i.descripcion),
+                    idQr: i.activoFijo?.idQr || '000000',
+                    codigoBarras: i.codigoBarras || i.activoFijo?.codigoBarras || i.activoFijo?.idQr || '',
+                    cantidad: i.verificado && i.bonchesRecibidos > 0 ? i.bonchesRecibidos : i.bonchesEsperados,
+                    activoFijoId: i.activoFijo?.id || undefined
+                });
+            });
+        });
+
+        setDatosModalImpresion({
+            isOpen: true,
+            tipo: 'lote',
+            loteId: lote.id,
+            titulo: `Pre-visualización de Etiquetas - Lote Completo (Envío #${lote.numeroEnvio})`,
+            subtitulo: `Proveedor: ${lote.proveedor} • ${lote.cajas.length} Cajas • ${itemsPrev.length} Variedades`,
+            items: itemsPrev
+        });
+    };
+
+    // Handler: Ejecutar envío a impresión tras confirmar en el Modal
+    const handleConfirmarImpresionFinal = async (impresora: string, tamano: string, itemsFinales: ItemPrevisualizacion[]) => {
+        if (!datosModalImpresion) return;
+
+        const itemsCustom = itemsFinales.map(i => ({
+            idQr: i.idQr,
+            descripcion: i.descripcion,
+            codigoBarras: i.codigoBarras,
+            cantidad: i.cantidad,
+            activoFijoId: i.activoFijoId
+        }));
+
+        if (datosModalImpresion.tipo === 'caja' && datosModalImpresion.cajaId) {
+            const res = await encolarImpresionCaja(datosModalImpresion.cajaId, impresora, tamano, itemsCustom);
             if (res.success) {
-                setMensajeFeedback({ tipo: 'exito', texto: `¡Se enviaron ${res.count} etiquetas del LOTE COMPLETO #${lote.numeroEnvio} al Print Server!` });
+                playAudioFeedback('complete');
+                setMensajeFeedback({ 
+                    tipo: 'exito', 
+                    texto: `¡Se enviaron ${res.count} etiquetas de la Caja #${cajaSeleccionada?.numeroCaja} al Print Server (${impresora} - ${tamano})!` 
+                });
             } else {
                 setMensajeFeedback({ tipo: 'error', texto: res.error || 'Error al enviar a impresión.' });
             }
-        });
+        } else if (datosModalImpresion.tipo === 'lote' && datosModalImpresion.loteId) {
+            const res = await encolarImpresionLoteCompleto(datosModalImpresion.loteId, impresora, tamano, itemsCustom);
+            if (res.success) {
+                playAudioFeedback('complete');
+                setMensajeFeedback({ 
+                    tipo: 'exito', 
+                    texto: `¡Se enviaron ${res.count} etiquetas del LOTE COMPLETO #${lote.numeroEnvio} al Print Server (${impresora} - ${tamano})!` 
+                });
+            } else {
+                setMensajeFeedback({ tipo: 'error', texto: res.error || 'Error al enviar a impresión.' });
+            }
+        }
     };
 
     // Handler Debug: Limpiar Cola de Impresión
@@ -779,7 +903,7 @@ export default function ChecklistBodegaClient({
                                             <div className="min-w-0 flex-1">
                                                 <div className="flex items-center gap-1.5 flex-wrap">
                                                     <span className="text-xs sm:text-sm font-extrabold text-slate-900 group-hover:text-emerald-950">
-                                                        {desc}
+                                                        {formatNombreProductoRecepcion(desc)}
                                                     </span>
                                                     <span className="font-mono text-[10px] font-bold bg-white text-emerald-800 px-1.5 py-0.5 rounded border border-slate-200">
                                                         QR: {item.activoFijo?.idQr || 'N/A'}
@@ -1046,7 +1170,7 @@ export default function ChecklistBodegaClient({
                                                             <div className="min-w-0 flex-1">
                                                                 <div className="flex items-center gap-2 flex-wrap">
                                                                     <span className="text-xs sm:text-sm md:text-base font-extrabold text-slate-900 leading-tight break-words">
-                                                                        {descLive}
+                                                                        {formatNombreProductoRecepcion(descLive)}
                                                                     </span>
                                                                     <span className="font-mono text-[10px] sm:text-xs font-bold bg-slate-100 text-emerald-800 px-2 py-0.5 rounded-md border border-slate-200 shrink-0">
                                                                         QR: {item.activoFijo?.idQr || 'N/A'}
@@ -1060,7 +1184,7 @@ export default function ChecklistBodegaClient({
                                                                 </div>
 
                                                                 <div className="text-[11px] text-slate-500 font-medium leading-tight">
-                                                                    Cultivo: <span className="text-slate-700 font-semibold">{item.cultivoOriginal}</span>
+                                                                    Cultivo: <span className="text-slate-700 font-semibold">{formatNombreProductoRecepcion(item.cultivoOriginal)}</span>
                                                                 {tieneDano && (
                                                                     <span className="ml-2 inline-flex items-center gap-1 font-extrabold text-[10px] bg-amber-50 text-slate-800 px-2 py-0.5 rounded-md border border-amber-200">
                                                                         <span className="text-emerald-700">{Math.max(0, (item.verificado ? item.bonchesRecibidos : item.bonchesEsperados) - item.bonchesDanados)} Stock</span>
@@ -1082,7 +1206,15 @@ export default function ChecklistBodegaClient({
                                                                 placeholder="Escribir/Escanear..."
                                                                 value={item.codigoBarras || ''}
                                                                 onChange={(e) => handleCambiarCodigoBarras(item, e.target.value)}
-                                                                disabled={isPending}
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter') {
+                                                                        e.currentTarget.blur();
+                                                                        handleCambiarCodigoBarras(item, item.codigoBarras || '', true);
+                                                                    }
+                                                                }}
+                                                                onBlur={() => {
+                                                                    handleCambiarCodigoBarras(item, item.codigoBarras || '', true);
+                                                                }}
                                                                 className="w-24 sm:w-36 md:w-44 bg-transparent text-xs sm:text-sm font-bold font-mono text-slate-800 focus:outline-none placeholder:text-slate-300"
                                                             />
                                                             
@@ -1121,6 +1253,16 @@ export default function ChecklistBodegaClient({
                                                         >
                                                             <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
                                                             {tieneDano && <span>{item.bonchesDanados}</span>}
+                                                        </button>
+
+                                                        {/* Botón Imprimir Etiqueta Individual */}
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleImprimirItemIndividual(item)}
+                                                            className="p-1.5 md:p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-900 border border-indigo-200 rounded-xl font-bold flex items-center justify-center transition-all shrink-0 active:scale-95 shadow-2xs cursor-pointer"
+                                                            title="Imprimir etiqueta de este producto individual"
+                                                        >
+                                                            <Printer className="w-4 h-4 text-indigo-600" />
                                                         </button>
                                                     </div>
                                                 </div>
@@ -1427,6 +1569,18 @@ export default function ChecklistBodegaClient({
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Modal Pre-Visualización e Impresión de Etiquetas */}
+            {datosModalImpresion?.isOpen && (
+                <ModalPrevisualizarImpresion
+                    isOpen={datosModalImpresion.isOpen}
+                    onClose={() => setDatosModalImpresion(null)}
+                    titulo={datosModalImpresion.titulo}
+                    subtitulo={datosModalImpresion.subtitulo}
+                    itemsIniciales={datosModalImpresion.items}
+                    onConfirmarImpresion={handleConfirmarImpresionFinal}
+                />
             )}
         </div>
     );

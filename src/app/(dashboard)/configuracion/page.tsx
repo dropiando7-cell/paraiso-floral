@@ -6,10 +6,10 @@ import { createClient } from '@/utils/supabase/client';
 import { 
     updatePreferences, getEmailTemplates, saveEmailTemplate, 
     getCompanyProfile, saveCompanyProfile, uploadCompanyLogo,
-    getAiVisionSetting, saveAiVisionSetting
+    getAiVisionSetting, saveAiVisionSetting, getAllOrganizations
 } from './actions';
 import { getUserPreferencesData } from './data';
-import { Settings, Globe, LayoutDashboard, Palette, Check, Loader2, Mail, Save, Sparkles } from 'lucide-react';
+import { Settings, Globe, LayoutDashboard, Palette, Check, Loader2, Mail, Save, Sparkles, Building2 } from 'lucide-react';
 import { EmailTemplateType } from '@prisma/client';
 
 const allAvailableModules = [
@@ -42,6 +42,10 @@ export default function ConfiguracionPage() {
     // Tab Navigation State
     const [activeTab, setActiveTab] = useState<'general' | 'company' | 'emails'>('general');
     
+    // Multi-tenant Organizations
+    const [organizations, setOrganizations] = useState<any[]>([]);
+    const [selectedOrgId, setSelectedOrgId] = useState<string>('');
+
     // Whitelabel Company Profile
     const [companyProfile, setCompanyProfile] = useState({ name: '', direccion: '', telefono: '', correoContacto: '', rtn: '', logoUrl: '', qrPrefix: 'BEA' });
     const [isSavingCompany, setIsSavingCompany] = useState(false);
@@ -97,8 +101,17 @@ export default function ConfiguracionPage() {
                     if (isAdmin) {
                         setFilteredModules(allAvailableModules);
 
+                        let initialOrgId = (dbData as any).organizationId;
+                        if (dbData.role === 'SUPER_ADMIN') {
+                            const orgList = await getAllOrganizations();
+                            setOrganizations(orgList);
+                            if (orgList.length > 0) {
+                                setSelectedOrgId(initialOrgId || orgList[0].id);
+                            }
+                        }
+
                         // Fetch Company Profile
-                        const profile = await getCompanyProfile();
+                        const profile = await getCompanyProfile(initialOrgId);
                         if (profile) setCompanyProfile(profile);
 
                         // Fetch AI Vision Setting
@@ -106,7 +119,7 @@ export default function ConfiguracionPage() {
                         if (aiSetting.success) setDisableAiVision(aiSetting.disabled || false);
 
                         // Fetch Email Templates if Admin
-                        const templates = await getEmailTemplates();
+                        const templates = await getEmailTemplates(initialOrgId);
                         setEmailTemplates(templates);
 
                         // Load defaults for the initial view
@@ -135,10 +148,6 @@ export default function ConfiguracionPage() {
                         const filtered = allAvailableModules.filter(
                             mod => accessibleRoutes.includes(mod.id)
                         );
-                        // If they have no accessible modules but somehow logged in, at least show checkin or something, or just leave it empty.
-                        // Based on user request "solo debes mostrar los modulos a los que tiene acceso".
-
-                        // Si la lista filtrada no incluye el defaultModule actual, lo actualizamos al primero que tenga acceso
                         if (filtered.length > 0 && !filtered.some(m => m.id === (dbData as any).defaultModule)) {
                             setPreferences(prev => ({ ...prev, defaultModule: filtered[0].id }));
                         }
@@ -151,6 +160,28 @@ export default function ConfiguracionPage() {
         };
         loadPreferences();
     }, []);
+
+    const handleOrgChange = async (newOrgId: string) => {
+        setSelectedOrgId(newOrgId);
+        setIsLoading(true);
+        const profile = await getCompanyProfile(newOrgId);
+        if (profile) setCompanyProfile(profile);
+
+        const templates = await getEmailTemplates(newOrgId);
+        setEmailTemplates(templates);
+
+        const currentTypeTemplate = templates.find((t: any) => t.type === activeEmailType);
+        if (currentTypeTemplate) {
+            setCurrentTemplateData({
+                subject: currentTypeTemplate.subject,
+                title: currentTypeTemplate.title,
+                body: currentTypeTemplate.body,
+                buttonText: currentTypeTemplate.buttonText,
+                isActive: currentTypeTemplate.isActive
+            });
+        }
+        setIsLoading(false);
+    };
 
     // Handle Template Type Switch
     const handleSwitchTemplateType = (type: EmailTemplateType) => {
@@ -193,6 +224,7 @@ export default function ConfiguracionPage() {
 
         const res = await saveEmailTemplate({
             type: activeEmailType,
+            organizationId: selectedOrgId || undefined,
             ...currentTemplateData
         });
 
@@ -202,7 +234,7 @@ export default function ConfiguracionPage() {
             setSaveTemplateSuccess(true);
 
             // Refresh local state to ensure it switches correctly later
-            const templates = await getEmailTemplates();
+            const templates = await getEmailTemplates(selectedOrgId);
             setEmailTemplates(templates);
 
             setTimeout(() => setSaveTemplateSuccess(false), 3000);
@@ -237,7 +269,7 @@ export default function ConfiguracionPage() {
     const handleSaveCompany = async () => {
         setIsSavingCompany(true);
         setSaveCompanySuccess(false);
-        const res = await saveCompanyProfile(companyProfile);
+        const res = await saveCompanyProfile(companyProfile, selectedOrgId || undefined);
         setIsSavingCompany(false);
         if (res.success) {
             setSaveCompanySuccess(true);
@@ -254,8 +286,11 @@ export default function ConfiguracionPage() {
         setIsSavingCompany(true);
         const formData = new FormData();
         formData.append('file', file);
+        if (selectedOrgId) {
+            formData.append('organizationId', selectedOrgId);
+        }
         
-        const res = await uploadCompanyLogo(formData);
+        const res = await uploadCompanyLogo(formData, selectedOrgId || undefined);
         setIsSavingCompany(false);
         
         if (res.success && res.url) {
@@ -494,6 +529,28 @@ export default function ConfiguracionPage() {
                             </div>
 
                             <div className="px-6 py-5 space-y-4">
+                                {userRole === 'SUPER_ADMIN' && organizations.length > 0 && (
+                                    <div className="bg-indigo-50/80 border border-indigo-200 p-3.5 rounded-xl flex items-center justify-between gap-3 mb-2 shadow-2xs">
+                                        <div className="flex items-center gap-2">
+                                            <Building2 className="w-4 h-4 text-indigo-700 shrink-0" />
+                                            <div>
+                                                <span className="text-xs font-black text-indigo-900 block leading-tight">Organización a Configurar (Plantillas):</span>
+                                                <span className="text-[11px] font-medium text-indigo-700">Selecciona la empresa cuyas plantillas de correo deseas personalizar.</span>
+                                            </div>
+                                        </div>
+                                        <select
+                                            value={selectedOrgId}
+                                            onChange={(e) => handleOrgChange(e.target.value)}
+                                            className="px-3.5 py-2 bg-white border border-indigo-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer shadow-2xs"
+                                        >
+                                            {organizations.map(org => (
+                                                <option key={org.id} value={org.id}>
+                                                    {org.name} ({org.slug})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
 
                                 {isLoading ? (
                                     <div className="space-y-4">
@@ -611,6 +668,28 @@ export default function ConfiguracionPage() {
                             </div>
 
                             <div className="px-6 py-5 space-y-4">
+                                {userRole === 'SUPER_ADMIN' && organizations.length > 0 && (
+                                    <div className="bg-amber-50/80 border border-amber-200 p-3.5 rounded-xl flex items-center justify-between gap-3 mb-2 shadow-2xs">
+                                        <div className="flex items-center gap-2">
+                                            <Building2 className="w-4 h-4 text-amber-700 shrink-0" />
+                                            <div>
+                                                <span className="text-xs font-black text-amber-900 block leading-tight">Organización a Configurar (Whitelabel):</span>
+                                                <span className="text-[11px] font-medium text-amber-700">Selecciona la empresa cuyo logo y datos deseas personalizar.</span>
+                                            </div>
+                                        </div>
+                                        <select
+                                            value={selectedOrgId}
+                                            onChange={(e) => handleOrgChange(e.target.value)}
+                                            className="px-3.5 py-2 bg-white border border-amber-300 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-amber-500 cursor-pointer shadow-2xs"
+                                        >
+                                            {organizations.map(org => (
+                                                <option key={org.id} value={org.id}>
+                                                    {org.name} ({org.slug})
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-1">Nombre Comercial</label>
