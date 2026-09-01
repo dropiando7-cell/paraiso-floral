@@ -21,12 +21,16 @@ export default async function ContactosPage() {
 
     const orgId = dbUser.organizationId;
 
-    // SSR fetch the first 15 contacts ordered alphabetically
-    const contacts = await prisma.cliente.findMany({
-        where: { organizationId: orgId },
-        orderBy: { nombre: 'asc' },
-        take: 15,
-    });
+    const [contacts, totalCount] = await Promise.all([
+        prisma.cliente.findMany({
+            where: { organizationId: orgId },
+            orderBy: { nombre: 'asc' },
+            take: 10,
+        }),
+        prisma.cliente.count({
+            where: { organizationId: orgId }
+        })
+    ]);
 
     const sanitizedContacts = contacts.map(c => ({
         ...c,
@@ -34,5 +38,11 @@ export default async function ContactosPage() {
         diasCredito: c.diasCredito || 15
     }));
 
-    return <ContactosClient initialData={sanitizedContacts as any} />;
+    return (
+        <ContactosClient 
+            initialData={sanitizedContacts as any} 
+            initialTotalCount={totalCount}
+            initialTotalPages={Math.ceil(totalCount / 10)}
+        />
+    );
 }

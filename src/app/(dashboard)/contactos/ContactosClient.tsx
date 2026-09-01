@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { 
     Users, Plus, Search, Building2, 
     Mail, Phone, MapPin, 
     Pencil, Trash2, FileBadge,
-    User, CreditCard, Clock
+    User, CreditCard, Clock,
+    ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { fetchContactos, deleteContacto } from './actions';
 import ContactoModal, { ClienteFormData } from '@/components/contactos/ContactoModal';
@@ -29,13 +30,23 @@ type Cliente = {
     createdAt: Date;
 };
 
-export default function ContactosClient({ initialData }: { initialData: Cliente[] }) {
+interface ContactosClientProps {
+    initialData: Cliente[];
+    initialTotalCount?: number;
+    initialTotalPages?: number;
+}
+
+export default function ContactosClient({ 
+    initialData, 
+    initialTotalCount = 0, 
+    initialTotalPages = 1 
+}: ContactosClientProps) {
     const [contactos, setContactos] = useState<Cliente[]>(initialData);
     const [search, setSearch] = useState('');
     const [loading, setLoading] = useState(false);
     const [page, setPage] = useState(1);
-    const [totalPages, setTotalPages] = useState(1);
-    const [totalCount, setTotalCount] = useState(initialData.length);
+    const [totalPages, setTotalPages] = useState(initialTotalPages || 1);
+    const [totalCount, setTotalCount] = useState(initialTotalCount || initialData.length);
 
     const [modalMode, setModalMode] = useState<'create' | 'edit' | null>(null);
     const [currentContacto, setCurrentContacto] = useState<Partial<ClienteFormData>>({});
@@ -247,28 +258,58 @@ export default function ContactosClient({ initialData }: { initialData: Cliente[
                     </table>
                 </div>
 
-                {/* Pagination Desktop */}
-                {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-500">
-                            Página {page} de {totalPages}
+                {/* Modern Pagination */}
+                {totalCount > 0 && (
+                    <div className="px-6 py-4 border-t border-slate-200 bg-slate-50/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+                        <span className="text-xs font-semibold text-slate-500">
+                            Mostrando <span className="font-bold text-slate-900">{totalCount > 0 ? (page - 1) * 10 + 1 : 0}</span> a <span className="font-bold text-slate-900">{Math.min(page * 10, totalCount)}</span> de <span className="font-bold text-emerald-700">{totalCount}</span> clientes
                         </span>
-                        <div className="flex items-center gap-2">
-                            <button
-                                disabled={page === 1}
-                                onClick={() => setPage(p => p - 1)}
-                                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                            >
-                                Anterior
-                            </button>
-                            <button
-                                disabled={page === totalPages || totalPages === 0}
-                                onClick={() => setPage(p => p + 1)}
-                                className="px-4 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
-                            >
-                                Siguiente
-                            </button>
-                        </div>
+                        
+                        {totalPages > 1 && (
+                            <div className="flex items-center gap-1.5 flex-wrap justify-center">
+                                <button
+                                    disabled={page === 1 || loading}
+                                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                    <ChevronLeft className="w-3.5 h-3.5" />
+                                    <span>Anterior</span>
+                                </button>
+
+                                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                    .filter(p => p === 1 || p === totalPages || (p >= page - 2 && p <= page + 2))
+                                    .map((p, idx, arr) => {
+                                        const prev = arr[idx - 1];
+                                        return (
+                                            <React.Fragment key={p}>
+                                                {prev && p - prev > 1 && (
+                                                    <span className="px-1.5 text-xs text-slate-400 font-bold">...</span>
+                                                )}
+                                                <button
+                                                    onClick={() => setPage(p)}
+                                                    disabled={loading}
+                                                    className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                                        page === p
+                                                            ? 'bg-emerald-600 text-white shadow-sm font-black'
+                                                            : 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-100'
+                                                    }`}
+                                                >
+                                                    {p}
+                                                </button>
+                                            </React.Fragment>
+                                        );
+                                    })}
+
+                                <button
+                                    disabled={page === totalPages || totalPages === 0 || loading}
+                                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                    className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                    <span>Siguiente</span>
+                                    <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

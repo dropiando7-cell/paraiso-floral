@@ -20,7 +20,7 @@ async function getOrgId() {
 export async function fetchContactos(query: string, page: number = 1) {
     const orgId = await getOrgId();
 
-    const pageSize = 15;
+    const pageSize = 10;
     const skip = (page - 1) * pageSize;
 
     const where = {
