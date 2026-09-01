@@ -165,6 +165,17 @@ Reglas:
                         const match = activos.find(a => {
                             const desc = a.descripcionCorta.toLowerCase();
                             const marca = (a.marca || '').toLowerCase();
+                            const itemClean = itemDesc.toLowerCase();
+
+                            // Alias Gypsophila <-> Baby Ecuador / Baby Breath
+                            if ((itemClean.includes('gyp') || itemClean.includes('baby')) && (desc.includes('baby') || desc.includes('gyp'))) {
+                                return true;
+                            }
+                            // Alias Hydrangea <-> Hortensia
+                            if ((itemClean.includes('hyd') || itemClean.includes('horten')) && (desc.includes('hyd') || desc.includes('horten'))) {
+                                return true;
+                            }
+
                             return itemDesc.includes(desc) || desc.includes(itemDesc) || (marca && (itemCultivo.includes(marca) || itemDesc.includes(marca)));
                         });
 

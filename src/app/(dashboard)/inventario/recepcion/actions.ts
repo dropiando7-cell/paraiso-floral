@@ -781,12 +781,21 @@ export async function crearLoteDesdeSubidaAI(data: {
                 // Si no vino activoFijoId, buscar uno coincidente o usar null
                 let activoIdToLink = item.activoFijoId;
                 if (!activoIdToLink) {
+                    const itemClean = (item.descripcion || '').toLowerCase();
                     const match = await prisma.activoFijo.findFirst({
                         where: {
                             organizationId: user.organizationId,
                             OR: [
                                 { descripcionCorta: { contains: item.descripcion, mode: 'insensitive' } },
-                                { marca: { contains: item.descripcion, mode: 'insensitive' } }
+                                { marca: { contains: item.descripcion, mode: 'insensitive' } },
+                                ...((itemClean.includes('gyp') || itemClean.includes('baby')) ? [
+                                    { descripcionCorta: { contains: 'Baby', mode: 'insensitive' as const } },
+                                    { descripcionCorta: { contains: 'Gyp', mode: 'insensitive' as const } }
+                                ] : []),
+                                ...((itemClean.includes('hyd') || itemClean.includes('horten')) ? [
+                                    { descripcionCorta: { contains: 'Hortensia', mode: 'insensitive' as const } },
+                                    { descripcionCorta: { contains: 'Hyd', mode: 'insensitive' as const } }
+                                ] : [])
                             ]
                         }
                     });
