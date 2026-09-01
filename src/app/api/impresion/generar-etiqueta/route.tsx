@@ -22,7 +22,9 @@ export async function GET(req: NextRequest) {
     const is50x33 = size === '50x33';
 
     // Si no hay código de barras explícito, utilizamos el id interno como código de barra 1D
-    const barcodeData = codigoBarras ? codigoBarras : idQr;
+    const rawBarcode = codigoBarras ? codigoBarras : idQr;
+    // Remover prefijo PF- si está presente para que la etiqueta solo muestre el número limpio
+    const barcodeData = rawBarcode.replace(/^PF-/i, '');
 
     // Dimensiones según tamaño solicitado
     const W = is70x40 ? 559 : 399;

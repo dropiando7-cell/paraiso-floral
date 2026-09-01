@@ -139,6 +139,10 @@ def wrap_texto(texto, font, max_px=265):
         else:
             return [texto[:12] + "..."]
 
+    # Si la descripción tiene 2 o más palabras y cabe en 2 líneas, dividirla limpiamente por palabras
+    if len(palabras) == 2:
+        return [palabras[0], palabras[1]]
+
     if len(texto) > 13:
         linea1 = ""
         for i, p in enumerate(palabras):
@@ -213,7 +217,13 @@ def generar_imagen_local(activo, cfg, size_name="50x25"):
     """
     id_qr = str(activo.get('idQr') or '000000').strip()
     descripcion = str(activo.get('descripcionCorta') or activo.get('descripcion') or 'Sin descripción').strip().upper()
-    codigo_barras = str(activo.get('codigoBarras') or id_qr).strip()
+    codigo_barras_raw = str(activo.get('codigoBarras') or id_qr).strip()
+    
+    # Remover prefijo PF- si está presente
+    if codigo_barras_raw.upper().startswith('PF-'):
+        codigo_barras = codigo_barras_raw[3:]
+    else:
+        codigo_barras = codigo_barras_raw
 
     W, H = cfg['ANCHO_FIJO'], cfg['ALTO_MAXIMO']
     img = Image.new("RGB", (W, H), "white")
