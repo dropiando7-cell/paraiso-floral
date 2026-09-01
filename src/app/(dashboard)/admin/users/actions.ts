@@ -744,6 +744,7 @@ export async function createOrganization(data: {
     slug: string;
     correoContacto?: string;
     telefono?: string;
+    shareCediInventory?: boolean;
 }) {
     try {
         const supabase = await createClient();
@@ -768,20 +769,38 @@ export async function createOrganization(data: {
             return { success: false, error: 'Ya existe una organización con ese slug.' };
         }
 
+        let sharedInventoryOrgId: string | null = null;
+        if (data.shareCediInventory !== false) {
+            const paraisoOrg = await prisma.organization.findFirst({
+                where: {
+                    OR: [
+                        { slug: 'paraiso-floral' },
+                        { name: { contains: 'Paraíso Floral', mode: 'insensitive' } }
+                    ]
+                },
+                select: { id: true }
+            });
+            if (paraisoOrg) {
+                sharedInventoryOrgId = paraisoOrg.id;
+            }
+        }
+
         const newOrg = await prisma.organization.create({
             data: {
                 name: data.name,
                 slug: data.slug,
                 correoContacto: data.correoContacto || null,
                 telefono: data.telefono || null,
+                invoiceSettings: {
+                    shareCediInventory: data.shareCediInventory !== false,
+                    sharedInventoryOrgId
+                }
             },
         });
 
         revalidatePath('/admin/users');
         return { success: true, organization: newOrg };
-    } catch (error: any) {
-        console.error('Error creating organization:', error);
-        return { success: false, error: 'Error interno del servidor al crear la organización.' };
+    } catch (e: any) {
+        return { success: false, error: e.message || 'Error al crear la organización.' };
     }
 }
-

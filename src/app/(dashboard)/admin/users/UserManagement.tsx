@@ -64,6 +64,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
     const [newOrgSlug, setNewOrgSlug] = useState('');
     const [newOrgEmail, setNewOrgEmail] = useState('');
     const [newOrgPhone, setNewOrgPhone] = useState('');
+    const [newOrgShareCedi, setNewOrgShareCedi] = useState(true);
 
     const roles = Object.keys({
         SUPER_ADMIN: 'SUPER_ADMIN',
@@ -103,6 +104,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         { id: '/rentas', label: 'Rentas de Equipos' },
         { id: '/graficas', label: 'Gráficas e Informes' },
         { id: '/inventario', label: 'Control de Inventario' },
+        { id: 'ver_inventario_cedi', label: 'Inventario - Ver y Operar Catálogo CEDI Central (Paraíso Floral)' },
         { id: '/inventario/recepcion', label: 'Recepción de Packing Lists (Auxiliar Bodega / Chequeadores)' },
         { id: '/inventario/toma-fisica', label: 'Toma Física / Auditoría de Inventario (Tablet)' },
         { id: '/inventario/modelos', label: 'Catálogo de Modelos' },
@@ -408,6 +410,7 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
         setNewOrgSlug('');
         setNewOrgEmail('');
         setNewOrgPhone('');
+        setNewOrgShareCedi(true);
         setError(null);
         setIsOrgModalOpen(true);
     };
@@ -439,7 +442,8 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
             name: newOrgName,
             slug: newOrgSlug,
             correoContacto: newOrgEmail || undefined,
-            telefono: newOrgPhone || undefined
+            telefono: newOrgPhone || undefined,
+            shareCediInventory: newOrgShareCedi
         });
 
         setLoading(false);
@@ -1231,6 +1235,25 @@ export function UserManagement({ initialUsers, organizations, roleTemplates, cur
                                         placeholder="+504 9999-9999"
                                         className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                                     />
+                                </div>
+
+                                <div className="p-3.5 bg-emerald-50 border border-emerald-200/80 rounded-xl">
+                                    <label className="flex items-start gap-2.5 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={newOrgShareCedi}
+                                            onChange={(e) => setNewOrgShareCedi(e.target.checked)}
+                                            className="w-4 h-4 mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                                        />
+                                        <div>
+                                            <span className="text-xs font-bold text-emerald-950 block">
+                                                Compartir Inventario CEDI Central (Paraíso Floral)
+                                            </span>
+                                            <span className="text-[11px] text-emerald-700 leading-tight block mt-0.5">
+                                                Permite a esta organización consultar, ver y operar el catálogo de flores y stock del CEDI unificado.
+                                            </span>
+                                        </div>
+                                    </label>
                                 </div>
                             </div>
 

@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/utils/supabase/server';
 import { prisma } from '@/lib/prisma';
-import { getActivos, getActivoStats } from './actions';
+import { getActivos, getActivoStats, getEffectiveOrgIds } from './actions';
 import { InventarioClient } from './InventarioClient';
 
 export const metadata = {
@@ -27,6 +27,7 @@ export default async function InventarioPage() {
         redirect('/inventario/historico');
     }
 
+    const orgIds = await getEffectiveOrgIds();
     const orgId = dbUser.organizationId;
 
     // Fetch all initial data in parallel using Promise.all for fast load times!
@@ -34,7 +35,7 @@ export default async function InventarioPage() {
         getActivos(1, '', '', ''),
         getActivoStats(),
         prisma.area.findMany({
-            where: { organizationId: orgId },
+            where: { organizationId: { in: orgIds } },
             orderBy: { name: 'asc' },
         }),
         prisma.systemSetting.findMany({

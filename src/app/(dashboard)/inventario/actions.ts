@@ -15,10 +15,60 @@ async function getOrgId(): Promise<string> {
 
     const dbUser = await prisma.user.findUnique({
         where: { email: user.email },
-        select: { organizationId: true },
+        select: { organizationId: true }
     });
     if (!dbUser) redirect('/unauthorized');
     return dbUser.organizationId;
+}
+
+// ─── Helper: Get effective org IDs (including shared CEDI inventory) ─────────
+export async function getEffectiveOrgIds(): Promise<string[]> {
+    try {
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return [];
+
+        const dbUser = await prisma.user.findUnique({
+            where: { email: user.email },
+            select: { id: true, organizationId: true, role: true, accessibleModules: true },
+        });
+        if (!dbUser) return [];
+
+        const org = await prisma.organization.findUnique({
+            where: { id: dbUser.organizationId },
+            select: { id: true, slug: true, invoiceSettings: true }
+        });
+
+        const orgSettings = (org?.invoiceSettings as any) || {};
+        const sharedOrgId = orgSettings.sharedInventoryOrgId;
+        const shareCedi = orgSettings.shareCediInventory;
+        const hasRolePermission = dbUser.role === 'SUPER_ADMIN' ||
+            dbUser.accessibleModules?.includes('ver_inventario_cedi') ||
+            dbUser.accessibleModules?.includes('inventario_compartido');
+
+        if (sharedOrgId && sharedOrgId !== dbUser.organizationId) {
+            return [dbUser.organizationId, sharedOrgId];
+        }
+
+        if (shareCedi || org?.slug === 'honduflores' || hasRolePermission) {
+            const paraisoOrg = await prisma.organization.findFirst({
+                where: {
+                    OR: [
+                        { slug: 'paraiso-floral' },
+                        { name: { contains: 'Paraíso Floral', mode: 'insensitive' } }
+                    ]
+                },
+                select: { id: true }
+            });
+            if (paraisoOrg && paraisoOrg.id !== dbUser.organizationId) {
+                return [dbUser.organizationId, paraisoOrg.id];
+            }
+        }
+
+        return [dbUser.organizationId];
+    } catch (e) {
+        return [];
+    }
 }
 
 // ─── Helper: Get authenticated user context ──────────────────────────────────
@@ -84,19 +134,19 @@ async function generateIdQr(organizationId: string, area: string, codigoGrupo: s
 // ─── Autocompletar Groupos Existentes ─────────────────────────────────────────
 export async function getGruposAutocompletado() {
     try {
-        const orgId = await getOrgId();
+        const orgIds = await getEffectiveOrgIds();
 
         // Agrupar por descripcionCorta para obtener cantidad
         const agrupados = await prisma.activoFijo.groupBy({
             by: ['descripcionCorta'],
-            where: { organizationId: orgId, esParaRenta: false },
+            where: { organizationId: { in: orgIds }, esParaRenta: false },
             _count: { id: true }
         });
 
         const resultados = [];
         for (const g of agrupados) {
             const last = await prisma.activoFijo.findFirst({
-                where: { organizationId: orgId, descripcionCorta: g.descripcionCorta, esParaRenta: false },
+                where: { organizationId: { in: orgIds }, descripcionCorta: g.descripcionCorta, esParaRenta: false },
                 orderBy: { createdAt: 'desc' },
                 select: { codigoGrupo: true }
             });
@@ -116,9 +166,9 @@ export async function getGruposAutocompletado() {
 // ─── Categoria Management ───────────────────────────────────────────────────
 export async function getCategorias() {
     try {
-        const orgId = await getOrgId();
+        const orgIds = await getEffectiveOrgIds();
         return await prisma.categoria.findMany({
-            where: { organizationId: orgId },
+            where: { organizationId: { in: orgIds } },
             orderBy: { nombre: 'asc' }
         });
     } catch (e) {
@@ -159,9 +209,9 @@ export async function updateCategoria(id: string, nombre: string, color?: string
 export async function getActivosByGrupo(codigoGrupo: string) {
     if (!codigoGrupo) return [];
     try {
-        const orgId = await getOrgId();
+        const orgIds = await getEffectiveOrgIds();
         const activos = await prisma.activoFijo.findMany({
-            where: { organizationId: orgId, codigoGrupo, esParaRenta: false },
+            where: { organizationId: { in: orgIds }, codigoGrupo, esParaRenta: false },
             orderBy: { area: 'asc' },
             select: {
                 id: true,
@@ -191,9 +241,9 @@ export async function getActivosByGrupo(codigoGrupo: string) {
 export async function getActivosByDescripcionCorta(descripcionCorta: string) {
     if (!descripcionCorta) return [];
     try {
-        const orgId = await getOrgId();
+        const orgIds = await getEffectiveOrgIds();
         const activos = await prisma.activoFijo.findMany({
-            where: { organizationId: orgId, descripcionCorta, esParaRenta: false },
+            where: { organizationId: { in: orgIds }, descripcionCorta, esParaRenta: false },
             orderBy: { area: 'asc' },
             select: {
                 id: true,
@@ -224,9 +274,9 @@ export async function getActivosByDescripcionCorta(descripcionCorta: string) {
 export async function getActivosByIdQr(idQr: string) {
     if (!idQr) return [];
     try {
-        const orgId = await getOrgId();
+        const orgIds = await getEffectiveOrgIds();
         const activos = await prisma.activoFijo.findMany({
-            where: { organizationId: orgId, idQr, esParaRenta: false },
+            where: { organizationId: { in: orgIds }, idQr, esParaRenta: false },
             orderBy: { area: 'asc' },
             select: {
                 id: true,
@@ -426,7 +476,7 @@ export async function updateActivoQuick(id: string, area: string, cantidadStr: s
 
 // ─── READ: List with pagination, search, filters ─────────────────────────────
 export async function getActivos(page = 1, search = '', area = '', estatus = '', origen = '', condicion = '', tipoInventario = 'real') {
-    const orgId = await getOrgId();
+    const orgIds = await getEffectiveOrgIds();
     const PER_PAGE = 10;
     const skip = (page - 1) * PER_PAGE;
 
@@ -435,7 +485,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
     // ─── Pestaña Especial: Catálogo de Productos Importados desde Web ───────────
     if (tipoInventario === 'importado') {
         const prodWhere: any = {
-            organizationId: orgId,
+            organizationId: { in: orgIds },
             ...(origen && origen !== 'TODOS' && origen !== 'SIN_DEFINIR' && {
                 sku: { startsWith: origen }
             })
@@ -506,7 +556,7 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
     }
 
     const where: any = {
-        organizationId: orgId,
+        organizationId: { in: orgIds },
         esParaRenta: false,
         ...(area && { area }),
         ...(estatus && { estatusContable: estatus }),
@@ -613,9 +663,9 @@ export async function getActivos(page = 1, search = '', area = '', estatus = '',
 // ─── READ: Get all matching assets for export (without pagination) ────────────
 export async function getActivosForExport(search = '', area = '', estatus = '', origen = '', condicion = '', tipoInventario = 'real') {
     try {
-        const orgId = await getOrgId();
+        const orgIds = await getEffectiveOrgIds();
         const where = {
-            organizationId: orgId,
+            organizationId: { in: orgIds },
             esParaRenta: false,
             ...(area && { area }),
             ...(estatus && { estatusContable: estatus }),
@@ -679,11 +729,11 @@ export async function getActivosForExport(search = '', area = '', estatus = '', 
 }
 
 export async function getActivoStats(area?: string, tipoInventario = 'real') {
-    const orgId = await getOrgId();
+    const orgIds = await getEffectiveOrgIds();
     const { Prisma } = await import('@prisma/client');
 
     const totalImportadosWebCount = await prisma.producto.count({
-        where: { organizationId: orgId }
+        where: { organizationId: { in: orgIds } }
     });
 
     if (tipoInventario === 'importado') {
@@ -724,7 +774,7 @@ export async function getActivoStats(area?: string, tipoInventario = 'real') {
         WITH org_areas AS (
             SELECT COUNT(DISTINCT "area") as areas_count 
             FROM "activos_fijos" 
-            WHERE "organizationId" = ${orgId}::uuid ${filterSql}
+            WHERE "organizationId" = ANY(${orgIds}::uuid[]) ${filterSql}
             ${areaSql}
         )
         SELECT 
@@ -737,7 +787,7 @@ export async function getActivoStats(area?: string, tipoInventario = 'real') {
             COALESCE(COUNT(1) FILTER (WHERE "stock" <= 5 AND "estatusContable" = 'VIGENTE'), 0) as bajo_stock,
             (SELECT areas_count FROM org_areas)
         FROM "activos_fijos"
-        WHERE "organizationId" = ${orgId}::uuid ${filterSql}
+        WHERE "organizationId" = ANY(${orgIds}::uuid[]) ${filterSql}
         ${areaSql}
     `;
 
