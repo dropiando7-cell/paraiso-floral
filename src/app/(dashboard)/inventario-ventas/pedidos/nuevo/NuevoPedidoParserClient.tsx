@@ -30,9 +30,19 @@ import { ProductSmartAutocomplete, ProductCatalogItem } from '@/components/pedid
 import { ClientSmartAutocomplete, ClientCatalogItem } from '@/components/pedidos/ClientSmartAutocomplete';
 import { playSuccessChime } from '@/utils/audioAlerts';
 
+interface AssistantMember {
+  id: string;
+  nombre: string;
+  avatar?: string;
+  role?: string;
+  customRoleName?: string;
+  puesto?: string;
+  roleGroup?: string;
+}
+
 interface NuevoPedidoParserClientProps {
   dbUser: any;
-  assistants: { id: string; nombre: string; avatar?: string }[];
+  assistants: AssistantMember[];
   products: { id: string; nombre: string; sku: string; stockActual: number; precioVenta?: number }[];
   clients: { id: string; nombre: string; telefono: string; direccion: string }[];
 }
@@ -43,13 +53,13 @@ interface ParsedItem {
   mappedProductoId?: string; // Mapped product in DB
 }
 
-// Assigned Member Picker matching Tasks / Work Orders style (Image 1)
+// Assigned Member Picker matching Tasks / Work Orders style (Image 1) with Role Grouping
 function AssignedMemberPicker({
   assistants,
   selectedId,
   onSelect
 }: {
-  assistants: { id: string; nombre: string; avatar?: string }[];
+  assistants: AssistantMember[];
   selectedId: string;
   onSelect: (id: string) => void;
 }) {
@@ -70,8 +80,36 @@ function AssignedMemberPicker({
   }, []);
 
   const filteredMembers = assistants.filter(a =>
-    a.nombre.toLowerCase().includes(search.toLowerCase())
+    a.nombre.toLowerCase().includes(search.toLowerCase()) ||
+    (a.customRoleName && a.customRoleName.toLowerCase().includes(search.toLowerCase())) ||
+    (a.puesto && a.puesto.toLowerCase().includes(search.toLowerCase())) ||
+    (a.roleGroup && a.roleGroup.toLowerCase().includes(search.toLowerCase()))
   );
+
+  // Group filtered members by their roleGroup
+  const groupedMembers = filteredMembers.reduce((acc, member) => {
+    const group = member.roleGroup || 'OTROS MIEMBROS';
+    if (!acc[group]) {
+      acc[group] = [];
+    }
+    acc[group].push(member);
+    return acc;
+  }, {} as Record<string, AssistantMember[]>);
+
+  // Sort groups prioritizing AUXILIARES DE BODEGA first, then ADMINISTRACIÓN, etc.
+  const sortedGroupKeys = Object.keys(groupedMembers).sort((a, b) => {
+    const isAuxA = a.includes('AUXILIAR') || a.includes('BODEGA');
+    const isAuxB = b.includes('AUXILIAR') || b.includes('BODEGA');
+    if (isAuxA && !isAuxB) return -1;
+    if (!isAuxA && isAuxB) return 1;
+
+    const isAdminA = a.includes('ADMIN');
+    const isAdminB = b.includes('ADMIN');
+    if (isAdminA && !isAdminB) return -1;
+    if (!isAdminA && isAdminB) return 1;
+
+    return a.localeCompare(b);
+  });
 
   return (
     <div ref={dropdownRef} className="relative w-full">
@@ -118,49 +156,66 @@ function AssignedMemberPicker({
 
       {/* Floating Dropdown */}
       {isOpen && (
-        <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in slide-in-from-top-1 duration-150 max-h-60 flex flex-col">
+        <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl p-3 z-50 animate-in fade-in slide-in-from-top-1 duration-150 max-h-72 flex flex-col">
           <input
             type="text"
-            placeholder="Buscar miembro..."
+            placeholder="Buscar miembro o rol..."
             autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-indigo-500 mb-2 shrink-0 font-medium"
           />
-          <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1">
             {filteredMembers.length === 0 ? (
               <p className="text-xs text-slate-400 text-center py-3 italic font-medium">
                 No se encontraron miembros
               </p>
             ) : (
-              filteredMembers.map(m => {
-                const isSelected = m.id === selectedId;
-                const initials = m.nombre.slice(0, 2).toUpperCase();
-                return (
-                  <div
-                    key={m.id}
-                    onClick={() => {
-                      onSelect(isSelected ? '' : m.id);
-                      setIsOpen(false);
-                    }}
-                    className={`flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer transition-colors ${
-                      isSelected ? 'bg-indigo-50/70 text-indigo-800 font-bold' : 'hover:bg-slate-50 text-slate-700 font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-6 h-6 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-[9px] font-bold text-indigo-700 overflow-hidden shrink-0">
-                        {m.avatar ? (
-                          <img src={m.avatar} alt={m.nombre} className="w-full h-full object-cover" />
-                        ) : (
-                          <span>{initials}</span>
-                        )}
-                      </div>
-                      <span className="truncate">{m.nombre}</span>
-                    </div>
-                    {isSelected && <Check className="w-4 h-4 text-blue-600 shrink-0 stroke-[2.5]" />}
+              sortedGroupKeys.map(groupName => (
+                <div key={groupName} className="space-y-1">
+                  <div className="text-[10px] font-black text-slate-400 uppercase tracking-wider px-2 pt-1 pb-0.5 flex items-center justify-between border-b border-slate-100">
+                    <span>{groupName}</span>
+                    <span className="text-[9px] text-slate-400 font-bold bg-slate-100 px-1.5 py-0.2 rounded">
+                      {groupedMembers[groupName].length}
+                    </span>
                   </div>
-                );
-              })
+                  {groupedMembers[groupName].map(m => {
+                    const isSelected = m.id === selectedId;
+                    const initials = m.nombre.slice(0, 2).toUpperCase();
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => {
+                          onSelect(isSelected ? '' : m.id);
+                          setIsOpen(false);
+                        }}
+                        className={`flex items-center justify-between p-2 rounded-xl text-xs cursor-pointer transition-colors ${
+                          isSelected ? 'bg-indigo-50/70 text-indigo-800 font-bold' : 'hover:bg-slate-50 text-slate-700 font-medium'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          <div className="w-6 h-6 rounded-full bg-indigo-100 border border-indigo-200 flex items-center justify-center text-[9px] font-bold text-indigo-700 overflow-hidden shrink-0">
+                            {m.avatar ? (
+                              <img src={m.avatar} alt={m.nombre} className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{initials}</span>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <span className="truncate block font-semibold leading-tight">{m.nombre}</span>
+                            {(m.customRoleName || m.puesto) && (
+                              <span className="text-[10px] text-slate-400 font-normal block truncate">
+                                {m.customRoleName || m.puesto}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {isSelected && <Check className="w-4 h-4 text-blue-600 shrink-0 stroke-[2.5]" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))
             )}
           </div>
         </div>

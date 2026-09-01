@@ -132,30 +132,57 @@ export async function getPedidoById(id: string) {
   }
 }
 
-// Get active warehouse assistants
+// Get active warehouse assistants & team members grouped by role
 export async function getAuxiliares() {
   try {
     const dbUser = await getDbUser();
     const users = await prisma.user.findMany({
       where: {
         organizationId: dbUser.organizationId,
-        role: { in: ['AUXILIAR_BODEGA', 'SUPER_ADMIN', 'ORG_ADMIN', 'USER'] }
       },
       select: {
         id: true,
         nombre: true,
         apellido: true,
         avatarUrl: true,
-        role: true
-      }
+        role: true,
+        customRoleName: true,
+        puesto: true
+      },
+      orderBy: [
+        { role: 'asc' },
+        { nombre: 'asc' }
+      ]
     });
 
-    return users.map(u => ({
-      id: u.id,
-      nombre: `${u.nombre || ''} ${u.apellido || ''}`.trim() || 'Auxiliar sin nombre',
-      avatar: u.avatarUrl || undefined,
-      role: u.role
-    }));
+    return users.map(u => {
+      let roleGroup = 'Otros Miembros';
+      if (u.customRoleName) {
+        roleGroup = u.customRoleName.toUpperCase();
+      } else if (u.role === 'AUXILIAR_BODEGA') {
+        roleGroup = 'AUXILIARES DE BODEGA';
+      } else if (u.role === 'SUPER_ADMIN' || u.role === 'ORG_ADMIN') {
+        roleGroup = 'ADMINISTRACIÓN';
+      } else if (u.role === 'USER') {
+        roleGroup = 'USUARIOS / VENTAS';
+      } else if (u.role === 'GERENTE') {
+        roleGroup = 'GERENCIA';
+      } else if (u.role === 'TECNICO') {
+        roleGroup = 'TÉCNICOS';
+      } else if (u.role === 'RECEPCION') {
+        roleGroup = 'RECEPCIÓN';
+      }
+
+      return {
+        id: u.id,
+        nombre: `${u.nombre || ''} ${u.apellido || ''}`.trim() || 'Sin nombre',
+        avatar: u.avatarUrl || undefined,
+        role: u.role,
+        customRoleName: u.customRoleName || undefined,
+        puesto: u.puesto || undefined,
+        roleGroup
+      };
+    });
   } catch (error) {
     console.error('Error en getAuxiliares:', error);
     return [];

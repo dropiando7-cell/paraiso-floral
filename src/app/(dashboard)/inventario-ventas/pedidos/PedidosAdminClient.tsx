@@ -29,10 +29,20 @@ import { VoiceOrderAssistantModal, FloatingVoiceOrderButton } from '@/components
 import { ProductSmartAutocomplete } from '@/components/pedidos/ProductSmartAutocomplete';
 import { playSuccessChime } from '@/utils/audioAlerts';
 
+interface AssistantMember {
+  id: string;
+  nombre: string;
+  avatar?: string;
+  role?: string;
+  customRoleName?: string;
+  puesto?: string;
+  roleGroup?: string;
+}
+
 interface PedidosAdminClientProps {
   dbUser: any;
   initialPedidos: Pedido[];
-  assistants: { id: string; nombre: string; avatar?: string; role: string }[];
+  assistants: AssistantMember[];
   products?: { id: string; nombre: string; sku: string; stockActual: number; precioVenta?: number }[];
 }
 
@@ -46,6 +56,30 @@ export default function PedidosAdminClient({
   const [filterTab, setFilterTab] = useState<'todos' | 'pendiente' | 'en_preparacion' | 'completado'>('todos');
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingId, setLoadingId] = useState<string | null>(null);
+
+  const userModules = dbUser?.accessibleModules || [];
+  const isSuperOrOrgAdmin = dbUser?.role === 'SUPER_ADMIN' || dbUser?.role === 'ORG_ADMIN';
+  
+  const canCreateOrders = isSuperOrOrgAdmin || 
+    userModules.includes('/inventario-ventas/pedidos/nuevo') || 
+    userModules.includes('crear_pedidos') ||
+    (!userModules.includes('/inventario-ventas/pedidos/preparar') && userModules.includes('/inventario-ventas/pedidos'));
+
+  // Group assistants by roleGroup
+  const groupedAssistants = assistants.reduce((acc, a) => {
+    const group = a.roleGroup || (a.role === 'AUXILIAR_BODEGA' ? 'AUXILIARES DE BODEGA' : 'ADMINISTRACIÓN');
+    if (!acc[group]) acc[group] = [];
+    acc[group].push(a);
+    return acc;
+  }, {} as Record<string, AssistantMember[]>);
+
+  const sortedGroupKeys = Object.keys(groupedAssistants).sort((a, b) => {
+    const isAuxA = a.includes('AUXILIAR') || a.includes('BODEGA');
+    const isAuxB = b.includes('AUXILIAR') || b.includes('BODEGA');
+    if (isAuxA && !isAuxB) return -1;
+    if (!isAuxA && isAuxB) return 1;
+    return a.localeCompare(b);
+  });
 
   // Voice Assistant Modal state
   const [isVoiceModalOpen, setIsVoiceModalOpen] = useState(false);
@@ -258,25 +292,27 @@ export default function PedidosAdminClient({
           </div>
         </div>
         
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* Voice AI Assistant Trigger */}
-          <button
-            onClick={() => setIsVoiceModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
-          >
-            <Mic className="w-4 h-4" />
-            <span>Dictar por Voz (IA)</span>
-          </button>
+        {canCreateOrders && (
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Voice AI Assistant Trigger */}
+            <button
+              onClick={() => setIsVoiceModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-md shadow-blue-500/20 transition-all hover:scale-[1.01] active:scale-[0.99] cursor-pointer"
+            >
+              <Mic className="w-4 h-4" />
+              <span>Dictar por Voz (IA)</span>
+            </button>
 
-          {/* New Order Link */}
-          <Link
-            href="/inventario-ventas/pedidos/nuevo"
-            className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Nuevo Pedido</span>
-          </Link>
-        </div>
+            {/* New Order Link */}
+            <Link
+              href="/inventario-ventas/pedidos/nuevo"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-sm shadow-md shadow-emerald-500/20 transition-all hover:scale-[1.01] active:scale-[0.99]"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Nuevo Pedido</span>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Filters and search */}
@@ -390,13 +426,17 @@ export default function PedidosAdminClient({
                       value={pedido.auxiliarAsignado?.id || ''}
                       onChange={(e) => handleAssignAssistant(pedido.id, e.target.value)}
                       disabled={isCompleted}
-                      className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500 disabled:opacity-60"
+                      className="w-full text-xs font-semibold bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-slate-800 focus:outline-none focus:border-emerald-500 disabled:opacity-60 cursor-pointer"
                     >
                       <option value="">-- Sin asignar --</option>
-                      {assistants.map(assistant => (
-                        <option key={assistant.id} value={assistant.id}>
-                          {assistant.nombre} ({assistant.role === 'AUXILIAR_BODEGA' ? 'Bodega' : 'Personal'})
-                        </option>
+                      {sortedGroupKeys.map(groupName => (
+                        <optgroup key={groupName} label={groupName}>
+                          {groupedAssistants[groupName].map(assistant => (
+                            <option key={assistant.id} value={assistant.id}>
+                              {assistant.nombre}
+                            </option>
+                          ))}
+                        </optgroup>
                       ))}
                     </select>
                   </div>

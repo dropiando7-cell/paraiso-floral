@@ -25,6 +25,17 @@ async function NuevoPedidoPage() {
     redirect('/unauthorized');
   }
 
+  // If user is restricted to only preparing orders, redirect them to the orders list
+  if (dbUser.role !== 'SUPER_ADMIN' && dbUser.role !== 'ORG_ADMIN') {
+    const allowed = dbUser.accessibleModules || [];
+    const canCreate = allowed.includes('/inventario-ventas/pedidos/nuevo') || 
+                      allowed.includes('crear_pedidos') || 
+                      (!allowed.includes('/inventario-ventas/pedidos/preparar') && allowed.includes('/inventario-ventas/pedidos'));
+    if (!canCreate) {
+      redirect('/inventario-ventas/pedidos');
+    }
+  }
+
   // Fetch data
   const assistants = await getAuxiliares();
   const products = await getCediProductos();
