@@ -3485,7 +3485,11 @@ export default function DocumentBuilderClient({
   const nClientSearch = normalizeText(clientSearch);
   const filteredClients = allClients.filter(c =>
     normalizeText(c.name).includes(nClientSearch) ||
-    normalizeText(c.rtn).includes(nClientSearch)
+    normalizeText(c.rtn).includes(nClientSearch) ||
+    normalizeText(c.phone || '').includes(nClientSearch) ||
+    normalizeText(c.nombreContacto || '').includes(nClientSearch) ||
+    normalizeText(c.address || '').includes(nClientSearch) ||
+    normalizeText(c.email || '').includes(nClientSearch)
   );
 
   const handleCreateClient = async () => {

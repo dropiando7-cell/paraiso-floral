@@ -71,10 +71,14 @@ export async function searchClientes(query: string = "") {
                         { nombre: { contains: queryTrim, mode: 'insensitive' } },
                         { rtn: { contains: queryTrim, mode: 'insensitive' } },
                         { telefono: { contains: queryTrim, mode: 'insensitive' } },
+                        { nombreContacto: { contains: queryTrim, mode: 'insensitive' } },
+                        { direccion: { contains: queryTrim, mode: 'insensitive' } },
+                        { departamento: { contains: queryTrim, mode: 'insensitive' } },
+                        { email: { contains: queryTrim, mode: 'insensitive' } },
                     ]
                 } : {})
             },
-            take: 100,
+            take: queryTrim ? 200 : 1000,
             orderBy: { nombre: 'asc' }
         });
 
