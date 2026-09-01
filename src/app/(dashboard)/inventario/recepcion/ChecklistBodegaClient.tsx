@@ -1147,8 +1147,8 @@ export default function ChecklistBodegaClient({
                                                         : 'bg-white border-slate-200 hover:border-slate-300 shadow-2xs'
                                                 }`}
                                             >
-                                                {/* Fila Horizontal en 1 Sola Línea (Sin Solapamiento) */}
-                                                <div className="flex items-center justify-between gap-2.5 sm:gap-3">
+                                                {/* Fila Responsiva Adaptable (Sin Solapamiento en MacBooks de 14" y Tablets) */}
+                                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 sm:gap-3">
                                                     {/* Izquierda: Checkbox + Nombre y QR/Cultivo */}
                                                     <div className="flex items-center gap-2.5 flex-1 min-w-0">
                                                         <button
@@ -1203,8 +1203,8 @@ export default function ChecklistBodegaClient({
                                                         </div>
                                                     </div>
 
-                                                    {/* Derecha: Campo Código de Barra con Botón Cámara + Cantidad y Daño (Siempre Inline en 1 Línea) */}
-                                                    <div className="flex items-center gap-2 shrink-0">
+                                                    {/* Derecha: Campo Código de Barra con Botón Cámara + Cantidad y Daño */}
+                                                    <div className="flex items-center gap-2 shrink-0 flex-wrap sm:flex-nowrap pt-1 lg:pt-0 border-t border-slate-100 lg:border-t-0">
                                                         {/* Campo Código de Barra + Botón Cámara */}
                                                         <div className="flex items-center gap-1 bg-white border border-slate-300 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-500/20 px-2 py-1 rounded-xl shadow-2xs transition-all">
                                                             <span className="text-[10px] sm:text-xs text-slate-500 font-bold uppercase shrink-0">Cód:</span>
@@ -1222,7 +1222,7 @@ export default function ChecklistBodegaClient({
                                                                 onBlur={() => {
                                                                     handleCambiarCodigoBarras(item, item.codigoBarras || '', true);
                                                                 }}
-                                                                className="w-24 sm:w-36 md:w-44 bg-transparent text-xs sm:text-sm font-bold font-mono text-slate-800 focus:outline-none placeholder:text-slate-300"
+                                                                className="w-20 sm:w-28 md:w-36 bg-transparent text-xs sm:text-sm font-bold font-mono text-slate-800 focus:outline-none placeholder:text-slate-300"
                                                             />
                                                             
                                                             {/* Botón Escanear con Cámara */}
