@@ -15,6 +15,9 @@ interface ProductSmartAutocompleteProps {
   products: ProductCatalogItem[];
   selectedProductId?: string;
   onSelect: (product: ProductCatalogItem | null) => void;
+  onSelectSuccess?: () => void;
+  onCtrlEnter?: () => void;
+  autoFocus?: boolean;
   placeholder?: string;
   isInvalid?: boolean;
   disabled?: boolean;
@@ -24,6 +27,9 @@ export function ProductSmartAutocomplete({
   products,
   selectedProductId,
   onSelect,
+  onSelectSuccess,
+  onCtrlEnter,
+  autoFocus = false,
   placeholder = 'Buscar flor o producto por nombre o SKU...',
   isInvalid = false,
   disabled = false
@@ -34,6 +40,12 @@ export function ProductSmartAutocomplete({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (autoFocus && !selectedProductId) {
+      inputRef.current?.focus();
+    }
+  }, [autoFocus, selectedProductId]);
 
   // Find currently selected product
   const selectedProduct = products.find(p => p.id === selectedProductId) || null;
@@ -62,6 +74,12 @@ export function ProductSmartAutocomplete({
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      onCtrlEnter?.();
+      return;
+    }
+
     if (!isOpen) {
       if (e.key === 'ArrowDown' || e.key === 'Enter') {
         setIsOpen(true);
@@ -89,6 +107,7 @@ export function ProductSmartAutocomplete({
     onSelect(prod);
     setQuery('');
     setIsOpen(false);
+    onSelectSuccess?.();
   };
 
   const handleClear = () => {
