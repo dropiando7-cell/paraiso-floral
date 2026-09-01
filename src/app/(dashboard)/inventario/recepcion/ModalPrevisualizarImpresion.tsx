@@ -23,6 +23,7 @@ export interface ItemPrevisualizacion {
     idQr: string;
     codigoBarras: string;
     cantidad: number;
+    cantidadStr?: string;
     activoFijoId?: string;
 }
 
@@ -252,9 +253,16 @@ export default function ModalPrevisualizarImpresion({
                                                     type="number"
                                                     min={0}
                                                     max={500}
-                                                    value={item.cantidad}
-                                                    onChange={(e) => handleCantidadChange(idx, parseInt(e.target.value, 10) || 0)}
-                                                    className="w-12 bg-white border border-slate-300 rounded-lg text-center text-xs font-black py-1 text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                                    value={item.cantidadStr !== undefined ? item.cantidadStr : item.cantidad}
+                                                    onChange={(e) => {
+                                                        const raw = e.target.value;
+                                                        const val = raw === '' ? 0 : (parseInt(raw, 10) || 0);
+                                                        setItems(prev => prev.map((it, i) => i === idx ? { ...it, cantidad: val, cantidadStr: raw } : it));
+                                                    }}
+                                                    onBlur={() => {
+                                                        setItems(prev => prev.map((it, i) => i === idx ? { ...it, cantidadStr: String(it.cantidad) } : it));
+                                                    }}
+                                                    className="w-16 bg-white border-2 border-slate-300 rounded-xl text-center text-sm font-black py-1 px-2 text-slate-900 focus:ring-2 focus:ring-indigo-500 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                                                 />
                                             </div>
                                         </div>

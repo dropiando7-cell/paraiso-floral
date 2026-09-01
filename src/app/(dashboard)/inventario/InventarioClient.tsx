@@ -68,7 +68,7 @@ function DebouncedInput({
 
 // ─── Preview Etiqueta Modal ───────────────────────────────────────────────────
 function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo: Activo; onClose: () => void; onPrint: (cantidad: number, size: string, impresora: string) => void; isPrinting: boolean }) {
-    const [cantidad, setCantidad] = useState(1);
+    const [cantidadStr, setCantidadStr] = useState('1');
     const [size, setSize] = useState('50x25');
     const [impresora, setImpresora] = useState('Niimbot');
 
@@ -77,6 +77,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
         if (saved) {
             setImpresora(saved);
         }
+        setCantidadStr('1');
     }, []);
 
     const handlePrinterChange = (newPrinter: string) => {
@@ -100,6 +101,8 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
     searchParams.set('size', size);
     const url = `/api/impresion/generar-etiqueta?${searchParams.toString()}`;
 
+    const cantidadFinal = Math.max(1, parseInt(cantidadStr, 10) || 1);
+
     return (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="bg-white rounded-2xl shadow-2xl p-6 relative max-w-lg w-full">
@@ -117,10 +120,16 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                         <input 
                             type="number" 
                             min="1" 
-                            max="100" 
-                            value={cantidad} 
-                            onChange={(e) => setCantidad(Number(e.target.value) || 1)}
-                            className="w-20 text-center font-bold font-mono py-1.5 px-2 rounded-lg border-slate-300 focus:ring-blue-500"
+                            max="500" 
+                            value={cantidadStr} 
+                            onChange={(e) => setCantidadStr(e.target.value)}
+                            onBlur={() => {
+                                if (!cantidadStr || parseInt(cantidadStr, 10) < 1) {
+                                    setCantidadStr('1');
+                                }
+                            }}
+                            placeholder="1"
+                            className="w-24 text-center font-black text-lg py-2 px-3 rounded-xl border-2 border-slate-300 focus:border-[#0500A3] focus:ring-2 focus:ring-blue-100 outline-none text-slate-900 shadow-2xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         />
                     </div>
                     <div className="flex items-center justify-between border-t border-slate-200 pt-3">
@@ -154,7 +163,7 @@ function PreviewEtiquetaModal({ activo, onClose, onPrint, isPrinting }: { activo
                 </div>
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 font-semibold border-2 border-slate-200 text-slate-600 py-3 rounded-xl hover:bg-slate-50 active:scale-95 transition-all">Cancelar</button>
-                    <button onClick={() => { onPrint(cantidad, size, impresora); onClose(); }} disabled={isPrinting} className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#0500A3] text-white hover:bg-[#0600c2] font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
+                    <button onClick={() => { onPrint(cantidadFinal, size, impresora); onClose(); }} disabled={isPrinting} className="flex-[2] flex items-center justify-center gap-2 py-3 bg-[#0500A3] text-white hover:bg-[#0600c2] font-bold rounded-xl active:scale-95 transition-all disabled:opacity-70">
                         {isPrinting ? <Loader2 className="w-5 h-5 animate-spin"/> : <Printer className="w-5 h-5" />} Enviar a Impresora
                     </button>
                 </div>
