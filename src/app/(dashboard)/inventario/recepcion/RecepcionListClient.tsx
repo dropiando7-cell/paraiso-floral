@@ -58,19 +58,11 @@ export default function RecepcionListClient({ lotes }: { lotes: LoteItem[] }) {
         return coincideEnvio || coincideProveedor || coincideProducto;
     });
 
-    // Si está buscando, por defecto busca en TODOS los proveedores, pero si el usuario selecciona una pestaña específica, respeta la pestaña
-    const listadoActual = listadoFiltradoGlobal.filter(l => {
-        if (!estaBuscando) {
-            return tabActiva === 'pendientes' 
-                ? (l.estado !== 'COMPLETADO' && l.estado !== 'INGRESADO_CEDI' && l.porcentaje < 100)
-                : (l.estado === 'COMPLETADO' || l.estado === 'INGRESADO_CEDI' || l.porcentaje === 100);
-        }
-
-        if (tabActiva === 'todos') return true;
-        if (tabActiva === 'pendientes') return l.estado !== 'COMPLETADO' && l.estado !== 'INGRESADO_CEDI' && l.porcentaje < 100;
-        if (tabActiva === 'ingresados') return l.estado === 'COMPLETADO' || l.estado === 'INGRESADO_CEDI' || l.porcentaje === 100;
-        return true;
-    });
+    // Cuando el usuario escribe en el buscador, busca en TODOS los lotes (pendientes e ingresados al CEDI)
+    // para asegurar que siempre encuentre el packing list sin importar la pestaña activa.
+    const listadoActual = estaBuscando 
+        ? listadoFiltradoGlobal 
+        : (tabActiva === 'pendientes' ? lotesPendientes : lotesIngresados);
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8 font-sans">
