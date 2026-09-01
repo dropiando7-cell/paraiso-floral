@@ -48,12 +48,17 @@ export function VoiceOrderAssistantModal({
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+  const speechRecognitionRef = useRef<any>(null);
+  const liveTranscriptRef = useRef<string>('');
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Clean timer on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (speechRecognitionRef.current) {
+        try { speechRecognitionRef.current.stop(); } catch (e) {}
+      }
       if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
         mediaRecorderRef.current.stop();
       }
@@ -68,6 +73,7 @@ export function VoiceOrderAssistantModal({
       setRecordingSeconds(0);
       setIsRecording(false);
       setIsProcessing(false);
+      liveTranscriptRef.current = '';
     }
   }, [isOpen]);
 
@@ -76,6 +82,30 @@ export function VoiceOrderAssistantModal({
     setErrorMessage(null);
     setParsedData(null);
     audioChunksRef.current = [];
+    liveTranscriptRef.current = '';
+
+    // 1. Try starting native client-side speech recognition for $0.00 free transcription
+    if (typeof window !== 'undefined' && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+      try {
+        const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'es-HN';
+        recognition.onresult = (event: any) => {
+          let fullText = '';
+          for (let i = 0; i < event.results.length; i++) {
+            fullText += event.results[i][0].transcript + ' ';
+          }
+          liveTranscriptRef.current = fullText.trim();
+        };
+        recognition.onerror = () => {};
+        recognition.start();
+        speechRecognitionRef.current = recognition;
+      } catch (e) {
+        console.warn('SpeechRecognition no inicializado:', e);
+      }
+    }
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -145,6 +175,12 @@ export function VoiceOrderAssistantModal({
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    if (speechRecognitionRef.current) {
+      try {
+        speechRecognitionRef.current.stop();
+      } catch (e) {}
+      speechRecognitionRef.current = null;
+    }
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
@@ -152,13 +188,17 @@ export function VoiceOrderAssistantModal({
     }
   };
 
-  // Process audio with backend Gemini 2.5 route
+  // Process audio with backend Gemini route (optimized for ultra-low cost)
   const processAudio = async (blob: Blob) => {
     setIsProcessing(true);
     setErrorMessage(null);
 
     try {
       const formData = new FormData();
+      // If client speech-to-text captured transcription, send text to reduce API tokens to near zero
+      if (liveTranscriptRef.current && liveTranscriptRef.current.trim().length > 3) {
+        formData.append('transcriptionText', liveTranscriptRef.current.trim());
+      }
       formData.append('audio', blob, 'order_audio.webm');
 
       const resp = await fetch('/api/pedidos/voice-ai', {

@@ -27,23 +27,28 @@ export async function POST(req: NextRequest) {
     let base64Audio = '';
     let mimeType = 'audio/webm';
 
+    let transcriptionText = '';
     const contentType = req.headers.get('content-type') || '';
 
     if (contentType.includes('multipart/form-data')) {
       const formData = await req.formData();
       const audioFile = formData.get('audio') as File | null;
-      if (!audioFile) {
-        return NextResponse.json({ error: 'No se recibió ningún archivo de audio' }, { status: 400 });
+      transcriptionText = (formData.get('transcriptionText') as string) || '';
+      if (!audioFile && !transcriptionText) {
+        return NextResponse.json({ error: 'No se recibió ningún archivo de audio ni texto' }, { status: 400 });
       }
-      const buffer = Buffer.from(await audioFile.arrayBuffer());
-      base64Audio = buffer.toString('base64');
-      mimeType = audioFile.type || 'audio/webm';
+      if (audioFile) {
+        const buffer = Buffer.from(await audioFile.arrayBuffer());
+        base64Audio = buffer.toString('base64');
+        mimeType = audioFile.type || 'audio/webm';
+      }
     } else {
       const body = await req.json();
-      if (!body.audioBase64) {
-        return NextResponse.json({ error: 'Se requiere audioBase64' }, { status: 400 });
+      transcriptionText = body.transcriptionText || body.text || '';
+      if (!body.audioBase64 && !transcriptionText) {
+        return NextResponse.json({ error: 'Se requiere audioBase64 o transcriptionText' }, { status: 400 });
       }
-      base64Audio = body.audioBase64;
+      base64Audio = body.audioBase64 || '';
       mimeType = body.mimeType || 'audio/webm';
     }
 
@@ -85,24 +90,31 @@ Instrucciones de extracción JSON:
 Devuelve estrictamente el JSON sin texto adicional.
 `;
 
-    // 3. Call Gemini with resilient model fallback
-    const candidateModels = ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.0-flash'];
+    // 3. Call Gemini with ultra-light Flash models (NEVER Pro models to ensure lowest micro-cost)
+    const candidateModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-2.5-flash'];
     let response: any = null;
     let lastError: any = null;
+
+    // Content payload: prioritize pure text if available (virtually $0.000003 USD), or lightweight audio
+    const contents: any[] = transcriptionText
+      ? [
+          `Interpreta y extrae los datos del pedido dictado a partir de este texto transcrito: "${transcriptionText}"`
+        ]
+      : [
+          {
+            inlineData: {
+              mimeType: cleanMimeType,
+              data: base64Audio
+            }
+          },
+          "Escucha este audio y extrae el pedido completo según las instrucciones del sistema."
+        ];
 
     for (const modelName of candidateModels) {
       try {
         response = await genai.models.generateContent({
           model: modelName,
-          contents: [
-            {
-              inlineData: {
-                mimeType: cleanMimeType,
-                data: base64Audio
-              }
-            },
-            "Escucha este audio y extrae el pedido completo según las instrucciones del sistema."
-          ],
+          contents,
           config: {
             systemInstruction,
             responseMimeType: 'application/json',
