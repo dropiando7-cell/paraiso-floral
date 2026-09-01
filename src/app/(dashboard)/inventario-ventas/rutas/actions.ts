@@ -877,12 +877,22 @@ export async function getCediProductos() {
   try {
     const user = await getUserOrg();
     const orgId = user?.organizationId;
-    if (!orgId) return getMockProductos();
+    
+    let dbProducts: any[] = [];
+    if (orgId) {
+      dbProducts = await prisma.producto.findMany({
+        where: { organizationId: orgId, estado: 'ACTIVO' },
+        orderBy: { nombre: 'asc' }
+      });
+    }
 
-    const dbProducts = await prisma.producto.findMany({
-      where: { organizationId: orgId, estado: 'ACTIVO' },
-      orderBy: { nombre: 'asc' }
-    });
+    // If current org has no products (e.g. HonduFlores route using Paraíso Floral CEDI), fallback to all active CEDI products
+    if (dbProducts.length === 0) {
+      dbProducts = await prisma.producto.findMany({
+        where: { estado: 'ACTIVO' },
+        orderBy: { nombre: 'asc' }
+      });
+    }
 
     if (dbProducts.length === 0) return getMockProductos();
     return dbProducts.map(p => ({
@@ -903,12 +913,21 @@ export async function getCediClientes() {
   try {
     const user = await getUserOrg();
     const orgId = user?.organizationId;
-    if (!orgId) return getMockClientes();
 
-    const dbClients = await prisma.cliente.findMany({
-      where: { organizationId: orgId },
-      orderBy: { nombre: 'asc' }
-    });
+    let dbClients: any[] = [];
+    if (orgId) {
+      dbClients = await prisma.cliente.findMany({
+        where: { organizationId: orgId },
+        orderBy: { nombre: 'asc' }
+      });
+    }
+
+    // Fallback to shared clients directory if org has no separate clients yet
+    if (dbClients.length === 0) {
+      dbClients = await prisma.cliente.findMany({
+        orderBy: { nombre: 'asc' }
+      });
+    }
 
     if (dbClients.length === 0) return getMockClientes();
     return dbClients.map(c => ({
