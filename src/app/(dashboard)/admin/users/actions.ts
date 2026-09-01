@@ -229,11 +229,12 @@ export async function deleteUser(id: string) {
             let authUserIdToDelete = null;
             let hasMore = true;
 
+            const targetEmail = targetUser.email.trim().toLowerCase();
             while (hasMore) {
                 const { data: { users }, error: listError } = await adminAuthClient.auth.admin.listUsers({ page, perPage: 100 });
                 if (listError || !users) break;
 
-                const found = users.find(u => u.email === targetUser.email);
+                const found = users.find(u => u.email?.trim().toLowerCase() === targetEmail);
                 if (found) {
                     authUserIdToDelete = found.id;
                     break;
@@ -367,11 +368,12 @@ export async function editUser(
                 let page = 1;
                 let authUserIdToUpdate = null;
                 let hasMore = true;
+                const targetEmail = updatedUser.email.trim().toLowerCase();
                 while (hasMore) {
                     const { data: { users }, error: listError } = await adminAuthClient.auth.admin.listUsers({ page, perPage: 100 });
                     if (listError || !users) break;
 
-                    const found = users.find(u => u.email === updatedUser.email);
+                    const found = users.find(u => u.email?.trim().toLowerCase() === targetEmail);
                     if (found) {
                         authUserIdToUpdate = found.id;
                         break;
@@ -395,7 +397,21 @@ export async function editUser(
                         return { success: false, error: 'Error al cambiar la contraseña en el sistema de seguridad: ' + updateAuthError.message };
                     }
                 } else if (data.password) {
-                    return { success: false, error: 'No se encontró el perfil de seguridad del usuario para actualizar la contraseña.' };
+                    // Auto-crear el usuario en Supabase Auth si aún no existe en el sistema de autenticación
+                    const fullName = `${data.nombre || ''} ${data.apellido || ''}`.trim();
+                    const { error: createAuthError } = await adminAuthClient.auth.admin.createUser({
+                        email: targetEmail,
+                        password: data.password,
+                        email_confirm: true,
+                        user_metadata: {
+                            full_name: fullName || undefined
+                        }
+                    });
+
+                    if (createAuthError) {
+                        console.error('Error creando perfil en Supabase Auth al asignar contraseña:', createAuthError);
+                        return { success: false, error: 'No se pudo crear el perfil de autenticación del usuario: ' + createAuthError.message };
+                    }
                 }
             } catch (authErr: any) {
                 console.error('Error updating auth metadata/password in editUser server action:', authErr);
@@ -634,11 +650,12 @@ export async function sendManualWelcomeEmail(userId: string) {
         let authTargetUser = null;
         let hasMore = true;
 
+        const targetEmail = targetUser.email.trim().toLowerCase();
         while (hasMore) {
             const { data: { users }, error: listError } = await adminAuthClient.auth.admin.listUsers({ page, perPage: 100 });
             if (listError || !users) break;
 
-            const found = users.find(u => u.email === targetUser.email);
+            const found = users.find(u => u.email?.trim().toLowerCase() === targetEmail);
             if (found) {
                 authTargetUser = found;
                 break;
@@ -648,7 +665,18 @@ export async function sendManualWelcomeEmail(userId: string) {
         }
 
         if (!authTargetUser) {
-            return { success: false, error: 'Usuario no encontrado en el sistema de autenticación.' };
+            // Si el usuario existe en BD pero aún no en Auth, lo creamos automáticamente
+            const initialPassword = Math.random().toString(36).slice(-8) + 'A1!';
+            const { data: newAuthData, error: createError } = await adminAuthClient.auth.admin.createUser({
+                email: targetEmail,
+                password: initialPassword,
+                email_confirm: true,
+            });
+
+            if (createError || !newAuthData.user) {
+                return { success: false, error: 'No se encontró el perfil de autenticación y ocurrió un error al crearlo: ' + (createError?.message || 'Error desconocido') };
+            }
+            authTargetUser = newAuthData.user;
         }
 
         const isGoogle = authTargetUser.app_metadata?.providers?.includes('google');
